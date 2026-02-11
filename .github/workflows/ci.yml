@@ -11,6 +11,9 @@ permissions:
 jobs:
   python:
     runs-on: ubuntu-latest
+    outputs:
+      coverage_percent: ${{ steps.python_coverage.outputs.percentage }}
+      coverage_color: ${{ steps.python_coverage.outputs.color }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,18 +35,20 @@ jobs:
           ruff check .
           pytest --cov=taskulus --cov-report=xml
 
+      - name: Capture Python coverage
+        id: python_coverage
+        run: |
+          output=$(python tools/coverage_badge.py python/coverage.xml)
+          echo "$output" >> "$GITHUB_OUTPUT"
+
       - name: Check spec parity
         run: python tools/check_spec_parity.py
 
-      - name: Upload Python coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: python/coverage.xml
-          flags: python
-          fail_ci_if_error: false
-
   rust:
     runs-on: ubuntu-latest
+    outputs:
+      coverage_percent: ${{ steps.rust_coverage.outputs.percentage }}
+      coverage_color: ${{ steps.rust_coverage.outputs.color }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -68,12 +73,11 @@ jobs:
           cd rust
           cargo tarpaulin --out Xml --output-dir ../coverage-rust
 
-      - name: Upload Rust coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage-rust/cobertura.xml
-          flags: rust
-          fail_ci_if_error: false
+      - name: Capture Rust coverage
+        id: rust_coverage
+        run: |
+          output=$(python tools/coverage_badge.py coverage-rust/cobertura.xml)
+          echo "$output" >> "$GITHUB_OUTPUT"
 
   badges:
     needs: [python, rust]
@@ -94,6 +98,14 @@ jobs:
           color: ${{ needs.python.result == 'success' && 'green' || 'red' }}
           path: badges/python-ci.svg
 
+      - name: Build Python coverage badge
+        uses: emibcn/badge-action@v2
+        with:
+          label: coverage
+          status: ${{ needs.python.outputs.coverage_percent }}%
+          color: ${{ needs.python.outputs.coverage_color }}
+          path: badges/python-coverage.svg
+
       - name: Build Rust CI badge
         uses: emibcn/badge-action@v2
         with:
@@ -101,6 +113,14 @@ jobs:
           status: ${{ needs.rust.result == 'success' && 'passing' || 'failing' }}
           color: ${{ needs.rust.result == 'success' && 'green' || 'red' }}
           path: badges/rust-ci.svg
+
+      - name: Build Rust coverage badge
+        uses: emibcn/badge-action@v2
+        with:
+          label: coverage
+          status: ${{ needs.rust.outputs.coverage_percent }}%
+          color: ${{ needs.rust.outputs.coverage_color }}
+          path: badges/rust-coverage.svg
 
       - name: Publish badges branch
         uses: peaceiris/actions-gh-pages@v4
