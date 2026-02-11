@@ -78,12 +78,17 @@ def search_issues(issues: Iterable[IssueData], term: str | None) -> List[IssueDa
         return list(issues)
     lowered = term.lower()
     matches: List[IssueData] = []
+    seen: set[str] = set()
     for issue in issues:
         if lowered in issue.title.lower() or lowered in issue.description.lower():
-            matches.append(issue)
+            if issue.identifier not in seen:
+                matches.append(issue)
+                seen.add(issue.identifier)
             continue
         for comment in issue.comments:
             if lowered in comment.text.lower():
-                matches.append(issue)
+                if issue.identifier not in seen:
+                    matches.append(issue)
+                    seen.add(issue.identifier)
                 break
     return matches
