@@ -13,6 +13,7 @@ dependencies = [
     "jinja2",
     "pydantic",
     "pyyaml",
+    "pydantic-settings",
     "pytest",
     "pytest-bdd",
     "pytest-cov",
