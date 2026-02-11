@@ -55,9 +55,8 @@ pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex,
 
     for entry in json_entries {
         let path = entry.path();
-        let contents =
-            fs::read_to_string(&path).map_err(|error| TaskulusError::Io(error.to_string()))?;
-        let issue: IssueData = serde_json::from_str(&contents)
+        let contents = fs::read(&path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let issue: IssueData = serde_json::from_slice(&contents)
             .map_err(|error| TaskulusError::Io(error.to_string()))?;
 
         index.by_id.insert(issue.identifier.clone(), issue.clone());
