@@ -33,18 +33,17 @@ pub fn collect_issue_file_mtimes(
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
         }
-        let metadata = entry
-            .metadata()
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
         let mtime = normalize_mtime(
-            metadata
+            entry
+                .metadata()
+                .map_err(|error| TaskulusError::Io(error.to_string()))?
                 .modified()
                 .map_err(|error| TaskulusError::Io(error.to_string()))?
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_err(|error| TaskulusError::Io(error.to_string()))?
                 .as_secs_f64(),
         );
-        if let Some(name) = path.file_name().and_then(|value| value.to_str()) {
+        if let Some(name) = entry.file_name().to_str() {
             mtimes.insert(name.to_string(), mtime);
         }
     }
