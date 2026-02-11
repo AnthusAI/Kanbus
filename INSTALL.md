@@ -43,3 +43,11 @@ Run the CLI:
 make check-python
 make check-rust
 ```
+
+## Platform status
+
+| Platform | Python install | Rust release build | Notes |
+|----------|----------------|--------------------|-------|
+| macOS (local) | Verified | Verified | `tsk --version` and `tsk doctor` run in temp repo |
+| Linux | Pending | Pending | Needs validation |
+| Windows | Pending | Pending | Needs validation |
