@@ -2,36 +2,9 @@
 
 from __future__ import annotations
 
-from behave import given, then, when
+from behave import then, when
 
-from features.steps.shared import (
-    build_issue,
-    load_project_directory,
-    run_cli,
-    write_issue_file,
-)
-
-
-@given('issues "{first}" and "{second}" exist')
-def given_issues_exist(context: object, first: str, second: str) -> None:
-    project_dir = load_project_directory(context)
-    for identifier in (first, second):
-        issue = build_issue(identifier, "Title", "task", "open", None, [])
-        write_issue_file(project_dir, issue)
-
-
-@given('issue "{identifier}" has status "{status}"')
-def given_issue_has_status(context: object, identifier: str, status: str) -> None:
-    project_dir = load_project_directory(context)
-    issue = build_issue(identifier, "Title", "task", status, None, [])
-    write_issue_file(project_dir, issue)
-
-
-@given('issue "{identifier}" has type "{issue_type}"')
-def given_issue_has_type(context: object, identifier: str, issue_type: str) -> None:
-    project_dir = load_project_directory(context)
-    issue = build_issue(identifier, "Title", issue_type, "open", None, [])
-    write_issue_file(project_dir, issue)
+from features.steps.shared import run_cli
 
 
 @when('I run "tsk validate"')
@@ -44,6 +17,26 @@ def when_run_stats(context: object) -> None:
     run_cli(context, "tsk stats")
 
 
-@then('stdout should contain "{text}"')
-def then_stdout_contains(context: object, text: str) -> None:
-    assert text in context.result.stdout
+@then('stdout should contain "total issues"')
+def then_stdout_contains_total(context: object) -> None:
+    assert "total issues" in context.result.stdout
+
+
+@then('stdout should contain "open issues"')
+def then_stdout_contains_open(context: object) -> None:
+    assert "open issues" in context.result.stdout
+
+
+@then('stdout should contain "closed issues"')
+def then_stdout_contains_closed(context: object) -> None:
+    assert "closed issues" in context.result.stdout
+
+
+@then('stdout should contain "type: task"')
+def then_stdout_contains_task(context: object) -> None:
+    assert "type: task" in context.result.stdout
+
+
+@then('stdout should contain "type: bug"')
+def then_stdout_contains_bug(context: object) -> None:
+    assert "type: bug" in context.result.stdout

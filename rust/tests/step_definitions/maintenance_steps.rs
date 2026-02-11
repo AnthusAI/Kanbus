@@ -133,14 +133,14 @@ fn then_stdout_contains_closed(world: &mut TaskulusWorld) {
     assert!(stdout.contains("closed issues"));
 }
 
-#[then("stdout should contain \"task\"")]
+#[then("stdout should contain \"type: task\"")]
 fn then_stdout_contains_task(world: &mut TaskulusWorld) {
     let stdout = world.stdout.as_ref().expect("stdout");
-    assert!(stdout.contains("task"));
+    assert!(stdout.contains("type: task"));
 }
 
-#[then("stdout should contain \"bug\"")]
+#[then("stdout should contain \"type: bug\"")]
 fn then_stdout_contains_bug(world: &mut TaskulusWorld) {
     let stdout = world.stdout.as_ref().expect("stdout");
-    assert!(stdout.contains("bug"));
+    assert!(stdout.contains("type: bug"));
 }

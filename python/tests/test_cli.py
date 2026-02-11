@@ -19,6 +19,7 @@ from taskulus.dependencies import DependencyError
 from taskulus.doctor import DoctorError
 from taskulus.issue_listing import IssueListingError
 from taskulus.models import IssueData
+from taskulus.queries import QueryError
 
 
 def _init_repo(root: Path) -> None:
@@ -137,6 +138,18 @@ def test_list_reports_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     result = _run_cli(tmp_path, ["list"])
     assert result.exit_code == 1
     assert "boom" in result.output
+
+
+def test_list_reports_query_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    monkeypatch.setattr(
+        "taskulus.cli.list_issues",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(QueryError("invalid sort key")),
+    )
+    result = _run_cli(tmp_path, ["list", "--sort", "bad"])
+    assert result.exit_code == 1
+    assert "invalid sort key" in result.output
 
 
 def test_dep_add_requires_target(tmp_path: Path) -> None:

@@ -11,13 +11,22 @@ from taskulus.daemon_paths import get_index_cache_path
 from taskulus.index import build_index_from_directory
 from taskulus.models import IssueData
 from taskulus.project import load_project_directory
+from taskulus.queries import filter_issues, search_issues, sort_issues
 
 
 class IssueListingError(RuntimeError):
     """Raised when listing issues fails."""
 
 
-def list_issues(root: Path) -> List[IssueData]:
+def list_issues(
+    root: Path,
+    status: str | None = None,
+    issue_type: str | None = None,
+    assignee: str | None = None,
+    label: str | None = None,
+    sort: str | None = None,
+    search: str | None = None,
+) -> List[IssueData]:
     """List issues in the project.
 
     :param root: Repository root path.
@@ -29,11 +38,13 @@ def list_issues(root: Path) -> List[IssueData]:
     if is_daemon_enabled():
         try:
             payloads = request_index_list(root)
-            return [IssueData.model_validate(payload) for payload in payloads]
+            issues = [IssueData.model_validate(payload) for payload in payloads]
+            return _apply_query(issues, status, issue_type, assignee, label, sort, search)
         except Exception as error:
             raise IssueListingError(str(error)) from error
     try:
-        return _list_issues_locally(root)
+        issues = _list_issues_locally(root)
+        return _apply_query(issues, status, issue_type, assignee, label, sort, search)
     except Exception as error:
         raise IssueListingError(str(error)) from error
 
@@ -49,3 +60,17 @@ def _list_issues_locally(root: Path) -> List[IssueData]:
     mtimes = collect_issue_file_mtimes(issues_dir)
     write_cache(index, cache_path, mtimes)
     return list(index.by_id.values())
+
+
+def _apply_query(
+    issues: List[IssueData],
+    status: str | None,
+    issue_type: str | None,
+    assignee: str | None,
+    label: str | None,
+    sort: str | None,
+    search: str | None,
+) -> List[IssueData]:
+    filtered = filter_issues(issues, status, issue_type, assignee, label)
+    searched = search_issues(filtered, search)
+    return sort_issues(searched, sort)
