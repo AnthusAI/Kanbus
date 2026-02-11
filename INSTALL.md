@@ -23,6 +23,8 @@ tsk --version
 tsk doctor
 ```
 
+Note: the `tsk` console script is available when the virtual environment is active.
+
 ## Rust (developer install)
 
 ```bash
