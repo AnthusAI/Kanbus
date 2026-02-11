@@ -5,8 +5,11 @@ on:
     branches: ["main"]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
-  quality-gates:
+  python:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,10 +26,38 @@ jobs:
           python -m pip install -e python
 
       - name: Run Python quality gates
-        run: make check-python
+        run: |
+          cd python
+          black --check .
+          ruff check .
+          pytest --cov=taskulus --cov-report=xml
 
       - name: Check spec parity
-        run: make check-parity
+        run: python tools/check_spec_parity.py
+
+      - name: Upload Python coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: python/coverage.xml
+          flags: python
+          fail_ci_if_error: false
+
+      - name: Publish Python CI badge
+        if: always()
+        uses: emibcn/badge-action@v2
+        with:
+          label: python
+          status: ${{ job.status == 'success' && 'passing' || 'failing' }}
+          color: ${{ job.status == 'success' && 'green' || 'red' }}
+          path: badges/python-ci.json
+          branch: badges
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -34,4 +65,34 @@ jobs:
           components: rustfmt, clippy
 
       - name: Run Rust quality gates
-        run: make check-rust
+        run: |
+          cd rust
+          cargo fmt --check
+          cargo clippy -- -D warnings
+          cargo test
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Run Rust coverage
+        run: |
+          cd rust
+          cargo tarpaulin --out Xml --output-dir ../coverage-rust
+
+      - name: Upload Rust coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage-rust/cobertura.xml
+          flags: rust
+          fail_ci_if_error: false
+
+      - name: Publish Rust CI badge
+        if: always()
+        uses: emibcn/badge-action@v2
+        with:
+          label: rust
+          status: ${{ job.status == 'success' && 'passing' || 'failing' }}
+          color: ${{ job.status == 'success' && 'green' || 'red' }}
+          path: badges/rust-ci.json
+          branch: badges
+          token: ${{ secrets.GITHUB_TOKEN }}
