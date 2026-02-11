@@ -104,7 +104,8 @@ def collect_rust_steps(steps_root: Path) -> Set[str]:
     steps: Set[str] = set()
     for path in steps_root.rglob("*.rs"):
         for match in RUST_STEP_PATTERN.finditer(path.read_text(encoding="utf-8")):
-            steps.add(match.group("text"))
+            text = match.group("text").replace(r"\"", "\"")
+            steps.add(text)
     return steps
 
 
