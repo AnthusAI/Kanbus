@@ -14,12 +14,14 @@ from taskulus.file_io import (
 )
 from taskulus.issue_creation import IssueCreationError, create_issue
 from taskulus.issue_close import IssueCloseError, close_issue
+from taskulus.issue_comment import IssueCommentError, add_comment
 from taskulus.issue_delete import IssueDeleteError, delete_issue
 from taskulus.issue_display import format_issue_for_display
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.issue_update import IssueUpdateError, update_issue
 from taskulus.issue_listing import IssueListingError, list_issues
 from taskulus.daemon_client import DaemonClientError, request_shutdown, request_status
+from taskulus.users import get_current_user
 
 
 @click.group()
@@ -187,6 +189,29 @@ def delete(identifier: str) -> None:
     try:
         delete_issue(root, identifier)
     except IssueDeleteError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("comment")
+@click.argument("identifier")
+@click.argument("text")
+def comment(identifier: str, text: str) -> None:
+    """Add a comment to an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param text: Comment text.
+    :type text: str
+    """
+    root = Path.cwd()
+    try:
+        add_comment(
+            root=root,
+            identifier=identifier,
+            author=get_current_user(),
+            text=text,
+        )
+    except IssueCommentError as error:
         raise click.ClickException(str(error)) from error
 
 
