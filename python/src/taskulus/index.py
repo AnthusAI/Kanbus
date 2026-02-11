@@ -36,7 +36,7 @@ def build_index_from_directory(issues_directory: Path) -> IssueIndex:
         key=lambda path: path.name,
     )
     for issue_path in issue_paths:
-        payload = json.loads(issue_path.read_text(encoding="utf-8"))
+        payload = json.loads(issue_path.read_bytes())
         issue = IssueData.model_validate(payload)
         index.by_id[issue.identifier] = issue
         index.by_status.setdefault(issue.status, []).append(issue)
