@@ -37,6 +37,7 @@ jobs:
           path: site
 
   deploy:
+    if: ${{ vars.DOCS_DEPLOY == 'true' }}
     needs: build
     runs-on: ubuntu-latest
     environment:

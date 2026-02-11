@@ -2,6 +2,11 @@
 
 **A git-backed project management system with dual Python and Rust implementations**
 
+![Python CI](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/python-ci.json)
+![Rust CI](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/rust-ci.json)
+![Python Coverage](https://codecov.io/gh/AnthusAI/Taskulus/branch/main/graph/badge.svg?flag=python)
+![Rust Coverage](https://codecov.io/gh/AnthusAI/Taskulus/branch/main/graph/badge.svg?flag=rust)
+
 Taskulus is a lightweight, file-based issue tracker that stores all data as JSON files in your git repository. It replaces external tools like Jira and Confluence with a simple, version-controlled system that lives alongside your code.
 
 ## Status: Planning Phase
