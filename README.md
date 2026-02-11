@@ -2,8 +2,8 @@
 
 **A git-backed project management system with dual Python and Rust implementations**
 
-![Python CI](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/python-ci.json)
-![Rust CI](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/rust-ci.json)
+![Python CI](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/python-ci.svg)
+![Rust CI](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/rust-ci.svg)
 ![Python Coverage](https://codecov.io/gh/AnthusAI/Taskulus/branch/main/graph/badge.svg?flag=python)
 ![Rust Coverage](https://codecov.io/gh/AnthusAI/Taskulus/branch/main/graph/badge.svg?flag=rust)
 

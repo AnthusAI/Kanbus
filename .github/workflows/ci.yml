@@ -92,7 +92,7 @@ jobs:
           label: python
           status: ${{ needs.python.result == 'success' && 'passing' || 'failing' }}
           color: ${{ needs.python.result == 'success' && 'green' || 'red' }}
-          path: badges/python-ci.json
+          path: badges/python-ci.svg
 
       - name: Build Rust CI badge
         uses: emibcn/badge-action@v2
@@ -100,7 +100,7 @@ jobs:
           label: rust
           status: ${{ needs.rust.result == 'success' && 'passing' || 'failing' }}
           color: ${{ needs.rust.result == 'success' && 'green' || 'red' }}
-          path: badges/rust-ci.json
+          path: badges/rust-ci.svg
 
       - name: Publish badges branch
         uses: peaceiris/actions-gh-pages@v4
