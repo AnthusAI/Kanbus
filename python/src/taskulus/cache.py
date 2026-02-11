@@ -33,7 +33,8 @@ def collect_issue_file_mtimes(issues_directory: Path) -> Dict[str, float]:
     """
     return {
         path.name: round(path.stat().st_mtime, 6)
-        for path in issues_directory.glob("*.json")
+        for path in issues_directory.iterdir()
+        if path.suffix == ".json"
     }
 
 
