@@ -1,28 +1,84 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "./content.css";
 
 :root {
-  color-scheme: dark;
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  --surface: #050714;
-  --surface-alt: #0b1024;
-  --accent: #0ea5e9;
-  --primary: #2563eb;
+  color-scheme: light;
+
+  --ink-1: #0b0e11;
+  --ink-2: #1f2933;
+  --ink-3: #52606d;
+  --paper-1: #f8f4f0;
+  --paper-2: #efe7df;
+  --paper-3: #e3d8cf;
+  --paper-4: #d5c8bc;
+  --accent-1: #2f6bff;
+  --accent-2: #1b3e9a;
+  --accent-3: #d68b5b;
+
+  --text-primary: var(--ink-1);
+  --text-secondary: var(--ink-3);
+
+  --bg-page: var(--paper-1);
+  --bg-surface: var(--paper-2);
+  --bg-surface-2: var(--paper-3);
+  --bg-surface-3: var(--paper-4);
+
+  --radius-md: 14px;
+  --radius-lg: 24px;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 72px;
+  --space-4xl: 96px;
+
+  --max-width: 1120px;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
   margin: 0;
-  background-color: var(--surface);
-  color: #f8fafc;
+  padding: 0;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: "IBM Plex Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+}
+
+#___gatsby,
+#gatsby-focus-wrapper {
+  min-height: 100vh;
+}
+
+#gatsby-focus-wrapper {
+  display: flex;
+  flex-direction: column;
 }
 
 a {
-  color: var(--accent);
+  color: inherit;
   text-decoration: none;
 }
 
 a:hover {
-  text-decoration: underline;
+  color: var(--accent-1);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Space Grotesk", "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-weight: 600;
+}
+
+main {
+  flex: 1;
 }
