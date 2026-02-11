@@ -19,6 +19,7 @@ from taskulus.issue_display import format_issue_for_display
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.issue_update import IssueUpdateError, update_issue
 from taskulus.issue_listing import IssueListingError, list_issues
+from taskulus.daemon_client import DaemonClientError, request_shutdown, request_status
 
 
 @click.group()
@@ -200,6 +201,28 @@ def list_command() -> None:
 
     for issue in issues:
         click.echo(f"{issue.identifier} {issue.title}")
+
+
+@cli.command("daemon-status")
+def daemon_status() -> None:
+    """Report daemon status."""
+    root = Path.cwd()
+    try:
+        result = request_status(root)
+    except DaemonClientError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(json.dumps(result, indent=2, sort_keys=False))
+
+
+@cli.command("daemon-stop")
+def daemon_stop() -> None:
+    """Stop the daemon process."""
+    root = Path.cwd()
+    try:
+        result = request_shutdown(root)
+    except DaemonClientError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(json.dumps(result, indent=2, sort_keys=False))
 
 
 if __name__ == "__main__":

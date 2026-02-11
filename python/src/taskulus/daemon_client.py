@@ -104,6 +104,58 @@ def request_index_list(root: Path) -> List[Dict[str, Any]]:
     return list(result.get("issues", []))
 
 
+def request_status(root: Path) -> Dict[str, Any]:
+    """Request daemon status.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Status payload.
+    :rtype: Dict[str, Any]
+    """
+    if not is_daemon_enabled():
+        raise DaemonClientError("daemon disabled")
+    socket_path = get_daemon_socket_path(root)
+    request = RequestEnvelope(
+        protocol_version=PROTOCOL_VERSION,
+        request_id=f"req-{uuid.uuid4().hex[:8]}",
+        action="ping",
+        payload={},
+    )
+    response = _request_with_recovery(socket_path, request, root)
+    if response.status != "ok":
+        error = response.error or ErrorEnvelope(
+            code="internal_error", message="daemon error", details={}
+        )
+        raise DaemonClientError(error.message)
+    return response.result or {}
+
+
+def request_shutdown(root: Path) -> Dict[str, Any]:
+    """Request daemon shutdown.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Shutdown response payload.
+    :rtype: Dict[str, Any]
+    """
+    if not is_daemon_enabled():
+        raise DaemonClientError("daemon disabled")
+    socket_path = get_daemon_socket_path(root)
+    request = RequestEnvelope(
+        protocol_version=PROTOCOL_VERSION,
+        request_id=f"req-{uuid.uuid4().hex[:8]}",
+        action="shutdown",
+        payload={},
+    )
+    response = _request_with_recovery(socket_path, request, root)
+    if response.status != "ok":
+        error = response.error or ErrorEnvelope(
+            code="internal_error", message="daemon error", details={}
+        )
+        raise DaemonClientError(error.message)
+    return response.result or {}
+
+
 def _request_with_recovery(
     socket_path: Path, request: RequestEnvelope, root: Path
 ) -> ResponseEnvelope:

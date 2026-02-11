@@ -5,6 +5,7 @@ use std::path::Path;
 
 use clap::{Parser, Subcommand};
 
+use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
 use crate::error::TaskulusError;
 use crate::file_io::{ensure_git_repository, initialize_project, resolve_root};
@@ -96,6 +97,12 @@ enum Commands {
         #[arg(long)]
         root: String,
     },
+    /// Report daemon status.
+    #[command(name = "daemon-status")]
+    DaemonStatus,
+    /// Stop the daemon process.
+    #[command(name = "daemon-stop")]
+    DaemonStop,
 }
 
 /// Output produced by a CLI command.
@@ -252,6 +259,18 @@ fn execute_command(command: Commands, root: &Path) -> Result<Option<String>, Tas
         Commands::Daemon { root } => {
             run_daemon(Path::new(&root))?;
             Ok(None)
+        }
+        Commands::DaemonStatus => {
+            let status = request_status(root)?;
+            let payload = serde_json::to_string_pretty(&status)
+                .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            Ok(Some(payload))
+        }
+        Commands::DaemonStop => {
+            let status = request_shutdown(root)?;
+            let payload = serde_json::to_string_pretty(&status)
+                .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            Ok(Some(payload))
         }
     }
 }

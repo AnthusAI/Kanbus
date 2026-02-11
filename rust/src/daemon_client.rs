@@ -30,6 +30,9 @@ pub fn is_daemon_enabled() -> bool {
 /// # Errors
 /// Returns `TaskulusError` if daemon request fails.
 pub fn request_index_list(root: &Path) -> Result<Vec<Value>, TaskulusError> {
+    if !is_daemon_enabled() {
+        return Err(TaskulusError::IssueOperation("daemon disabled".to_string()));
+    }
     let socket_path = get_daemon_socket_path(root)?;
     let request = RequestEnvelope {
         protocol_version: PROTOCOL_VERSION.to_string(),
@@ -54,6 +57,54 @@ pub fn request_index_list(root: &Path) -> Result<Vec<Value>, TaskulusError> {
         Some(Value::Array(values)) => Ok(values.clone()),
         _ => Ok(Vec::new()),
     }
+}
+
+/// Request daemon status.
+pub fn request_status(root: &Path) -> Result<BTreeMap<String, Value>, TaskulusError> {
+    if !is_daemon_enabled() {
+        return Err(TaskulusError::IssueOperation("daemon disabled".to_string()));
+    }
+    let socket_path = get_daemon_socket_path(root)?;
+    let request = RequestEnvelope {
+        protocol_version: PROTOCOL_VERSION.to_string(),
+        request_id: format!("req-{}", Uuid::new_v4().simple()),
+        action: "ping".to_string(),
+        payload: BTreeMap::new(),
+    };
+    let response = request_with_recovery(&socket_path, &request, root)?;
+    if response.status != "ok" {
+        let error = response.error.unwrap_or(ErrorEnvelope {
+            code: "internal_error".to_string(),
+            message: "daemon error".to_string(),
+            details: BTreeMap::new(),
+        });
+        return Err(TaskulusError::IssueOperation(error.message));
+    }
+    Ok(response.result.unwrap_or_default())
+}
+
+/// Request daemon shutdown.
+pub fn request_shutdown(root: &Path) -> Result<BTreeMap<String, Value>, TaskulusError> {
+    if !is_daemon_enabled() {
+        return Err(TaskulusError::IssueOperation("daemon disabled".to_string()));
+    }
+    let socket_path = get_daemon_socket_path(root)?;
+    let request = RequestEnvelope {
+        protocol_version: PROTOCOL_VERSION.to_string(),
+        request_id: format!("req-{}", Uuid::new_v4().simple()),
+        action: "shutdown".to_string(),
+        payload: BTreeMap::new(),
+    };
+    let response = request_with_recovery(&socket_path, &request, root)?;
+    if response.status != "ok" {
+        let error = response.error.unwrap_or(ErrorEnvelope {
+            code: "internal_error".to_string(),
+            message: "daemon error".to_string(),
+            details: BTreeMap::new(),
+        });
+        return Err(TaskulusError::IssueOperation(error.message));
+    }
+    Ok(response.result.unwrap_or_default())
 }
 
 fn request_with_recovery(

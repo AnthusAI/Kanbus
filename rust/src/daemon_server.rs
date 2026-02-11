@@ -65,19 +65,22 @@ fn handle_stream(root: &Path, stream: UnixStream) -> Result<(), TaskulusError> {
         return Ok(());
     }
     let mut stream = stream;
-    let response = match serde_json::from_str::<RequestEnvelope>(&line) {
+    let (response, should_shutdown) = match serde_json::from_str::<RequestEnvelope>(&line) {
         Ok(request) => handle_request(root, request),
-        Err(error) => ResponseEnvelope {
-            protocol_version: PROTOCOL_VERSION.to_string(),
-            request_id: "unknown".to_string(),
-            status: "error".to_string(),
-            result: None,
-            error: Some(ErrorEnvelope {
-                code: "invalid_request".to_string(),
-                message: error.to_string(),
-                details: BTreeMap::new(),
-            }),
-        },
+        Err(error) => (
+            ResponseEnvelope {
+                protocol_version: PROTOCOL_VERSION.to_string(),
+                request_id: "unknown".to_string(),
+                status: "error".to_string(),
+                result: None,
+                error: Some(ErrorEnvelope {
+                    code: "invalid_request".to_string(),
+                    message: error.to_string(),
+                    details: BTreeMap::new(),
+                }),
+            },
+            false,
+        ),
     };
     let payload =
         serde_json::to_string(&response).map_err(|error| TaskulusError::Io(error.to_string()))?;
@@ -87,10 +90,13 @@ fn handle_stream(root: &Path, stream: UnixStream) -> Result<(), TaskulusError> {
     stream
         .write_all(b"\n")
         .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    if should_shutdown {
+        std::process::exit(0);
+    }
     Ok(())
 }
 
-fn handle_request(root: &Path, request: RequestEnvelope) -> ResponseEnvelope {
+fn handle_request(root: &Path, request: RequestEnvelope) -> (ResponseEnvelope, bool) {
     if let Err(error) = validate_protocol_compatibility(&request.protocol_version, PROTOCOL_VERSION)
     {
         let code = if error.to_string() == "protocol version unsupported" {
@@ -98,29 +104,50 @@ fn handle_request(root: &Path, request: RequestEnvelope) -> ResponseEnvelope {
         } else {
             "protocol_version_mismatch"
         };
-        return ResponseEnvelope {
-            protocol_version: PROTOCOL_VERSION.to_string(),
-            request_id: request.request_id,
-            status: "error".to_string(),
-            result: None,
-            error: Some(ErrorEnvelope {
-                code: code.to_string(),
-                message: error.to_string(),
-                details: BTreeMap::new(),
-            }),
-        };
+        return (
+            ResponseEnvelope {
+                protocol_version: PROTOCOL_VERSION.to_string(),
+                request_id: request.request_id,
+                status: "error".to_string(),
+                result: None,
+                error: Some(ErrorEnvelope {
+                    code: code.to_string(),
+                    message: error.to_string(),
+                    details: BTreeMap::new(),
+                }),
+            },
+            false,
+        );
     }
 
     if request.action == "ping" {
         let mut result = BTreeMap::new();
         result.insert("status".to_string(), Value::String("ok".to_string()));
-        return ResponseEnvelope {
-            protocol_version: PROTOCOL_VERSION.to_string(),
-            request_id: request.request_id,
-            status: "ok".to_string(),
-            result: Some(result),
-            error: None,
-        };
+        return (
+            ResponseEnvelope {
+                protocol_version: PROTOCOL_VERSION.to_string(),
+                request_id: request.request_id,
+                status: "ok".to_string(),
+                result: Some(result),
+                error: None,
+            },
+            false,
+        );
+    }
+
+    if request.action == "shutdown" {
+        let mut result = BTreeMap::new();
+        result.insert("status".to_string(), Value::String("stopping".to_string()));
+        return (
+            ResponseEnvelope {
+                protocol_version: PROTOCOL_VERSION.to_string(),
+                request_id: request.request_id,
+                status: "ok".to_string(),
+                result: Some(result),
+                error: None,
+            },
+            true,
+        );
     }
 
     if request.action == "index.list" {
@@ -132,45 +159,52 @@ fn handle_request(root: &Path, request: RequestEnvelope) -> ResponseEnvelope {
                     .map(|issue| serde_json::to_value(issue).unwrap_or(Value::Null))
                     .collect();
                 result.insert("issues".to_string(), Value::Array(values));
-                return ResponseEnvelope {
-                    protocol_version: PROTOCOL_VERSION.to_string(),
-                    request_id: request.request_id,
-                    status: "ok".to_string(),
-                    result: Some(result),
-                    error: None,
-                };
+                return (
+                    ResponseEnvelope {
+                        protocol_version: PROTOCOL_VERSION.to_string(),
+                        request_id: request.request_id,
+                        status: "ok".to_string(),
+                        result: Some(result),
+                        error: None,
+                    },
+                    false,
+                );
             }
             Err(error) => {
-                return ResponseEnvelope {
-                    protocol_version: PROTOCOL_VERSION.to_string(),
-                    request_id: request.request_id,
-                    status: "error".to_string(),
-                    result: None,
-                    error: Some(ErrorEnvelope {
-                        code: "internal_error".to_string(),
-                        message: error.to_string(),
-                        details: BTreeMap::new(),
-                    }),
-                };
+                return (
+                    ResponseEnvelope {
+                        protocol_version: PROTOCOL_VERSION.to_string(),
+                        request_id: request.request_id,
+                        status: "error".to_string(),
+                        result: None,
+                        error: Some(ErrorEnvelope {
+                            code: "internal_error".to_string(),
+                            message: error.to_string(),
+                            details: BTreeMap::new(),
+                        }),
+                    },
+                    false,
+                );
             }
         }
     }
 
-    ResponseEnvelope {
-        protocol_version: PROTOCOL_VERSION.to_string(),
-        request_id: request.request_id,
-        status: "error".to_string(),
-        result: None,
-        error: Some(ErrorEnvelope {
-            code: "unknown_action".to_string(),
-            message: "unknown action".to_string(),
-            details: {
-                let mut details = BTreeMap::new();
-                details.insert("action".to_string(), Value::String(request.action));
-                details
-            },
-        }),
-    }
+    let mut details = BTreeMap::new();
+    details.insert("action".to_string(), Value::String(request.action));
+    (
+        ResponseEnvelope {
+            protocol_version: PROTOCOL_VERSION.to_string(),
+            request_id: request.request_id,
+            status: "error".to_string(),
+            result: None,
+            error: Some(ErrorEnvelope {
+                code: "unknown_action".to_string(),
+                message: "unknown action".to_string(),
+                details,
+            }),
+        },
+        false,
+    )
 }
 
 fn load_index(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {

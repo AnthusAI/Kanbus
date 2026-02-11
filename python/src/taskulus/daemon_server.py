@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import socketserver
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
@@ -40,9 +41,11 @@ class DaemonRequestHandler(socketserver.StreamRequestHandler):
         if not raw:
             return
         payload: Dict[str, object] = {}
+        action: str | None = None
         try:
             payload = json.loads(raw.decode("utf-8"))
             request = RequestEnvelope.model_validate(payload)
+            action = request.action
             response = self.server.handle_request(request)
         except ProtocolError as error:
             code = "protocol_version_mismatch"
@@ -72,6 +75,8 @@ class DaemonRequestHandler(socketserver.StreamRequestHandler):
         self.wfile.write(
             json.dumps(response.model_dump(mode="json")).encode("utf-8") + b"\n"
         )
+        if action == "shutdown":
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
 
 
 class DaemonServer(socketserver.ThreadingUnixStreamServer):
@@ -108,6 +113,13 @@ class DaemonServer(socketserver.ThreadingUnixStreamServer):
                 request_id=request.request_id,
                 status="ok",
                 result={"status": "ok"},
+            )
+        if request.action == "shutdown":
+            return ResponseEnvelope(
+                protocol_version=PROTOCOL_VERSION,
+                request_id=request.request_id,
+                status="ok",
+                result={"status": "stopping"},
             )
         if request.action == "index.list":
             issues = self._load_index()
