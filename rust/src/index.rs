@@ -40,17 +40,21 @@ impl IssueIndex {
 /// Returns `TaskulusError::Io` if file reads or JSON parsing fails.
 pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex, TaskulusError> {
     let mut index = IssueIndex::new();
-    let mut entries: Vec<_> = fs::read_dir(issues_directory)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?
-        .collect::<Result<Vec<_>, _>>()
+    let entries = fs::read_dir(issues_directory)
         .map_err(|error| TaskulusError::Io(error.to_string()))?;
-    entries.sort_by_key(|entry| entry.file_name());
-
+    let mut json_entries = Vec::new();
     for entry in entries {
+        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
         }
+        json_entries.push(entry);
+    }
+    json_entries.sort_by_key(|entry| entry.file_name());
+
+    for entry in json_entries {
+        let path = entry.path();
         let contents =
             fs::read_to_string(&path).map_err(|error| TaskulusError::Io(error.to_string()))?;
         let issue: IssueData = serde_json::from_str(&contents)
