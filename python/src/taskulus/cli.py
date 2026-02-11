@@ -240,7 +240,7 @@ def doctor() -> None:
         result = run_doctor(root)
     except DoctorError as error:
         raise click.ClickException(str(error)) from error
-    click.echo(f\"ok {result.project_dir}\")
+    click.echo(f"ok {result.project_dir}")
 
 
 @cli.command("migrate")

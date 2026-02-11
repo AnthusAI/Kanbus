@@ -22,6 +22,9 @@ dependencies = [
     "sphinx",
 ]
 
+[project.scripts]
+tsk = "taskulus.cli:cli"
+
 [tool.setuptools]
 package-dir = { "" = "src" }
 
