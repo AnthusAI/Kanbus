@@ -34,9 +34,13 @@ def run_cli(context: object, command: str) -> None:
         raise RuntimeError("working directory not set")
 
     previous = Path.cwd()
+    environment = os.environ.copy()
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides:
+        environment.update(overrides)
     try:
         os.chdir(working_directory)
-        context.result = runner.invoke(cli, args)
+        context.result = runner.invoke(cli, args, env=environment)
     finally:
         os.chdir(previous)
 
