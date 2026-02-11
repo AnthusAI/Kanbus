@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import os
 from pathlib import Path
 from typing import Dict, List
 
@@ -65,10 +66,12 @@ def build_index_from_directory(issues_directory: Path) -> IssueIndex:
     :rtype: IssueIndex
     """
     index = IssueIndex()
-    issue_paths = sorted(
-        (path for path in issues_directory.iterdir() if path.suffix == ".json"),
-        key=lambda path: path.name,
-    )
+    issue_paths = [
+        Path(entry.path)
+        for entry in os.scandir(issues_directory)
+        if entry.is_file() and entry.name.endswith(".json")
+    ]
+    issue_paths.sort(key=lambda path: path.name)
     for issue_path in issue_paths:
         issue = _load_issue_data(issue_path)
         _add_issue_to_index(index, issue)
