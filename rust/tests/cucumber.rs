@@ -1,7 +1,8 @@
 use cucumber::World;
 
-#[derive(Debug, Default, World)]
-struct TaskulusWorld;
+mod step_definitions;
+
+use step_definitions::initialization_steps::TaskulusWorld;
 
 #[tokio::main]
 async fn main() {
