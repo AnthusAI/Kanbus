@@ -4,6 +4,7 @@ check-python:
 	cd python && black --check .
 	cd python && ruff check .
 	cd python && pytest
+	cd python && behave
 
 check-rust:
 	cd rust && cargo fmt --check
@@ -22,4 +23,5 @@ fmt:
 
 test:
 	cd python && pytest
+	cd python && behave
 	cd rust && cargo test

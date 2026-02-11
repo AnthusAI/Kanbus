@@ -5,30 +5,33 @@ use std::process::Command;
 use cucumber::{given, then, when, World};
 use tempfile::TempDir;
 
-use taskulus::cli::run_from_args;
+use taskulus::cli::run_from_args_with_output;
 
 #[derive(Debug, Default, World)]
 pub struct TaskulusWorld {
-    temp_dir: Option<TempDir>,
-    working_directory: Option<PathBuf>,
-    exit_code: Option<i32>,
-    stderr: Option<String>,
+    pub temp_dir: Option<TempDir>,
+    pub working_directory: Option<PathBuf>,
+    pub exit_code: Option<i32>,
+    pub stdout: Option<String>,
+    pub stderr: Option<String>,
 }
 
 fn run_cli(world: &mut TaskulusWorld, command: &str) {
-    let args: Vec<&str> = command.split_whitespace().collect();
+    let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args(args, cwd.as_path()) {
-        Ok(()) => {
+    match run_from_args_with_output(args, cwd.as_path()) {
+        Ok(output) => {
             world.exit_code = Some(0);
+            world.stdout = Some(output.stdout);
             world.stderr = Some(String::new());
         }
         Err(error) => {
             world.exit_code = Some(1);
+            world.stdout = Some(String::new());
             world.stderr = Some(error.to_string());
         }
     }

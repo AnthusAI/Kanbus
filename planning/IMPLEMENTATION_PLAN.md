@@ -17,7 +17,7 @@ The VISION.md proposes a conventional split: `python/`, `rust/`, and `specs/` as
 However, we must respect real constraints:
 - Python requires `pyproject.toml` at the package root with a `src/` layout
 - Rust requires `Cargo.toml` at the crate root with a `src/` layout
-- Gherkin feature files must be locatable by both `pytest-bdd` and `cucumber-rs`
+- Gherkin feature files must be locatable by both `behave` and `cucumber-rs`
 - The shared YAML test cases from the vision must also live somewhere accessible to both runners
 
 ### The Recommended Layout
@@ -99,10 +99,9 @@ Taskulus/
                 config.py
                 queries.py
                 cache.py
-        tests/
-            conftest.py                     # pytest-bdd configuration, fixture paths
-            step_definitions/               # Step definitions organized by domain
-                __init__.py
+        features/
+            environment.py                  # Behave hooks, sys.path setup
+            steps/                          # Step definitions organized by domain
                 common_steps.py             # Given steps: project setup, issue exists, etc.
                 initialization_steps.py
                 issue_crud_steps.py
@@ -114,6 +113,9 @@ Taskulus/
                 wiki_steps.py
                 maintenance_steps.py
                 index_steps.py
+            specs -> ../../specs/features   # Symlink for shared Gherkin access
+        tests/
+            conftest.py                     # pytest configuration for unit tests
             spec_runner/                    # YAML test-case runner
                 __init__.py
                 runner.py
@@ -181,7 +183,7 @@ Taskulus/
 
 ### Key Design Decisions in This Layout
 
-**Feature files live in `specs/features/`, period.** Both implementations reference this single source of truth. Python's `conftest.py` points pytest-bdd at `../../specs/features/`. Rust's `tests/features/` is a symlink to `../../specs/features/`. One set of Gherkin, two implementations.
+**Feature files live in `specs/features/`, period.** Both implementations reference this single source of truth. Python's Behave runner points at `python/features/specs` (a symlink to `../../specs/features/`). Rust's `tests/features/` is a symlink to `../../specs/features/`. One set of Gherkin, two implementations.
 
 **Step definitions mirror each other.** `python/tests/step_definitions/workflow_steps.py` and `rust/tests/step_definitions/workflow_steps.rs` implement the same Given/When/Then steps for the same feature files. A developer working on workflows opens three files: the feature, the Python steps, and the Rust steps. Parallel structure makes comparison trivial.
 
@@ -204,7 +206,7 @@ Taskulus/
 **Gherkin:** None (infrastructure, not behavior).
 
 **Python:**
-- `pyproject.toml` with dependencies: click, jinja2, pyyaml, pytest, pytest-bdd, ruff, black, sphinx
+- `pyproject.toml` with dependencies: click, jinja2, pyyaml, behave, pytest, ruff, black, sphinx
 - `src/taskulus/__init__.py` with version string
 - Empty test suite that passes
 
@@ -218,7 +220,8 @@ Taskulus/
 - `black --check python/` passes
 - `cargo clippy` passes with no warnings
 - `cargo fmt --check` passes
-- `pytest` passes (0 tests, 0 failures)
+- `behave` passes (0 scenarios, 0 failures)
+- `pytest` passes (0 unit tests, 0 failures)
 - `cargo test` passes (0 tests, 0 failures)
 
 **Deliverables:**
@@ -230,7 +233,7 @@ Taskulus/
 
 **Gherkin:** Stub feature files for every domain with `@wip` tags and placeholder scenarios.
 
-**Python:** `conftest.py` configured to find `specs/features/`.
+**Python:** `behave.ini` configured to find `specs/features/`.
 
 **Rust:** Symlink created. `cucumber.rs` configured to find features via the symlink.
 
@@ -285,7 +288,7 @@ Feature: Project initialization
         And stderr should contain "not a git repository"
 ```
 
-**Quality gate:** Both pytest-bdd and cucumber-rs can parse and report these scenarios as pending.
+**Quality gate:** Both behave and cucumber-rs can parse and report these scenarios as pending.
 
 #### Task 1.2: Implement `tsk init` in Python
 
@@ -295,7 +298,7 @@ Feature: Project initialization
 - `cli.py`: Click command group with `init` subcommand
 
 **Quality gates:**
-- All four scenarios pass in pytest-bdd
+- All four scenarios pass in behave
 - `ruff check` clean
 - `black --check` clean
 - Every class and public function has a Sphinx docstring
@@ -727,6 +730,16 @@ Feature: Cache invalidation
         Then the cache should be rebuilt
 ```
 
+#### Daemon Availability Contract
+
+The local indexing daemon is an optimization layer for cache warm-up and IPC access to the index.
+The JSON issue files remain the source of truth at all times.
+
+Explicit behavior:
+- If a local daemon is running, CLI commands request the index over IPC.
+- If the daemon is unavailable, CLI commands scan the issue files directly.
+- This is a defined product behavior, not a fallback to an alternate storage system.
+
 #### Task 6.2: Implement index in Python
 
 `index.py`:
@@ -1044,7 +1057,8 @@ STAGE 3: Spec Parity Verification
             - Exit code 1 if any gap exists
 
 STAGE 4: Behavior Specs (the core quality gate)
-    Python: cd python && pytest tests/ -v --tb=short
+    Python: cd python && behave
+            (unit tests: cd python && pytest -v --tb=short)
     Rust:   cd rust && cargo test --test cucumber -- --tags "not @wip"
 
 STAGE 5: YAML Test Cases
@@ -1174,39 +1188,19 @@ specs:            ## Run only the behavior specs (both languages)
 
 ### The Central Idea
 
-There is ONE set of Gherkin feature files in `specs/features/`. Both implementations read these same files and execute them. This is not a metaphor -- the same `.feature` file on disk is loaded by `pytest-bdd` in Python and by `cucumber-rs` in Rust.
+There is ONE set of Gherkin feature files in `specs/features/`. Both implementations read these same files and execute them. This is not a metaphor -- the same `.feature` file on disk is loaded by `behave` in Python and by `cucumber-rs` in Rust.
 
-### How pytest-bdd Finds the Features
+### How Behave Finds the Features
 
-In `python/tests/conftest.py`:
+In `python/behave.ini`:
 
-```python
-import os
-import pytest
-
-FEATURES_BASE_DIR = os.path.join(
-    os.path.dirname(__file__),
-    "..",
-    "..",
-    "specs",
-    "features",
-)
-
-@pytest.fixture
-def features_base_directory():
-    """Provide the path to the shared Gherkin feature files."""
-    return FEATURES_BASE_DIR
+```ini
+[behave]
+paths = features/specs
+tags = ~wip
 ```
 
-In each step definition file, scenarios are imported by referencing the shared feature path:
-
-```python
-from pytest_bdd import scenarios
-
-scenarios("../../specs/features/workflow/status_transitions.feature")
-```
-
-Or, if using a more dynamic approach, a conftest-level parametrization discovers all `.feature` files and maps them to step definitions.
+Behave expects step definitions in `python/features/steps` and discovers `features/specs` via the symlink to the shared `specs/features` directory. `python/features/environment.py` adds `python/` and `python/src` to `sys.path` for imports.
 
 ### How cucumber-rs Finds the Features
 
@@ -1376,14 +1370,15 @@ This is tested in the Gherkin scenarios by asserting on stderr content.
 
 ## Appendix: Technology Choices for BDD Tooling
 
-### Python: pytest-bdd
+### Python: Behave
 
-**Why:** Integrates with pytest (the standard Python test runner). Step definitions are Python functions decorated with `@given`, `@when`, `@then`. Supports Scenario Outlines with Examples tables. Feature files are standard Gherkin.
+**Why:** Behave is a mature Gherkin runner for Python. Step definitions are Python functions decorated with `@given`, `@when`, `@then`. Supports Scenario Outlines with Examples tables. Feature files are standard Gherkin.
 
-**Configuration in `pyproject.toml`:**
-```toml
-[tool.pytest.ini_options]
-bdd_features_base_dir = "../specs/features/"
+**Configuration in `behave.ini`:**
+```ini
+[behave]
+paths = features/specs
+tags = ~wip
 ```
 
 ### Rust: cucumber-rs

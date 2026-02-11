@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import click
@@ -11,6 +12,12 @@ from taskulus.file_io import (
     ensure_git_repository,
     initialize_project,
 )
+from taskulus.issue_creation import IssueCreationError, create_issue
+from taskulus.issue_close import IssueCloseError, close_issue
+from taskulus.issue_delete import IssueDeleteError, delete_issue
+from taskulus.issue_display import format_issue_for_display
+from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
+from taskulus.issue_update import IssueUpdateError, update_issue
 
 
 @click.group()
@@ -31,6 +38,153 @@ def init(project_dir: str) -> None:
         ensure_git_repository(root)
         initialize_project(root, project_dir)
     except InitializationError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("create")
+@click.argument("title", nargs=-1)
+@click.option("--type", "issue_type")
+@click.option("--priority", type=int)
+@click.option("--assignee")
+@click.option("--parent")
+@click.option("--label", "labels", multiple=True)
+@click.option("--description", default="")
+def create(
+    title: tuple[str, ...],
+    issue_type: str | None,
+    priority: int | None,
+    assignee: str | None,
+    parent: str | None,
+    labels: tuple[str, ...],
+    description: str,
+) -> None:
+    """Create a new issue in the current project.
+
+    :param title: Issue title words.
+    :type title: tuple[str, ...]
+    :param issue_type: Issue type override.
+    :type issue_type: str | None
+    :param priority: Issue priority override.
+    :type priority: int | None
+    :param assignee: Issue assignee.
+    :type assignee: str | None
+    :param parent: Parent issue identifier.
+    :type parent: str | None
+    :param labels: Issue labels.
+    :type labels: tuple[str, ...]
+    :param description: Issue description.
+    :type description: str
+    """
+    title_text = " ".join(title).strip()
+    description_text = description.strip()
+    if not title_text:
+        raise click.ClickException("title is required")
+
+    root = Path.cwd()
+    try:
+        issue = create_issue(
+            root=root,
+            title=title_text,
+            issue_type=issue_type,
+            priority=priority,
+            assignee=assignee,
+            parent=parent,
+            labels=labels,
+            description=description_text,
+        )
+    except IssueCreationError as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(issue.identifier)
+
+
+@cli.command("show")
+@click.argument("identifier")
+@click.option("--json", "as_json", is_flag=True)
+def show(identifier: str, as_json: bool) -> None:
+    """Show details for an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param as_json: Emit JSON output when set.
+    :type as_json: bool
+    """
+    root = Path.cwd()
+    try:
+        lookup = load_issue_from_project(root, identifier)
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+
+    if as_json:
+        payload = lookup.issue.model_dump(by_alias=True, mode="json")
+        click.echo(json.dumps(payload, indent=2, sort_keys=False))
+        return
+
+    click.echo(format_issue_for_display(lookup.issue))
+
+
+@cli.command("update")
+@click.argument("identifier")
+@click.option("--title")
+@click.option("--description")
+@click.option("--status")
+def update(
+    identifier: str,
+    title: str | None,
+    description: str | None,
+    status: str | None,
+) -> None:
+    """Update an existing issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param title: Updated title.
+    :type title: str | None
+    :param description: Updated description.
+    :type description: str | None
+    :param status: Updated status.
+    :type status: str | None
+    """
+    root = Path.cwd()
+    try:
+        update_issue(
+            root=root,
+            identifier=identifier,
+            title=title.strip() if title else None,
+            description=description.strip() if description else None,
+            status=status,
+        )
+    except IssueUpdateError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("close")
+@click.argument("identifier")
+def close(identifier: str) -> None:
+    """Close an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    root = Path.cwd()
+    try:
+        close_issue(root, identifier)
+    except IssueCloseError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("delete")
+@click.argument("identifier")
+def delete(identifier: str) -> None:
+    """Delete an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    root = Path.cwd()
+    try:
+        delete_issue(root, identifier)
+    except IssueDeleteError as error:
         raise click.ClickException(str(error)) from error
 
 

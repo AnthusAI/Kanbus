@@ -3,12 +3,12 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::config::write_default_configuration;
 use crate::error::TaskulusError;
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 struct ProjectMarker {
     project_dir: String,
 }
@@ -114,4 +114,35 @@ pub fn initialize_project(root: &Path, project_dir_name: &str) -> Result<(), Tas
 /// The root path used for initialization.
 pub fn resolve_root(cwd: &Path) -> PathBuf {
     cwd.to_path_buf()
+}
+
+/// Load the Taskulus project directory from the marker file.
+///
+/// # Arguments
+///
+/// * `root` - Repository root.
+///
+/// # Errors
+///
+/// Returns `TaskulusError::IssueOperation` if the marker is missing or invalid.
+pub fn load_project_directory(root: &Path) -> Result<PathBuf, TaskulusError> {
+    let marker_path = root.join(".taskulus.yaml");
+    if !marker_path.exists() {
+        return Err(TaskulusError::IssueOperation(
+            "project not initialized".to_string(),
+        ));
+    }
+
+    let contents = std::fs::read_to_string(&marker_path)
+        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let marker: ProjectMarker =
+        serde_yaml::from_str(&contents).map_err(|error| TaskulusError::Io(error.to_string()))?;
+
+    if marker.project_dir.is_empty() {
+        return Err(TaskulusError::IssueOperation(
+            "project directory not defined".to_string(),
+        ));
+    }
+
+    Ok(root.join(marker.project_dir))
 }

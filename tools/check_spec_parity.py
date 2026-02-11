@@ -6,6 +6,7 @@ Verify parity between shared Gherkin steps and both implementations.
 from __future__ import annotations
 
 import argparse
+import codecs
 import re
 import sys
 from dataclasses import dataclass
@@ -96,7 +97,9 @@ def collect_python_steps(steps_root: Path) -> Set[str]:
     steps: Set[str] = set()
     for path in steps_root.rglob("*.py"):
         for match in PYTHON_STEP_PATTERN.finditer(path.read_text(encoding="utf-8")):
-            steps.add(match.group("text"))
+            text = match.group("text")
+            text = codecs.decode(text, "unicode_escape")
+            steps.add(text)
     return steps
 
 
@@ -104,16 +107,15 @@ def collect_rust_steps(steps_root: Path) -> Set[str]:
     steps: Set[str] = set()
     for path in steps_root.rglob("*.rs"):
         for match in RUST_STEP_PATTERN.finditer(path.read_text(encoding="utf-8")):
-            text = match.group("text").replace(r"\"", "\"")
+            text = match.group("text")
+            text = codecs.decode(text, "unicode_escape")
             steps.add(text)
     return steps
 
 
 def build_results(repo_root: Path) -> ParityResults:
     feature_steps = collect_feature_steps(repo_root / "specs" / "features")
-    python_steps = collect_python_steps(
-        repo_root / "python" / "tests" / "step_definitions"
-    )
+    python_steps = collect_python_steps(repo_root / "python" / "features" / "steps")
     rust_steps = collect_rust_steps(repo_root / "rust" / "tests" / "step_definitions")
     return ParityResults(
         feature_steps=feature_steps,

@@ -84,6 +84,26 @@ We welcome contributions! Please:
 2. Follow the BDD workflow in [AGENTS.md](AGENTS.md).
 3. Ensure all quality gates pass.
 
+## Testing
+
+Run the full quality gates:
+
+```bash
+make check-all
+```
+
+Run only Python checks:
+
+```bash
+make check-python
+```
+
+Run only Rust checks:
+
+```bash
+make check-rust
+```
+
 ## License
 
 MIT

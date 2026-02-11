@@ -451,6 +451,20 @@ On every CLI invocation, the index is built (or loaded from cache):
    NO  -> full rebuild, write cache
 ```
 
+### Local Indexing Daemon (Optional)
+
+Taskulus may run a local resident daemon to keep an in-memory index warm between CLI invocations.
+The daemon is an optimization only; JSON issue files remain the source of truth.
+
+Daemon lifecycle:
+- The daemon starts on-demand (first CLI call that elects to use it) and exits when idle.
+- The daemon owns no authoritative state; it can be restarted at any time without data loss.
+
+Daemon availability behavior (explicit):
+- If a local daemon is running, the CLI requests the index via IPC.
+- If the daemon is unavailable, the CLI performs a direct on-disk scan and proceeds normally.
+- This is intentional product behavior, not a fallback to a secondary data source.
+
 ### Performance Characteristics
 
 - **Cold start (no cache, 1000 issues):** ~10-50ms on SSD (readdir + open/read/close each file + JSON parse)
@@ -691,7 +705,7 @@ Taskulus/
 | YAML parsing | PyYAML or ruamel.yaml | serde_yaml |
 | Template engine | Jinja2 | MiniJinja |
 | Hashing | stdlib `hashlib` | sha2 crate |
-| Testing | pytest | cargo test |
+| Testing | behave + pytest | cargo test |
 
 ---
 

@@ -245,7 +245,8 @@ Before any PR can merge:
    - No step definitions exist in only one implementation
 
 4. **Behavior specs**
-   - `pytest` passes (all Gherkin scenarios pass) ✓
+   - `behave` passes (all Gherkin scenarios pass) ✓
+   - `pytest` passes (all unit tests pass) ✓
    - `cargo test` passes (all Gherkin scenarios pass) ✓
 
 5. **Coverage**

@@ -13,6 +13,12 @@ pub enum TaskulusError {
     IdGenerationFailed(String),
     /// Configuration loading or validation failed.
     Configuration(String),
+    /// Workflow transition validation failed.
+    InvalidTransition(String),
+    /// Hierarchy validation failed.
+    InvalidHierarchy(String),
+    /// Issue operation failed.
+    IssueOperation(String),
 }
 
 impl Display for TaskulusError {
@@ -22,6 +28,9 @@ impl Display for TaskulusError {
             TaskulusError::Io(message) => write!(formatter, "{message}"),
             TaskulusError::IdGenerationFailed(message) => write!(formatter, "{message}"),
             TaskulusError::Configuration(message) => write!(formatter, "{message}"),
+            TaskulusError::InvalidTransition(message) => write!(formatter, "{message}"),
+            TaskulusError::InvalidHierarchy(message) => write!(formatter, "{message}"),
+            TaskulusError::IssueOperation(message) => write!(formatter, "{message}"),
         }
     }
 }
