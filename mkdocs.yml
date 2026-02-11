@@ -8,5 +8,6 @@ nav:
   - CLI Reference: CLI_REFERENCE.md
   - Configuration: CONFIGURATION.md
   - Wiki Guide: WIKI_GUIDE.md
+  - IPC Protocol: IPC_PROTOCOL.md
   - Troubleshooting: TROUBLESHOOTING.md
   - Migration from Beads: MIGRATION.md
