@@ -1,37 +1,83 @@
 import * as React from "react";
-import type { ReactNode } from "react";
-import { Link } from "gatsby";
-import clsx from "clsx";
+
+const navigation = [
+  { label: "Product", href: "/product" },
+  { label: "Docs", href: "/docs" },
+  { label: "Roadmap", href: "/roadmap" },
+];
 
 type LayoutProps = {
-  children: ReactNode;
+  children: React.ReactNode;
 };
 
-export function Layout({ children }: LayoutProps): JSX.Element {
+const Layout = ({ children }: LayoutProps) => {
   return (
-    <div className="min-h-screen bg-[var(--surface)] text-slate-50">
-      <header className="border-b border-white/5 bg-[var(--surface-alt)]/70 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link to="/" className="text-lg font-semibold tracking-wide">
-            Taskulus
-          </Link>
-          <nav className="flex gap-6 text-sm text-slate-300">
-            <Link to="/">Overview</Link>
-            <a href="https://github.com/AnthusAI/Taskulus" target="_blank" rel="noreferrer">
-              GitHub
-            </a>
-            <a href="https://taskul.us" target="_blank" rel="noreferrer">
-              taskul.us
-            </a>
-          </nav>
+    <div>
+      <header className="page">
+        <div className="container hero">
+          <div>
+            <span className="pill">Taskulus</span>
+            <h1 className="hero-title">Git-native project management.</h1>
+            <p className="hero-subtitle">
+              A file-based tracker with a shared specification, dual Python and
+              Rust implementations, and planning documents that stay in sync.
+            </p>
+            <div className="hero-actions">
+              <a className="button" href="/docs">
+                Read the docs
+              </a>
+              <a className="button secondary" href="/product">
+                See the product
+              </a>
+            </div>
+          </div>
+          <div className="section alt">
+            <p className="pill">Now</p>
+            <h2>Planning phase</h2>
+            <p>
+              Taskulus is being built in the open with behavior-driven
+              specifications and shared fixtures. Follow along and help shape
+              the first release.
+            </p>
+            <div className="grid two">
+              <div className="card">
+                <h3>Shared specs</h3>
+                <p>One Gherkin suite drives both implementations.</p>
+              </div>
+              <div className="card">
+                <h3>Local files</h3>
+                <p>Issues live as readable JSON in your repository.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
-      <main className={clsx("mx-auto w-full max-w-5xl px-6 py-16")}>
-        {children}
-      </main>
-      <footer className="mt-12 border-t border-white/5 px-6 py-8 text-center text-sm text-slate-400">
-        Built with Gatsby + Tailwind. Deploy-ready for AWS Amplify Gen 2.
+      <main>{children}</main>
+      <footer className="footer">
+        <div className="container split">
+          <div>
+            <h4>Taskulus</h4>
+            <p>Git-backed project management system.</p>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <p>
+              <a href="/docs">Documentation</a>
+            </p>
+            <p>
+              <a href="/roadmap">Roadmap</a>
+            </p>
+          </div>
+          <div>
+            <h4>Community</h4>
+            <p>
+              <a href="https://github.com/AnthusAI/Taskulus">GitHub</a>
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   );
-}
+};
+
+export default Layout;

@@ -1,26 +1,115 @@
-.content-shell {
-  max-width: 960px;
+.page {
+  margin: var(--space-3xl) 0;
+  padding: 0 var(--space-lg);
+}
+
+.container {
+  max-width: var(--max-width);
   margin: 0 auto;
-  padding: 3rem 1.5rem;
 }
 
-.content-shell h2 {
-  font-size: clamp(1.75rem, 3vw, 2.25rem);
-  margin-bottom: 1.5rem;
+.section {
+  padding: var(--space-2xl);
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
 }
 
-.content-shell p {
-  line-height: 1.7;
-  margin-bottom: 1rem;
-  color: #cbd5f5;
+.section.alt {
+  background: var(--bg-surface-2);
+}
+
+.section h2 {
+  margin: 0 0 var(--space-md);
+}
+
+.section p {
+  margin: 0 0 var(--space-md);
+  color: var(--text-secondary);
+}
+
+.hero {
+  display: grid;
+  gap: var(--space-xl);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  align-items: center;
+}
+
+.hero-title {
+  font-size: clamp(34px, 4.4vw, 60px);
+  margin: 0 0 var(--space-md);
+}
+
+.hero-subtitle {
+  margin: 0 0 var(--space-lg);
+  color: var(--text-secondary);
+  max-width: 560px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: var(--accent-1);
+  color: white;
+  font-weight: 600;
+}
+
+.button.secondary {
+  background: var(--bg-surface-3);
+  color: var(--text-primary);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.grid.two {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.card {
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-2);
+}
+
+.card h3 {
+  margin: 0 0 var(--space-sm);
+}
+
+.card p {
+  margin: 0;
+  color: var(--text-secondary);
 }
 
 .pill {
-  border-radius: 9999px;
-  background: rgba(14, 165, 233, 0.12);
-  color: #7dd3fc;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg-surface-3);
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+}
+
+.footer {
+  padding: var(--space-2xl) var(--space-lg);
+  color: var(--text-secondary);
+}
+
+.split {
+  display: grid;
+  gap: var(--space-xl);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
