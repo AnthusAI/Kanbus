@@ -14,6 +14,7 @@
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.8",
     "@tailwindcss/postcss": "^4.1.18",
+    "clsx": "^2.1.1",
     "gatsby": "^5.13.0",
     "gatsby-plugin-postcss": "^6.16.0",
     "react": "^18.3.1",
