@@ -11,6 +11,8 @@ pub enum TaskulusError {
     Io(String),
     /// Issue ID generation failed.
     IdGenerationFailed(String),
+    /// Configuration loading or validation failed.
+    Configuration(String),
 }
 
 impl Display for TaskulusError {
@@ -19,6 +21,7 @@ impl Display for TaskulusError {
             TaskulusError::Initialization(message) => write!(formatter, "{message}"),
             TaskulusError::Io(message) => write!(formatter, "{message}"),
             TaskulusError::IdGenerationFailed(message) => write!(formatter, "{message}"),
+            TaskulusError::Configuration(message) => write!(formatter, "{message}"),
         }
     }
 }
