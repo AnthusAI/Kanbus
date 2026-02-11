@@ -63,10 +63,7 @@ fn generate_issues(issues_directory: &PathBuf) -> Result<(), Box<dyn std::error:
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let temp_root = std::env::temp_dir().join(format!("taskulus-index-bench-{}", Uuid::new_v4()));
     let issues_directory = temp_root.join("project").join("issues");
-    let cache_path = temp_root
-        .join("project")
-        .join(".cache")
-        .join("index.json");
+    let cache_path = temp_root.join("project").join(".cache").join("index.json");
 
     generate_issues(&issues_directory)?;
 
@@ -96,7 +93,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if mismatch {
             for (name, cached) in &file_mtimes {
                 if current_mtimes.get(name) != Some(cached) {
-                    mismatch_sample = Some((name.clone(), *cached, current_mtimes.get(name).copied()));
+                    mismatch_sample =
+                        Some((name.clone(), *cached, current_mtimes.get(name).copied()));
                     break;
                 }
             }

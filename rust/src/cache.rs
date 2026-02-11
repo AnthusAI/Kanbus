@@ -38,11 +38,11 @@ pub fn collect_issue_file_mtimes(
             .map_err(|error| TaskulusError::Io(error.to_string()))?;
         let mtime = normalize_mtime(
             metadata
-            .modified()
-            .map_err(|error| TaskulusError::Io(error.to_string()))?
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?
-            .as_secs_f64(),
+                .modified()
+                .map_err(|error| TaskulusError::Io(error.to_string()))?
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|error| TaskulusError::Io(error.to_string()))?
+                .as_secs_f64(),
         );
         if let Some(name) = path.file_name().and_then(|value| value.to_str()) {
             mtimes.insert(name.to_string(), mtime);

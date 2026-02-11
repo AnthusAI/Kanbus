@@ -10,12 +10,14 @@ use crate::daemon_server::run_daemon;
 use crate::error::TaskulusError;
 use crate::file_io::{ensure_git_repository, initialize_project, resolve_root};
 use crate::issue_close::close_issue;
+use crate::issue_comment::add_comment;
 use crate::issue_creation::{create_issue, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
 use crate::issue_display::format_issue_for_display;
 use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_update::update_issue;
+use crate::users::get_current_user;
 
 /// Taskulus CLI arguments.
 #[derive(Debug, Parser)]
@@ -88,6 +90,14 @@ enum Commands {
     Delete {
         /// Issue identifier.
         identifier: String,
+    },
+    /// Add a comment to an issue.
+    Comment {
+        /// Issue identifier.
+        identifier: String,
+        /// Comment text.
+        #[arg(required = true)]
+        text: Vec<String>,
     },
     /// List issues.
     List,
@@ -246,6 +256,11 @@ fn execute_command(command: Commands, root: &Path) -> Result<Option<String>, Tas
         }
         Commands::Delete { identifier } => {
             delete_issue(root, &identifier)?;
+            Ok(None)
+        }
+        Commands::Comment { identifier, text } => {
+            let text_value = text.join(" ");
+            add_comment(root, &identifier, &get_current_user(), &text_value)?;
             Ok(None)
         }
         Commands::List => {

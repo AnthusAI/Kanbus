@@ -101,12 +101,17 @@ fn then_latest_timestamp(world: &mut TaskulusWorld) {
     assert!(latest.created_at.timestamp() > 0);
 }
 
-#[then(
-    "issue \"tsk-aaa\" should have comments in order \"First comment\", \"Second comment\""
-)]
+#[then("issue \"tsk-aaa\" should have comments in order \"First comment\", \"Second comment\"")]
 fn then_comments_order(world: &mut TaskulusWorld) {
     let project_dir = load_project_dir(world);
     let issue = load_issue(&project_dir, "tsk-aaa");
-    let texts: Vec<String> = issue.comments.iter().map(|comment| comment.text.clone()).collect();
-    assert_eq!(texts, vec!["First comment".to_string(), "Second comment".to_string()]);
+    let texts: Vec<String> = issue
+        .comments
+        .iter()
+        .map(|comment| comment.text.clone())
+        .collect();
+    assert_eq!(
+        texts,
+        vec!["First comment".to_string(), "Second comment".to_string()]
+    );
 }
