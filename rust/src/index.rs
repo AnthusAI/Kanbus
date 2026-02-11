@@ -7,6 +7,11 @@ use std::path::Path;
 use crate::error::TaskulusError;
 use crate::models::IssueData;
 
+fn read_issue_data(path: &Path) -> Result<IssueData, TaskulusError> {
+    let contents = fs::read(path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    serde_json::from_slice(&contents).map_err(|error| TaskulusError::Io(error.to_string()))
+}
+
 /// In-memory lookup tables for issues.
 #[derive(Debug, Clone)]
 pub struct IssueIndex {
@@ -55,9 +60,7 @@ pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex,
 
     for entry in json_entries {
         let path = entry.path();
-        let contents = fs::read(&path).map_err(|error| TaskulusError::Io(error.to_string()))?;
-        let issue: IssueData = serde_json::from_slice(&contents)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let issue = read_issue_data(&path)?;
 
         index.by_id.insert(issue.identifier.clone(), issue.clone());
         index
