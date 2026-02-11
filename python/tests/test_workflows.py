@@ -11,6 +11,7 @@ from taskulus.models import IssueData, ProjectConfiguration
 from taskulus.workflows import (
     InvalidTransitionError,
     apply_transition_side_effects,
+    get_workflow_for_issue_type,
     validate_status_transition,
 )
 
@@ -86,3 +87,16 @@ def test_apply_transition_side_effects_clears_closed_at_on_reopen() -> None:
     issue = build_issue_data(status="closed", closed_at=closed_at)
     updated = apply_transition_side_effects(issue, "open", now)
     assert updated.closed_at is None
+
+
+def test_get_workflow_for_issue_type_uses_specific() -> None:
+    configuration = build_configuration()
+    workflow = get_workflow_for_issue_type(configuration, "epic")
+    assert "open" in workflow
+
+
+def test_get_workflow_for_issue_type_requires_default() -> None:
+    configuration = build_configuration()
+    configuration = configuration.model_copy(update={"workflows": {}})
+    with pytest.raises(ValueError, match="default workflow not defined"):
+        get_workflow_for_issue_type(configuration, "task")
