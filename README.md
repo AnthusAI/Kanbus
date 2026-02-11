@@ -1,6 +1,6 @@
 # Taskulus
 
-**A little Jira for your repo.**
+**A tiny Jira clone for your repo.**
 
 ![Python CI](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/python-ci.svg)
 ![Rust CI](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/rust-ci.svg)
