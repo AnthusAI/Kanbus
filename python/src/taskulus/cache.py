@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,11 +43,12 @@ def collect_issue_file_mtimes(issues_directory: Path) -> Dict[str, float]:
     :return: Mapping of filename to mtime.
     :rtype: Dict[str, float]
     """
-    return {
-        path.name: _normalize_mtime(path.stat().st_mtime)
-        for path in issues_directory.iterdir()
-        if path.suffix == ".json"
-    }
+    mtimes: Dict[str, float] = {}
+    for entry in os.scandir(issues_directory):
+        if not entry.is_file() or not entry.name.endswith(".json"):
+            continue
+        mtimes[entry.name] = _normalize_mtime(entry.stat().st_mtime)
+    return mtimes
 
 
 def load_cache_if_valid(
