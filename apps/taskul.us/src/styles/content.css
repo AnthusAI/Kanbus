@@ -76,6 +76,10 @@
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+.grid.three {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
 .card {
   padding: var(--space-lg);
   border-radius: var(--radius-md);
@@ -112,4 +116,15 @@
   display: grid;
   gap: var(--space-xl);
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.code-block {
+  background: var(--bg-surface-3);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: var(--text-primary);
 }
