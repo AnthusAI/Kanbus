@@ -13,3 +13,8 @@ project/.cache/
 
 # Docs
 site/
+
+# Node / Gatsby
+node_modules/
+.cache/
+public/

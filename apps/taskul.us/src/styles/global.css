@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --surface: #050714;
+  --surface-alt: #0b1024;
+  --accent: #0ea5e9;
+  --primary: #2563eb;
+}
+
+body {
+  margin: 0;
+  background-color: var(--surface);
+  color: #f8fafc;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}

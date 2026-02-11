@@ -1,0 +1,27 @@
+{
+  "name": "taskulus-site",
+  "version": "0.1.0",
+  "description": "Public-facing Taskulus marketing site built with Gatsby 5 for deployment on AWS Amplify Gen 2.",
+  "private": true,
+  "scripts": {
+    "develop": "gatsby develop",
+    "dev": "gatsby develop",
+    "build": "gatsby build",
+    "serve": "gatsby serve",
+    "clean": "gatsby clean"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "gatsby": "^5.13.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.7.2"
+  }
+}

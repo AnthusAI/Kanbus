@@ -1,0 +1,26 @@
+.content-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.content-shell h2 {
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  margin-bottom: 1.5rem;
+}
+
+.content-shell p {
+  line-height: 1.7;
+  margin-bottom: 1rem;
+  color: #cbd5f5;
+}
+
+.pill {
+  border-radius: 9999px;
+  background: rgba(14, 165, 233, 0.12);
+  color: #7dd3fc;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
