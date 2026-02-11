@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 dependencies = [
     "click",
     "jinja2",
+    "pydantic",
     "pyyaml",
     "pytest",
     "pytest-bdd",
