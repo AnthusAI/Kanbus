@@ -42,17 +42,6 @@ jobs:
           flags: python
           fail_ci_if_error: false
 
-      - name: Publish Python CI badge
-        if: always()
-        uses: emibcn/badge-action@v2
-        with:
-          label: python
-          status: ${{ job.status == 'success' && 'passing' || 'failing' }}
-          color: ${{ job.status == 'success' && 'green' || 'red' }}
-          path: badges/python-ci.json
-          branch: badges
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   rust:
     runs-on: ubuntu-latest
     steps:
@@ -86,13 +75,36 @@ jobs:
           flags: rust
           fail_ci_if_error: false
 
-      - name: Publish Rust CI badge
-        if: always()
+  badges:
+    needs: [python, rust]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare badges directory
+        run: mkdir -p badges
+
+      - name: Build Python CI badge
+        uses: emibcn/badge-action@v2
+        with:
+          label: python
+          status: ${{ needs.python.result == 'success' && 'passing' || 'failing' }}
+          color: ${{ needs.python.result == 'success' && 'green' || 'red' }}
+          path: badges/python-ci.json
+
+      - name: Build Rust CI badge
         uses: emibcn/badge-action@v2
         with:
           label: rust
-          status: ${{ job.status == 'success' && 'passing' || 'failing' }}
-          color: ${{ job.status == 'success' && 'green' || 'red' }}
+          status: ${{ needs.rust.result == 'success' && 'passing' || 'failing' }}
+          color: ${{ needs.rust.result == 'success' && 'green' || 'red' }}
           path: badges/rust-ci.json
-          branch: badges
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish badges branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: badges
+          publish_dir: badges
