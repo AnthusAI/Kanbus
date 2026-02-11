@@ -37,10 +37,16 @@ pub fn run_daemon(root: &Path) -> Result<(), TaskulusError> {
 
     let listener =
         UnixListener::bind(&socket_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    warm_cache(root)?;
     for stream in listener.incoming() {
         let stream = stream.map_err(|error| TaskulusError::Io(error.to_string()))?;
         handle_stream(root, stream)?;
     }
+    Ok(())
+}
+
+fn warm_cache(root: &Path) -> Result<(), TaskulusError> {
+    let _ = load_index(root)?;
     Ok(())
 }
 

@@ -85,6 +85,21 @@ class DaemonServer(socketserver.ThreadingUnixStreamServer):
             socket_path.unlink()
         super().__init__(str(socket_path), DaemonRequestHandler)
 
+    def warm_start(self) -> None:
+        """Warm-start the index cache on daemon startup."""
+        project_dir = load_project_directory(self.state.root)
+        issues_dir = project_dir / "issues"
+        cache_path = get_index_cache_path(self.state.root)
+        cached = load_cache_if_valid(cache_path, issues_dir)
+        if cached is None:
+            index = build_index_from_directory(issues_dir)
+            mtimes = collect_issue_file_mtimes(issues_dir)
+            write_cache(index, cache_path, mtimes)
+            self.state.index = index
+            self.state.cache_mtimes = mtimes
+        else:
+            self.state.index = cached
+
     def handle_request(self, request: RequestEnvelope) -> ResponseEnvelope:
         validate_protocol_compatibility(request.protocol_version, PROTOCOL_VERSION)
         if request.action == "ping":
@@ -140,4 +155,5 @@ def run_daemon(root: Path) -> None:
     :type root: Path
     """
     with DaemonServer(root) as server:
+        server.warm_start()
         server.serve_forever()
