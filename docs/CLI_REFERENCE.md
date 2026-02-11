@@ -209,6 +209,24 @@ Migrate Beads issues into Taskulus.
 tsk migrate
 ```
 
+## Diagnostics
+
+### `tsk doctor`
+
+Run environment diagnostics.
+
+```bash
+tsk doctor
+```
+
+### `tsk --version`
+
+Show the Taskulus version.
+
+```bash
+tsk --version
+```
+
 ## Wiki
 
 ### `tsk wiki render`

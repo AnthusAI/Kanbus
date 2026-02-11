@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
+use crate::doctor::run_doctor;
 use crate::error::TaskulusError;
 use crate::file_io::{ensure_git_repository, initialize_project, resolve_root};
 use crate::issue_close::close_issue;
@@ -22,7 +23,7 @@ use crate::users::get_current_user;
 
 /// Taskulus CLI arguments.
 #[derive(Debug, Parser)]
-#[command(name = "tsk")]
+#[command(name = "tsk", version)]
 pub struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -104,6 +105,8 @@ enum Commands {
     List,
     /// Migrate Beads issues into Taskulus.
     Migrate,
+    /// Run environment diagnostics.
+    Doctor,
     /// Run the daemon server.
     Daemon {
         /// Repository root path.
@@ -277,6 +280,10 @@ fn execute_command(command: Commands, root: &Path) -> Result<Option<String>, Tas
         Commands::Migrate => {
             let result = migrate_from_beads(root)?;
             Ok(Some(format!("migrated {} issues", result.issue_count)))
+        }
+        Commands::Doctor => {
+            let result = run_doctor(root)?;
+            Ok(Some(format!("ok {}", result.project_dir.display())))
         }
         Commands::Daemon { root } => {
             run_daemon(Path::new(&root))?;

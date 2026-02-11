@@ -7,6 +7,7 @@ from pathlib import Path
 
 import click
 
+from taskulus import __version__
 from taskulus.file_io import (
     InitializationError,
     ensure_git_repository,
@@ -23,9 +24,11 @@ from taskulus.issue_listing import IssueListingError, list_issues
 from taskulus.daemon_client import DaemonClientError, request_shutdown, request_status
 from taskulus.users import get_current_user
 from taskulus.migration import MigrationError, migrate_from_beads
+from taskulus.doctor import DoctorError, run_doctor
 
 
 @click.group()
+@click.version_option(__version__, prog_name="tsk")
 def cli() -> None:
     """Taskulus command line interface."""
 
@@ -227,6 +230,17 @@ def list_command() -> None:
 
     for issue in issues:
         click.echo(f"{issue.identifier} {issue.title}")
+
+
+@cli.command("doctor")
+def doctor() -> None:
+    """Run environment diagnostics for Taskulus."""
+    root = Path.cwd()
+    try:
+        result = run_doctor(root)
+    except DoctorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f\"ok {result.project_dir}\")
 
 
 @cli.command("migrate")
