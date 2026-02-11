@@ -76,6 +76,12 @@ def _check_threshold(
 
 
 def main() -> int:
+    """Run benchmark checks against configured thresholds.
+
+    :return: Exit code 0 when benchmarks are within thresholds, 1 otherwise.
+    :rtype: int
+    :raises RuntimeError: If the Rust benchmark output is missing JSON.
+    """
     baseline_path = ROOT / "tools" / "perf_baseline.json"
     baseline = _load_baseline(baseline_path)
     allowed_regression_pct = float(baseline["allowed_regression_pct"])

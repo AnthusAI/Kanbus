@@ -1,0 +1,53 @@
+{
+  "id": "tskl-34w",
+  "title": "Polish and Quality Refinement",
+  "description": "Final polish pass: error message consistency, performance testing, edge case coverage, Windows support if in scope.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-p3i",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-8ke",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-76b",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-5er",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-eyu",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-2ly",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-l4q",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-nqs",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-11T01:32:59.011716Z",
+  "updated_at": "2026-02-11T01:32:59.011716Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "agent@example.com"
+  }
+}
