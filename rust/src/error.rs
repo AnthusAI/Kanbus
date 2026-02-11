@@ -19,6 +19,8 @@ pub enum TaskulusError {
     InvalidHierarchy(String),
     /// Issue operation failed.
     IssueOperation(String),
+    /// Protocol validation failed.
+    ProtocolError(String),
 }
 
 impl Display for TaskulusError {
@@ -31,6 +33,7 @@ impl Display for TaskulusError {
             TaskulusError::InvalidTransition(message) => write!(formatter, "{message}"),
             TaskulusError::InvalidHierarchy(message) => write!(formatter, "{message}"),
             TaskulusError::IssueOperation(message) => write!(formatter, "{message}"),
+            TaskulusError::ProtocolError(message) => write!(formatter, "{message}"),
         }
     }
 }

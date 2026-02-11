@@ -19,7 +19,7 @@ pub struct IssueIndex {
 }
 
 impl IssueIndex {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             by_id: BTreeMap::new(),
             by_status: BTreeMap::new(),
