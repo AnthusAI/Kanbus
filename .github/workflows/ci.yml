@@ -33,12 +33,13 @@ jobs:
           cd python
           black --check .
           ruff check .
-          pytest --cov=taskulus --cov-report=xml
+          mkdir -p ../coverage-python
+          pytest --cov=taskulus --cov-report=xml:../coverage-python/coverage.xml
 
       - name: Capture Python coverage
         id: python_coverage
         run: |
-          output=$(python tools/coverage_badge.py python/coverage.xml)
+          output=$(python tools/coverage_badge.py coverage-python/coverage.xml)
           echo "$output" >> "$GITHUB_OUTPUT"
 
       - name: Check spec parity
