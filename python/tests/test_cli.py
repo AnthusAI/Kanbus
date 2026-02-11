@@ -15,9 +15,10 @@ from click.testing import CliRunner
 from taskulus.cli import cli
 from taskulus.config import write_default_configuration
 from taskulus.issue_files import write_issue_to_file
+from taskulus.dependencies import DependencyError
+from taskulus.doctor import DoctorError
 from taskulus.issue_listing import IssueListingError
 from taskulus.models import IssueData
-from taskulus.doctor import DoctorError
 
 
 def _init_repo(root: Path) -> None:
@@ -134,6 +135,60 @@ def test_list_reports_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         lambda _root: (_ for _ in ()).throw(IssueListingError("boom")),
     )
     result = _run_cli(tmp_path, ["list"])
+    assert result.exit_code == 1
+    assert "boom" in result.output
+
+
+def test_dep_add_requires_target(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    result = _run_cli(tmp_path, ["dep", "add", "tsk-1"])
+    assert result.exit_code == 1
+    assert "dependency target is required" in result.output
+
+
+def test_dep_remove_requires_target(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    result = _run_cli(tmp_path, ["dep", "remove", "tsk-1"])
+    assert result.exit_code == 1
+    assert "dependency target is required" in result.output
+
+
+def test_dep_add_reports_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    monkeypatch.setattr(
+        "taskulus.cli.add_dependency",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(DependencyError("boom")),
+    )
+    result = _run_cli(tmp_path, ["dep", "add", "tsk-1", "--blocked-by", "tsk-2"])
+    assert result.exit_code == 1
+    assert "boom" in result.output
+
+
+def test_dep_remove_reports_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    monkeypatch.setattr(
+        "taskulus.cli.remove_dependency",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(DependencyError("boom")),
+    )
+    result = _run_cli(tmp_path, ["dep", "remove", "tsk-1", "--blocked-by", "tsk-2"])
+    assert result.exit_code == 1
+    assert "boom" in result.output
+
+
+def test_ready_reports_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    monkeypatch.setattr(
+        "taskulus.cli.list_ready_issues",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(DependencyError("boom")),
+    )
+    result = _run_cli(tmp_path, ["ready"])
     assert result.exit_code == 1
     assert "boom" in result.output
 

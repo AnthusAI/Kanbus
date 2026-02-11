@@ -25,6 +25,12 @@ from taskulus.daemon_client import DaemonClientError, request_shutdown, request_
 from taskulus.users import get_current_user
 from taskulus.migration import MigrationError, migrate_from_beads
 from taskulus.doctor import DoctorError, run_doctor
+from taskulus.dependencies import (
+    DependencyError,
+    add_dependency,
+    list_ready_issues,
+    remove_dependency,
+)
 
 
 @click.group()
@@ -230,6 +236,77 @@ def list_command() -> None:
 
     for issue in issues:
         click.echo(f"{issue.identifier} {issue.title}")
+
+
+@cli.group("dep")
+def dep() -> None:
+    """Manage issue dependencies."""
+
+
+@dep.command("add")
+@click.argument("identifier")
+@click.option("--blocked-by")
+@click.option("--relates-to")
+def dep_add(identifier: str, blocked_by: str | None, relates_to: str | None) -> None:
+    """Add a dependency to an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param blocked_by: Blocked-by dependency target.
+    :type blocked_by: str | None
+    :param relates_to: Relates-to dependency target.
+    :type relates_to: str | None
+    :raises click.ClickException: If dependency addition fails.
+    """
+    target_id = blocked_by or relates_to
+    dependency_type = "blocked-by" if blocked_by else "relates-to"
+    if target_id is None:
+        raise click.ClickException("dependency target is required")
+    root = Path.cwd()
+    try:
+        add_dependency(root, identifier, target_id, dependency_type)
+    except DependencyError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@dep.command("remove")
+@click.argument("identifier")
+@click.option("--blocked-by")
+@click.option("--relates-to")
+def dep_remove(
+    identifier: str, blocked_by: str | None, relates_to: str | None
+) -> None:
+    """Remove a dependency from an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param blocked_by: Blocked-by dependency target.
+    :type blocked_by: str | None
+    :param relates_to: Relates-to dependency target.
+    :type relates_to: str | None
+    :raises click.ClickException: If dependency removal fails.
+    """
+    target_id = blocked_by or relates_to
+    dependency_type = "blocked-by" if blocked_by else "relates-to"
+    if target_id is None:
+        raise click.ClickException("dependency target is required")
+    root = Path.cwd()
+    try:
+        remove_dependency(root, identifier, target_id, dependency_type)
+    except DependencyError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("ready")
+def ready() -> None:
+    """List issues that are ready (not blocked)."""
+    root = Path.cwd()
+    try:
+        issues = list_ready_issues(root)
+    except DependencyError as error:
+        raise click.ClickException(str(error)) from error
+    for issue in issues:
+        click.echo(issue.identifier)
 
 
 @cli.command("doctor")
