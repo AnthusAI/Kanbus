@@ -1,18 +1,15 @@
-use cucumber::{given, then, when, World};
+use cucumber::World;
 
 #[derive(Debug, Default, World)]
 struct TaskulusWorld;
 
-#[given("a placeholder precondition")]
-async fn given_placeholder_precondition(_world: &mut TaskulusWorld) {}
-
-#[when("a placeholder action occurs")]
-async fn when_placeholder_action_occurs(_world: &mut TaskulusWorld) {}
-
-#[then("a placeholder result is observed")]
-async fn then_placeholder_result_is_observed(_world: &mut TaskulusWorld) {}
-
 #[tokio::main]
 async fn main() {
-    TaskulusWorld::run("tests/features").await;
+    TaskulusWorld::cucumber()
+        .filter_run("tests/features", |feature, _, scenario| {
+            let scenario_has_wip = scenario.tags.iter().any(|tag| tag == "wip");
+            let feature_has_wip = feature.tags.iter().any(|tag| tag == "wip");
+            !(scenario_has_wip || feature_has_wip)
+        })
+        .await;
 }
