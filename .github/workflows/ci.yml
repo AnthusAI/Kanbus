@@ -34,7 +34,7 @@ jobs:
           black --check .
           ruff check .
           mkdir -p ../coverage-python
-          python -m coverage run -m pytest
+          python -m coverage run --source=taskulus -m pytest
           python -m coverage xml -o ../coverage-python/coverage.xml
 
       - name: Capture Python coverage
