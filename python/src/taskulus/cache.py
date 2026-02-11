@@ -23,6 +23,17 @@ class IndexCache:
     reverse_deps: Dict[str, List[str]]
 
 
+def _normalize_mtime(value: float) -> float:
+    """Normalize file modification times for cache consistency.
+
+    :param value: Raw modification time value.
+    :type value: float
+    :return: Rounded modification time to microsecond precision.
+    :rtype: float
+    """
+    return round(value, 6)
+
+
 def collect_issue_file_mtimes(issues_directory: Path) -> Dict[str, float]:
     """Collect file modification times for issues.
 
@@ -32,7 +43,7 @@ def collect_issue_file_mtimes(issues_directory: Path) -> Dict[str, float]:
     :rtype: Dict[str, float]
     """
     return {
-        path.name: round(path.stat().st_mtime, 6)
+        path.name: _normalize_mtime(path.stat().st_mtime)
         for path in issues_directory.iterdir()
         if path.suffix == ".json"
     }
