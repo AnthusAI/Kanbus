@@ -76,6 +76,7 @@ def _iter_feature_steps(feature_path: Path) -> Iterable[str]:
         if line.startswith("Scenario"):
             in_scenario = True
             skip_scenario = "wip" in current_feature_tags or "wip" in current_scenario_tags
+            current_scenario_tags = set()
             continue
         if in_scenario and line.split(maxsplit=1)[0] in STEP_KEYWORDS:
             if skip_scenario:
