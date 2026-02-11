@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
+use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
 use crate::doctor::run_doctor;
 use crate::error::TaskulusError;
 use crate::file_io::{ensure_git_repository, initialize_project, resolve_root};
@@ -103,6 +104,13 @@ enum Commands {
     },
     /// List issues.
     List,
+    /// Manage issue dependencies.
+    Dep {
+        #[command(subcommand)]
+        command: DependencyCommands,
+    },
+    /// List issues that are ready (not blocked).
+    Ready,
     /// Migrate Beads issues into Taskulus.
     Migrate,
     /// Run environment diagnostics.
@@ -119,6 +127,32 @@ enum Commands {
     /// Stop the daemon process.
     #[command(name = "daemon-stop")]
     DaemonStop,
+}
+
+#[derive(Debug, Subcommand)]
+enum DependencyCommands {
+    /// Add a dependency to an issue.
+    Add {
+        /// Issue identifier.
+        identifier: String,
+        /// Blocked-by dependency target.
+        #[arg(long = "blocked-by")]
+        blocked_by: Option<String>,
+        /// Relates-to dependency target.
+        #[arg(long = "relates-to")]
+        relates_to: Option<String>,
+    },
+    /// Remove a dependency from an issue.
+    Remove {
+        /// Issue identifier.
+        identifier: String,
+        /// Blocked-by dependency target.
+        #[arg(long = "blocked-by")]
+        blocked_by: Option<String>,
+        /// Relates-to dependency target.
+        #[arg(long = "relates-to")]
+        relates_to: Option<String>,
+    },
 }
 
 /// Output produced by a CLI command.
@@ -274,6 +308,50 @@ fn execute_command(command: Commands, root: &Path) -> Result<Option<String>, Tas
             let mut lines = Vec::new();
             for issue in issues {
                 lines.push(format!("{} {}", issue.identifier, issue.title));
+            }
+            Ok(Some(lines.join("\n")))
+        }
+        Commands::Dep { command } => match command {
+            DependencyCommands::Add {
+                identifier,
+                blocked_by,
+                relates_to,
+            } => {
+                let (target_id, dependency_type) = match (blocked_by, relates_to) {
+                    (Some(value), _) => (value, "blocked-by"),
+                    (None, Some(value)) => (value, "relates-to"),
+                    (None, None) => {
+                        return Err(TaskulusError::IssueOperation(
+                            "dependency target is required".to_string(),
+                        ));
+                    }
+                };
+                add_dependency(root, &identifier, &target_id, dependency_type)?;
+                Ok(None)
+            }
+            DependencyCommands::Remove {
+                identifier,
+                blocked_by,
+                relates_to,
+            } => {
+                let (target_id, dependency_type) = match (blocked_by, relates_to) {
+                    (Some(value), _) => (value, "blocked-by"),
+                    (None, Some(value)) => (value, "relates-to"),
+                    (None, None) => {
+                        return Err(TaskulusError::IssueOperation(
+                            "dependency target is required".to_string(),
+                        ));
+                    }
+                };
+                remove_dependency(root, &identifier, &target_id, dependency_type)?;
+                Ok(None)
+            }
+        },
+        Commands::Ready => {
+            let issues = list_ready_issues(root)?;
+            let mut lines = Vec::new();
+            for issue in issues {
+                lines.push(issue.identifier);
             }
             Ok(Some(lines.join("\n")))
         }
