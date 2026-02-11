@@ -1,8 +1,13 @@
 //! Taskulus Rust library.
 
+pub mod cache;
 pub mod cli;
 pub mod config;
 pub mod config_loader;
+pub mod daemon_client;
+pub mod daemon_paths;
+pub mod daemon_protocol;
+pub mod daemon_server;
 pub mod error;
 pub mod file_io;
 pub mod hierarchy;
@@ -13,6 +18,7 @@ pub mod issue_creation;
 pub mod issue_delete;
 pub mod issue_display;
 pub mod issue_files;
+pub mod issue_listing;
 pub mod issue_lookup;
 pub mod issue_update;
 pub mod models;

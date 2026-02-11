@@ -5,12 +5,14 @@ use std::path::Path;
 
 use clap::{Parser, Subcommand};
 
+use crate::daemon_server::run_daemon;
 use crate::error::TaskulusError;
 use crate::file_io::{ensure_git_repository, initialize_project, resolve_root};
 use crate::issue_close::close_issue;
 use crate::issue_creation::{create_issue, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
 use crate::issue_display::format_issue_for_display;
+use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_update::update_issue;
 
@@ -85,6 +87,14 @@ enum Commands {
     Delete {
         /// Issue identifier.
         identifier: String,
+    },
+    /// List issues.
+    List,
+    /// Run the daemon server.
+    Daemon {
+        /// Repository root path.
+        #[arg(long)]
+        root: String,
     },
 }
 
@@ -229,6 +239,18 @@ fn execute_command(command: Commands, root: &Path) -> Result<Option<String>, Tas
         }
         Commands::Delete { identifier } => {
             delete_issue(root, &identifier)?;
+            Ok(None)
+        }
+        Commands::List => {
+            let issues = list_issues(root)?;
+            let mut lines = Vec::new();
+            for issue in issues {
+                lines.push(format!("{} {}", issue.identifier, issue.title));
+            }
+            Ok(Some(lines.join("\n")))
+        }
+        Commands::Daemon { root } => {
+            run_daemon(Path::new(&root))?;
             Ok(None)
         }
     }
