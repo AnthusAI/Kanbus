@@ -4,7 +4,7 @@ Taskulus includes a migration path from Beads (JSONL format) to the Taskulus JSO
 
 ## Summary
 
-- Source: Beads JSONL file (one JSON object per line)
+- Source: `.beads/issues.jsonl` (one JSON object per line)
 - Destination: `project/issues/<id>.json` files
 - Only one direction is stored for dependencies (outbound only)
 - Validation is strict; invalid data must be corrected before import
@@ -22,22 +22,23 @@ The following table describes the intended mapping between Beads and Taskulus fi
 
 | Beads field | Taskulus field | Notes |
 |-------------|----------------|-------|
-| id | id | Preserved when possible; otherwise regenerated with prefix |
+| id | id | Preserved as-is |
 | title | title | Required |
-| body | description | Markdown preserved |
-| type | type | Must exist in Taskulus config |
+| description | description | Markdown preserved |
+| issue_type | type | Must exist in Taskulus config |
 | status | status | Must be valid for the workflow |
-| priority | priority | Converted to numeric priority |
-| owner | assignee | String identifier |
-| creator | creator | String identifier |
-| parent | parent | Validated against hierarchy |
-| tags | labels | Free-form labels |
-| dependencies | dependencies | Converted to outbound links |
+| priority | priority | Numeric priority retained |
+| assignee | assignee | String identifier |
+| created_by | creator | String identifier |
+| owner | custom.beads_owner | Preserved in custom map |
+| notes | custom.beads_notes | Preserved in custom map |
+| acceptance_criteria | custom.beads_acceptance_criteria | Preserved in custom map |
+| close_reason | custom.beads_close_reason | Preserved in custom map |
+| dependencies | parent or dependencies | `type=parent-child` becomes `parent`; all other types become dependencies with `target=depends_on_id` and `type` preserved |
 | comments | comments | Converted to Taskulus comment list |
 | created_at | created_at | RFC3339 UTC |
 | updated_at | updated_at | RFC3339 UTC |
 | closed_at | closed_at | RFC3339 UTC or null |
-| custom | custom | Preserved as key-value map |
 
 ## Validation and corrections
 
@@ -45,6 +46,7 @@ The following table describes the intended mapping between Beads and Taskulus fi
 - Status values must exist in the configured workflow.
 - Hierarchy violations must be corrected before import.
 - If a Beads issue type does not exist in the Taskulus config, update the config first.
+- Timestamps with offsets are normalized to UTC and serialized in RFC3339 Z format.
 
 ## After migration
 
