@@ -23,7 +23,9 @@ class IssueCommentResult:
     comment: IssueComment
 
 
-def add_comment(root: Path, identifier: str, author: str, text: str) -> IssueCommentResult:
+def add_comment(
+    root: Path, identifier: str, author: str, text: str
+) -> IssueCommentResult:
     """Add a comment to an issue.
 
     :param root: Repository root path.

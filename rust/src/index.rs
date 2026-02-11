@@ -82,8 +82,8 @@ impl IssueIndex {
 /// Returns `TaskulusError::Io` if file reads or JSON parsing fails.
 pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex, TaskulusError> {
     let mut index = IssueIndex::new();
-    let entries = fs::read_dir(issues_directory)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let entries =
+        fs::read_dir(issues_directory).map_err(|error| TaskulusError::Io(error.to_string()))?;
     let mut json_entries = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;

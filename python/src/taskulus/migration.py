@@ -12,7 +12,12 @@ from taskulus.config_loader import load_project_configuration
 from taskulus.file_io import ensure_git_repository, initialize_project
 from taskulus.hierarchy import validate_parent_child_relationship
 from taskulus.issue_files import write_issue_to_file
-from taskulus.models import DependencyLink, IssueComment, IssueData, ProjectConfiguration
+from taskulus.models import (
+    DependencyLink,
+    IssueComment,
+    IssueData,
+    ProjectConfiguration,
+)
 from taskulus.workflows import get_workflow_for_issue_type
 
 

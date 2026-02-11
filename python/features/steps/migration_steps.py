@@ -12,7 +12,13 @@ from features.steps.shared import ensure_git_repository, load_project_directory,
 
 
 def _fixture_beads_dir() -> Path:
-    return Path(__file__).resolve().parents[3] / "specs" / "fixtures" / "beads_repo" / ".beads"
+    return (
+        Path(__file__).resolve().parents[3]
+        / "specs"
+        / "fixtures"
+        / "beads_repo"
+        / ".beads"
+    )
 
 
 @given("a git repository with a .beads issues database")
@@ -59,7 +65,11 @@ def then_taskulus_initialized(context: object) -> None:
 @then("all Beads issues should be converted to Taskulus issues")
 def then_beads_converted(context: object) -> None:
     issues_path = context.working_directory / ".beads" / "issues.jsonl"
-    lines = [line for line in issues_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    lines = [
+        line
+        for line in issues_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     project_dir = load_project_directory(context)
     issue_files = list((project_dir / "issues").glob("*.json"))
     assert len(issue_files) == len(lines)

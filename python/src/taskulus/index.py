@@ -40,9 +40,7 @@ def _add_issue_to_index(index: IssueIndex, issue: IssueData) -> None:
         index.by_label.setdefault(label, []).append(issue)
     for dependency in issue.dependencies:
         if dependency.dependency_type == "blocked-by":
-            index.reverse_dependencies.setdefault(dependency.target, []).append(
-                issue
-            )
+            index.reverse_dependencies.setdefault(dependency.target, []).append(issue)
 
 
 @dataclass
