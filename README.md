@@ -7,7 +7,17 @@
 ![Python Coverage](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/python-coverage.svg)
 ![Rust Coverage](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/rust-coverage.svg)
 
-Taskulus is an **agent-native** project management system that lives in your git repository. It gives you the structure of Jira (issues, epics, workflows) with the simplicity of Markdown, all stored as JSON files alongside your code.
+## Inspiration & Lineage
+
+Taskulus is a spiritual successor to [Beads](https://github.com/cexa/beads), inspired by its elegant, domain-specific approach to project management. We are deeply grateful to the Beads author and community for proving that a dedicated cognitive framework for tasks is game-changing.
+
+Taskulus builds on this foundation by adapting the model to be a thinner, more native layer over Git—optimizing for AI agents and distributed teams:
+
+*   **A Thinner Layer over Git**: We removed the secondary SQLite index. The complexity of maintaining and synchronizing a shadow database isn't worth the operational cost. Taskulus reads files directly.
+*   **Better Storage Alignment**: Things like "exclusively claiming" a task don't align well with the distributed Git model. We removed them to ensure the tool behaves exactly like the version control system underneath it.
+*   **Conflict-Free Storage**: Instead of a single JSON-L file (which guarantees merge conflicts when agents work in parallel), Taskulus stores separate tasks in separate files. This eliminates conflicts and allows deep linking to specific issues from GitHub.
+*   **Streamlined Cognitive Model**: Beads is powerful but complex, with 130+ attributes per issue. We streamlined this to a focused core (Status, Priority, Dependencies) to reduce the "context pollution" for AI agents. We want the model to think about the work, not how to use the tracker.
+*   **AI-Native Nomenclature**: Instead of teaching models new terms like "beads", we use the standard Jira vocabulary (Epics, Tasks, Sub-tasks) that AI models are already extensively pre-trained on. This leverages their existing knowledge graph for better reasoning.
 
 ## Why Taskulus?
 

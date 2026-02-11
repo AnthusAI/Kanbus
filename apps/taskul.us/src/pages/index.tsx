@@ -119,12 +119,12 @@ const IndexPage = () => {
           <div className="grid gap-8 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
-                Vs. Beads
+                Successor to Beads
               </h3>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                We removed the SQLite daemon entirely and read the JSON files directly,
-                so there is nothing to sync or keep running. And we eliminated the
-                JSONL merge conflict problem by giving every issue its own file.
+                Inspired by the elegant Beads cognitive framework, but re-engineered for Git.
+                We removed the SQLite database, used separate files to eliminate merge conflicts,
+                and adopted standard Jira terms to better leverage AI pre-training.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">

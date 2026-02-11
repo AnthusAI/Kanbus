@@ -36,6 +36,40 @@ const PhilosophyPage = () => {
         </Section>
 
         <Section
+          title="Inspiration & Lineage"
+          subtitle="Standing on the shoulders of giants."
+          variant="alt"
+        >
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+              A Spiritual Successor to Beads
+            </h3>
+            <div className="space-y-4 text-slate-600 dark:text-slate-400 leading-relaxed">
+              <p>
+                This project was inspired by <a href="https://github.com/cexa/beads" className="text-primary-600 hover:underline">Beads</a> and is intended as a spiritual successor that embraces the elegant domain-specific cognitive framework it pioneered. We are deeply grateful to the Beads author and community for proving the concept so well.
+              </p>
+              <p>
+                Taskulus represents the next generation of this idea, improved for the era of AI agents:
+              </p>
+              <ul className="list-disc list-inside space-y-2 ml-4">
+                <li>
+                  <strong>Thinner layer over Git:</strong> We removed the secondary SQLite database to eliminate synchronization complexity.
+                </li>
+                <li>
+                  <strong>Git-aligned storage:</strong> Separate files for separate tasks mean no merge conflicts when agents work in parallel.
+                </li>
+                <li>
+                  <strong>Focused Cognitive Model:</strong> We stripped away 100+ unused attributes to focus on the core cognitive framework, reducing context pollution for AI models.
+                </li>
+                <li>
+                  <strong>Standard Nomenclature:</strong> We use standard terms (Epics, Tasks) to leverage the massive pre-training AI models already have on these concepts.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </Section>
+
+        <Section
           title="Core Principles"
           subtitle="The fundamental rules that guide the development of the Taskulus system."
         >
