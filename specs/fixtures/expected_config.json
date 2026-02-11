@@ -1,0 +1,61 @@
+{
+  "default_priority": 2,
+  "hierarchy": [
+    "initiative",
+    "epic",
+    "task",
+    "sub-task"
+  ],
+  "initial_status": "open",
+  "prefix": "tsk",
+  "priorities": {
+    "0": "critical",
+    "1": "high",
+    "2": "medium",
+    "3": "low",
+    "4": "trivial"
+  },
+  "types": [
+    "bug",
+    "story",
+    "chore"
+  ],
+  "workflows": {
+    "default": {
+      "blocked": [
+        "in_progress",
+        "closed"
+      ],
+      "closed": [
+        "open"
+      ],
+      "deferred": [
+        "open",
+        "closed"
+      ],
+      "in_progress": [
+        "open",
+        "blocked",
+        "closed"
+      ],
+      "open": [
+        "in_progress",
+        "closed",
+        "deferred"
+      ]
+    },
+    "epic": {
+      "closed": [
+        "open"
+      ],
+      "in_progress": [
+        "open",
+        "closed"
+      ],
+      "open": [
+        "in_progress",
+        "closed"
+      ]
+    }
+  }
+}
