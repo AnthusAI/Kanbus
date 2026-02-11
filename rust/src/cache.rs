@@ -36,17 +36,23 @@ pub fn collect_issue_file_mtimes(
         let metadata = entry
             .metadata()
             .map_err(|error| TaskulusError::Io(error.to_string()))?;
-        let mtime = metadata
+        let mtime = normalize_mtime(
+            metadata
             .modified()
             .map_err(|error| TaskulusError::Io(error.to_string()))?
             .duration_since(std::time::UNIX_EPOCH)
             .map_err(|error| TaskulusError::Io(error.to_string()))?
-            .as_secs_f64();
+            .as_secs_f64(),
+        );
         if let Some(name) = path.file_name().and_then(|value| value.to_str()) {
             mtimes.insert(name.to_string(), mtime);
         }
     }
     Ok(mtimes)
+}
+
+fn normalize_mtime(value: f64) -> f64 {
+    (value * 1_000_000.0).round() / 1_000_000.0
 }
 
 /// Load cached index if the cache is valid.

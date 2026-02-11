@@ -31,7 +31,10 @@ def collect_issue_file_mtimes(issues_directory: Path) -> Dict[str, float]:
     :return: Mapping of filename to mtime.
     :rtype: Dict[str, float]
     """
-    return {path.name: path.stat().st_mtime for path in issues_directory.glob("*.json")}
+    return {
+        path.name: round(path.stat().st_mtime, 6)
+        for path in issues_directory.glob("*.json")
+    }
 
 
 def load_cache_if_valid(
