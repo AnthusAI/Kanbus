@@ -46,7 +46,7 @@ const PhilosophyPage = () => {
             </h3>
             <div className="space-y-4 text-slate-600 dark:text-slate-400 leading-relaxed">
               <p>
-                This project was inspired by <a href="https://github.com/cexa/beads" className="text-primary-600 hover:underline">Beads</a> and is intended as a spiritual successor that embraces the elegant domain-specific cognitive framework it pioneered. We are deeply grateful to the Beads author and community for proving the concept so well.
+                This project was inspired by <a href="https://github.com/steveyegge/beads" className="text-primary-600 hover:underline">Beads</a> and is intended as a spiritual successor that embraces the elegant domain-specific cognitive framework it pioneered. We are deeply grateful to the Beads author and community for proving the concept so well.
               </p>
               <p>
                 Taskulus represents the next generation of this idea, improved for the era of AI agents:

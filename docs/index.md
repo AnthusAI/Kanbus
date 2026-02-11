@@ -1,6 +1,6 @@
 # Taskulus Documentation
 
-Welcome to the Taskulus documentation site. Taskulus is a git-backed project management system with dual Python and Rust implementations. It is a spiritual successor to [Beads](https://github.com/cexa/beads), adapting its elegant domain-specific cognitive framework for the modern era of AI agents and distributed Git workflows.
+Welcome to the Taskulus documentation site. Taskulus is a git-backed project management system with dual Python and Rust implementations. It is a spiritual successor to [Beads](https://github.com/steveyegge/beads), adapting its elegant domain-specific cognitive framework for the modern era of AI agents and distributed Git workflows.
 
 ## Guides
 

@@ -9,17 +9,22 @@ This guide is a 10-minute walkthrough to initialize a Taskulus project, create a
 
 ## Installation
 
-Python (pip):
+Taskulus provides two **completely equivalent** implementations: Python and Rust. Both pass the same 100% specification test suite, use the same file formats, and provide the same CLI commands. You can mix and match them within a team without issues.
 
-```bash
-pip install taskulus
-```
+<div style="display: flex; gap: 20px;">
+  <div style="flex: 1; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
+    <strong>Python</strong> (pip)<br>
+    <em>Recommended for easy installation and scripting.</em><br><br>
+    <code>pip install taskulus</code>
+  </div>
+  <div style="flex: 1; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
+    <strong>Rust</strong> (cargo)<br>
+    <em>Recommended for max performance and CI/CD pipelines.</em><br><br>
+    <code>cargo install taskulus</code>
+  </div>
+</div>
 
-Rust (cargo):
-
-```bash
-cargo install taskulus
-```
+Both install the `tsk` command. You can switch between them at any time.
 
 ## Step 1: Initialize a project
 
