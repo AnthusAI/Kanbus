@@ -101,7 +101,7 @@ jobs:
       - name: Build Python coverage badge
         uses: emibcn/badge-action@v2
         with:
-          label: coverage
+          label: python coverage
           status: ${{ needs.python.outputs.coverage_percent }}%
           color: ${{ needs.python.outputs.coverage_color }}
           path: badges/python-coverage.svg
@@ -117,7 +117,7 @@ jobs:
       - name: Build Rust coverage badge
         uses: emibcn/badge-action@v2
         with:
-          label: coverage
+          label: rust coverage
           status: ${{ needs.rust.outputs.coverage_percent }}%
           color: ${{ needs.rust.outputs.coverage_color }}
           path: badges/rust-coverage.svg
