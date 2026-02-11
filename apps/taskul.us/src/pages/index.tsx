@@ -49,8 +49,8 @@ const IndexPage = () => {
               </h3>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
                 There is no database server to maintain, no background process to
-                crash, and no complex synchronization logic. We build a fast
-                in-memory index from your files on the fly.
+                crash, and no complex synchronization logic. Each command scans
+                the project files directly, so you see exactly what is on disk.
               </p>
             </div>
           </div>

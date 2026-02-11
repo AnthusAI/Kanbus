@@ -15,7 +15,7 @@ Taskulus is an **agent-native** project management system that lives in your git
 Offload your mental context. Instead of keeping 15 different chat sessions and open loops in your head, tell your agent to "record the current state" into Taskulus. It's a permanent, searchable memory bank for your AI workforce.
 
 ### 2. Files are the Database
-- **No SQL Server**: We build a fast in-memory index from your files.
+- **No SQL Server**: Each command scans the JSON files directly—no cache or daemon to manage.
 - **No Daemon**: There is no background process to crash or manage.
 - **No API**: Your agents read and write files directly (or use the simple CLI).
 

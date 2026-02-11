@@ -47,8 +47,7 @@ const PhilosophyPage = () => {
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
                 There is no hidden SQLite file, no background daemon, and no remote API.
                 The state of your project is strictly defined by the JSON files in your
-                repository. We index them in-memory for speed, but the index is disposable.
-                The files are the truth.
+                repository. Each command scans those files directly—the files are the truth.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm hover:shadow-md transition-shadow">
