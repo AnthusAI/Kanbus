@@ -35,6 +35,11 @@ def test_get_allowed_child_types_returns_empty_for_non_hierarchical_parent() -> 
     assert get_allowed_child_types(configuration, "bug") == []
 
 
+def test_get_allowed_child_types_returns_empty_for_last_hierarchy() -> None:
+    configuration = build_configuration()
+    assert get_allowed_child_types(configuration, "sub-task") == []
+
+
 def test_validate_parent_child_relationship_allows_valid_pair() -> None:
     """Valid parent-child pairs should not raise."""
     configuration = build_configuration()
