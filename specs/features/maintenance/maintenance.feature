@@ -26,5 +26,5 @@ Feature: Maintenance commands
     And issues "tsk-task" and "tsk-bug" exist
     And issue "tsk-bug" has type "bug"
     When I run "tsk stats"
-    Then stdout should contain "task"
-    And stdout should contain "bug"
+    Then stdout should contain "type: task"
+    And stdout should contain "type: bug"

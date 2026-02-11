@@ -141,3 +141,121 @@ def test_list_issues_local_failure_raises(
 
     with pytest.raises(IssueListingError, match="boom"):
         list_issues(tmp_path)
+
+
+def test_list_issues_filters_by_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    issue_open = _make_issue("tsk-open")
+    issue_closed = _make_issue("tsk-closed").model_copy(update={"status": "closed"})
+    monkeypatch.setattr("taskulus.issue_listing.is_daemon_enabled", lambda: False)
+    monkeypatch.setattr(
+        "taskulus.issue_listing._list_issues_locally",
+        lambda _root: [issue_open, issue_closed],
+    )
+
+    issues = list_issues(tmp_path, status="open")
+
+    identifiers = {issue.identifier for issue in issues}
+    assert "tsk-open" in identifiers
+    assert "tsk-closed" not in identifiers
+
+
+def test_list_issues_filters_by_type(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    issue_task = _make_issue("tsk-task")
+    issue_bug = _make_issue("tsk-bug").model_copy(update={"issue_type": "bug"})
+    monkeypatch.setattr("taskulus.issue_listing.is_daemon_enabled", lambda: False)
+    monkeypatch.setattr(
+        "taskulus.issue_listing._list_issues_locally",
+        lambda _root: [issue_task, issue_bug],
+    )
+
+    issues = list_issues(tmp_path, issue_type="task")
+
+    identifiers = {issue.identifier for issue in issues}
+    assert "tsk-task" in identifiers
+    assert "tsk-bug" not in identifiers
+
+
+def test_list_issues_filters_by_assignee(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    issue_a = _make_issue("tsk-a").model_copy(update={"assignee": "dev@example.com"})
+    issue_b = _make_issue("tsk-b")
+    monkeypatch.setattr("taskulus.issue_listing.is_daemon_enabled", lambda: False)
+    monkeypatch.setattr(
+        "taskulus.issue_listing._list_issues_locally",
+        lambda _root: [issue_a, issue_b],
+    )
+
+    issues = list_issues(tmp_path, assignee="dev@example.com")
+
+    identifiers = {issue.identifier for issue in issues}
+    assert "tsk-a" in identifiers
+    assert "tsk-b" not in identifiers
+
+
+def test_list_issues_filters_by_label(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    issue_a = _make_issue("tsk-a").model_copy(update={"labels": ["auth"]})
+    issue_b = _make_issue("tsk-b")
+    monkeypatch.setattr("taskulus.issue_listing.is_daemon_enabled", lambda: False)
+    monkeypatch.setattr(
+        "taskulus.issue_listing._list_issues_locally",
+        lambda _root: [issue_a, issue_b],
+    )
+
+    issues = list_issues(tmp_path, label="auth")
+
+    identifiers = {issue.identifier for issue in issues}
+    assert "tsk-a" in identifiers
+    assert "tsk-b" not in identifiers
+
+
+def test_list_issues_sorts_by_priority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    issue_high = _make_issue("tsk-high").model_copy(update={"priority": 1})
+    issue_low = _make_issue("tsk-low").model_copy(update={"priority": 3})
+    monkeypatch.setattr("taskulus.issue_listing.is_daemon_enabled", lambda: False)
+    monkeypatch.setattr(
+        "taskulus.issue_listing._list_issues_locally",
+        lambda _root: [issue_low, issue_high],
+    )
+
+    issues = list_issues(tmp_path, sort="priority")
+
+    assert [issue.identifier for issue in issues] == ["tsk-high", "tsk-low"]
+
+
+def test_list_issues_searches_text(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _init_repo(tmp_path)
+    _write_project(tmp_path)
+    issue_auth = _make_issue("tsk-auth").model_copy(update={"title": "OAuth setup"})
+    issue_ui = _make_issue("tsk-ui").model_copy(update={"description": "Fix login button"})
+    monkeypatch.setattr("taskulus.issue_listing.is_daemon_enabled", lambda: False)
+    monkeypatch.setattr(
+        "taskulus.issue_listing._list_issues_locally",
+        lambda _root: [issue_auth, issue_ui],
+    )
+
+    issues = list_issues(tmp_path, search="login")
+
+    identifiers = {issue.identifier for issue in issues}
+    assert "tsk-ui" in identifiers
+    assert "tsk-auth" not in identifiers

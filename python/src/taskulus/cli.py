@@ -21,6 +21,7 @@ from taskulus.issue_display import format_issue_for_display
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.issue_update import IssueUpdateError, update_issue
 from taskulus.issue_listing import IssueListingError, list_issues
+from taskulus.queries import QueryError
 from taskulus.daemon_client import DaemonClientError, request_shutdown, request_status
 from taskulus.users import get_current_user
 from taskulus.migration import MigrationError, migrate_from_beads
@@ -226,12 +227,33 @@ def comment(identifier: str, text: str) -> None:
 
 
 @cli.command("list")
-def list_command() -> None:
+@click.option("--status")
+@click.option("--type", "issue_type")
+@click.option("--assignee")
+@click.option("--label")
+@click.option("--sort")
+@click.option("--search")
+def list_command(
+    status: str | None,
+    issue_type: str | None,
+    assignee: str | None,
+    label: str | None,
+    sort: str | None,
+    search: str | None,
+) -> None:
     """List issues in the current project."""
     root = Path.cwd()
     try:
-        issues = list_issues(root)
-    except IssueListingError as error:
+        issues = list_issues(
+            root,
+            status=status,
+            issue_type=issue_type,
+            assignee=assignee,
+            label=label,
+            sort=sort,
+            search=search,
+        )
+    except (IssueListingError, QueryError) as error:
         raise click.ClickException(str(error)) from error
 
     for issue in issues:
