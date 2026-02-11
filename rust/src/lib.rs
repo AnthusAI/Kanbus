@@ -8,6 +8,7 @@ pub mod daemon_client;
 pub mod daemon_paths;
 pub mod daemon_protocol;
 pub mod daemon_server;
+pub mod dependencies;
 pub mod doctor;
 pub mod error;
 pub mod file_io;
