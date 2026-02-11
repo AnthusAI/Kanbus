@@ -17,6 +17,7 @@ use crate::issue_display::format_issue_for_display;
 use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_update::update_issue;
+use crate::migration::migrate_from_beads;
 use crate::users::get_current_user;
 
 /// Taskulus CLI arguments.
@@ -101,6 +102,8 @@ enum Commands {
     },
     /// List issues.
     List,
+    /// Migrate Beads issues into Taskulus.
+    Migrate,
     /// Run the daemon server.
     Daemon {
         /// Repository root path.
@@ -270,6 +273,10 @@ fn execute_command(command: Commands, root: &Path) -> Result<Option<String>, Tas
                 lines.push(format!("{} {}", issue.identifier, issue.title));
             }
             Ok(Some(lines.join("\n")))
+        }
+        Commands::Migrate => {
+            let result = migrate_from_beads(root)?;
+            Ok(Some(format!("migrated {} issues", result.issue_count)))
         }
         Commands::Daemon { root } => {
             run_daemon(Path::new(&root))?;

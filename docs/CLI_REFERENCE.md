@@ -199,6 +199,16 @@ Add a comment to an issue.
 tsk comment <id> <text>
 ```
 
+## Migration
+
+### `tsk migrate`
+
+Migrate Beads issues into Taskulus.
+
+```bash
+tsk migrate
+```
+
 ## Wiki
 
 ### `tsk wiki render`

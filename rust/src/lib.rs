@@ -22,6 +22,7 @@ pub mod issue_files;
 pub mod issue_listing;
 pub mod issue_lookup;
 pub mod issue_update;
+pub mod migration;
 pub mod models;
 pub mod users;
 pub mod workflows;
