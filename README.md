@@ -18,12 +18,12 @@ This repository contains the complete vision, implementation plan, and task brea
 
 ## Key Features
 
-✅ Issue tracking with strict hierarchy (initiative → epic → task → sub-task)
-✅ Workflow state machines with configurable transitions
-✅ Dependency management with cycle detection
-✅ Full-text search across titles, descriptions, and comments
-✅ Wiki pages with live issue data using Jinja2 templates
-✅ Migration path from Beads (JSONL format)
+- Issue tracking with strict hierarchy (initiative → epic → task → sub-task)
+- Workflow state machines with configurable transitions
+- Dependency management with cycle detection
+- Full-text search across titles, descriptions, and comments
+- Wiki pages with live issue data using Jinja2 templates
+- Migration path from Beads (JSONL format)
 
 ## Python vs Rust: Which Should I Use?
 
@@ -189,4 +189,4 @@ Taskulus is inspired by [Beads](https://github.com/steveyegge/beads) by Steve Ye
 
 ---
 
-**🚀 Let's build a better project management tool!**
+**Let's build a better project management tool.**

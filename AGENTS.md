@@ -5,6 +5,20 @@ When: Create/update the Beads task before coding; close it only after the change
 How: Follow the workflow in the skill for recording, implementation notes, and closure.
 <!-- AGENT-SKILL:END project-management-with-beads -->
 
+# CRITICAL PROJECT POLICY: NO EMOJIS
+
+**ZERO TOLERANCE: No emojis anywhere in this project.**
+
+This applies to:
+- Code (comments, docstrings, error messages)
+- Documentation (README, guides, specs, wiki pages)
+- Git commit messages
+- Beads task titles and descriptions
+- CLI output
+- Test scenarios and step definitions
+
+Use clear, professional text instead. Emojis reduce clarity and professionalism.
+
 # Code Quality Standards for Taskulus
 
 ## Behavior-Driven Development (BDD)
