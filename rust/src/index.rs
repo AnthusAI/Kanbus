@@ -12,6 +12,43 @@ fn read_issue_data(path: &Path) -> Result<IssueData, TaskulusError> {
     serde_json::from_slice(&contents).map_err(|error| TaskulusError::Io(error.to_string()))
 }
 
+fn add_issue_to_index(index: &mut IssueIndex, issue: IssueData) {
+    index.by_id.insert(issue.identifier.clone(), issue.clone());
+    index
+        .by_status
+        .entry(issue.status.clone())
+        .or_default()
+        .push(issue.clone());
+    index
+        .by_type
+        .entry(issue.issue_type.clone())
+        .or_default()
+        .push(issue.clone());
+    if let Some(parent) = issue.parent.clone() {
+        index
+            .by_parent
+            .entry(parent)
+            .or_default()
+            .push(issue.clone());
+    }
+    for label in &issue.labels {
+        index
+            .by_label
+            .entry(label.clone())
+            .or_default()
+            .push(issue.clone());
+    }
+    for dependency in &issue.dependencies {
+        if dependency.dependency_type == "blocked-by" {
+            index
+                .reverse_dependencies
+                .entry(dependency.target.clone())
+                .or_default()
+                .push(issue.clone());
+        }
+    }
+}
+
 /// In-memory lookup tables for issues.
 #[derive(Debug, Clone)]
 pub struct IssueIndex {
@@ -61,41 +98,7 @@ pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex,
     for entry in json_entries {
         let path = entry.path();
         let issue = read_issue_data(&path)?;
-
-        index.by_id.insert(issue.identifier.clone(), issue.clone());
-        index
-            .by_status
-            .entry(issue.status.clone())
-            .or_default()
-            .push(issue.clone());
-        index
-            .by_type
-            .entry(issue.issue_type.clone())
-            .or_default()
-            .push(issue.clone());
-        if let Some(parent) = issue.parent.clone() {
-            index
-                .by_parent
-                .entry(parent)
-                .or_default()
-                .push(issue.clone());
-        }
-        for label in &issue.labels {
-            index
-                .by_label
-                .entry(label.clone())
-                .or_default()
-                .push(issue.clone());
-        }
-        for dependency in &issue.dependencies {
-            if dependency.dependency_type == "blocked-by" {
-                index
-                    .reverse_dependencies
-                    .entry(dependency.target.clone())
-                    .or_default()
-                    .push(issue.clone());
-            }
-        }
+        add_issue_to_index(&mut index, issue);
     }
 
     Ok(index)

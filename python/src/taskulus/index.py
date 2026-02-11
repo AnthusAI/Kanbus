@@ -22,6 +22,28 @@ def _load_issue_data(issue_path: Path) -> IssueData:
     return IssueData.model_validate(payload)
 
 
+def _add_issue_to_index(index: IssueIndex, issue: IssueData) -> None:
+    """Add an IssueData instance to all index lookup tables.
+
+    :param index: Index to update.
+    :type index: IssueIndex
+    :param issue: Issue data to register.
+    :type issue: IssueData
+    """
+    index.by_id[issue.identifier] = issue
+    index.by_status.setdefault(issue.status, []).append(issue)
+    index.by_type.setdefault(issue.issue_type, []).append(issue)
+    if issue.parent is not None:
+        index.by_parent.setdefault(issue.parent, []).append(issue)
+    for label in issue.labels:
+        index.by_label.setdefault(label, []).append(issue)
+    for dependency in issue.dependencies:
+        if dependency.dependency_type == "blocked-by":
+            index.reverse_dependencies.setdefault(dependency.target, []).append(
+                issue
+            )
+
+
 @dataclass
 class IssueIndex:
     """In-memory lookup tables for issues."""
@@ -49,16 +71,5 @@ def build_index_from_directory(issues_directory: Path) -> IssueIndex:
     )
     for issue_path in issue_paths:
         issue = _load_issue_data(issue_path)
-        index.by_id[issue.identifier] = issue
-        index.by_status.setdefault(issue.status, []).append(issue)
-        index.by_type.setdefault(issue.issue_type, []).append(issue)
-        if issue.parent is not None:
-            index.by_parent.setdefault(issue.parent, []).append(issue)
-        for label in issue.labels:
-            index.by_label.setdefault(label, []).append(issue)
-        for dependency in issue.dependencies:
-            if dependency.dependency_type == "blocked-by":
-                index.reverse_dependencies.setdefault(dependency.target, []).append(
-                    issue
-                )
+        _add_issue_to_index(index, issue)
     return index
