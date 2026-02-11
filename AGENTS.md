@@ -31,6 +31,54 @@ This project follows a strict outside-in, behavior-driven design approach:
 
 **100% spec coverage is mandatory.** Every feature must have BDD scenarios. Every scenario must pass in both implementations.
 
+**Specification completeness:** Every behavior that exists must be specified. If a behavior cannot be specified clearly, it should not exist (remove it or make it a hard error).
+
+## CRITICAL: No Backward Compatibility or Fallback Logic
+
+**This is a strict, non-negotiable policy across the entire Taskulus project:**
+
+- **NO backward compatibility code**: Never preserve old code paths when updating to a new approach
+- **NO fallback logic**: Never check multiple locations or try alternative approaches
+- **NO "support both ways"**: There is ONE correct way, implement that way only
+- **NO legacy support**: Old structures are upgraded through migration, not supported forever
+- **ONE way to do things**: If there's a new metadata location, use ONLY that location
+
+**Why this matters:**
+- Fallback logic creates exponential complexity
+- Multiple code paths mean multiple failure modes
+- Backward compatibility prevents evolution
+- "Just in case" code becomes permanent debt
+
+**What to do instead:**
+- Implement the current, correct approach cleanly
+- If old data exists, fail gracefully with clear error messages
+- Document migration paths separately (don't mix with runtime code)
+- Use the migration epic (Epic 14) for structured data migration
+
+**Examples of what NOT to do:**
+```python
+# WRONG - trying both locations with fallback
+try:
+    config = load_from_new_location()
+except:
+    try:
+        config = load_from_old_location()  # NO! Don't do this!
+    except:
+        config = default_config()
+```
+
+**Examples of what TO do:**
+```python
+# RIGHT - one location, clear error
+try:
+    config = load_configuration_from_project_directory()
+except FileNotFoundError as error:
+    raise ConfigurationError(
+        "No config.yaml found in project/ directory. "
+        "Run 'tsk init' to initialize a new project."
+    ) from error
+```
+
 ## Code Style Standards
 
 ### Python
@@ -41,76 +89,125 @@ This project follows a strict outside-in, behavior-driven design approach:
 - All files must pass both tools with zero warnings
 
 **Documentation:**
-- Sphinx-style docstrings on EVERY class and method
+- Sphinx-style docstrings are REQUIRED for all public functions, classes, and modules
+- Use reStructuredText field lists (`:param`, `:type`, `:return`, `:rtype`, `:raises`)
 - Format:
   ```python
-  def generate_id(title: str, existing_ids: Set[str]) -> str:
+  from typing import Set
+  from pydantic import BaseModel, Field
+
+  class IssueIdentifierRequest(BaseModel):
+      """
+      Request to generate a unique issue identifier.
+
+      :param title: The issue title to hash.
+      :type title: str
+      :param existing_ids: Set of existing IDs to avoid collisions.
+      :type existing_ids: Set[str]
+      """
+      title: str = Field(min_length=1)
+      existing_ids: Set[str] = Field(default_factory=set)
+
+  def generate_issue_identifier(request: IssueIdentifierRequest) -> str:
       """
       Generate a unique issue ID using SHA256 hash.
 
-      Args:
-          title: The issue title to hash
-          existing_ids: Set of existing IDs to avoid collisions
-
-      Returns:
-          A unique ID string with format 'tsk-{6hex}'
-
-      Raises:
-          RuntimeError: If unable to generate unique ID after 10 attempts
+      :param request: Validated request containing title and existing IDs.
+      :type request: IssueIdentifierRequest
+      :return: A unique ID string with format 'tsk-{6hex}'.
+      :rtype: str
+      :raises RuntimeError: If unable to generate unique ID after 10 attempts.
       """
+      # Implementation here
+      pass
   ```
 
 **Naming:**
 - Long, clear, descriptive names for everything
 - No abbreviations: `generate_issue_identifier()` not `gen_id()`
 - Use full words: `configuration` not `config` (except in file names)
+- Invest more tokens in clear names than in implementation
 
 **Comments:**
-- NO line-level comments that duplicate the code
-- Only block-level comments for higher-level context
-- Code should be self-documenting through clear names
+- NO line-level comments. Comments create drift and obscure clarity.
+- Block comments ONLY when capturing high-level ideas or rationale
+- No step-by-step narration
+- Code should be self-documenting through clear names and small, readable functions
 
 **Type Hints:**
 - Use type hints on all function signatures
-- Use dataclasses with type annotations for data structures
+- Use Pydantic models at boundaries (configurations, APIs, CLI output)
+- Validation errors must be converted to clear, user-facing messages
+
+**Domain Modeling:**
+- Use Pydantic models whenever data crosses a boundary
+- Clear validation with helpful error messages
 
 ### Rust
 
 **Formatting:**
 - Use clippy: `cargo clippy -- -D warnings` (fail on warnings)
 - Use rustfmt: `cargo fmt --check`
-- All files must pass both tools
+- All files must pass both tools with zero warnings
 
 **Documentation:**
-- Doc comments on EVERY public struct, enum, function, and method
+- Rustdoc comments are REQUIRED on EVERY public struct, enum, function, and method
 - Use `///` for item docs and `//!` for module docs
-- Format:
+- Format mirrors Python Sphinx style:
   ```rust
+  use serde::{Deserialize, Serialize};
+  use std::collections::HashSet;
+
+  /// Request to generate a unique issue identifier.
+  ///
+  /// # Fields
+  /// * `title` - The issue title to hash
+  /// * `existing_ids` - Set of existing IDs to avoid collisions
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct IssueIdentifierRequest {
+      pub title: String,
+      #[serde(default)]
+      pub existing_ids: HashSet<String>,
+  }
+
   /// Generate a unique issue ID using SHA256 hash.
   ///
   /// # Arguments
-  /// * `title` - The issue title to hash
-  /// * `existing_ids` - Set of existing IDs to avoid collisions
+  /// * `request` - Validated request containing title and existing IDs
   ///
   /// # Returns
   /// A unique ID string with format 'tsk-{6hex}'
   ///
   /// # Errors
   /// Returns `TaskulusError::IdGenerationFailed` if unable to generate unique ID after 10 attempts
-  pub fn generate_id(title: &str, existing_ids: &HashSet<String>) -> Result<String, TaskulusError>
+  pub fn generate_issue_identifier(
+      request: &IssueIdentifierRequest,
+  ) -> Result<String, TaskulusError> {
+      // Implementation here
+      todo!()
+  }
   ```
 
 **Naming:**
 - Use Rust naming conventions (snake_case for functions, PascalCase for types)
 - But still favor clarity: `generate_issue_identifier()` over `gen_id()`
+- Long, descriptive names (no abbreviations)
+- Invest more tokens in clear names than in implementation
 
 **Comments:**
-- Same policy as Python: no line-level comments duplicating code
-- Only block-level comments for higher-level context
+- NO line-level comments. Comments create drift and obscure clarity.
+- Block comments ONLY when capturing high-level ideas or rationale
+- No step-by-step narration
+- Code should be self-documenting through clear names and small, readable functions
 
 **Error Handling:**
 - Use `Result<T, E>` and `?` operator
-- Custom error types with context
+- Custom error types with context and clear messages
+- Error messages must match Python implementation exactly
+
+**Domain Modeling:**
+- Use serde-based structs for data at boundaries
+- Validation should produce clear, user-facing error messages
 
 ## Spec Parity Requirements
 
