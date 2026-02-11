@@ -18,7 +18,7 @@ This repository contains the complete vision, implementation plan, and task brea
 
 ## Key Features
 
-- Issue tracking with strict hierarchy (initiative → epic → task → sub-task)
+- Issue tracking with strict hierarchy (initiative -> epic -> task -> sub-task)
 - Workflow state machines with configurable transitions
 - Dependency management with cycle detection
 - Full-text search across titles, descriptions, and comments
@@ -39,19 +39,45 @@ This repository contains the complete vision, implementation plan, and task brea
 
 **Both implementations are functionally identical** - they pass the same behavior tests and produce the same output.
 
+## Installation
+
+Taskulus is in the planning phase. The commands below describe the intended install paths for the first release. For current development setup, see GETTING_STARTED.md.
+
+Python (pip):
+
+```bash
+pip install taskulus
+```
+
+Rust (cargo):
+
+```bash
+cargo install taskulus
+```
+
+## Quick Start (5 Commands)
+
+```bash
+tsk init
+tsk create "Set up the project structure"
+tsk list
+tsk show tsk-<id>
+tsk close tsk-<id>
+```
+
 ## Project Structure
 
 ```
 Taskulus/
-├── planning/
-│   ├── VISION.md                  # Complete specification (27KB)
-│   └── IMPLEMENTATION_PLAN.md     # Detailed implementation plan
-├── specs/                          # Shared Gherkin feature files
-├── python/                         # Python implementation
-├── rust/                           # Rust implementation
-├── tools/                          # Quality checking scripts
-├── AGENTS.md                       # Code quality standards
-└── .beads/                        # Beads task database
+|-- planning/
+|   |-- VISION.md                  # Complete specification (27KB)
+|   `-- IMPLEMENTATION_PLAN.md     # Detailed implementation plan
+|-- specs/                          # Shared Gherkin feature files
+|-- python/                         # Python implementation
+|-- rust/                           # Rust implementation
+|-- tools/                          # Quality checking scripts
+|-- AGENTS.md                       # Code quality standards
+`-- .beads/                        # Beads task database
 ```
 
 ## Implementation Plan Overview
@@ -114,14 +140,14 @@ We're using Beads (the predecessor to Taskulus) to manage the Taskulus project i
 
 This project follows **behavior-driven development (BDD)** with strict quality requirements:
 
-- ✅ 100% BDD spec coverage (Gherkin scenarios)
-- ✅ Ruff + Black for Python formatting
-- ✅ Clippy + rustfmt for Rust formatting
-- ✅ Sphinx docstrings on every Python class/method
-- ✅ Rustdoc comments on every Rust public item
-- ✅ Spec parity checker ensures implementations stay in sync
-- ✅ Long, descriptive names (no abbreviations)
-- ✅ No line-level comments (code should be self-documenting)
+- 100% BDD spec coverage (Gherkin scenarios)
+- Ruff + Black for Python formatting
+- Clippy + rustfmt for Rust formatting
+- Sphinx docstrings on every Python class/method
+- Rustdoc comments on every Rust public item
+- Spec parity checker ensures implementations stay in sync
+- Long, descriptive names (no abbreviations)
+- No line-level comments (code should be self-documenting)
 
 See [AGENTS.md](AGENTS.md) for complete standards.
 
@@ -157,6 +183,12 @@ bd update <task-id> --status in_progress --assignee "your@email.com"
 - [VISION.md](planning/VISION.md) - Complete specification with examples
 - [IMPLEMENTATION_PLAN.md](planning/IMPLEMENTATION_PLAN.md) - Detailed technical plan
 - [AGENTS.md](AGENTS.md) - Code quality standards and workflow
+- [GETTING_STARTED.md](GETTING_STARTED.md) - Setup and first steps
+- [CLI_REFERENCE.md](CLI_REFERENCE.md) - CLI command reference
+- [WIKI_GUIDE.md](WIKI_GUIDE.md) - Wiki authoring and rendering
+- [CONFIGURATION.md](CONFIGURATION.md) - Project configuration format
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and fixes
+- [MIGRATION.md](MIGRATION.md) - Migration from Beads
 
 ## Migration from Beads
 

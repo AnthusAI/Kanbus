@@ -1,0 +1,12 @@
+site_name: Taskulus
+site_description: Git-backed project management system
+site_url: ""
+docs_dir: docs
+nav:
+  - Home: index.md
+  - Getting Started: GETTING_STARTED.md
+  - CLI Reference: CLI_REFERENCE.md
+  - Configuration: CONFIGURATION.md
+  - Wiki Guide: WIKI_GUIDE.md
+  - Troubleshooting: TROUBLESHOOTING.md
+  - Migration from Beads: MIGRATION.md

@@ -1,0 +1,18 @@
+{
+  "id": "tsk-open01",
+  "title": "Open task",
+  "description": "",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": "user@example.com",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2025-02-10T12:00:00Z",
+  "updated_at": "2025-02-10T12:00:00Z",
+  "closed_at": null,
+  "custom": {}
+}

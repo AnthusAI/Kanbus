@@ -4,7 +4,6 @@ Why: Beads task management is MANDATORY here; every task must live in Beads.
 When: Create/update the Beads task before coding; close it only after the change lands.
 How: Follow the workflow in the skill for recording, implementation notes, and closure.
 <!-- AGENT-SKILL:END project-management-with-beads -->
-
 # CRITICAL PROJECT POLICY: NO EMOJIS
 
 **ZERO TOLERANCE: No emojis anywhere in this project.**

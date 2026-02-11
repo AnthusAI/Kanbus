@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "taskulus"
+version = "0.1.0"
+description = "A git-backed project management system."
+readme = "../README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "click",
+    "jinja2",
+    "pyyaml",
+    "pytest",
+    "pytest-bdd",
+    "pytest-cov",
+    "ruff",
+    "black",
+    "sphinx",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

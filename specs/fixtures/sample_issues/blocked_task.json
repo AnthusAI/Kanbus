@@ -1,0 +1,23 @@
+{
+  "id": "tsk-blocked01",
+  "title": "Blocked task",
+  "description": "",
+  "type": "task",
+  "status": "blocked",
+  "priority": 2,
+  "assignee": null,
+  "creator": "user@example.com",
+  "parent": null,
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tsk-closed01",
+      "type": "blocked-by"
+    }
+  ],
+  "comments": [],
+  "created_at": "2025-02-10T12:00:00Z",
+  "updated_at": "2025-02-10T12:30:00Z",
+  "closed_at": null,
+  "custom": {}
+}
