@@ -15,7 +15,8 @@ Taskulus is an **agent-native** project management system that lives in your git
 Offload your mental context. Instead of keeping 15 different chat sessions and open loops in your head, tell your agent to "record the current state" into Taskulus. It's a permanent, searchable memory bank for your AI workforce.
 
 ### 2. Files are the Database
-- **No SQL Server**: Each command scans the JSON files directly—no cache or daemon to manage.
+- **No SQL Server**: We removed the SQLite daemon entirely. Each command reads the JSON files directly, so there is nothing to synchronize or keep running.
+- **No JSONL Merge Conflicts**: There is no monolithic JSONL file. Every issue has its own JSON document, which eliminates merge conflicts when teams (or agents) edit work in parallel.
 - **No Daemon**: There is no background process to crash or manage.
 - **No API**: Your agents read and write files directly (or use the simple CLI).
 
@@ -24,6 +25,9 @@ Unlike other file-based systems that use a single JSONL file (guaranteeing merge
 
 ### 4. Jira + Confluence for Agents
 Taskulus includes a **Wiki Engine** that renders Markdown templates with live issue data. Your planning documents always reflect the real-time state of the project, giving agents the "forest view" they often lack.
+
+### 5. Zero Cost Footprint
+There are no per-seat licenses or hosted fees. If you have a git repository, you already have the database—and that keeps Taskulus affordable for very large teams (or fleets of agents).
 
 ---
 

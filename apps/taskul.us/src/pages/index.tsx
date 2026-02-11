@@ -122,8 +122,9 @@ const IndexPage = () => {
                 Vs. Beads
               </h3>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                We fixed the concurrency problem by splitting issues into separate
-                files, and removed the heavy graph validation overhead.
+                We removed the SQLite daemon entirely and read the JSON files directly,
+                so there is nothing to sync or keep running. And we eliminated the
+                JSONL merge conflict problem by giving every issue its own file.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
@@ -132,7 +133,8 @@ const IndexPage = () => {
               </h3>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
                 Your data is local. No web latency, no login screens, and native
-                CLI access for your AI agents to read and write tasks.
+                CLI access for your AI agents to read and write tasks. And there are
+                no per-seat costs—it's just your repo.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
