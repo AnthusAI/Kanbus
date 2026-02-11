@@ -10,6 +10,18 @@ from typing import Dict, List
 from taskulus.models import IssueData
 
 
+def _load_issue_data(issue_path: Path) -> IssueData:
+    """Load a single issue JSON file into an IssueData model.
+
+    :param issue_path: Path to the issue JSON file.
+    :type issue_path: Path
+    :return: Parsed issue model.
+    :rtype: IssueData
+    """
+    payload = json.loads(issue_path.read_bytes())
+    return IssueData.model_validate(payload)
+
+
 @dataclass
 class IssueIndex:
     """In-memory lookup tables for issues."""
@@ -36,8 +48,7 @@ def build_index_from_directory(issues_directory: Path) -> IssueIndex:
         key=lambda path: path.name,
     )
     for issue_path in issue_paths:
-        payload = json.loads(issue_path.read_bytes())
-        issue = IssueData.model_validate(payload)
+        issue = _load_issue_data(issue_path)
         index.by_id[issue.identifier] = issue
         index.by_status.setdefault(issue.status, []).append(issue)
         index.by_type.setdefault(issue.issue_type, []).append(issue)
