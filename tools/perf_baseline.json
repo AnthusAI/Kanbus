@@ -1,0 +1,11 @@
+{
+  "allowed_regression_pct": 10,
+  "python": {
+    "build_ms": 100.0,
+    "cache_load_ms": 20.0
+  },
+  "rust": {
+    "build_ms": 100.0,
+    "cache_load_ms": 20.0
+  }
+}
