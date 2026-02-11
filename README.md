@@ -1,229 +1,85 @@
 # Taskulus
 
-**A git-backed project management system with dual Python and Rust implementations**
+**A little Jira for your repo.**
 
 ![Python CI](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/python-ci.svg)
 ![Rust CI](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/rust-ci.svg)
 ![Python Coverage](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/python-coverage.svg)
 ![Rust Coverage](https://raw.githubusercontent.com/AnthusAI/Taskulus/badges/rust-coverage.svg)
 
-Taskulus is a lightweight, file-based issue tracker that stores all data as JSON files in your git repository. It replaces external tools like Jira and Confluence with a simple, version-controlled system that lives alongside your code.
+Taskulus is an **agent-native** project management system that lives in your git repository. It gives you the structure of Jira (issues, epics, workflows) with the simplicity of Markdown, all stored as JSON files alongside your code.
+
+## Why Taskulus?
+
+### 1. The Sleep Factor
+Offload your mental context. Instead of keeping 15 different chat sessions and open loops in your head, tell your agent to "record the current state" into Taskulus. It's a permanent, searchable memory bank for your AI workforce.
+
+### 2. Files are the Database
+- **No SQL Server**: We build a fast in-memory index from your files.
+- **No Daemon**: There is no background process to crash or manage.
+- **No API**: Your agents read and write files directly (or use the simple CLI).
+
+### 3. Concurrency Solved
+Unlike other file-based systems that use a single JSONL file (guaranteeing merge conflicts), Taskulus stores **one issue per file**. This allows multiple agents and developers to work in parallel without blocking each other.
+
+### 4. Jira + Confluence for Agents
+Taskulus includes a **Wiki Engine** that renders Markdown templates with live issue data. Your planning documents always reflect the real-time state of the project, giving agents the "forest view" they often lack.
+
+---
 
 ## Status: Planning Phase
 
-This repository contains the complete vision, implementation plan, and task breakdown for building Taskulus. We have **118 beads (tasks)** organized into **18 epics** with clear dependencies and acceptance criteria.
+This repository contains the complete vision, implementation plan, and task breakdown for building Taskulus. We are building it in public, using Taskulus (via Beads) to track itself.
 
-## Quick Overview
+## Quick Start
 
-- **Issue Storage**: Each issue is a separate JSON file in `project/issues/`
-- **Wiki System**: Jinja2-powered markdown templates with live issue queries
-- **Dual Implementation**: Python for easy installation, Rust for maximum performance
-- **Shared Specs**: Both implementations pass identical BDD scenarios
-- **Git-Native**: All data is plain files, version-controlled with git
+```bash
+# Initialize a new project
+tsk init
 
-## Key Features
+# Create an issue
+tsk create "Implement the login flow"
 
-- Issue tracking with strict hierarchy (initiative -> epic -> task -> sub-task)
-- Workflow state machines with configurable transitions
-- Dependency management with cycle detection
-- Full-text search across titles, descriptions, and comments
-- Wiki pages with live issue data using Jinja2 templates
-- Migration path from Beads (JSONL format)
+# List open tasks
+tsk list --status todo
 
-## Python vs Rust: Which Should I Use?
+# Show details
+tsk show tsk-a1b
+```
+
+## Python vs Rust
+
+We provide two implementations driven by the same behavior specification:
 
 **Choose Python if:**
 - You want easy `pip install` with no compilation
-- Your project has < 500 issues
-- You prefer Python tooling and ecosystem
+- You are scripting custom agent workflows
 
 **Choose Rust if:**
-- You need maximum performance (sub-millisecond cache loads)
-- Your project has > 2000 issues
-- You're comfortable with `cargo install` or pre-built binaries
-
-**Both implementations are functionally identical** - they pass the same behavior tests and produce the same output.
-
-## Installation
-
-Taskulus is in the planning phase. The commands below describe the intended install paths for the first release. For current development setup, see GETTING_STARTED.md.
-
-Python (pip):
-
-```bash
-pip install taskulus
-```
-
-Rust (cargo):
-
-```bash
-cargo install taskulus
-```
-
-## Quick Start (5 Commands)
-
-```bash
-tsk init
-tsk create "Set up the project structure"
-tsk list
-tsk show tsk-<id>
-tsk close tsk-<id>
-```
+- You need maximum performance (sub-millisecond queries)
+- You have a massive repository (> 2000 issues)
 
 ## Project Structure
 
 ```
 Taskulus/
 |-- planning/
-|   |-- VISION.md                  # Complete specification (27KB)
-|   `-- IMPLEMENTATION_PLAN.md     # Detailed implementation plan
-|-- specs/                          # Shared Gherkin feature files
-|-- python/                         # Python implementation
-|-- rust/                           # Rust implementation
-|-- tools/                          # Quality checking scripts
-|-- AGENTS.md                       # Code quality standards
-`-- .beads/                        # Beads task database
+|   |-- VISION.md                  # Complete specification
+|   `-- IMPLEMENTATION_PLAN.md     # Detailed technical plan
+|-- specs/                         # Shared Gherkin feature files
+|-- python/                        # Python implementation
+|-- rust/                          # Rust implementation
+|-- apps/                          # Public website (Gatsby)
+`-- .beads/                        # Project task database
 ```
-
-## Implementation Plan Overview
-
-### Phase 1: Foundation (Epics 0-6)
-Build the core functionality: initialization, data models, CRUD operations, workflows, hierarchy, and basic indexing.
-
-**Milestone 1 (M1)**: After Epic 6, you can create, show, update, close, and delete issues.
-
-### Phase 2: Query and Collaboration (Epics 7-10)
-Add advanced indexing, dependency management, queries, search, and comments.
-
-**Milestone 2 (M2)**: After Epic 9, you can query and filter issues effectively for planning.
-
-### Phase 3: Wiki System (Epic 11)
-Implement Jinja2/MiniJinja wiki rendering with live issue data.
-
-**Milestone 3 (M3)**: After Epic 11, you can use Taskulus to track Taskulus (self-hosting).
-
-### Phase 4: Polish and Release (Epics 12-17)
-Add maintenance commands, dependency tree display, migration from Beads, comprehensive documentation, installation testing, and final polish.
-
-**Milestone 4 (M4)**: 1.0 Release - all features complete, production-ready.
-
-## Current Status
-
-### Beads Task Database
-
-We're using Beads (the predecessor to Taskulus) to manage the Taskulus project itself:
-
-- **118 total tasks** across 18 epics
-- **99 ready to work** (no blocking dependencies)
-- **19 blocked** (waiting on prerequisites)
-- Clear dependency chains between epics
-
-### All Epics
-
-| ID | Epic | Dependencies | Tasks |
-|----|------|--------------|-------|
-| tskl-zqm | Repository Bootstrap and Foundation | - | 4 |
-| tskl-mel | Project Initialization (tsk init) | Epic 0 | 4 |
-| tskl-1z1 | Data Models and Configuration | Epic 1 | 7 |
-| tskl-1i0 | Workflow State Machine | Epic 2 | 4 |
-| tskl-cih | Hierarchy Enforcement | Epic 2 | 4 |
-| tskl-20z | Basic Index and File Scanning | Epic 2 | 4 |
-| tskl-9w4 | Issue CRUD Operations | Epics 3, 4, 5 | 14 |
-| tskl-fzn | Advanced Index and Cache System | Epic 6 | 5 |
-| tskl-538 | Dependency Management | Epics 6, 7 | 4 |
-| tskl-5er | Query and List Operations | Epic 7 | 4 |
-| tskl-76b | Comments System | Epic 6 | 4 |
-| tskl-eyu | Wiki System | Epic 7 | 6 |
-| tskl-8ke | Maintenance Commands | Epic 7 | 5 |
-| tskl-p3i | Dependency Tree Display | Epic 8 | 4 |
-| tskl-2ly | Migration from Beads | Epic 6 | 7 |
-| tskl-l4q | User Documentation | - | 8 |
-| tskl-nqs | Installation and Distribution | Epic 6 | 5 |
-| tskl-34w | Polish and Quality Refinement | Epics 10-16 | 7 |
-
-## Code Quality Standards
-
-This project follows **behavior-driven development (BDD)** with strict quality requirements:
-
-- 100% BDD spec coverage (Gherkin scenarios)
-- Ruff + Black for Python formatting
-- Clippy + rustfmt for Rust formatting
-- Sphinx docstrings on every Python class/method
-- Rustdoc comments on every Rust public item
-- Spec parity checker ensures implementations stay in sync
-- Long, descriptive names (no abbreviations)
-- No line-level comments (code should be self-documenting)
-
-See [AGENTS.md](AGENTS.md) for complete standards.
-
-## Next Steps
-
-1. **Start with Epic 0**: Set up repository structure, build files, CI pipeline
-2. **Follow the BDD workflow**: Write Gherkin first, implement Python, implement Rust
-3. **Run quality gates**: All checks must pass before merging
-4. **Use bd commands**: All work is tracked in Beads
-
-### Getting Started with Development
-
-```bash
-# Clone the repository
-git clone https://github.com/AnthusAI/Taskulus.git
-cd Taskulus
-
-# View the next task to work on
-bd ready
-
-# Show details of a specific epic
-bd show tskl-zqm
-
-# View the dependency tree
-bd graph tskl-zqm
-
-# Start working on a task
-bd update <task-id> --status in_progress --assignee "your@email.com"
-```
-
-## Documentation
-
-- [VISION.md](planning/VISION.md) - Complete specification with examples
-- [IMPLEMENTATION_PLAN.md](planning/IMPLEMENTATION_PLAN.md) - Detailed technical plan
-- [AGENTS.md](AGENTS.md) - Code quality standards and workflow
-- [GETTING_STARTED.md](GETTING_STARTED.md) - Setup and first steps
-- [CLI_REFERENCE.md](CLI_REFERENCE.md) - CLI command reference
-- [WIKI_GUIDE.md](WIKI_GUIDE.md) - Wiki authoring and rendering
-- [CONFIGURATION.md](CONFIGURATION.md) - Project configuration format
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and fixes
-- [MIGRATION.md](MIGRATION.md) - Migration from Beads
-
-## Migration from Beads
-
-Epic 14 includes a complete migration path from Beads to Taskulus:
-- Parse Beads JSONL format
-- Map fields to Taskulus schema
-- Validate migrated data
-- Comprehensive migration guide
 
 ## Contributing
 
 We welcome contributions! Please:
-1. Pick a task from `bd ready`
-2. Follow the BDD workflow in [AGENTS.md](AGENTS.md)
-3. Ensure all quality gates pass
-4. Submit PR with spec parity verified
+1. Pick a task from `bd ready` (we use Beads for bootstrapping).
+2. Follow the BDD workflow in [AGENTS.md](AGENTS.md).
+3. Ensure all quality gates pass.
 
 ## License
 
 MIT
-
-## Inspiration
-
-Taskulus is inspired by [Beads](https://github.com/steveyegge/beads) by Steve Yegge, but simplified:
-- One JSON file per issue (not single JSONL file)
-- In-memory index (not SQLite + daemon)
-- Visible project/ directory (not hidden .beads/)
-- Dual Python/Rust implementations
-- Comprehensive BDD spec coverage
-
----
-
-**Let's build a better project management tool.**
