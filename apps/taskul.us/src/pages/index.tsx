@@ -5,7 +5,7 @@ const IndexPage = () => {
   return (
     <Layout>
       <Hero
-        title="A little Jira for your repo"
+        title="A tiny Jira clone for your repo"
         subtitle="Files are the database. Taskulus keeps your issues, plans, and code in one repository, without the complexity."
         eyebrow="Taskulus"
         actions={
