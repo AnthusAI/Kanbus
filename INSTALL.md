@@ -1,0 +1,45 @@
+# Installation
+
+This repository contains two implementations of Taskulus: Python and Rust. Both use the same Gherkin specs.
+
+## Prerequisites
+
+- Git
+- Python 3.11+
+- Rust toolchain (stable)
+
+## Python (developer install)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e python
+```
+
+Run the CLI:
+
+```bash
+tsk --version
+tsk doctor
+```
+
+## Rust (developer install)
+
+```bash
+cd rust
+cargo build
+```
+
+Run the CLI:
+
+```bash
+./target/debug/taskulus --version
+./target/debug/taskulus doctor
+```
+
+## Verify
+
+```bash
+make check-python
+make check-rust
+```
