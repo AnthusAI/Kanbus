@@ -121,6 +121,15 @@ Run only Rust checks:
 make check-rust
 ```
 
+## Benchmarking
+
+Run index build and cache load benchmarks:
+
+```bash
+python tools/benchmark_index.py
+cd rust && cargo run --release --bin index_benchmark
+```
+
 ## License
 
 MIT
