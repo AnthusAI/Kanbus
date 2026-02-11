@@ -9,6 +9,8 @@ pub enum TaskulusError {
     Initialization(String),
     /// An unexpected IO error occurred.
     Io(String),
+    /// Issue ID generation failed.
+    IdGenerationFailed(String),
 }
 
 impl Display for TaskulusError {
@@ -16,6 +18,7 @@ impl Display for TaskulusError {
         match self {
             TaskulusError::Initialization(message) => write!(formatter, "{message}"),
             TaskulusError::Io(message) => write!(formatter, "{message}"),
+            TaskulusError::IdGenerationFailed(message) => write!(formatter, "{message}"),
         }
     }
 }
