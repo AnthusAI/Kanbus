@@ -78,6 +78,32 @@ Delete the cache file; it will be rebuilt on the next command:
 rm -f project/.cache/index.json
 ```
 
+## Daemon connection issues
+
+**Symptom**
+
+- `Error: daemon connection failed`
+- `Error: daemon disabled`
+
+**Cause**
+
+The daemon socket is stale or daemon mode is disabled.
+
+**Fix**
+
+- Stop and restart the daemon:
+
+```bash
+tsk daemon-stop
+tsk daemon-status
+```
+
+- To bypass the daemon for a single command:
+
+```bash
+TASKULUS_NO_DAEMON=1 tsk list
+```
+
 ## Workflow or hierarchy validation failures
 
 **Symptom**

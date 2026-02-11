@@ -51,6 +51,23 @@ tsk list --status todo
 tsk show tsk-a1b
 ```
 
+## Daemon Behavior
+
+Taskulus uses a just-in-time index daemon for read-heavy commands such as `tsk list`. The CLI auto-starts the daemon when needed, reuses a healthy socket, and removes stale sockets before restarting.
+
+To disable daemon mode for a command:
+
+```bash
+TASKULUS_NO_DAEMON=1 tsk list
+```
+
+Operational commands:
+
+```bash
+tsk daemon-status
+tsk daemon-stop
+```
+
 ## Python vs Rust
 
 We provide two implementations driven by the same behavior specification:

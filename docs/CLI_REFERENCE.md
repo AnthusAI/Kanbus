@@ -98,7 +98,7 @@ tsk delete <id>
 
 ### `tsk list`
 
-List issues with optional filters.
+List issues with optional filters. Uses the index daemon by default.
 
 ```bash
 tsk list [filters]
@@ -118,6 +118,24 @@ Example:
 
 ```bash
 tsk list --status open --sort priority --limit 10
+```
+
+## Daemon
+
+### `tsk daemon-status`
+
+Report daemon status.
+
+```bash
+tsk daemon-status
+```
+
+### `tsk daemon-stop`
+
+Stop the daemon process.
+
+```bash
+tsk daemon-stop
 ```
 
 ### `tsk ready`
