@@ -77,7 +77,7 @@ def load_project_directory(context: object) -> Path:
     if working_directory is None:
         raise RuntimeError("working directory not set")
     marker_path = working_directory / ".taskulus.yaml"
-    data = yaml.safe_load(marker_path.read_text(encoding="utf-8"))
+    data = yaml.safe_load(marker_path.read_text(encoding="utf-8")) or {}
     project_dir = data["project_dir"]
     return working_directory / project_dir
 

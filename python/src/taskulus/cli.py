@@ -18,6 +18,7 @@ from taskulus.issue_delete import IssueDeleteError, delete_issue
 from taskulus.issue_display import format_issue_for_display
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.issue_update import IssueUpdateError, update_issue
+from taskulus.issue_listing import IssueListingError, list_issues
 
 
 @click.group()
@@ -186,6 +187,19 @@ def delete(identifier: str) -> None:
         delete_issue(root, identifier)
     except IssueDeleteError as error:
         raise click.ClickException(str(error)) from error
+
+
+@cli.command("list")
+def list_command() -> None:
+    """List issues in the current project."""
+    root = Path.cwd()
+    try:
+        issues = list_issues(root)
+    except IssueListingError as error:
+        raise click.ClickException(str(error)) from error
+
+    for issue in issues:
+        click.echo(f"{issue.identifier} {issue.title}")
 
 
 if __name__ == "__main__":

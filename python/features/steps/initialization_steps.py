@@ -55,7 +55,9 @@ def then_marker_exists(context: object) -> None:
 
 @then('a ".taskulus.yaml" file should exist pointing to "tracking"')
 def then_marker_points_tracking(context: object) -> None:
-    data = yaml.safe_load((context.working_directory / ".taskulus.yaml").read_text())
+    data = (
+        yaml.safe_load((context.working_directory / ".taskulus.yaml").read_text()) or {}
+    )
     assert data["project_dir"] == "tracking"
 
 
