@@ -44,7 +44,7 @@ pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex,
         .map_err(|error| TaskulusError::Io(error.to_string()))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| TaskulusError::Io(error.to_string()))?;
-    entries.sort_by_key(|entry| entry.path());
+    entries.sort_by_key(|entry| entry.file_name());
 
     for entry in entries {
         let path = entry.path();

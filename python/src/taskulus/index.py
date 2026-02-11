@@ -31,7 +31,10 @@ def build_index_from_directory(issues_directory: Path) -> IssueIndex:
     :rtype: IssueIndex
     """
     index = IssueIndex()
-    for issue_path in sorted(issues_directory.glob("*.json")):
+    issue_paths = sorted(
+        issues_directory.glob("*.json"), key=lambda path: path.name
+    )
+    for issue_path in issue_paths:
         payload = json.loads(issue_path.read_text(encoding="utf-8"))
         issue = IssueData.model_validate(payload)
         index.by_id[issue.identifier] = issue
