@@ -22,6 +22,7 @@ from taskulus.issue_update import IssueUpdateError, update_issue
 from taskulus.issue_listing import IssueListingError, list_issues
 from taskulus.daemon_client import DaemonClientError, request_shutdown, request_status
 from taskulus.users import get_current_user
+from taskulus.migration import MigrationError, migrate_from_beads
 
 
 @click.group()
@@ -226,6 +227,20 @@ def list_command() -> None:
 
     for issue in issues:
         click.echo(f"{issue.identifier} {issue.title}")
+
+
+@cli.command("migrate")
+def migrate() -> None:
+    """Migrate Beads issues into Taskulus.
+
+    :raises click.ClickException: If migration fails.
+    """
+    root = Path.cwd()
+    try:
+        result = migrate_from_beads(root)
+    except MigrationError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f"migrated {result.issue_count} issues")
 
 
 @cli.command("daemon-status")
