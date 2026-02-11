@@ -9,7 +9,7 @@
 
 ## Inspiration & Lineage
 
-Taskulus is a spiritual successor to [Beads](https://github.com/cexa/beads), inspired by its elegant, domain-specific approach to project management. We are deeply grateful to the Beads author and community for proving that a dedicated cognitive framework for tasks is game-changing.
+Taskulus is a spiritual successor to [Beads](https://github.com/steveyegge/beads), inspired by its elegant, domain-specific approach to project management. We are deeply grateful to the Beads author and community for proving that a dedicated cognitive framework for tasks is game-changing.
 
 Taskulus builds on this foundation by adapting the model to be a thinner, more native layer over Git—optimizing for AI agents and distributed teams:
 
