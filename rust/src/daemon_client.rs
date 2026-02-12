@@ -129,19 +129,11 @@ fn request_with_recovery(
     }
 }
 
+#[cfg(unix)]
 fn send_request(
     socket_path: &Path,
     request: &RequestEnvelope,
 ) -> Result<ResponseEnvelope, TaskulusError> {
-    #[cfg(not(unix))]
-    {
-        let _ = socket_path;
-        let _ = request;
-        return Err(TaskulusError::IssueOperation(
-            "daemon not supported on this platform".to_string(),
-        ));
-    }
-    #[cfg(unix)]
     let mut stream =
         UnixStream::connect(socket_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
     let payload =
@@ -165,15 +157,18 @@ fn send_request(
     serde_json::from_str(&line).map_err(|error| TaskulusError::Io(error.to_string()))
 }
 
+#[cfg(not(unix))]
+fn send_request(
+    _socket_path: &Path,
+    _request: &RequestEnvelope,
+) -> Result<ResponseEnvelope, TaskulusError> {
+    Err(TaskulusError::IssueOperation(
+        "daemon not supported on this platform".to_string(),
+    ))
+}
+
+#[cfg(unix)]
 fn spawn_daemon(root: &Path) -> Result<(), TaskulusError> {
-    #[cfg(not(unix))]
-    {
-        let _ = root;
-        return Err(TaskulusError::IssueOperation(
-            "daemon not supported on this platform".to_string(),
-        ));
-    }
-    #[cfg(unix)]
     Command::new(std::env::current_exe().map_err(|error| TaskulusError::Io(error.to_string()))?)
         .arg("daemon")
         .arg("--root")
@@ -184,4 +179,11 @@ fn spawn_daemon(root: &Path) -> Result<(), TaskulusError> {
         .spawn()
         .map_err(|error| TaskulusError::Io(error.to_string()))?;
     Ok(())
+}
+
+#[cfg(not(unix))]
+fn spawn_daemon(_root: &Path) -> Result<(), TaskulusError> {
+    Err(TaskulusError::IssueOperation(
+        "daemon not supported on this platform".to_string(),
+    ))
 }

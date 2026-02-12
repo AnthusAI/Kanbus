@@ -26,15 +26,8 @@ use crate::models::IssueData;
 ///
 /// # Errors
 /// Returns `TaskulusError` if the daemon fails to bind or serve requests.
+#[cfg(unix)]
 pub fn run_daemon(root: &Path) -> Result<(), TaskulusError> {
-    #[cfg(not(unix))]
-    {
-        let _ = root;
-        return Err(TaskulusError::IssueOperation(
-            "daemon not supported on this platform".to_string(),
-        ));
-    }
-    #[cfg(unix)]
     let socket_path = get_daemon_socket_path(root)?;
     let socket_dir = socket_path
         .parent()
@@ -54,6 +47,13 @@ pub fn run_daemon(root: &Path) -> Result<(), TaskulusError> {
         }
     }
     Ok(())
+}
+
+#[cfg(not(unix))]
+pub fn run_daemon(_root: &Path) -> Result<(), TaskulusError> {
+    Err(TaskulusError::IssueOperation(
+        "daemon not supported on this platform".to_string(),
+    ))
 }
 
 fn warm_cache(root: &Path) -> Result<(), TaskulusError> {
