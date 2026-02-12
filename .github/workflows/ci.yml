@@ -49,6 +49,23 @@ jobs:
       - name: Check spec parity
         run: python tools/check_spec_parity.py
 
+  python-install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify Python installation
+        run: python tools/verify_python_installation.py
+
   rust:
     runs-on: ubuntu-latest
     outputs:
