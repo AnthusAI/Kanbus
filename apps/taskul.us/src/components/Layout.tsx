@@ -2,6 +2,7 @@ import * as React from "react";
 import clsx from "clsx";
 
 const navigation = [
+  { label: "Architecture", href: "/architecture" },
   { label: "Philosophy", href: "/philosophy" },
   { label: "Docs", href: "/docs" },
   { label: "Roadmap", href: "/roadmap" },
@@ -55,6 +56,7 @@ const Layout = ({ children }: LayoutProps) => {
               <ul className="mt-4 space-y-3 text-sm">
                 <li><a href="/docs" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Documentation</a></li>
                 <li><a href="/roadmap" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Roadmap</a></li>
+                <li><a href="/architecture" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Architecture</a></li>
                 <li><a href="/philosophy" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Philosophy</a></li>
               </ul>
             </div>
