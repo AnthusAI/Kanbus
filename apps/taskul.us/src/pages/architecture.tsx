@@ -6,24 +6,24 @@ const ArchitecturePage = () => {
     <Layout>
       <Hero
         title="Architecture"
-        subtitle="Taskulus is built around a spec-driven model where behavior definitions are treated as the source of truth."
+        subtitle="Taskulus treats Gherkin as high-level source code and treats implementation code as generated artifacts."
         eyebrow="System Design"
       />
 
       <div className="space-y-12">
         <Section
           title="Spec-Driven Design"
-          subtitle="Behavior specifications are the authoritative source code."
+          subtitle="Gherkin features are treated as high-level source code."
         >
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
-              Gherkin as the Product
+              Gherkin as Source Code
             </h3>
             <div className="space-y-4 text-slate-600 dark:text-slate-400 leading-relaxed">
               <p>
-                Taskulus treats its Gherkin features as the product definition.
-                The specification is authoritative, and the implementation is the
-                rendering of those behaviors.
+                Taskulus treats its Gherkin features as high-level source code.
+                The specifications are authoritative, and implementations are
+                generated artifacts that must conform to them.
               </p>
               <p>
                 This is an extreme form of behavior-driven design: the Gherkin

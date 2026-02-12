@@ -594,13 +594,13 @@ fn execute_command(
             }
         },
         Commands::DaemonStatus => {
-            let status = request_status(root)?;
+            let status = request_status(root).map_err(format_daemon_project_error)?;
             let payload = serde_json::to_string_pretty(&status)
                 .map_err(|error| TaskulusError::Io(error.to_string()))?;
             Ok(Some(payload))
         }
         Commands::DaemonStop => {
-            let status = request_shutdown(root)?;
+            let status = request_shutdown(root).map_err(format_daemon_project_error)?;
             let payload = serde_json::to_string_pretty(&status)
                 .map_err(|error| TaskulusError::Io(error.to_string()))?;
             Ok(Some(payload))
@@ -642,4 +642,21 @@ fn is_issue_blocked(issue: &IssueData) -> bool {
         .dependencies
         .iter()
         .any(|dependency| dependency.dependency_type == "blocked-by")
+}
+
+fn format_daemon_project_error(error: TaskulusError) -> TaskulusError {
+    match error {
+        TaskulusError::IssueOperation(message) if message == "multiple projects found" => {
+            TaskulusError::IssueOperation(
+                "multiple projects found. Run this command from a directory containing a single project/ folder.".to_string(),
+            )
+        }
+        TaskulusError::IssueOperation(message) if message == "project not initialized" => {
+            TaskulusError::IssueOperation(
+                "project not initialized. Run \"tsk init\" to create a project/ folder."
+                    .to_string(),
+            )
+        }
+        other => other,
+    }
 }
