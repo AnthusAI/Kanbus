@@ -21,14 +21,13 @@ const GettingStartedPage = () => {
               version and target with the artifact that matches your platform.
             </p>
             <CodeBlock label="Example (Linux x86_64)">
-              {`curl -L -o tskr.tar.gz https://github.com/AnthusAI/Taskulus/releases/download/v0.1.0/taskulus-x86_64-unknown-linux-gnu.tar.gz
+              {`curl -L -o tskr.tar.gz https://github.com/AnthusAI/Taskulus/releases/download/v0.1.0/tskr-x86_64-unknown-linux-gnu.tar.gz
 tar -xzf tskr.tar.gz
-chmod +x taskulus
-./taskulus --help`}
+chmod +x tskr
+./tskr --help`}
             </CodeBlock>
             <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-              The binary name is currently <code>taskulus</code>. We are planning
-              to rename the Rust CLI to <code>tskr</code>.
+              The binary name is <code>tskr</code>.
             </p>
           </div>
         </Section>
@@ -80,7 +79,7 @@ cd Taskulus`}
             <CodeBlock label="Rust CLI">
               {`cd rust
 cargo build --release
-./target/release/taskulus --help`}
+./target/release/tskr --help`}
             </CodeBlock>
             <CodeBlock label="Python CLI">
               {`cd python
