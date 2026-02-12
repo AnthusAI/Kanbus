@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use std::env;
 use std::io::{BufRead, BufReader, Write};
+#[cfg(unix)]
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -132,6 +133,15 @@ fn send_request(
     socket_path: &Path,
     request: &RequestEnvelope,
 ) -> Result<ResponseEnvelope, TaskulusError> {
+    #[cfg(not(unix))]
+    {
+        let _ = socket_path;
+        let _ = request;
+        return Err(TaskulusError::IssueOperation(
+            "daemon not supported on this platform".to_string(),
+        ));
+    }
+    #[cfg(unix)]
     let mut stream =
         UnixStream::connect(socket_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
     let payload =
@@ -156,6 +166,14 @@ fn send_request(
 }
 
 fn spawn_daemon(root: &Path) -> Result<(), TaskulusError> {
+    #[cfg(not(unix))]
+    {
+        let _ = root;
+        return Err(TaskulusError::IssueOperation(
+            "daemon not supported on this platform".to_string(),
+        ));
+    }
+    #[cfg(unix)]
     Command::new(std::env::current_exe().map_err(|error| TaskulusError::Io(error.to_string()))?)
         .arg("daemon")
         .arg("--root")

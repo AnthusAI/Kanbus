@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Write};
+#[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::Path;
 
@@ -26,6 +27,14 @@ use crate::models::IssueData;
 /// # Errors
 /// Returns `TaskulusError` if the daemon fails to bind or serve requests.
 pub fn run_daemon(root: &Path) -> Result<(), TaskulusError> {
+    #[cfg(not(unix))]
+    {
+        let _ = root;
+        return Err(TaskulusError::IssueOperation(
+            "daemon not supported on this platform".to_string(),
+        ));
+    }
+    #[cfg(unix)]
     let socket_path = get_daemon_socket_path(root)?;
     let socket_dir = socket_path
         .parent()
@@ -52,6 +61,7 @@ fn warm_cache(root: &Path) -> Result<(), TaskulusError> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn handle_stream(root: &Path, stream: UnixStream) -> Result<bool, TaskulusError> {
     let mut reader = BufReader::new(
         stream
