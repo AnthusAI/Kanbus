@@ -400,6 +400,11 @@ def when_contact_empty_daemon(context: object) -> None:
 
     def serve_once() -> None:
         conn, _ = server.accept()
+        try:
+            conn.settimeout(1.0)
+            conn.recv(1024)
+        except OSError:
+            pass
         conn.close()
         server.close()
 
