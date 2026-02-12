@@ -11,3 +11,4 @@ Welcome to the Taskulus documentation site. Taskulus is a git-backed project man
 - [Troubleshooting](TROUBLESHOOTING.md)
 - [Migration from Beads](MIGRATION.md)
 - [Taskulus vs. Beads](VS_BEADS.md)
+- [Architecture](ARCHITECTURE.md)

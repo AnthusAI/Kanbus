@@ -100,6 +100,23 @@ We provide two implementations driven by the same behavior specification:
 - You need maximum performance (sub-millisecond queries)
 - You have a massive repository (> 2000 issues)
 
+## Architecture Snapshot
+
+### Language duality
+Taskulus keeps Python and Rust in lockstep: both CLIs run the same Gherkin specs, share identical JSON serialization, and target the same operational model. The duality is intentional—pick the runtime that fits your packaging or performance needs without changing workflows.
+
+### File-organization dimension
+Storage is single-path and conflict-resistant: every issue lives in its own JSON file under `project/issues/`, with hierarchy and workflow rules in `project/config.yaml`. There is no secondary SQLite cache or fallback location to reconcile, which removes whole classes of sync defects and keeps the mental model aligned with Git.
+
+### Performance benchmark
+We benchmarked real data from the Beads project (836 issues) to measure end-to-end “list all beads” latency, including process startup. Scenarios: Beads (Go, SQLite + JSONL), Taskulus Python/Rust reading the Beads JSONL (`--beads`), and Taskulus Python/Rust reading project JSON files. Five runs each with caches cleared between runs.
+
+Key takeaway: direct JSON reads are fast enough that a SQLite sidecar solves a problem we do not have. Removing it simplifies operations, eliminates sync fragility, and keeps deployments portable.
+
+![Beads CLI Listing Latency](docs/images/beads_cli_benchmark.png)
+
+Median timings (ms): Go 173.4; Python — Beads JSONL 499.3; Rust — Beads JSONL 9.8 (first cold run was higher); Python — Project JSON 643.0; Rust — Project JSON 73.6.
+
 ## Project Structure
 
 ```
