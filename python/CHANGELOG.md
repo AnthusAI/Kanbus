@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.3.0 (2026-02-12)
+
+### Bug Fixes
+
+- Add license expression for PyPI build
+  ([`f088740`](https://github.com/AnthusAI/Taskulus/commit/f088740f9dbebf59bc93f0456c2fd4d3d07cacb9))
+
+
 ## v0.2.0 (2026-02-12)
 
 ### Features
