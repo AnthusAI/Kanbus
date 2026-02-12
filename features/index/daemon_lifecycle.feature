@@ -58,6 +58,13 @@ Feature: Daemon lifecycle for just-in-time indexing
     Then the command should fail with exit code 1
     And stderr should contain "daemon disabled"
 
+  Scenario: Daemon status fails when multiple projects exist
+    Given a repository with multiple projects and issues
+    And daemon mode is enabled
+    When I run "tsk daemon-status"
+    Then the command should fail with exit code 1
+    And stderr should contain "multiple projects found"
+
   Scenario: Daemon status reports ok when running
     Given a Taskulus project with default configuration
     And daemon mode is enabled

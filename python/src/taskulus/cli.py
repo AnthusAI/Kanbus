@@ -45,6 +45,7 @@ from taskulus.dependency_tree import (
     render_dependency_tree,
 )
 from taskulus.wiki import WikiError, WikiRenderRequest, render_wiki_page
+from taskulus.project import ProjectMarkerError
 
 
 @click.group()
@@ -526,6 +527,8 @@ def daemon_status() -> None:
     root = Path.cwd()
     try:
         result = request_status(root)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
     except DaemonClientError as error:
         raise click.ClickException(str(error)) from error
     click.echo(json.dumps(result, indent=2, sort_keys=False))
@@ -537,9 +540,23 @@ def daemon_stop() -> None:
     root = Path.cwd()
     try:
         result = request_shutdown(root)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
     except DaemonClientError as error:
         raise click.ClickException(str(error)) from error
     click.echo(json.dumps(result, indent=2, sort_keys=False))
+
+
+def _format_project_marker_error(error: ProjectMarkerError) -> str:
+    message = str(error)
+    if message == "multiple projects found":
+        return (
+            "multiple projects found. Run this command from a directory containing a "
+            "single project/ folder."
+        )
+    if message == "project not initialized":
+        return 'project not initialized. Run "tsk init" to create a project/ folder.'
+    return message
 
 
 if __name__ == "__main__":
