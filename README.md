@@ -113,9 +113,13 @@ We benchmarked real data from the Beads project (836 issues) to measure end-to-e
 
 Key takeaway: direct JSON reads are fast enough that a SQLite sidecar solves a problem we do not have. Removing it simplifies operations, eliminates sync fragility, and keeps deployments portable.
 
-![Beads CLI Listing Latency](docs/images/beads_cli_benchmark.png)
+![Beads CLI Listing Response Time (warm)](docs/images/beads_cli_benchmark.png)
 
-Median timings (ms): Go 173.4; Python — Beads JSONL 499.3; Rust — Beads JSONL 9.8 (first cold run was higher); Python — Project JSON 643.0; Rust — Project JSON 73.6.
+Warm-start median response times (ms): Go 5277.6; Python — Beads JSONL 538.7; Rust — Beads JSONL 9.9; Python — Project JSON 653.5; Rust — Project JSON 54.6.
+
+![Beads CLI Cold vs Warm Response Time](docs/images/beads_cli_benchmark_warm_cold.png)
+
+Cold/Warm medians (ms, cold over warm shown as stacked bars): Go 197.6/5277.6; Python — Beads 566.1/538.7; Rust — Beads 11.9/9.9; Python — JSON 648.3/653.5; Rust — JSON 92.4/54.6. Warm runs reuse the resident daemon for Taskulus; cold runs force `TASKULUS_NO_DAEMON=1` and clear caches each iteration. Go/Beads warm path spikes because its SQLite daemon import dominates the second run.
 
 ## Project Structure
 
