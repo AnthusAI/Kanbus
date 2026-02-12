@@ -37,6 +37,9 @@ jobs:
           python -m coverage run --source=taskulus -m behave
           python -m coverage xml -o ../coverage-python/coverage.xml
 
+      - name: Enforce Python coverage
+        run: python tools/coverage_gate.py coverage-python/coverage.xml --minimum 100
+
       - name: Capture Python coverage
         id: python_coverage
         run: |
@@ -73,7 +76,10 @@ jobs:
       - name: Run Rust coverage
         run: |
           cd rust
-          cargo tarpaulin --engine llvm --run-types Tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --out Xml --output-dir ../coverage-rust
+          cargo tarpaulin --engine llvm --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --out Xml --output-dir ../coverage-rust
+
+      - name: Enforce Rust coverage
+        run: python tools/coverage_gate.py coverage-rust/cobertura.xml --minimum 100
 
       - name: Capture Rust coverage
         id: rust_coverage
