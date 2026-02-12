@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 const navigation = [
   { label: "Philosophy", href: "/philosophy" },
   { label: "Architecture", href: "/architecture" },
+  { label: "Getting Started", href: "/getting-started" },
   { label: "Docs", href: "/docs" },
   { label: "Roadmap", href: "/roadmap" },
 ];
@@ -105,10 +106,11 @@ const Layout = ({ children }: LayoutProps) => {
             <div>
               <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Explore</h4>
               <ul className="mt-4 space-y-3 text-sm">
-                <li><a href="/docs" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Documentation</a></li>
-                <li><a href="/roadmap" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Roadmap</a></li>
                 <li><a href="/philosophy" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Philosophy</a></li>
                 <li><a href="/architecture" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Architecture</a></li>
+                <li><a href="/getting-started" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Getting Started</a></li>
+                <li><a href="/docs" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Documentation</a></li>
+                <li><a href="/roadmap" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Roadmap</a></li>
               </ul>
             </div>
             <div>
