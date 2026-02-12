@@ -35,8 +35,8 @@ cargo build
 Run the CLI:
 
 ```bash
-./target/debug/taskulus --version
-./target/debug/taskulus doctor
+./target/debug/tskr --version
+./target/debug/tskr doctor
 ```
 
 ## Verify
