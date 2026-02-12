@@ -55,7 +55,9 @@ def run_cli(context: object, command: str) -> None:
         if stdout is None:
             stdout = result.output
         if stderr is None:
-            stderr = result.output if result.exit_code != 0 else ""
+            stderr = ""
+        if result.exit_code != 0:
+            stderr = result.output
         context.result = SimpleNamespace(
             exit_code=result.exit_code,
             stdout=stdout,
