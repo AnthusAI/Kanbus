@@ -20,6 +20,23 @@ dependencies = [
     "black",
     "sphinx",
 ]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Bug Tracking",
+    "Topic :: Software Development :: Version Control",
+]
+
+[project.urls]
+Homepage = "https://taskul.us"
+Repository = "https://github.com/AnthusAI/Taskulus"
+Issues = "https://github.com/AnthusAI/Taskulus/issues"
 
 [project.scripts]
 tsk = "taskulus.cli:cli"
