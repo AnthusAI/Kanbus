@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 import json
 import os
@@ -21,6 +22,17 @@ def _load_issue_data(issue_path: Path) -> IssueData:
     """
     payload = json.loads(issue_path.read_bytes())
     return IssueData.model_validate(payload)
+
+
+def _load_issue_batch(issue_paths: List[Path]) -> List[IssueData]:
+    """Load a batch of issue JSON files into IssueData models.
+
+    :param issue_paths: List of issue JSON paths.
+    :type issue_paths: List[Path]
+    :return: Parsed issue models.
+    :rtype: List[IssueData]
+    """
+    return [_load_issue_data(issue_path) for issue_path in issue_paths]
 
 
 def _add_issue_to_index(index: IssueIndex, issue: IssueData) -> None:
@@ -64,13 +76,23 @@ def build_index_from_directory(issues_directory: Path) -> IssueIndex:
     :rtype: IssueIndex
     """
     index = IssueIndex()
-    issue_paths = [
-        Path(entry.path)
+    issue_entries = [
+        (entry.name, entry.path)
         for entry in os.scandir(issues_directory)
         if entry.is_file() and entry.name.endswith(".json")
     ]
-    issue_paths.sort(key=lambda path: path.name)
-    for issue_path in issue_paths:
-        issue = _load_issue_data(issue_path)
-        _add_issue_to_index(index, issue)
+    issue_entries.sort(key=lambda item: item[0])
+    issue_paths = [Path(issue_path) for _name, issue_path in issue_entries]
+    if issue_paths:
+        max_workers = min(4, len(issue_paths))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            chunk_size = (len(issue_paths) + max_workers - 1) // max_workers
+            chunks = [
+                issue_paths[index : index + chunk_size]
+                for index in range(0, len(issue_paths), chunk_size)
+            ]
+            batches = executor.map(_load_issue_batch, chunks)
+            issues = [issue for batch in batches for issue in batch]
+        for issue in issues:
+            _add_issue_to_index(index, issue)
     return index

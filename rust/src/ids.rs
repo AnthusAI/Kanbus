@@ -2,6 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use rand::RngCore;
+use std::env;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 
@@ -53,9 +54,19 @@ pub fn generate_issue_identifier(
     request: &IssueIdentifierRequest,
 ) -> Result<IssueIdentifierResult, TaskulusError> {
     let mut rng = rand::thread_rng();
+    let test_bytes = env::var("TASKULUS_TEST_RANDOM_BYTES")
+        .ok()
+        .filter(|value| !value.is_empty())
+        .map(|value| decode_hex(&value))
+        .transpose()?;
     for _ in 0..10 {
         let mut random_bytes = [0u8; 8];
-        rng.fill_bytes(&mut random_bytes);
+        if let Some(bytes) = test_bytes.as_ref() {
+            let count = random_bytes.len().min(bytes.len());
+            random_bytes[..count].copy_from_slice(&bytes[..count]);
+        } else {
+            rng.fill_bytes(&mut random_bytes);
+        }
         let digest = hash_identifier_material(&request.title, request.created_at, &random_bytes);
         let identifier = format!("{}-{}", request.prefix, digest);
         if !request.existing_ids.contains(&identifier) {
@@ -66,6 +77,24 @@ pub fn generate_issue_identifier(
     Err(TaskulusError::IdGenerationFailed(
         "unable to generate unique id after 10 attempts".to_string(),
     ))
+}
+
+fn decode_hex(value: &str) -> Result<Vec<u8>, TaskulusError> {
+    if value.len() % 2 != 0 {
+        return Err(TaskulusError::IdGenerationFailed(
+            "invalid TASKULUS_TEST_RANDOM_BYTES".to_string(),
+        ));
+    }
+    let mut bytes = Vec::new();
+    let mut chars = value.chars();
+    while let (Some(high), Some(low)) = (chars.next(), chars.next()) {
+        let pair = [high, low].iter().collect::<String>();
+        let byte = u8::from_str_radix(&pair, 16).map_err(|_| {
+            TaskulusError::IdGenerationFailed("invalid TASKULUS_TEST_RANDOM_BYTES".to_string())
+        })?;
+        bytes.push(byte);
+    }
+    Ok(bytes)
 }
 
 /// Generate multiple identifiers for uniqueness checks.

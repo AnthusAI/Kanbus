@@ -246,11 +246,10 @@ Before any PR can merge:
 
 4. **Behavior specs**
    - `behave` passes (all Gherkin scenarios pass) ✓
-   - `pytest` passes (all unit tests pass) ✓
    - `cargo test` passes (all Gherkin scenarios pass) ✓
 
 5. **Coverage**
-   - Python coverage ≥ 100% (pytest-cov) ✓
+   - Python coverage ≥ 100% ✓
    - Rust coverage ≥ 100% (cargo-tarpaulin) ✓
 
 6. **YAML test cases** (when implemented)
@@ -258,9 +257,9 @@ Before any PR can merge:
 
 ## Workflow for Implementing Features
 
-1. **Write Gherkin scenarios first** in `specs/features/`
+1. **Write Gherkin scenarios first** in `features/`
 2. **Verify both test runners can parse them** (scenarios will be pending/skipped)
-3. **Implement Python step definitions** in `python/tests/step_definitions/`
+3. **Implement Python step definitions** in `python/features/steps/`
 4. **Implement Python production code** to make scenarios pass
 5. **Implement Rust step definitions** in `rust/tests/step_definitions/`
 6. **Implement Rust production code** to make scenarios pass

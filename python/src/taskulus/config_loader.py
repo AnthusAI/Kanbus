@@ -8,6 +8,7 @@ from typing import List
 import yaml
 from pydantic import ValidationError
 
+from taskulus.config import DEFAULT_CONFIGURATION
 from taskulus.models import ProjectConfiguration
 
 
@@ -24,10 +25,18 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     :rtype: ProjectConfiguration
     :raises ConfigurationError: If the configuration is invalid.
     """
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not path.exists():
+        data = DEFAULT_CONFIGURATION
+    else:
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except OSError as error:
+            raise ConfigurationError(str(error)) from error
     try:
         configuration = ProjectConfiguration.model_validate(data)
     except ValidationError as error:
+        if _has_unknown_fields(error):
+            raise ConfigurationError("unknown configuration fields") from error
         raise ConfigurationError(str(error)) from error
 
     errors = validate_project_configuration(configuration)
@@ -64,3 +73,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
         errors.append("default priority must be in priorities map")
 
     return errors
+
+
+def _has_unknown_fields(error: ValidationError) -> bool:
+    return any(item.get("type") == "extra_forbidden" for item in error.errors())

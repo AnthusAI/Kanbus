@@ -15,7 +15,12 @@ from taskulus.issue_files import (
     write_issue_to_file,
 )
 from taskulus.models import IssueData
-from taskulus.project import ProjectMarkerError, load_project_directory
+from taskulus.project import (
+    ProjectMarkerError,
+    ensure_project_local_directory,
+    find_project_local_directory,
+    load_project_directory,
+)
 
 
 class IssueCreationError(RuntimeError):
@@ -31,6 +36,7 @@ def create_issue(
     parent: Optional[str],
     labels: Iterable[str],
     description: Optional[str],
+    local: bool = False,
 ) -> IssueData:
     """Create a new issue and write it to disk.
 
@@ -50,6 +56,8 @@ def create_issue(
     :type labels: Iterable[str]
     :param description: Issue description.
     :type description: Optional[str]
+    :param local: Whether to create the issue in project-local.
+    :type local: bool
     :return: Created issue data.
     :rtype: IssueData
     :raises IssueCreationError: If validation or file operations fail.
@@ -60,6 +68,10 @@ def create_issue(
         raise IssueCreationError(str(error)) from error
 
     issues_dir = project_dir / "issues"
+    local_dir = find_project_local_directory(project_dir)
+    if local:
+        local_dir = ensure_project_local_directory(project_dir)
+        issues_dir = local_dir / "issues"
     configuration = load_project_configuration(project_dir / "config.yaml")
 
     resolved_type = issue_type or "task"
@@ -86,7 +98,11 @@ def create_issue(
         except InvalidHierarchyError as error:
             raise IssueCreationError(str(error)) from error
 
-    existing_ids = list_issue_identifiers(issues_dir)
+    existing_ids = list_issue_identifiers(project_dir / "issues")
+    if local_dir is not None:
+        local_issues_dir = local_dir / "issues"
+        if local_issues_dir.exists():
+            existing_ids.update(list_issue_identifiers(local_issues_dir))
     created_at = datetime.now(timezone.utc)
     identifier_request = IssueIdentifierRequest(
         title=title,

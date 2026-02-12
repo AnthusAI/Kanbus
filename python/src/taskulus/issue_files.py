@@ -28,7 +28,7 @@ def read_issue_from_file(issue_path: Path) -> IssueData:
     :return: Parsed issue data.
     :rtype: IssueData
     """
-    payload = json.loads(issue_path.read_text(encoding="utf-8"))
+    payload = json.loads(issue_path.read_bytes())
     return IssueData.model_validate(payload)
 
 

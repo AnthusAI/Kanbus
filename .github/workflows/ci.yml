@@ -34,7 +34,7 @@ jobs:
           black --check .
           ruff check .
           mkdir -p ../coverage-python
-          python -m coverage run --source=taskulus -m pytest
+          python -m coverage run --source=taskulus -m behave -c behave.ini
           python -m coverage xml -o ../coverage-python/coverage.xml
 
       - name: Capture Python coverage
@@ -73,7 +73,7 @@ jobs:
       - name: Run Rust coverage
         run: |
           cd rust
-          cargo tarpaulin --out Xml --output-dir ../coverage-rust
+          cargo tarpaulin --engine llvm --run-types Tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --out Xml --output-dir ../coverage-rust
 
       - name: Capture Rust coverage
         id: rust_coverage

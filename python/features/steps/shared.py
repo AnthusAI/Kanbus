@@ -9,13 +9,14 @@ import shlex
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Iterable
 
-import yaml
 from click.testing import CliRunner
 
 from taskulus.cli import cli
 from taskulus.models import IssueData
+from taskulus.project import load_project_directory as resolve_project_directory
 
 
 def run_cli(context: object, command: str) -> None:
@@ -40,7 +41,27 @@ def run_cli(context: object, command: str) -> None:
         environment.update(overrides)
     try:
         os.chdir(working_directory)
-        context.result = runner.invoke(cli, args, env=environment)
+        result = runner.invoke(cli, args, env=environment)
+        stdout = None
+        stderr = None
+        try:
+            stdout = result.stdout
+        except (AttributeError, ValueError):
+            stdout = None
+        try:
+            stderr = result.stderr
+        except (AttributeError, ValueError):
+            stderr = None
+        if stdout is None:
+            stdout = result.output
+        if stderr is None:
+            stderr = result.output if result.exit_code != 0 else ""
+        context.result = SimpleNamespace(
+            exit_code=result.exit_code,
+            stdout=stdout,
+            stderr=stderr,
+            output=result.output,
+        )
     finally:
         os.chdir(previous)
 
@@ -70,7 +91,7 @@ def initialize_default_project(context: object) -> None:
 
 
 def load_project_directory(context: object) -> Path:
-    """Load the project directory from the .taskulus.yaml marker.
+    """Load the project directory from discovery.
 
     :param context: Behave context object.
     :type context: object
@@ -80,10 +101,7 @@ def load_project_directory(context: object) -> Path:
     working_directory = getattr(context, "working_directory", None)
     if working_directory is None:
         raise RuntimeError("working directory not set")
-    marker_path = working_directory / ".taskulus.yaml"
-    data = yaml.safe_load(marker_path.read_text(encoding="utf-8")) or {}
-    project_dir = data["project_dir"]
-    return working_directory / project_dir
+    return resolve_project_directory(working_directory)
 
 
 def write_issue_file(project_dir: Path, issue: IssueData) -> None:

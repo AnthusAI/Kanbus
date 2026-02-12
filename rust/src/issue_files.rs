@@ -39,10 +39,9 @@ pub fn list_issue_identifiers(issues_directory: &Path) -> Result<HashSet<String>
 /// # Errors
 /// Returns `TaskulusError::Io` if reading or parsing fails.
 pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, TaskulusError> {
-    let contents =
-        fs::read_to_string(issue_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let contents = fs::read(issue_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
     let issue: IssueData =
-        serde_json::from_str(&contents).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        serde_json::from_slice(&contents).map_err(|error| TaskulusError::Io(error.to_string()))?;
     Ok(issue)
 }
 

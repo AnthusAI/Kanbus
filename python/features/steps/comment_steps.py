@@ -9,7 +9,9 @@ from features.steps.shared import load_project_directory, read_issue_file, run_c
 
 @given('the current user is "dev@example.com"')
 def given_current_user(context: object) -> None:
-    context.environment_overrides = {"TASKULUS_USER": "dev@example.com"}
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["TASKULUS_USER"] = "dev@example.com"
+    context.environment_overrides = overrides
 
 
 @when('I run "tsk comment tsk-aaa \\"First comment\\""')
@@ -25,6 +27,16 @@ def when_comment_second(context: object) -> None:
 @when('I run "tsk comment tsk-missing \\"Missing issue note\\""')
 def when_comment_missing(context: object) -> None:
     run_cli(context, 'tsk comment tsk-missing "Missing issue note"')
+
+
+@when('I run "tsk comment tsk-note \\"Searchable comment\\""')
+def when_comment_note(context: object) -> None:
+    run_cli(context, 'tsk comment tsk-note "Searchable comment"')
+
+
+@when('I run "tsk comment tsk-dup \\"Dup keyword\\""')
+def when_comment_dup(context: object) -> None:
+    run_cli(context, 'tsk comment tsk-dup "Dup keyword"')
 
 
 @then('issue "tsk-aaa" should have 1 comment')

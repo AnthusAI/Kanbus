@@ -5,20 +5,11 @@ from __future__ import annotations
 from behave import given, then, when
 
 from features.steps.shared import (
-    build_issue,
     capture_issue_identifier,
     load_project_directory,
     read_issue_file,
     run_cli,
-    write_issue_file,
 )
-
-
-@given('an "epic" issue "tsk-epic01" exists')
-def given_epic_issue_exists(context: object) -> None:
-    project_dir = load_project_directory(context)
-    issue = build_issue("tsk-epic01", "Epic", "epic", "open", None, [])
-    write_issue_file(project_dir, issue)
 
 
 @when('I run "tsk create Implement OAuth2 flow"')
@@ -45,6 +36,37 @@ def when_run_create_invalid_type(context: object) -> None:
 @when('I run "tsk create Orphan --parent tsk-nonexistent"')
 def when_run_create_missing_parent(context: object) -> None:
     run_cli(context, "tsk create Orphan --parent tsk-nonexistent")
+
+
+@when('I run "tsk create"')
+def when_run_create_without_title(context: object) -> None:
+    run_cli(context, "tsk create")
+
+
+@when('I run "tsk create Bad Priority --priority 99"')
+def when_run_create_invalid_priority(context: object) -> None:
+    run_cli(context, "tsk create Bad Priority --priority 99")
+
+
+@when('I run "tsk create Child Task --type {issue_type} --parent tsk-parent"')
+def when_run_create_child_task_with_parent(context: object, issue_type: str) -> None:
+    run_cli(
+        context,
+        f"tsk create Child Task --type {issue_type} --parent tsk-parent",
+    )
+
+
+@when('I run "tsk create Child --type {issue_type} --parent tsk-bug01"')
+def when_run_create_child_with_bug_parent(context: object, issue_type: str) -> None:
+    run_cli(
+        context,
+        f"tsk create Child --type {issue_type} --parent tsk-bug01",
+    )
+
+
+@when('I run "tsk create Standalone Task --type task"')
+def when_run_create_standalone_task(context: object) -> None:
+    run_cli(context, "tsk create Standalone Task --type task")
 
 
 @then("the command should succeed")
@@ -176,11 +198,9 @@ def then_created_issue_description(context: object) -> None:
     assert issue.description == "Bug in login"
 
 
-@then('stderr should contain "unknown issue type"')
-def then_stderr_contains_unknown_type(context: object) -> None:
-    assert "unknown issue type" in context.result.stderr
-
-
-@then('stderr should contain "not found"')
-def then_stderr_contains_not_found(context: object) -> None:
-    assert "not found" in context.result.stderr
+@then("the created issue should have no parent")
+def then_created_issue_no_parent(context: object) -> None:
+    identifier = capture_issue_identifier(context)
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.parent is None

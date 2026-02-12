@@ -28,6 +28,8 @@ def update_issue(
     title: Optional[str],
     description: Optional[str],
     status: Optional[str],
+    assignee: Optional[str],
+    claim: bool,
 ) -> IssueData:
     """Update an issue and persist it to disk.
 
@@ -41,6 +43,10 @@ def update_issue(
     :type description: Optional[str]
     :param status: Updated status if provided.
     :type status: Optional[str]
+    :param assignee: Updated assignee if provided.
+    :type assignee: Optional[str]
+    :param claim: Whether to claim the issue.
+    :type claim: bool
     :return: Updated issue data.
     :rtype: IssueData
     :raises IssueUpdateError: If the update fails.
@@ -50,32 +56,39 @@ def update_issue(
     except IssueLookupError as error:
         raise IssueUpdateError(str(error)) from error
 
-    try:
-        project_dir = load_project_directory(root)
-    except ProjectMarkerError as error:
-        raise IssueUpdateError(str(error)) from error
-
+    project_dir = lookup.project_dir
     configuration = load_project_configuration(project_dir / "config.yaml")
     updated_issue = lookup.issue
     current_time = datetime.now(timezone.utc)
 
-    if status is not None:
+    resolved_status = status
+    if claim:
+        resolved_status = "in_progress"
+
+    if resolved_status is not None:
         try:
             validate_status_transition(
-                configuration, updated_issue.issue_type, updated_issue.status, status
+                configuration,
+                updated_issue.issue_type,
+                updated_issue.status,
+                resolved_status,
             )
         except InvalidTransitionError as error:
             raise IssueUpdateError(str(error)) from error
         updated_issue = apply_transition_side_effects(
-            updated_issue, status, current_time
+            updated_issue,
+            resolved_status,
+            current_time,
         )
-        updated_issue = updated_issue.model_copy(update={"status": status})
+        updated_issue = updated_issue.model_copy(update={"status": resolved_status})
 
     update_fields = {"updated_at": current_time}
     if title is not None:
         update_fields["title"] = title
     if description is not None:
         update_fields["description"] = description
+    if assignee is not None:
+        update_fields["assignee"] = assignee
 
     updated_issue = updated_issue.model_copy(update=update_fields)
     write_issue_to_file(updated_issue, lookup.issue_path)

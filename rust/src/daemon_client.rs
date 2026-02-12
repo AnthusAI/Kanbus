@@ -114,7 +114,10 @@ fn request_with_recovery(
 ) -> Result<ResponseEnvelope, TaskulusError> {
     match send_request(socket_path, request) {
         Ok(response) => Ok(response),
-        Err(_) => {
+        Err(error) => {
+            if !matches!(error, TaskulusError::Io(_)) {
+                return Err(error);
+            }
             if socket_path.exists() {
                 std::fs::remove_file(socket_path)
                     .map_err(|error| TaskulusError::Io(error.to_string()))?;
@@ -144,6 +147,11 @@ fn send_request(
     reader
         .read_line(&mut line)
         .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    if line.trim().is_empty() {
+        return Err(TaskulusError::IssueOperation(
+            "empty daemon response".to_string(),
+        ));
+    }
     serde_json::from_str(&line).map_err(|error| TaskulusError::Io(error.to_string()))
 }
 

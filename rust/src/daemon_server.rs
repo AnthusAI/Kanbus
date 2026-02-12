@@ -40,7 +40,9 @@ pub fn run_daemon(root: &Path) -> Result<(), TaskulusError> {
     warm_cache(root)?;
     for stream in listener.incoming() {
         let stream = stream.map_err(|error| TaskulusError::Io(error.to_string()))?;
-        handle_stream(root, stream)?;
+        if handle_stream(root, stream)? {
+            break;
+        }
     }
     Ok(())
 }
@@ -50,7 +52,7 @@ fn warm_cache(root: &Path) -> Result<(), TaskulusError> {
     Ok(())
 }
 
-fn handle_stream(root: &Path, stream: UnixStream) -> Result<(), TaskulusError> {
+fn handle_stream(root: &Path, stream: UnixStream) -> Result<bool, TaskulusError> {
     let mut reader = BufReader::new(
         stream
             .try_clone()
@@ -62,7 +64,7 @@ fn handle_stream(root: &Path, stream: UnixStream) -> Result<(), TaskulusError> {
         .map_err(|error| TaskulusError::Io(format!("failed to read from stream: {error}")))?
         == 0
     {
-        return Ok(());
+        return Ok(false);
     }
     let mut stream = stream;
     let (response, should_shutdown) = match serde_json::from_str::<RequestEnvelope>(&line) {
@@ -74,7 +76,7 @@ fn handle_stream(root: &Path, stream: UnixStream) -> Result<(), TaskulusError> {
                 status: "error".to_string(),
                 result: None,
                 error: Some(ErrorEnvelope {
-                    code: "invalid_request".to_string(),
+                    code: "internal_error".to_string(),
                     message: error.to_string(),
                     details: BTreeMap::new(),
                 }),
@@ -90,10 +92,7 @@ fn handle_stream(root: &Path, stream: UnixStream) -> Result<(), TaskulusError> {
     stream
         .write_all(b"\n")
         .map_err(|error| TaskulusError::Io(error.to_string()))?;
-    if should_shutdown {
-        std::process::exit(0);
-    }
-    Ok(())
+    Ok(should_shutdown)
 }
 
 fn handle_request(root: &Path, request: RequestEnvelope) -> (ResponseEnvelope, bool) {
@@ -207,15 +206,35 @@ fn handle_request(root: &Path, request: RequestEnvelope) -> (ResponseEnvelope, b
     )
 }
 
+/// Handle a daemon request without opening a socket.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `request` - Request envelope to handle.
+///
+/// # Returns
+/// Response envelope for the request.
+pub fn handle_request_for_testing(root: &Path, request: RequestEnvelope) -> ResponseEnvelope {
+    handle_request(root, request).0
+}
+
 fn load_index(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
     let project_dir = load_project_directory(root)?;
     let issues_dir = project_dir.join("issues");
     let cache_path = get_index_cache_path(root)?;
     if let Some(index) = load_cache_if_valid(&cache_path, &issues_dir)? {
-        return Ok(index.by_id.values().cloned().collect());
+        return Ok(index
+            .by_id
+            .values()
+            .map(|issue| issue.as_ref().clone())
+            .collect());
     }
     let index = build_index_from_directory(&issues_dir)?;
     let mtimes = collect_issue_file_mtimes(&issues_dir)?;
     write_cache(&index, &cache_path, &mtimes)?;
-    Ok(index.by_id.values().cloned().collect())
+    Ok(index
+        .by_id
+        .values()
+        .map(|issue| issue.as_ref().clone())
+        .collect())
 }

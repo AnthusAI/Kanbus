@@ -89,6 +89,24 @@ tsk search "project structure"
 tsk close tsk-a1b2c3 --comment "Initial structure is complete."
 ```
 
+## Running the specifications
+
+Taskulus uses a shared Gherkin specification suite under the repository `features/` directory. Both implementations run against the same files.
+
+Run the Python suite:
+
+```bash
+cd python
+python -m behave
+```
+
+Run the Rust suite:
+
+```bash
+cd rust
+cargo test --test cucumber
+```
+
 ## Next Steps
 
 - Read the CLI reference: [CLI_REFERENCE.md](CLI_REFERENCE.md)

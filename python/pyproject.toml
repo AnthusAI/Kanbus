@@ -15,8 +15,7 @@ dependencies = [
     "pyyaml",
     "pydantic-settings",
     "behave",
-    "pytest",
-    "pytest-cov",
+    "coverage",
     "ruff",
     "black",
     "sphinx",
@@ -38,7 +37,3 @@ target-version = ["py311"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-q"

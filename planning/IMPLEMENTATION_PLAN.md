@@ -113,9 +113,9 @@ Taskulus/
                 wiki_steps.py
                 maintenance_steps.py
                 index_steps.py
-            specs -> ../../specs/features   # Symlink for shared Gherkin access
+            features/                      # Shared Gherkin specs
         tests/
-            conftest.py                     # pytest configuration for unit tests
+            features/                       # behave feature runner configuration
             spec_runner/                    # YAML test-case runner
                 __init__.py
                 runner.py
@@ -142,7 +142,7 @@ Taskulus/
             cache.rs
             lib.rs                          # Library root for testability
         tests/
-            features/                       # Symlink -> ../../specs/features/
+            features/                       # Symlink -> ../../features/
             step_definitions/
                 mod.rs
                 common_steps.rs
@@ -183,7 +183,7 @@ Taskulus/
 
 ### Key Design Decisions in This Layout
 
-**Feature files live in `specs/features/`, period.** Both implementations reference this single source of truth. Python's Behave runner points at `python/features/specs` (a symlink to `../../specs/features/`). Rust's `tests/features/` is a symlink to `../../specs/features/`. One set of Gherkin, two implementations.
+**Feature files live in `features/`, period.** Both implementations reference this single source of truth. Python's Behave runner points at `python/behave.ini` (a path to `../../features/`). Rust's `tests/features/` is a path to `../../features/`. One set of Gherkin, two implementations.
 
 **Step definitions mirror each other.** `python/tests/step_definitions/workflow_steps.py` and `rust/tests/step_definitions/workflow_steps.rs` implement the same Given/When/Then steps for the same feature files. A developer working on workflows opens three files: the feature, the Python steps, and the Rust steps. Parallel structure makes comparison trivial.
 
@@ -191,7 +191,7 @@ Taskulus/
 
 **The `tools/` directory holds cross-cutting quality scripts.** The parity checker, coverage checker, and CI orchestration live here because they span both implementations.
 
-**Symlinks for Rust feature access.** Rust's cucumber-rs expects features relative to the crate. A symlink (`rust/tests/features/ -> ../../specs/features/`) is the cleanest solution. On Windows (if ever needed), a build script can copy the features directory.
+**Symlinks for Rust feature access.** Rust's cucumber-rs expects features relative to the crate. A path (`rust/tests/features/ -> ../../features/`) is the cleanest solution. On Windows (if ever needed), a build script can copy the features directory.
 
 ---
 
@@ -206,7 +206,7 @@ Taskulus/
 **Gherkin:** None (infrastructure, not behavior).
 
 **Python:**
-- `pyproject.toml` with dependencies: click, jinja2, pyyaml, behave, pytest, ruff, black, sphinx
+- `pyproject.toml` with dependencies: click, jinja2, pyyaml, behave, ruff, black, sphinx
 - `src/taskulus/__init__.py` with version string
 - Empty test suite that passes
 
@@ -221,7 +221,7 @@ Taskulus/
 - `cargo clippy` passes with no warnings
 - `cargo fmt --check` passes
 - `behave` passes (0 scenarios, 0 failures)
-- `pytest` passes (0 unit tests, 0 failures)
+- `behave` passes (0 scenarios, 0 failures)
 - `cargo test` passes (0 tests, 0 failures)
 
 **Deliverables:**
@@ -233,9 +233,9 @@ Taskulus/
 
 **Gherkin:** Stub feature files for every domain with `@wip` tags and placeholder scenarios.
 
-**Python:** `behave.ini` configured to find `specs/features/`.
+**Python:** `behave.ini` configured to find `features/`.
 
-**Rust:** Symlink created. `cucumber.rs` configured to find features via the symlink.
+**Rust:** Symlink created. `cucumber.rs` configured to find features via the path.
 
 **Quality gates:** Both test runners can discover feature files (even if all scenarios are pending/skipped).
 
@@ -249,7 +249,7 @@ Taskulus/
 
 #### Task 1.1: Write Gherkin scenarios for `tsk init`
 
-Write `specs/features/initialization/project_initialization.feature`:
+Write `features/initialization/project_initialization.feature`:
 
 ```gherkin
 Feature: Project initialization
@@ -330,7 +330,7 @@ Data-driven tests covering: default init, custom directory, already-initialized,
 
 #### Task 2.1: Write Gherkin scenarios for configuration parsing
 
-`specs/features/configuration/configuration_loading.feature`:
+`features/configuration/configuration_loading.feature`:
 
 ```gherkin
 Feature: Configuration loading
@@ -396,7 +396,7 @@ Feature: Configuration loading
 
 #### Task 2.4: ID generation
 
-`specs/features/issues/id_generation.feature`:
+`features/issues/id_generation.feature`:
 
 ```gherkin
 Feature: Issue ID generation
@@ -430,7 +430,7 @@ Implement `ids.py` and `ids.rs`. Both use SHA256 of `title + timestamp + random 
 
 #### Task 3.1: Write Gherkin scenarios for workflow transitions
 
-`specs/features/workflow/status_transitions.feature`:
+`features/workflow/status_transitions.feature`:
 
 ```gherkin
 Feature: Workflow status transitions
@@ -486,7 +486,7 @@ Feature: Workflow status transitions
         And stderr should contain "invalid transition"
 ```
 
-`specs/features/workflow/automatic_side_effects.feature`:
+`features/workflow/automatic_side_effects.feature`:
 
 ```gherkin
 Feature: Automatic side effects on status transitions
@@ -505,7 +505,7 @@ Feature: Automatic side effects on status transitions
         Then issue "tsk-test01" should have no closed_at timestamp
 ```
 
-`specs/features/workflow/claim_workflow.feature`:
+`features/workflow/claim_workflow.feature`:
 
 ```gherkin
 Feature: Claim workflow
@@ -542,7 +542,7 @@ Feature: Claim workflow
 
 #### Task 4.1: Write Gherkin scenarios for hierarchy validation
 
-`specs/features/hierarchy/parent_child_validation.feature`:
+`features/hierarchy/parent_child_validation.feature`:
 
 ```gherkin
 Feature: Parent-child hierarchy validation
@@ -610,7 +610,7 @@ Feature: Parent-child hierarchy validation
 
 #### Task 5.1: Write Gherkin scenarios for issue creation
 
-`specs/features/issues/issue_creation.feature`:
+`features/issues/issue_creation.feature`:
 
 ```gherkin
 Feature: Issue creation
@@ -678,7 +678,7 @@ Similar detailed scenarios for `tsk show`, `tsk update`, `tsk close`, `tsk delet
 
 #### Task 6.1: Write Gherkin scenarios for index behavior
 
-`specs/features/index/index_building.feature`:
+`features/index/index_building.feature`:
 
 ```gherkin
 Feature: In-memory index building
@@ -697,7 +697,7 @@ Feature: In-memory index building
         Then the reverse dependency index should show "tsk-bbb" blocks "tsk-aaa"
 ```
 
-`specs/features/index/cache_invalidation.feature`:
+`features/index/cache_invalidation.feature`:
 
 ```gherkin
 Feature: Cache invalidation
@@ -766,7 +766,7 @@ Explicit behavior:
 
 #### Task 7.1: Write Gherkin scenarios for dependencies
 
-`specs/features/dependencies/blocked_by_dependencies.feature`:
+`features/dependencies/blocked_by_dependencies.feature`:
 
 ```gherkin
 Feature: Blocked-by dependencies
@@ -785,7 +785,7 @@ Feature: Blocked-by dependencies
         And issue "tsk-aaa" should have no dependencies
 ```
 
-`specs/features/dependencies/cycle_detection.feature`:
+`features/dependencies/cycle_detection.feature`:
 
 ```gherkin
 Feature: Dependency cycle detection
@@ -811,7 +811,7 @@ Feature: Dependency cycle detection
         Then the command should succeed
 ```
 
-`specs/features/dependencies/ready_query.feature`:
+`features/dependencies/ready_query.feature`:
 
 ```gherkin
 Feature: Ready query
@@ -917,7 +917,7 @@ Straightforward: append to `comments` list, update `updated_at`, write file.
 
 #### Task 10.1: Write Gherkin scenarios for wiki rendering
 
-`specs/features/wiki/wiki_rendering.feature`:
+`features/wiki/wiki_rendering.feature`:
 
 ```gherkin
 Feature: Wiki rendering
@@ -948,7 +948,7 @@ Feature: Wiki rendering
         And "Alpha" should appear before "Beta" in the output
 ```
 
-`specs/features/wiki/wiki_template_functions.feature`:
+`features/wiki/wiki_template_functions.feature`:
 
 Scenarios for each template function: `query`, `count`, `issue`, `children`, `blocked_by`, `blocks`.
 
@@ -1029,6 +1029,44 @@ Brief epic -- write scenarios for tree display format, implement ASCII tree rend
 
 ---
 
+### Epic 15: GitHub Issue Sync
+
+**Goal:** Bidirectional sync between the Taskulus plan repository and GitHub Issues. Every Taskulus issue file has a corresponding GitHub issue whose body contains a clickable link to that file (blob URL). Every GitHub issue that does not link back to a Taskulus issue gets a new Taskulus issue created and its body updated with the link.
+
+**Dependencies:** Epic 5 (CRUD), Epic 6 (index).
+
+Sync runs via GitHub Actions using the `gh` CLI only. The link from each GitHub issue to the source JSON file is a blob URL built from `GITHUB_REPOSITORY`, default branch, and relative path (e.g. `project/issues/tsk-a1b2c3.json`). See `docs/GITHUB_SYNC.md` for link format and discovery.
+
+#### Task 15.1: Link format and discovery
+
+- Define body format: blob URL plus HTML comment `<!-- taskulus-source: project/issues/tsk-abc.json -->` for parsing.
+- Document derivation of blob URL from `GITHUB_REPOSITORY`, default branch (`gh repo view --json defaultBranchRef`), and relative path.
+- No Gherkin; document in epic and in `docs/GITHUB_SYNC.md`.
+
+#### Task 15.2: Taskulus to GitHub (ensure link exists)
+
+- For each `project/issues/{id}.json`, ensure a GitHub issue exists with the blob link in the body.
+- If no GitHub issue: create one (title from issue, body with description and source link). Optionally store `custom.github_issue_number` in JSON.
+- If GitHub issue exists but body lacks link: edit body to add link (preserve existing content).
+- Script uses `gh issue list`, `gh issue create`, `gh issue view`, `gh issue edit`.
+
+#### Task 15.3: GitHub to Taskulus (create missing issues)
+
+- List GitHub issues; for each, parse body for Taskulus source marker.
+- If no source link: create new Taskulus issue (new ID, write `project/issues/{id}.json`), then update GitHub issue body with blob link and marker.
+- Copy title and optional description from GitHub issue into new JSON.
+
+#### Task 15.4: GitHub Action workflow
+
+- New workflow `.github/workflows/sync-github-issues.yml`: runs on schedule (e.g. daily) and/or on push to `main`; checks out repo; runs sync script via `gh`.
+- Permissions: `issues: write`, `contents: read`; use `GITHUB_TOKEN`.
+
+#### Task 15.5: Sync script and documentation
+
+- Sync is script-only (`tools/sync_github_issues.py`), invoked by the workflow. No `tsk sync-github` CLI in this epic; document in `docs/GITHUB_SYNC.md` how to run sync locally (e.g. `python tools/sync_github_issues.py --dry-run`).
+
+---
+
 ## Part 3: Quality Enforcement Strategy
 
 ### The Quality Gate Pipeline
@@ -1049,7 +1087,7 @@ STAGE 2: Documentation Verification
 
 STAGE 3: Spec Parity Verification
     Run:    python tools/check_spec_parity.py
-    Logic:  - Parse all .feature files in specs/features/
+    Logic:  - Parse all .feature files in features/
             - Extract every Scenario and Scenario Outline
             - Parse Python step definitions to find which steps are implemented
             - Parse Rust step definitions to find which steps are implemented
@@ -1058,15 +1096,15 @@ STAGE 3: Spec Parity Verification
 
 STAGE 4: Behavior Specs (the core quality gate)
     Python: cd python && behave
-            (unit tests: cd python && pytest -v --tb=short)
+            (behavior specs: cd python && behave)
     Rust:   cd rust && cargo test --test cucumber -- --tags "not @wip"
 
 STAGE 5: YAML Test Cases
-    Python: cd python && pytest tests/spec_runner/ -v
+    Python: cd python && behave
     Rust:   cd rust && cargo test --test spec_runner
 
 STAGE 6: Coverage Reporting
-    Python: pytest --cov=taskulus --cov-report=term-missing --cov-fail-under=100
+    Python: coverage run --source=taskulus -m behave -c behave.ini
     Rust:   cargo tarpaulin --out Stdout --fail-under 100
             (or cargo llvm-cov with threshold)
 ```
@@ -1188,7 +1226,7 @@ specs:            ## Run only the behavior specs (both languages)
 
 ### The Central Idea
 
-There is ONE set of Gherkin feature files in `specs/features/`. Both implementations read these same files and execute them. This is not a metaphor -- the same `.feature` file on disk is loaded by `behave` in Python and by `cucumber-rs` in Rust.
+There is ONE set of Gherkin feature files in `features/`. Both implementations read these same files and execute them. This is not a metaphor -- the same `.feature` file on disk is loaded by `behave` in Python and by `cucumber-rs` in Rust.
 
 ### How Behave Finds the Features
 
@@ -1196,11 +1234,11 @@ In `python/behave.ini`:
 
 ```ini
 [behave]
-paths = features/specs
+paths = ../features
 tags = ~wip
 ```
 
-Behave expects step definitions in `python/features/steps` and discovers `features/specs` via the symlink to the shared `specs/features` directory. `python/features/environment.py` adds `python/` and `python/src` to `sys.path` for imports.
+Behave expects step definitions in `python/features/steps` and discovers `../features` via the path to the shared `features` directory. `python/features/environment.py` adds `python/` and `python/src` to `sys.path` for imports.
 
 ### How cucumber-rs Finds the Features
 
@@ -1212,11 +1250,11 @@ use cucumber::World;
 #[tokio::main]
 async fn main() {
     TaskulusWorld::run("tests/features/").await;
-    // tests/features/ is a symlink to ../../specs/features/
+    // tests/features/ is a path to ../../features/
 }
 ```
 
-The symlink `rust/tests/features/` points to `../../specs/features/`, so cucumber-rs discovers the same feature files.
+The path `rust/tests/features/` points to `../../features/`, so cucumber-rs discovers the same feature files.
 
 ### Step Definition Parity
 
@@ -1273,7 +1311,7 @@ The YAML test cases and Gherkin scenarios are complementary:
 
 When starting a new epic:
 
-1. Write the `.feature` file in `specs/features/` with all scenarios
+1. Write the `.feature` file in `features/` with all scenarios
 2. Tag unimplemented scenarios with `@wip`
 3. Implement step definitions in Python, removing `@wip` as scenarios pass
 4. Implement step definitions in Rust, removing `@wip` as scenarios pass
@@ -1306,6 +1344,7 @@ Epic 10: Wiki System                              (15-20 scenarios)
 Epic 11: Maintenance Commands                     (8-12 scenarios)
 Epic 12: Dependency Tree Display                  (4-6 scenarios)
 Epic 13: Polish and Edge Cases                    (10-15 scenarios)
+Epic 15: GitHub Issue Sync                       (script-only; see docs/GITHUB_SYNC.md)
 ```
 
 **Total estimated scenarios: 145-200.**
@@ -1377,7 +1416,7 @@ This is tested in the Gherkin scenarios by asserting on stderr content.
 **Configuration in `behave.ini`:**
 ```ini
 [behave]
-paths = features/specs
+paths = ../features
 tags = ~wip
 ```
 

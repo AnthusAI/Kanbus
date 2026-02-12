@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::Path;
 
+use crate::config::default_project_configuration;
 use crate::error::TaskulusError;
 use crate::models::ProjectConfiguration;
 
@@ -16,10 +17,21 @@ use crate::models::ProjectConfiguration;
 ///
 /// Returns `TaskulusError::Configuration` if the configuration is invalid.
 pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, TaskulusError> {
-    let contents =
-        fs::read_to_string(path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let contents = match fs::read_to_string(path) {
+        Ok(contents) => contents,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let configuration = default_project_configuration();
+            let errors = validate_project_configuration(&configuration);
+            errors
+                .is_empty()
+                .then_some(())
+                .ok_or_else(|| TaskulusError::Configuration(errors.join("; ")))?;
+            return Ok(configuration);
+        }
+        Err(error) => return Err(TaskulusError::Io(error.to_string())),
+    };
     let configuration: ProjectConfiguration = serde_yaml::from_str(&contents)
-        .map_err(|error| TaskulusError::Configuration(error.to_string()))?;
+        .map_err(|error| TaskulusError::Configuration(map_configuration_error(&error)))?;
 
     let errors = validate_project_configuration(&configuration);
     if !errors.is_empty() {
@@ -70,4 +82,12 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
     }
 
     errors
+}
+
+fn map_configuration_error(error: &serde_yaml::Error) -> String {
+    let message = error.to_string();
+    if message.contains("unknown field") {
+        return "unknown configuration fields".to_string();
+    }
+    message
 }

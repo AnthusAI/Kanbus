@@ -6,6 +6,7 @@
 
 **Prerequisites:** Beads CLI (`bd`) installed and authenticated; ability to create/update Beads tasks.
 
+**CRITICAL AGENT INSTRUCTION:** Never perform a `git commit` until the user explicitly tells you to do so. Changes are made to files only; commits are user-initiated only.
 
 ---
 
@@ -38,3 +39,4 @@
 
 ## Landing the plane (end of session)
 - Update the Beads task with status, remaining steps, and next actions.
+- Commit/push only when explicitly approved by the user.

@@ -9,6 +9,14 @@ import xml.etree.ElementTree as ElementTree
 
 
 def parse_line_rate(xml_path: Path) -> float:
+    """Parse the line-rate attribute from a coverage XML file.
+
+    :param xml_path: Path to the coverage XML file.
+    :type xml_path: Path
+    :return: Line rate as a float.
+    :rtype: float
+    :raises ValueError: If the line-rate attribute is missing.
+    """
     root = ElementTree.parse(xml_path).getroot()
     line_rate = root.attrib.get("line-rate")
     if line_rate is None:
@@ -17,6 +25,13 @@ def parse_line_rate(xml_path: Path) -> float:
 
 
 def pick_color(percentage: float) -> str:
+    """Select a badge color for the coverage percentage.
+
+    :param percentage: Coverage percentage.
+    :type percentage: float
+    :return: Badge color name.
+    :rtype: str
+    """
     if percentage >= 90.0:
         return "green"
     if percentage >= 80.0:
@@ -29,6 +44,12 @@ def pick_color(percentage: float) -> str:
 
 
 def main() -> int:
+    """Compute coverage percentage and badge color.
+
+    :return: Exit code.
+    :rtype: int
+    :raises ValueError: If the coverage XML is missing the line-rate attribute.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("xml_path")
     args = parser.parse_args()

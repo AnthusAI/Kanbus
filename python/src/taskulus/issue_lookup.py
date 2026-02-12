@@ -20,6 +20,7 @@ class IssueLookupResult:
 
     issue: IssueData
     issue_path: Path
+    project_dir: Path
 
 
 def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
@@ -43,4 +44,4 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
         raise IssueLookupError("not found")
 
     issue = read_issue_from_file(issue_path)
-    return IssueLookupResult(issue=issue, issue_path=issue_path)
+    return IssueLookupResult(issue=issue, issue_path=issue_path, project_dir=project_dir)

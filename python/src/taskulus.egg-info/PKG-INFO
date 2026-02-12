@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: taskulus
+Version: 0.1.0
+Summary: A git-backed project management system.
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: click
+Requires-Dist: jinja2
+Requires-Dist: pydantic
+Requires-Dist: pyyaml
+Requires-Dist: pydantic-settings
+Requires-Dist: behave
+Requires-Dist: coverage
+Requires-Dist: ruff
+Requires-Dist: black
+Requires-Dist: sphinx
+
+# Taskulus (Python)
+
+This file exists for packaging metadata in editable installs. For full project documentation, see the repository README.md.

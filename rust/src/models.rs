@@ -45,6 +45,7 @@ pub struct IssueData {
 
 /// Project configuration loaded from config.yaml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProjectConfiguration {
     pub prefix: String,
     pub hierarchy: Vec<String>,

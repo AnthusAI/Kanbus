@@ -12,6 +12,7 @@ use crate::models::IssueData;
 pub struct IssueLookupResult {
     pub issue: IssueData,
     pub issue_path: PathBuf,
+    pub project_dir: PathBuf,
 }
 
 /// Load an issue by identifier from a project directory.
@@ -33,5 +34,9 @@ pub fn load_issue_from_project(
         return Err(TaskulusError::IssueOperation("not found".to_string()));
     }
     let issue = read_issue_from_file(&issue_path)?;
-    Ok(IssueLookupResult { issue, issue_path })
+    Ok(IssueLookupResult {
+        issue,
+        issue_path,
+        project_dir,
+    })
 }

@@ -705,7 +705,7 @@ Taskulus/
 | YAML parsing | PyYAML or ruamel.yaml | serde_yaml |
 | Template engine | Jinja2 | MiniJinja |
 | Hashing | stdlib `hashlib` | sha2 crate |
-| Testing | behave + pytest | cargo test |
+| Testing | behave | cargo test |
 
 ---
 

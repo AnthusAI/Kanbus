@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::Arc;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
@@ -109,7 +110,11 @@ pub fn write_cache(
         version: 1,
         built_at: Utc::now(),
         file_mtimes: file_mtimes.clone(),
-        issues: index.by_id.values().cloned().collect(),
+        issues: index
+            .by_id
+            .values()
+            .map(|issue| issue.as_ref().clone())
+            .collect(),
         reverse_deps: index
             .reverse_dependencies
             .iter()
@@ -150,37 +155,40 @@ pub fn build_index_from_cache(
 ) -> IssueIndex {
     let mut index = IssueIndex::new();
     for issue in issues {
-        index.by_id.insert(issue.identifier.clone(), issue.clone());
+        let shared = Arc::new(issue);
+        index
+            .by_id
+            .insert(shared.identifier.clone(), Arc::clone(&shared));
         index
             .by_status
-            .entry(issue.status.clone())
+            .entry(shared.status.clone())
             .or_default()
-            .push(issue.clone());
+            .push(Arc::clone(&shared));
         index
             .by_type
-            .entry(issue.issue_type.clone())
+            .entry(shared.issue_type.clone())
             .or_default()
-            .push(issue.clone());
-        if let Some(parent) = issue.parent.clone() {
+            .push(Arc::clone(&shared));
+        if let Some(parent) = shared.parent.clone() {
             index
                 .by_parent
                 .entry(parent)
                 .or_default()
-                .push(issue.clone());
+                .push(Arc::clone(&shared));
         }
-        for label in &issue.labels {
+        for label in &shared.labels {
             index
                 .by_label
                 .entry(label.clone())
                 .or_default()
-                .push(issue.clone());
+                .push(Arc::clone(&shared));
         }
     }
     for (target, ids) in reverse_deps {
         let mut issues = Vec::new();
         for identifier in ids {
             if let Some(issue) = index.by_id.get(&identifier) {
-                issues.push(issue.clone());
+                issues.push(Arc::clone(issue));
             }
         }
         index.reverse_dependencies.insert(target, issues);

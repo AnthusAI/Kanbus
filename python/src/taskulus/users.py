@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import getpass
 import os
 
 
@@ -13,6 +12,9 @@ def get_current_user() -> str:
     :rtype: str
     """
     override = os.getenv("TASKULUS_USER")
-    if override:
+    if override is not None and override.strip():
         return override
-    return getpass.getuser()
+    user = os.getenv("USER")
+    if user:
+        return user
+    return "unknown"

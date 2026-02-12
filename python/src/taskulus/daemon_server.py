@@ -160,6 +160,53 @@ class DaemonServer(socketserver.ThreadingUnixStreamServer):
         return list(self.state.index.by_id.values())
 
 
+def handle_request_for_testing(root: Path, request: RequestEnvelope) -> ResponseEnvelope:
+    """
+    Handle a daemon request without starting a server loop.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param request: Request envelope to handle.
+    :type request: RequestEnvelope
+    :return: Response envelope for the request.
+    :rtype: ResponseEnvelope
+    """
+    server = DaemonServer(root)
+    socket_path = get_daemon_socket_path(root)
+    try:
+        response = server.handle_request(request)
+    except ProtocolError as error:
+        code = "protocol_version_mismatch"
+        if str(error) == "protocol version unsupported":
+            code = "protocol_version_unsupported"
+        response = ResponseEnvelope(
+            protocol_version=PROTOCOL_VERSION,
+            request_id=request.request_id,
+            status="error",
+            error=ErrorEnvelope(
+                code=code,
+                message=str(error),
+                details={},
+            ),
+        )
+    except Exception as error:
+        response = ResponseEnvelope(
+            protocol_version=PROTOCOL_VERSION,
+            request_id=request.request_id,
+            status="error",
+            error=ErrorEnvelope(
+                code="internal_error",
+                message=str(error),
+                details={},
+            ),
+        )
+    finally:
+        server.server_close()
+        if socket_path.exists():
+            socket_path.unlink()
+    return response
+
+
 def run_daemon(root: Path) -> None:
     """Run the daemon server for a repository.
 

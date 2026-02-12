@@ -5,6 +5,7 @@ Issue identifier generation.
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -56,11 +57,19 @@ def generate_issue_identifier(request: IssueIdentifierRequest) -> IssueIdentifie
     :rtype: IssueIdentifierResult
     :raises RuntimeError: If unable to generate unique ID after 10 attempts.
     """
+    test_bytes_hex = os.getenv("TASKULUS_TEST_RANDOM_BYTES", "")
+    test_bytes = None
+    if test_bytes_hex:
+        try:
+            test_bytes = bytes.fromhex(test_bytes_hex)
+        except ValueError as error:
+            raise RuntimeError("invalid TASKULUS_TEST_RANDOM_BYTES") from error
+
     for _ in range(10):
         digest = _hash_identifier_material(
             request.title,
             request.created_at,
-            secrets.token_bytes(8),
+            test_bytes if test_bytes is not None else secrets.token_bytes(8),
         )
         identifier = f"{request.prefix}-{digest}"
         if identifier not in request.existing_ids:

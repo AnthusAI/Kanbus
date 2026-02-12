@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DependencyLink(BaseModel):
@@ -110,6 +110,8 @@ class ProjectConfiguration(BaseModel):
     :param default_priority: Default priority.
     :type default_priority: int
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     prefix: str = Field(min_length=1)
     hierarchy: List[str]

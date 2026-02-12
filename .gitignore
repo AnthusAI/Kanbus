@@ -10,6 +10,8 @@ rust/target/
 
 # Taskulus
 project/.cache/
+tools/tmp/
+tools/tmp/*
 
 # Docs
 site/

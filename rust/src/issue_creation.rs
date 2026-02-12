@@ -11,7 +11,10 @@ use crate::issue_files::{
     issue_path_for_identifier, list_issue_identifiers, read_issue_from_file, write_issue_to_file,
 };
 use crate::models::{IssueData, ProjectConfiguration};
-use crate::{file_io::load_project_directory, models::DependencyLink};
+use crate::{
+    file_io::{ensure_project_local_directory, find_project_local_directory, load_project_directory},
+    models::DependencyLink,
+};
 
 /// Request payload for issue creation.
 #[derive(Debug, Clone)]
@@ -24,6 +27,7 @@ pub struct IssueCreationRequest {
     pub parent: Option<String>,
     pub labels: Vec<String>,
     pub description: Option<String>,
+    pub local: bool,
 }
 
 /// Create a new issue and write it to disk.
@@ -35,7 +39,15 @@ pub struct IssueCreationRequest {
 /// Returns `TaskulusError` if validation or file operations fail.
 pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueData, TaskulusError> {
     let project_dir = load_project_directory(request.root.as_path())?;
-    let issues_dir = project_dir.join("issues");
+    let mut issues_dir = project_dir.join("issues");
+    let mut local_dir = find_project_local_directory(&project_dir);
+    if request.local {
+        local_dir = Some(ensure_project_local_directory(&project_dir)?);
+        issues_dir = local_dir
+            .as_ref()
+            .expect("local dir")
+            .join("issues");
+    }
     let configuration = load_project_configuration(&project_dir.join("config.yaml"))?;
 
     let resolved_type = request.issue_type.as_deref().unwrap_or("task");
@@ -61,7 +73,13 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueData, Taskulu
         )?;
     }
 
-    let existing_ids = list_issue_identifiers(&issues_dir)?;
+    let mut existing_ids = list_issue_identifiers(&project_dir.join("issues"))?;
+    if let Some(local_dir) = local_dir {
+        let local_issues = local_dir.join("issues");
+        if local_issues.exists() {
+            existing_ids.extend(list_issue_identifiers(&local_issues)?);
+        }
+    }
     let created_at = Utc::now();
     let identifier_request = IssueIdentifierRequest {
         title: request.title.clone(),
