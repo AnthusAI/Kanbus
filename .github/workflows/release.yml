@@ -101,12 +101,20 @@ jobs:
           tar -czf dist/taskulus-${{ matrix.target }}.tar.gz -C dist ${{ matrix.binary }}
 
       - name: Package binary (zip)
-        if: ${{ matrix.archive == 'zip' }}
+        if: ${{ matrix.archive == 'zip' && matrix.os != 'windows-latest' }}
         run: |
           mkdir -p dist
           cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/
           cd dist
           zip taskulus-${{ matrix.target }}.zip ${{ matrix.binary }}
+
+      - name: Package binary (zip, windows)
+        if: ${{ matrix.archive == 'zip' && matrix.os == 'windows-latest' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/${{ matrix.binary }}"
+          Compress-Archive -Path "dist/${{ matrix.binary }}" -DestinationPath "dist/taskulus-${{ matrix.target }}.zip" -Force
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
