@@ -73,7 +73,7 @@ def _parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser.add_argument(
         "--rust-binary",
         type=Path,
-        default=ROOT / "rust" / "target" / "release" / "taskulus",
+        default=ROOT / "rust" / "target" / "release" / "tskr",
         help="Path to the Rust CLI binary.",
     )
     return parser.parse_args(list(argv))

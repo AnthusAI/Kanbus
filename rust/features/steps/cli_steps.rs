@@ -20,15 +20,15 @@ fn when_run_cli_entrypoint_args(world: &mut TaskulusWorld, arguments: String) {
 
 fn run_cli_binary(world: &mut TaskulusWorld, args: Vec<String>) {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let binary_path = manifest_dir.join("target").join("debug").join("taskulus");
+    let binary_path = manifest_dir.join("target").join("debug").join("tskr");
     if !binary_path.exists() {
         let status = Command::new("cargo")
-            .args(["build", "--bin", "taskulus"])
+            .args(["build", "--bin", "tskr"])
             .current_dir(&manifest_dir)
             .status()
-            .expect("build taskulus binary");
+            .expect("build tskr binary");
         if !status.success() {
-            panic!("failed to build taskulus binary");
+            panic!("failed to build tskr binary");
         }
     }
     let cwd = world
@@ -41,7 +41,7 @@ fn run_cli_binary(world: &mut TaskulusWorld, args: Vec<String>) {
         .current_dir(cwd)
         .env("TASKULUS_NO_DAEMON", "1")
         .output()
-        .expect("run taskulus --help");
+        .expect("run tskr --help");
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
     world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());

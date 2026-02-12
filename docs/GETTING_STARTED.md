@@ -24,7 +24,7 @@ Taskulus provides two **completely equivalent** implementations. They pass the s
   </div>
 </div>
 
-Both install the `tsk` command. You can switch between them at any time.
+Python installs `tsk`. Rust installs `tskr` with the same subcommands. You can switch between them at any time.
 
 ## Step 1: Initialize a project
 

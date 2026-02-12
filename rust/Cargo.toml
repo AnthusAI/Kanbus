@@ -28,3 +28,7 @@ harness = false
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
+
+[[bin]]
+name = "tskr"
+path = "src/main.rs"
