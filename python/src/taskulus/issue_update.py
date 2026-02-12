@@ -10,7 +10,6 @@ from taskulus.config_loader import load_project_configuration
 from taskulus.issue_files import write_issue_to_file
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.models import IssueData
-from taskulus.project import ProjectMarkerError, load_project_directory
 from taskulus.workflows import (
     InvalidTransitionError,
     apply_transition_side_effects,

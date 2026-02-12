@@ -1,7 +1,7 @@
 //! Wiki rendering utilities.
 
-use std::sync::Arc;
 use std::fs;
+use std::sync::Arc;
 
 use minijinja::value::{Kwargs, Value};
 use minijinja::{context, Environment, Error, ErrorKind};
@@ -54,12 +54,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, TaskulusE
             match sort_key.as_str() {
                 "title" => filtered.sort_by(|left, right| left.title.cmp(&right.title)),
                 "priority" => filtered.sort_by_key(|issue| issue.priority),
-                _ => {
-                    return Err(Error::new(
-                        ErrorKind::InvalidOperation,
-                        "invalid sort key",
-                    ))
-                }
+                _ => return Err(Error::new(ErrorKind::InvalidOperation, "invalid sort key")),
             }
         }
         Ok(Value::from_serialize(filtered))
@@ -108,8 +103,8 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, TaskulusE
         apply_issue_type_filter(&mut dummy_list, "task");
     }
 
-    let template = fs::read_to_string(&page_path)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let template =
+        fs::read_to_string(&page_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
     env.render_str(&template, context! {})
         .map_err(|error| TaskulusError::IssueOperation(error.to_string()))
 }

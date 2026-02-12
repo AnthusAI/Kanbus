@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Instant;
 
@@ -8,8 +8,8 @@ use chrono::{TimeZone, Utc};
 use serde_json::json;
 
 use taskulus::dependencies::list_ready_issues;
-use taskulus::issue_listing::list_issues;
 use taskulus::issue_files::read_issue_from_file;
+use taskulus::issue_listing::list_issues;
 use taskulus::models::IssueData;
 use taskulus::project::discover_project_directories;
 
@@ -58,7 +58,7 @@ fn build_issue(identifier: &str, title: &str) -> IssueData {
     }
 }
 
-fn write_issue(project_dir: &PathBuf, issue: &IssueData) -> Result<(), Box<dyn std::error::Error>> {
+fn write_issue(project_dir: &Path, issue: &IssueData) -> Result<(), Box<dyn std::error::Error>> {
     let issues_dir = project_dir.join("issues");
     fs::create_dir_all(&issues_dir)?;
     let payload = serde_json::to_string_pretty(issue)?;
@@ -68,7 +68,7 @@ fn write_issue(project_dir: &PathBuf, issue: &IssueData) -> Result<(), Box<dyn s
 }
 
 fn generate_project_issues(
-    project_dir: &PathBuf,
+    project_dir: &Path,
     project_index: usize,
     plan: FixturePlan,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -82,7 +82,7 @@ fn generate_project_issues(
 }
 
 fn generate_single_project(
-    root: &PathBuf,
+    root: &Path,
     plan: FixturePlan,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let project_root = root.join("single").join("project");
@@ -91,7 +91,7 @@ fn generate_single_project(
 }
 
 fn generate_multi_project(
-    root: &PathBuf,
+    root: &Path,
     plan: FixturePlan,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let repo_root = root.join("multi");
@@ -105,7 +105,7 @@ fn generate_multi_project(
     Ok(repo_root)
 }
 
-fn remove_cache(project_dir: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn remove_cache(project_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let cache_dir = project_dir.join(".cache");
     if cache_dir.exists() {
         fs::remove_dir_all(cache_dir)?;
@@ -162,13 +162,15 @@ fn parallel_load(project_dirs: &[PathBuf]) -> Result<Vec<IssueData>, Box<dyn std
     Ok(issues)
 }
 
-fn time_call<F: FnOnce() -> Result<(), Box<dyn std::error::Error>>>(call: F) -> Result<f64, Box<dyn std::error::Error>> {
+fn time_call<F: FnOnce() -> Result<(), Box<dyn std::error::Error>>>(
+    call: F,
+) -> Result<f64, Box<dyn std::error::Error>> {
     let start = Instant::now();
     call()?;
     Ok(start.elapsed().as_secs_f64() * 1000.0)
 }
 
-fn benchmark_scenario(root: &PathBuf) -> Result<ScenarioResult, Box<dyn std::error::Error>> {
+fn benchmark_scenario(root: &Path) -> Result<ScenarioResult, Box<dyn std::error::Error>> {
     let discover_ms = time_call(|| {
         discover_project_directories(root)?;
         Ok(())
@@ -196,7 +198,7 @@ fn benchmark_scenario(root: &PathBuf) -> Result<ScenarioResult, Box<dyn std::err
     })
 }
 
-fn benchmark_parallel(root: &PathBuf) -> Result<ScenarioResult, Box<dyn std::error::Error>> {
+fn benchmark_parallel(root: &Path) -> Result<ScenarioResult, Box<dyn std::error::Error>> {
     let discover_ms = time_call(|| {
         discover_project_directories(root)?;
         Ok(())
@@ -267,7 +269,10 @@ fn parse_args() -> (PathBuf, FixturePlan) {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (root, plan) = parse_args();
 
-    let single_root = generate_single_project(&root, plan)?.parent().unwrap().to_path_buf();
+    let single_root = generate_single_project(&root, plan)?
+        .parent()
+        .unwrap()
+        .to_path_buf();
     let multi_root = generate_multi_project(&root, plan)?;
 
     let single_result = benchmark_scenario(&single_root)?;

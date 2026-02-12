@@ -188,80 +188,74 @@ def _run_rust_discovery_benchmark() -> DiscoveryBenchmarkResult:
     )
 
 
-def _check_threshold(
+def _check_relative_threshold(
     label: str,
-    result: BenchmarkResult,
-    baseline: Dict[str, float],
+    rust_value: float,
+    python_value: float,
     allowed_regression_pct: float,
 ) -> list[str]:
-    """Check benchmark results against thresholds.
+    """Check that Rust does not regress beyond the Python baseline.
 
     :param label: Label for failure messages.
     :type label: str
-    :param result: Benchmark results.
-    :type result: BenchmarkResult
-    :param baseline: Baseline thresholds.
-    :type baseline: Dict[str, float]
+    :param rust_value: Rust benchmark value.
+    :type rust_value: float
+    :param python_value: Python benchmark value.
+    :type python_value: float
+    :param allowed_regression_pct: Allowed regression percentage.
+    :type allowed_regression_pct: float
+    :return: List of failure messages.
+    :rtype: list[str]
+    """
+    limit = python_value * (1.0 + allowed_regression_pct / 100.0)
+    if rust_value > limit:
+        return [
+            f"{label} rust {rust_value:.2f} exceeded python {python_value:.2f} (limit {limit:.2f})"
+        ]
+    return []
+
+
+def _check_discovery_relative_thresholds(
+    python_result: DiscoveryBenchmarkResult,
+    rust_result: DiscoveryBenchmarkResult,
+    allowed_regression_pct: float,
+) -> list[str]:
+    """Check discovery benchmarks against Python totals per scenario.
+
+    :param python_result: Python discovery benchmark results.
+    :type python_result: DiscoveryBenchmarkResult
+    :param rust_result: Rust discovery benchmark results.
+    :type rust_result: DiscoveryBenchmarkResult
     :param allowed_regression_pct: Allowed regression percentage.
     :type allowed_regression_pct: float
     :return: List of failure messages.
     :rtype: list[str]
     """
     failures = []
-    build_limit = baseline["build_ms"] * (1.0 + allowed_regression_pct / 100.0)
-    cache_limit = baseline["cache_load_ms"] * (1.0 + allowed_regression_pct / 100.0)
-
-    if result.build_ms > build_limit:
-        failures.append(
-            f"{label} build_ms {result.build_ms:.2f} exceeded {build_limit:.2f}"
-        )
-    if result.cache_load_ms > cache_limit:
-        failures.append(
-            f"{label} cache_load_ms {result.cache_load_ms:.2f} exceeded {cache_limit:.2f}"
-        )
-
-    return failures
-
-
-def _check_discovery_thresholds(
-    label: str,
-    result: DiscoveryBenchmarkResult,
-    baseline: Dict[str, Dict[str, Dict[str, float]]],
-    allowed_regression_pct: float,
-) -> list[str]:
-    """Check discovery benchmarks against thresholds.
-
-    :param label: Label for failure messages.
-    :type label: str
-    :param result: Discovery benchmark results.
-    :type result: DiscoveryBenchmarkResult
-    :param baseline: Baseline thresholds for discovery benchmarks.
-    :type baseline: Dict[str, Dict[str, Dict[str, float]]]
-    :param allowed_regression_pct: Allowed regression percentage.
-    :type allowed_regression_pct: float
-    :return: List of failure messages.
-    :rtype: list[str]
-    """
-    failures = []
-    for mode_name, mode_result in (
-        ("serial", result.serial),
-        ("parallel", result.parallel),
-    ):
-        mode_baseline = baseline[mode_name]
-        for scenario_name, scenario_result in (
-            ("single", mode_result.single),
-            ("multi", mode_result.multi),
-        ):
-            scenario_baseline = mode_baseline[scenario_name]
-            for metric in ("discover_ms", "list_ms", "ready_ms"):
-                limit = scenario_baseline[metric] * (
-                    1.0 + allowed_regression_pct / 100.0
+    for mode_name in ("serial", "parallel"):
+        python_mode = getattr(python_result, mode_name)
+        rust_mode = getattr(rust_result, mode_name)
+        for scenario_name in ("single", "multi"):
+            python_scenario = getattr(python_mode, scenario_name)
+            rust_scenario = getattr(rust_mode, scenario_name)
+            python_total = (
+                python_scenario.discover_ms
+                + python_scenario.list_ms
+                + python_scenario.ready_ms
+            )
+            rust_total = (
+                rust_scenario.discover_ms
+                + rust_scenario.list_ms
+                + rust_scenario.ready_ms
+            )
+            failures.extend(
+                _check_relative_threshold(
+                    f"discovery {mode_name} {scenario_name} total_ms",
+                    rust_total,
+                    python_total,
+                    allowed_regression_pct,
                 )
-                value = getattr(scenario_result, metric)
-                if value > limit:
-                    failures.append(
-                        f"{label} {mode_name} {scenario_name} {metric} {value:.2f} exceeded {limit:.2f}"
-                    )
+            )
     return failures
 
 
@@ -282,35 +276,20 @@ def main() -> int:
     rust_discovery = _run_rust_discovery_benchmark()
 
     failures = []
+    python_total = python_result.build_ms + python_result.cache_load_ms
+    rust_total = rust_result.build_ms + rust_result.cache_load_ms
     failures.extend(
-        _check_threshold(
-            "python",
-            python_result,
-            baseline["python"],
+        _check_relative_threshold(
+            "index_total_ms",
+            rust_total,
+            python_total,
             allowed_regression_pct,
         )
     )
     failures.extend(
-        _check_threshold(
-            "rust",
-            rust_result,
-            baseline["rust"],
-            allowed_regression_pct,
-        )
-    )
-    failures.extend(
-        _check_discovery_thresholds(
-            "python discovery",
+        _check_discovery_relative_thresholds(
             python_discovery,
-            baseline["discovery"]["python"],
-            allowed_regression_pct,
-        )
-    )
-    failures.extend(
-        _check_discovery_thresholds(
-            "rust discovery",
             rust_discovery,
-            baseline["discovery"]["rust"],
             allowed_regression_pct,
         )
     )

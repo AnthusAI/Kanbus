@@ -51,6 +51,7 @@ def when_run_promote_dupe(context: object) -> None:
 def when_run_localize_missing(context: object) -> None:
     run_cli(context, "tsk localize tsk-missing")
 
+
 @when('I run "tsk localize tsk-dupe02"')
 def when_run_localize_dupe(context: object) -> None:
     run_cli(context, "tsk localize tsk-dupe02")
@@ -103,7 +104,6 @@ def given_gitignore_without_trailing_newline(context: object) -> None:
     project_dir = load_project_directory(context)
     gitignore_path = project_dir.parent / ".gitignore"
     gitignore_path.write_text("node_modules", encoding="utf-8")
-
 
 
 @then("a local issue file should be created in the local issues directory")

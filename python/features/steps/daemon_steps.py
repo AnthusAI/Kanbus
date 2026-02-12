@@ -292,7 +292,7 @@ def when_open_close_daemon_connection(context: object) -> None:
         sock.connect(str(socket_path))
 
 
-@then("the daemon response should include error code \"{code}\"")
+@then('the daemon response should include error code "{code}"')
 def then_daemon_response_error_code(context: object, code: str) -> None:
     response = getattr(context, "daemon_response", {})
     error = response.get("error") or {}
@@ -426,7 +426,9 @@ def when_daemon_status_error(context: object) -> None:
 
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
-    def fake_request(socket_path: Path, request: RequestEnvelope, root: Path) -> ResponseEnvelope:
+    def fake_request(
+        socket_path: Path, request: RequestEnvelope, root: Path
+    ) -> ResponseEnvelope:
         return ResponseEnvelope(
             protocol_version=PROTOCOL_VERSION,
             request_id=request.request_id,
@@ -449,7 +451,9 @@ def when_daemon_stop_error(context: object) -> None:
 
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
-    def fake_request(socket_path: Path, request: RequestEnvelope, root: Path) -> ResponseEnvelope:
+    def fake_request(
+        socket_path: Path, request: RequestEnvelope, root: Path
+    ) -> ResponseEnvelope:
         return ResponseEnvelope(
             protocol_version=PROTOCOL_VERSION,
             request_id=request.request_id,
@@ -472,7 +476,9 @@ def when_daemon_list_error(context: object) -> None:
 
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
-    def fake_request(socket_path: Path, request: RequestEnvelope, root: Path) -> ResponseEnvelope:
+    def fake_request(
+        socket_path: Path, request: RequestEnvelope, root: Path
+    ) -> ResponseEnvelope:
         return ResponseEnvelope(
             protocol_version=PROTOCOL_VERSION,
             request_id=request.request_id,
@@ -495,7 +501,9 @@ def when_daemon_list_missing_issues(context: object) -> None:
 
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
-    def fake_request(socket_path: Path, request: RequestEnvelope, root: Path) -> ResponseEnvelope:
+    def fake_request(
+        socket_path: Path, request: RequestEnvelope, root: Path
+    ) -> ResponseEnvelope:
         return ResponseEnvelope(
             protocol_version=PROTOCOL_VERSION,
             request_id=request.request_id,
@@ -632,7 +640,7 @@ def then_daemon_index_list_includes(context: object, identifier: str) -> None:
 
 
 @given("a stale daemon socket exists")
-def given_stale_daemon_socket(context: object) -> None:
+def given_stale_daemon_socket_file(context: object) -> None:
     project_dir = load_project_directory(context)
     socket_path = project_dir / ".cache" / "taskulus.sock"
     socket_path.parent.mkdir(parents=True, exist_ok=True)

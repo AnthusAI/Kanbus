@@ -170,14 +170,16 @@ fn convert_record(
     let status = required_string(record, "status")?;
     validate_status(configuration, &issue_type, &status)?;
 
-    let priority_value = record.get("priority").ok_or_else(|| {
-        TaskulusError::IssueOperation("priority is required".to_string())
-    })?;
-    let priority = priority_value.as_i64().ok_or_else(|| {
-        TaskulusError::IssueOperation("priority is required".to_string())
-    })?;
+    let priority_value = record
+        .get("priority")
+        .ok_or_else(|| TaskulusError::IssueOperation("priority is required".to_string()))?;
+    let priority = priority_value
+        .as_i64()
+        .ok_or_else(|| TaskulusError::IssueOperation("priority is required".to_string()))?;
     if !configuration.priorities.contains_key(&(priority as u8)) {
-        return Err(TaskulusError::IssueOperation("invalid priority".to_string()));
+        return Err(TaskulusError::IssueOperation(
+            "invalid priority".to_string(),
+        ));
     }
 
     let created_at = parse_timestamp(record.get("created_at"), "created_at")?;
@@ -237,8 +239,14 @@ fn convert_record(
         issue_type,
         status,
         priority: priority as i32,
-        assignee: record.get("assignee").and_then(Value::as_str).map(str::to_string),
-        creator: record.get("created_by").and_then(Value::as_str).map(str::to_string),
+        assignee: record
+            .get("assignee")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        creator: record
+            .get("created_by")
+            .and_then(Value::as_str)
+            .map(str::to_string),
         parent,
         labels: Vec::new(),
         dependencies,
@@ -261,10 +269,7 @@ fn convert_dependencies(
 
     if let Some(dependencies) = dependencies {
         for dependency in dependencies {
-            let dependency_type = dependency
-                .get("type")
-                .and_then(Value::as_str)
-                .unwrap_or("");
+            let dependency_type = dependency.get("type").and_then(Value::as_str).unwrap_or("");
             let depends_on_id = dependency
                 .get("depends_on_id")
                 .and_then(Value::as_str)
@@ -296,9 +301,7 @@ fn convert_dependencies(
     }
 
     if let Some(parent_id) = &parent {
-        let parent_record = record_by_id
-            .get(parent_id)
-            .expect("missing dependency");
+        let parent_record = record_by_id.get(parent_id).expect("missing dependency");
         let parent_issue_type = parent_record
             .get("issue_type")
             .and_then(Value::as_str)
@@ -334,7 +337,10 @@ fn convert_comments(comments: Option<&Vec<Value>>) -> Result<Vec<IssueComment>, 
     Ok(results)
 }
 
-fn parse_timestamp(value: Option<&Value>, field_name: &str) -> Result<DateTime<Utc>, TaskulusError> {
+fn parse_timestamp(
+    value: Option<&Value>,
+    field_name: &str,
+) -> Result<DateTime<Utc>, TaskulusError> {
     let Some(value) = value else {
         return Err(TaskulusError::IssueOperation(format!(
             "{field_name} is required"

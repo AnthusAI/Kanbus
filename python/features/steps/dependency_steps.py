@@ -40,7 +40,9 @@ def then_issue_should_depend_on(
     )
 
 
-@then('issue "{identifier}" should not depend on "{target}" with type "{dependency_type}"')
+@then(
+    'issue "{identifier}" should not depend on "{target}" with type "{dependency_type}"'
+)
 def then_issue_should_not_depend_on(
     context: object, identifier: str, target: str, dependency_type: str
 ) -> None:
@@ -166,7 +168,9 @@ def given_large_dependency_tree(context: object) -> None:
         if index < chain_length - 1:
             target = f"tsk-node-{index + 1}"
             issue = issue.model_copy(
-                update={"dependencies": [DependencyLink(target=target, type="blocked-by")]}
+                update={
+                    "dependencies": [DependencyLink(target=target, type="blocked-by")]
+                }
             )
         write_issue_file(project_dir, issue)
 

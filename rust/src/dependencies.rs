@@ -129,22 +129,12 @@ pub fn list_ready_issues(
     let mut issues = Vec::new();
     if projects.len() == 1 {
         let project_dir = load_project_directory(root)?;
-        issues = load_ready_issues_for_project(
-            root,
-            &project_dir,
-            include_local,
-            local_only,
-            false,
-        )?;
+        issues =
+            load_ready_issues_for_project(root, &project_dir, include_local, local_only, false)?;
     } else {
         for project_dir in &projects {
-            let project_issues = load_ready_issues_for_project(
-                root,
-                project_dir,
-                include_local,
-                local_only,
-                true,
-            )?;
+            let project_issues =
+                load_ready_issues_for_project(root, project_dir, include_local, local_only, true)?;
             issues.extend(project_issues);
         }
     }

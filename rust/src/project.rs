@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::TaskulusError;
 use crate::file_io::{
-    discover_project_directories as discover_project_directories_inner,
-    discover_taskulus_projects,
+    discover_project_directories as discover_project_directories_inner, discover_taskulus_projects,
     load_project_directory as load_project_directory_inner,
 };
 

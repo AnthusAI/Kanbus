@@ -9,7 +9,11 @@ from behave import given, then, when
 
 import os
 
-from taskulus.ids import IssueIdentifierRequest, generate_issue_identifier, generate_many_identifiers
+from taskulus.ids import (
+    IssueIdentifierRequest,
+    generate_issue_identifier,
+    generate_many_identifiers,
+)
 from taskulus import ids as ids_module
 
 

@@ -171,7 +171,9 @@ def when_validate_migration_errors(context: object) -> None:
         [
             {
                 **valid_base,
-                "dependencies": [{"type": "blocked-by", "depends_on_id": "tsk-missing"}],
+                "dependencies": [
+                    {"type": "blocked-by", "depends_on_id": "tsk-missing"}
+                ],
             }
         ],
         "missing-dependency",
@@ -202,7 +204,9 @@ def when_validate_migration_errors(context: object) -> None:
             {
                 **valid_base,
                 "id": "tsk-child",
-                "dependencies": [{"type": "parent-child", "depends_on_id": "tsk-parent"}],
+                "dependencies": [
+                    {"type": "parent-child", "depends_on_id": "tsk-parent"}
+                ],
             },
             {
                 "id": "tsk-parent",
@@ -216,7 +220,14 @@ def when_validate_migration_errors(context: object) -> None:
         "parent-issue-type-missing",
     )
     run_case(
-        [{**valid_base, "comments": [{"author": "", "text": "bad", "created_at": "2026-02-11T00:00:00Z"}]}],
+        [
+            {
+                **valid_base,
+                "comments": [
+                    {"author": "", "text": "bad", "created_at": "2026-02-11T00:00:00Z"}
+                ],
+            }
+        ],
         "invalid-comment",
     )
     run_case(
@@ -224,15 +235,30 @@ def when_validate_migration_errors(context: object) -> None:
         "comment-created-missing",
     )
     run_case(
-        [{**valid_base, "comments": [{"author": "dev", "text": "ok", "created_at": 123}]}],
+        [
+            {
+                **valid_base,
+                "comments": [{"author": "dev", "text": "ok", "created_at": 123}],
+            }
+        ],
         "comment-created-not-string",
     )
     run_case(
-        [{**valid_base, "comments": [{"author": "dev", "text": "ok", "created_at": "bad"}]}],
+        [
+            {
+                **valid_base,
+                "comments": [{"author": "dev", "text": "ok", "created_at": "bad"}],
+            }
+        ],
         "comment-created-invalid",
     )
     run_case(
-        [{**valid_base, "comments": [{"author": "dev", "text": "ok", "created_at": ""}]}],
+        [
+            {
+                **valid_base,
+                "comments": [{"author": "dev", "text": "ok", "created_at": ""}],
+            }
+        ],
         "comment-created-empty",
     )
     run_case([{**valid_base, "created_at": None}], "created-missing")

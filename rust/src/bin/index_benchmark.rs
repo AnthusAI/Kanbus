@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
-use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
@@ -11,8 +11,8 @@ use uuid::Uuid;
 
 use taskulus::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
 use taskulus::index::build_index_from_directory;
-use taskulus::issue_files::read_issue_from_file;
 use taskulus::index::IssueIndex;
+use taskulus::issue_files::read_issue_from_file;
 use taskulus::models::{DependencyLink, IssueData};
 
 const ISSUE_COUNT: usize = 1000;
@@ -115,7 +115,7 @@ fn create_index() -> IssueIndex {
     }
 }
 
-fn build_index_parallel(issues_directory: &PathBuf) -> Result<IssueIndex, Box<dyn std::error::Error>> {
+fn build_index_parallel(issues_directory: &Path) -> Result<IssueIndex, Box<dyn std::error::Error>> {
     let mut json_paths = Vec::new();
     for entry in fs::read_dir(issues_directory)? {
         let entry = entry?;
@@ -143,7 +143,10 @@ fn build_index_parallel(issues_directory: &PathBuf) -> Result<IssueIndex, Box<dy
     Ok(index)
 }
 
-fn run_serial(issues_directory: &PathBuf, cache_path: &PathBuf) -> Result<(f64, f64), Box<dyn std::error::Error>> {
+fn run_serial(
+    issues_directory: &Path,
+    cache_path: &Path,
+) -> Result<(f64, f64), Box<dyn std::error::Error>> {
     let start = Instant::now();
     let index = build_index_from_directory(issues_directory)?;
     let build_ms = start.elapsed().as_secs_f64() * 1000.0;
@@ -152,11 +155,11 @@ fn run_serial(issues_directory: &PathBuf, cache_path: &PathBuf) -> Result<(f64, 
     write_cache(&index, cache_path, &mtimes)?;
 
     let start = Instant::now();
-    let cached = load_cache_if_valid(&cache_path, &issues_directory)?;
+    let cached = load_cache_if_valid(cache_path, issues_directory)?;
     let cache_ms = start.elapsed().as_secs_f64() * 1000.0;
 
     if cached.is_none() {
-        let contents = fs::read_to_string(&cache_path)?;
+        let contents = fs::read_to_string(cache_path)?;
         let payload: Value = serde_json::from_str(&contents)?;
         let file_mtimes: BTreeMap<String, f64> = serde_json::from_value(
             payload
@@ -164,7 +167,7 @@ fn run_serial(issues_directory: &PathBuf, cache_path: &PathBuf) -> Result<(f64, 
                 .cloned()
                 .unwrap_or_else(|| json!({})),
         )?;
-        let current_mtimes = collect_issue_file_mtimes(&issues_directory)?;
+        let current_mtimes = collect_issue_file_mtimes(issues_directory)?;
         let mismatch = file_mtimes != current_mtimes;
         let mut mismatch_sample = None;
         if mismatch {
@@ -192,7 +195,10 @@ fn run_serial(issues_directory: &PathBuf, cache_path: &PathBuf) -> Result<(f64, 
     Ok((build_ms, cache_ms))
 }
 
-fn run_parallel(issues_directory: &PathBuf, cache_path: &PathBuf) -> Result<(f64, f64), Box<dyn std::error::Error>> {
+fn run_parallel(
+    issues_directory: &Path,
+    cache_path: &Path,
+) -> Result<(f64, f64), Box<dyn std::error::Error>> {
     let start = Instant::now();
     let index = build_index_parallel(issues_directory)?;
     let build_ms = start.elapsed().as_secs_f64() * 1000.0;
@@ -201,7 +207,7 @@ fn run_parallel(issues_directory: &PathBuf, cache_path: &PathBuf) -> Result<(f64
     write_cache(&index, cache_path, &mtimes)?;
 
     let start = Instant::now();
-    let cached = load_cache_if_valid(&cache_path, &issues_directory)?;
+    let cached = load_cache_if_valid(cache_path, issues_directory)?;
     let cache_ms = start.elapsed().as_secs_f64() * 1000.0;
 
     if cached.is_none() {

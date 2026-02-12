@@ -187,12 +187,14 @@ fn validate_issue_fields(
         ));
     }
 
-    if issue.priority < 0 || issue.priority > u8::MAX as i32 {
-        errors.push(format!("{filename}: invalid priority '{}'", issue.priority));
-    } else if !configuration
-        .priorities
-        .contains_key(&(issue.priority as u8))
-    {
+    let priority_value = if (0..=u8::MAX as i32).contains(&issue.priority) {
+        Some(issue.priority as u8)
+    } else {
+        None
+    };
+    let priority_valid =
+        priority_value.is_some_and(|value| configuration.priorities.contains_key(&value));
+    if !priority_valid {
         errors.push(format!("{filename}: invalid priority '{}'", issue.priority));
     }
 

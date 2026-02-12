@@ -6,8 +6,8 @@ use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 use tempfile::TempDir;
 
-use taskulus::cli::run_from_args_with_output;
 use taskulus::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
+use taskulus::cli::run_from_args_with_output;
 use taskulus::daemon_paths::get_index_cache_path;
 use taskulus::file_io::load_project_directory;
 use taskulus::index::build_index_from_directory;
@@ -44,7 +44,13 @@ fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
     fs::write(issue_path, contents).expect("write issue");
 }
 
-fn build_issue(identifier: &str, title: &str, issue_type: &str, status: &str, parent: Option<&str>) -> IssueData {
+fn build_issue(
+    identifier: &str,
+    title: &str,
+    issue_type: &str,
+    status: &str,
+    parent: Option<&str>,
+) -> IssueData {
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
     IssueData {
         identifier: identifier.to_string(),
@@ -128,7 +134,10 @@ fn then_index_type_task(world: &mut TaskulusWorld) {
 fn then_index_parent_children(world: &mut TaskulusWorld) {
     let index = world.index.as_ref().expect("index");
     let children = index.by_parent.get("tsk-parent").expect("children");
-    let identifiers: Vec<String> = children.iter().map(|issue| issue.identifier.clone()).collect();
+    let identifiers: Vec<String> = children
+        .iter()
+        .map(|issue| issue.identifier.clone())
+        .collect();
     assert_eq!(identifiers, vec!["tsk-child"]);
 }
 
@@ -141,7 +150,10 @@ fn given_issue_with_dependency(world: &mut TaskulusWorld) {
         dependency_type: "blocked-by".to_string(),
     }];
     write_issue_file(&project_dir, &issue);
-    write_issue_file(&project_dir, &build_issue("tsk-bbb", "Target", "task", "open", None));
+    write_issue_file(
+        &project_dir,
+        &build_issue("tsk-bbb", "Target", "task", "open", None),
+    );
 }
 
 #[then("the reverse dependency index should show \"tsk-bbb\" blocks \"tsk-aaa\"")]
@@ -151,7 +163,10 @@ fn then_reverse_dependency_index(world: &mut TaskulusWorld) {
         .reverse_dependencies
         .get("tsk-bbb")
         .expect("dependents");
-    let identifiers: Vec<String> = dependents.iter().map(|issue| issue.identifier.clone()).collect();
+    let identifiers: Vec<String> = dependents
+        .iter()
+        .map(|issue| issue.identifier.clone())
+        .collect();
     assert_eq!(identifiers, vec!["tsk-aaa"]);
 }
 
@@ -159,8 +174,12 @@ fn then_reverse_dependency_index(world: &mut TaskulusWorld) {
 fn given_project_with_no_cache(world: &mut TaskulusWorld) {
     initialize_project(world);
     let project_dir = load_project_dir(world);
-    write_issue_file(&project_dir, &build_issue("tsk-cache", "Cache", "task", "open", None));
-    let cache_path = get_index_cache_path(world.working_directory.as_ref().expect("cwd")).expect("cache path");
+    write_issue_file(
+        &project_dir,
+        &build_issue("tsk-cache", "Cache", "task", "open", None),
+    );
+    let cache_path =
+        get_index_cache_path(world.working_directory.as_ref().expect("cwd")).expect("cache path");
     if cache_path.exists() {
         fs::remove_file(&cache_path).expect("remove cache");
     }
@@ -169,9 +188,9 @@ fn given_project_with_no_cache(world: &mut TaskulusWorld) {
 
 #[given("the cache file is unreadable")]
 fn given_cache_file_unreadable(world: &mut TaskulusWorld) {
-    let project_dir = load_project_dir(world);
-    let cache_path = get_index_cache_path(world.working_directory.as_ref().expect("cwd"))
-        .expect("cache path");
+    let _project_dir = load_project_dir(world);
+    let cache_path =
+        get_index_cache_path(world.working_directory.as_ref().expect("cwd")).expect("cache path");
     if let Some(parent) = cache_path.parent() {
         fs::create_dir_all(parent).expect("create cache dir");
     }
@@ -206,7 +225,8 @@ fn given_non_issue_file_exists_local(world: &mut TaskulusWorld) {
 fn when_any_command(world: &mut TaskulusWorld) {
     let project_dir = load_project_dir(world);
     let issues_dir = project_dir.join("issues");
-    let cache_path = get_index_cache_path(world.working_directory.as_ref().expect("cwd")).expect("cache path");
+    let cache_path =
+        get_index_cache_path(world.working_directory.as_ref().expect("cwd")).expect("cache path");
     let cached = load_cache_if_valid(&cache_path, &issues_dir).expect("cache load");
     if cached.is_none() {
         let index = build_index_from_directory(&issues_dir).expect("build index");
@@ -225,8 +245,12 @@ fn then_cache_file_created(world: &mut TaskulusWorld) {
 fn given_project_with_valid_cache(world: &mut TaskulusWorld) {
     initialize_project(world);
     let project_dir = load_project_dir(world);
-    write_issue_file(&project_dir, &build_issue("tsk-cache", "Cache", "task", "open", None));
-    let cache_path = get_index_cache_path(world.working_directory.as_ref().expect("cwd")).expect("cache path");
+    write_issue_file(
+        &project_dir,
+        &build_issue("tsk-cache", "Cache", "task", "open", None),
+    );
+    let cache_path =
+        get_index_cache_path(world.working_directory.as_ref().expect("cwd")).expect("cache path");
     if cache_path.exists() {
         fs::remove_file(&cache_path).expect("remove cache");
     }
@@ -235,7 +259,13 @@ fn given_project_with_valid_cache(world: &mut TaskulusWorld) {
     write_cache(&index, &cache_path, &mtimes).expect("write cache");
     let _ = load_cache_if_valid(&cache_path, &project_dir.join("issues")).expect("cache load");
     world.cache_path = Some(cache_path.clone());
-    world.cache_mtime = Some(cache_path.metadata().expect("meta").modified().expect("mtime"));
+    world.cache_mtime = Some(
+        cache_path
+            .metadata()
+            .expect("meta")
+            .modified()
+            .expect("mtime"),
+    );
 }
 
 #[then("the cache should be loaded without re-scanning issue files")]
@@ -244,7 +274,11 @@ fn then_cache_loaded(world: &mut TaskulusWorld) {
     let project_dir = load_project_dir(world);
     let cached = load_cache_if_valid(cache_path, &project_dir.join("issues")).expect("cache load");
     assert!(cached.is_some());
-    let current = cache_path.metadata().expect("meta").modified().expect("mtime");
+    let current = cache_path
+        .metadata()
+        .expect("meta")
+        .modified()
+        .expect("mtime");
     assert_eq!(Some(current), world.cache_mtime);
 }
 
@@ -260,21 +294,32 @@ fn when_issue_file_modified(world: &mut TaskulusWorld) {
 #[then("the cache should be rebuilt from the issue files")]
 fn then_cache_rebuilt(world: &mut TaskulusWorld) {
     let cache_path = world.cache_path.as_ref().expect("cache path");
-    let current = cache_path.metadata().expect("meta").modified().expect("mtime");
+    let current = cache_path
+        .metadata()
+        .expect("meta")
+        .modified()
+        .expect("mtime");
     assert!(current > world.cache_mtime.unwrap_or(SystemTime::UNIX_EPOCH));
 }
 
 #[when("a new issue file appears in the issues directory")]
 fn when_new_issue_file(world: &mut TaskulusWorld) {
     let project_dir = load_project_dir(world);
-    write_issue_file(&project_dir, &build_issue("tsk-cache-new", "New", "task", "open", None));
+    write_issue_file(
+        &project_dir,
+        &build_issue("tsk-cache-new", "New", "task", "open", None),
+    );
     std::thread::sleep(std::time::Duration::from_millis(10));
 }
 
 #[then("the cache should be rebuilt")]
 fn then_cache_rebuilt_generic(world: &mut TaskulusWorld) {
     let cache_path = world.cache_path.as_ref().expect("cache path");
-    let current = cache_path.metadata().expect("meta").modified().expect("mtime");
+    let current = cache_path
+        .metadata()
+        .expect("meta")
+        .modified()
+        .expect("mtime");
     assert!(current > world.cache_mtime.unwrap_or(SystemTime::UNIX_EPOCH));
 }
 
@@ -303,8 +348,8 @@ fn given_project_with_cacheable_metadata(world: &mut TaskulusWorld) {
     write_issue_file(&project_dir, &parent);
     write_issue_file(&project_dir, &child);
     write_issue_file(&project_dir, &blocked);
-    let cache_path = get_index_cache_path(world.working_directory.as_ref().expect("cwd"))
-        .expect("cache path");
+    let cache_path =
+        get_index_cache_path(world.working_directory.as_ref().expect("cwd")).expect("cache path");
     let index = build_index_from_directory(&project_dir.join("issues")).expect("build index");
     let mtimes = collect_issue_file_mtimes(&project_dir.join("issues")).expect("mtimes");
     write_cache(&index, &cache_path, &mtimes).expect("write cache");
@@ -325,7 +370,10 @@ fn when_cache_loaded_from_disk(world: &mut TaskulusWorld) {
 fn then_cached_index_parents(world: &mut TaskulusWorld) {
     let index = world.index.as_ref().expect("index");
     let children = index.by_parent.get("tsk-parent").expect("children");
-    let identifiers: Vec<_> = children.iter().map(|issue| issue.identifier.as_str()).collect();
+    let identifiers: Vec<_> = children
+        .iter()
+        .map(|issue| issue.identifier.as_str())
+        .collect();
     assert_eq!(identifiers, vec!["tsk-child"]);
 }
 
@@ -333,7 +381,10 @@ fn then_cached_index_parents(world: &mut TaskulusWorld) {
 fn then_cached_index_labels(world: &mut TaskulusWorld) {
     let index = world.index.as_ref().expect("index");
     let labeled = index.by_label.get("core").expect("label index");
-    let identifiers: Vec<_> = labeled.iter().map(|issue| issue.identifier.as_str()).collect();
+    let identifiers: Vec<_> = labeled
+        .iter()
+        .map(|issue| issue.identifier.as_str())
+        .collect();
     assert_eq!(identifiers, vec!["tsk-parent"]);
 }
 
@@ -344,6 +395,9 @@ fn then_cached_index_reverse(world: &mut TaskulusWorld) {
         .reverse_dependencies
         .get("tsk-parent")
         .expect("reverse deps");
-    let identifiers: Vec<_> = dependents.iter().map(|issue| issue.identifier.as_str()).collect();
+    let identifiers: Vec<_> = dependents
+        .iter()
+        .map(|issue| issue.identifier.as_str())
+        .collect();
     assert_eq!(identifiers, vec!["tsk-blocked"]);
 }

@@ -2,12 +2,12 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use cucumber::{given, then, when};
 use chrono::{TimeZone, Utc};
+use cucumber::{given, then, when};
 
 use taskulus::file_io::discover_taskulus_projects;
-use taskulus::project::{discover_project_directories, load_project_directory};
 use taskulus::models::IssueData;
+use taskulus::project::{discover_project_directories, load_project_directory};
 
 use crate::step_definitions::initialization_steps::TaskulusWorld;
 
@@ -106,7 +106,10 @@ fn given_repo_taskulus_external_project(world: &mut TaskulusWorld) {
     let root = create_repo(world, "taskulus-external");
     let internal_project = root.join("project");
     fs::create_dir_all(internal_project.join("issues")).expect("create internal issues");
-    write_issue(&internal_project, &build_issue("tsk-internal", "Internal task"));
+    write_issue(
+        &internal_project,
+        &build_issue("tsk-internal", "Internal task"),
+    );
     let temp_dir = world.temp_dir.as_ref().expect("tempdir");
     let external_root = temp_dir.path().join("external-project");
     let external_project = external_root.join("project");
@@ -211,12 +214,18 @@ fn then_one_project(world: &mut TaskulusWorld) {
 
 #[then("project discovery should fail with \"project not initialized\"")]
 fn then_project_not_initialized(world: &mut TaskulusWorld) {
-    assert_eq!(world.project_error.as_deref(), Some("project not initialized"));
+    assert_eq!(
+        world.project_error.as_deref(),
+        Some("project not initialized")
+    );
 }
 
 #[then("project discovery should fail with \"multiple projects found\"")]
 fn then_project_multiple(world: &mut TaskulusWorld) {
-    assert_eq!(world.project_error.as_deref(), Some("multiple projects found"));
+    assert_eq!(
+        world.project_error.as_deref(),
+        Some("multiple projects found")
+    );
 }
 
 #[then("project discovery should fail with \"taskulus path not found\"")]

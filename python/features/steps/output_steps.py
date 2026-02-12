@@ -30,7 +30,9 @@ def then_stdout_contains_once(context: object, text: str) -> None:
 
 
 @then('stdout should contain the external project path for "{identifier}"')
-def then_stdout_contains_external_project_path(context: object, identifier: str) -> None:
+def then_stdout_contains_external_project_path(
+    context: object, identifier: str
+) -> None:
     project_path = getattr(context, "external_project_path", None)
     assert project_path is not None
     expected = f"{project_path} {identifier}"

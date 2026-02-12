@@ -42,7 +42,11 @@ fn given_issue_with_type_and_status(
 ) {
     let project_dir = load_project_dir(world);
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
-    let closed_at = if status == "closed" { Some(timestamp) } else { None };
+    let closed_at = if status == "closed" {
+        Some(timestamp)
+    } else {
+        None
+    };
     let issue = IssueData {
         identifier,
         title: "Title".to_string(),
@@ -93,7 +97,11 @@ fn given_issue_exists(world: &mut TaskulusWorld, identifier: String) {
 fn given_issue_exists_with_status(world: &mut TaskulusWorld, identifier: String, status: String) {
     let project_dir = load_project_dir(world);
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
-    let closed_at = if status == "closed" { Some(timestamp) } else { None };
+    let closed_at = if status == "closed" {
+        Some(timestamp)
+    } else {
+        None
+    };
     let issue = IssueData {
         identifier,
         title: "Title".to_string(),
@@ -153,8 +161,11 @@ fn given_issue_no_closed_at(world: &mut TaskulusWorld, identifier: String) {
     let issue_path = project_dir
         .join("issues")
         .join(format!("{identifier}.json"));
-    fs::write(issue_path, serde_json::to_string_pretty(&issue).expect("serialize"))
-        .expect("write issue");
+    fs::write(
+        issue_path,
+        serde_json::to_string_pretty(&issue).expect("serialize"),
+    )
+    .expect("write issue");
 }
 
 #[given(expr = "issue {string} has a closed_at timestamp")]
@@ -166,8 +177,11 @@ fn given_issue_has_closed_at(world: &mut TaskulusWorld, identifier: String) {
     let issue_path = project_dir
         .join("issues")
         .join(format!("{identifier}.json"));
-    fs::write(issue_path, serde_json::to_string_pretty(&issue).expect("serialize"))
-        .expect("write issue");
+    fs::write(
+        issue_path,
+        serde_json::to_string_pretty(&issue).expect("serialize"),
+    )
+    .expect("write issue");
 }
 
 #[then(expr = "issue {string} should have status {string}")]

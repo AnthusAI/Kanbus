@@ -2,9 +2,9 @@
 
 use chrono::{DateTime, Utc};
 use rand::RngCore;
-use std::env;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
+use std::env;
 
 use crate::error::TaskulusError;
 
@@ -80,7 +80,7 @@ pub fn generate_issue_identifier(
 }
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, TaskulusError> {
-    if value.len() % 2 != 0 {
+    if !value.len().is_multiple_of(2) {
         return Err(TaskulusError::IdGenerationFailed(
             "invalid TASKULUS_TEST_RANDOM_BYTES".to_string(),
         ));

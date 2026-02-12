@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
 
 from behave import given, then, when
 
@@ -83,7 +82,9 @@ def given_issue_with_blocked_dependency(context: object) -> None:
         update={"dependencies": [DependencyLink(target="tsk-bbb", type="blocked-by")]}
     )
     write_issue_file(project_dir, issue)
-    write_issue_file(project_dir, build_issue("tsk-bbb", "Target", "task", "open", None, []))
+    write_issue_file(
+        project_dir, build_issue("tsk-bbb", "Target", "task", "open", None, [])
+    )
 
 
 @then('the reverse dependency index should show "tsk-bbb" blocks "tsk-aaa"')
@@ -219,7 +220,9 @@ def given_project_cacheable_metadata(context: object) -> None:
     child = build_issue("tsk-child", "Child", "task", "open", "tsk-parent", [])
     blocked = build_issue("tsk-blocked", "Blocked", "task", "open", None, [])
     blocked = blocked.model_copy(
-        update={"dependencies": [DependencyLink(target="tsk-parent", type="blocked-by")]}
+        update={
+            "dependencies": [DependencyLink(target="tsk-parent", type="blocked-by")]
+        }
     )
     for issue in (parent, child, blocked):
         write_issue_file(project_dir, issue)

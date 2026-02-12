@@ -104,6 +104,7 @@ def given_repo_taskulus_external_project(context: object) -> None:
     (root / ".taskulus").write_text(f"{external_project}\n", encoding="utf-8")
     context.external_project_path = external_project.resolve()
 
+
 @given("a repository with a .taskulus file referencing a missing path")
 def given_repo_taskulus_missing_path(context: object) -> None:
     root = _create_repo(context, "taskulus-missing")

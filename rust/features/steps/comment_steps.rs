@@ -68,7 +68,10 @@ fn when_comment_missing(world: &mut TaskulusWorld) {
 
 #[when("I run \"tsk comment tsk-note \\\"Searchable comment\\\"\"")]
 fn when_comment_note(world: &mut TaskulusWorld) {
-    run_cli_args(world, &["tsk", "comment", "tsk-note", "Searchable", "comment"]);
+    run_cli_args(
+        world,
+        &["tsk", "comment", "tsk-note", "Searchable", "comment"],
+    );
 }
 
 #[when("I run \"tsk comment tsk-dup \\\"Dup keyword\\\"\"")]
