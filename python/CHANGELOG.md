@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.4.0 (2026-02-12)
+
+### Features
+
+- Align PyPI README with repo README
+  ([`c6790a3`](https://github.com/AnthusAI/Taskulus/commit/c6790a34275d3794994d3d99607dbbf0a22e2ded))
+
+
 ## v0.3.0 (2026-02-12)
 
 ### Bug Fixes
