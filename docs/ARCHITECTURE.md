@@ -20,13 +20,12 @@ We benchmarked end-to-end “list all beads” latency using the Beads project i
 
 The results show that fast listing does not require a SQLite sidecar. Taskulus streams directly from JSON files while matching or beating the SQLite-backed Beads path, removing an entire class of synchronization failures and simplifying the mental model for operators and contributors.
 
-![Beads CLI Listing Latency](images/beads_cli_benchmark.png)
+![Beads CLI Listing Response Time (warm)](images/beads_cli_benchmark.png)
 
-Median timings (ms) for convenience:
-- Beads (Go, SQLite + JSONL): 173.4
-- Taskulus Python — Beads JSONL: 499.3
-- Taskulus Rust — Beads JSONL: 9.8 (first cold run was higher; median reflects steady state)
-- Taskulus Python — Project JSON: 643.0
-- Taskulus Rust — Project JSON: 73.6
+Warm-start median response times (ms): Go 5277.6; Python — Beads JSONL 538.7; Rust — Beads JSONL 9.9; Python — Project JSON 653.5; Rust — Project JSON 54.6.
 
-Takeaway: Removing the SQLite layer eliminates sync complexity and improves portability without sacrificing speed for the core listing workflow.
+![Beads CLI Cold vs Warm Response Time](images/beads_cli_benchmark_warm_cold.png)
+
+Cold/Warm medians (stacked bars, cold over warm): Go 197.6/5277.6; Python — Beads 566.1/538.7; Rust — Beads 11.9/9.9; Python — JSON 648.3/653.5; Rust — JSON 92.4/54.6. Warm runs keep the Taskulus daemon resident; cold runs disable it and clear caches. Go/Beads warm mode jumps because its SQLite daemon import dominates the second pass.
+
+Takeaway: direct JSON reads keep response time low in steady state without a secondary database. The SQLite sidecar adds variance and operational complexity while providing little benefit for the listing path.
