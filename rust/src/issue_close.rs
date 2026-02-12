@@ -15,5 +15,5 @@ use crate::models::IssueData;
 /// # Errors
 /// Returns `TaskulusError` if closing fails.
 pub fn close_issue(root: &Path, identifier: &str) -> Result<IssueData, TaskulusError> {
-    update_issue(root, identifier, None, None, Some("closed"))
+    update_issue(root, identifier, None, None, Some("closed"), None, false)
 }

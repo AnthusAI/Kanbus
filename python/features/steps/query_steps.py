@@ -11,6 +11,7 @@ from features.steps.shared import (
     run_cli,
     write_issue_file,
 )
+from taskulus.issue_listing import _list_issues_with_local
 
 
 @given('issues "{first}" and "{second}" exist')
@@ -19,6 +20,13 @@ def given_issues_exist(context: object, first: str, second: str) -> None:
     for identifier in (first, second):
         issue = build_issue(identifier, "Title", "task", "open", None, [])
         write_issue_file(project_dir, issue)
+
+
+@given('issues "{identifier}" exist')
+def given_single_issue_exists(context: object, identifier: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = build_issue(identifier, "Title", "task", "open", None, [])
+    write_issue_file(project_dir, issue)
 
 
 @given('issue "{identifier}" has status "{status}"')
@@ -51,12 +59,22 @@ def given_issue_has_labels(context: object, identifier: str, label_text: str) ->
     write_issue_file(project_dir, issue)
 
 
-@given('issue "{identifier}" has priority {priority:d}')
-def given_issue_has_priority(context: object, identifier: str, priority: int) -> None:
+@given('issue "{identifier}" has priority {priority}')
+def given_issue_has_priority(context: object, identifier: str, priority: str) -> None:
     project_dir = load_project_directory(context)
     issue = build_issue(identifier, "Title", "task", "open", None, [])
-    issue = issue.model_copy(update={"priority": priority})
+    issue = issue.model_copy(update={"priority": int(priority)})
     write_issue_file(project_dir, issue)
+
+
+@when('I run "tsk --help"')
+def when_run_help(context: object) -> None:
+    run_cli(context, "tsk --help")
+
+
+@when('I run "tsk --unknown"')
+def when_run_unknown(context: object) -> None:
+    run_cli(context, "tsk --unknown")
 
 
 @given('issue "{identifier}" has title "{title}"')
@@ -106,34 +124,34 @@ def when_run_list_search(context: object) -> None:
     run_cli(context, "tsk list --search login")
 
 
-@then('stdout should contain "tsk-open"')
-def then_stdout_contains_open(context: object) -> None:
-    assert "tsk-open" in context.result.stdout
+@when('I run "tsk list --search Searchable"')
+def when_run_list_search_comment(context: object) -> None:
+    run_cli(context, "tsk list --search Searchable")
 
 
-@then('stdout should not contain "tsk-closed"')
-def then_stdout_not_contains_closed(context: object) -> None:
-    assert "tsk-closed" not in context.result.stdout
+@when('I run "tsk list --search Dup"')
+def when_run_list_search_dup(context: object) -> None:
+    run_cli(context, "tsk list --search Dup")
 
 
-@then('stdout should contain "tsk-task"')
-def then_stdout_contains_task_issue(context: object) -> None:
-    assert "tsk-task" in context.result.stdout
+@when('I run "tsk list --sort invalid"')
+def when_run_list_invalid_sort(context: object) -> None:
+    run_cli(context, "tsk list --sort invalid")
 
 
-@then('stdout should not contain "tsk-bug"')
-def then_stdout_not_contains_bug(context: object) -> None:
-    assert "tsk-bug" not in context.result.stdout
+@when('I run "tsk list --no-local"')
+def when_run_list_no_local(context: object) -> None:
+    run_cli(context, "tsk list --no-local")
 
 
-@then('stdout should contain "tsk-a"')
-def then_stdout_contains_a(context: object) -> None:
-    assert "tsk-a" in context.result.stdout
+@when('I run "tsk list --local-only"')
+def when_run_list_local_only(context: object) -> None:
+    run_cli(context, "tsk list --local-only")
 
 
-@then('stdout should not contain "tsk-b"')
-def then_stdout_not_contains_b(context: object) -> None:
-    assert "tsk-b" not in context.result.stdout
+@when('I run "tsk list --local-only --no-local"')
+def when_run_list_local_conflict(context: object) -> None:
+    run_cli(context, "tsk list --local-only --no-local")
 
 
 @then('stdout should list "tsk-high" before "tsk-low"')
@@ -142,11 +160,53 @@ def then_stdout_lists_high_before_low(context: object) -> None:
     assert output.index("tsk-high") < output.index("tsk-low")
 
 
-@then('stdout should contain "tsk-ui"')
-def then_stdout_contains_ui(context: object) -> None:
-    assert "tsk-ui" in context.result.stdout
+@given("the daemon list request will fail")
+def given_daemon_list_request_fails(context: object) -> None:
+    import taskulus.issue_listing as issue_listing
+
+    context.original_request_index_list = issue_listing.request_index_list
+
+    def fake_request(root: object) -> list[object]:
+        raise RuntimeError("daemon error")
+
+    issue_listing.request_index_list = fake_request
 
 
-@then('stdout should not contain "tsk-auth"')
-def then_stdout_not_contains_auth(context: object) -> None:
-    assert "tsk-auth" not in context.result.stdout
+@given("local listing will fail")
+def given_local_listing_fails(context: object) -> None:
+    import taskulus.issue_listing as issue_listing
+
+    project_dir = load_project_directory(context)
+    (project_dir.parent / "project-local" / "issues").mkdir(parents=True, exist_ok=True)
+    context.original_list_with_local = issue_listing._list_issues_with_local
+
+    def fake_list(*_args: object, **_kwargs: object) -> list[object]:
+        raise RuntimeError("local listing failed")
+
+    issue_listing._list_issues_with_local = fake_list
+
+
+@when("shared issues are listed without local issues")
+def when_shared_only_listed(context: object) -> None:
+    project_dir = load_project_directory(context)
+    local_dir = project_dir.parent / "project-local"
+    local_dir.mkdir(parents=True, exist_ok=True)
+    issues = _list_issues_with_local(
+        project_dir,
+        local_dir,
+        include_local=False,
+        local_only=False,
+    )
+    context.shared_only_results = issues
+
+
+@then('the shared-only list should contain "{identifier}"')
+def then_shared_only_contains(context: object, identifier: str) -> None:
+    issues = getattr(context, "shared_only_results", [])
+    assert any(issue.identifier == identifier for issue in issues)
+
+
+@then('the shared-only list should not contain "{identifier}"')
+def then_shared_only_not_contains(context: object, identifier: str) -> None:
+    issues = getattr(context, "shared_only_results", [])
+    assert not any(issue.identifier == identifier for issue in issues)

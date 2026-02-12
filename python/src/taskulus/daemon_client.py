@@ -85,6 +85,8 @@ def request_index_list(root: Path) -> List[Dict[str, Any]]:
     :rtype: List[Dict[str, Any]]
     :raises DaemonClientError: If the daemon request fails.
     """
+    if not is_daemon_enabled():
+        raise DaemonClientError("daemon disabled")
     socket_path = get_daemon_socket_path(root)
     request = RequestEnvelope(
         protocol_version=PROTOCOL_VERSION,

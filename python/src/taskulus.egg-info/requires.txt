@@ -1,0 +1,10 @@
+click
+jinja2
+pydantic
+pyyaml
+pydantic-settings
+behave
+coverage
+ruff
+black
+sphinx

@@ -1,15 +1,18 @@
 //! Beads to Taskulus migration helpers.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
+use serde_json::Value;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;
-use crate::file_io::{ensure_git_repository, initialize_project};
+use crate::file_io::{
+    discover_project_directories, discover_taskulus_projects, ensure_git_repository,
+    initialize_project,
+};
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::issue_files::write_issue_to_file;
 use crate::models::{DependencyLink, IssueComment, IssueData, ProjectConfiguration};
@@ -21,39 +24,60 @@ pub struct MigrationResult {
     pub issue_count: usize,
 }
 
-#[derive(Debug, Deserialize)]
-struct BeadsDependency {
-    depends_on_id: String,
-    #[serde(rename = "type")]
-    dependency_type: String,
+/// Load Beads issues.jsonl without migrating to project files.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+///
+/// # Errors
+/// Returns `TaskulusError` if Beads data is missing or invalid.
+pub fn load_beads_issues(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
+    let beads_dir = root.join(".beads");
+    if !beads_dir.exists() {
+        return Err(TaskulusError::IssueOperation(
+            "no .beads directory".to_string(),
+        ));
+    }
+
+    let issues_path = beads_dir.join("issues.jsonl");
+    if !issues_path.exists() {
+        return Err(TaskulusError::IssueOperation("no issues.jsonl".to_string()));
+    }
+
+    let configuration = load_project_configuration(&root.join("config.yaml"))?;
+    let records = load_beads_records(&issues_path)?;
+    let mut record_by_id: HashMap<String, Value> = HashMap::new();
+    for record in &records {
+        let identifier = record
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| TaskulusError::IssueOperation("missing id".to_string()))?;
+        record_by_id.insert(identifier.to_string(), record.clone());
+    }
+
+    let mut issues = Vec::with_capacity(records.len());
+    for record in &records {
+        issues.push(convert_record(record, &record_by_id, &configuration)?);
+    }
+    Ok(issues)
 }
 
-#[derive(Debug, Deserialize)]
-struct BeadsComment {
-    author: String,
-    text: String,
-    created_at: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct BeadsIssue {
-    id: String,
-    title: String,
-    description: Option<String>,
-    status: String,
-    priority: i32,
-    issue_type: String,
-    assignee: Option<String>,
-    owner: Option<String>,
-    created_at: String,
-    created_by: Option<String>,
-    updated_at: String,
-    closed_at: Option<String>,
-    close_reason: Option<String>,
-    notes: Option<String>,
-    acceptance_criteria: Option<String>,
-    dependencies: Option<Vec<BeadsDependency>>,
-    comments: Option<Vec<BeadsComment>>,
+/// Load a single Beads issue by identifier.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `identifier` - Issue identifier to locate.
+///
+/// # Errors
+/// Returns `TaskulusError::IssueOperation` if the issue is missing.
+pub fn load_beads_issue_by_id(root: &Path, identifier: &str) -> Result<IssueData, TaskulusError> {
+    let issues = load_beads_issues(root)?;
+    for issue in issues {
+        if issue.identifier == identifier {
+            return Ok(issue);
+        }
+    }
+    Err(TaskulusError::IssueOperation("not found".to_string()))
 }
 
 /// Migrate Beads issues.jsonl into a Taskulus project.
@@ -78,14 +102,28 @@ pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, TaskulusError>
         return Err(TaskulusError::IssueOperation("no issues.jsonl".to_string()));
     }
 
-    initialize_project(root, "project")?;
+    let mut projects = Vec::new();
+    discover_project_directories(root, &mut projects)?;
+    let mut dotfile_projects = discover_taskulus_projects(root)?;
+    projects.append(&mut dotfile_projects);
+    if !projects.is_empty() {
+        return Err(TaskulusError::IssueOperation(
+            "already initialized".to_string(),
+        ));
+    }
+
+    initialize_project(root, false)?;
     let project_dir = root.join("project");
     let configuration = load_project_configuration(&project_dir.join("config.yaml"))?;
 
     let records = load_beads_records(&issues_path)?;
-    let mut record_by_id = HashMap::new();
+    let mut record_by_id: HashMap<String, Value> = HashMap::new();
     for record in &records {
-        record_by_id.insert(record.id.clone(), record);
+        let identifier = record
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| TaskulusError::IssueOperation("missing id".to_string()))?;
+        record_by_id.insert(identifier.to_string(), record.clone());
     }
 
     for record in &records {
@@ -101,7 +139,7 @@ pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, TaskulusError>
     })
 }
 
-fn load_beads_records(path: &Path) -> Result<Vec<BeadsIssue>, TaskulusError> {
+fn load_beads_records(path: &Path) -> Result<Vec<Value>, TaskulusError> {
     let contents =
         fs::read_to_string(path).map_err(|error| TaskulusError::Io(error.to_string()))?;
     let mut records = Vec::new();
@@ -109,97 +147,98 @@ fn load_beads_records(path: &Path) -> Result<Vec<BeadsIssue>, TaskulusError> {
         if line.trim().is_empty() {
             continue;
         }
-        let record: BeadsIssue =
+        let record: Value =
             serde_json::from_str(line).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        if record.get("id").is_none() {
+            return Err(TaskulusError::IssueOperation("missing id".to_string()));
+        }
         records.push(record);
     }
     Ok(records)
 }
 
 fn convert_record(
-    record: &BeadsIssue,
-    record_by_id: &HashMap<String, &BeadsIssue>,
+    record: &Value,
+    record_by_id: &HashMap<String, Value>,
     configuration: &ProjectConfiguration,
 ) -> Result<IssueData, TaskulusError> {
-    if record.title.trim().is_empty() {
-        return Err(TaskulusError::IssueOperation(
-            "title is required".to_string(),
-        ));
-    }
-    if record.issue_type.trim().is_empty() {
-        return Err(TaskulusError::IssueOperation(
-            "issue_type is required".to_string(),
-        ));
-    }
-    validate_issue_type(configuration, &record.issue_type)?;
+    let identifier = required_string(record, "id")?;
+    let title = required_string(record, "title")?;
+    let issue_type = required_string(record, "issue_type")?;
+    validate_issue_type(configuration, &issue_type)?;
 
-    if record.status.trim().is_empty() {
-        return Err(TaskulusError::IssueOperation(
-            "status is required".to_string(),
-        ));
-    }
-    validate_status(configuration, &record.issue_type, &record.status)?;
+    let status = required_string(record, "status")?;
+    validate_status(configuration, &issue_type, &status)?;
 
-    if !configuration
-        .priorities
-        .contains_key(&(record.priority as u8))
-    {
-        return Err(TaskulusError::IssueOperation(
-            "invalid priority".to_string(),
-        ));
+    let priority_value = record.get("priority").ok_or_else(|| {
+        TaskulusError::IssueOperation("priority is required".to_string())
+    })?;
+    let priority = priority_value.as_i64().ok_or_else(|| {
+        TaskulusError::IssueOperation("priority is required".to_string())
+    })?;
+    if !configuration.priorities.contains_key(&(priority as u8)) {
+        return Err(TaskulusError::IssueOperation("invalid priority".to_string()));
     }
 
-    let created_at = parse_timestamp(&record.created_at, "created_at")?;
-    let updated_at = parse_timestamp(&record.updated_at, "updated_at")?;
-    let closed_at = match &record.closed_at {
-        Some(value) => Some(parse_timestamp(value, "closed_at")?),
+    let created_at = parse_timestamp(record.get("created_at"), "created_at")?;
+    let updated_at = parse_timestamp(record.get("updated_at"), "updated_at")?;
+    let closed_at = match record.get("closed_at") {
         None => None,
+        Some(Value::Null) => None,
+        Some(Value::String(value)) if value.is_empty() => None,
+        Some(value) => Some(parse_timestamp(Some(value), "closed_at")?),
     };
 
     let (parent, dependencies) = convert_dependencies(
-        record.dependencies.as_ref(),
+        record.get("dependencies").and_then(Value::as_array),
         record_by_id,
         configuration,
-        &record.issue_type,
+        &issue_type,
     )?;
 
-    let comments = convert_comments(record.comments.as_ref())?;
+    let comments = convert_comments(record.get("comments").and_then(Value::as_array))?;
 
     let mut custom = BTreeMap::new();
-    if let Some(owner) = &record.owner {
-        custom.insert(
-            "beads_owner".to_string(),
-            serde_json::Value::String(owner.clone()),
-        );
+    if let Some(owner) = record.get("owner").and_then(Value::as_str) {
+        if !owner.is_empty() {
+            custom.insert("beads_owner".to_string(), Value::String(owner.to_string()));
+        }
     }
-    if let Some(notes) = &record.notes {
-        custom.insert(
-            "beads_notes".to_string(),
-            serde_json::Value::String(notes.clone()),
-        );
+    if let Some(notes) = record.get("notes").and_then(Value::as_str) {
+        if !notes.is_empty() {
+            custom.insert("beads_notes".to_string(), Value::String(notes.to_string()));
+        }
     }
-    if let Some(criteria) = &record.acceptance_criteria {
-        custom.insert(
-            "beads_acceptance_criteria".to_string(),
-            serde_json::Value::String(criteria.clone()),
-        );
+    if let Some(criteria) = record.get("acceptance_criteria").and_then(Value::as_str) {
+        if !criteria.is_empty() {
+            custom.insert(
+                "beads_acceptance_criteria".to_string(),
+                Value::String(criteria.to_string()),
+            );
+        }
     }
-    if let Some(reason) = &record.close_reason {
-        custom.insert(
-            "beads_close_reason".to_string(),
-            serde_json::Value::String(reason.clone()),
-        );
+    if let Some(reason) = record.get("close_reason").and_then(Value::as_str) {
+        if !reason.is_empty() {
+            custom.insert(
+                "beads_close_reason".to_string(),
+                Value::String(reason.to_string()),
+            );
+        }
     }
 
     Ok(IssueData {
-        identifier: record.id.clone(),
-        title: record.title.clone(),
-        description: record.description.clone().unwrap_or_default(),
-        issue_type: record.issue_type.clone(),
-        status: record.status.clone(),
-        priority: record.priority,
-        assignee: record.assignee.clone(),
-        creator: record.created_by.clone(),
+        identifier,
+        title,
+        description: record
+            .get("description")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string(),
+        issue_type,
+        status,
+        priority: priority as i32,
+        assignee: record.get("assignee").and_then(Value::as_str).map(str::to_string),
+        creator: record.get("created_by").and_then(Value::as_str).map(str::to_string),
         parent,
         labels: Vec::new(),
         dependencies,
@@ -212,8 +251,8 @@ fn convert_record(
 }
 
 fn convert_dependencies(
-    dependencies: Option<&Vec<BeadsDependency>>,
-    record_by_id: &HashMap<String, &BeadsIssue>,
+    dependencies: Option<&Vec<Value>>,
+    record_by_id: &HashMap<String, Value>,
     configuration: &ProjectConfiguration,
     issue_type: &str,
 ) -> Result<(Option<String>, Vec<DependencyLink>), TaskulusError> {
@@ -222,60 +261,72 @@ fn convert_dependencies(
 
     if let Some(dependencies) = dependencies {
         for dependency in dependencies {
-            if dependency.depends_on_id.is_empty() || dependency.dependency_type.is_empty() {
+            let dependency_type = dependency
+                .get("type")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let depends_on_id = dependency
+                .get("depends_on_id")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if dependency_type.is_empty() || depends_on_id.is_empty() {
                 return Err(TaskulusError::IssueOperation(
                     "invalid dependency".to_string(),
                 ));
             }
-            if !record_by_id.contains_key(&dependency.depends_on_id) {
+            if !record_by_id.contains_key(depends_on_id) {
                 return Err(TaskulusError::IssueOperation(
                     "missing dependency".to_string(),
                 ));
             }
-            if dependency.dependency_type == "parent-child" {
+            if dependency_type == "parent-child" {
                 if parent.is_some() {
                     return Err(TaskulusError::IssueOperation(
                         "multiple parents".to_string(),
                     ));
                 }
-                parent = Some(dependency.depends_on_id.clone());
+                parent = Some(depends_on_id.to_string());
             } else {
                 links.push(DependencyLink {
-                    target: dependency.depends_on_id.clone(),
-                    dependency_type: dependency.dependency_type.clone(),
+                    target: depends_on_id.to_string(),
+                    dependency_type: dependency_type.to_string(),
                 });
             }
         }
     }
 
-    if let Some(parent_id) = parent.as_ref() {
+    if let Some(parent_id) = &parent {
         let parent_record = record_by_id
             .get(parent_id)
-            .ok_or_else(|| TaskulusError::IssueOperation("missing parent".to_string()))?;
-        if parent_record.issue_type.trim().is_empty() {
+            .expect("missing dependency");
+        let parent_issue_type = parent_record
+            .get("issue_type")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if parent_issue_type.is_empty() {
             return Err(TaskulusError::IssueOperation(
                 "parent issue_type is required".to_string(),
             ));
         }
-        validate_parent_child_relationship(configuration, &parent_record.issue_type, issue_type)?;
+        validate_parent_child_relationship(configuration, parent_issue_type, issue_type)?;
     }
 
     Ok((parent, links))
 }
 
-fn convert_comments(
-    comments: Option<&Vec<BeadsComment>>,
-) -> Result<Vec<IssueComment>, TaskulusError> {
+fn convert_comments(comments: Option<&Vec<Value>>) -> Result<Vec<IssueComment>, TaskulusError> {
     let mut results = Vec::new();
     if let Some(comments) = comments {
         for comment in comments {
-            if comment.author.trim().is_empty() || comment.text.trim().is_empty() {
+            let author = comment.get("author").and_then(Value::as_str).unwrap_or("");
+            let text = comment.get("text").and_then(Value::as_str).unwrap_or("");
+            if author.trim().is_empty() || text.trim().is_empty() {
                 return Err(TaskulusError::IssueOperation("invalid comment".to_string()));
             }
-            let created_at = parse_timestamp(&comment.created_at, "comment.created_at")?;
+            let created_at = parse_timestamp(comment.get("created_at"), "comment.created_at")?;
             results.push(IssueComment {
-                author: comment.author.clone(),
-                text: comment.text.clone(),
+                author: author.to_string(),
+                text: text.to_string(),
                 created_at,
             });
         }
@@ -283,11 +334,43 @@ fn convert_comments(
     Ok(results)
 }
 
-fn parse_timestamp(value: &str, field_name: &str) -> Result<DateTime<Utc>, TaskulusError> {
-    let normalized = value.replace('Z', "+00:00");
+fn parse_timestamp(value: Option<&Value>, field_name: &str) -> Result<DateTime<Utc>, TaskulusError> {
+    let Some(value) = value else {
+        return Err(TaskulusError::IssueOperation(format!(
+            "{field_name} is required"
+        )));
+    };
+    if value.is_null() {
+        return Err(TaskulusError::IssueOperation(format!(
+            "{field_name} is required"
+        )));
+    }
+    let Some(text) = value.as_str() else {
+        return Err(TaskulusError::IssueOperation(format!(
+            "{field_name} must be a string"
+        )));
+    };
+    if text.is_empty() {
+        return Err(TaskulusError::IssueOperation(format!(
+            "{field_name} is required"
+        )));
+    }
+    let normalized = if text.ends_with('Z') {
+        text.replace('Z', "+00:00")
+    } else {
+        text.to_string()
+    };
     let parsed = DateTime::parse_from_rfc3339(&normalized)
         .map_err(|_| TaskulusError::IssueOperation(format!("invalid {field_name}")))?;
     Ok(parsed.with_timezone(&Utc))
+}
+
+fn required_string(record: &Value, key: &str) -> Result<String, TaskulusError> {
+    let value = record.get(key).and_then(Value::as_str).unwrap_or("");
+    if value.trim().is_empty() {
+        return Err(TaskulusError::IssueOperation(format!("{key} is required")));
+    }
+    Ok(value.to_string())
 }
 
 fn validate_issue_type(
@@ -313,7 +396,7 @@ fn validate_status(
     status: &str,
 ) -> Result<(), TaskulusError> {
     let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
-    let mut statuses = std::collections::HashSet::new();
+    let mut statuses = HashSet::new();
     for (key, values) in workflow.iter() {
         statuses.insert(key.as_str());
         for value in values {

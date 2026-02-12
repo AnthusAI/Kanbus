@@ -20,38 +20,54 @@ from taskulus.issue_delete import IssueDeleteError, delete_issue
 from taskulus.issue_display import format_issue_for_display
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.issue_update import IssueUpdateError, update_issue
+from taskulus.issue_transfer import IssueTransferError, localize_issue, promote_issue
 from taskulus.issue_listing import IssueListingError, list_issues
 from taskulus.queries import QueryError
 from taskulus.daemon_client import DaemonClientError, request_shutdown, request_status
 from taskulus.users import get_current_user
-from taskulus.migration import MigrationError, migrate_from_beads
+from taskulus.migration import MigrationError, load_beads_issue, migrate_from_beads
 from taskulus.doctor import DoctorError, run_doctor
+from taskulus.maintenance import (
+    ProjectStatsError,
+    ProjectValidationError,
+    collect_project_stats,
+    validate_project,
+)
 from taskulus.dependencies import (
     DependencyError,
     add_dependency,
     list_ready_issues,
     remove_dependency,
 )
+from taskulus.dependency_tree import (
+    DependencyTreeError,
+    build_dependency_tree,
+    render_dependency_tree,
+)
+from taskulus.wiki import WikiError, WikiRenderRequest, render_wiki_page
 
 
 @click.group()
 @click.version_option(__version__, prog_name="tsk")
-def cli() -> None:
+@click.option("--beads", "beads_mode", is_flag=True, default=False)
+@click.pass_context
+def cli(context: click.Context, beads_mode: bool) -> None:
     """Taskulus command line interface."""
+    context.obj = {"beads_mode": beads_mode}
 
 
 @cli.command("init")
-@click.option("--dir", "project_dir", default="project", show_default=True)
-def init(project_dir: str) -> None:
+@click.option("--local", "create_local", is_flag=True, default=False)
+def init(create_local: bool) -> None:
     """Initialize a Taskulus project in the current repository.
 
-    :param project_dir: Project directory name.
-    :type project_dir: str
+    :param create_local: Whether to create a project-local directory.
+    :type create_local: bool
     """
     root = Path.cwd()
     try:
         ensure_git_repository(root)
-        initialize_project(root, project_dir)
+        initialize_project(root, create_local)
     except InitializationError as error:
         raise click.ClickException(str(error)) from error
 
@@ -64,6 +80,7 @@ def init(project_dir: str) -> None:
 @click.option("--parent")
 @click.option("--label", "labels", multiple=True)
 @click.option("--description", default="")
+@click.option("--local", "local_issue", is_flag=True, default=False)
 def create(
     title: tuple[str, ...],
     issue_type: str | None,
@@ -72,6 +89,7 @@ def create(
     parent: str | None,
     labels: tuple[str, ...],
     description: str,
+    local_issue: bool,
 ) -> None:
     """Create a new issue in the current project.
 
@@ -89,6 +107,8 @@ def create(
     :type labels: tuple[str, ...]
     :param description: Issue description.
     :type description: str
+    :param local_issue: Whether to create the issue in project-local.
+    :type local_issue: bool
     """
     title_text = " ".join(title).strip()
     description_text = description.strip()
@@ -106,6 +126,7 @@ def create(
             parent=parent,
             labels=labels,
             description=description_text,
+            local=local_issue,
         )
     except IssueCreationError as error:
         raise click.ClickException(str(error)) from error
@@ -116,7 +137,8 @@ def create(
 @cli.command("show")
 @click.argument("identifier")
 @click.option("--json", "as_json", is_flag=True)
-def show(identifier: str, as_json: bool) -> None:
+@click.pass_context
+def show(context: click.Context, identifier: str, as_json: bool) -> None:
     """Show details for an issue.
 
     :param identifier: Issue identifier.
@@ -125,17 +147,25 @@ def show(identifier: str, as_json: bool) -> None:
     :type as_json: bool
     """
     root = Path.cwd()
-    try:
-        lookup = load_issue_from_project(root, identifier)
-    except IssueLookupError as error:
-        raise click.ClickException(str(error)) from error
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        try:
+            issue = load_beads_issue(root, identifier)
+        except MigrationError as error:
+            raise click.ClickException(str(error)) from error
+    else:
+        try:
+            lookup = load_issue_from_project(root, identifier)
+        except IssueLookupError as error:
+            raise click.ClickException(str(error)) from error
+        issue = lookup.issue
 
     if as_json:
-        payload = lookup.issue.model_dump(by_alias=True, mode="json")
+        payload = issue.model_dump(by_alias=True, mode="json")
         click.echo(json.dumps(payload, indent=2, sort_keys=False))
         return
 
-    click.echo(format_issue_for_display(lookup.issue))
+    click.echo(format_issue_for_display(issue))
 
 
 @cli.command("update")
@@ -143,11 +173,13 @@ def show(identifier: str, as_json: bool) -> None:
 @click.option("--title")
 @click.option("--description")
 @click.option("--status")
+@click.option("--claim", is_flag=True, default=False)
 def update(
     identifier: str,
     title: str | None,
     description: str | None,
     status: str | None,
+    claim: bool,
 ) -> None:
     """Update an existing issue.
 
@@ -159,15 +191,20 @@ def update(
     :type description: str | None
     :param status: Updated status.
     :type status: str | None
+    :param claim: Whether to claim the issue.
+    :type claim: bool
     """
     root = Path.cwd()
     try:
+        assignee = get_current_user() if claim else None
         update_issue(
             root=root,
             identifier=identifier,
             title=title.strip() if title else None,
             description=description.strip() if description else None,
             status=status,
+            assignee=assignee,
+            claim=claim,
         )
     except IssueUpdateError as error:
         raise click.ClickException(str(error)) from error
@@ -203,6 +240,36 @@ def delete(identifier: str) -> None:
         raise click.ClickException(str(error)) from error
 
 
+@cli.command("promote")
+@click.argument("identifier")
+def promote(identifier: str) -> None:
+    """Promote a local issue to the shared project.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    root = Path.cwd()
+    try:
+        promote_issue(root, identifier)
+    except IssueTransferError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("localize")
+@click.argument("identifier")
+def localize(identifier: str) -> None:
+    """Move a shared issue into project-local.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    root = Path.cwd()
+    try:
+        localize_issue(root, identifier)
+    except IssueTransferError as error:
+        raise click.ClickException(str(error)) from error
+
+
 @cli.command("comment")
 @click.argument("identifier")
 @click.argument("text")
@@ -233,16 +300,23 @@ def comment(identifier: str, text: str) -> None:
 @click.option("--label")
 @click.option("--sort")
 @click.option("--search")
+@click.option("--no-local", is_flag=True, default=False)
+@click.option("--local-only", is_flag=True, default=False)
+@click.pass_context
 def list_command(
+    context: click.Context,
     status: str | None,
     issue_type: str | None,
     assignee: str | None,
     label: str | None,
     sort: str | None,
     search: str | None,
+    no_local: bool,
+    local_only: bool,
 ) -> None:
     """List issues in the current project."""
     root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     try:
         issues = list_issues(
             root,
@@ -252,12 +326,69 @@ def list_command(
             label=label,
             sort=sort,
             search=search,
+            include_local=not no_local,
+            local_only=local_only,
+            beads_mode=beads_mode,
         )
     except (IssueListingError, QueryError) as error:
         raise click.ClickException(str(error)) from error
 
     for issue in issues:
-        click.echo(f"{issue.identifier} {issue.title}")
+        project_path = issue.custom.get("project_path")
+        prefix = f"{project_path} " if project_path else ""
+        click.echo(f"{prefix}{issue.identifier} {issue.title}")
+
+
+@cli.group("wiki")
+def wiki() -> None:
+    """Manage wiki pages."""
+
+
+@wiki.command("render")
+@click.argument("page")
+def render_wiki(page: str) -> None:
+    """Render a wiki page.
+
+    :param page: Wiki page path.
+    :type page: str
+    """
+    root = Path.cwd()
+    request = WikiRenderRequest(root=root, page_path=Path(page))
+    try:
+        output = render_wiki_page(request)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@cli.command("validate")
+def validate() -> None:
+    """Validate project integrity."""
+    root = Path.cwd()
+    try:
+        validate_project(root)
+    except ProjectValidationError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("stats")
+def stats() -> None:
+    """Report project statistics."""
+    root = Path.cwd()
+    try:
+        stats_result = collect_project_stats(root)
+    except ProjectStatsError as error:
+        raise click.ClickException(str(error)) from error
+
+    lines = [
+        f"total issues: {stats_result.total}",
+        f"open issues: {stats_result.open_count}",
+        f"closed issues: {stats_result.closed_count}",
+    ]
+    for issue_type in sorted(stats_result.type_counts):
+        count = stats_result.type_counts[issue_type]
+        lines.append(f"type: {issue_type}: {count}")
+    click.echo("\n".join(lines))
 
 
 @cli.group("dep")
@@ -295,9 +426,7 @@ def dep_add(identifier: str, blocked_by: str | None, relates_to: str | None) -> 
 @click.argument("identifier")
 @click.option("--blocked-by")
 @click.option("--relates-to")
-def dep_remove(
-    identifier: str, blocked_by: str | None, relates_to: str | None
-) -> None:
+def dep_remove(identifier: str, blocked_by: str | None, relates_to: str | None) -> None:
     """Remove a dependency from an issue.
 
     :param identifier: Issue identifier.
@@ -319,16 +448,51 @@ def dep_remove(
         raise click.ClickException(str(error)) from error
 
 
-@cli.command("ready")
-def ready() -> None:
-    """List issues that are ready (not blocked)."""
+@dep.command("tree")
+@click.argument("identifier")
+@click.option("--depth", type=int)
+@click.option("--format", "output_format", default="text")
+def dep_tree(identifier: str, depth: int | None, output_format: str) -> None:
+    """Display dependency tree for an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param depth: Optional depth limit.
+    :type depth: int | None
+    :param output_format: Output format (text, json, dot).
+    :type output_format: str
+    :raises click.ClickException: If tree generation fails.
+    """
     root = Path.cwd()
     try:
-        issues = list_ready_issues(root)
+        tree = build_dependency_tree(root, identifier, depth)
+        output = render_dependency_tree(tree, output_format)
+    except DependencyTreeError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@cli.command("ready")
+@click.option("--no-local", is_flag=True, default=False)
+@click.option("--local-only", is_flag=True, default=False)
+@click.pass_context
+def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
+    """List issues that are ready (not blocked)."""
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    try:
+        issues = list_ready_issues(
+            root,
+            include_local=not no_local,
+            local_only=local_only,
+            beads_mode=beads_mode,
+        )
     except DependencyError as error:
         raise click.ClickException(str(error)) from error
     for issue in issues:
-        click.echo(issue.identifier)
+        project_path = issue.custom.get("project_path")
+        prefix = f"{project_path} " if project_path else ""
+        click.echo(f"{prefix}{issue.identifier}")
 
 
 @cli.command("doctor")

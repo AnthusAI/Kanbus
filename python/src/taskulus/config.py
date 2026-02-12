@@ -4,10 +4,8 @@ Project configuration defaults and writers.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Dict
 
-import yaml
 
 DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "prefix": "tsk",
@@ -37,15 +35,3 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     },
     "default_priority": 2,
 }
-
-
-def write_default_configuration(path: Path) -> None:
-    """Write the default configuration to the provided path.
-
-    :param path: Path to the config.yaml file to write.
-    :type path: Path
-    """
-    path.write_text(
-        yaml.safe_dump(DEFAULT_CONFIGURATION, sort_keys=False),
-        encoding="utf-8",
-    )

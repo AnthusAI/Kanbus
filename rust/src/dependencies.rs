@@ -4,7 +4,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::error::TaskulusError;
-use crate::file_io::load_project_directory;
+use crate::file_io::{
+    discover_project_directories, discover_taskulus_projects, find_project_local_directory,
+    load_project_directory,
+};
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::{load_issue_from_project, IssueLookupResult};
 use crate::models::{DependencyLink, IssueData};
@@ -71,7 +74,11 @@ pub fn remove_dependency(
     dependency_type: &str,
 ) -> Result<IssueData, TaskulusError> {
     validate_dependency_type(dependency_type)?;
-    let IssueLookupResult { issue, issue_path } = load_issue_from_project(root, source_id)?;
+    let IssueLookupResult {
+        issue,
+        issue_path,
+        project_dir: _,
+    } = load_issue_from_project(root, source_id)?;
 
     let filtered: Vec<DependencyLink> = issue
         .dependencies
@@ -98,12 +105,99 @@ pub fn remove_dependency(
 ///
 /// # Errors
 /// Returns `TaskulusError::IssueOperation` if listing fails.
-pub fn list_ready_issues(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
-    let project_dir = load_project_directory(root)?;
-    let issues_dir = project_dir.join("issues");
+pub fn list_ready_issues(
+    root: &Path,
+    include_local: bool,
+    local_only: bool,
+) -> Result<Vec<IssueData>, TaskulusError> {
+    if local_only && !include_local {
+        return Err(TaskulusError::IssueOperation(
+            "local-only conflicts with no-local".to_string(),
+        ));
+    }
+    let mut projects = Vec::new();
+    discover_project_directories(root, &mut projects)?;
+    let mut dotfile_projects = discover_taskulus_projects(root)?;
+    projects.append(&mut dotfile_projects);
+    projects.sort();
+    projects.dedup();
+    if projects.is_empty() {
+        return Err(TaskulusError::IssueOperation(
+            "project not initialized".to_string(),
+        ));
+    }
+    let mut issues = Vec::new();
+    if projects.len() == 1 {
+        let project_dir = load_project_directory(root)?;
+        issues = load_ready_issues_for_project(
+            root,
+            &project_dir,
+            include_local,
+            local_only,
+            false,
+        )?;
+    } else {
+        for project_dir in &projects {
+            let project_issues = load_ready_issues_for_project(
+                root,
+                project_dir,
+                include_local,
+                local_only,
+                true,
+            )?;
+            issues.extend(project_issues);
+        }
+    }
+    let ready: Vec<IssueData> = issues
+        .into_iter()
+        .filter(|issue| issue.status != "closed" && !is_blocked(issue))
+        .collect();
+    Ok(ready)
+}
+
+fn load_ready_issues_for_project(
+    root: &Path,
+    project_dir: &Path,
+    include_local: bool,
+    local_only: bool,
+    tag_project: bool,
+) -> Result<Vec<IssueData>, TaskulusError> {
+    let mut issues = load_issues_from_directory(&project_dir.join("issues"))?;
+    if include_local || local_only {
+        if let Some(local_dir) = find_project_local_directory(project_dir) {
+            let local_issues = load_issues_from_directory(&local_dir.join("issues"))?;
+            if local_only {
+                issues = local_issues;
+            } else {
+                issues.extend(local_issues);
+            }
+        } else if local_only {
+            issues = Vec::new();
+        }
+    }
+    if tag_project {
+        for issue in &mut issues {
+            tag_issue_project(issue, root, project_dir);
+        }
+    }
+    Ok(issues)
+}
+
+fn tag_issue_project(issue: &mut IssueData, root: &Path, project_dir: &Path) {
+    let project_path = project_dir
+        .strip_prefix(root)
+        .map(|path| path.to_path_buf())
+        .unwrap_or_else(|_| project_dir.to_path_buf());
+    issue.custom.insert(
+        "project_path".to_string(),
+        serde_json::Value::String(project_path.to_string_lossy().to_string()),
+    );
+}
+
+fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, TaskulusError> {
     let mut issues = Vec::new();
     for entry in
-        std::fs::read_dir(&issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?
+        std::fs::read_dir(issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?
     {
         let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
         let path = entry.path();
@@ -113,12 +207,7 @@ pub fn list_ready_issues(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
         issues.push(read_issue_from_file(&path)?);
     }
     issues.sort_by(|left, right| left.identifier.cmp(&right.identifier));
-
-    let ready: Vec<IssueData> = issues
-        .into_iter()
-        .filter(|issue| issue.status != "closed" && !is_blocked(issue))
-        .collect();
-    Ok(ready)
+    Ok(issues)
 }
 
 fn is_blocked(issue: &IssueData) -> bool {

@@ -19,6 +19,7 @@ from taskulus.models import (
     ProjectConfiguration,
 )
 from taskulus.workflows import get_workflow_for_issue_type
+from taskulus.project import discover_project_directories
 
 
 class MigrationError(RuntimeError):
@@ -30,6 +31,49 @@ class MigrationResult:
     """Result of a migration run."""
 
     issue_count: int
+
+
+def load_beads_issues(root: Path) -> List[IssueData]:
+    """Load Beads issues.jsonl into Taskulus issue models without migration.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Loaded Taskulus issue models.
+    :rtype: List[IssueData]
+    :raises MigrationError: If the Beads data cannot be read.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise MigrationError("no .beads directory")
+
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise MigrationError("no issues.jsonl")
+
+    configuration = load_project_configuration(root / "config.yaml")
+    records = _load_beads_records(issues_path)
+    record_by_id = {record["id"]: record for record in records}
+    return [
+        _convert_record(record, record_by_id, configuration) for record in records
+    ]
+
+
+def load_beads_issue(root: Path, identifier: str) -> IssueData:
+    """Load a single Beads issue by identifier.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :return: Matching issue data.
+    :rtype: IssueData
+    :raises MigrationError: If the issue cannot be found.
+    """
+    issues = load_beads_issues(root)
+    for issue in issues:
+        if issue.identifier == identifier:
+            return issue
+    raise MigrationError("not found")
 
 
 def migrate_from_beads(root: Path) -> MigrationResult:
@@ -54,10 +98,10 @@ def migrate_from_beads(root: Path) -> MigrationResult:
     if not issues_path.exists():
         raise MigrationError("no issues.jsonl")
 
-    if (root / ".taskulus.yaml").exists():
+    if discover_project_directories(root):
         raise MigrationError("already initialized")
 
-    initialize_project(root, "project")
+    initialize_project(root)
     project_dir = root / "project"
     configuration = load_project_configuration(project_dir / "config.yaml")
 

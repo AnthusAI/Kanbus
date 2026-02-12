@@ -21,6 +21,18 @@ PYTHON_STEP_PATTERN = re.compile(
 RUST_STEP_PATTERN = re.compile(
     r"#\[(?P<kind>given|when|then)\(\"(?P<text>.+?)\"\)\]",
 )
+RUST_EXPR_PATTERN = re.compile(
+    r"#\[(?P<kind>given|when|then)\(\s*expr\s*=\s*\"(?P<text>.+?)\"\s*\)\]",
+)
+RUST_REGEX_PATTERN = re.compile(
+    r"#\[(?P<kind>given|when|then)\(\s*regex\s*=\s*r#\"(?P<text>.+?)\"#\s*\)\]",
+)
+
+
+@dataclass(frozen=True)
+class StepPattern:
+    text: str
+    is_regex: bool
 
 
 @dataclass(frozen=True)
@@ -28,12 +40,14 @@ class ParityResults:
     feature_steps: Set[str]
     python_steps: Set[str]
     rust_steps: Set[str]
+    python_patterns: Sequence[StepPattern]
+    rust_patterns: Sequence[StepPattern]
 
     def missing_in_python(self) -> Set[str]:
-        return self.feature_steps - self.python_steps
+        return _find_missing(self.feature_steps, self.python_patterns)
 
     def missing_in_rust(self) -> Set[str]:
-        return self.feature_steps - self.rust_steps
+        return _find_missing(self.feature_steps, self.rust_patterns)
 
     def python_only(self) -> Set[str]:
         return self.python_steps - self.rust_steps
@@ -87,40 +101,109 @@ def _iter_feature_steps(feature_path: Path) -> Iterable[str]:
 
 
 def collect_feature_steps(features_root: Path) -> Set[str]:
+    """Collect scenario step text from feature files.
+
+    :param features_root: Root directory containing feature files.
+    :type features_root: Path
+    :return: Set of step strings.
+    :rtype: Set[str]
+    """
     steps: Set[str] = set()
     for path in features_root.rglob("*.feature"):
         steps.update(_iter_feature_steps(path))
     return steps
 
 
-def collect_python_steps(steps_root: Path) -> Set[str]:
-    steps: Set[str] = set()
+def collect_python_steps(steps_root: Path) -> List[StepPattern]:
+    """Collect step patterns from Python step definition files.
+
+    :param steps_root: Root directory containing Python step files.
+    :type steps_root: Path
+    :return: List of step patterns.
+    :rtype: List[StepPattern]
+    """
+    steps: List[StepPattern] = []
     for path in steps_root.rglob("*.py"):
         for match in PYTHON_STEP_PATTERN.finditer(path.read_text(encoding="utf-8")):
             text = match.group("text")
             text = codecs.decode(text, "unicode_escape")
-            steps.add(text)
+            steps.append(StepPattern(text=text, is_regex=_looks_like_regex(text)))
     return steps
 
 
-def collect_rust_steps(steps_root: Path) -> Set[str]:
-    steps: Set[str] = set()
+def collect_rust_steps(steps_root: Path) -> List[StepPattern]:
+    """Collect step patterns from Rust step definition files.
+
+    :param steps_root: Root directory containing Rust step files.
+    :type steps_root: Path
+    :return: List of step patterns.
+    :rtype: List[StepPattern]
+    """
+    steps: List[StepPattern] = []
     for path in steps_root.rglob("*.rs"):
-        for match in RUST_STEP_PATTERN.finditer(path.read_text(encoding="utf-8")):
+        contents = path.read_text(encoding="utf-8")
+        for match in RUST_STEP_PATTERN.finditer(contents):
             text = match.group("text")
             text = codecs.decode(text, "unicode_escape")
-            steps.add(text)
+            steps.append(StepPattern(text=text, is_regex=_looks_like_regex(text)))
+        for match in RUST_EXPR_PATTERN.finditer(contents):
+            text = match.group("text")
+            text = codecs.decode(text, "unicode_escape")
+            steps.append(StepPattern(text=text, is_regex=_looks_like_regex(text)))
+        for match in RUST_REGEX_PATTERN.finditer(contents):
+            text = match.group("text")
+            text = codecs.decode(text, "unicode_escape")
+            steps.append(StepPattern(text=text, is_regex=True))
     return steps
+
+
+def _looks_like_regex(text: str) -> bool:
+    return text.startswith("^") or text.endswith("$")
+
+
+def _compile_pattern(pattern: StepPattern) -> re.Pattern[str]:
+    if pattern.is_regex:
+        return re.compile(pattern.text)
+    if "{" in pattern.text and "}" in pattern.text:
+        escaped = re.escape(pattern.text)
+        return re.compile(re.sub(r"\\\{[^}]+\\\}", r".+", escaped))
+    return re.compile(re.escape(pattern.text))
+
+
+def _normalize_step_text(text: str) -> str:
+    normalized = re.sub(r"\{[^}]+\}", "{param}", text)
+    normalized = re.sub(r'["\']\{param\}["\']', "{param}", normalized)
+    return normalized
+
+
+def _find_missing(feature_steps: Set[str], patterns: Sequence[StepPattern]) -> Set[str]:
+    compiled = [_compile_pattern(pattern) for pattern in patterns]
+    missing: Set[str] = set()
+    for step in feature_steps:
+        if not any(regex.fullmatch(step) for regex in compiled):
+            missing.add(step)
+    return missing
 
 
 def build_results(repo_root: Path) -> ParityResults:
-    feature_steps = collect_feature_steps(repo_root / "specs" / "features")
-    python_steps = collect_python_steps(repo_root / "python" / "features" / "steps")
-    rust_steps = collect_rust_steps(repo_root / "rust" / "tests" / "step_definitions")
+    """Build parity results for the repository.
+
+    :param repo_root: Repository root path.
+    :type repo_root: Path
+    :return: Parity results.
+    :rtype: ParityResults
+    """
+    feature_steps = collect_feature_steps(repo_root / "features")
+    python_patterns = collect_python_steps(repo_root / "python" / "features" / "steps")
+    rust_patterns = collect_rust_steps(repo_root / "rust" / "features" / "steps")
+    python_steps = {_normalize_step_text(pattern.text) for pattern in python_patterns}
+    rust_steps = {_normalize_step_text(pattern.text) for pattern in rust_patterns}
     return ParityResults(
         feature_steps=feature_steps,
         python_steps=python_steps,
         rust_steps=rust_steps,
+        python_patterns=python_patterns,
+        rust_patterns=rust_patterns,
     )
 
 
@@ -134,6 +217,13 @@ def _format_step_list(title: str, steps: Sequence[str]) -> List[str]:
 
 
 def report(results: ParityResults) -> Tuple[bool, List[str]]:
+    """Report parity results.
+
+    :param results: Parity results to summarize.
+    :type results: ParityResults
+    :return: Tuple of ok flag and output lines.
+    :rtype: Tuple[bool, List[str]]
+    """
     missing_in_python = sorted(results.missing_in_python())
     missing_in_rust = sorted(results.missing_in_rust())
     python_only = sorted(results.python_only())
@@ -154,6 +244,13 @@ def report(results: ParityResults) -> Tuple[bool, List[str]]:
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
+    """Parse command-line arguments.
+
+    :param argv: Raw argument list.
+    :type argv: Sequence[str]
+    :return: Parsed arguments.
+    :rtype: argparse.Namespace
+    """
     parser = argparse.ArgumentParser(description="Check spec parity across implementations.")
     parser.add_argument(
         "--repo",
@@ -165,6 +262,13 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str]) -> int:
+    """Run the spec parity check.
+
+    :param argv: Raw argument list.
+    :type argv: Sequence[str]
+    :return: Exit code.
+    :rtype: int
+    """
     args = parse_args(argv)
     results = build_results(args.repo)
     ok, lines = report(results)

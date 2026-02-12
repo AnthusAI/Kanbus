@@ -2,22 +2,9 @@
 
 from __future__ import annotations
 
-from behave import given, then, when
+from behave import then, when
 
-from features.steps.shared import (
-    build_issue,
-    load_project_directory,
-    read_issue_file,
-    run_cli,
-    write_issue_file,
-)
-
-
-@given('an issue "tsk-aaa" exists')
-def given_issue_exists(context: object) -> None:
-    project_dir = load_project_directory(context)
-    issue = build_issue("tsk-aaa", "Title", "task", "open", None, [])
-    write_issue_file(project_dir, issue)
+from features.steps.shared import load_project_directory, run_cli
 
 
 @when('I run "tsk close tsk-aaa"')
@@ -38,20 +25,6 @@ def when_run_delete(context: object) -> None:
 @when('I run "tsk delete tsk-missing"')
 def when_run_delete_missing(context: object) -> None:
     run_cli(context, "tsk delete tsk-missing")
-
-
-@then('issue "tsk-aaa" should have status "closed"')
-def then_issue_status_closed(context: object) -> None:
-    project_dir = load_project_directory(context)
-    issue = read_issue_file(project_dir, "tsk-aaa")
-    assert issue.status == "closed"
-
-
-@then('issue "tsk-aaa" should have a closed_at timestamp')
-def then_issue_closed_at(context: object) -> None:
-    project_dir = load_project_directory(context)
-    issue = read_issue_file(project_dir, "tsk-aaa")
-    assert issue.closed_at is not None
 
 
 @then('issue "tsk-aaa" should not exist')

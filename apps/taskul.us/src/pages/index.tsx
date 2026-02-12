@@ -45,12 +45,12 @@ const IndexPage = () => {
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm hover:shadow-md transition-shadow">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
-                No Daemons, No SQL
+                No Friction
               </h3>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                There is no database server to maintain, no background process to
-                crash, and no complex synchronization logic. Each command scans
-                the project files directly, so you see exactly what is on disk.
+                Git hooks should help you, not block you. There is no database server to maintain,
+                no background process to crash, and no complex synchronization logic.
+                Each command scans the project files directly.
               </p>
             </div>
           </div>

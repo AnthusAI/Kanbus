@@ -97,12 +97,12 @@ const PhilosophyPage = () => {
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm hover:shadow-md transition-shadow">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
-                3. Minimal, Extensible Schema
+                3. Helpful Cognitive Model
               </h3>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                We don't need 130 attributes to track a task. We need a status,
-                a priority, and relationships. Taskulus enforces a minimal graph schema
-                to ensure things work, and leaves the rest to you.
+                The task model should unburden your mind, not add to it. We stripped away 100+
+                unused attributes to focus on a core, elegant framework (Status, Priority, Dependencies).
+                This helps AI agents focus on solving problems, not navigating the tool.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm hover:shadow-md transition-shadow">
@@ -116,6 +116,16 @@ const PhilosophyPage = () => {
                 to be the memory bank for your AI workforce.
               </p>
             </div>
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm hover:shadow-md transition-shadow">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
+                5. Git-Native Scoping
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                We don't need complex "roles" to handle private tasks. Just use <code>.gitignore</code>.
+                Taskulus respects your directory structure: run it at the root to see everything,
+                or in a subfolder to focus on that module. It leverages the tools you already use.
+              </p>
+            </div>
           </div>
         </Section>
 
@@ -127,13 +137,12 @@ const PhilosophyPage = () => {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
-                No Complexity
+                No Friction
               </h3>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                We strictly avoid features that introduce synchronization issues,
-                like "atomic checkouts" or locking. We treat Git as the database
-                and respect its eventual consistency model. This keeps the tool
-                extremely simple and reliable.
+                Git hooks should help you, not block you. Taskulus removes the concept of
+                "syncing" entirely. There is no secondary database to maintain, so you
+                are never blocked from pushing your code.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">

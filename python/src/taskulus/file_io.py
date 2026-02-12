@@ -7,9 +7,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import yaml
-
-from taskulus.config import write_default_configuration
+from taskulus.project import ensure_project_local_directory
 
 
 class InitializationError(RuntimeError):
@@ -34,42 +32,22 @@ def ensure_git_repository(root: Path) -> None:
         raise InitializationError("not a git repository")
 
 
-def write_project_marker(root: Path, project_dir: Path) -> None:
-    """Write the .taskulus.yaml project marker.
-
-    :param root: Repository root.
-    :type root: Path
-    :param project_dir: Project directory path.
-    :type project_dir: Path
-    """
-    marker_path = root / ".taskulus.yaml"
-    marker_path.write_text(
-        yaml.safe_dump({"project_dir": project_dir.name}, sort_keys=False),
-        encoding="utf-8",
-    )
-
-
-def initialize_project(root: Path, project_dir_name: str) -> None:
+def initialize_project(root: Path, create_local: bool = False) -> None:
     """Initialize the Taskulus project directory structure.
 
     :param root: Repository root path.
     :type root: Path
-    :param project_dir_name: Name of the project directory to create.
-    :type project_dir_name: str
+    :param create_local: Whether to create a project-local directory.
+    :type create_local: bool
     :raises InitializationError: If the project is already initialized.
     """
-    marker_path = root / ".taskulus.yaml"
-    if marker_path.exists():
+    project_dir = root / "project"
+    if project_dir.exists():
         raise InitializationError("already initialized")
 
-    project_dir = root / project_dir_name
     issues_dir = project_dir / "issues"
-    wiki_dir = project_dir / "wiki"
 
     project_dir.mkdir(parents=True, exist_ok=False)
     issues_dir.mkdir(parents=True)
-    wiki_dir.mkdir(parents=True)
-
-    write_default_configuration(project_dir / "config.yaml")
-    (wiki_dir / "index.md").write_text("# Taskulus Wiki\n", encoding="utf-8")
-    write_project_marker(root, project_dir)
+    if create_local:
+        ensure_project_local_directory(project_dir)

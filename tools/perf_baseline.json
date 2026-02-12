@@ -7,5 +7,59 @@
   "rust": {
     "build_ms": 100.0,
     "cache_load_ms": 20.0
+  },
+  "discovery": {
+    "python": {
+      "serial": {
+        "single": {
+          "discover_ms": 50.0,
+          "list_ms": 200.0,
+          "ready_ms": 200.0
+        },
+        "multi": {
+          "discover_ms": 50.0,
+          "list_ms": 500.0,
+          "ready_ms": 500.0
+        }
+      },
+      "parallel": {
+        "single": {
+          "discover_ms": 50.0,
+          "list_ms": 200.0,
+          "ready_ms": 200.0
+        },
+        "multi": {
+          "discover_ms": 50.0,
+          "list_ms": 500.0,
+          "ready_ms": 500.0
+        }
+      }
+    },
+    "rust": {
+      "serial": {
+        "single": {
+          "discover_ms": 50.0,
+          "list_ms": 200.0,
+          "ready_ms": 200.0
+        },
+        "multi": {
+          "discover_ms": 50.0,
+          "list_ms": 500.0,
+          "ready_ms": 500.0
+        }
+      },
+      "parallel": {
+        "single": {
+          "discover_ms": 50.0,
+          "list_ms": 200.0,
+          "ready_ms": 200.0
+        },
+        "multi": {
+          "discover_ms": 50.0,
+          "list_ms": 500.0,
+          "ready_ms": 500.0
+        }
+      }
+    }
   }
 }

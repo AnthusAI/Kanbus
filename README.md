@@ -16,8 +16,18 @@ Taskulus builds on this foundation by adapting the model to be a thinner, more n
 *   **A Thinner Layer over Git**: We removed the secondary SQLite index. The complexity of maintaining and synchronizing a shadow database isn't worth the operational cost. Taskulus reads files directly.
 *   **Better Storage Alignment**: Things like "exclusively claiming" a task don't align well with the distributed Git model. We removed them to ensure the tool behaves exactly like the version control system underneath it.
 *   **Conflict-Free Storage**: Instead of a single JSON-L file (which guarantees merge conflicts when agents work in parallel), Taskulus stores separate tasks in separate files. This eliminates conflicts and allows deep linking to specific issues from GitHub.
-*   **Streamlined Cognitive Model**: Beads is powerful but complex, with 130+ attributes per issue. We streamlined this to a focused core (Status, Priority, Dependencies) to reduce the "context pollution" for AI agents. We want the model to think about the work, not how to use the tracker.
+*   **Streamlined Cognitive Model**: Beads is powerful but complex, with 130+ attributes per issue. We streamlined this to a focused core (Status, Priority, Dependencies) to reduce the "context pollution" for AI agents. We want the model to think about the work, not how to use the tracker. The goal is a **helpful cognitive model** that unburdens your mental state rather than adding to it.
 *   **AI-Native Nomenclature**: Instead of teaching models new terms like "beads", we use the standard Jira vocabulary (Epics, Tasks, Sub-tasks) that AI models are already extensively pre-trained on. This leverages their existing knowledge graph for better reasoning.
+*   **Git-Native Scoping**: We replaced complex "contributor roles" with standard Git patterns. Want local tasks? Just `.gitignore` a folder. Working in a monorepo? Taskulus respects your current directory scope automatically.
+
+## Frictionless Workflow
+
+Taskulus is designed to **remove friction**, not add it. 
+
+*   **No Syncing**: There is no secondary database to synchronize. The files on disk are the source of truth. You will never be blocked from pushing code because a background daemon is out of sync.
+*   **Git Hooks Help You**: Git hooks should assist your workflow, not interrupt it. Taskulus hooks are designed to be invisible helpers, ensuring data integrity without stopping you from getting work done.
+
+For a detailed comparison, see [Taskulus vs. Beads](docs/VS_BEADS.md).
 
 ## Why Taskulus?
 
