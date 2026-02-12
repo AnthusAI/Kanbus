@@ -42,3 +42,5 @@ target-version = "py311"
 version_toml = ["pyproject.toml:project.version"]
 tag_format = "v{version}"
 build_command = "python -m build"
+allow_zero_version = true
+major_on_zero = false

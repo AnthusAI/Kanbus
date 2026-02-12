@@ -31,6 +31,14 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install python-semantic-release build twine
 
+      - name: Create release tag
+        working-directory: python
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: semantic-release version
+
       - name: Publish release to PyPI
         working-directory: python
         env:
