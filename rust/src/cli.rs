@@ -3,8 +3,8 @@
 use std::ffi::OsString;
 use std::path::Path;
 
-use clap::{Parser, Subcommand};
 use clap::error::ErrorKind;
+use clap::{Parser, Subcommand};
 
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
@@ -289,7 +289,12 @@ where
         Ok(parsed) => parsed,
         Err(error) => {
             let rendered = error.render().to_string();
-            if matches!(error.kind(), ErrorKind::DisplayHelp | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand | ErrorKind::DisplayVersion) {
+            if matches!(
+                error.kind(),
+                ErrorKind::DisplayHelp
+                    | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+                    | ErrorKind::DisplayVersion
+            ) {
                 return Ok(CommandOutput { stdout: rendered });
             }
             return Err(TaskulusError::IssueOperation(rendered));
@@ -359,8 +364,8 @@ fn execute_command(
                 load_issue_from_project(root, &identifier)?.issue
             };
             if json {
-                let payload = serde_json::to_string_pretty(&issue)
-                    .expect("failed to serialize issue");
+                let payload =
+                    serde_json::to_string_pretty(&issue).expect("failed to serialize issue");
                 return Ok(Some(payload));
             }
             Ok(Some(format_issue_for_display(&issue)))
@@ -530,7 +535,10 @@ fn execute_command(
                 Ok(Some(output))
             }
         },
-        Commands::Ready { no_local, local_only } => {
+        Commands::Ready {
+            no_local,
+            local_only,
+        } => {
             let issues = if beads_mode {
                 if local_only || no_local {
                     return Err(TaskulusError::IssueOperation(

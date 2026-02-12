@@ -115,7 +115,9 @@ pub fn load_project_directory(root: &Path) -> Result<PathBuf, TaskulusError> {
 ///
 /// * `project_dir` - Shared project directory.
 pub fn find_project_local_directory(project_dir: &Path) -> Option<PathBuf> {
-    let local_dir = project_dir.parent().map(|parent| parent.join("project-local"))?;
+    let local_dir = project_dir
+        .parent()
+        .map(|parent| parent.join("project-local"))?;
     if local_dir.is_dir() {
         Some(local_dir)
     } else {
@@ -138,8 +140,7 @@ pub fn ensure_project_local_directory(project_dir: &Path) -> Result<PathBuf, Tas
         .map(|parent| parent.join("project-local"))
         .ok_or_else(|| TaskulusError::Io("project-local path unavailable".to_string()))?;
     let issues_dir = local_dir.join("issues");
-    std::fs::create_dir_all(&issues_dir)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    std::fs::create_dir_all(&issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?;
     ensure_gitignore_entry(
         project_dir
             .parent()
@@ -158,7 +159,7 @@ fn ensure_gitignore_entry(root: &Path, entry: &str) -> Result<(), TaskulusError>
         String::new()
     };
     let lines: Vec<&str> = existing.lines().map(str::trim).collect();
-    if lines.iter().any(|line| *line == entry) {
+    if lines.contains(&entry) {
         return Ok(());
     }
     let mut updated = existing;

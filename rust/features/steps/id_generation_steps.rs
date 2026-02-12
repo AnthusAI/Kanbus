@@ -9,7 +9,6 @@ use taskulus::ids::{generate_issue_identifier, generate_many_identifiers, IssueI
 
 use crate::step_definitions::initialization_steps::TaskulusWorld;
 
-
 #[given(expr = "a project with prefix {string}")]
 fn given_project_prefix(world: &mut TaskulusWorld, prefix: String) {
     world.id_prefix = Some(prefix);

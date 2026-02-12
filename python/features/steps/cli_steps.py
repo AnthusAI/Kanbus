@@ -20,8 +20,9 @@ def when_run_cli_entrypoint_help(context: object) -> None:
     exit_code = 0
     sys.argv = ["taskulus.cli", "--help"]
     try:
-        with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(
-            stderr_buffer
+        with (
+            contextlib.redirect_stdout(stdout_buffer),
+            contextlib.redirect_stderr(stderr_buffer),
         ):
             runpy.run_module("taskulus.cli", run_name="__main__")
     except SystemExit as exc:
@@ -57,8 +58,9 @@ def when_run_cli_entrypoint_args(context: object, arguments: str) -> None:
         original_cwd = os.getcwd()
         os.chdir(working_directory)
     try:
-        with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(
-            stderr_buffer
+        with (
+            contextlib.redirect_stdout(stdout_buffer),
+            contextlib.redirect_stderr(stderr_buffer),
         ):
             runpy.run_module("taskulus.cli", run_name="__main__")
     except SystemExit as exc:

@@ -7,7 +7,6 @@ from behave import given, then, when
 from features.steps.shared import (
     build_issue,
     load_project_directory,
-    read_issue_file,
     run_cli,
     write_issue_file,
 )

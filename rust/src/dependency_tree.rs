@@ -105,7 +105,7 @@ fn build_node(
     visited.insert(issue.identifier.clone());
 
     let mut dependencies = Vec::new();
-    if max_depth.map_or(true, |limit| depth < limit) {
+    if max_depth.is_none_or(|limit| depth < limit) {
         for dependency in &issue.dependencies {
             dependencies.push(build_dependency(
                 dependency,

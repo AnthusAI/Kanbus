@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use cucumber::{then, when};
 
+use crate::step_definitions::initialization_steps::TaskulusWorld;
 use taskulus::cli::run_from_args_with_output;
 use taskulus::file_io::load_project_directory;
-use crate::step_definitions::initialization_steps::TaskulusWorld;
 
 fn run_cli(world: &mut TaskulusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");

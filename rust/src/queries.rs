@@ -22,14 +22,10 @@ pub fn filter_issues(
 ) -> Vec<IssueData> {
     issues
         .into_iter()
-        .filter(|issue| status.map_or(true, |value| issue.status == value))
-        .filter(|issue| issue_type.map_or(true, |value| issue.issue_type == value))
-        .filter(|issue| assignee.map_or(true, |value| issue.assignee.as_deref() == Some(value)))
-        .filter(|issue| {
-            label.map_or(true, |value| {
-                issue.labels.iter().any(|label| label == value)
-            })
-        })
+        .filter(|issue| status.is_none_or(|value| issue.status == value))
+        .filter(|issue| issue_type.is_none_or(|value| issue.issue_type == value))
+        .filter(|issue| assignee.is_none_or(|value| issue.assignee.as_deref() == Some(value)))
+        .filter(|issue| label.is_none_or(|value| issue.labels.iter().any(|label| label == value)))
         .collect()
 }
 

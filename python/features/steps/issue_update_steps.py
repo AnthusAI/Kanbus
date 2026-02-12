@@ -20,7 +20,6 @@ def given_issue_with_title(context: object) -> None:
     write_issue_file(project_dir, issue)
 
 
-
 @when(
     'I run "tsk update tsk-aaa --title \\"New Title\\" --description \\"Updated description\\""'
 )

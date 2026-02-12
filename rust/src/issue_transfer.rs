@@ -4,7 +4,9 @@ use std::fs;
 use std::path::Path;
 
 use crate::error::TaskulusError;
-use crate::file_io::{ensure_project_local_directory, find_project_local_directory, load_project_directory};
+use crate::file_io::{
+    ensure_project_local_directory, find_project_local_directory, load_project_directory,
+};
 use crate::issue_files::read_issue_from_file;
 use crate::models::IssueData;
 
@@ -18,15 +20,18 @@ use crate::models::IssueData;
 /// Returns `TaskulusError::IssueOperation` if promotion fails.
 pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, TaskulusError> {
     let project_dir = load_project_directory(root)?;
-    let local_dir = find_project_local_directory(&project_dir)
-        .ok_or_else(|| TaskulusError::IssueOperation("project-local not initialized".to_string()))?;
+    let local_dir = find_project_local_directory(&project_dir).ok_or_else(|| {
+        TaskulusError::IssueOperation("project-local not initialized".to_string())
+    })?;
 
     let local_issue_path = local_dir.join("issues").join(format!("{identifier}.json"));
     if !local_issue_path.exists() {
         return Err(TaskulusError::IssueOperation("not found".to_string()));
     }
 
-    let target_path = project_dir.join("issues").join(format!("{identifier}.json"));
+    let target_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
     if target_path.exists() {
         return Err(TaskulusError::IssueOperation("already exists".to_string()));
     }
@@ -47,7 +52,9 @@ pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, Taskulu
 /// Returns `TaskulusError::IssueOperation` if localization fails.
 pub fn localize_issue(root: &Path, identifier: &str) -> Result<IssueData, TaskulusError> {
     let project_dir = load_project_directory(root)?;
-    let shared_issue_path = project_dir.join("issues").join(format!("{identifier}.json"));
+    let shared_issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
     if !shared_issue_path.exists() {
         return Err(TaskulusError::IssueOperation("not found".to_string()));
     }

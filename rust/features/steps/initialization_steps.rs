@@ -2,16 +2,16 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::SystemTime;
 use std::thread::JoinHandle;
+use std::time::SystemTime;
 
 use cucumber::{given, then, when, World};
 use tempfile::TempDir;
 
 use taskulus::cli::run_from_args_with_output;
+use taskulus::daemon_client;
 use taskulus::index::IssueIndex;
 use taskulus::models::ProjectConfiguration;
-use taskulus::daemon_client;
 
 #[derive(Debug, Default, World)]
 pub struct TaskulusWorld {

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from behave import given, then, when
+from behave import then, when
 
 from features.steps.shared import (
     capture_issue_identifier,

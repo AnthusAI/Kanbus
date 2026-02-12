@@ -12,7 +12,9 @@ use crate::issue_files::{
 };
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::{
-    file_io::{ensure_project_local_directory, find_project_local_directory, load_project_directory},
+    file_io::{
+        ensure_project_local_directory, find_project_local_directory, load_project_directory,
+    },
     models::DependencyLink,
 };
 
@@ -43,10 +45,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueData, Taskulu
     let mut local_dir = find_project_local_directory(&project_dir);
     if request.local {
         local_dir = Some(ensure_project_local_directory(&project_dir)?);
-        issues_dir = local_dir
-            .as_ref()
-            .expect("local dir")
-            .join("issues");
+        issues_dir = local_dir.as_ref().expect("local dir").join("issues");
     }
     let configuration = load_project_configuration(&project_dir.join("config.yaml"))?;
 

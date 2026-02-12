@@ -1,9 +1,9 @@
-pub mod comment_steps;
 pub mod cli_steps;
+pub mod comment_steps;
 pub mod compatibility_steps;
 pub mod configuration_steps;
-pub mod dependency_steps;
 pub mod daemon_steps;
+pub mod dependency_steps;
 pub mod id_generation_steps;
 pub mod index_steps;
 pub mod initialization_steps;

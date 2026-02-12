@@ -20,6 +20,7 @@ use crate::queries::{filter_issues, search_issues, sort_issues};
 ///
 /// # Errors
 /// Returns `TaskulusError` when listing fails.
+#[allow(clippy::too_many_arguments)]
 pub fn list_issues(
     root: &Path,
     status: Option<&str>,
@@ -48,23 +49,14 @@ pub fn list_issues(
         ));
     }
     if projects.len() > 1 {
-        let issues = list_issues_across_projects(
-            root,
-            &projects,
-            include_local,
-            local_only,
-        )?;
+        let issues = list_issues_across_projects(root, &projects, include_local, local_only)?;
         return apply_query(issues, status, issue_type, assignee, label, sort, search);
     }
 
     if include_local || local_only {
         let project_dir = load_project_directory(root)?;
         let local_dir = find_project_local_directory(&project_dir);
-        let issues = list_issues_with_local(
-            &project_dir,
-            local_dir.as_ref().map(|value| value.as_path()),
-            local_only,
-        )?;
+        let issues = list_issues_with_local(&project_dir, local_dir.as_deref(), local_only)?;
         return apply_query(issues, status, issue_type, assignee, label, sort, search);
     }
     if is_daemon_enabled() {

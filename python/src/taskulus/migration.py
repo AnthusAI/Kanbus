@@ -53,9 +53,7 @@ def load_beads_issues(root: Path) -> List[IssueData]:
     configuration = load_project_configuration(root / "config.yaml")
     records = _load_beads_records(issues_path)
     record_by_id = {record["id"]: record for record in records}
-    return [
-        _convert_record(record, record_by_id, configuration) for record in records
-    ]
+    return [_convert_record(record, record_by_id, configuration) for record in records]
 
 
 def load_beads_issue(root: Path, identifier: str) -> IssueData:

@@ -121,7 +121,7 @@ pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex,
         .enumerate()
         .map(|(index, path)| (index, path.clone()))
         .collect();
-    let chunk_size = (indexed_paths.len() + worker_count - 1) / worker_count;
+    let chunk_size = indexed_paths.len().div_ceil(worker_count);
     let chunks: Vec<Vec<(usize, PathBuf)>> = indexed_paths
         .chunks(chunk_size)
         .map(|chunk| chunk.to_vec())

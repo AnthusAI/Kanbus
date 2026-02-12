@@ -9,9 +9,9 @@ use cucumber::{given, then, when};
 
 use taskulus::cli::run_from_args_with_output;
 use taskulus::daemon_client;
-use taskulus::daemon_server::handle_request_for_testing;
 use taskulus::daemon_paths::get_daemon_socket_path;
 use taskulus::daemon_protocol::{RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION};
+use taskulus::daemon_server::handle_request_for_testing;
 
 use crate::step_definitions::initialization_steps::TaskulusWorld;
 
@@ -79,9 +79,7 @@ fn spawn_fake_daemon(world: &mut TaskulusWorld, response: Option<ResponseEnvelop
     let listener = UnixListener::bind(&socket_path).expect("bind socket");
     let handle = thread::spawn(move || {
         if let Ok((mut stream, _)) = listener.accept() {
-            let mut reader = BufReader::new(
-                stream.try_clone().expect("clone stream"),
-            );
+            let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
             let mut line = String::new();
             let _ = reader.read_line(&mut line);
             if let Some(response) = response {
@@ -95,10 +93,7 @@ fn spawn_fake_daemon(world: &mut TaskulusWorld, response: Option<ResponseEnvelop
     world.daemon_fake_server = true;
 }
 
-fn send_daemon_request(
-    world: &TaskulusWorld,
-    request: &RequestEnvelope,
-) -> ResponseEnvelope {
+fn send_daemon_request(world: &TaskulusWorld, request: &RequestEnvelope) -> ResponseEnvelope {
     let socket_path = daemon_socket_path(world);
     let mut stream = UnixStream::connect(&socket_path).expect("connect socket");
     let payload = serde_json::to_string(request).expect("serialize request");
@@ -290,18 +285,16 @@ fn when_parse_protocol_versions(world: &mut TaskulusWorld, first: String, second
 
 #[when("I validate protocol compatibility for client \"2.0\" and daemon \"1.0\"")]
 fn when_validate_protocol_mismatch(world: &mut TaskulusWorld) {
-    world.protocol_error =
-        taskulus::daemon_protocol::validate_protocol_compatibility("2.0", "1.0")
-            .err()
-            .map(|error| error.to_string());
+    world.protocol_error = taskulus::daemon_protocol::validate_protocol_compatibility("2.0", "1.0")
+        .err()
+        .map(|error| error.to_string());
 }
 
 #[when("I validate protocol compatibility for client \"1.2\" and daemon \"1.0\"")]
 fn when_validate_protocol_unsupported(world: &mut TaskulusWorld) {
-    world.protocol_error =
-        taskulus::daemon_protocol::validate_protocol_compatibility("1.2", "1.0")
-            .err()
-            .map(|error| error.to_string());
+    world.protocol_error = taskulus::daemon_protocol::validate_protocol_compatibility("1.2", "1.0")
+        .err()
+        .map(|error| error.to_string());
 }
 
 #[then("protocol parsing should fail with \"invalid protocol version\"")]
@@ -313,12 +306,18 @@ fn then_protocol_parse_failed(world: &mut TaskulusWorld) {
 
 #[then("protocol validation should fail with \"protocol version mismatch\"")]
 fn then_protocol_validation_mismatch(world: &mut TaskulusWorld) {
-    assert_eq!(world.protocol_error.as_deref(), Some("protocol version mismatch"));
+    assert_eq!(
+        world.protocol_error.as_deref(),
+        Some("protocol version mismatch")
+    );
 }
 
 #[then("protocol validation should fail with \"protocol version unsupported\"")]
 fn then_protocol_validation_unsupported(world: &mut TaskulusWorld) {
-    assert_eq!(world.protocol_error.as_deref(), Some("protocol version unsupported"));
+    assert_eq!(
+        world.protocol_error.as_deref(),
+        Some("protocol version unsupported")
+    );
 }
 
 #[then("the daemon should shut down")]
@@ -557,7 +556,10 @@ fn then_daemon_index_list_empty(world: &mut TaskulusWorld) {
 
 #[then(expr = "the daemon request should fail with {string}")]
 fn then_daemon_request_failed(world: &mut TaskulusWorld, message: String) {
-    assert_eq!(world.daemon_error_message.as_deref(), Some(message.as_str()));
+    assert_eq!(
+        world.daemon_error_message.as_deref(),
+        Some(message.as_str())
+    );
 }
 
 #[then("the daemon request should fail")]

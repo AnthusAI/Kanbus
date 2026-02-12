@@ -120,7 +120,7 @@ def when_configuration_loaded(context: object) -> None:
         context.result = SimpleNamespace(exit_code=1, stdout="", stderr=str(error))
 
 
-@then("the prefix should be \"tsk\"")
+@then('the prefix should be "tsk"')
 def then_prefix_should_be_tsk(context: object) -> None:
     assert context.configuration.prefix == "tsk"
 

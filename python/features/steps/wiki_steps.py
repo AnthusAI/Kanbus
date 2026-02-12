@@ -6,7 +6,12 @@ from pathlib import Path
 
 from behave import given, when, then
 
-from features.steps.shared import build_issue, load_project_directory, run_cli, write_issue_file
+from features.steps.shared import (
+    build_issue,
+    load_project_directory,
+    run_cli,
+    write_issue_file,
+)
 
 
 @given("3 open tasks and 2 closed tasks exist")

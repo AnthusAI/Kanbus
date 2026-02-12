@@ -160,7 +160,9 @@ class DaemonServer(socketserver.ThreadingUnixStreamServer):
         return list(self.state.index.by_id.values())
 
 
-def handle_request_for_testing(root: Path, request: RequestEnvelope) -> ResponseEnvelope:
+def handle_request_for_testing(
+    root: Path, request: RequestEnvelope
+) -> ResponseEnvelope:
     """
     Handle a daemon request without starting a server loop.
 

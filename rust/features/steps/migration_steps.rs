@@ -261,13 +261,37 @@ fn when_validate_migration_errors(world: &mut TaskulusWorld) {
         serde_json::Value::Object(map)
     };
 
-    run_case(vec![serde_json::json!({"title": "Missing id"})], "missing-id");
-    run_case(vec![build_record(&valid_base, vec![("title", serde_json::json!(""))])], "missing-title");
-    run_case(vec![build_record(&valid_base, vec![("issue_type", serde_json::json!(""))])], "missing-type");
-    run_case(vec![build_record(&valid_base, vec![("status", serde_json::json!(""))])], "missing-status");
+    run_case(
+        vec![serde_json::json!({"title": "Missing id"})],
+        "missing-id",
+    );
+    run_case(
+        vec![build_record(
+            &valid_base,
+            vec![("title", serde_json::json!(""))],
+        )],
+        "missing-title",
+    );
+    run_case(
+        vec![build_record(
+            &valid_base,
+            vec![("issue_type", serde_json::json!(""))],
+        )],
+        "missing-type",
+    );
+    run_case(
+        vec![build_record(
+            &valid_base,
+            vec![("status", serde_json::json!(""))],
+        )],
+        "missing-status",
+    );
     let mut record_without_priority = valid_base.as_object().expect("object").clone();
     record_without_priority.remove("priority");
-    run_case(vec![serde_json::Value::Object(record_without_priority)], "missing-priority-field");
+    run_case(
+        vec![serde_json::Value::Object(record_without_priority)],
+        "missing-priority-field",
+    );
     run_case(
         vec![build_record(
             &valid_base,
@@ -275,9 +299,27 @@ fn when_validate_migration_errors(world: &mut TaskulusWorld) {
         )],
         "missing-priority",
     );
-    run_case(vec![build_record(&valid_base, vec![("priority", serde_json::json!(99))])], "invalid-priority");
-    run_case(vec![build_record(&valid_base, vec![("issue_type", serde_json::json!("unknown"))])], "unknown-type");
-    run_case(vec![build_record(&valid_base, vec![("status", serde_json::json!("invalid"))])], "invalid-status");
+    run_case(
+        vec![build_record(
+            &valid_base,
+            vec![("priority", serde_json::json!(99))],
+        )],
+        "invalid-priority",
+    );
+    run_case(
+        vec![build_record(
+            &valid_base,
+            vec![("issue_type", serde_json::json!("unknown"))],
+        )],
+        "unknown-type",
+    );
+    run_case(
+        vec![build_record(
+            &valid_base,
+            vec![("status", serde_json::json!("invalid"))],
+        )],
+        "invalid-status",
+    );
     run_case(
         vec![build_record(
             &valid_base,
@@ -318,27 +360,30 @@ fn when_validate_migration_errors(world: &mut TaskulusWorld) {
         ],
         "multiple-parents",
     );
-    run_case(vec![
-        serde_json::json!({
-            "id": "tsk-child",
-            "title": "Child",
-            "issue_type": "task",
-            "status": "open",
-            "priority": 2,
-            "created_at": "2026-02-11T00:00:00Z",
-            "updated_at": "2026-02-11T00:00:00Z",
-            "dependencies": [{"type": "parent-child", "depends_on_id": "tsk-parent"}],
-            "comments": []
-        }),
-        serde_json::json!({
-            "id": "tsk-parent",
-            "title": "Parent",
-            "status": "open",
-            "priority": 2,
-            "created_at": "2026-02-11T00:00:00Z",
-            "updated_at": "2026-02-11T00:00:00Z"
-        })
-    ], "parent-issue-type-missing");
+    run_case(
+        vec![
+            serde_json::json!({
+                "id": "tsk-child",
+                "title": "Child",
+                "issue_type": "task",
+                "status": "open",
+                "priority": 2,
+                "created_at": "2026-02-11T00:00:00Z",
+                "updated_at": "2026-02-11T00:00:00Z",
+                "dependencies": [{"type": "parent-child", "depends_on_id": "tsk-parent"}],
+                "comments": []
+            }),
+            serde_json::json!({
+                "id": "tsk-parent",
+                "title": "Parent",
+                "status": "open",
+                "priority": 2,
+                "created_at": "2026-02-11T00:00:00Z",
+                "updated_at": "2026-02-11T00:00:00Z"
+            }),
+        ],
+        "parent-issue-type-missing",
+    );
     run_case(
         vec![build_record(
             &valid_base,
@@ -352,7 +397,10 @@ fn when_validate_migration_errors(world: &mut TaskulusWorld) {
     run_case(
         vec![build_record(
             &valid_base,
-            vec![("comments", serde_json::json!([{"author": "dev", "text": "ok"}]))],
+            vec![(
+                "comments",
+                serde_json::json!([{"author": "dev", "text": "ok"}]),
+            )],
         )],
         "comment-created-missing",
     );
@@ -452,9 +500,14 @@ fn then_migration_includes_metadata(world: &mut TaskulusWorld) {
         .get("custom")
         .and_then(|value| value.as_object())
         .expect("custom");
-    assert_eq!(custom.get("beads_notes").and_then(|v| v.as_str()), Some("Notes"));
     assert_eq!(
-        custom.get("beads_acceptance_criteria").and_then(|v| v.as_str()),
+        custom.get("beads_notes").and_then(|v| v.as_str()),
+        Some("Notes")
+    );
+    assert_eq!(
+        custom
+            .get("beads_acceptance_criteria")
+            .and_then(|v| v.as_str()),
         Some("Criteria")
     );
     assert_eq!(
@@ -465,7 +518,10 @@ fn then_migration_includes_metadata(world: &mut TaskulusWorld) {
         custom.get("beads_owner").and_then(|v| v.as_str()),
         Some("dev@example.com")
     );
-    let deps = payload.get("dependencies").and_then(|v| v.as_array()).expect("deps");
+    let deps = payload
+        .get("dependencies")
+        .and_then(|v| v.as_array())
+        .expect("deps");
     let has_dep = deps.iter().any(|item| {
         item.get("target").and_then(|v| v.as_str()) == Some("tsk-parent")
             && item.get("type").and_then(|v| v.as_str()) == Some("blocked-by")

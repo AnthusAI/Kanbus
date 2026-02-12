@@ -13,7 +13,6 @@ from taskulus.project import (
     ProjectMarkerError,
     discover_project_directories,
     find_project_local_directory,
-    load_project_directory,
 )
 from taskulus.migration import MigrationError, load_beads_issues
 

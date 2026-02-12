@@ -29,10 +29,7 @@ impl RecursiveFeatureParser {
         Ok(feature_files)
     }
 
-    fn collect_feature_files(
-        root: &Path,
-        feature_files: &mut Vec<PathBuf>,
-    ) -> std::io::Result<()> {
+    fn collect_feature_files(root: &Path, feature_files: &mut Vec<PathBuf>) -> std::io::Result<()> {
         for entry in fs::read_dir(root)? {
             let entry = entry?;
             let path = entry.path();
@@ -53,17 +50,13 @@ impl<I: AsRef<Path>> Parser<I> for RecursiveFeatureParser {
     fn parse(self, input: I, _: Self::Cli) -> Self::Output {
         let path = input.as_ref();
         let features: Vec<ParserResult<gherkin::Feature>> = if path.is_file() {
-            vec![gherkin::Feature::parse_path(path, GherkinEnv::default())
-                .map_err(Into::into)]
+            vec![gherkin::Feature::parse_path(path, GherkinEnv::default()).map_err(Into::into)]
         } else {
             match Self::collect_features(path) {
                 Ok(feature_paths) => feature_paths
                     .into_iter()
                     .map(|feature_path| {
-                        gherkin::Feature::parse_path(
-                            feature_path,
-                            GherkinEnv::default(),
-                        )
+                        gherkin::Feature::parse_path(feature_path, GherkinEnv::default())
                             .map_err(Into::into)
                     })
                     .collect(),

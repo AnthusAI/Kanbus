@@ -62,7 +62,9 @@ def given_typed_issue_exists(context: object, issue_type: str, identifier: str) 
 
 
 @given('an "{issue_type}" issue "{identifier}" exists')
-def given_typed_issue_exists_an(context: object, issue_type: str, identifier: str) -> None:
+def given_typed_issue_exists_an(
+    context: object, issue_type: str, identifier: str
+) -> None:
     given_typed_issue_exists(context, issue_type, identifier)
 
 
@@ -92,7 +94,9 @@ def then_issue_status_matches(context: object, identifier: str, status: str) -> 
 
 
 @then('issue "{identifier}" should have assignee "{assignee}"')
-def then_issue_assignee_matches(context: object, identifier: str, assignee: str) -> None:
+def then_issue_assignee_matches(
+    context: object, identifier: str, assignee: str
+) -> None:
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
     assert issue.assignee == assignee

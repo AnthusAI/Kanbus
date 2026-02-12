@@ -5,8 +5,8 @@ use std::process::Command;
 use cucumber::{given, then, when};
 use regex::Regex;
 use serde_json::Value;
-use tempfile::TempDir;
 use std::env;
+use tempfile::TempDir;
 
 use taskulus::cli::run_from_args_with_output;
 use taskulus::file_io::load_project_directory;

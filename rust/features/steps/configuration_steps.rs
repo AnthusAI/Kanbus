@@ -108,7 +108,10 @@ fn given_project_with_unreadable_configuration_file(world: &mut TaskulusWorld) {
 fn given_invalid_config_empty_hierarchy(world: &mut TaskulusWorld) {
     initialize_project(world);
     update_config_file(world, |mapping| {
-        mapping.insert(Value::String("hierarchy".to_string()), Value::Sequence(vec![]));
+        mapping.insert(
+            Value::String("hierarchy".to_string()),
+            Value::Sequence(vec![]),
+        );
     });
 }
 
@@ -142,7 +145,10 @@ fn given_invalid_config_missing_default_workflow(world: &mut TaskulusWorld) {
                 epic
             }),
         );
-        mapping.insert(Value::String("workflows".to_string()), Value::Mapping(workflows));
+        mapping.insert(
+            Value::String("workflows".to_string()),
+            Value::Mapping(workflows),
+        );
     });
 }
 
@@ -150,7 +156,10 @@ fn given_invalid_config_missing_default_workflow(world: &mut TaskulusWorld) {
 fn given_invalid_config_missing_default_priority(world: &mut TaskulusWorld) {
     initialize_project(world);
     update_config_file(world, |mapping| {
-        mapping.insert(Value::String("default_priority".to_string()), Value::Number(99.into()));
+        mapping.insert(
+            Value::String("default_priority".to_string()),
+            Value::Number(99.into()),
+        );
     });
 }
 

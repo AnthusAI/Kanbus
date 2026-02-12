@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-
 DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "prefix": "tsk",
     "hierarchy": ["initiative", "epic", "task", "sub-task"],

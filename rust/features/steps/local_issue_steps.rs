@@ -38,7 +38,10 @@ fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
 
 fn local_project_dir(world: &TaskulusWorld) -> PathBuf {
     let project_dir = load_project_dir(world);
-    let local_dir = project_dir.parent().expect("project parent").join("project-local");
+    let local_dir = project_dir
+        .parent()
+        .expect("project parent")
+        .join("project-local");
     fs::create_dir_all(local_dir.join("issues")).expect("create local issues");
     local_dir
 }
@@ -146,14 +149,20 @@ fn given_local_issue_local_exists(world: &mut TaskulusWorld) {
 #[given(".gitignore already includes \"project-local/\"")]
 fn given_gitignore_includes_project_local(world: &mut TaskulusWorld) {
     let project_dir = load_project_dir(world);
-    let gitignore_path = project_dir.parent().expect("project parent").join(".gitignore");
+    let gitignore_path = project_dir
+        .parent()
+        .expect("project parent")
+        .join(".gitignore");
     fs::write(gitignore_path, "project-local/\n").expect("write gitignore");
 }
 
 #[given("a .gitignore without a trailing newline exists")]
 fn given_gitignore_without_trailing_newline(world: &mut TaskulusWorld) {
     let project_dir = load_project_dir(world);
-    let gitignore_path = project_dir.parent().expect("project parent").join(".gitignore");
+    let gitignore_path = project_dir
+        .parent()
+        .expect("project parent")
+        .join(".gitignore");
     fs::write(gitignore_path, "node_modules").expect("write gitignore");
 }
 
@@ -208,7 +217,10 @@ fn then_issue_missing_shared_shared(world: &mut TaskulusWorld) {
 #[then(".gitignore should include \"project-local/\"")]
 fn then_gitignore_includes_project_local(world: &mut TaskulusWorld) {
     let project_dir = load_project_dir(world);
-    let gitignore_path = project_dir.parent().expect("project parent").join(".gitignore");
+    let gitignore_path = project_dir
+        .parent()
+        .expect("project parent")
+        .join(".gitignore");
     let contents = fs::read_to_string(gitignore_path).expect("read gitignore");
     assert!(contents.lines().any(|line| line == "project-local/"));
 }
@@ -216,8 +228,14 @@ fn then_gitignore_includes_project_local(world: &mut TaskulusWorld) {
 #[then(".gitignore should include \"project-local/\" only once")]
 fn then_gitignore_includes_once(world: &mut TaskulusWorld) {
     let project_dir = load_project_dir(world);
-    let gitignore_path = project_dir.parent().expect("project parent").join(".gitignore");
+    let gitignore_path = project_dir
+        .parent()
+        .expect("project parent")
+        .join(".gitignore");
     let contents = fs::read_to_string(gitignore_path).expect("read gitignore");
-    let count = contents.lines().filter(|line| *line == "project-local/").count();
+    let count = contents
+        .lines()
+        .filter(|line| *line == "project-local/")
+        .count();
     assert_eq!(count, 1);
 }
