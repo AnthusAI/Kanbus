@@ -13,6 +13,8 @@ jobs:
   publish:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.release_tag.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,3 +40,71 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: semantic-release publish
+
+      - name: Capture release tag
+        id: release_tag
+        run: |
+          git fetch --tags
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+  rust-binaries:
+    needs: publish
+    if: ${{ needs.publish.outputs.release_tag != '' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: taskulus
+            archive: tar.gz
+          - os: macos-13
+            target: x86_64-apple-darwin
+            binary: taskulus
+            archive: tar.gz
+          - os: macos-14
+            target: aarch64-apple-darwin
+            binary: taskulus
+            archive: tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: taskulus.exe
+            archive: zip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build binary
+        run: |
+          cd rust
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Package binary (tar.gz)
+        if: ${{ matrix.archive == 'tar.gz' }}
+        run: |
+          mkdir -p dist
+          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/
+          tar -czf dist/taskulus-${{ matrix.target }}.tar.gz -C dist ${{ matrix.binary }}
+
+      - name: Package binary (zip)
+        if: ${{ matrix.archive == 'zip' }}
+        run: |
+          mkdir -p dist
+          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/
+          cd dist
+          zip taskulus-${{ matrix.target }}.zip ${{ matrix.binary }}
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.publish.outputs.release_tag }}
+          files: |
+            dist/taskulus-${{ matrix.target }}.${{ matrix.archive }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
