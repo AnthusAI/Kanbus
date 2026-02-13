@@ -161,7 +161,7 @@ jobs:
           text = path.read_text()
           version = sys.argv[1]
           def replace_version(contents: str, version: str) -> str:
-              pattern = r'(?m)^version\\s*=\\s*\"[^\"]*\"'
+              pattern = r'(?m)^version\s*=\s*"[^"]*"'
               return re.sub(pattern, f'version = "{version}"', contents, count=1)
           new_text = replace_version(text, version)
           if new_text == text:
