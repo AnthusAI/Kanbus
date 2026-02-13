@@ -322,6 +322,7 @@ def then_project_directory_should_match_absolute(context: object) -> None:
     assert expected is not None
     assert context.configuration.project_directory == expected
 
+
 @then("beads compatibility should be false")
 def then_beads_compatibility_should_be_false(context: object) -> None:
     assert context.configuration.beads_compatibility is False

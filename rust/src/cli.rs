@@ -432,9 +432,9 @@ fn execute_command(
                 (load_beads_issue_by_id(root, &identifier)?, None)
             } else {
                 let lookup = load_issue_from_project(root, &identifier)?;
-                let configuration = load_project_configuration(
-                    &get_configuration_path(lookup.project_dir.as_path())?,
-                )?;
+                let configuration = load_project_configuration(&get_configuration_path(
+                    lookup.project_dir.as_path(),
+                )?)?;
                 (lookup.issue, Some(configuration))
             };
             if json {
