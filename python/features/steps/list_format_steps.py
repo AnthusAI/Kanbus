@@ -96,9 +96,7 @@ def when_format_list_line_for_issue(context: object, identifier: str) -> None:
 
 
 @when('I format the list line for issue "{identifier}" with NO_COLOR set')
-def when_format_list_line_for_issue_no_color(
-    context: object, identifier: str
-) -> None:
+def when_format_list_line_for_issue_no_color(context: object, identifier: str) -> None:
     if not hasattr(context, "original_no_color"):
         context.original_no_color = os.environ.get("NO_COLOR")
     os.environ["NO_COLOR"] = "1"
