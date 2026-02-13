@@ -128,6 +128,45 @@ fn given_issue_has_priority(world: &mut TaskulusWorld, identifier: String, prior
     write_issue_file(&project_dir, &issue);
 }
 
+#[given(expr = "issue {string} has parent {string}")]
+fn given_issue_has_parent(world: &mut TaskulusWorld, identifier: String, parent: String) {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", identifier));
+    let contents = fs::read_to_string(&issue_path).expect("read issue");
+    let mut issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
+    issue.parent = Some(parent);
+    write_issue_file(&project_dir, &issue);
+}
+
+#[given(
+    expr = "an issue {string} exists with status {string}, priority {int}, type {string}, and assignee {string}"
+)]
+fn given_issue_with_full_metadata(
+    world: &mut TaskulusWorld,
+    identifier: String,
+    status: String,
+    priority: i32,
+    issue_type: String,
+    assignee: String,
+) {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", identifier));
+    let issue = match fs::read_to_string(&issue_path) {
+        Ok(contents) => serde_json::from_str(&contents).expect("parse issue"),
+        Err(_) => build_issue(&identifier),
+    };
+    let mut issue = issue;
+    issue.status = status;
+    issue.priority = priority;
+    issue.issue_type = issue_type;
+    issue.assignee = Some(assignee);
+    write_issue_file(&project_dir, &issue);
+}
+
 #[when("I run \"tsk --help\"")]
 fn when_run_help(world: &mut TaskulusWorld) {
     run_cli(world, "tsk --help");
@@ -214,12 +253,24 @@ fn when_run_list_local_conflict(world: &mut TaskulusWorld) {
     run_cli(world, "tsk list --local-only --no-local");
 }
 
+#[when("I run \"tsk list --porcelain\"")]
+fn when_run_list_porcelain(world: &mut TaskulusWorld) {
+    run_cli(world, "tsk list --porcelain");
+}
+
 #[then("stdout should list \"tsk-high\" before \"tsk-low\"")]
 fn then_stdout_lists_high_before_low(world: &mut TaskulusWorld) {
     let stdout = world.stdout.as_ref().expect("stdout");
     let high_index = stdout.find("tsk-high").expect("find tsk-high");
     let low_index = stdout.find("tsk-low").expect("find tsk-low");
     assert!(high_index < low_index);
+}
+
+#[then(expr = "stdout should contain the line {string}")]
+fn then_stdout_contains_line(world: &mut TaskulusWorld, expected: String) {
+    let stdout = world.stdout.as_ref().expect("stdout");
+    let found = stdout.lines().any(|line| line == expected);
+    assert!(found, "expected line not found in stdout");
 }
 
 #[given("the daemon list request will fail")]

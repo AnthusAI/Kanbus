@@ -18,6 +18,7 @@ from taskulus.issue_close import IssueCloseError, close_issue
 from taskulus.issue_comment import IssueCommentError, add_comment
 from taskulus.issue_delete import IssueDeleteError, delete_issue
 from taskulus.issue_display import format_issue_for_display
+from taskulus.issue_line import compute_widths, format_issue_line
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.issue_update import IssueUpdateError, update_issue
 from taskulus.issue_transfer import IssueTransferError, localize_issue, promote_issue
@@ -303,6 +304,12 @@ def comment(identifier: str, text: str) -> None:
 @click.option("--search")
 @click.option("--no-local", is_flag=True, default=False)
 @click.option("--local-only", is_flag=True, default=False)
+@click.option(
+    "--porcelain",
+    is_flag=True,
+    default=False,
+    help="Plain, non-colorized output for machine parsing.",
+)
 @click.pass_context
 def list_command(
     context: click.Context,
@@ -314,6 +321,7 @@ def list_command(
     search: str | None,
     no_local: bool,
     local_only: bool,
+    porcelain: bool,
 ) -> None:
     """List issues in the current project."""
     root = Path.cwd()
@@ -334,10 +342,10 @@ def list_command(
     except (IssueListingError, QueryError) as error:
         raise click.ClickException(str(error)) from error
 
+    widths = None if porcelain else compute_widths(issues)
     for issue in issues:
-        project_path = issue.custom.get("project_path")
-        prefix = f"{project_path} " if project_path else ""
-        click.echo(f"{prefix}{issue.identifier} {issue.title}")
+        line = format_issue_line(issue, porcelain=porcelain, widths=widths)
+        click.echo(line)
 
 
 @cli.group("wiki")

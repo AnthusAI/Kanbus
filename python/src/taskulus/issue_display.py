@@ -4,6 +4,30 @@ from __future__ import annotations
 
 from taskulus.models import IssueData
 
+STATUS_GLYPHS = {
+    "open": "◌",
+    "in_progress": "◐",
+    "blocked": "◑",
+    "closed": "●",
+    "deferred": "◍",
+}
+
+STATUS_COLORS = {
+    "open": "cyan",
+    "in_progress": "blue",
+    "blocked": "red",
+    "closed": "green",
+    "deferred": "yellow",
+}
+
+PRIORITY_COLORS = {
+    0: "red",
+    1: "bright_red",
+    2: "yellow",
+    3: "blue",
+    4: "white",
+}
+
 
 def format_issue_for_display(issue: IssueData) -> str:
     """Format an issue for human-readable display.

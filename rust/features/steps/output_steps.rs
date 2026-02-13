@@ -37,6 +37,12 @@ fn then_stdout_contains_external_project_path(world: &mut TaskulusWorld, identif
         .expected_project_path
         .as_ref()
         .expect("expected project path");
-    let expected = format!("{} {}", project_path.to_string_lossy(), identifier);
-    assert!(stdout.contains(&expected));
+    let project_path = project_path.to_string_lossy();
+    let matches = stdout
+        .lines()
+        .any(|line| line.contains(identifier.as_str()) && line.contains(project_path.as_ref()));
+    assert!(
+        matches,
+        "no line contains both external project path and identifier"
+    );
 }

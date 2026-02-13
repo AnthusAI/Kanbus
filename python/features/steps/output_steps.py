@@ -35,5 +35,8 @@ def then_stdout_contains_external_project_path(
 ) -> None:
     project_path = getattr(context, "external_project_path", None)
     assert project_path is not None
-    expected = f"{project_path} {identifier}"
-    assert expected in context.result.stdout
+    lines = context.result.stdout.splitlines()
+    matches = [
+        line for line in lines if identifier in line and str(project_path) in line
+    ]
+    assert matches, "no line contains both external project path and identifier"
