@@ -17,7 +17,9 @@ from taskulus.issue_creation import IssueCreationError, create_issue
 from taskulus.issue_close import IssueCloseError, close_issue
 from taskulus.issue_comment import IssueCommentError, add_comment
 from taskulus.issue_delete import IssueDeleteError, delete_issue
+from taskulus.beads_write import BeadsWriteError, create_beads_issue, update_beads_issue
 from taskulus.issue_display import format_issue_for_display
+from taskulus.ids import format_issue_key
 from taskulus.issue_line import compute_widths, format_issue_line
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.issue_update import IssueUpdateError, update_issue
@@ -46,7 +48,8 @@ from taskulus.dependency_tree import (
     render_dependency_tree,
 )
 from taskulus.wiki import WikiError, WikiRenderRequest, render_wiki_page
-from taskulus.project import ProjectMarkerError
+from taskulus.project import ProjectMarkerError, get_configuration_path
+from taskulus.config_loader import load_project_configuration
 
 
 @click.group()
@@ -83,7 +86,9 @@ def init(create_local: bool) -> None:
 @click.option("--label", "labels", multiple=True)
 @click.option("--description", default="")
 @click.option("--local", "local_issue", is_flag=True, default=False)
+@click.pass_context
 def create(
+    context: click.Context,
     title: tuple[str, ...],
     issue_type: str | None,
     priority: int | None,
@@ -118,6 +123,25 @@ def create(
         raise click.ClickException("title is required")
 
     root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        if local_issue:
+            raise click.ClickException("beads mode does not support local issues")
+        try:
+            issue = create_beads_issue(
+                root=root,
+                title=title_text,
+                issue_type=issue_type,
+                priority=priority,
+                assignee=assignee,
+                parent=parent,
+                description=description_text,
+            )
+        except BeadsWriteError as error:
+            raise click.ClickException(str(error)) from error
+        click.echo(format_issue_for_display(issue, configuration=None))
+        return
+
     try:
         issue = create_issue(
             root=root,
@@ -133,7 +157,12 @@ def create(
     except IssueCreationError as error:
         raise click.ClickException(str(error)) from error
 
-    click.echo(issue.identifier)
+    configuration = load_project_configuration(get_configuration_path(root))
+    click.echo(
+        format_issue_for_display(
+            issue, configuration=configuration, project_context=False
+        )
+    )
 
 
 @cli.command("show")
@@ -155,19 +184,27 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
             issue = load_beads_issue(root, identifier)
         except MigrationError as error:
             raise click.ClickException(str(error)) from error
+        configuration = None
     else:
         try:
             lookup = load_issue_from_project(root, identifier)
         except IssueLookupError as error:
             raise click.ClickException(str(error)) from error
         issue = lookup.issue
+        configuration = load_project_configuration(
+            get_configuration_path(lookup.project_dir)
+        )
 
     if as_json:
         payload = issue.model_dump(by_alias=True, mode="json")
         click.echo(json.dumps(payload, indent=2, sort_keys=False))
         return
 
-    click.echo(format_issue_for_display(issue))
+    click.echo(
+        format_issue_for_display(
+            issue, configuration=configuration, project_context=False
+        )
+    )
 
 
 @cli.command("update")
@@ -197,6 +234,19 @@ def update(
     :type claim: bool
     """
     root = Path.cwd()
+    beads_mode = False
+    if click.get_current_context().obj:
+        beads_mode = bool(click.get_current_context().obj.get("beads_mode"))
+
+    if beads_mode:
+        try:
+            update_beads_issue(root, identifier, status=status)
+        except BeadsWriteError as error:
+            raise click.ClickException(str(error)) from error
+        formatted_identifier = format_issue_key(identifier, project_context=False)
+        click.echo(f"Updated {formatted_identifier}")
+        return
+
     try:
         assignee = get_current_user() if claim else None
         update_issue(
@@ -208,6 +258,8 @@ def update(
             assignee=assignee,
             claim=claim,
         )
+        formatted_identifier = format_issue_key(identifier, project_context=False)
+        click.echo(f"Updated {formatted_identifier}")
     except IssueUpdateError as error:
         raise click.ClickException(str(error)) from error
 
@@ -305,6 +357,13 @@ def comment(identifier: str, text: str) -> None:
 @click.option("--no-local", is_flag=True, default=False)
 @click.option("--local-only", is_flag=True, default=False)
 @click.option(
+    "--limit",
+    type=int,
+    default=50,
+    show_default=True,
+    help="Maximum issues to display (0 for no limit). Matches Beads default.",
+)
+@click.option(
     "--porcelain",
     is_flag=True,
     default=False,
@@ -321,6 +380,7 @@ def list_command(
     search: str | None,
     no_local: bool,
     local_only: bool,
+    limit: int,
     porcelain: bool,
 ) -> None:
     """List issues in the current project."""
@@ -342,10 +402,39 @@ def list_command(
     except (IssueListingError, QueryError) as error:
         raise click.ClickException(str(error)) from error
 
-    widths = None if porcelain else compute_widths(issues)
+    if beads_mode:
+        issues = sorted(
+            issues,
+            key=lambda issue: (
+                issue.priority,
+                -_issue_sort_timestamp(issue),
+                issue.identifier,
+            ),
+        )
+    if limit > 0:
+        issues = issues[:limit]
+
+    project_context = beads_mode or not any(
+        issue.custom.get("project_path") for issue in issues
+    )
+    widths = (
+        None if porcelain else compute_widths(issues, project_context=project_context)
+    )
     for issue in issues:
-        line = format_issue_line(issue, porcelain=porcelain, widths=widths)
+        line = format_issue_line(
+            issue,
+            porcelain=porcelain,
+            widths=widths,
+            project_context=project_context,
+        )
         click.echo(line)
+
+
+def _issue_sort_timestamp(issue: IssueData) -> float:
+    """Return a sortable UTC timestamp (seconds) for an issue."""
+
+    timestamp = issue.closed_at or issue.updated_at or issue.created_at
+    return timestamp.timestamp()
 
 
 @cli.group("wiki")

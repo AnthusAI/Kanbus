@@ -4,11 +4,8 @@ Issue identifier generation.
 
 from __future__ import annotations
 
-import hashlib
-import os
-import secrets
+import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Set
 
 from pydantic import BaseModel, Field
@@ -18,20 +15,17 @@ class IssueIdentifierRequest(BaseModel):
     """
     Request to generate a unique issue identifier.
 
-    :param title: The issue title to hash.
+    :param title: The issue title for uniqueness checks.
     :type title: str
     :param existing_ids: Set of existing IDs to avoid collisions.
     :type existing_ids: Set[str]
     :param prefix: ID prefix from configuration.
     :type prefix: str
-    :param created_at: Timestamp used as part of the hash.
-    :type created_at: datetime
     """
 
     title: str = Field(min_length=1)
     existing_ids: Set[str] = Field(default_factory=set)
     prefix: str = Field(default="tsk", min_length=1)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass(frozen=True)
@@ -41,37 +35,55 @@ class IssueIdentifierResult:
     identifier: str
 
 
-def _hash_identifier_material(
-    title: str, created_at: datetime, random_bytes: bytes
-) -> str:
-    material = f"{title}{created_at.isoformat()}".encode("utf-8") + random_bytes
-    return hashlib.sha256(material).hexdigest()[:6]
+def format_issue_key(identifier: str, project_context: bool) -> str:
+    """
+    Produce a display-friendly issue key.
+
+    :param identifier: Full issue identifier (may include project key and UUID).
+    :type identifier: str
+    :param project_context: Whether the display is within a project context.
+    :type project_context: bool
+    :return: Formatted key with optional project key and abbreviated hash.
+    :rtype: str
+    """
+    if identifier.isdigit():
+        return identifier
+
+    key_part = ""
+    remainder = identifier
+    if "-" in identifier:
+        parts = identifier.split("-", 1)
+        if len(parts) == 2 and parts[0] and parts[1]:
+            key_part, remainder = parts
+
+    base = remainder
+    suffix = ""
+    if "." in remainder:
+        base, suffix = remainder.split(".", 1)
+        suffix = f".{suffix}"
+
+    truncated = base[:6] if base else base
+
+    if project_context:
+        return f"{truncated}{suffix}"
+
+    if key_part:
+        return f"{key_part}-{truncated}{suffix}"
+
+    return f"{truncated}{suffix}"
 
 
 def generate_issue_identifier(request: IssueIdentifierRequest) -> IssueIdentifierResult:
-    """Generate a unique issue ID using SHA256 hash.
+    """Generate a unique issue ID using a UUID.
 
     :param request: Validated request containing title and existing IDs.
     :type request: IssueIdentifierRequest
-    :return: A unique ID string with format '{prefix}-{6hex}'.
+    :return: A unique ID string with format '{prefix}-{uuid}'.
     :rtype: IssueIdentifierResult
     :raises RuntimeError: If unable to generate unique ID after 10 attempts.
     """
-    test_bytes_hex = os.getenv("TASKULUS_TEST_RANDOM_BYTES", "")
-    test_bytes = None
-    if test_bytes_hex:
-        try:
-            test_bytes = bytes.fromhex(test_bytes_hex)
-        except ValueError as error:
-            raise RuntimeError("invalid TASKULUS_TEST_RANDOM_BYTES") from error
-
     for _ in range(10):
-        digest = _hash_identifier_material(
-            request.title,
-            request.created_at,
-            test_bytes if test_bytes is not None else secrets.token_bytes(8),
-        )
-        identifier = f"{request.prefix}-{digest}"
+        identifier = f"{request.prefix}-{uuid.uuid4()}"
         if identifier not in request.existing_ids:
             return IssueIdentifierResult(identifier=identifier)
 

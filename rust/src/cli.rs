@@ -8,13 +8,18 @@ use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 use owo_colors::OwoColorize;
 
+use crate::beads_write::create_beads_issue;
+use crate::config_loader::load_project_configuration;
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
 use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
 use crate::dependency_tree::{build_dependency_tree, render_dependency_tree};
 use crate::doctor::run_doctor;
 use crate::error::TaskulusError;
-use crate::file_io::{ensure_git_repository, initialize_project, resolve_root};
+use crate::file_io::{
+    ensure_git_repository, get_configuration_path, initialize_project, resolve_root,
+};
+use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
 use crate::issue_comment::add_comment;
 use crate::issue_creation::{create_issue, IssueCreationRequest};
@@ -357,6 +362,31 @@ fn execute_command(
                 .as_ref()
                 .map(|values| values.join(" "))
                 .unwrap_or_default();
+            if beads_mode {
+                if local {
+                    return Err(TaskulusError::IssueOperation(
+                        "beads mode does not support local issues".to_string(),
+                    ));
+                }
+                let issue = create_beads_issue(
+                    root,
+                    &title_text,
+                    issue_type.as_deref(),
+                    priority,
+                    assignee.as_deref(),
+                    parent.as_deref(),
+                    if description_text.is_empty() {
+                        None
+                    } else {
+                        Some(description_text.as_str())
+                    },
+                )?;
+                let use_color =
+                    std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+                return Ok(Some(format_issue_for_display(
+                    &issue, None, use_color, false,
+                )));
+            }
             let request = IssueCreationRequest {
                 root: root.to_path_buf(),
                 title: title_text,
@@ -373,7 +403,15 @@ fn execute_command(
                 local,
             };
             let issue = create_issue(&request)?;
-            Ok(Some(issue.identifier))
+            let configuration = load_project_configuration(&get_configuration_path(root)?)?;
+            let use_color =
+                std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+            Ok(Some(format_issue_for_display(
+                &issue,
+                Some(&configuration),
+                use_color,
+                false,
+            )))
         }
         Commands::Show { identifier, json } => {
             let issue = if beads_mode {
@@ -381,12 +419,24 @@ fn execute_command(
             } else {
                 load_issue_from_project(root, &identifier)?.issue
             };
+            let configuration = if beads_mode {
+                None
+            } else {
+                Some(load_project_configuration(&get_configuration_path(root)?)?)
+            };
             if json {
                 let payload =
                     serde_json::to_string_pretty(&issue).expect("failed to serialize issue");
                 return Ok(Some(payload));
             }
-            Ok(Some(format_issue_for_display(&issue)))
+            let use_color =
+                std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+            Ok(Some(format_issue_for_display(
+                &issue,
+                configuration.as_ref(),
+                use_color,
+                false,
+            )))
         }
         Commands::Update {
             identifier,
@@ -425,7 +475,8 @@ fn execute_command(
                 assignee_value.as_deref(),
                 claim,
             )?;
-            Ok(None)
+            let formatted_identifier = format_issue_key(&identifier, false);
+            Ok(Some(format!("Updated {}", formatted_identifier)))
         }
         Commands::Close { identifier } => {
             close_issue(root, &identifier)?;
@@ -473,8 +524,14 @@ fn execute_command(
                     assignee.as_deref(),
                     label.as_deref(),
                 );
-                let searched = search_issues(filtered, search.as_deref());
-                sort_issues(searched, sort.as_deref())?
+                let mut searched = search_issues(filtered, search.as_deref());
+                searched.sort_by(|a, b| {
+                    a.priority
+                        .cmp(&b.priority)
+                        .then_with(|| sort_timestamp(b).total_cmp(&sort_timestamp(a)))
+                        .then(a.identifier.cmp(&b.identifier))
+                });
+                searched
             } else {
                 list_issues(
                     root,
@@ -488,14 +545,18 @@ fn execute_command(
                     local_only,
                 )?
             };
+            let project_context = beads_mode
+                || !issues
+                    .iter()
+                    .any(|issue| issue.custom.get("project_path").is_some());
             let widths = if porcelain {
                 None
             } else {
-                Some(compute_widths(&issues))
+                Some(compute_widths(&issues, project_context))
             };
             let lines = issues
                 .iter()
-                .map(|issue| format_issue_line(issue, widths.as_ref(), porcelain))
+                .map(|issue| format_issue_line(issue, widths.as_ref(), porcelain, project_context))
                 .collect::<Vec<_>>();
             Ok(Some(lines.join("\n")))
         }
@@ -628,8 +689,19 @@ pub fn run_from_env() -> Result<(), TaskulusError> {
     run_from_args(std::env::args_os(), Path::new("."))
 }
 
-fn format_issue_line(issue: &IssueData, widths: Option<&Widths>, porcelain: bool) -> String {
+fn format_issue_line(
+    issue: &IssueData,
+    widths: Option<&Widths>,
+    porcelain: bool,
+    project_context: bool,
+) -> String {
     let parent_value = issue.parent.clone().unwrap_or_else(|| "-".to_string());
+    let formatted_identifier = format_issue_key(&issue.identifier, project_context);
+    let parent_display = if parent_value == "-" {
+        parent_value.clone()
+    } else {
+        format_issue_key(&parent_value, project_context)
+    };
     if porcelain {
         return format!(
             "{} | {} | {} | {} | P{} | {}",
@@ -639,8 +711,8 @@ fn format_issue_line(issue: &IssueData, widths: Option<&Widths>, porcelain: bool
                 .next()
                 .unwrap_or(' ')
                 .to_ascii_uppercase(),
-            issue.identifier,
-            parent_value,
+            formatted_identifier,
+            parent_display,
             issue.status,
             issue.priority,
             issue.title
@@ -666,8 +738,8 @@ fn format_issue_line(issue: &IssueData, widths: Option<&Widths>, porcelain: bool
         &issue.issue_type,
         color_enabled,
     );
-    let identifier_part = format!("{:width$}", issue.identifier, width = widths.identifier);
-    let parent_part = format!("{:width$}", parent_value, width = widths.parent);
+    let identifier_part = format!("{:width$}", formatted_identifier, width = widths.identifier);
+    let parent_part = format!("{:width$}", parent_display, width = widths.parent);
     let status_part = apply_status_color(
         &format!("{:width$}", issue.status, width = widths.status),
         &issue.status,
@@ -683,6 +755,13 @@ fn format_issue_line(issue: &IssueData, widths: Option<&Widths>, porcelain: bool
         "{prefix}{type_part} {identifier_part} {parent_part} {status_part} {priority_part} {title}",
         title = issue.title
     )
+}
+
+fn sort_timestamp(issue: &IssueData) -> f64 {
+    let timestamp = issue
+        .closed_at
+        .unwrap_or(issue.updated_at.unwrap_or(issue.created_at));
+    timestamp.timestamp() as f64
 }
 
 fn format_ready_line(issue: &IssueData) -> String {
@@ -772,7 +851,7 @@ struct Widths {
     priority: usize,
 }
 
-fn compute_widths(issues: &[IssueData]) -> Widths {
+fn compute_widths(issues: &[IssueData], project_context: bool) -> Widths {
     let mut widths = Widths {
         issue_type: 1,
         identifier: 0,
@@ -783,10 +862,15 @@ fn compute_widths(issues: &[IssueData]) -> Widths {
     for issue in issues {
         let type_len = issue.issue_type.chars().next().map(|_| 1).unwrap_or(1);
         widths.issue_type = widths.issue_type.max(type_len);
-        widths.identifier = widths.identifier.max(issue.identifier.len());
-        widths.parent = widths
-            .parent
-            .max(issue.parent.as_deref().unwrap_or("-").len());
+        let formatted_identifier = format_issue_key(&issue.identifier, project_context);
+        widths.identifier = widths.identifier.max(formatted_identifier.len());
+        let parent_value = issue.parent.as_deref().unwrap_or("-");
+        let parent_display = if parent_value == "-" {
+            parent_value.to_string()
+        } else {
+            format_issue_key(parent_value, project_context)
+        };
+        widths.parent = widths.parent.max(parent_display.len());
         widths.status = widths.status.max(issue.status.len());
         widths.priority = widths.priority.max(format!("P{}", issue.priority).len());
     }
