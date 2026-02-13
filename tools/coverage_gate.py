@@ -24,6 +24,30 @@ def parse_line_rate(xml_path: Path) -> float:
     return float(line_rate)
 
 
+def list_uncovered_files(xml_path: Path) -> list[tuple[str, float]]:
+    """List files with less than full line coverage.
+
+    :param xml_path: Path to the coverage XML file.
+    :type xml_path: Path
+    :return: List of (filename, line_rate) tuples.
+    :rtype: list[tuple[str, float]]
+    """
+    root = ElementTree.parse(xml_path).getroot()
+    uncovered = []
+    for class_node in root.iter("class"):
+        filename = class_node.attrib.get("filename")
+        line_rate = class_node.attrib.get("line-rate")
+        if not filename or line_rate is None:
+            continue
+        try:
+            rate_value = float(line_rate)
+        except ValueError:
+            continue
+        if rate_value < 1.0:
+            uncovered.append((filename, rate_value))
+    return uncovered
+
+
 def main() -> int:
     """Check coverage against a minimum threshold.
 
@@ -39,6 +63,8 @@ def main() -> int:
     line_rate = parse_line_rate(Path(args.xml_path))
     percentage = round(line_rate * 100.0, 2)
     if percentage < args.minimum:
+        for filename, rate in list_uncovered_files(Path(args.xml_path)):
+            print(f"uncovered: {filename} ({rate * 100.0:.2f}%)")
         print(
             f"coverage {percentage:.2f}% is below required {args.minimum:.2f}%"
         )
