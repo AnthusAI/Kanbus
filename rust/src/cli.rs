@@ -15,8 +15,7 @@ use crate::dependency_tree::{build_dependency_tree, render_dependency_tree};
 use crate::doctor::run_doctor;
 use crate::error::TaskulusError;
 use crate::file_io::{
-    ensure_git_repository, get_configuration_path, initialize_project, load_project_directory,
-    resolve_root,
+    ensure_git_repository, get_configuration_path, initialize_project, resolve_root,
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
