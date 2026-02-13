@@ -26,3 +26,9 @@ Feature: Issue list formatting
     And an issue "tsk-colorless" exists with status "open"
     When I format the list line for issue "tsk-colorless"
     Then the formatted output should contain text "open"
+
+  Scenario: List formatting respects NO_COLOR
+    Given a Taskulus project with default configuration
+    And an issue "tsk-colorless" exists with status "open"
+    When I format the list line for issue "tsk-colorless" with NO_COLOR set
+    Then the formatted output should contain no ANSI color codes
