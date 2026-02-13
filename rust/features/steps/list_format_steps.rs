@@ -165,6 +165,36 @@ fn when_format_list_line_for_issue(world: &mut TaskulusWorld, identifier: String
     }
 }
 
+#[when(expr = "I format the list line for issue {string} with NO_COLOR set")]
+fn when_format_list_line_for_issue_no_color(world: &mut TaskulusWorld, identifier: String) {
+    let original_no_color = std::env::var("NO_COLOR").ok();
+    std::env::set_var("NO_COLOR", "1");
+
+    let project_dir = load_project_dir(world);
+    let config_path = project_dir
+        .parent()
+        .unwrap_or(&project_dir)
+        .join(".taskulus.yml");
+    let configuration = if config_path.exists() {
+        Some(load_project_configuration(&config_path).expect("load configuration"))
+    } else {
+        None
+    };
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(&issue_path).expect("read issue");
+    let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
+    let widths = compute_widths(std::slice::from_ref(&issue), false);
+    let line = format_issue_line(&issue, Some(&widths), false, false, configuration.as_ref());
+    world.formatted_output = Some(line);
+
+    match original_no_color {
+        Some(value) => std::env::set_var("NO_COLOR", value),
+        None => std::env::remove_var("NO_COLOR"),
+    }
+}
+
 #[then("each formatted line should contain ANSI color codes")]
 fn then_each_formatted_line_contains_ansi(world: &mut TaskulusWorld) {
     let output = world.formatted_output.as_deref().unwrap_or("");
@@ -174,4 +204,15 @@ fn then_each_formatted_line_contains_ansi(world: &mut TaskulusWorld) {
         .collect();
     assert!(!lines.is_empty(), "no formatted lines");
     assert!(lines.iter().all(|line| line.contains("\u{1b}[")));
+}
+
+#[then("the formatted output should contain no ANSI color codes")]
+fn then_formatted_output_has_no_ansi(world: &mut TaskulusWorld) {
+    let output = world.formatted_output.as_deref().unwrap_or("");
+    let lines: Vec<&str> = output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect();
+    assert!(!lines.is_empty(), "no formatted lines");
+    assert!(lines.iter().all(|line| !line.contains("\u{1b}[")));
 }

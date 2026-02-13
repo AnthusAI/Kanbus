@@ -95,9 +95,37 @@ def when_format_list_line_for_issue(context: object, identifier: str) -> None:
     )
 
 
+@when('I format the list line for issue "{identifier}" with NO_COLOR set')
+def when_format_list_line_for_issue_no_color(
+    context: object, identifier: str
+) -> None:
+    if not hasattr(context, "original_no_color"):
+        context.original_no_color = os.environ.get("NO_COLOR")
+    os.environ["NO_COLOR"] = "1"
+    project_dir = load_project_directory(context)
+    configuration = load_project_configuration(get_configuration_path(project_dir))
+    issue = read_issue_file(project_dir, identifier)
+    widths = compute_widths([issue], project_context=False)
+    context.formatted_output = format_issue_line(
+        issue,
+        porcelain=False,
+        widths=widths,
+        project_context=False,
+        configuration=configuration,
+    )
+
+
 @then("each formatted line should contain ANSI color codes")
 def then_each_formatted_line_contains_ansi(context: object) -> None:
     output = getattr(context, "formatted_output", "")
     lines = [line for line in output.splitlines() if line.strip()]
     assert lines, "no formatted lines"
     assert all("\x1b[" in line for line in lines)
+
+
+@then("the formatted output should contain no ANSI color codes")
+def then_formatted_output_has_no_ansi(context: object) -> None:
+    output = getattr(context, "formatted_output", "")
+    lines = [line for line in output.splitlines() if line.strip()]
+    assert lines, "no formatted lines"
+    assert all("\x1b[" not in line for line in lines)
