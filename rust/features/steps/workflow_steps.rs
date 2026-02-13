@@ -241,6 +241,7 @@ fn when_lookup_workflow(world: &mut TaskulusWorld, issue_type: String) {
         default_priority: 2,
         status_colors: BTreeMap::new(),
         type_colors: BTreeMap::new(),
+        beads_compatibility: false,
     };
     match get_workflow_for_issue_type(&configuration, &issue_type) {
         Ok(_) => world.workflow_error = None,

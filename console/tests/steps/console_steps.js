@@ -10,7 +10,7 @@ function issueCardLocator(page, title) {
 }
 
 Given("the console is open", async function () {
-  await expect(this.page.locator("text=Taskulus Console")).toBeVisible();
+  await expect(this.page.getByTestId("open-settings")).toBeVisible();
 });
 
 Given("local storage is cleared", async function () {
@@ -18,7 +18,7 @@ Given("local storage is cleared", async function () {
 });
 
 When("the console is reloaded", async function () {
-  await this.page.reload({ waitUntil: "networkidle" });
+  await this.page.reload({ waitUntil: "domcontentloaded" });
 });
 
 When("I switch to the {string} tab", async function (tabName) {
