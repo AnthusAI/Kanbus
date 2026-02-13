@@ -14,20 +14,20 @@ Feature: Query and list operations
   Scenario: List output includes project paths when multiple projects exist
     Given a repository with multiple projects and issues
     When I run "tsk list"
-    Then stdout should contain "alpha/project tsk-alpha"
-    And stdout should contain "beta/project tsk-beta"
+    Then stdout should contain "alpha/project T tsk-alpha"
+    And stdout should contain "beta/project T tsk-beta"
 
   Scenario: List output includes project paths when multiple projects exist without local issues
     Given a repository with multiple projects and issues
     When I run "tsk list --no-local"
-    Then stdout should contain "alpha/project tsk-alpha"
-    And stdout should contain "beta/project tsk-beta"
+    Then stdout should contain "alpha/project T tsk-alpha"
+    And stdout should contain "beta/project T tsk-beta"
 
   Scenario: List output includes project paths for local-only issues in multi-project repositories
     Given a repository with multiple projects and local issues
     When I run "tsk list --local-only"
-    Then stdout should contain "alpha/project tsk-alpha-local"
-    And stdout should not contain "beta/project tsk-beta"
+    Then stdout should contain "alpha/project T tsk-alpha-local"
+    And stdout should not contain "beta/project T tsk-beta"
 
   Scenario: List output includes external project paths from dotfile
     Given a repository with a .taskulus file referencing another project

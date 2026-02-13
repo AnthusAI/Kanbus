@@ -1,10 +1,12 @@
 //! CLI command definitions.
 
 use std::ffi::OsString;
+use std::io::IsTerminal;
 use std::path::Path;
 
 use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
+use owo_colors::OwoColorize;
 
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
@@ -144,6 +146,9 @@ enum Commands {
         /// Show only local issues.
         #[arg(long = "local-only")]
         local_only: bool,
+        /// Plain, non-colorized output for machine parsing.
+        #[arg(long)]
+        porcelain: bool,
     },
     /// Validate project integrity.
     Validate,
@@ -452,6 +457,7 @@ fn execute_command(
             search,
             no_local,
             local_only,
+            porcelain,
         } => {
             let issues = if beads_mode {
                 if local_only || no_local {
@@ -482,10 +488,15 @@ fn execute_command(
                     local_only,
                 )?
             };
-            let mut lines = Vec::new();
-            for issue in issues {
-                lines.push(format_issue_line(&issue));
-            }
+            let widths = if porcelain {
+                None
+            } else {
+                Some(compute_widths(&issues))
+            };
+            let lines = issues
+                .iter()
+                .map(|issue| format_issue_line(issue, widths.as_ref(), porcelain))
+                .collect::<Vec<_>>();
             Ok(Some(lines.join("\n")))
         }
         Commands::Validate => {
@@ -617,14 +628,61 @@ pub fn run_from_env() -> Result<(), TaskulusError> {
     run_from_args(std::env::args_os(), Path::new("."))
 }
 
-fn format_issue_line(issue: &IssueData) -> String {
+fn format_issue_line(issue: &IssueData, widths: Option<&Widths>, porcelain: bool) -> String {
+    let parent_value = issue.parent.clone().unwrap_or_else(|| "-".to_string());
+    if porcelain {
+        return format!(
+            "{} | {} | {} | {} | P{} | {}",
+            issue
+                .issue_type
+                .chars()
+                .next()
+                .unwrap_or(' ')
+                .to_ascii_uppercase(),
+            issue.identifier,
+            parent_value,
+            issue.status,
+            issue.priority,
+            issue.title
+        );
+    }
+    let widths = widths.expect("widths required for normal mode");
+    let color_enabled = std::io::stdout().is_terminal();
     let prefix = issue
         .custom
         .get("project_path")
         .and_then(|value| value.as_str())
         .map(|value| format!("{value} "))
         .unwrap_or_default();
-    format!("{prefix}{} {}", issue.identifier, issue.title)
+    let type_initial = issue
+        .issue_type
+        .chars()
+        .next()
+        .unwrap_or(' ')
+        .to_ascii_uppercase()
+        .to_string();
+    let type_part = apply_type_color(
+        &format!("{:width$}", type_initial, width = widths.issue_type),
+        &issue.issue_type,
+        color_enabled,
+    );
+    let identifier_part = format!("{:width$}", issue.identifier, width = widths.identifier);
+    let parent_part = format!("{:width$}", parent_value, width = widths.parent);
+    let status_part = apply_status_color(
+        &format!("{:width$}", issue.status, width = widths.status),
+        &issue.status,
+        color_enabled,
+    );
+    let priority_plain = format!("P{}", issue.priority);
+    let priority_part = apply_priority_color(
+        &format!("{:width$}", priority_plain, width = widths.priority),
+        issue.priority,
+        color_enabled,
+    );
+    format!(
+        "{prefix}{type_part} {identifier_part} {parent_part} {status_part} {priority_part} {title}",
+        title = issue.title
+    )
 }
 
 fn format_ready_line(issue: &IssueData) -> String {
@@ -659,4 +717,78 @@ fn format_daemon_project_error(error: TaskulusError) -> TaskulusError {
         }
         other => other,
     }
+}
+
+fn apply_status_color(text: &str, status: &str, color_enabled: bool) -> String {
+    if !color_enabled {
+        return text.to_string();
+    }
+    match status {
+        "open" => text.cyan().to_string(),
+        "in_progress" => text.blue().to_string(),
+        "blocked" => text.red().to_string(),
+        "closed" => text.green().to_string(),
+        "deferred" => text.yellow().to_string(),
+        _ => text.white().to_string(),
+    }
+}
+
+fn apply_priority_color(text: &str, priority: i32, color_enabled: bool) -> String {
+    if !color_enabled {
+        return text.to_string();
+    }
+    match priority {
+        0 => text.red().to_string(),
+        1 => text.bright_red().to_string(),
+        2 => text.yellow().to_string(),
+        3 => text.blue().to_string(),
+        4 => text.white().to_string(),
+        _ => text.white().to_string(),
+    }
+}
+
+fn apply_type_color(text: &str, issue_type: &str, color_enabled: bool) -> String {
+    if !color_enabled {
+        return text.to_string();
+    }
+    match issue_type {
+        "epic" => text.magenta().to_string(),
+        "initiative" => text.bright_magenta().to_string(),
+        "task" => text.white().to_string(),
+        "sub-task" => text.white().to_string(),
+        "bug" => text.red().to_string(),
+        "story" => text.cyan().to_string(),
+        "chore" => text.blue().to_string(),
+        _ => text.white().to_string(),
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Widths {
+    issue_type: usize,
+    identifier: usize,
+    parent: usize,
+    status: usize,
+    priority: usize,
+}
+
+fn compute_widths(issues: &[IssueData]) -> Widths {
+    let mut widths = Widths {
+        issue_type: 1,
+        identifier: 0,
+        parent: 0,
+        status: 0,
+        priority: 0,
+    };
+    for issue in issues {
+        let type_len = issue.issue_type.chars().next().map(|_| 1).unwrap_or(1);
+        widths.issue_type = widths.issue_type.max(type_len);
+        widths.identifier = widths.identifier.max(issue.identifier.len());
+        widths.parent = widths
+            .parent
+            .max(issue.parent.as_deref().unwrap_or("-").len());
+        widths.status = widths.status.max(issue.status.len());
+        widths.priority = widths.priority.max(format!("P{}", issue.priority).len());
+    }
+    widths
 }

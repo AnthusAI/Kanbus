@@ -7,6 +7,7 @@ from behave import given, then, when
 from features.steps.shared import (
     build_issue,
     load_project_directory,
+    read_issue_file,
     run_cli,
     write_issue_file,
 )
@@ -63,6 +64,41 @@ def given_issue_has_priority(context: object, identifier: str, priority: str) ->
     project_dir = load_project_directory(context)
     issue = build_issue(identifier, "Title", "task", "open", None, [])
     issue = issue.model_copy(update={"priority": int(priority)})
+    write_issue_file(project_dir, issue)
+
+
+@given('issue "{identifier}" has parent "{parent}"')
+def given_issue_has_parent(context: object, identifier: str, parent: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    issue = issue.model_copy(update={"parent": parent})
+    write_issue_file(project_dir, issue)
+
+
+@given(
+    'an issue "{identifier}" exists with status "{status}", priority {priority}, type "{issue_type}", and assignee "{assignee}"'
+)
+def given_issue_with_full_metadata(
+    context: object,
+    identifier: str,
+    status: str,
+    priority: str,
+    issue_type: str,
+    assignee: str,
+) -> None:
+    project_dir = load_project_directory(context)
+    try:
+        issue = read_issue_file(project_dir, identifier)
+    except FileNotFoundError:
+        issue = build_issue(identifier, "Title", issue_type, status, None, [])
+    issue = issue.model_copy(
+        update={
+            "status": status,
+            "priority": int(priority),
+            "issue_type": issue_type,
+            "assignee": assignee,
+        }
+    )
     write_issue_file(project_dir, issue)
 
 
@@ -209,3 +245,14 @@ def then_shared_only_contains(context: object, identifier: str) -> None:
 def then_shared_only_not_contains(context: object, identifier: str) -> None:
     issues = getattr(context, "shared_only_results", [])
     assert not any(issue.identifier == identifier for issue in issues)
+
+
+@when('I run "tsk list --porcelain"')
+def when_run_list_porcelain(context: object) -> None:
+    run_cli(context, "tsk list --porcelain")
+
+
+@then('stdout should contain the line "{expected}"')
+def then_stdout_contains_line(context: object, expected: str) -> None:
+    lines = context.result.stdout.splitlines()
+    assert expected in lines

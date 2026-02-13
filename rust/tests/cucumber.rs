@@ -78,9 +78,10 @@ impl<I: AsRef<Path>> Parser<I> for RecursiveFeatureParser {
 async fn main() {
     let features_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
-        .join("features")
-        .canonicalize()
-        .expect("features directory");
+        .join("features");
+    if !features_dir.exists() {
+        panic!("features directory missing at {}", features_dir.display());
+    }
     TaskulusWorld::cucumber::<PathBuf>()
         .with_parser(RecursiveFeatureParser::default())
         .max_concurrent_scenarios(1)
