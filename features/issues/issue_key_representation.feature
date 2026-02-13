@@ -17,3 +17,8 @@ Feature: Issue key representation
       | 42                                           | project  | 42              |
       | tsk-123e4567-e89b-12d3-a456-426614174000     | global   | tsk-123e45      |
       | tsk-123e4567-e89b-12d3-a456-426614174000     | project  | 123e45          |
+      | tsk-abc123.7                                | global   | tsk-abc123.7    |
+      | tsk-abc123.7                                | project  | abc123.7        |
+      | customid                                    | global   | custom          |
+      | -abc123                                     | global   | abc123          |
+      | abc123.7                                    | global   | abc123.7        |

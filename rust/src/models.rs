@@ -43,15 +43,30 @@ pub struct IssueData {
     pub custom: BTreeMap<String, serde_json::Value>,
 }
 
-/// Project configuration loaded from config.yaml.
+/// Project configuration loaded from .taskulus.yml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProjectConfiguration {
-    pub prefix: String,
+    pub project_directory: String,
+    #[serde(default)]
+    pub external_projects: Vec<String>,
+    pub project_key: String,
     pub hierarchy: Vec<String>,
     pub types: Vec<String>,
     pub workflows: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     pub initial_status: String,
-    pub priorities: BTreeMap<u8, String>,
+    pub priorities: BTreeMap<u8, PriorityDefinition>,
     pub default_priority: u8,
+    #[serde(default)]
+    pub status_colors: BTreeMap<String, String>,
+    #[serde(default)]
+    pub type_colors: BTreeMap<String, String>,
+}
+
+/// Priority definition containing label and optional color.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PriorityDefinition {
+    pub name: String,
+    #[serde(default)]
+    pub color: Option<String>,
 }

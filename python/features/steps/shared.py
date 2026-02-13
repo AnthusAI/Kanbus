@@ -148,11 +148,66 @@ def capture_issue_identifier(context: object) -> str:
     result = getattr(context, "result", None)
     if result is None:
         raise RuntimeError("command result missing")
-    match = re.search(r"(tsk-[0-9a-f]{6})", result.stdout)
-    if match is None:
+    clean_stdout = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+    match = re.search(
+        r"([A-Za-z0-9]+-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+        clean_stdout,
+    )
+    if match is not None:
+        context.last_issue_id = match.group(1)
+        return context.last_issue_id
+
+    abbreviated = re.search(r"(?i)\bID:\s*([A-Za-z0-9.-]+)", clean_stdout)
+    if abbreviated is None:
+        abbreviated = re.search(r"\b([A-Za-z0-9]{6}(?:\.[0-9]+)?)\b", clean_stdout)
+    if abbreviated is None:
         raise AssertionError("no issue identifier found in stdout")
-    context.last_issue_id = match.group(1)
-    return context.last_issue_id
+    abbr_value = abbreviated.group(1)
+    abbr_base, abbr_suffix = _parse_abbreviation(abbr_value)
+    project_dir = load_project_directory(context)
+    for issue_path in (project_dir / "issues").glob("*.json"):
+        identifier = issue_path.stem
+        if _matches_abbreviation(identifier, abbr_base, abbr_suffix):
+            context.last_issue_id = identifier
+            return identifier
+    local_dir = project_dir.parent / "project-local" / "issues"
+    if local_dir.exists():
+        for issue_path in local_dir.glob("*.json"):
+            identifier = issue_path.stem
+            if _matches_abbreviation(identifier, abbr_base, abbr_suffix):
+                context.last_issue_id = identifier
+                return identifier
+    raise AssertionError("no issue identifier found in stdout")
+
+
+def _parse_abbreviation(value: str) -> tuple[str, str | None]:
+    if "-" in value:
+        _, remainder = value.split("-", 1)
+    else:
+        remainder = value
+    if "." in remainder:
+        base, suffix = remainder.split(".", 1)
+        return base.lower(), suffix.lower()
+    return remainder.lower(), None
+
+
+def _matches_abbreviation(identifier: str, base: str, suffix: str | None) -> bool:
+    if "-" in identifier:
+        _, remainder = identifier.split("-", 1)
+    else:
+        remainder = identifier
+    if "." in remainder:
+        id_base, id_suffix = remainder.split(".", 1)
+    else:
+        id_base, id_suffix = remainder, None
+    normalized = id_base.replace("-", "").lower()
+    if not normalized.startswith(base):
+        return False
+    if suffix is None:
+        return True
+    if id_suffix is None:
+        return False
+    return id_suffix.lower() == suffix.lower()
 
 
 def build_issue(

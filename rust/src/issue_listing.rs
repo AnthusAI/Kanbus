@@ -6,8 +6,8 @@ use crate::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
 use crate::daemon_client::{is_daemon_enabled, request_index_list};
 use crate::error::TaskulusError;
 use crate::file_io::{
-    discover_project_directories, discover_taskulus_projects, find_project_local_directory,
-    load_project_directory,
+    canonicalize_path, discover_project_directories, discover_taskulus_projects,
+    find_project_local_directory, load_project_directory,
 };
 use crate::index::build_index_from_directory;
 use crate::models::IssueData;
@@ -41,8 +41,16 @@ pub fn list_issues(
     discover_project_directories(root, &mut projects)?;
     let mut dotfile_projects = discover_taskulus_projects(root)?;
     projects.append(&mut dotfile_projects);
-    projects.sort();
-    projects.dedup();
+    let mut normalized = Vec::new();
+    for path in projects {
+        match canonicalize_path(&path) {
+            Ok(canonical) => normalized.push(canonical),
+            Err(_) => normalized.push(path),
+        }
+    }
+    normalized.sort();
+    normalized.dedup();
+    let projects = normalized;
     if projects.is_empty() {
         return Err(TaskulusError::IssueOperation(
             "project not initialized".to_string(),

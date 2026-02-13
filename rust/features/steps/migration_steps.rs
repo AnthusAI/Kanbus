@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use cucumber::{given, then, when};
+use serde_json::Value;
 
 use taskulus::cli::run_from_args_with_output;
 use taskulus::file_io::load_project_directory;
@@ -174,6 +175,150 @@ fn given_repo_with_metadata(world: &mut TaskulusWorld) {
     world.temp_dir = Some(temp_dir);
 }
 
+#[given("a git repository with a Beads feature issue")]
+fn given_repo_with_feature_issue(world: &mut TaskulusWorld) {
+    let temp_dir = tempfile::TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    let beads_dir = repo_path.join(".beads");
+    fs::create_dir_all(&beads_dir).expect("beads dir");
+    let record = serde_json::json!({
+        "id": "bdx-feature",
+        "title": "Feature issue",
+        "issue_type": "feature",
+        "status": "open",
+        "priority": 2,
+        "created_at": "2026-02-11T00:00:00Z",
+        "updated_at": "2026-02-11T00:00:00Z",
+        "dependencies": [],
+        "comments": []
+    });
+    fs::write(beads_dir.join("issues.jsonl"), record.to_string()).expect("write issues");
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
+}
+
+#[given("a git repository with Beads epic parent and child")]
+fn given_repo_with_epic_parent_child(world: &mut TaskulusWorld) {
+    let temp_dir = tempfile::TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    let beads_dir = repo_path.join(".beads");
+    fs::create_dir_all(&beads_dir).expect("beads dir");
+    let parent = serde_json::json!({
+        "id": "bdx-parent",
+        "title": "Parent epic",
+        "issue_type": "epic",
+        "status": "open",
+        "priority": 2,
+        "created_at": "2026-02-11T00:00:00Z",
+        "updated_at": "2026-02-11T00:00:00Z",
+        "dependencies": [],
+        "comments": []
+    });
+    let child = serde_json::json!({
+        "id": "bdx-child",
+        "title": "Child epic",
+        "issue_type": "epic",
+        "status": "open",
+        "priority": 2,
+        "created_at": "2026-02-11T00:00:00Z",
+        "updated_at": "2026-02-11T00:00:00Z",
+        "dependencies": [
+            {
+                "issue_id": "bdx-child",
+                "depends_on_id": "bdx-parent",
+                "type": "parent-child",
+                "created_at": "2026-02-11T00:00:00Z",
+                "created_by": "dev@example.com"
+            }
+        ],
+        "comments": []
+    });
+    let lines = format!("{}\n{}", parent.to_string(), child.to_string());
+    fs::write(beads_dir.join("issues.jsonl"), lines).expect("write issues");
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
+}
+
+#[given("a git repository with Beads issues containing fractional timestamps")]
+fn given_repo_with_fractional_timestamps(world: &mut TaskulusWorld) {
+    let temp_dir = tempfile::TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    let beads_dir = repo_path.join(".beads");
+    fs::create_dir_all(&beads_dir).expect("beads dir");
+    let records = vec![
+        serde_json::json!({
+            "id": "bdx-frac-short",
+            "title": "Short fractional",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": "2026-02-11T00:00:00.1+00:00",
+            "updated_at": "2026-02-11T00:00:00.1+00:00",
+            "dependencies": [],
+            "comments": []
+        }),
+        serde_json::json!({
+            "id": "bdx-frac-long",
+            "title": "Long fractional",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": "2026-02-11T00:00:00.1234567+00:00",
+            "updated_at": "2026-02-11T00:00:00.1234567+00:00",
+            "dependencies": [],
+            "comments": []
+        }),
+        serde_json::json!({
+            "id": "bdx-frac-nozone",
+            "title": "No zone",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": "2026-02-11T00:00:00.123",
+            "updated_at": "2026-02-11T00:00:00.123",
+            "dependencies": [],
+            "comments": []
+        }),
+        serde_json::json!({
+            "id": "bdx-frac-negative",
+            "title": "Negative offset",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": "2026-02-11T00:00:00.123456-05:00",
+            "updated_at": "2026-02-11T00:00:00.123456-05:00",
+            "dependencies": [],
+            "comments": []
+        }),
+    ];
+    let lines = records
+        .into_iter()
+        .map(|record| record.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(beads_dir.join("issues.jsonl"), lines).expect("write issues");
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
+}
+
 #[given("a Taskulus project already exists")]
 fn given_taskulus_project_exists(world: &mut TaskulusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
@@ -205,6 +350,51 @@ fn given_repo_empty_beads(world: &mut TaskulusWorld) {
         .output()
         .expect("git init failed");
     fs::create_dir_all(repo_path.join(".beads")).expect("create beads dir");
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
+}
+
+#[given("a git repository with an empty issues.jsonl file")]
+fn given_repo_with_empty_issues_jsonl(world: &mut TaskulusWorld) {
+    let temp_dir = tempfile::TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    let beads_dir = repo_path.join(".beads");
+    fs::create_dir_all(&beads_dir).expect("create beads dir");
+    fs::write(beads_dir.join("issues.jsonl"), "").expect("write empty issues");
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
+}
+
+#[given("a git repository with a .beads issues database containing an invalid id")]
+fn given_repo_with_invalid_beads_id(world: &mut TaskulusWorld) {
+    let temp_dir = tempfile::TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    let beads_dir = repo_path.join(".beads");
+    fs::create_dir_all(&beads_dir).expect("create beads dir");
+    let record = serde_json::json!({
+        "id": "invalidid",
+        "title": "Title",
+        "issue_type": "task",
+        "status": "open",
+        "priority": 2,
+        "created_at": "2026-02-11T00:00:00Z",
+        "updated_at": "2026-02-11T00:00:00Z",
+        "dependencies": [],
+        "comments": []
+    });
+    fs::write(beads_dir.join("issues.jsonl"), record.to_string()).expect("write issues");
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
 }
@@ -462,6 +652,36 @@ fn when_validate_migration_errors(world: &mut TaskulusWorld) {
         )],
         "created-invalid",
     );
+    run_case(
+        vec![build_record(
+            &valid_base,
+            vec![(
+                "created_at",
+                serde_json::json!("2026-02-11T00:00:00.bad+00:00"),
+            )],
+        )],
+        "created-invalid-fractional",
+    );
+    run_case(
+        vec![build_record(
+            &valid_base,
+            vec![(
+                "created_at",
+                serde_json::json!("2026-02-11T00:00:00.bad-00:00"),
+            )],
+        )],
+        "created-invalid-negative",
+    );
+    run_case(
+        vec![build_record(
+            &valid_base,
+            vec![(
+                "created_at",
+                serde_json::json!("2026-02-11T00:00:00.123+00:00-00"),
+            )],
+        )],
+        "created-invalid-mixed-offset",
+    );
 
     world.migration_errors = errors;
 }
@@ -527,6 +747,55 @@ fn then_migration_includes_metadata(world: &mut TaskulusWorld) {
             && item.get("type").and_then(|v| v.as_str()) == Some("blocked-by")
     });
     assert!(has_dep);
+}
+
+#[then(expr = "migrated issue {string} should have type {string}")]
+fn then_migrated_issue_type(world: &mut TaskulusWorld, identifier: String, issue_type: String) {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(issue_path).expect("read issue");
+    let payload: Value = serde_json::from_str(&contents).expect("parse issue");
+    assert_eq!(
+        payload.get("type").and_then(|value| value.as_str()),
+        Some(issue_type.as_str())
+    );
+}
+
+#[then(expr = "migrated issue {string} should have parent {string}")]
+fn then_migrated_issue_parent(world: &mut TaskulusWorld, identifier: String, parent: String) {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(issue_path).expect("read issue");
+    let payload: Value = serde_json::from_str(&contents).expect("parse issue");
+    assert_eq!(
+        payload.get("parent").and_then(|value| value.as_str()),
+        Some(parent.as_str())
+    );
+}
+
+#[then(expr = "migrated issue {string} should preserve beads issue type {string}")]
+fn then_migrated_issue_preserves_type(
+    world: &mut TaskulusWorld,
+    identifier: String,
+    issue_type: String,
+) {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(issue_path).expect("read issue");
+    let payload: Value = serde_json::from_str(&contents).expect("parse issue");
+    let custom = payload.get("custom").and_then(|value| value.as_object());
+    assert_eq!(
+        custom
+            .and_then(|map| map.get("beads_issue_type"))
+            .and_then(|value| value.as_str()),
+        Some(issue_type.as_str())
+    );
 }
 
 #[then(expr = "migration errors should include {string}")]

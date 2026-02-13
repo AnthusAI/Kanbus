@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import Set
+from typing import Iterable, Optional, Set
 
 from pydantic import BaseModel, Field
 
@@ -33,6 +33,26 @@ class IssueIdentifierResult:
     """Result of issue identifier generation."""
 
     identifier: str
+
+
+_TEST_UUID_SEQUENCE: Optional[list[str]] = None
+
+
+def set_test_uuid_sequence(sequence: Optional[Iterable[str]]) -> None:
+    """
+    Override UUID generation for deterministic tests.
+
+    :param sequence: Sequence of UUID strings to use, or None to clear.
+    :type sequence: Optional[Iterable[str]]
+    """
+    global _TEST_UUID_SEQUENCE
+    _TEST_UUID_SEQUENCE = list(sequence) if sequence is not None else None
+
+
+def _next_uuid_value() -> str:
+    if _TEST_UUID_SEQUENCE:
+        return _TEST_UUID_SEQUENCE.pop(0)
+    return str(uuid.uuid4())
 
 
 def format_issue_key(identifier: str, project_context: bool) -> str:
@@ -62,7 +82,8 @@ def format_issue_key(identifier: str, project_context: bool) -> str:
         base, suffix = remainder.split(".", 1)
         suffix = f".{suffix}"
 
-    truncated = base[:6] if base else base
+    normalized = base.replace("-", "")
+    truncated = normalized[:6] if normalized else normalized
 
     if project_context:
         return f"{truncated}{suffix}"
@@ -83,7 +104,7 @@ def generate_issue_identifier(request: IssueIdentifierRequest) -> IssueIdentifie
     :raises RuntimeError: If unable to generate unique ID after 10 attempts.
     """
     for _ in range(10):
-        identifier = f"{request.prefix}-{uuid.uuid4()}"
+        identifier = f"{request.prefix}-{_next_uuid_value()}"
         if identifier not in request.existing_ids:
             return IssueIdentifierResult(identifier=identifier)
 

@@ -8,6 +8,7 @@ import socket
 import subprocess
 import sys
 import uuid
+import time
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -163,8 +164,19 @@ def _request_with_recovery(
 ) -> ResponseEnvelope:
     try:
         return send_request(socket_path, request)
-    except DaemonClientError:
+    except DaemonClientError as error:
+        if str(error) != "daemon connection failed":
+            raise
         if socket_path.exists():
             socket_path.unlink()
         spawn_daemon(root)
-        return send_request(socket_path, request)
+        last_error = error
+        for _ in range(10):
+            try:
+                return send_request(socket_path, request)
+            except DaemonClientError as retry_error:
+                if str(retry_error) != "daemon connection failed":
+                    raise
+                last_error = retry_error
+                time.sleep(0.05)
+        raise last_error

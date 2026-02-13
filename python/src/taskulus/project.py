@@ -5,7 +5,10 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional
+
+from taskulus.config_loader import ConfigurationError, load_project_configuration
+from taskulus.models import ProjectConfiguration
 
 
 class ProjectMarkerError(RuntimeError):
@@ -19,43 +22,105 @@ def discover_project_directories(root: Path) -> List[Path]:
     :type root: Path
     :return: List of discovered project directories.
     :rtype: List[Path]
-    :raises ProjectMarkerError: If a .taskulus file references a missing path.
+    :raises ProjectMarkerError: If a configured project path is missing.
     """
     project_dirs: List[Path] = []
-    for current, dirs, _files in os.walk(root):
-        if "project" in dirs:
-            project_dirs.append(Path(current) / "project")
-        if "project" in dirs:
-            dirs.remove("project")
-        if "project-local" in dirs:
-            dirs.remove("project-local")
-    project_dirs.extend(_discover_taskulus_projects(root))
-    return sorted({path.resolve() for path in project_dirs})
+    _collect_project_directories(root, project_dirs)
+    project_dirs.extend(discover_taskulus_projects(root))
+    return _normalize_project_directories(project_dirs)
 
 
-def _discover_taskulus_projects(root: Path) -> List[Path]:
-    dotfile = _find_taskulus_dotfile(root)
-    if dotfile is None:
+def discover_taskulus_projects(root: Path) -> List[Path]:
+    """Discover project directories from Taskulus configuration only.
+
+    :param root: Root directory to search from.
+    :type root: Path
+    :return: List of configured project directories.
+    :rtype: List[Path]
+    :raises ProjectMarkerError: If a referenced path is missing.
+    """
+    marker = _find_configuration_file(root)
+    if marker is None:
         return []
+    try:
+        configuration = _load_configuration(marker)
+    except RuntimeError as error:
+        raise ProjectMarkerError(str(error)) from error
+    project_dirs = _resolve_project_directories(marker.parent, configuration)
+    return _normalize_project_directories(project_dirs)
+
+
+def _resolve_project_directories(
+    base: Path, configuration: ProjectConfiguration
+) -> List[Path]:
     paths: List[Path] = []
-    for line in dotfile.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        candidate = Path(stripped)
+    primary = base / configuration.project_directory
+    paths.append(primary)
+    for extra in configuration.external_projects:
+        candidate = Path(extra)
         if not candidate.is_absolute():
-            candidate = (dotfile.parent / candidate).resolve()
+            candidate = base / candidate
+        candidate = resolve_project_path(candidate)
         if not candidate.is_dir():
             raise ProjectMarkerError(f"taskulus path not found: {candidate}")
         paths.append(candidate)
     return paths
 
 
-def _find_taskulus_dotfile(root: Path) -> Optional[Path]:
+def _collect_project_directories(root: Path, projects: List[Path]) -> None:
+    try:
+        entries = list(root.iterdir())
+    except OSError as error:
+        raise ProjectMarkerError(str(error)) from error
+    for entry in entries:
+        if not entry.is_dir():
+            continue
+        name = entry.name
+        if name == "project":
+            projects.append(entry)
+            continue
+        if name == "project-local":
+            continue
+        _collect_project_directories(entry, projects)
+
+
+def _normalize_project_directories(paths: Iterable[Path]) -> List[Path]:
+    normalized: List[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        candidate = resolve_project_path(path)
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        normalized.append(candidate)
+    return sorted(normalized, key=lambda item: str(item))
+
+
+def resolve_project_path(path: Path) -> Path:
+    """Resolve a project path while tolerating filesystem errors.
+
+    :param path: Path to resolve.
+    :type path: Path
+    :return: Resolved path or original path on failure.
+    :rtype: Path
+    """
+    try:
+        return _resolve_path(path)
+    except OSError:
+        return path
+
+
+def _resolve_path(path: Path) -> Path:
+    if os.getenv("TASKULUS_TEST_CANONICALIZE_FAILURE"):
+        raise OSError("forced canonicalize failure")
+    return path.resolve()
+
+
+def _find_configuration_file(root: Path) -> Optional[Path]:
     git_root = _find_git_root(root)
     current = root.resolve()
     while True:
-        candidate = current / ".taskulus"
+        candidate = current / ".taskulus.yml"
         if candidate.is_file():
             return candidate
         if git_root is not None and current == git_root:
@@ -64,6 +129,10 @@ def _find_taskulus_dotfile(root: Path) -> Optional[Path]:
             break
         current = current.parent
     return None
+
+
+def _load_configuration(marker: Path) -> ProjectConfiguration:
+    return load_project_configuration(marker)
 
 
 def _find_git_root(root: Path) -> Optional[Path]:
@@ -95,9 +164,32 @@ def load_project_directory(root: Path) -> Path:
     if not project_dirs:
         raise ProjectMarkerError("project not initialized")
     if len(project_dirs) > 1:
-        raise ProjectMarkerError("multiple projects found")
+        discovered = ", ".join(str(path) for path in project_dirs)
+        raise ProjectMarkerError(
+            f"multiple projects found: {discovered}. "
+            "Run this command from a directory with a single project/, "
+            "or remove extra entries from external_projects in .taskulus.yml."
+        )
 
     return project_dirs[0]
+
+
+def get_configuration_path(root: Path) -> Path:
+    """Return the configuration file path.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Path to .taskulus.yml.
+    :rtype: Path
+    :raises ProjectMarkerError: If the configuration file is missing.
+    :raises ConfigurationError: If configuration path lookup fails.
+    """
+    if os.getenv("TASKULUS_TEST_CONFIGURATION_PATH_FAILURE"):
+        raise ConfigurationError("configuration path lookup failed")
+    marker = _find_configuration_file(root)
+    if marker is None:
+        raise ProjectMarkerError("project not initialized")
+    return marker
 
 
 def find_project_local_directory(project_dir: Path) -> Optional[Path]:

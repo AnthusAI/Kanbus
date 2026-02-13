@@ -11,6 +11,7 @@ from features.steps.shared import (
     run_cli,
     write_issue_file,
 )
+from features.steps.shared import initialize_default_project
 from taskulus.issue_listing import _list_issues_with_local
 
 
@@ -73,6 +74,16 @@ def given_issue_has_parent(context: object, identifier: str, parent: str) -> Non
     issue = read_issue_file(project_dir, identifier)
     issue = issue.model_copy(update={"parent": parent})
     write_issue_file(project_dir, issue)
+
+
+@given("a Taskulus repository with an unreadable project directory")
+def given_repo_with_unreadable_project_directory(context: object) -> None:
+    initialize_default_project(context)
+    project_dir = load_project_directory(context)
+    original_mode = project_dir.stat().st_mode
+    project_dir.chmod(0)
+    context.unreadable_path = project_dir
+    context.unreadable_mode = original_mode
 
 
 @given(
@@ -189,12 +200,6 @@ def when_run_list_local_conflict(context: object) -> None:
     run_cli(context, "tsk list --local-only --no-local")
 
 
-@then('stdout should list "tsk-high" before "tsk-low"')
-def then_stdout_lists_high_before_low(context: object) -> None:
-    output = context.result.stdout
-    assert output.index("tsk-high") < output.index("tsk-low")
-
-
 @given("the daemon list request will fail")
 def given_daemon_list_request_fails(context: object) -> None:
     import taskulus.issue_listing as issue_listing
@@ -213,12 +218,12 @@ def given_local_listing_fails(context: object) -> None:
 
     project_dir = load_project_directory(context)
     (project_dir.parent / "project-local" / "issues").mkdir(parents=True, exist_ok=True)
-    context.original_list_with_local = issue_listing._list_issues_with_local
+    context.original_load_issues = issue_listing._load_issues_from_directory
 
     def fake_list(*_args: object, **_kwargs: object) -> list[object]:
         raise RuntimeError("local listing failed")
 
-    issue_listing._list_issues_with_local = fake_list
+    issue_listing._load_issues_from_directory = fake_list
 
 
 @when("shared issues are listed without local issues")

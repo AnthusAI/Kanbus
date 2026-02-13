@@ -17,7 +17,7 @@ The sync job builds this URL from the environment so it works in any fork or rep
 
 1. **Repository:** From `GITHUB_REPOSITORY` (e.g. `AnthusAI/Taskulus`).
 2. **Branch:** Default branch from `gh repo view --json defaultBranchRef` (then `.defaultBranchRef.name`), or fallback `main`.
-3. **Relative path:** From repo root to the issue file, e.g. `project/issues/tsk-a1b2c3.json`. The project directory name comes from `.taskulus.yaml` (`project_dir`) or discovery; the path is `{project_dir}/issues/{identifier}.json`.
+3. **Relative path:** From repo root to the issue file, e.g. `project/issues/tsk-a1b2c3.json`. The project directory name comes from `.taskulus.yml` (`project_directory`) or discovery; the path is `{project_directory}/issues/{identifier}.json`.
 
 Example: `https://github.com/AnthusAI/Taskulus/blob/main/project/issues/tsk-a1b2c3.json`
 
@@ -35,7 +35,7 @@ The sync script parses the body for the HTML comment to decide whether an issue 
 ## Scope
 
 - **In scope:** Issues under the shared project directory only (e.g. `project/issues/*.json`). Not `project-local/issues/` (gitignored).
-- **Repo context:** Sync runs in a git repo that has a Taskulus project (`.taskulus.yaml` and the project directory). The script uses the same project discovery as the CLI.
+- **Repo context:** Sync runs in a git repo that has a Taskulus project (`.taskulus.yml` and the project directory). The script uses the same project discovery as the CLI.
 
 ## Running the sync
 
@@ -45,7 +45,7 @@ The workflow `.github/workflows/sync-github-issues.yml` runs the sync on a sched
 
 ### Locally (dry-run or live)
 
-From the repository root (where `.taskulus.yaml` and `project/` live):
+From the repository root (where `.taskulus.yml` and `project/` live):
 
 ```bash
 # Dry-run: report what would be created or updated, no API writes

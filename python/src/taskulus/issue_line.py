@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from typing import Callable, Dict, Iterable
 
 import click
 
-from taskulus.models import IssueData
+from taskulus.ids import format_issue_key
+from taskulus.models import IssueData, ProjectConfiguration
 
 STATUS_COLORS = {
     "open": "cyan",
@@ -33,7 +35,64 @@ TYPE_COLORS = {
     "bug": "red",
     "story": "cyan",
     "chore": "blue",
+    "event": "bright_blue",
 }
+
+KNOWN_COLORS = {
+    "black",
+    "red",
+    "green",
+    "yellow",
+    "blue",
+    "magenta",
+    "cyan",
+    "white",
+    "bright_black",
+    "bright_red",
+    "bright_green",
+    "bright_yellow",
+    "bright_blue",
+    "bright_magenta",
+    "bright_cyan",
+    "bright_white",
+}
+
+
+def _resolve_status_color(
+    status: str, configuration: ProjectConfiguration | None
+) -> str:
+    if configuration and status in configuration.status_colors:
+        return configuration.status_colors[status]
+    return STATUS_COLORS.get(status, "white")
+
+
+def _resolve_priority_color(
+    priority: int, configuration: ProjectConfiguration | None
+) -> str:
+    if configuration:
+        definition = configuration.priorities.get(priority)
+        if definition and definition.color:
+            return definition.color
+    return PRIORITY_COLORS.get(priority, "white")
+
+
+def _resolve_type_color(
+    issue_type: str, configuration: ProjectConfiguration | None
+) -> str:
+    if configuration and issue_type in configuration.type_colors:
+        return configuration.type_colors[issue_type]
+    return TYPE_COLORS.get(issue_type, "white")
+
+
+def _normalize_color(color: str | None) -> str | None:
+    return color if color in KNOWN_COLORS else None
+
+
+def _safe_color(colorizer: Callable[[str, str], str], text: str, fg: str | None) -> str:
+    normalized = _normalize_color(fg)
+    if normalized is None:
+        return text
+    return colorizer(text, fg=normalized)
 
 
 def format_issue_line(
@@ -42,6 +101,8 @@ def format_issue_line(
     porcelain: bool = False,
     colorizer: Callable[[str, str], str] | None = None,
     widths: Dict[str, int] | None = None,
+    project_context: bool = False,
+    configuration: ProjectConfiguration | None = None,
 ) -> str:
     """Render a single-line summary similar to Beads.
 
@@ -53,38 +114,69 @@ def format_issue_line(
     :type colorizer: Callable[[str, str], str] | None
     :param widths: Optional column widths for aligned output.
     :type widths: Dict[str, int] | None
+    :param project_context: Whether identifiers should omit the project key.
+    :type project_context: bool
+    :param configuration: Optional project configuration for color overrides.
+    :type configuration: ProjectConfiguration | None
     :return: Formatted line.
     :rtype: str
     """
+    use_color = not porcelain and os.getenv("NO_COLOR") is None
     color = colorizer or click.style
-    priority_color = PRIORITY_COLORS.get(issue.priority, "white")
-    status_color = STATUS_COLORS.get(issue.status, "white")
+    if not use_color:
+
+        def no_color(text: str, **_kwargs: object) -> str:
+            return text
+
+        color = no_color
+    priority_color = _resolve_priority_color(issue.priority, configuration)
+    status_color = _resolve_status_color(issue.status, configuration)
+
+    formatted_identifier = format_issue_key(
+        issue.identifier, project_context=project_context
+    )
+
+    parent_value = issue.parent or "-"
+    parent_display = (
+        format_issue_key(parent_value, project_context=project_context)
+        if parent_value != "-"
+        else parent_value
+    )
+
+    type_display = issue.issue_type[:1].upper()
 
     if porcelain:
-        parent_value = issue.parent or "-"
         parts = [
-            issue.issue_type[:1].upper(),
-            issue.identifier,
-            parent_value,
+            type_display,
+            formatted_identifier,
+            parent_display,
             issue.status,
             f"P{issue.priority}",
             issue.title,
         ]
         return " | ".join(parts)
 
-    widths = widths or compute_widths([issue])
+    widths = widths or compute_widths([issue], project_context=project_context)
 
-    type_initial = issue.issue_type[:1].upper()
-    type_color = TYPE_COLORS.get(issue.issue_type, "white")
-    type_part = color(type_initial.ljust(widths["type"]), fg=type_color)
+    type_color = _resolve_type_color(issue.issue_type, configuration)
+    type_part = _safe_color(color, type_display.ljust(widths["type"]), type_color)
 
     parent_value = issue.parent or "-"
-    status_part = color(issue.status.ljust(widths["status"]), fg=status_color)
+    parent_display = (
+        format_issue_key(parent_value, project_context=project_context)
+        if parent_value != "-"
+        else parent_value
+    )
+    status_part = _safe_color(color, issue.status.ljust(widths["status"]), status_color)
     priority_plain = f"P{issue.priority}".ljust(widths["priority"])
-    priority_part = color(priority_plain, fg=priority_color)
+    priority_part = _safe_color(color, priority_plain, priority_color)
 
-    identifier_part = issue.identifier.ljust(widths["identifier"])
-    parent_part = parent_value.ljust(widths["parent"])
+    identifier_part = formatted_identifier.ljust(widths["identifier"])
+    parent_plain = parent_display.ljust(widths["parent"])
+    if parent_value == "-" and use_color:
+        parent_part = _safe_color(color, parent_plain, "bright_black")
+    else:
+        parent_part = parent_plain
     title = issue.title
     prefix = issue.custom.get("project_path")
     prefix_part = f"{prefix} " if prefix else ""
@@ -100,7 +192,9 @@ def format_issue_line(
     )
 
 
-def compute_widths(issues: Iterable[IssueData]) -> Dict[str, int]:
+def compute_widths(
+    issues: Iterable[IssueData], project_context: bool = False
+) -> Dict[str, int]:
     """Compute printable column widths for aligned normal-mode output."""
 
     status_w = 1
@@ -113,8 +207,17 @@ def compute_widths(issues: Iterable[IssueData]) -> Dict[str, int]:
         status_w = max(status_w, len(issue.status))
         priority_w = max(priority_w, len(f"P{issue.priority}"))
         type_w = max(type_w, len(issue.issue_type[:1].upper()))
-        identifier_w = max(identifier_w, len(issue.identifier))
-        parent_w = max(parent_w, len(issue.parent or "-"))
+        formatted_identifier = format_issue_key(
+            issue.identifier, project_context=project_context
+        )
+        identifier_w = max(identifier_w, len(formatted_identifier))
+        parent_value = issue.parent or "-"
+        parent_display = (
+            format_issue_key(parent_value, project_context=project_context)
+            if parent_value != "-"
+            else parent_value
+        )
+        parent_w = max(parent_w, len(parent_display))
 
     return {
         "status": status_w,

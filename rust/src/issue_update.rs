@@ -5,6 +5,7 @@ use std::path::Path;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;
+use crate::file_io::get_configuration_path;
 use crate::issue_files::write_issue_to_file;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::IssueData;
@@ -33,7 +34,8 @@ pub fn update_issue(
     claim: bool,
 ) -> Result<IssueData, TaskulusError> {
     let lookup = load_issue_from_project(root, identifier)?;
-    let configuration = load_project_configuration(&lookup.project_dir.join("config.yaml"))?;
+    let config_path = get_configuration_path(&lookup.project_dir)?;
+    let configuration = load_project_configuration(&config_path)?;
 
     let mut updated_issue = lookup.issue.clone();
     let current_time = Utc::now();

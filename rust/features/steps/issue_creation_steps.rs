@@ -41,14 +41,89 @@ fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
 
 fn capture_issue_identifier(world: &mut TaskulusWorld) -> String {
     let stdout = world.stdout.as_ref().expect("stdout");
-    let regex = Regex::new(r"(tsk-[0-9a-f]{6})").expect("regex");
-    let capture = regex
-        .captures(stdout)
+    let ansi_regex = Regex::new(r"\x1b\[[0-9;]*m").expect("regex");
+    let clean_stdout = ansi_regex.replace_all(stdout, "");
+    let full_regex = Regex::new(
+        r"([A-Za-z0-9]+-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+    )
+    .expect("regex");
+    if let Some(capture) = full_regex
+        .captures(&clean_stdout)
         .and_then(|matches| matches.get(1))
         .map(|match_value| match_value.as_str().to_string())
-        .expect("issue id not found");
-    world.stdout = Some(stdout.to_string());
-    capture
+    {
+        world.stdout = Some(stdout.to_string());
+        return capture;
+    }
+
+    let labeled_regex = Regex::new(r"(?i)\bID:\s*([A-Za-z0-9.-]+)").expect("regex");
+    let abbreviated = labeled_regex
+        .captures(&clean_stdout)
+        .and_then(|matches| matches.get(1))
+        .map(|match_value| match_value.as_str().to_string())
+        .unwrap_or_else(|| {
+            let fallback_regex = Regex::new(r"\b([A-Za-z0-9]{6}(?:\.[0-9]+)?)\b").expect("regex");
+            fallback_regex
+                .captures(&clean_stdout)
+                .and_then(|matches| matches.get(1))
+                .map(|match_value| match_value.as_str().to_string())
+                .expect("issue id not found")
+        });
+    let (abbrev_base, abbrev_suffix) = parse_abbreviation(&abbreviated);
+    let project_dir = load_project_dir(world);
+    let issues_dir = project_dir.join("issues");
+    let entries = fs::read_dir(issues_dir).expect("read issues dir");
+    for entry in entries {
+        let path = entry.expect("issue entry").path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+        let identifier = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or_default()
+            .to_string();
+        if matches_abbreviation(&identifier, &abbrev_base, abbrev_suffix.as_deref()) {
+            world.stdout = Some(stdout.to_string());
+            return identifier;
+        }
+    }
+    panic!("issue id not found");
+}
+
+fn parse_abbreviation(value: &str) -> (String, Option<String>) {
+    let remainder = if let Some((_, rest)) = value.split_once('-') {
+        rest
+    } else {
+        value
+    };
+    if let Some((base, suffix)) = remainder.split_once('.') {
+        (base.to_lowercase(), Some(suffix.to_lowercase()))
+    } else {
+        (remainder.to_lowercase(), None)
+    }
+}
+
+fn matches_abbreviation(identifier: &str, base: &str, suffix: Option<&str>) -> bool {
+    let remainder = if let Some((_, rest)) = identifier.split_once('-') {
+        rest
+    } else {
+        identifier
+    };
+    let (id_base, id_suffix) = if let Some((head, tail)) = remainder.split_once('.') {
+        (head, Some(tail))
+    } else {
+        (remainder, None)
+    };
+    let normalized = id_base.replace('-', "").to_lowercase();
+    if !normalized.starts_with(base) {
+        return false;
+    }
+    match (suffix, id_suffix) {
+        (None, _) => true,
+        (Some(expected), Some(actual)) => actual.to_lowercase() == expected.to_lowercase(),
+        _ => false,
+    }
 }
 
 fn load_issue_json(project_dir: &PathBuf, identifier: &str) -> Value {
@@ -62,7 +137,6 @@ fn load_issue_json(project_dir: &PathBuf, identifier: &str) -> Value {
 #[given("a Taskulus project with default configuration")]
 fn given_taskulus_project(world: &mut TaskulusWorld) {
     env::set_var("TASKULUS_NO_DAEMON", "1");
-    env::remove_var("TASKULUS_TEST_RANDOM_BYTES");
     let temp_dir = TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().join("repo");
     fs::create_dir_all(&repo_path).expect("create repo dir");

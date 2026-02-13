@@ -7,7 +7,11 @@ from pathlib import Path
 
 from taskulus.config_loader import ConfigurationError, load_project_configuration
 from taskulus.file_io import InitializationError, ensure_git_repository
-from taskulus.project import ProjectMarkerError, load_project_directory
+from taskulus.project import (
+    ProjectMarkerError,
+    get_configuration_path,
+    load_project_directory,
+)
 
 
 class DoctorError(RuntimeError):
@@ -41,7 +45,7 @@ def run_doctor(root: Path) -> DoctorResult:
         raise DoctorError(str(error)) from error
 
     try:
-        load_project_configuration(project_dir / "config.yaml")
+        load_project_configuration(get_configuration_path(project_dir))
     except ConfigurationError as error:
         raise DoctorError(str(error)) from error
 

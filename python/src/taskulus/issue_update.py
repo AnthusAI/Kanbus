@@ -10,6 +10,7 @@ from taskulus.config_loader import load_project_configuration
 from taskulus.issue_files import write_issue_to_file
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.models import IssueData
+from taskulus.project import get_configuration_path
 from taskulus.workflows import (
     InvalidTransitionError,
     apply_transition_side_effects,
@@ -56,7 +57,7 @@ def update_issue(
         raise IssueUpdateError(str(error)) from error
 
     project_dir = lookup.project_dir
-    configuration = load_project_configuration(project_dir / "config.yaml")
+    configuration = load_project_configuration(get_configuration_path(project_dir))
     updated_issue = lookup.issue
     current_time = datetime.now(timezone.utc)
 

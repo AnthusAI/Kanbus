@@ -1,5 +1,6 @@
 //! Taskulus Rust library.
 
+pub mod beads_write;
 pub mod cache;
 pub mod cli;
 pub mod config;
@@ -22,6 +23,7 @@ pub mod issue_creation;
 pub mod issue_delete;
 pub mod issue_display;
 pub mod issue_files;
+pub mod issue_line;
 pub mod issue_listing;
 pub mod issue_lookup;
 pub mod issue_transfer;

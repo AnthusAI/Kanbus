@@ -19,13 +19,16 @@ PYTHON_STEP_PATTERN = re.compile(
     r"@(?P<kind>given|when|then)\(\s*[\"'](?P<text>.+?)[\"']\s*\)",
 )
 RUST_STEP_PATTERN = re.compile(
-    r"#\[(?P<kind>given|when|then)\(\"(?P<text>.+?)\"\)\]",
+    r"#\[(?P<kind>given|when|then)\(\s*\"(?P<text>.+?)\"\s*\)\]",
+    re.DOTALL,
 )
 RUST_EXPR_PATTERN = re.compile(
     r"#\[(?P<kind>given|when|then)\(\s*expr\s*=\s*\"(?P<text>.+?)\"\s*\)\]",
+    re.DOTALL,
 )
 RUST_REGEX_PATTERN = re.compile(
     r"#\[(?P<kind>given|when|then)\(\s*regex\s*=\s*r#\"(?P<text>.+?)\"#\s*\)\]",
+    re.DOTALL,
 )
 
 

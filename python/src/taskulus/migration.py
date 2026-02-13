@@ -17,9 +17,12 @@ from taskulus.models import (
     IssueComment,
     IssueData,
     ProjectConfiguration,
+    PriorityDefinition,
 )
+from taskulus.project import discover_project_directories, get_configuration_path
 from taskulus.workflows import get_workflow_for_issue_type
-from taskulus.project import discover_project_directories
+
+BEADS_ISSUE_TYPE_MAP = {"feature": "story", "message": "task"}
 
 
 class MigrationError(RuntimeError):
@@ -50,8 +53,8 @@ def load_beads_issues(root: Path) -> List[IssueData]:
     if not issues_path.exists():
         raise MigrationError("no issues.jsonl")
 
-    configuration = load_project_configuration(root / "config.yaml")
     records = _load_beads_records(issues_path)
+    configuration = _load_configuration_for_beads(root, records)
     record_by_id = {record["id"]: record for record in records}
     return [_convert_record(record, record_by_id, configuration) for record in records]
 
@@ -101,7 +104,7 @@ def migrate_from_beads(root: Path) -> MigrationResult:
 
     initialize_project(root)
     project_dir = root / "project"
-    configuration = load_project_configuration(project_dir / "config.yaml")
+    configuration = load_project_configuration(get_configuration_path(root))
 
     records = _load_beads_records(issues_path)
     record_by_id = {record["id"]: record for record in records}
@@ -126,6 +129,57 @@ def _load_beads_records(issues_path: Path) -> List[Dict[str, Any]]:
     return records
 
 
+def _load_configuration_for_beads(
+    root: Path, records: List[Dict[str, Any]]
+) -> ProjectConfiguration:
+    """Build configuration derived from Beads records."""
+    _ = root
+    issue_types = sorted(
+        {record.get("issue_type", "") for record in records if record.get("issue_type")}
+    )
+    hierarchy = ["epic", "task", "sub-task"]
+    types = [issue_type for issue_type in issue_types if issue_type not in hierarchy]
+    if "feature" in issue_types and "story" not in types:
+        types.append("story")
+
+    # Build permissive workflows allowing any status transition.
+    statuses = sorted(
+        {record.get("status", "") for record in records if record.get("status")}
+        | {"open", "in_progress", "blocked", "deferred", "closed"}
+    )
+    workflow_state = {status: statuses for status in statuses}
+    workflows = {
+        "default": workflow_state,
+        "epic": workflow_state,
+        "task": workflow_state,
+    }
+
+    priorities: Dict[int, PriorityDefinition] = {}
+    for value in sorted(
+        {
+            record.get("priority")
+            for record in records
+            if record.get("priority") is not None
+        }
+        | {0, 1, 2, 3, 4}
+    ):
+        priorities[int(value)] = PriorityDefinition(name=f"P{int(value)}")
+
+    return ProjectConfiguration(
+        project_directory="project",
+        external_projects=[],
+        project_key="BD",
+        hierarchy=hierarchy,
+        types=types,
+        workflows=workflows,
+        initial_status="open",
+        priorities=priorities,
+        default_priority=2,
+        status_colors={},
+        type_colors={},
+    )
+
+
 def _convert_record(
     record: Dict[str, Any],
     record_by_id: Dict[str, Dict[str, Any]],
@@ -138,12 +192,13 @@ def _convert_record(
     issue_type = record.get("issue_type", "").strip()
     if not issue_type:
         raise MigrationError("issue_type is required")
-    _validate_issue_type(configuration, issue_type)
+    canonical_issue_type = BEADS_ISSUE_TYPE_MAP.get(issue_type, issue_type)
+    _validate_issue_type(configuration, canonical_issue_type)
 
     status = record.get("status", "").strip()
     if not status:
         raise MigrationError("status is required")
-    _validate_status(configuration, issue_type, status)
+    _validate_status(configuration, canonical_issue_type, status)
 
     priority = record.get("priority")
     if priority is None:
@@ -163,7 +218,7 @@ def _convert_record(
         identifier,
         record_by_id,
         configuration,
-        issue_type,
+        canonical_issue_type,
     )
 
     comment_items = record.get("comments", []) or []
@@ -178,12 +233,14 @@ def _convert_record(
         custom["beads_acceptance_criteria"] = record["acceptance_criteria"]
     if record.get("close_reason"):
         custom["beads_close_reason"] = record["close_reason"]
+    if canonical_issue_type != issue_type:
+        custom["beads_issue_type"] = issue_type
 
     return IssueData(
         id=identifier,
         title=title,
         description=record.get("description", ""),
-        type=issue_type,
+        type=canonical_issue_type,
         status=status,
         priority=priority,
         assignee=record.get("assignee"),
@@ -216,9 +273,10 @@ def _convert_dependencies(
         if depends_on_id not in record_by_id:
             raise MigrationError("missing dependency")
         if dependency_type == "parent-child":
-            if parent is not None:
+            if parent is None:
+                parent = depends_on_id
+            else:
                 raise MigrationError("multiple parents")
-            parent = depends_on_id
         else:
             dependency_links.append(
                 DependencyLink(target=depends_on_id, type=dependency_type)
@@ -228,7 +286,16 @@ def _convert_dependencies(
         parent_issue_type = record_by_id[parent].get("issue_type", "")
         if not parent_issue_type:
             raise MigrationError("parent issue_type is required")
-        validate_parent_child_relationship(configuration, parent_issue_type, issue_type)
+        canonical_parent_type = BEADS_ISSUE_TYPE_MAP.get(
+            parent_issue_type, parent_issue_type
+        )
+        if not (
+            canonical_parent_type == issue_type
+            and canonical_parent_type in {"epic", "task"}
+        ):
+            validate_parent_child_relationship(
+                configuration, canonical_parent_type, issue_type
+            )
 
     return parent, dependency_links
 
@@ -251,6 +318,7 @@ def _parse_timestamp(value: Any, field_name: str) -> datetime:
         raise MigrationError(f"{field_name} must be a string")
     if text.endswith("Z"):
         text = text.replace("Z", "+00:00")
+    text = _normalize_fractional_seconds(text)
     try:
         parsed = datetime.fromisoformat(text)
     except ValueError as error:
@@ -258,6 +326,35 @@ def _parse_timestamp(value: Any, field_name: str) -> datetime:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def _normalize_fractional_seconds(text: str) -> str:
+    """Pad fractional seconds to six digits so datetime can parse Beads timestamps."""
+
+    if "." not in text:
+        return text
+
+    dot_index = text.rfind(".")
+    prefix = text[: dot_index + 1]
+    remainder = text[dot_index + 1 :]
+
+    # Timezone separator is the last "+" or "-" after the fractional part.
+    plus_index = remainder.rfind("+")
+    minus_index = remainder.rfind("-")
+    tz_index = max(plus_index, minus_index)
+    if tz_index == -1:
+        return text
+
+    fractional = remainder[:tz_index]
+    timezone_part = remainder[tz_index:]
+    if not fractional.isdigit():
+        return text
+    if len(fractional) > 6:
+        fractional = fractional[:6]
+    elif len(fractional) < 6:
+        fractional = fractional.ljust(6, "0")
+
+    return f"{prefix}{fractional}{timezone_part}"
 
 
 def _validate_issue_type(configuration: ProjectConfiguration, issue_type: str) -> None:

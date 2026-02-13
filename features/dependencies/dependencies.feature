@@ -51,6 +51,12 @@ Feature: Issue dependencies
     Then stdout should contain "tsk-ready"
     And stdout should not contain "tsk-blocked"
 
+  Scenario: Ready listing uses a single project
+    Given a Taskulus project with default configuration
+    And issues "tsk-ready" exist
+    When ready issues are listed for a single project
+    Then the ready list should contain "tsk-ready"
+
   Scenario: Ready output includes project paths when multiple projects exist
     Given a repository with multiple projects and issues
     When I run "tsk ready"
@@ -64,7 +70,7 @@ Feature: Issue dependencies
     And stdout should not contain "beta/project tsk-beta"
 
   Scenario: Ready output includes external project paths from dotfile
-    Given a repository with a .taskulus file referencing another project
+    Given a repository with a .taskulus.yml file referencing another project
     When I run "tsk ready"
     Then stdout should contain the external project path for "tsk-external"
 
@@ -117,7 +123,7 @@ Feature: Issue dependencies
     And stderr should contain "project not initialized"
 
   Scenario: Ready fails when dotfile references a missing path
-    Given a repository with a .taskulus file referencing a missing path
+    Given a repository with a .taskulus.yml file referencing a missing path
     When I run "tsk ready"
     Then the command should fail with exit code 1
     And stderr should contain "taskulus path not found"

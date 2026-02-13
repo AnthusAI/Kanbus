@@ -124,3 +124,66 @@ jobs:
             dist/tskr-${{ matrix.target }}.${{ matrix.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  rust-crate:
+    needs: publish
+    if: ${{ needs.publish.outputs.release_tag != '' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo directories
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
+
+      - name: Sync crate version to release tag
+        run: |
+          tag_version="${{ needs.publish.outputs.release_tag }}"
+          tag_version="${tag_version#v}"
+          python - <<'PY' "$tag_version"
+import pathlib, re, sys
+path = pathlib.Path("Cargo.toml")
+text = path.read_text()
+version = sys.argv[1]
+def replace_version(contents: str, version: str) -> str:
+    pattern = r'(?m)^version\\s*=\\s*\"[^\"]*\"'
+    return re.sub(pattern, f'version = "{version}"', contents, count=1)
+new_text = replace_version(text, version)
+if new_text == text:
+    print("version field not updated; check Cargo.toml format")
+    sys.exit(1)
+path.write_text(new_text)
+PY
+
+      - name: fmt
+        run: cargo fmt --check
+
+      - name: clippy
+        run: cargo clippy --locked -- -D warnings
+
+      - name: test
+        run: cargo test --locked
+
+      - name: package (verification)
+        run: cargo package --locked
+
+      - name: publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --locked --token "$CARGO_REGISTRY_TOKEN"

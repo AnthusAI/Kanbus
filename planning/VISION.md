@@ -53,13 +53,13 @@ project/                          # Visible, human-browsable. Name configurable.
   .cache/                         # Gitignored. Shared index cache.
     index.json
 
-.taskulus.yaml                    # Repo root marker (points to project dir)
+.taskulus.yml                    # Repo root marker (points to project directory)
 ```
 
-The `.taskulus.yaml` root marker allows the CLI to find the project directory from any subdirectory:
+The `.taskulus.yml` root marker allows the CLI to find the project directory from any subdirectory:
 
 ```yaml
-project_dir: project
+project_directory: project
 ```
 
 The directory name is configurable via `tsk init --dir <name>`.

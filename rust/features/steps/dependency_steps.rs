@@ -5,7 +5,7 @@ use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
 use taskulus::cli::run_from_args_with_output;
-use taskulus::dependencies::add_dependency;
+use taskulus::dependencies::{add_dependency, list_ready_issues};
 use taskulus::file_io::load_project_directory;
 use taskulus::models::{DependencyLink, IssueData};
 
@@ -149,6 +149,20 @@ fn when_run_ready_local_only(world: &mut TaskulusWorld) {
 #[when("I run \"tsk ready --no-local\"")]
 fn when_run_ready_no_local(world: &mut TaskulusWorld) {
     run_cli(world, "tsk ready --no-local");
+}
+
+#[when("ready issues are listed for a single project")]
+fn when_ready_issues_listed_single_project(world: &mut TaskulusWorld) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let canonical = root.canonicalize().unwrap_or_else(|_| root.clone());
+    let issues = list_ready_issues(&canonical, true, false).expect("ready list");
+    world.ready_issue_ids = Some(issues.into_iter().map(|issue| issue.identifier).collect());
+}
+
+#[then(expr = "the ready list should contain {string}")]
+fn then_ready_list_contains(world: &mut TaskulusWorld, identifier: String) {
+    let ids = world.ready_issue_ids.as_ref().expect("ready ids not set");
+    assert!(ids.contains(&identifier));
 }
 
 #[when("I run \"tsk dep add tsk-child\"")]

@@ -1,6 +1,6 @@
 use cucumber::{given, then, when};
 
-use crate::steps::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::TaskulusWorld;
 use taskulus::ids::format_issue_key;
 
 #[given(expr = "an issue identifier {string}")]

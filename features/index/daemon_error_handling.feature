@@ -27,6 +27,13 @@ Feature: Daemon error handling
     When I request a daemon shutdown
     Then the daemon request should fail with "daemon disabled"
 
+  Scenario: Daemon status fails when multiple projects found
+    Given a repository with nested project directories
+    And daemon mode is enabled
+    When I run "tsk daemon-status"
+    Then the command should fail with exit code 1
+    And stderr should contain "multiple projects found"
+
   Scenario: Daemon rejects unsupported protocol versions
     Given a Taskulus project with default configuration
     And the daemon is running with a socket
@@ -44,17 +51,63 @@ Feature: Daemon error handling
     When I send a daemon request with action "unknown.action"
     Then the daemon response should include error code "unknown_action"
 
+  Scenario: Daemon CLI handles socket requests
+    Given a Taskulus project with default configuration
+    And daemon mode is enabled for real daemon
+    And the daemon CLI is running
+    When I request daemon status via the client
+    Then the daemon response should include status "ok"
+    When I send a daemon shutdown request via the client
+    Then the daemon CLI should stop
+
+  Scenario: Daemon CLI returns errors for invalid payloads
+    Given a Taskulus project with default configuration
+    And daemon mode is enabled for real daemon
+    And the daemon CLI is running
+    When I send an invalid daemon payload over the socket
+    Then the daemon response should include error code "internal_error"
+    When I send a daemon shutdown request via the client
+    Then the daemon CLI should stop
+
+  Scenario: Daemon CLI ignores empty socket requests
+    Given a Taskulus project with default configuration
+    And daemon mode is enabled for real daemon
+    And the daemon CLI is running
+    When I open and close a daemon connection without data
+    Then the daemon should still respond to ping
+    When I send a daemon shutdown request via the client
+    Then the daemon CLI should stop
+
   Scenario: Daemon handles invalid JSON payloads
     Given a Taskulus project with default configuration
     And the daemon is running with a socket
     When I send an invalid daemon payload
     Then the daemon response should include error code "internal_error"
 
+  Scenario: Daemon client reports connection failures
+    Given a Taskulus project with default configuration
+    And daemon mode is enabled
+    And the daemon socket does not exist
+    And the daemon connection will fail
+    When I request daemon status via the client
+    Then the daemon request should fail with "daemon connection failed"
+
+  Scenario: Daemon client stops retrying on non-connection errors
+    Given a Taskulus project with default configuration
+    And daemon mode is enabled
+    And the daemon socket does not exist
+    And the daemon connection fails then returns an empty response
+    When I request daemon status via the client
+    Then the daemon request should fail with "empty daemon response"
+
   Scenario: Daemon ignores empty requests
     Given a Taskulus project with default configuration
-    And the daemon is running with a socket
+    And daemon mode is enabled for real daemon
+    And the daemon CLI is running
     When I open and close a daemon connection without data
     Then the daemon should still respond to ping
+    When I send a daemon shutdown request via the client
+    Then the daemon CLI should stop
 
   Scenario: Daemon entry point can start and stop
     Given a Taskulus project with default configuration
@@ -67,6 +120,14 @@ Feature: Daemon error handling
     And a stale daemon socket exists
     When the daemon entry point is started
     And I send a daemon shutdown request
+    Then the daemon entry point should stop
+
+  Scenario: Daemon entry point handles ping requests
+    Given a Taskulus project with default configuration
+    When the daemon entry point is started
+    And I send a daemon ping request
+    Then the daemon response should include status "ok"
+    When I send a daemon shutdown request
     Then the daemon entry point should stop
 
   Scenario: Daemon client reports empty responses

@@ -5,6 +5,7 @@ from __future__ import annotations
 from behave import given, then, when
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from features.steps.shared import (
     build_issue,
@@ -13,7 +14,7 @@ from features.steps.shared import (
     run_cli,
     write_issue_file,
 )
-from taskulus.dependencies import DependencyError, add_dependency
+from taskulus.dependencies import DependencyError, add_dependency, list_ready_issues
 from taskulus.models import DependencyLink
 
 
@@ -116,6 +117,22 @@ def when_run_ready_local_only(context: object) -> None:
 @when('I run "tsk ready --no-local"')
 def when_run_ready_no_local(context: object) -> None:
     run_cli(context, "tsk ready --no-local")
+
+
+@when("ready issues are listed for a single project")
+def when_ready_issues_listed_for_single_project(context: object) -> None:
+    root = Path(context.working_directory)
+    canonical_root = root.resolve()
+    issues = list_ready_issues(
+        root=canonical_root, include_local=True, local_only=False
+    )
+    context.ready_issue_ids = [issue.identifier for issue in issues]
+
+
+@then('the ready list should contain "{identifier}"')
+def then_ready_list_should_contain(context: object, identifier: str) -> None:
+    ready_ids = getattr(context, "ready_issue_ids", [])
+    assert identifier in ready_ids
 
 
 @when('I run "tsk dep tree tsk-child"')

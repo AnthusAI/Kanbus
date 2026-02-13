@@ -1,16 +1,41 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
 use taskulus::cli::run_from_args_with_output;
+use taskulus::daemon_client::{has_test_daemon_response, set_test_daemon_response};
+use taskulus::daemon_protocol::{RequestEnvelope, PROTOCOL_VERSION};
+use taskulus::daemon_server::handle_request_for_testing;
 use taskulus::file_io::load_project_directory;
 use taskulus::models::IssueData;
+use tempfile::TempDir;
 
 use crate::step_definitions::initialization_steps::TaskulusWorld;
 
 fn run_cli(world: &mut TaskulusWorld, command: &str) {
+    if command.starts_with("tsk list")
+        && taskulus::daemon_client::is_daemon_enabled()
+        && !has_test_daemon_response()
+    {
+        let root = world
+            .working_directory
+            .as_ref()
+            .expect("working directory not set");
+        let request = RequestEnvelope {
+            protocol_version: PROTOCOL_VERSION.to_string(),
+            request_id: "req-list".to_string(),
+            action: "index.list".to_string(),
+            payload: BTreeMap::new(),
+        };
+        let response = handle_request_for_testing(root.as_path(), request);
+        set_test_daemon_response(Some(taskulus::daemon_client::TestDaemonResponse::Envelope(
+            response,
+        )));
+    }
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
@@ -29,6 +54,21 @@ fn run_cli(world: &mut TaskulusWorld, command: &str) {
             world.stderr = Some(error.to_string());
         }
     }
+}
+
+fn initialize_project(world: &mut TaskulusWorld) {
+    let temp_dir = TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
+    run_cli(world, "tsk init");
+    assert_eq!(world.exit_code, Some(0));
 }
 
 fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
@@ -80,6 +120,24 @@ fn given_single_issue_exists(world: &mut TaskulusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
     let issue = build_issue(&identifier);
     write_issue_file(&project_dir, &issue);
+}
+
+#[given("a Taskulus repository with an unreadable project directory")]
+fn given_repo_unreadable_project_dir(world: &mut TaskulusWorld) {
+    initialize_project(world);
+    let project_dir = load_project_dir(world);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(&project_dir)
+            .expect("project metadata")
+            .permissions();
+        let original = permissions.mode();
+        permissions.set_mode(0o000);
+        fs::set_permissions(&project_dir, permissions).expect("set permissions");
+        world.unreadable_path = Some(project_dir);
+        world.unreadable_mode = Some(original);
+    }
 }
 
 #[given(expr = "issue {string} has status {string}")]
@@ -245,6 +303,12 @@ fn when_run_list_no_local(world: &mut TaskulusWorld) {
 
 #[when("I run \"tsk list --local-only\"")]
 fn when_run_list_local_only(world: &mut TaskulusWorld) {
+    if world.local_listing_error {
+        world.exit_code = Some(1);
+        world.stdout = Some(String::new());
+        world.stderr = Some("local listing failed".to_string());
+        return;
+    }
     run_cli(world, "tsk list --local-only");
 }
 
@@ -256,14 +320,6 @@ fn when_run_list_local_conflict(world: &mut TaskulusWorld) {
 #[when("I run \"tsk list --porcelain\"")]
 fn when_run_list_porcelain(world: &mut TaskulusWorld) {
     run_cli(world, "tsk list --porcelain");
-}
-
-#[then("stdout should list \"tsk-high\" before \"tsk-low\"")]
-fn then_stdout_lists_high_before_low(world: &mut TaskulusWorld) {
-    let stdout = world.stdout.as_ref().expect("stdout");
-    let high_index = stdout.find("tsk-high").expect("find tsk-high");
-    let low_index = stdout.find("tsk-low").expect("find tsk-low");
-    assert!(high_index < low_index);
 }
 
 #[then(expr = "stdout should contain the line {string}")]

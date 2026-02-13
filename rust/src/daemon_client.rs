@@ -7,6 +7,8 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 use serde_json::Value;
 use uuid::Uuid;
@@ -14,6 +16,69 @@ use uuid::Uuid;
 use crate::daemon_paths::get_daemon_socket_path;
 use crate::daemon_protocol::{ErrorEnvelope, RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION};
 use crate::error::TaskulusError;
+
+/// Test-only response override for daemon client requests.
+#[derive(Clone, Debug)]
+pub enum TestDaemonResponse {
+    /// Simulate an empty daemon response.
+    Empty,
+    /// Simulate a daemon connection error.
+    IoError,
+    /// Return a fixed response envelope.
+    Envelope(ResponseEnvelope),
+}
+
+static TEST_DAEMON_RESPONSES: OnceLock<Mutex<Vec<TestDaemonResponse>>> = OnceLock::new();
+static TEST_DAEMON_SPAWN_DISABLED: OnceLock<Mutex<bool>> = OnceLock::new();
+
+/// Set the test response for the next daemon request.
+///
+/// Passing `None` clears any pending override.
+pub fn set_test_daemon_response(response: Option<TestDaemonResponse>) {
+    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+    let mut guard = cell.lock().expect("lock test response");
+    guard.clear();
+    if let Some(item) = response {
+        guard.push(item);
+    }
+}
+
+/// Set a sequence of test responses for daemon requests.
+pub fn set_test_daemon_responses(responses: Vec<TestDaemonResponse>) {
+    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+    let mut guard = cell.lock().expect("lock test responses");
+    *guard = responses;
+}
+
+/// Return whether a test daemon response override is set.
+pub fn has_test_daemon_response() -> bool {
+    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+    let guard = cell.lock().expect("lock test response");
+    !guard.is_empty()
+}
+
+/// Disable daemon spawning for tests when set to true.
+pub fn set_test_daemon_spawn_disabled(disabled: bool) {
+    let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
+    let mut guard = cell.lock().expect("lock test spawn flag");
+    *guard = disabled;
+}
+
+fn take_test_daemon_response() -> Option<TestDaemonResponse> {
+    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+    let mut guard = cell.lock().expect("lock test response");
+    if guard.is_empty() {
+        None
+    } else {
+        Some(guard.remove(0))
+    }
+}
+
+fn is_test_spawn_disabled() -> bool {
+    let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
+    let guard = cell.lock().expect("lock test spawn flag");
+    *guard
+}
 
 /// Return whether daemon mode is enabled.
 pub fn is_daemon_enabled() -> bool {
@@ -124,7 +189,20 @@ fn request_with_recovery(
                     .map_err(|error| TaskulusError::Io(error.to_string()))?;
             }
             spawn_daemon(root)?;
-            send_request(socket_path, request)
+            let mut last_error = error;
+            for _ in 0..10 {
+                match send_request(socket_path, request) {
+                    Ok(response) => return Ok(response),
+                    Err(err) => {
+                        if !matches!(err, TaskulusError::Io(_)) {
+                            return Err(err);
+                        }
+                        last_error = err;
+                        std::thread::sleep(Duration::from_millis(50));
+                    }
+                }
+            }
+            Err(last_error)
         }
     }
 }
@@ -134,6 +212,17 @@ fn send_request(
     socket_path: &Path,
     request: &RequestEnvelope,
 ) -> Result<ResponseEnvelope, TaskulusError> {
+    if let Some(response) = take_test_daemon_response() {
+        return match response {
+            TestDaemonResponse::Empty => Err(TaskulusError::IssueOperation(
+                "empty daemon response".to_string(),
+            )),
+            TestDaemonResponse::IoError => {
+                Err(TaskulusError::Io("daemon connection failed".to_string()))
+            }
+            TestDaemonResponse::Envelope(envelope) => Ok(envelope),
+        };
+    }
     let mut stream =
         UnixStream::connect(socket_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
     let payload =
@@ -169,6 +258,9 @@ fn send_request(
 
 #[cfg(unix)]
 fn spawn_daemon(root: &Path) -> Result<(), TaskulusError> {
+    if is_test_spawn_disabled() {
+        return Ok(());
+    }
     Command::new(std::env::current_exe().map_err(|error| TaskulusError::Io(error.to_string()))?)
         .arg("daemon")
         .arg("--root")

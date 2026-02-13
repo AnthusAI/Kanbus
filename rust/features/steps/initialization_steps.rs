@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -8,6 +8,7 @@ use std::time::SystemTime;
 use cucumber::{given, then, when, World};
 use tempfile::TempDir;
 
+use serde_json::Value;
 use taskulus::cli::run_from_args_with_output;
 use taskulus::daemon_client;
 use taskulus::index::IssueIndex;
@@ -23,6 +24,7 @@ pub struct TaskulusWorld {
     pub configuration: Option<ProjectConfiguration>,
     pub generated_id: Option<String>,
     pub generated_ids: Option<HashSet<String>>,
+    pub id_generation_error: Option<String>,
     pub id_prefix: Option<String>,
     pub existing_ids: Option<HashSet<String>>,
     pub project_dirs: Option<Vec<PathBuf>>,
@@ -32,23 +34,26 @@ pub struct TaskulusWorld {
     pub daemon_spawned: bool,
     pub daemon_connected: bool,
     pub stale_socket_removed: bool,
+    pub stale_socket_mtime: Option<SystemTime>,
     pub daemon_rebuilt_index: bool,
     pub daemon_simulation: bool,
     pub protocol_errors: Vec<String>,
     pub protocol_error: Option<String>,
     pub daemon_response_code: Option<String>,
+    pub daemon_response_status: Option<String>,
     pub daemon_error_message: Option<String>,
     pub daemon_index_issues: Option<Vec<String>>,
+    pub daemon_status_payload: Option<BTreeMap<String, Value>>,
     pub daemon_spawn_called: bool,
     pub daemon_entry_running: bool,
     pub daemon_list_error: bool,
     pub local_listing_error: bool,
+    pub daemon_use_real: bool,
+    pub ready_issue_ids: Option<Vec<String>>,
     pub shared_only_results: Option<Vec<String>>,
     pub expected_project_dir: Option<PathBuf>,
     pub expected_project_path: Option<PathBuf>,
     pub force_empty_projects: bool,
-    pub hash_sequence: Option<Vec<String>>,
-    pub random_bytes_override: Option<String>,
     pub migration_errors: Vec<String>,
     pub workflow_error: Option<String>,
     pub index: Option<IssueIndex>,
@@ -58,11 +63,22 @@ pub struct TaskulusWorld {
     pub current_user: Option<String>,
     pub original_taskulus_user: Option<Option<String>>,
     pub original_user_env: Option<Option<String>>,
+    pub original_canonicalize_failure_env: Option<Option<String>>,
+    pub original_configuration_path_failure_env: Option<Option<String>>,
     pub formatted_output: Option<String>,
+    pub display_context: Option<String>,
+    pub formatted_issue_key: Option<String>,
+    pub last_beads_issue_id: Option<String>,
+    pub existing_taskulus_ids: Option<HashSet<String>>,
+    pub last_taskulus_issue_id: Option<String>,
+    pub unreadable_path: Option<PathBuf>,
+    pub unreadable_mode: Option<u32>,
 }
 
 impl Drop for TaskulusWorld {
     fn drop(&mut self) {
+        taskulus::beads_write::set_test_beads_slug_sequence(None);
+        taskulus::ids::set_test_uuid_sequence(None);
         if let Some(handle) = self.daemon_thread.take() {
             if !self.daemon_fake_server {
                 if let Some(root) = self.working_directory.as_ref() {
@@ -70,6 +86,16 @@ impl Drop for TaskulusWorld {
                 }
             }
             let _ = handle.join();
+        }
+        if let (Some(path), Some(mode)) = (self.unreadable_path.take(), self.unreadable_mode) {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(mut permissions) = fs::metadata(&path).map(|meta| meta.permissions()) {
+                    permissions.set_mode(mode);
+                    let _ = fs::set_permissions(&path, permissions);
+                }
+            }
         }
         if let Some(original) = self.original_taskulus_user.take() {
             match original {
@@ -83,6 +109,20 @@ impl Drop for TaskulusWorld {
                 None => std::env::remove_var("USER"),
             }
         }
+        if let Some(original) = self.original_canonicalize_failure_env.take() {
+            match original {
+                Some(value) => std::env::set_var("TASKULUS_TEST_CANONICALIZE_FAILURE", value),
+                None => std::env::remove_var("TASKULUS_TEST_CANONICALIZE_FAILURE"),
+            }
+        }
+        if let Some(original) = self.original_configuration_path_failure_env.take() {
+            match original {
+                Some(value) => std::env::set_var("TASKULUS_TEST_CONFIGURATION_PATH_FAILURE", value),
+                None => std::env::remove_var("TASKULUS_TEST_CONFIGURATION_PATH_FAILURE"),
+            }
+        }
+        daemon_client::set_test_daemon_response(None);
+        daemon_client::set_test_daemon_spawn_disabled(false);
     }
 }
 
@@ -169,10 +209,10 @@ fn when_run_tsk_init_local(world: &mut TaskulusWorld) {
     run_cli(world, "tsk init --local");
 }
 
-#[then("a \".taskulus.yaml\" file should not exist")]
-fn then_marker_missing(world: &mut TaskulusWorld) {
+#[then("a \".taskulus.yml\" file should be created")]
+fn then_marker_created(world: &mut TaskulusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
-    assert!(!cwd.join(".taskulus.yaml").exists());
+    assert!(cwd.join(".taskulus.yml").is_file());
 }
 
 #[then("a \"project\" directory should exist")]

@@ -47,6 +47,25 @@ Feature: Migrate from Beads
     Then the command should succeed
     And migrated issues should include metadata and dependencies
 
+  Scenario: Migration preserves mapped issue types
+    Given a git repository with a Beads feature issue
+    When I run "tsk migrate"
+    Then the command should succeed
+    And migrated issue "bdx-feature" should have type "story"
+    And migrated issue "bdx-feature" should preserve beads issue type "feature"
+
+  Scenario: Migration preserves same-type parent-child relationships
+    Given a git repository with Beads epic parent and child
+    When I run "tsk migrate"
+    Then the command should succeed
+    And migrated issue "bdx-child" should have parent "bdx-parent"
+
+  Scenario: Migration accepts fractional second timestamps
+    Given a git repository with Beads issues containing fractional timestamps
+    When I run "tsk migrate"
+    Then the command should succeed
+    And all Beads issues should be converted to Taskulus issues
+
   Scenario: Migration rejects malformed records
     When I validate migration error cases
     Then migration errors should include "missing id"

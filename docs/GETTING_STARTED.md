@@ -44,7 +44,7 @@ project/
   issues/
   wiki/
   .cache/   # created on demand
-.taskulus.yaml
+.taskulus.yml
 ```
 
 ## Step 2: Create your first issue

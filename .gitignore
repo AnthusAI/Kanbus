@@ -4,6 +4,7 @@ __pycache__/
 .coverage
 .venv/
 .ruff_cache/
+.env
 
 # Rust
 rust/target/
@@ -12,6 +13,10 @@ rust/target/
 project/.cache/
 tools/tmp/
 tools/tmp/*
+tmp/
+coverage-python/
+python/coverage.xml
+rust/cobertura.xml
 
 # Docs
 site/

@@ -4,18 +4,20 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use serde_json::Value;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;
 use crate::file_io::{
     discover_project_directories, discover_taskulus_projects, ensure_git_repository,
-    initialize_project,
+    get_configuration_path, initialize_project,
 };
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::issue_files::write_issue_to_file;
-use crate::models::{DependencyLink, IssueComment, IssueData, ProjectConfiguration};
+use crate::models::{
+    DependencyLink, IssueComment, IssueData, PriorityDefinition, ProjectConfiguration,
+};
 use crate::workflows::get_workflow_for_issue_type;
 
 /// Result of a migration run.
@@ -44,8 +46,8 @@ pub fn load_beads_issues(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
         return Err(TaskulusError::IssueOperation("no issues.jsonl".to_string()));
     }
 
-    let configuration = load_project_configuration(&root.join("config.yaml"))?;
     let records = load_beads_records(&issues_path)?;
+    let configuration = build_beads_configuration(&records);
     let mut record_by_id: HashMap<String, Value> = HashMap::new();
     for record in &records {
         let identifier = record
@@ -114,7 +116,8 @@ pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, TaskulusError>
 
     initialize_project(root, false)?;
     let project_dir = root.join("project");
-    let configuration = load_project_configuration(&project_dir.join("config.yaml"))?;
+    let configuration =
+        load_project_configuration(&get_configuration_path(project_dir.as_path())?)?;
 
     let records = load_beads_records(&issues_path)?;
     let mut record_by_id: HashMap<String, Value> = HashMap::new();
@@ -164,7 +167,8 @@ fn convert_record(
 ) -> Result<IssueData, TaskulusError> {
     let identifier = required_string(record, "id")?;
     let title = required_string(record, "title")?;
-    let issue_type = required_string(record, "issue_type")?;
+    let issue_type_raw = required_string(record, "issue_type")?;
+    let issue_type = map_issue_type(&issue_type_raw);
     validate_issue_type(configuration, &issue_type)?;
 
     let status = required_string(record, "status")?;
@@ -226,6 +230,12 @@ fn convert_record(
                 Value::String(reason.to_string()),
             );
         }
+    }
+    if issue_type != issue_type_raw {
+        custom.insert(
+            "beads_issue_type".to_string(),
+            Value::String(issue_type_raw.to_string()),
+        );
     }
 
     Ok(IssueData {
@@ -311,7 +321,12 @@ fn convert_dependencies(
                 "parent issue_type is required".to_string(),
             ));
         }
-        validate_parent_child_relationship(configuration, parent_issue_type, issue_type)?;
+        let canonical_parent = map_issue_type(parent_issue_type);
+        let skip_validation = canonical_parent == issue_type
+            && (canonical_parent == "epic" || canonical_parent == "task");
+        if !skip_validation {
+            validate_parent_child_relationship(configuration, &canonical_parent, issue_type)?;
+        }
     }
 
     Ok((parent, links))
@@ -361,14 +376,21 @@ fn parse_timestamp(
             "{field_name} is required"
         )));
     }
-    let normalized = if text.ends_with('Z') {
+    let mut normalized = if text.ends_with('Z') {
         text.replace('Z', "+00:00")
     } else {
         text.to_string()
     };
-    let parsed = DateTime::parse_from_rfc3339(&normalized)
+    normalized = normalize_fractional_seconds(&normalized);
+    if has_timezone(&normalized) {
+        let parsed = DateTime::parse_from_rfc3339(&normalized)
+            .map_err(|_| TaskulusError::IssueOperation(format!("invalid {field_name}")))?;
+        return Ok(parsed.with_timezone(&Utc));
+    }
+    let parsed = chrono::NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H:%M:%S%.f")
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H:%M:%S"))
         .map_err(|_| TaskulusError::IssueOperation(format!("invalid {field_name}")))?;
-    Ok(parsed.with_timezone(&Utc))
+    Ok(Utc.from_utc_datetime(&parsed))
 }
 
 fn required_string(record: &Value, key: &str) -> Result<String, TaskulusError> {
@@ -377,6 +399,47 @@ fn required_string(record: &Value, key: &str) -> Result<String, TaskulusError> {
         return Err(TaskulusError::IssueOperation(format!("{key} is required")));
     }
     Ok(value.to_string())
+}
+
+fn normalize_fractional_seconds(text: &str) -> String {
+    let Some(dot_index) = text.rfind('.') else {
+        return text.to_string();
+    };
+    let prefix = &text[..dot_index + 1];
+    let remainder = &text[dot_index + 1..];
+    let plus_index = remainder.rfind('+');
+    let minus_index = remainder.rfind('-');
+    let tz_index = match (plus_index, minus_index) {
+        (Some(plus), Some(minus)) => Some(plus.max(minus)),
+        (Some(plus), None) => Some(plus),
+        (None, Some(minus)) => Some(minus),
+        (None, None) => None,
+    };
+    let Some(tz_index) = tz_index else {
+        return text.to_string();
+    };
+    let fractional = &remainder[..tz_index];
+    if !fractional.chars().all(|ch| ch.is_ascii_digit()) {
+        return text.to_string();
+    }
+    let timezone_part = &remainder[tz_index..];
+    let mut adjusted = fractional.to_string();
+    if adjusted.len() > 6 {
+        adjusted.truncate(6);
+    } else if adjusted.len() < 6 {
+        while adjusted.len() < 6 {
+            adjusted.push('0');
+        }
+    }
+    format!("{prefix}{adjusted}{timezone_part}")
+}
+
+fn has_timezone(text: &str) -> bool {
+    let Some(time_index) = text.find('T') else {
+        return false;
+    };
+    let time_part = &text[time_index..];
+    time_part.contains('+') || time_part[1..].contains('-')
 }
 
 fn validate_issue_type(
@@ -414,3 +477,74 @@ fn validate_status(
     }
     Ok(())
 }
+
+fn map_issue_type(raw: &str) -> String {
+    for (source, target) in BEADS_ISSUE_TYPE_MAP {
+        if raw == *source {
+            return target.to_string();
+        }
+    }
+    raw.to_string()
+}
+
+fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
+    let mut types: HashSet<String> = HashSet::new();
+    let mut statuses: HashSet<String> = HashSet::new();
+    let mut priorities: HashSet<u8> = HashSet::new();
+
+    for record in records {
+        if let Some(issue_type) = record.get("issue_type").and_then(Value::as_str) {
+            types.insert(map_issue_type(issue_type));
+        }
+        if let Some(status) = record.get("status").and_then(Value::as_str) {
+            statuses.insert(status.to_string());
+        }
+        if let Some(priority) = record.get("priority").and_then(Value::as_i64) {
+            priorities.insert(priority as u8);
+        }
+    }
+
+    statuses.extend(["open", "in_progress", "blocked", "deferred", "closed"].map(str::to_string));
+    priorities.extend([0, 1, 2, 3, 4]);
+
+    let mut status_vec: Vec<String> = statuses.into_iter().collect();
+    status_vec.sort();
+    let mut workflow_state: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for status in &status_vec {
+        workflow_state.insert(status.clone(), status_vec.clone());
+    }
+    let mut workflows: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
+    workflows.insert("default".to_string(), workflow_state.clone());
+    workflows.insert("epic".to_string(), workflow_state.clone());
+    workflows.insert("task".to_string(), workflow_state.clone());
+
+    let mut priority_defs: BTreeMap<u8, PriorityDefinition> = BTreeMap::new();
+    for value in priorities {
+        priority_defs.insert(
+            value,
+            PriorityDefinition {
+                name: format!("P{value}"),
+                color: None,
+            },
+        );
+    }
+
+    ProjectConfiguration {
+        project_directory: "project".to_string(),
+        external_projects: Vec::new(),
+        project_key: "BD".to_string(),
+        hierarchy: vec![
+            "epic".to_string(),
+            "task".to_string(),
+            "sub-task".to_string(),
+        ],
+        types: types.into_iter().collect(),
+        workflows,
+        initial_status: "open".to_string(),
+        priorities: priority_defs,
+        default_priority: 2,
+        status_colors: BTreeMap::new(),
+        type_colors: BTreeMap::new(),
+    }
+}
+const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];

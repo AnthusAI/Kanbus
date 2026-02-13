@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+import yaml
 
+from taskulus.config import DEFAULT_CONFIGURATION
 from taskulus.project import ensure_project_local_directory
 
 
@@ -49,5 +51,11 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
 
     project_dir.mkdir(parents=True, exist_ok=False)
     issues_dir.mkdir(parents=True)
+    config_path = root / ".taskulus.yml"
+    if not config_path.exists():
+        config_path.write_text(
+            yaml.safe_dump(DEFAULT_CONFIGURATION, sort_keys=False),
+            encoding="utf-8",
+        )
     if create_local:
         ensure_project_local_directory(project_dir)

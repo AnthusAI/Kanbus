@@ -7,15 +7,23 @@ from datetime import datetime, timezone
 import os
 
 from behave import given, then, when
+import yaml
 
 from features.steps.shared import ensure_git_repository, write_issue_file
 from taskulus.models import IssueData
 from taskulus.project import (
     ProjectMarkerError,
     discover_project_directories,
+    discover_taskulus_projects,
+    get_configuration_path,
     load_project_directory,
-    _discover_taskulus_projects,
 )
+
+
+def _set_env_override(context: object, name: str, attr: str, value: str) -> None:
+    if attr not in context.__dict__:
+        context.__dict__[attr] = os.environ.get(name)
+    os.environ[name] = value
 
 
 def _create_repo(context: object, name: str) -> Path:
@@ -43,6 +51,52 @@ def given_repo_multiple_projects(context: object) -> None:
     (root / "project").mkdir()
     (root / "nested").mkdir()
     (root / "nested" / "project").mkdir(parents=True)
+
+
+@given("a repository with a project directory that cannot be canonicalized")
+def given_repo_project_cannot_canonicalize(context: object) -> None:
+    root = _create_repo(context, "canonicalize-failure")
+    project_dir = root / "project"
+    project_dir.mkdir()
+    _set_env_override(
+        context,
+        "TASKULUS_TEST_CANONICALIZE_FAILURE",
+        "original_canonicalize_env",
+        "1",
+    )
+    original_mode = project_dir.stat().st_mode
+    project_dir.chmod(0)
+    context.unreadable_path = project_dir
+    context.unreadable_mode = original_mode
+
+
+@given("project directory canonicalization will fail")
+def given_project_directory_canonicalization_failure(context: object) -> None:
+    _set_env_override(
+        context,
+        "TASKULUS_TEST_CANONICALIZE_FAILURE",
+        "original_canonicalize_env",
+        "1",
+    )
+
+
+@given("configuration path lookup will fail")
+def given_configuration_path_lookup_failure(context: object) -> None:
+    _set_env_override(
+        context,
+        "TASKULUS_TEST_CONFIGURATION_PATH_FAILURE",
+        "original_configuration_path_failure_env",
+        "1",
+    )
+
+
+@given("a repository directory that is unreadable")
+def given_repo_unreadable(context: object) -> None:
+    root = _create_repo(context, "unreadable-projects")
+    original_mode = root.stat().st_mode
+    root.chmod(0)
+    context.unreadable_path = root
+    context.unreadable_mode = original_mode
 
 
 def _build_issue(identifier: str, title: str) -> IssueData:
@@ -92,7 +146,7 @@ def given_repo_multiple_projects_with_local_issues(context: object) -> None:
     write_issue_file(local_project, _build_issue("tsk-alpha-local", "Alpha local task"))
 
 
-@given("a repository with a .taskulus file referencing another project")
+@given("a repository with a .taskulus.yml file referencing another project")
 def given_repo_taskulus_external_project(context: object) -> None:
     root = _create_repo(context, "taskulus-external")
     (root / "project" / "issues").mkdir(parents=True)
@@ -101,21 +155,114 @@ def given_repo_taskulus_external_project(context: object) -> None:
     external_project = external_root / "project"
     (external_project / "issues").mkdir(parents=True)
     write_issue_file(external_project, _build_issue("tsk-external", "External task"))
-    (root / ".taskulus").write_text(f"{external_project}\n", encoding="utf-8")
+    payload = {
+        "project_directory": "project",
+        "external_projects": [str(external_project)],
+        "project_key": "tsk",
+        "hierarchy": ["initiative", "epic", "task", "sub-task"],
+        "types": ["bug", "story", "chore"],
+        "workflows": {
+            "default": {
+                "open": ["in_progress", "closed", "deferred"],
+                "in_progress": ["open", "blocked", "closed"],
+                "blocked": ["in_progress", "closed"],
+                "closed": ["open"],
+                "deferred": ["open", "closed"],
+            }
+        },
+        "initial_status": "open",
+        "priorities": {
+            0: {"name": "critical", "color": "red"},
+            1: {"name": "high", "color": "bright_red"},
+            2: {"name": "medium", "color": "yellow"},
+            3: {"name": "low", "color": "blue"},
+            4: {"name": "trivial", "color": "white"},
+        },
+        "default_priority": 2,
+    }
+    (root / ".taskulus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False), encoding="utf-8"
+    )
     context.external_project_path = external_project.resolve()
+    context.external_issue_title = "External task"
 
 
-@given("a repository with a .taskulus file referencing a missing path")
+@given("a repository with a .taskulus.yml file referencing a missing path")
 def given_repo_taskulus_missing_path(context: object) -> None:
     root = _create_repo(context, "taskulus-missing")
-    (root / ".taskulus").write_text("missing/project\n", encoding="utf-8")
+    payload = {
+        "project_directory": "project",
+        "external_projects": ["missing/project"],
+        "project_key": "tsk",
+        "hierarchy": ["initiative", "epic", "task", "sub-task"],
+        "types": ["bug", "story", "chore"],
+        "workflows": {
+            "default": {
+                "open": ["in_progress", "closed", "deferred"],
+                "in_progress": ["open", "blocked", "closed"],
+                "blocked": ["in_progress", "closed"],
+                "closed": ["open"],
+                "deferred": ["open", "closed"],
+            }
+        },
+        "initial_status": "open",
+        "priorities": {
+            0: {"name": "critical", "color": "red"},
+            1: {"name": "high", "color": "bright_red"},
+            2: {"name": "medium", "color": "yellow"},
+            3: {"name": "low", "color": "blue"},
+            4: {"name": "trivial", "color": "white"},
+        },
+        "default_priority": 2,
+    }
+    (root / ".taskulus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False), encoding="utf-8"
+    )
 
 
-@given("a repository with a .taskulus file referencing a valid path with blank lines")
+@given("a repository with an invalid .taskulus.yml file")
+def given_repo_invalid_taskulus_config(context: object) -> None:
+    root = _create_repo(context, "taskulus-invalid")
+    (root / ".taskulus.yml").write_text(
+        "unknown_field: value\n",
+        encoding="utf-8",
+    )
+
+
+@given(
+    "a repository with a .taskulus.yml file referencing a valid path with blank lines"
+)
 def given_repo_taskulus_with_blank_lines(context: object) -> None:
     root = _create_repo(context, "taskulus-blank-lines")
     (root / "extras" / "project").mkdir(parents=True)
-    (root / ".taskulus").write_text("\nextras/project\n\n", encoding="utf-8")
+    payload = {
+        "project_directory": "extras/project",
+        "external_projects": [],
+        "project_key": "tsk",
+        "hierarchy": ["initiative", "epic", "task", "sub-task"],
+        "types": ["bug", "story", "chore"],
+        "workflows": {
+            "default": {
+                "open": ["in_progress", "closed", "deferred"],
+                "in_progress": ["open", "blocked", "closed"],
+                "blocked": ["in_progress", "closed"],
+                "closed": ["open"],
+                "deferred": ["open", "closed"],
+            }
+        },
+        "initial_status": "open",
+        "priorities": {
+            0: {"name": "critical", "color": "red"},
+            1: {"name": "high", "color": "bright_red"},
+            2: {"name": "medium", "color": "yellow"},
+            3: {"name": "low", "color": "blue"},
+            4: {"name": "trivial", "color": "white"},
+        },
+        "default_priority": 2,
+    }
+    (root / ".taskulus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False), encoding="utf-8"
+    )
     context.expected_project_dir = (root / "extras" / "project").resolve()
 
 
@@ -151,10 +298,14 @@ def when_project_dirs_discovered(context: object) -> None:
         context.project_error = str(error)
 
 
-@when("taskulus dotfile paths are discovered from the filesystem root")
-def when_taskulus_dotfile_paths_from_root(context: object) -> None:
-    context.project_dirs = _discover_taskulus_projects(Path("/"))
-    context.project_error = None
+@when("taskulus configuration paths are discovered from the filesystem root")
+def when_taskulus_configuration_paths_from_root(context: object) -> None:
+    try:
+        context.project_dirs = discover_taskulus_projects(Path("/"))
+        context.project_error = None
+    except ProjectMarkerError as error:
+        context.project_dirs = []
+        context.project_error = str(error)
 
 
 @when("the project directory is loaded")
@@ -162,9 +313,22 @@ def when_project_dir_loaded(context: object) -> None:
     root = Path(context.working_directory)
     try:
         context.project_dir = load_project_directory(root)
+        context.project_dirs = [context.project_dir]
         context.project_error = None
     except ProjectMarkerError as error:
         context.project_dir = None
+        context.project_dirs = []
+        context.project_error = str(error)
+
+
+@when("the configuration path is requested")
+def when_configuration_path_requested(context: object) -> None:
+    root = Path(context.working_directory)
+    try:
+        context.configuration_path = get_configuration_path(root)
+        context.project_error = None
+    except ProjectMarkerError as error:
+        context.configuration_path = None
         context.project_error = str(error)
 
 
@@ -180,7 +344,8 @@ def then_project_not_initialized(context: object) -> None:
 
 @then('project discovery should fail with "multiple projects found"')
 def then_project_multiple(context: object) -> None:
-    assert context.project_error == "multiple projects found"
+    assert context.project_error is not None
+    assert "multiple projects found" in context.project_error
 
 
 @then('project discovery should fail with "taskulus path not found"')
@@ -188,13 +353,31 @@ def then_project_missing_path(context: object) -> None:
     assert context.project_error.startswith("taskulus path not found")
 
 
+@then('project discovery should fail with "unknown configuration fields"')
+def then_project_unknown_fields(context: object) -> None:
+    assert context.project_error == "unknown configuration fields"
+
+
 @then("project discovery should include the referenced path")
 def then_project_includes_referenced_path(context: object) -> None:
     expected = getattr(context, "expected_project_dir", None)
     assert expected is not None
-    assert expected in context.project_dirs
+    expected = expected.resolve()
+    resolved = [path.resolve() for path in context.project_dirs]
+    assert expected in resolved
 
 
 @then("project discovery should return no projects")
 def then_project_returns_no_projects(context: object) -> None:
     assert context.project_dirs == []
+
+
+@then('configuration path lookup should fail with "project not initialized"')
+def then_config_path_missing(context: object) -> None:
+    assert context.project_error == "project not initialized"
+
+
+@then('project discovery should fail with "Permission denied"')
+def then_project_permission_denied(context: object) -> None:
+    assert context.project_error is not None
+    assert "Permission denied" in context.project_error

@@ -49,6 +49,17 @@ def given_repo_empty_beads(context: object) -> None:
     context.working_directory = repository_path
 
 
+@given("a git repository with an empty issues.jsonl file")
+def given_repo_with_empty_issues_jsonl(context: object) -> None:
+    repository_path = Path(context.temp_dir) / "repo"
+    repository_path.mkdir(parents=True, exist_ok=True)
+    ensure_git_repository(repository_path)
+    beads_dir = repository_path / ".beads"
+    beads_dir.mkdir()
+    (beads_dir / "issues.jsonl").write_text("", encoding="utf-8")
+    context.working_directory = repository_path
+
+
 @given("a git repository with a .beads issues database containing blank lines")
 def given_repo_with_blank_lines(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
@@ -69,6 +80,28 @@ def given_repo_with_blank_lines(context: object) -> None:
     }
     lines = "\n".join([json.dumps(record), "", json.dumps({**record, "id": "tsk-002"})])
     (beads_dir / "issues.jsonl").write_text(lines, encoding="utf-8")
+    context.working_directory = repository_path
+
+
+@given("a git repository with a .beads issues database containing an invalid id")
+def given_repo_with_invalid_beads_id(context: object) -> None:
+    repository_path = Path(context.temp_dir) / "repo"
+    repository_path.mkdir(parents=True, exist_ok=True)
+    ensure_git_repository(repository_path)
+    beads_dir = repository_path / ".beads"
+    beads_dir.mkdir()
+    record = {
+        "id": "invalidid",
+        "title": "Title",
+        "issue_type": "task",
+        "status": "open",
+        "priority": 2,
+        "created_at": "2026-02-11T00:00:00Z",
+        "updated_at": "2026-02-11T00:00:00Z",
+        "dependencies": [],
+        "comments": [],
+    }
+    (beads_dir / "issues.jsonl").write_text(json.dumps(record), encoding="utf-8")
     context.working_directory = repository_path
 
 
@@ -100,6 +133,128 @@ def given_repo_with_metadata_dependencies(context: object) -> None:
         "owner": "dev@example.com",
     }
     lines = "\n".join([json.dumps(parent), json.dumps(child)])
+    (beads_dir / "issues.jsonl").write_text(lines, encoding="utf-8")
+    context.working_directory = repository_path
+
+
+@given("a git repository with a Beads feature issue")
+def given_repo_with_feature_issue(context: object) -> None:
+    repository_path = Path(context.temp_dir) / "repo"
+    repository_path.mkdir(parents=True, exist_ok=True)
+    ensure_git_repository(repository_path)
+    beads_dir = repository_path / ".beads"
+    beads_dir.mkdir()
+    record = {
+        "id": "bdx-feature",
+        "title": "Feature issue",
+        "issue_type": "feature",
+        "status": "open",
+        "priority": 2,
+        "created_at": "2026-02-11T00:00:00Z",
+        "updated_at": "2026-02-11T00:00:00Z",
+        "dependencies": [],
+        "comments": [],
+    }
+    (beads_dir / "issues.jsonl").write_text(json.dumps(record), encoding="utf-8")
+    context.working_directory = repository_path
+
+
+@given("a git repository with Beads epic parent and child")
+def given_repo_with_epic_parent_child(context: object) -> None:
+    repository_path = Path(context.temp_dir) / "repo"
+    repository_path.mkdir(parents=True, exist_ok=True)
+    ensure_git_repository(repository_path)
+    beads_dir = repository_path / ".beads"
+    beads_dir.mkdir()
+    parent_record = {
+        "id": "bdx-parent",
+        "title": "Parent epic",
+        "issue_type": "epic",
+        "status": "open",
+        "priority": 2,
+        "created_at": "2026-02-11T00:00:00Z",
+        "updated_at": "2026-02-11T00:00:00Z",
+        "dependencies": [],
+        "comments": [],
+    }
+    child_record = {
+        "id": "bdx-child",
+        "title": "Child epic",
+        "issue_type": "epic",
+        "status": "open",
+        "priority": 2,
+        "created_at": "2026-02-11T00:00:00Z",
+        "updated_at": "2026-02-11T00:00:00Z",
+        "dependencies": [
+            {
+                "issue_id": "bdx-child",
+                "depends_on_id": "bdx-parent",
+                "type": "parent-child",
+                "created_at": "2026-02-11T00:00:00Z",
+                "created_by": "dev@example.com",
+            }
+        ],
+        "comments": [],
+    }
+    lines = "\n".join(json.dumps(record) for record in [parent_record, child_record])
+    (beads_dir / "issues.jsonl").write_text(lines, encoding="utf-8")
+    context.working_directory = repository_path
+
+
+@given("a git repository with Beads issues containing fractional timestamps")
+def given_repo_with_fractional_timestamps(context: object) -> None:
+    repository_path = Path(context.temp_dir) / "repo"
+    repository_path.mkdir(parents=True, exist_ok=True)
+    ensure_git_repository(repository_path)
+    beads_dir = repository_path / ".beads"
+    beads_dir.mkdir()
+    records = [
+        {
+            "id": "bdx-frac-short",
+            "title": "Short fractional",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": "2026-02-11T00:00:00.1+00:00",
+            "updated_at": "2026-02-11T00:00:00.1+00:00",
+            "dependencies": [],
+            "comments": [],
+        },
+        {
+            "id": "bdx-frac-long",
+            "title": "Long fractional",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": "2026-02-11T00:00:00.1234567+00:00",
+            "updated_at": "2026-02-11T00:00:00.1234567+00:00",
+            "dependencies": [],
+            "comments": [],
+        },
+        {
+            "id": "bdx-frac-nozone",
+            "title": "No zone",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": "2026-02-11T00:00:00.123",
+            "updated_at": "2026-02-11T00:00:00.123",
+            "dependencies": [],
+            "comments": [],
+        },
+        {
+            "id": "bdx-frac-negative",
+            "title": "Negative offset",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": "2026-02-11T00:00:00.123456-05:00",
+            "updated_at": "2026-02-11T00:00:00.123456-05:00",
+            "dependencies": [],
+            "comments": [],
+        },
+    ]
+    lines = "\n".join(json.dumps(record) for record in records)
     (beads_dir / "issues.jsonl").write_text(lines, encoding="utf-8")
     context.working_directory = repository_path
 
@@ -265,6 +420,18 @@ def when_validate_migration_errors(context: object) -> None:
     run_case([{**valid_base, "created_at": ""}], "created-empty")
     run_case([{**valid_base, "created_at": 123}], "created-not-string")
     run_case([{**valid_base, "created_at": "invalid"}], "created-invalid")
+    run_case(
+        [{**valid_base, "created_at": "2026-02-11T00:00:00.bad+00:00"}],
+        "created-invalid-fractional",
+    )
+    run_case(
+        [{**valid_base, "created_at": "2026-02-11T00:00:00.bad-00:00"}],
+        "created-invalid-negative",
+    )
+    run_case(
+        [{**valid_base, "created_at": "2026-02-11T00:00:00.123+00:00-00"}],
+        "created-invalid-mixed-offset",
+    )
     context.migration_errors = errors
 
 
@@ -302,6 +469,33 @@ def then_migration_includes_metadata(context: object) -> None:
         item.get("target") == "tsk-parent" and item.get("type") == "blocked-by"
         for item in dependencies
     )
+
+
+@then('migrated issue "{identifier}" should have type "{issue_type}"')
+def then_migrated_issue_type(context: object, identifier: str, issue_type: str) -> None:
+    project_dir = load_project_directory(context)
+    issue_path = project_dir / "issues" / f"{identifier}.json"
+    payload = json.loads(issue_path.read_text(encoding="utf-8"))
+    assert payload.get("type") == issue_type
+
+
+@then('migrated issue "{identifier}" should have parent "{parent}"')
+def then_migrated_issue_parent(context: object, identifier: str, parent: str) -> None:
+    project_dir = load_project_directory(context)
+    issue_path = project_dir / "issues" / f"{identifier}.json"
+    payload = json.loads(issue_path.read_text(encoding="utf-8"))
+    assert payload.get("parent") == parent
+
+
+@then('migrated issue "{identifier}" should preserve beads issue type "{issue_type}"')
+def then_migrated_issue_preserves_type(
+    context: object, identifier: str, issue_type: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue_path = project_dir / "issues" / f"{identifier}.json"
+    payload = json.loads(issue_path.read_text(encoding="utf-8"))
+    custom = payload.get("custom", {})
+    assert custom.get("beads_issue_type") == issue_type
 
 
 @then('migration errors should include "{message}"')

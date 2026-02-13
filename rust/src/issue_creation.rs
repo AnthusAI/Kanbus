@@ -13,7 +13,8 @@ use crate::issue_files::{
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::{
     file_io::{
-        ensure_project_local_directory, find_project_local_directory, load_project_directory,
+        ensure_project_local_directory, find_project_local_directory, get_configuration_path,
+        load_project_directory,
     },
     models::DependencyLink,
 };
@@ -32,6 +33,13 @@ pub struct IssueCreationRequest {
     pub local: bool,
 }
 
+/// Result payload for issue creation.
+#[derive(Debug, Clone)]
+pub struct IssueCreationResult {
+    pub issue: IssueData,
+    pub configuration: ProjectConfiguration,
+}
+
 /// Create a new issue and write it to disk.
 ///
 /// # Arguments
@@ -39,7 +47,7 @@ pub struct IssueCreationRequest {
 ///
 /// # Errors
 /// Returns `TaskulusError` if validation or file operations fail.
-pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueData, TaskulusError> {
+pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResult, TaskulusError> {
     let project_dir = load_project_directory(request.root.as_path())?;
     let mut issues_dir = project_dir.join("issues");
     let mut local_dir = find_project_local_directory(&project_dir);
@@ -47,7 +55,8 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueData, Taskulu
         local_dir = Some(ensure_project_local_directory(&project_dir)?);
         issues_dir = local_dir.as_ref().expect("local dir").join("issues");
     }
-    let configuration = load_project_configuration(&project_dir.join("config.yaml"))?;
+    let config_path = get_configuration_path(project_dir.as_path())?;
+    let configuration = load_project_configuration(&config_path)?;
 
     let resolved_type = request.issue_type.as_deref().unwrap_or("task");
     validate_issue_type(&configuration, resolved_type)?;
@@ -83,8 +92,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueData, Taskulu
     let identifier_request = IssueIdentifierRequest {
         title: request.title.clone(),
         existing_ids,
-        prefix: configuration.prefix.clone(),
-        created_at,
+        prefix: configuration.project_key.clone(),
     };
     let identifier = generate_issue_identifier(&identifier_request)?.identifier;
     let updated_at = created_at;
@@ -110,7 +118,10 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueData, Taskulu
 
     let issue_path = issue_path_for_identifier(&issues_dir, &issue.identifier);
     write_issue_to_file(&issue, &issue_path)?;
-    Ok(issue)
+    Ok(IssueCreationResult {
+        issue,
+        configuration,
+    })
 }
 
 fn validate_issue_type(

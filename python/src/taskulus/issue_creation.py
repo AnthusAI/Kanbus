@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
@@ -14,7 +15,7 @@ from taskulus.issue_files import (
     read_issue_from_file,
     write_issue_to_file,
 )
-from taskulus.models import IssueData
+from taskulus.models import IssueData, ProjectConfiguration
 from taskulus.project import (
     ProjectMarkerError,
     ensure_project_local_directory,
@@ -28,6 +29,14 @@ class IssueCreationError(RuntimeError):
     """Raised when issue creation fails."""
 
 
+@dataclass(frozen=True)
+class IssueCreationResult:
+    """Result of issue creation."""
+
+    issue: IssueData
+    configuration: ProjectConfiguration
+
+
 def create_issue(
     root: Path,
     title: str,
@@ -38,7 +47,7 @@ def create_issue(
     labels: Iterable[str],
     description: Optional[str],
     local: bool = False,
-) -> IssueData:
+) -> IssueCreationResult:
     """Create a new issue and write it to disk.
 
     :param root: Repository root path.
@@ -59,13 +68,13 @@ def create_issue(
     :type description: Optional[str]
     :param local: Whether to create the issue in project-local.
     :type local: bool
-    :return: Created issue data.
-    :rtype: IssueData
+    :return: Created issue data and configuration.
+    :rtype: IssueCreationResult
     :raises IssueCreationError: If validation or file operations fail.
     """
     try:
         project_dir = load_project_directory(root)
-    except ProjectMarkerError as error:
+    except (ProjectMarkerError, ConfigurationError) as error:
         raise IssueCreationError(str(error)) from error
 
     issues_dir = project_dir / "issues"
@@ -137,4 +146,4 @@ def create_issue(
 
     issue_path = issues_dir / f"{identifier}.json"
     write_issue_to_file(issue, issue_path)
-    return issue
+    return IssueCreationResult(issue=issue, configuration=configuration)

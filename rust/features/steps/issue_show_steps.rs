@@ -5,6 +5,7 @@ use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
 use taskulus::cli::run_from_args_with_output;
+use taskulus::config_loader::load_project_configuration;
 use taskulus::file_io::load_project_directory;
 use taskulus::issue_display::format_issue_for_display;
 use taskulus::models::IssueData;
@@ -124,11 +125,53 @@ fn when_format_issue_display(world: &mut TaskulusWorld) {
     let issue_path = project_dir.join("issues").join("tsk-labels.json");
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
-    world.formatted_output = Some(format_issue_for_display(&issue));
+    world.formatted_output = Some(format_issue_for_display(&issue, None, false, false));
 }
 
-#[then("the formatted output should contain \"Labels: auth, urgent\"")]
-fn then_formatted_output_contains_labels(world: &mut TaskulusWorld) {
+#[when(expr = "I format issue {string} for display with color enabled")]
+fn when_format_issue_display_with_color(world: &mut TaskulusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(&issue_path).expect("read issue");
+    let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
+    let config_path = project_dir
+        .parent()
+        .unwrap_or(&project_dir)
+        .join(".taskulus.yml");
+    let configuration = if config_path.exists() {
+        Some(load_project_configuration(&config_path).expect("load configuration"))
+    } else {
+        None
+    };
+    world.formatted_output = Some(format_issue_for_display(
+        &issue,
+        configuration.as_ref(),
+        true,
+        false,
+    ));
+}
+
+#[when(expr = "I format issue {string} for display with color enabled without configuration")]
+fn when_format_issue_display_without_configuration(world: &mut TaskulusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(&issue_path).expect("read issue");
+    let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
+    world.formatted_output = Some(format_issue_for_display(&issue, None, true, false));
+}
+
+#[then("the formatted output should contain ANSI color codes")]
+fn then_formatted_output_contains_ansi(world: &mut TaskulusWorld) {
     let output = world.formatted_output.as_deref().unwrap_or("");
-    assert!(output.contains("Labels: auth, urgent"));
+    assert!(output.contains("\u{1b}["));
+}
+
+#[then(expr = "the formatted output should contain text {string}")]
+fn then_formatted_output_contains_text(world: &mut TaskulusWorld, text: String) {
+    let output = world.formatted_output.as_deref().unwrap_or("");
+    assert!(output.contains(&text));
 }

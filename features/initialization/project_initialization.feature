@@ -8,9 +8,8 @@ Feature: Project initialization
     When I run "tsk init"
     Then a "project" directory should exist
     And a "project/issues" directory should exist and be empty
-    And a "project/config.yaml" file should not exist
     And a "project/wiki" directory should not exist
-    And a ".taskulus.yaml" file should not exist
+    And a ".taskulus.yml" file should be created
 
   Scenario: Initialize with a project-local directory
     Given an empty git repository

@@ -3,6 +3,8 @@
 use std::fs;
 use std::path::Path;
 
+use serde_yaml::{Mapping, Value};
+
 use crate::config::default_project_configuration;
 use crate::error::TaskulusError;
 use crate::models::ProjectConfiguration;
@@ -17,20 +19,22 @@ use crate::models::ProjectConfiguration;
 ///
 /// Returns `TaskulusError::Configuration` if the configuration is invalid.
 pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, TaskulusError> {
-    let contents = match fs::read_to_string(path) {
-        Ok(contents) => contents,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            let configuration = default_project_configuration();
-            let errors = validate_project_configuration(&configuration);
-            errors
-                .is_empty()
-                .then_some(())
-                .ok_or_else(|| TaskulusError::Configuration(errors.join("; ")))?;
-            return Ok(configuration);
+    let contents = fs::read_to_string(path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            TaskulusError::Configuration("configuration file not found".to_string())
+        } else {
+            TaskulusError::Io(error.to_string())
         }
-        Err(error) => return Err(TaskulusError::Io(error.to_string())),
+    })?;
+
+    let raw_value: Value = if contents.trim().is_empty() {
+        Value::Mapping(Mapping::new())
+    } else {
+        serde_yaml::from_str(&contents)
+            .map_err(|error| TaskulusError::Configuration(map_configuration_error(&error)))?
     };
-    let configuration: ProjectConfiguration = serde_yaml::from_str(&contents)
+    let merged_value = merge_with_defaults(raw_value)?;
+    let configuration: ProjectConfiguration = serde_yaml::from_value(merged_value)
         .map_err(|error| TaskulusError::Configuration(map_configuration_error(&error)))?;
 
     let errors = validate_project_configuration(&configuration);
@@ -52,6 +56,10 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, T
 /// A list of validation errors.
 pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> Vec<String> {
     let mut errors = Vec::new();
+
+    if configuration.project_directory.trim().is_empty() {
+        errors.push("project_directory must not be empty".to_string());
+    }
 
     if configuration.hierarchy.is_empty() {
         errors.push("hierarchy must not be empty".to_string());
@@ -90,4 +98,25 @@ fn map_configuration_error(error: &serde_yaml::Error) -> String {
         return "unknown configuration fields".to_string();
     }
     message
+}
+
+fn merge_with_defaults(value: Value) -> Result<Value, TaskulusError> {
+    let mut defaults = serde_yaml::to_value(default_project_configuration())
+        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let overrides = match value {
+        Value::Null => Mapping::new(),
+        Value::Mapping(mapping) => mapping,
+        _ => {
+            return Err(TaskulusError::Configuration(
+                "configuration must be a mapping".to_string(),
+            ))
+        }
+    };
+
+    if let Value::Mapping(ref mut default_map) = defaults {
+        for (key, value) in overrides {
+            default_map.insert(key, value);
+        }
+    }
+    Ok(defaults)
 }

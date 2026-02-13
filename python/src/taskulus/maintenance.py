@@ -13,7 +13,11 @@ from taskulus.config_loader import ConfigurationError, load_project_configuratio
 from taskulus.dependencies import ALLOWED_DEPENDENCY_TYPES
 from taskulus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
 from taskulus.models import IssueData, ProjectConfiguration
-from taskulus.project import ProjectMarkerError, load_project_directory
+from taskulus.project import (
+    ProjectMarkerError,
+    get_configuration_path,
+    load_project_directory,
+)
 from taskulus.workflows import get_workflow_for_issue_type
 
 
@@ -62,7 +66,7 @@ def validate_project(root: Path) -> None:
         raise ProjectValidationError("issues directory missing")
 
     try:
-        configuration = load_project_configuration(project_dir / "config.yaml")
+        configuration = load_project_configuration(get_configuration_path(project_dir))
     except ConfigurationError as error:
         raise ProjectValidationError(str(error)) from error
 

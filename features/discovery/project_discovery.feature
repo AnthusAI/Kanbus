@@ -35,7 +35,7 @@ Feature: Project discovery
     Then the command should fail with exit code 1
     And stderr should contain "local-only conflicts with no-local"
 
-  Scenario: Dotfile adds external projects
-    Given a repository with a .taskulus file referencing another project
+  Scenario: Configuration file adds external projects
+    Given a repository with a .taskulus.yml file referencing another project
     When I run "tsk list"
     Then issues from the referenced project should be listed

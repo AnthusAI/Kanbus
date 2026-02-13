@@ -1,6 +1,7 @@
 //! Issue identifier generation.
 
 use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
 use uuid::Uuid;
 
 use crate::error::TaskulusError;
@@ -21,6 +22,28 @@ pub struct IssueIdentifierRequest {
 pub struct IssueIdentifierResult {
     /// Unique issue identifier.
     pub identifier: String,
+}
+
+static TEST_UUID_SEQUENCE: OnceLock<Mutex<Vec<Uuid>>> = OnceLock::new();
+
+/// Set a deterministic UUID sequence for tests.
+///
+/// # Arguments
+/// * `sequence` - Optional list of UUIDs to consume before falling back to random.
+pub fn set_test_uuid_sequence(sequence: Option<Vec<Uuid>>) {
+    let cell = TEST_UUID_SEQUENCE.get_or_init(|| Mutex::new(Vec::new()));
+    let mut guard = cell.lock().expect("lock test uuid sequence");
+    *guard = sequence.unwrap_or_default();
+}
+
+fn next_uuid() -> Uuid {
+    let cell = TEST_UUID_SEQUENCE.get_or_init(|| Mutex::new(Vec::new()));
+    let mut guard = cell.lock().expect("lock test uuid sequence");
+    if let Some(next) = guard.first().cloned() {
+        guard.remove(0);
+        return next;
+    }
+    Uuid::new_v4()
 }
 
 /// Produce a display-friendly issue key.
@@ -52,7 +75,8 @@ pub fn format_issue_key(identifier: &str, project_context: bool) -> String {
         (remainder, None)
     };
 
-    let truncated: String = base.chars().take(6).collect();
+    let normalized: String = base.chars().filter(|ch| *ch != '-').collect();
+    let truncated: String = normalized.chars().take(6).collect();
 
     if project_context {
         return match suffix {
@@ -91,7 +115,7 @@ pub fn generate_issue_identifier(
     request: &IssueIdentifierRequest,
 ) -> Result<IssueIdentifierResult, TaskulusError> {
     for _ in 0..10 {
-        let identifier = format!("{}-{}", request.prefix, Uuid::new_v4());
+        let identifier = format!("{}-{}", request.prefix, next_uuid());
         if !request.existing_ids.contains(&identifier) {
             return Ok(IssueIdentifierResult { identifier });
         }

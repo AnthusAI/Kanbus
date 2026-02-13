@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import click
 from behave import given, then, when
 
 from features.steps.shared import (
@@ -11,6 +12,7 @@ from features.steps.shared import (
     run_cli,
     write_issue_file,
 )
+from taskulus.config_loader import load_project_configuration
 from taskulus.issue_display import format_issue_for_display
 
 
@@ -68,7 +70,43 @@ def when_format_issue_for_display(context: object) -> None:
     context.formatted_output = format_issue_for_display(issue)
 
 
-@then('the formatted output should contain "Labels: auth, urgent"')
-def then_formatted_output_contains_labels(context: object) -> None:
+@when('I format issue "{identifier}" for display with color enabled')
+def when_format_issue_for_display_with_color(context: object, identifier: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    config_path = project_dir.parent / ".taskulus.yml"
+    configuration = (
+        load_project_configuration(config_path) if config_path.exists() else None
+    )
+    command = click.Command("test")
+    click_context = click.Context(command, color=True)
+    with click_context.scope():
+        context.formatted_output = format_issue_for_display(
+            issue, configuration=configuration
+        )
+
+
+@when(
+    'I format issue "{identifier}" for display with color enabled without configuration'
+)
+def when_format_issue_display_without_configuration(
+    context: object, identifier: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    command = click.Command("test")
+    click_context = click.Context(command, color=True)
+    with click_context.scope():
+        context.formatted_output = format_issue_for_display(issue, configuration=None)
+
+
+@then("the formatted output should contain ANSI color codes")
+def then_formatted_output_contains_ansi(context: object) -> None:
     output = getattr(context, "formatted_output", "")
-    assert "Labels: auth, urgent" in output
+    assert "\x1b[" in output
+
+
+@then('the formatted output should contain text "{text}"')
+def then_formatted_output_contains_text(context: object, text: str) -> None:
+    output = getattr(context, "formatted_output", "")
+    assert text in output

@@ -80,7 +80,7 @@ Feature: Daemon lifecycle for just-in-time indexing
     And stderr should contain "multiple projects found"
 
   Scenario: Daemon status fails when dotfile path is missing
-    Given a repository with a .taskulus file referencing a missing path
+    Given a repository with a .taskulus.yml file referencing a missing path
     And daemon mode is enabled
     When I run "tsk daemon-status"
     Then the command should fail with exit code 1
@@ -102,3 +102,29 @@ Feature: Daemon lifecycle for just-in-time indexing
     Then the command should succeed
     And stdout should contain "\"status\": \"stopping\""
     And the daemon should shut down
+
+  Scenario: Daemon responds via direct handler
+    Given a Taskulus project with default configuration
+    When a daemon status request is handled directly
+    Then the daemon response should be ok
+
+  Scenario: Daemon client reports empty responses
+    Given a Taskulus project with default configuration
+    And a daemon socket returns an empty response
+    When I request daemon status via the client
+    Then the daemon client error should be "empty daemon response"
+
+  Scenario: Daemon client parses ok responses
+    Given a Taskulus project with default configuration
+    And daemon mode is enabled
+    And a daemon socket returns a valid response
+    When I request daemon status via the client
+    Then the daemon response should be ok
+
+  Scenario: Daemon client removes stale socket on retry
+    Given a Taskulus project with default configuration
+    And daemon mode is enabled
+    And a daemon socket exists but no daemon responds
+    When I request a daemon index list
+    Then the daemon socket should be removed
+    And the daemon request should succeed

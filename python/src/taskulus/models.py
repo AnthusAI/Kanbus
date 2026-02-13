@@ -92,11 +92,22 @@ class IssueData(BaseModel):
     custom: Dict[str, object] = Field(default_factory=dict)
 
 
-class ProjectConfiguration(BaseModel):
-    """Project configuration loaded from config.yaml.
+class PriorityDefinition(BaseModel):
+    """Priority definition containing label and optional color."""
 
-    :param prefix: Issue ID prefix.
-    :type prefix: str
+    name: str = Field(min_length=1)
+    color: Optional[str] = None
+
+
+class ProjectConfiguration(BaseModel):
+    """Project configuration loaded from .taskulus.yml.
+
+    :param project_directory: Relative path to the primary project directory.
+    :type project_directory: str
+    :param external_projects: Optional list of additional project directories.
+    :type external_projects: List[str]
+    :param project_key: Issue ID project key (prefix).
+    :type project_key: str
     :param hierarchy: Hierarchy ordering.
     :type hierarchy: List[str]
     :param types: Non-hierarchical types.
@@ -106,17 +117,25 @@ class ProjectConfiguration(BaseModel):
     :param initial_status: Initial status for new issues.
     :type initial_status: str
     :param priorities: Priority map.
-    :type priorities: Dict[int, str]
+    :type priorities: Dict[int, PriorityDefinition]
     :param default_priority: Default priority.
     :type default_priority: int
+    :param status_colors: Optional map of status to color name.
+    :type status_colors: Dict[str, str]
+    :param type_colors: Optional map of issue type to color name.
+    :type type_colors: Dict[str, str]
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    prefix: str = Field(min_length=1)
+    project_directory: str
+    external_projects: List[str] = Field(default_factory=list)
+    project_key: str = Field(min_length=1)
     hierarchy: List[str]
     types: List[str]
     workflows: Dict[str, Dict[str, List[str]]]
     initial_status: str = Field(min_length=1)
-    priorities: Dict[int, str]
+    priorities: Dict[int, PriorityDefinition]
     default_priority: int
+    status_colors: Dict[str, str] = Field(default_factory=dict)
+    type_colors: Dict[str, str] = Field(default_factory=dict)

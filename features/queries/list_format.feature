@@ -7,4 +7,22 @@ Feature: Issue list formatting
     And an issue "tsk-child" exists with status "open"
     And issue "tsk-child" has parent "tsk-parent"
     When I run "tsk list --porcelain"
-    Then stdout should contain the line "T | tsk-child | tsk-parent | open | P2 | Title"
+    Then stdout should contain the line "T | child | parent | open | P2 | Title"
+
+  Scenario: List formatting applies default colors
+    Given a Taskulus project with default configuration
+    And issues for list color coverage exist
+    When I format list lines for color coverage
+    Then each formatted line should contain ANSI color codes
+
+  Scenario: List formatting uses configured bright white status colors
+    Given a Taskulus repository with a .taskulus.yml file containing a bright white status color
+    And issues for list color coverage exist
+    When I format list lines for color coverage
+    Then each formatted line should contain ANSI color codes
+
+  Scenario: List formatting ignores invalid status colors
+    Given a Taskulus repository with a .taskulus.yml file containing an invalid status color
+    And an issue "tsk-colorless" exists with status "open"
+    When I format the list line for issue "tsk-colorless"
+    Then the formatted output should contain text "open"

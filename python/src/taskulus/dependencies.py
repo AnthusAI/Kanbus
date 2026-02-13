@@ -223,12 +223,19 @@ def _tag_issue_source(issue: IssueData, source: str) -> IssueData:
 
 
 def _tag_issue_project(issue: IssueData, root: Path, project_dir: Path) -> IssueData:
-    try:
-        project_path = project_dir.relative_to(root)
-    except ValueError:
-        project_path = project_dir
-    custom = {**issue.custom, "project_path": str(project_path)}
+    project_path = _render_project_path(root, project_dir)
+    custom = {**issue.custom, "project_path": project_path}
     return issue.model_copy(update={"custom": custom})
+
+
+def _render_project_path(root: Path, project_dir: Path) -> str:
+    root_resolved = root.resolve()
+    project_resolved = project_dir.resolve()
+    try:
+        project_path = project_resolved.relative_to(root_resolved)
+    except ValueError:
+        project_path = project_resolved
+    return str(project_path)
 
 
 def _blocked_by_dependency(issue: IssueData) -> bool:

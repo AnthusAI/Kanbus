@@ -8,8 +8,8 @@ Feature: Query and list operations
     And issues "tsk-open" and "tsk-closed" exist
     And issue "tsk-closed" has status "closed"
     When I run "tsk list --status open"
-    Then stdout should contain "tsk-open"
-    And stdout should not contain "tsk-closed"
+    Then stdout should contain "open"
+    And stdout should not contain "closed"
 
   Scenario: List output includes project paths when multiple projects exist
     Given a repository with multiple projects and issues
@@ -26,37 +26,37 @@ Feature: Query and list operations
   Scenario: List output includes project paths for local-only issues in multi-project repositories
     Given a repository with multiple projects and local issues
     When I run "tsk list --local-only"
-    Then stdout should contain "alpha/project T tsk-alpha-local"
+    Then stdout should contain "alpha/project T tsk-alphal"
     And stdout should not contain "beta/project T tsk-beta"
 
-  Scenario: List output includes external project paths from dotfile
-    Given a repository with a .taskulus file referencing another project
+  Scenario: List output includes external project paths from configuration file
+    Given a repository with a .taskulus.yml file referencing another project
     When I run "tsk list"
-    Then stdout should contain the external project path for "tsk-external"
+    Then stdout should contain the external project path for "tsk-extern"
 
   Scenario: List issues filtered by type
     Given a Taskulus project with default configuration
     And issues "tsk-task" and "tsk-bug" exist
     And issue "tsk-bug" has type "bug"
     When I run "tsk list --type task"
-    Then stdout should contain "tsk-task"
-    And stdout should not contain "tsk-bug"
+    Then stdout should contain "task"
+    And stdout should not contain "bug"
 
   Scenario: List issues filtered by assignee
     Given a Taskulus project with default configuration
-    And issues "tsk-a" and "tsk-b" exist
-    And issue "tsk-a" has assignee "dev@example.com"
+    And issues "tsk-alpha1" and "tsk-bravo1" exist
+    And issue "tsk-alpha1" has assignee "dev@example.com"
     When I run "tsk list --assignee dev@example.com"
-    Then stdout should contain "tsk-a"
-    And stdout should not contain "tsk-b"
+    Then stdout should contain "alpha1"
+    And stdout should not contain "bravo1"
 
   Scenario: List issues filtered by label
     Given a Taskulus project with default configuration
-    And issues "tsk-a" and "tsk-b" exist
-    And issue "tsk-a" has labels "auth"
+    And issues "tsk-alpha1" and "tsk-bravo1" exist
+    And issue "tsk-alpha1" has labels "auth"
     When I run "tsk list --label auth"
-    Then stdout should contain "tsk-a"
-    And stdout should not contain "tsk-b"
+    Then stdout should contain "alpha1"
+    And stdout should not contain "bravo1"
 
   Scenario: List issues sorted by priority
     Given a Taskulus project with default configuration
@@ -64,7 +64,7 @@ Feature: Query and list operations
     And issue "tsk-high" has priority 1
     And issue "tsk-low" has priority 3
     When I run "tsk list --sort priority"
-    Then stdout should list "tsk-high" before "tsk-low"
+    Then stdout should list "high" before "low"
 
   Scenario: Full-text search matches title and description
     Given a Taskulus project with default configuration
@@ -72,8 +72,8 @@ Feature: Query and list operations
     And issue "tsk-auth" has title "OAuth setup"
     And issue "tsk-ui" has description "Fix login button"
     When I run "tsk list --search login"
-    Then stdout should contain "tsk-ui"
-    And stdout should not contain "tsk-auth"
+    Then stdout should contain "ui"
+    And stdout should not contain "auth"
 
   Scenario: Full-text search matches comments
     Given a Taskulus project with default configuration
@@ -81,8 +81,8 @@ Feature: Query and list operations
     And the current user is "dev@example.com"
     When I run "tsk comment tsk-note \"Searchable comment\""
     And I run "tsk list --search Searchable"
-    Then stdout should contain "tsk-note"
-    And stdout should not contain "tsk-other"
+    Then stdout should contain "note"
+    And stdout should not contain "other"
 
   Scenario: Search avoids duplicate results
     Given a Taskulus project with default configuration
@@ -91,7 +91,7 @@ Feature: Query and list operations
     And the current user is "dev@example.com"
     When I run "tsk comment tsk-dup \"Dup keyword\""
     And I run "tsk list --search Dup"
-    Then stdout should contain "tsk-dup" once
+    Then stdout should contain "dup" once
 
   Scenario: Invalid sort key is rejected
     Given a Taskulus project with default configuration
@@ -111,11 +111,37 @@ Feature: Query and list operations
     Then the command should fail with exit code 1
     And stderr should contain "project not initialized"
 
+  Scenario: List fails when the project directory is unreadable
+    Given a Taskulus repository with an unreadable project directory
+    When I run "tsk list"
+    Then the command should fail with exit code 1
+    And stderr should contain "Permission denied"
+
+  Scenario: List tolerates canonicalization failures
+    Given a Taskulus project with default configuration
+    And an issue "tsk-canon" exists
+    And project directory canonicalization will fail
+    When I run "tsk list"
+    Then stdout should contain "canon"
+
+  Scenario: List fails when configuration path lookup fails
+    Given a Taskulus project with default configuration
+    And configuration path lookup will fail
+    When I run "tsk list"
+    Then the command should fail with exit code 1
+    And stderr should contain "configuration path lookup failed"
+
   Scenario: List fails when dotfile references a missing path
-    Given a repository with a .taskulus file referencing a missing path
+    Given a repository with a .taskulus.yml file referencing a missing path
     When I run "tsk list"
     Then the command should fail with exit code 1
     And stderr should contain "taskulus path not found"
+
+  Scenario: List fails when configuration is invalid
+    Given a Taskulus project with an invalid configuration containing unknown fields
+    When I run "tsk list"
+    Then the command should fail with exit code 1
+    And stderr should contain "unknown configuration fields"
 
   Scenario: List fails when the daemon returns an error
     Given a Taskulus project with default configuration
@@ -131,7 +157,7 @@ Feature: Query and list operations
     And daemon mode is enabled
     And the daemon is running with a socket
     When I run "tsk list --no-local"
-    Then stdout should contain "tsk-daemon"
+    Then stdout should contain "daemon"
 
   Scenario: List fails when local listing raises an error
     Given a Taskulus project with default configuration

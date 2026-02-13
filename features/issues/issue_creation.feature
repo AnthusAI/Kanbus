@@ -57,6 +57,12 @@ Feature: Issue creation
     Then the command should fail with exit code 1
     And stderr should contain "project not initialized"
 
+  Scenario: Create fails with invalid configuration
+    Given a Taskulus project with an invalid configuration containing unknown fields
+    When I run "tsk create Implement OAuth2 flow"
+    Then the command should fail with exit code 1
+    And stderr should contain "unknown configuration fields"
+
   Scenario: Create ignores non-issue files in the issues directory
     Given a Taskulus project with default configuration
     And a non-issue file exists in the issues directory

@@ -260,7 +260,7 @@ Feature: Project initialization
     Scenario: Initialize with default settings
         Given an empty git repository
         When I run "tsk init"
-        Then a ".taskulus.yaml" file should exist in the repository root
+        Then a ".taskulus.yml" file should exist in the repository root
         And a "project" directory should exist
         And a "project/config.yaml" file should exist with default configuration
         And a "project/issues" directory should exist and be empty
@@ -271,7 +271,7 @@ Feature: Project initialization
     Scenario: Initialize with custom directory name
         Given an empty git repository
         When I run "tsk init --dir tracking"
-        Then a ".taskulus.yaml" file should exist pointing to "tracking"
+        Then a ".taskulus.yml" file should exist pointing to "tracking"
         And a "tracking" directory should exist
         And a "tracking/config.yaml" file should exist with default configuration
 

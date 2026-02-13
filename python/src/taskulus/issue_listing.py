@@ -15,6 +15,7 @@ from taskulus.project import (
     discover_project_directories,
     find_project_local_directory,
     load_project_directory,
+    resolve_project_path,
 )
 from taskulus.migration import MigrationError, load_beads_issues
 from taskulus.queries import filter_issues, search_issues, sort_issues
@@ -73,36 +74,56 @@ def list_issues(
     local_dir = None
     if include_local or local_only:
         local_dir = find_project_local_directory(project_dir)
-        if local_dir is not None or local_only:
-            try:
-                issues = _list_issues_with_local(
-                    project_dir,
-                    local_dir,
-                    include_local,
-                    local_only,
-                )
-                return _apply_query(
-                    issues, status, issue_type, assignee, label, sort, search
-                )
-            except Exception as error:
-                raise IssueListingError(str(error)) from error
 
-    if is_daemon_enabled():
+    if local_only:
         try:
-            payloads = request_index_list(root)
-            issues = [IssueData.model_validate(payload) for payload in payloads]
-            issues = [_tag_issue_source(issue, "shared") for issue in issues]
+            issues = _list_issues_with_local(
+                project_dir,
+                local_dir,
+                include_local,
+                local_only,
+            )
             return _apply_query(
                 issues, status, issue_type, assignee, label, sort, search
             )
         except Exception as error:
             raise IssueListingError(str(error)) from error
-    try:
-        issues = _list_issues_locally(root)
-        issues = [_tag_issue_source(issue, "shared") for issue in issues]
-        return _apply_query(issues, status, issue_type, assignee, label, sort, search)
-    except Exception as error:
-        raise IssueListingError(str(error)) from error
+
+    shared_issues: List[IssueData]
+    if is_daemon_enabled():
+        try:
+            payloads = request_index_list(root)
+            shared_issues = [IssueData.model_validate(payload) for payload in payloads]
+            shared_issues = [
+                _tag_issue_source(issue, "shared") for issue in shared_issues
+            ]
+        except Exception as error:
+            raise IssueListingError(str(error)) from error
+    else:
+        try:
+            shared_issues = _list_issues_locally(root)
+            shared_issues = [
+                _tag_issue_source(issue, "shared") for issue in shared_issues
+            ]
+        except Exception as error:
+            raise IssueListingError(str(error)) from error
+
+    if include_local and local_dir is not None:
+        try:
+            issues_dir = local_dir / "issues"
+            local_issues: List[IssueData] = []
+            if issues_dir.exists():
+                local_issues = [
+                    _tag_issue_source(issue, "local")
+                    for issue in _load_issues_from_directory(issues_dir)
+                ]
+            shared_issues = [*shared_issues, *local_issues]
+        except Exception as error:
+            raise IssueListingError(str(error)) from error
+
+    return _apply_query(
+        shared_issues, status, issue_type, assignee, label, sort, search
+    )
 
 
 def _list_issues_locally(root: Path) -> List[IssueData]:
@@ -187,12 +208,19 @@ def _tag_issue_source(issue: IssueData, source: str) -> IssueData:
 
 
 def _tag_issue_project(issue: IssueData, root: Path, project_dir: Path) -> IssueData:
-    try:
-        project_path = project_dir.relative_to(root)
-    except ValueError:
-        project_path = project_dir
-    custom = {**issue.custom, "project_path": str(project_path)}
+    project_path = _render_project_path(root, project_dir)
+    custom = {**issue.custom, "project_path": project_path}
     return issue.model_copy(update={"custom": custom})
+
+
+def _render_project_path(root: Path, project_dir: Path) -> str:
+    root_resolved = resolve_project_path(root)
+    project_resolved = resolve_project_path(project_dir)
+    try:
+        project_path = project_resolved.relative_to(root_resolved)
+    except ValueError:
+        project_path = project_resolved
+    return str(project_path)
 
 
 def _apply_query(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import click
@@ -17,8 +18,15 @@ from taskulus.issue_creation import IssueCreationError, create_issue
 from taskulus.issue_close import IssueCloseError, close_issue
 from taskulus.issue_comment import IssueCommentError, add_comment
 from taskulus.issue_delete import IssueDeleteError, delete_issue
-from taskulus.beads_write import BeadsWriteError, create_beads_issue, update_beads_issue
+from taskulus.beads_write import (
+    BeadsDeleteError,
+    BeadsWriteError,
+    create_beads_issue,
+    delete_beads_issue,
+    update_beads_issue,
+)
 from taskulus.issue_display import format_issue_for_display
+from taskulus.models import IssueData
 from taskulus.ids import format_issue_key
 from taskulus.issue_line import compute_widths, format_issue_line
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
@@ -49,7 +57,7 @@ from taskulus.dependency_tree import (
 )
 from taskulus.wiki import WikiError, WikiRenderRequest, render_wiki_page
 from taskulus.project import ProjectMarkerError, get_configuration_path
-from taskulus.config_loader import load_project_configuration
+from taskulus.config_loader import ConfigurationError, load_project_configuration
 
 
 @click.group()
@@ -139,11 +147,18 @@ def create(
             )
         except BeadsWriteError as error:
             raise click.ClickException(str(error)) from error
-        click.echo(format_issue_for_display(issue, configuration=None))
+        click.echo(
+            format_issue_for_display(
+                issue,
+                configuration=None,
+                use_color=os.getenv("NO_COLOR") is None,
+                project_context=False,
+            )
+        )
         return
 
     try:
-        issue = create_issue(
+        result = create_issue(
             root=root,
             title=title_text,
             issue_type=issue_type,
@@ -157,14 +172,12 @@ def create(
     except IssueCreationError as error:
         raise click.ClickException(str(error)) from error
 
-    try:
-        configuration = load_project_configuration(get_configuration_path(root))
-    except (ConfigurationError, ProjectMarkerError) as error:
-        raise click.ClickException(str(error)) from error
-
     click.echo(
         format_issue_for_display(
-            issue, configuration=configuration, project_context=False
+            result.issue,
+            configuration=result.configuration,
+            use_color=os.getenv("NO_COLOR") is None,
+            project_context=False,
         )
     )
 
@@ -206,7 +219,10 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
 
     click.echo(
         format_issue_for_display(
-            issue, configuration=configuration, project_context=False
+            issue,
+            configuration=configuration,
+            use_color=os.getenv("NO_COLOR") is None,
+            project_context=False,
         )
     )
 
@@ -292,10 +308,17 @@ def delete(identifier: str) -> None:
     :type identifier: str
     """
     root = Path.cwd()
-    try:
-        delete_issue(root, identifier)
-    except IssueDeleteError as error:
-        raise click.ClickException(str(error)) from error
+    beads_mode = bool(click.get_current_context().obj.get("beads_mode"))
+    if beads_mode:
+        try:
+            delete_beads_issue(root, identifier)
+        except BeadsDeleteError as error:
+            raise click.ClickException(str(error)) from error
+    else:
+        try:
+            delete_issue(root, identifier)
+        except IssueDeleteError as error:
+            raise click.ClickException(str(error)) from error
 
 
 @cli.command("promote")
@@ -418,6 +441,15 @@ def list_command(
     if limit > 0:
         issues = issues[:limit]
 
+    configuration = None
+    if not beads_mode:
+        try:
+            configuration = load_project_configuration(get_configuration_path(root))
+        except ProjectMarkerError:
+            configuration = None
+        except ConfigurationError as error:
+            raise click.ClickException(str(error)) from error
+
     project_context = beads_mode or not any(
         issue.custom.get("project_path") for issue in issues
     )
@@ -430,6 +462,7 @@ def list_command(
             porcelain=porcelain,
             widths=widths,
             project_context=project_context,
+            configuration=configuration,
         )
         click.echo(line)
 
@@ -650,7 +683,7 @@ def daemon_stop() -> None:
 
 def _format_project_marker_error(error: ProjectMarkerError) -> str:
     message = str(error)
-    if message == "multiple projects found":
+    if message.startswith("multiple projects found"):
         return (
             "multiple projects found. Run this command from a directory containing a "
             "single project/ folder."

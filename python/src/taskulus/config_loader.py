@@ -19,21 +19,29 @@ class ConfigurationError(RuntimeError):
 def load_project_configuration(path: Path) -> ProjectConfiguration:
     """Load a project configuration from disk.
 
-    :param path: Path to the configuration file.
+    :param path: Path to the .taskulus.yml file.
     :type path: Path
     :return: Loaded configuration.
     :rtype: ProjectConfiguration
-    :raises ConfigurationError: If the configuration is invalid.
+    :raises ConfigurationError: If the configuration is invalid or missing.
     """
     if not path.exists():
-        data = DEFAULT_CONFIGURATION
-    else:
-        try:
-            data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        except OSError as error:
-            raise ConfigurationError(str(error)) from error
+        raise ConfigurationError("configuration file not found")
+
     try:
-        configuration = ProjectConfiguration.model_validate(data)
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise ConfigurationError(str(error)) from error
+
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        raise ConfigurationError("configuration must be a mapping")
+
+    merged = {**DEFAULT_CONFIGURATION, **data}
+
+    try:
+        configuration = ProjectConfiguration.model_validate(merged)
     except ValidationError as error:
         if _has_unknown_fields(error):
             raise ConfigurationError("unknown configuration fields") from error
@@ -55,6 +63,9 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     :rtype: List[str]
     """
     errors: List[str] = []
+    if not configuration.project_directory:
+        errors.append("project_directory must not be empty")
+
     if not configuration.hierarchy:
         errors.append("hierarchy must not be empty")
 

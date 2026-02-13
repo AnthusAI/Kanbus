@@ -135,3 +135,9 @@ Feature: Maintenance commands
     When I run "tsk validate"
     Then the command should fail with exit code 1
     And stderr should contain "unknown configuration fields"
+
+  Scenario: Doctor fails with invalid configuration
+    Given a Taskulus project with an invalid configuration containing unknown fields
+    When I run "tsk doctor"
+    Then the command should fail with exit code 1
+    And stderr should contain "unknown configuration fields"

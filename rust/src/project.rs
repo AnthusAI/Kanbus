@@ -14,15 +14,22 @@ use crate::file_io::{
 /// * `root` - Root directory used for discovery.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if a .taskulus path is missing.
+/// Returns `TaskulusError::IssueOperation` if a configured project path is missing.
 pub fn discover_project_directories(root: &Path) -> Result<Vec<PathBuf>, TaskulusError> {
     let mut projects = Vec::new();
     discover_project_directories_inner(root, &mut projects)?;
     let mut dotfile_projects = discover_taskulus_projects(root)?;
     projects.append(&mut dotfile_projects);
-    projects.sort();
-    projects.dedup();
-    Ok(projects)
+    let mut normalized = Vec::new();
+    for path in projects {
+        let canonical = path
+            .canonicalize()
+            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        normalized.push(canonical);
+    }
+    normalized.sort();
+    normalized.dedup();
+    Ok(normalized)
 }
 
 /// Load a single Taskulus project directory by downward discovery.

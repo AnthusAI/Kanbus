@@ -50,9 +50,9 @@ def when_run_tsk_init_local(context: object) -> None:
     run_cli(context, "tsk init --local")
 
 
-@then('a ".taskulus.yaml" file should not exist')
-def then_marker_missing(context: object) -> None:
-    assert not (context.working_directory / ".taskulus.yaml").exists()
+@then('a ".taskulus.yml" file should be created')
+def then_marker_created(context: object) -> None:
+    assert (context.working_directory / ".taskulus.yml").is_file()
 
 
 @then('a "project" directory should exist')

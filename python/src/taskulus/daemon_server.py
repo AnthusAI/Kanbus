@@ -33,62 +33,11 @@ class DaemonState:
     cache_mtimes: Optional[Dict[str, float]] = None
 
 
-class DaemonRequestHandler(socketserver.StreamRequestHandler):
-    """Handle daemon request/response flow."""
-
-    def handle(self) -> None:
-        raw = self.rfile.readline()
-        if not raw:
-            return
-        payload: Dict[str, object] = {}
-        action: str | None = None
-        try:
-            payload = json.loads(raw.decode("utf-8"))
-            request = RequestEnvelope.model_validate(payload)
-            action = request.action
-            response = self.server.handle_request(request)
-        except ProtocolError as error:
-            code = "protocol_version_mismatch"
-            if str(error) == "protocol version unsupported":
-                code = "protocol_version_unsupported"
-            response = ResponseEnvelope(
-                protocol_version=PROTOCOL_VERSION,
-                request_id=payload.get("request_id", "unknown"),
-                status="error",
-                error=ErrorEnvelope(
-                    code=code,
-                    message=str(error),
-                    details={},
-                ),
-            )
-        except Exception as error:
-            response = ResponseEnvelope(
-                protocol_version=PROTOCOL_VERSION,
-                request_id=payload.get("request_id", "unknown"),
-                status="error",
-                error=ErrorEnvelope(
-                    code="internal_error",
-                    message=str(error),
-                    details={},
-                ),
-            )
-        self.wfile.write(
-            json.dumps(response.model_dump(mode="json")).encode("utf-8") + b"\n"
-        )
-        if action == "shutdown":
-            threading.Thread(target=self.server.shutdown, daemon=True).start()
-
-
-class DaemonServer(socketserver.ThreadingUnixStreamServer):
-    """Unix socket daemon server with index access."""
+class DaemonCore:
+    """In-process daemon logic without socket binding."""
 
     def __init__(self, root: Path) -> None:
         self.state = DaemonState(root=root)
-        socket_path = get_daemon_socket_path(root)
-        socket_path.parent.mkdir(parents=True, exist_ok=True)
-        if socket_path.exists():
-            socket_path.unlink()
-        super().__init__(str(socket_path), DaemonRequestHandler)
 
     def warm_start(self) -> None:
         """Warm-start the index cache on daemon startup."""
@@ -106,6 +55,7 @@ class DaemonServer(socketserver.ThreadingUnixStreamServer):
             self.state.index = cached
 
     def handle_request(self, request: RequestEnvelope) -> ResponseEnvelope:
+        """Handle a validated daemon request."""
         validate_protocol_compatibility(request.protocol_version, PROTOCOL_VERSION)
         if request.action == "ping":
             return ResponseEnvelope(
@@ -160,6 +110,40 @@ class DaemonServer(socketserver.ThreadingUnixStreamServer):
         return list(self.state.index.by_id.values())
 
 
+class DaemonRequestHandler(socketserver.StreamRequestHandler):
+    """Handle daemon request/response flow."""
+
+    def handle(self) -> None:
+        raw = self.rfile.readline()
+        if not raw:
+            return
+        response, action = _handle_raw_request(self.server.core, raw)
+        self.wfile.write(
+            json.dumps(response.model_dump(mode="json")).encode("utf-8") + b"\n"
+        )
+        if action == "shutdown":
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+
+
+class DaemonServer(socketserver.ThreadingUnixStreamServer):
+    """Unix socket daemon server with index access."""
+
+    def __init__(self, root: Path) -> None:
+        self.core = DaemonCore(root=root)
+        socket_path = get_daemon_socket_path(root)
+        socket_path.parent.mkdir(parents=True, exist_ok=True)
+        if socket_path.exists():
+            socket_path.unlink()
+        super().__init__(str(socket_path), DaemonRequestHandler)
+
+    def warm_start(self) -> None:
+        """Warm-start the index cache on daemon startup."""
+        self.core.warm_start()
+
+    def handle_request(self, request: RequestEnvelope) -> ResponseEnvelope:
+        return self.core.handle_request(request)
+
+
 def handle_request_for_testing(
     root: Path, request: RequestEnvelope
 ) -> ResponseEnvelope:
@@ -173,40 +157,84 @@ def handle_request_for_testing(
     :return: Response envelope for the request.
     :rtype: ResponseEnvelope
     """
-    server = DaemonServer(root)
-    socket_path = get_daemon_socket_path(root)
+    core = DaemonCore(root)
     try:
-        response = server.handle_request(request)
+        response = core.handle_request(request)
     except ProtocolError as error:
-        code = "protocol_version_mismatch"
-        if str(error) == "protocol version unsupported":
-            code = "protocol_version_unsupported"
-        response = ResponseEnvelope(
-            protocol_version=PROTOCOL_VERSION,
-            request_id=request.request_id,
-            status="error",
-            error=ErrorEnvelope(
-                code=code,
-                message=str(error),
-                details={},
-            ),
+        response = _build_protocol_error_response(request.request_id, error)
+    except Exception as error:
+        response = _build_internal_error_response(request.request_id, error)
+    return response
+
+
+def handle_raw_payload_for_testing(root: Path, payload: bytes) -> ResponseEnvelope:
+    """
+    Handle a raw daemon payload without sockets.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param payload: Raw payload bytes.
+    :type payload: bytes
+    :return: Response envelope for the payload.
+    :rtype: ResponseEnvelope
+    """
+    core = DaemonCore(root)
+    response, _ = _handle_raw_request(core, payload)
+    return response
+
+
+def _handle_raw_request(
+    core: DaemonCore, raw: bytes
+) -> tuple[ResponseEnvelope, str | None]:
+    payload: Dict[str, object] = {}
+    action: str | None = None
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+        request = RequestEnvelope.model_validate(payload)
+        action = request.action
+        response = core.handle_request(request)
+    except ProtocolError as error:
+        response = _build_protocol_error_response(
+            payload.get("request_id", "unknown"), error
         )
     except Exception as error:
-        response = ResponseEnvelope(
-            protocol_version=PROTOCOL_VERSION,
-            request_id=request.request_id,
-            status="error",
-            error=ErrorEnvelope(
-                code="internal_error",
-                message=str(error),
-                details={},
-            ),
+        response = _build_internal_error_response(
+            payload.get("request_id", "unknown"), error
         )
-    finally:
-        server.server_close()
-        if socket_path.exists():
-            socket_path.unlink()
-    return response
+    return response, action
+
+
+def _build_protocol_error_response(
+    request_id: str, error: ProtocolError
+) -> ResponseEnvelope:
+    code = "protocol_version_mismatch"
+    if str(error) == "protocol version unsupported":
+        code = "protocol_version_unsupported"
+    return ResponseEnvelope(
+        protocol_version=PROTOCOL_VERSION,
+        request_id=request_id,
+        status="error",
+        error=ErrorEnvelope(
+            code=code,
+            message=str(error),
+            details={},
+        ),
+    )
+
+
+def _build_internal_error_response(
+    request_id: str, error: Exception
+) -> ResponseEnvelope:
+    return ResponseEnvelope(
+        protocol_version=PROTOCOL_VERSION,
+        request_id=request_id,
+        status="error",
+        error=ErrorEnvelope(
+            code="internal_error",
+            message=str(error),
+            details={},
+        ),
+    )
 
 
 def run_daemon(root: Path) -> None:

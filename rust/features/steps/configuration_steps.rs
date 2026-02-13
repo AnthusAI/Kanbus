@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::PathBuf;
 use std::process::Command;
 
 use cucumber::{given, then, when};
@@ -9,7 +8,6 @@ use tempfile::TempDir;
 use taskulus::cli::run_from_args_with_output;
 use taskulus::config::write_default_configuration;
 use taskulus::config_loader::load_project_configuration;
-use taskulus::file_io::load_project_directory;
 
 use crate::step_definitions::initialization_steps::TaskulusWorld;
 
@@ -49,14 +47,169 @@ fn initialize_project(world: &mut TaskulusWorld) {
     assert_eq!(world.exit_code, Some(0));
 }
 
-fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
-    let cwd = world.working_directory.as_ref().expect("cwd");
-    load_project_directory(cwd).expect("project dir")
+#[given("a Taskulus repository with a .taskulus.yml file containing the default configuration")]
+fn given_repo_with_default_configuration(world: &mut TaskulusWorld) {
+    given_project_with_configuration_file(world);
+}
+
+#[given("a Taskulus repository with an empty .taskulus.yml file")]
+fn given_repo_with_empty_configuration(world: &mut TaskulusWorld) {
+    initialize_project(world);
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".taskulus.yml");
+    fs::write(config_path, "").expect("write empty config");
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file containing null")]
+fn given_repo_with_null_configuration(world: &mut TaskulusWorld) {
+    initialize_project(world);
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".taskulus.yml");
+    fs::write(config_path, "null\n").expect("write null config");
+}
+
+#[given(
+    "a Taskulus repository with a .taskulus.yml file pointing to an absolute project directory"
+)]
+fn given_project_with_absolute_project_directory(world: &mut TaskulusWorld) {
+    initialize_project(world);
+    let abs_project = world
+        .temp_dir
+        .as_ref()
+        .expect("temp dir")
+        .path()
+        .join("abs-project");
+    fs::create_dir_all(abs_project.join("issues")).expect("create abs project issues");
+    update_config_file(world, |mapping| {
+        mapping.insert(
+            Value::String("project_directory".to_string()),
+            Value::String(abs_project.display().to_string()),
+        );
+    });
+    world.expected_project_dir = Some(abs_project.clone());
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file containing unknown configuration fields")]
+fn given_repo_with_unknown_fields(world: &mut TaskulusWorld) {
+    given_invalid_config_unknown_fields(world);
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file containing an empty hierarchy")]
+fn given_repo_with_empty_hierarchy(world: &mut TaskulusWorld) {
+    given_invalid_config_empty_hierarchy(world);
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file that is not a mapping")]
+fn given_repo_with_non_mapping_config(world: &mut TaskulusWorld) {
+    initialize_project(world);
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".taskulus.yml");
+    fs::write(config_path, "- not-a-map\n").expect("write non-mapping config");
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file containing an empty project directory")]
+fn given_repo_with_empty_project_directory(world: &mut TaskulusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        mapping.insert(
+            Value::String("project_directory".to_string()),
+            Value::String("".to_string()),
+        );
+    });
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file containing duplicate types")]
+fn given_repo_with_duplicate_types(world: &mut TaskulusWorld) {
+    given_invalid_config_duplicate_types(world);
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file missing the default workflow")]
+fn given_repo_missing_default_workflow(world: &mut TaskulusWorld) {
+    given_invalid_config_missing_default_workflow(world);
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file missing the default priority")]
+fn given_repo_missing_default_priority(world: &mut TaskulusWorld) {
+    given_invalid_config_missing_default_priority(world);
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file containing a bright white status color")]
+fn given_repo_bright_white_status_color(world: &mut TaskulusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        let status_colors_key = Value::String("status_colors".to_string());
+        let mut colors = mapping
+            .get(&status_colors_key)
+            .cloned()
+            .unwrap_or_else(|| Value::Mapping(serde_yaml::Mapping::new()));
+        if let Some(color_map) = colors.as_mapping_mut() {
+            color_map.insert(
+                Value::String("open".to_string()),
+                Value::String("bright_white".to_string()),
+            );
+        }
+        mapping.insert(status_colors_key, colors);
+    });
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file containing an invalid status color")]
+fn given_repo_invalid_status_color(world: &mut TaskulusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        let status_colors_key = Value::String("status_colors".to_string());
+        let mut colors = mapping
+            .get(&status_colors_key)
+            .cloned()
+            .unwrap_or_else(|| Value::Mapping(serde_yaml::Mapping::new()));
+        if let Some(color_map) = colors.as_mapping_mut() {
+            color_map.insert(
+                Value::String("open".to_string()),
+                Value::String("invalid-color".to_string()),
+            );
+        }
+        mapping.insert(status_colors_key, colors);
+    });
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file containing wrong field types")]
+fn given_repo_wrong_field_types(world: &mut TaskulusWorld) {
+    given_invalid_config_wrong_field_types(world);
+}
+
+#[given("a Taskulus repository with an unreadable .taskulus.yml file")]
+fn given_repo_unreadable_config(world: &mut TaskulusWorld) {
+    given_project_with_unreadable_configuration_file(world);
+}
+
+#[given("a Taskulus repository without a .taskulus.yml file")]
+fn given_repository_without_configuration(world: &mut TaskulusWorld) {
+    let temp_dir = TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo-missing-config");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
 }
 
 fn update_config_file(world: &TaskulusWorld, update: impl FnOnce(&mut serde_yaml::Mapping)) {
-    let project_dir = load_project_dir(world);
-    let config_path = project_dir.join("config.yaml");
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".taskulus.yml");
     if !config_path.exists() {
         write_default_configuration(&config_path).expect("write default config");
     }
@@ -82,16 +235,35 @@ fn given_invalid_config_unknown_fields(world: &mut TaskulusWorld) {
 #[given("a Taskulus project with a configuration file")]
 fn given_project_with_configuration_file(world: &mut TaskulusWorld) {
     initialize_project(world);
-    let project_dir = load_project_dir(world);
-    let config_path = project_dir.join("config.yaml");
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".taskulus.yml");
     write_default_configuration(&config_path).expect("write default config");
+}
+
+#[given("a Taskulus repository with a .taskulus.yml file pointing to \"tracking\" as the project directory")]
+fn given_project_with_custom_project_directory(world: &mut TaskulusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        mapping.insert(
+            Value::String("project_directory".to_string()),
+            Value::String("tracking".to_string()),
+        );
+    });
+    let repo_path = world.working_directory.as_ref().expect("working directory");
+    fs::create_dir_all(repo_path.join("tracking").join("issues")).expect("create tracking issues");
 }
 
 #[given("a Taskulus project with an unreadable configuration file")]
 fn given_project_with_unreadable_configuration_file(world: &mut TaskulusWorld) {
     initialize_project(world);
-    let project_dir = load_project_dir(world);
-    let config_path = project_dir.join("config.yaml");
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".taskulus.yml");
     write_default_configuration(&config_path).expect("write default config");
     #[cfg(unix)]
     {
@@ -176,8 +348,11 @@ fn given_invalid_config_wrong_field_types(world: &mut TaskulusWorld) {
 
 #[when("the configuration is loaded")]
 fn when_configuration_loaded(world: &mut TaskulusWorld) {
-    let project_dir = load_project_dir(world);
-    let config_path = project_dir.join("config.yaml");
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".taskulus.yml");
     match load_project_configuration(&config_path) {
         Ok(configuration) => {
             world.configuration = Some(configuration);
@@ -192,10 +367,10 @@ fn when_configuration_loaded(world: &mut TaskulusWorld) {
     }
 }
 
-#[then("the prefix should be \"tsk\"")]
-fn then_prefix_should_match(world: &mut TaskulusWorld) {
+#[then("the project key should be \"tsk\"")]
+fn then_project_key_should_match(world: &mut TaskulusWorld) {
     let configuration = world.configuration.as_ref().expect("configuration");
-    assert_eq!(configuration.prefix, "tsk");
+    assert_eq!(configuration.project_key, "tsk");
 }
 
 #[then("the hierarchy should be \"initiative, epic, task, sub-task\"")]
@@ -222,4 +397,23 @@ fn then_initial_status_should_match(world: &mut TaskulusWorld) {
 fn then_default_priority_should_match(world: &mut TaskulusWorld) {
     let configuration = world.configuration.as_ref().expect("configuration");
     assert_eq!(configuration.default_priority, 2);
+}
+
+#[then("the project directory should match the configured absolute path")]
+fn then_project_directory_should_match_absolute(world: &mut TaskulusWorld) {
+    let expected = world
+        .expected_project_dir
+        .as_ref()
+        .expect("expected project directory");
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(
+        &configuration.project_directory,
+        &expected.display().to_string()
+    );
+}
+
+#[then(expr = "the project directory should be \"{string}\"")]
+fn then_project_directory_should_match(world: &mut TaskulusWorld, value: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.project_directory, value);
 }

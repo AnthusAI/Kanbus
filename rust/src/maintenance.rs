@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;
-use crate::file_io::load_project_directory;
+use crate::file_io::{get_configuration_path, load_project_directory};
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::models::IssueData;
 use crate::workflows::get_workflow_for_issue_type;
@@ -38,7 +38,8 @@ pub fn validate_project(root: &Path) -> Result<(), TaskulusError> {
         ));
     }
 
-    let configuration = load_project_configuration(&project_dir.join("config.yaml"))?;
+    let configuration =
+        load_project_configuration(&get_configuration_path(project_dir.as_path())?)?;
 
     let mut errors: Vec<String> = Vec::new();
     let mut issues: BTreeMap<String, IssueData> = BTreeMap::new();

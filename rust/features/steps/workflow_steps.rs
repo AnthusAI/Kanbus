@@ -7,7 +7,7 @@ use cucumber::{given, then, when};
 use serde_json::Value;
 
 use taskulus::file_io::load_project_directory;
-use taskulus::models::{IssueData, ProjectConfiguration};
+use taskulus::models::{IssueData, PriorityDefinition, ProjectConfiguration};
 use taskulus::workflows::get_workflow_for_issue_type;
 
 use crate::step_definitions::initialization_steps::TaskulusWorld;
@@ -224,13 +224,23 @@ fn when_lookup_workflow(world: &mut TaskulusWorld, issue_type: String) {
         BTreeMap::from([("open".to_string(), vec!["in_progress".to_string()])]),
     )]);
     let configuration = ProjectConfiguration {
-        prefix: "tsk".to_string(),
+        project_directory: "project".to_string(),
+        external_projects: Vec::new(),
+        project_key: "tsk".to_string(),
         hierarchy: vec!["initiative".to_string(), "epic".to_string()],
         types: vec!["bug".to_string()],
         workflows,
         initial_status: "open".to_string(),
-        priorities: BTreeMap::from([(2, "medium".to_string())]),
+        priorities: BTreeMap::from([(
+            2,
+            PriorityDefinition {
+                name: "medium".to_string(),
+                color: None,
+            },
+        )]),
         default_priority: 2,
+        status_colors: BTreeMap::new(),
+        type_colors: BTreeMap::new(),
     };
     match get_workflow_for_issue_type(&configuration, &issue_type) {
         Ok(_) => world.workflow_error = None,
