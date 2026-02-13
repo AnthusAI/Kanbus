@@ -61,6 +61,8 @@ pub struct ProjectConfiguration {
     pub status_colors: BTreeMap<String, String>,
     #[serde(default)]
     pub type_colors: BTreeMap<String, String>,
+    #[serde(default)]
+    pub beads_compatibility: bool,
 }
 
 /// Priority definition containing label and optional color.
@@ -69,4 +71,3 @@ pub struct PriorityDefinition {
     pub name: String,
     #[serde(default)]
     pub color: Option<String>,
-}

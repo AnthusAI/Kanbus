@@ -34,7 +34,7 @@ pub fn update_issue(
     claim: bool,
 ) -> Result<IssueData, TaskulusError> {
     let lookup = load_issue_from_project(root, identifier)?;
-    let config_path = get_configuration_path(&lookup.project_dir)?;
+    let config_path = get_configuration_path(lookup.project_dir.as_path())?;
     let configuration = load_project_configuration(&config_path)?;
 
     let mut updated_issue = lookup.issue.clone();

@@ -2,13 +2,45 @@
 
 from __future__ import annotations
 
+import copy
 import json
+import shutil
 from pathlib import Path
 
+import yaml
 from behave import given, then, when
 
-from features.steps.shared import run_cli
+from features.steps.shared import ensure_git_repository, run_cli
 from taskulus.beads_write import set_test_beads_slug_sequence
+from taskulus.config import DEFAULT_CONFIGURATION
+
+
+def _fixture_beads_dir() -> Path:
+    return (
+        Path(__file__).resolve().parents[3]
+        / "specs"
+        / "fixtures"
+        / "beads_repo"
+        / ".beads"
+    )
+
+
+@given("a Taskulus project with beads compatibility enabled")
+def given_project_with_beads_compatibility(context: object) -> None:
+    repository_path = Path(context.temp_dir) / "repo"
+    repository_path.mkdir(parents=True, exist_ok=True)
+    ensure_git_repository(repository_path)
+    target_beads = repository_path / ".beads"
+    shutil.copytree(_fixture_beads_dir(), target_beads)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["beads_compatibility"] = True
+    (repository_path / ".taskulus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+    project_dir = repository_path / payload["project_directory"]
+    (project_dir / "issues").mkdir(parents=True, exist_ok=True)
+    context.working_directory = repository_path
 
 
 @when('I run "tsk --beads list"')

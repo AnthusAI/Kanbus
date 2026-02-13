@@ -27,3 +27,4 @@ priorities:
   3: low
   4: trivial
 default_priority: 2
+beads_compatibility: false

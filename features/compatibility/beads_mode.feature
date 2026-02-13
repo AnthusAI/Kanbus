@@ -71,3 +71,9 @@ Feature: Beads compatibility mode
     When I run "tsk --beads show bdx-missing"
     Then the command should fail with exit code 1
     And stderr should contain "not found"
+
+  Scenario: Beads compatibility config enables Beads mode
+    Given a Taskulus project with beads compatibility enabled
+    When I run "tsk list"
+    Then the command should succeed
+    And stdout should contain "bdx-epic"

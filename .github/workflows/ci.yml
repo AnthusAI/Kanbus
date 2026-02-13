@@ -104,6 +104,32 @@ jobs:
           output=$(python tools/coverage_badge.py coverage-rust/cobertura.xml)
           echo "$output" >> "$GITHUB_OUTPUT"
 
+  console-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install console dependencies
+        run: |
+          cd console
+          npm install
+
+      - name: Install Playwright browsers
+        run: |
+          cd console
+          npx playwright install --with-deps
+
+      - name: Run console UI specs
+        run: |
+          cd console
+          npm run test:ui
+
   performance:
     runs-on: ubuntu-latest
     steps:

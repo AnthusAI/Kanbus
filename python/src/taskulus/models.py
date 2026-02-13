@@ -124,6 +124,8 @@ class ProjectConfiguration(BaseModel):
     :type status_colors: Dict[str, str]
     :param type_colors: Optional map of issue type to color name.
     :type type_colors: Dict[str, str]
+    :param beads_compatibility: Default Beads compatibility mode.
+    :type beads_compatibility: bool
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -139,3 +141,4 @@ class ProjectConfiguration(BaseModel):
     default_priority: int
     status_colors: Dict[str, str] = Field(default_factory=dict)
     type_colors: Dict[str, str] = Field(default_factory=dict)
+    beads_compatibility: bool = False

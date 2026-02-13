@@ -1,0 +1,13 @@
+{
+  "id": "tsk-epic-1",
+  "title": "Observability overhaul",
+  "description": "Epic to refresh monitoring",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "infra@example.com",
+  "creator": "System",
+  "labels": [],
+  "dependencies": [],
+  "comments": []
+}

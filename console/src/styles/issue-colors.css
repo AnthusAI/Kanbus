@@ -1,0 +1,194 @@
+@import "@radix-ui/colors/red.css";
+@import "@radix-ui/colors/orange.css";
+@import "@radix-ui/colors/amber.css";
+@import "@radix-ui/colors/yellow.css";
+@import "@radix-ui/colors/green.css";
+@import "@radix-ui/colors/teal.css";
+@import "@radix-ui/colors/cyan.css";
+@import "@radix-ui/colors/blue.css";
+@import "@radix-ui/colors/indigo.css";
+@import "@radix-ui/colors/violet.css";
+@import "@radix-ui/colors/pink.css";
+@import "@radix-ui/colors/gray.css";
+@import "@radix-ui/colors/slate.css";
+
+.issue-card {
+  --issue-accent: var(--slate-4);
+  --issue-accent-muted: var(--slate-2);
+  --issue-accent-foreground: var(--text-foreground);
+}
+
+.issue-card[data-status="open"] {
+  --issue-accent: var(--green-4);
+  --issue-accent-muted: var(--green-2);
+}
+
+.issue-card[data-status="in_progress"] {
+  --issue-accent: var(--blue-4);
+  --issue-accent-muted: var(--blue-2);
+}
+
+.issue-card[data-status="blocked"] {
+  --issue-accent: var(--red-4);
+  --issue-accent-muted: var(--red-2);
+}
+
+.issue-card[data-status="deferred"] {
+  --issue-accent: var(--amber-4);
+  --issue-accent-muted: var(--amber-2);
+}
+
+.issue-card[data-status="closed"] {
+  --issue-accent: var(--gray-4);
+  --issue-accent-muted: var(--gray-2);
+}
+
+.issue-card[data-type="initiative"] {
+  --issue-accent: var(--violet-4);
+  --issue-accent-muted: var(--violet-2);
+}
+
+.issue-card[data-type="epic"] {
+  --issue-accent: var(--indigo-4);
+  --issue-accent-muted: var(--indigo-2);
+}
+
+.issue-card[data-type="task"] {
+  --issue-accent: var(--cyan-4);
+  --issue-accent-muted: var(--cyan-2);
+}
+
+.issue-card[data-type="sub-task"] {
+  --issue-accent: var(--teal-4);
+  --issue-accent-muted: var(--teal-2);
+}
+
+.issue-card[data-type="bug"] {
+  --issue-accent: var(--red-4);
+  --issue-accent-muted: var(--red-2);
+}
+
+.issue-card[data-type="story"] {
+  --issue-accent: var(--pink-4);
+  --issue-accent-muted: var(--pink-2);
+}
+
+.issue-card[data-type="chore"] {
+  --issue-accent: var(--slate-4);
+  --issue-accent-muted: var(--slate-2);
+}
+
+.issue-card[data-priority="critical"] {
+  --issue-accent: var(--red-4);
+  --issue-accent-muted: var(--red-2);
+}
+
+.issue-card[data-priority="high"] {
+  --issue-accent: var(--orange-4);
+  --issue-accent-muted: var(--orange-2);
+}
+
+.issue-card[data-priority="medium"] {
+  --issue-accent: var(--yellow-4);
+  --issue-accent-muted: var(--yellow-2);
+}
+
+.issue-card[data-priority="low"] {
+  --issue-accent: var(--blue-4);
+  --issue-accent-muted: var(--blue-2);
+}
+
+.issue-card[data-priority="trivial"] {
+  --issue-accent: var(--gray-4);
+  --issue-accent-muted: var(--gray-2);
+}
+
+.dark .issue-card {
+  --issue-accent: var(--slate-11);
+  --issue-accent-muted: var(--slate-6);
+}
+
+.dark .issue-card[data-status="open"] {
+  --issue-accent: var(--green-11);
+  --issue-accent-muted: var(--green-6);
+}
+
+.dark .issue-card[data-status="in_progress"] {
+  --issue-accent: var(--blue-11);
+  --issue-accent-muted: var(--blue-6);
+}
+
+.dark .issue-card[data-status="blocked"] {
+  --issue-accent: var(--red-11);
+  --issue-accent-muted: var(--red-6);
+}
+
+.dark .issue-card[data-status="deferred"] {
+  --issue-accent: var(--amber-11);
+  --issue-accent-muted: var(--amber-6);
+}
+
+.dark .issue-card[data-status="closed"] {
+  --issue-accent: var(--gray-10);
+  --issue-accent-muted: var(--gray-6);
+}
+
+.dark .issue-card[data-type="initiative"] {
+  --issue-accent: var(--violet-11);
+  --issue-accent-muted: var(--violet-6);
+}
+
+.dark .issue-card[data-type="epic"] {
+  --issue-accent: var(--indigo-11);
+  --issue-accent-muted: var(--indigo-6);
+}
+
+.dark .issue-card[data-type="task"] {
+  --issue-accent: var(--cyan-11);
+  --issue-accent-muted: var(--cyan-6);
+}
+
+.dark .issue-card[data-type="sub-task"] {
+  --issue-accent: var(--teal-11);
+  --issue-accent-muted: var(--teal-6);
+}
+
+.dark .issue-card[data-type="bug"] {
+  --issue-accent: var(--red-11);
+  --issue-accent-muted: var(--red-6);
+}
+
+.dark .issue-card[data-type="story"] {
+  --issue-accent: var(--pink-11);
+  --issue-accent-muted: var(--pink-6);
+}
+
+.dark .issue-card[data-type="chore"] {
+  --issue-accent: var(--slate-11);
+  --issue-accent-muted: var(--slate-6);
+}
+
+.dark .issue-card[data-priority="critical"] {
+  --issue-accent: var(--red-11);
+  --issue-accent-muted: var(--red-6);
+}
+
+.dark .issue-card[data-priority="high"] {
+  --issue-accent: var(--orange-11);
+  --issue-accent-muted: var(--orange-6);
+}
+
+.dark .issue-card[data-priority="medium"] {
+  --issue-accent: var(--yellow-11);
+  --issue-accent-muted: var(--yellow-6);
+}
+
+.dark .issue-card[data-priority="low"] {
+  --issue-accent: var(--blue-11);
+  --issue-accent-muted: var(--blue-6);
+}
+
+.dark .issue-card[data-priority="trivial"] {
+  --issue-accent: var(--gray-10);
+  --issue-accent-muted: var(--gray-6);
+}

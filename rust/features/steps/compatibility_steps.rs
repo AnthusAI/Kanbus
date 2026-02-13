@@ -1,13 +1,39 @@
 use std::fs;
+use std::path::PathBuf;
+use std::process::Command;
 
 use cucumber::{given, then, when};
 use serde_json::Value;
 
 use taskulus::beads_write::set_test_beads_slug_sequence;
 use taskulus::cli::run_from_args_with_output;
+use taskulus::config::default_project_configuration;
 
 use crate::step_definitions::initialization_steps::TaskulusWorld;
 use regex::Regex;
+
+fn fixture_beads_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("specs")
+        .join("fixtures")
+        .join("beads_repo")
+        .join(".beads")
+}
+
+fn copy_dir(source: &std::path::Path, destination: &std::path::Path) {
+    fs::create_dir_all(destination).expect("create beads dir");
+    for entry in fs::read_dir(source).expect("read beads dir") {
+        let entry = entry.expect("beads dir entry");
+        let path = entry.path();
+        let dest = destination.join(entry.file_name());
+        if path.is_dir() {
+            copy_dir(&path, &dest);
+        } else {
+            fs::copy(&path, &dest).expect("copy beads file");
+        }
+    }
+}
 
 fn run_cli(world: &mut TaskulusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
@@ -36,6 +62,31 @@ fn capture_last_issue_id(world: &TaskulusWorld) -> Option<String> {
     regex
         .captures(stdout)
         .and_then(|caps| caps.get(1).map(|m| m.as_str().to_lowercase()))
+}
+
+#[given("a Taskulus project with beads compatibility enabled")]
+fn given_project_with_beads_compatibility(world: &mut TaskulusWorld) {
+    let temp_dir = tempfile::TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    let target_beads = repo_path.join(".beads");
+    fs::create_dir_all(&target_beads).expect("beads dir");
+    copy_dir(&fixture_beads_dir(), &target_beads);
+    let mut configuration = default_project_configuration();
+    configuration.beads_compatibility = true;
+    let project_dir = repo_path.join(&configuration.project_directory);
+    let issues_dir = project_dir.join("issues");
+    fs::create_dir_all(&issues_dir).expect("create issues dir");
+    let contents = serde_yaml::to_string(&configuration).expect("serialize config");
+    fs::write(repo_path.join(".taskulus.yml"), contents).expect("write config");
+
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
 }
 
 #[when("I run \"tsk --beads list\"")]

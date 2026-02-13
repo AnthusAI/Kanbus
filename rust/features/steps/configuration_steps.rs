@@ -416,4 +416,9 @@ fn then_project_directory_should_match_absolute(world: &mut TaskulusWorld) {
 fn then_project_directory_should_match(world: &mut TaskulusWorld, value: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
     assert_eq!(configuration.project_directory, value);
+
+#[then("beads compatibility should be false")]
+fn then_beads_compatibility_should_be_false(world: &mut TaskulusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.beads_compatibility, false);
 }

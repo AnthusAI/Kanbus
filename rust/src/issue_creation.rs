@@ -55,7 +55,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         local_dir = Some(ensure_project_local_directory(&project_dir)?);
         issues_dir = local_dir.as_ref().expect("local dir").join("issues");
     }
-    let config_path = get_configuration_path(project_dir.as_path())?;
+    let config_path = get_configuration_path(request.root.as_path())?;
     let configuration = load_project_configuration(&config_path)?;
 
     let resolved_type = request.issue_type.as_deref().unwrap_or("task");

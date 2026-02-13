@@ -1,0 +1,14 @@
+{
+  "id": "tsk-subtask-1",
+  "title": "Wire logger middleware",
+  "description": "Hook logger into request pipeline",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 3,
+  "assignee": "dev@example.com",
+  "creator": "System",
+  "parent": "tsk-task-1",
+  "labels": [],
+  "dependencies": [],
+  "comments": []
+}

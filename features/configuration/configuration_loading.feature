@@ -12,6 +12,7 @@ Feature: Configuration loading
     And the initial status should be "open"
     And the default priority should be 2
     And the project directory should be "project"
+    And beads compatibility should be false
 
   Scenario: Load configuration from an empty file
     Given a Taskulus repository with an empty .taskulus.yml file

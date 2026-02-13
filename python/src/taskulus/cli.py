@@ -60,13 +60,26 @@ from taskulus.project import ProjectMarkerError, get_configuration_path
 from taskulus.config_loader import ConfigurationError, load_project_configuration
 
 
+def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> bool:
+    source = context.get_parameter_source("beads_mode")
+    if source == click.core.ParameterSource.COMMANDLINE and beads_mode:
+        return True
+    try:
+        configuration = load_project_configuration(get_configuration_path(Path.cwd()))
+    except ProjectMarkerError:
+        return False
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+    return configuration.beads_compatibility
+
+
 @click.group()
 @click.version_option(__version__, prog_name="tsk")
 @click.option("--beads", "beads_mode", is_flag=True, default=False)
 @click.pass_context
 def cli(context: click.Context, beads_mode: bool) -> None:
     """Taskulus command line interface."""
-    context.obj = {"beads_mode": beads_mode}
+    context.obj = {"beads_mode": _resolve_beads_mode(context, beads_mode)}
 
 
 @cli.command("init")
@@ -208,9 +221,7 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
         except IssueLookupError as error:
             raise click.ClickException(str(error)) from error
         issue = lookup.issue
-        configuration = load_project_configuration(
-            get_configuration_path(lookup.project_dir)
-        )
+        configuration = load_project_configuration(get_configuration_path(root))
 
     if as_json:
         payload = issue.model_dump(by_alias=True, mode="json")

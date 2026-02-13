@@ -122,6 +122,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
             ("chore".to_string(), "green".to_string()),
             ("event".to_string(), "bright_blue".to_string()),
         ]),
+        beads_compatibility: false,
     }
 }
 

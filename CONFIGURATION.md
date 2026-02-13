@@ -53,6 +53,9 @@ priorities:
 
 # Default priority for new issues
 default_priority: 2
+
+# Enable Beads compatibility mode by default
+beads_compatibility: false
 ```
 
 ## Field reference
@@ -84,6 +87,11 @@ Human-readable names for priority levels. Lower numbers indicate higher priority
 ### `default_priority` (integer, required)
 
 Priority assigned to new issues when not explicitly provided.
+
+### `beads_compatibility` (boolean, optional)
+
+Whether CLI commands default to Beads compatibility mode when `--beads` is not provided.
+Defaults to `false`.
 
 ## Validation rules
 

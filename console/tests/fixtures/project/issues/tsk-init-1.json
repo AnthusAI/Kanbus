@@ -1,0 +1,13 @@
+{
+  "id": "tsk-init-1",
+  "title": "Increase reliability",
+  "description": "Initiative to improve system stability",
+  "type": "initiative",
+  "status": "open",
+  "priority": 1,
+  "assignee": "ops@example.com",
+  "creator": "System",
+  "labels": [],
+  "dependencies": [],
+  "comments": []
+}

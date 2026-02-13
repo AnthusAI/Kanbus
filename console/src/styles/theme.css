@@ -1,0 +1,60 @@
+@import "@radix-ui/colors/gray.css";
+@import "@radix-ui/colors/gray-dark.css";
+@import "@radix-ui/colors/blue.css";
+@import "@radix-ui/colors/blue-dark.css";
+@import "@radix-ui/colors/sand.css";
+@import "@radix-ui/colors/sand-dark.css";
+
+:root {
+  --p3: 12px;
+  --font-sans: "Inter", "SF Pro Text", "Helvetica Neue", "Arial", sans-serif;
+  --font-serif: "Source Serif 4", "Iowan Old Style", "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
+  --font-body: var(--font-sans);
+
+  --background: var(--gray-1);
+  --card: var(--gray-2);
+  --card-muted: var(--gray-7);
+  --column: var(--gray-3);
+  --text-foreground: var(--gray-12);
+  --text-muted: var(--gray-11);
+}
+
+html[data-font="sans"] {
+  --font-body: var(--font-sans);
+}
+
+html[data-font="serif"] {
+  --font-body: var(--font-serif);
+}
+
+html[data-font="mono"] {
+  --font-body: var(--font-mono);
+}
+
+html.theme-neutral {
+  --background: var(--gray-1);
+  --card: var(--gray-2);
+  --card-muted: var(--gray-7);
+  --column: var(--gray-3);
+  --text-foreground: var(--gray-12);
+  --text-muted: var(--gray-11);
+}
+
+html.theme-cool {
+  --background: var(--blue-1);
+  --card: var(--blue-2);
+  --card-muted: var(--blue-7);
+  --column: var(--blue-3);
+  --text-foreground: var(--blue-12);
+  --text-muted: var(--blue-11);
+}
+
+html.theme-warm {
+  --background: var(--sand-1);
+  --card: var(--sand-2);
+  --card-muted: var(--sand-7);
+  --column: var(--sand-3);
+  --text-foreground: var(--sand-12);
+  --text-muted: var(--sand-11);
+}

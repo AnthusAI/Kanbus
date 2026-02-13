@@ -15,7 +15,8 @@ use crate::dependency_tree::{build_dependency_tree, render_dependency_tree};
 use crate::doctor::run_doctor;
 use crate::error::TaskulusError;
 use crate::file_io::{
-    ensure_git_repository, get_configuration_path, initialize_project, resolve_root,
+    ensure_git_repository, get_configuration_path, initialize_project, load_project_directory,
+    resolve_root,
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
@@ -312,7 +313,9 @@ where
 {
     #[cfg(tarpaulin)]
     cover_help_request();
-    let cli = match Cli::try_parse_from(args) {
+    let args_vec: Vec<OsString> = args.into_iter().map(Into::into).collect();
+    let beads_flag = args_vec.iter().any(|arg| arg == "--beads");
+    let cli = match Cli::try_parse_from(&args_vec) {
         Ok(parsed) => parsed,
         Err(error) => {
             let rendered = error.render().to_string();
@@ -323,11 +326,24 @@ where
         }
     };
     let root = resolve_root(cwd);
-    let stdout = execute_command(cli.command, &root, cli.beads)?;
+    let beads_mode = resolve_beads_mode(&root, beads_flag)?;
+    let stdout = execute_command(cli.command, &root, beads_mode)?;
 
     Ok(CommandOutput {
         stdout: stdout.unwrap_or_default(),
     })
+}
+
+fn resolve_beads_mode(root: &Path, beads_flag: bool) -> Result<bool, TaskulusError> {
+    if beads_flag {
+        return Ok(true);
+    }
+    let project_dir = match crate::file_io::load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => return Ok(false),
+    };
+    let configuration = load_project_configuration(&project_dir.join("config.yaml"))?;
+    Ok(configuration.beads_compatibility)
 }
 
 fn execute_command(
@@ -412,15 +428,14 @@ fn execute_command(
             )))
         }
         Commands::Show { identifier, json } => {
-            let issue = if beads_mode {
-                load_beads_issue_by_id(root, &identifier)?
+            let (issue, configuration) = if beads_mode {
+                (load_beads_issue_by_id(root, &identifier)?, None)
             } else {
-                load_issue_from_project(root, &identifier)?.issue
-            };
-            let configuration = if beads_mode {
-                None
-            } else {
-                Some(load_project_configuration(&get_configuration_path(root)?)?)
+                let lookup = load_issue_from_project(root, &identifier)?;
+                let configuration = load_project_configuration(
+                    &get_configuration_path(lookup.project_dir.as_path())?,
+                )?;
+                (lookup.issue, Some(configuration))
             };
             if json {
                 let payload =

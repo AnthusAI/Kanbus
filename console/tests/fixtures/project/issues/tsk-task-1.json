@@ -1,0 +1,13 @@
+{
+  "id": "tsk-task-1",
+  "title": "Add structured logging",
+  "description": "Ensure logs include correlation ids",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": "dev@example.com",
+  "creator": "System",
+  "labels": [],
+  "dependencies": [],
+  "comments": []
+}

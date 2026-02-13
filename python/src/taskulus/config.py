@@ -55,4 +55,5 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
         "chore": "green",
         "event": "bright_blue",
     },
+    "beads_compatibility": False,
 }
