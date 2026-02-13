@@ -157,7 +157,11 @@ def create(
     except IssueCreationError as error:
         raise click.ClickException(str(error)) from error
 
-    configuration = load_project_configuration(get_configuration_path(root))
+    try:
+        configuration = load_project_configuration(get_configuration_path(root))
+    except (ConfigurationError, ProjectMarkerError) as error:
+        raise click.ClickException(str(error)) from error
+
     click.echo(
         format_issue_for_display(
             issue, configuration=configuration, project_context=False

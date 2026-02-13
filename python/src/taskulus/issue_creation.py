@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
-from taskulus.config_loader import load_project_configuration
+from taskulus.config_loader import ConfigurationError, load_project_configuration
 from taskulus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
 from taskulus.ids import IssueIdentifierRequest, generate_issue_identifier
 from taskulus.issue_files import (
@@ -19,6 +19,7 @@ from taskulus.project import (
     ProjectMarkerError,
     ensure_project_local_directory,
     find_project_local_directory,
+    get_configuration_path,
     load_project_directory,
 )
 
@@ -72,7 +73,10 @@ def create_issue(
     if local:
         local_dir = ensure_project_local_directory(project_dir)
         issues_dir = local_dir / "issues"
-    configuration = load_project_configuration(project_dir / "config.yaml")
+    try:
+        configuration = load_project_configuration(get_configuration_path(project_dir))
+    except (ProjectMarkerError, ConfigurationError) as error:
+        raise IssueCreationError(str(error)) from error
 
     resolved_type = issue_type or "task"
     valid_types = configuration.hierarchy + configuration.types
@@ -107,8 +111,7 @@ def create_issue(
     identifier_request = IssueIdentifierRequest(
         title=title,
         existing_ids=existing_ids,
-        prefix=configuration.prefix,
-        created_at=created_at,
+        prefix=configuration.project_key,
     )
     identifier = generate_issue_identifier(identifier_request).identifier
     updated_at = created_at
