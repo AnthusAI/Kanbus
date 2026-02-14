@@ -7,28 +7,28 @@ from behave import then, when
 from features.steps.shared import load_project_directory, run_cli
 
 
-@when('I run "tsk close tsk-aaa"')
+@when('I run "kanbus close kanbus-aaa"')
 def when_run_close(context: object) -> None:
-    run_cli(context, "tsk close tsk-aaa")
+    run_cli(context, "kanbus close kanbus-aaa")
 
 
-@when('I run "tsk close tsk-missing"')
+@when('I run "kanbus close kanbus-missing"')
 def when_run_close_missing(context: object) -> None:
-    run_cli(context, "tsk close tsk-missing")
+    run_cli(context, "kanbus close kanbus-missing")
 
 
-@when('I run "tsk delete tsk-aaa"')
+@when('I run "kanbus delete kanbus-aaa"')
 def when_run_delete(context: object) -> None:
-    run_cli(context, "tsk delete tsk-aaa")
+    run_cli(context, "kanbus delete kanbus-aaa")
 
 
-@when('I run "tsk delete tsk-missing"')
+@when('I run "kanbus delete kanbus-missing"')
 def when_run_delete_missing(context: object) -> None:
-    run_cli(context, "tsk delete tsk-missing")
+    run_cli(context, "kanbus delete kanbus-missing")
 
 
-@then('issue "tsk-aaa" should not exist')
+@then('issue "kanbus-aaa" should not exist')
 def then_issue_not_exists(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue_path = project_dir / "issues" / "tsk-aaa.json"
+    issue_path = project_dir / "issues" / "kanbus-aaa.json"
     assert not issue_path.exists()

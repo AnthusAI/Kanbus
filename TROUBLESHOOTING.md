@@ -12,7 +12,7 @@ Error: not a git repository
 
 **Cause**
 
-`tsk init` requires a git repository to exist in the current directory.
+`kanbus init` requires a git repository to exist in the current directory.
 
 **Fix**
 
@@ -20,7 +20,7 @@ Initialize git, then retry:
 
 ```bash
 git init
-tsk init
+kanbus init
 ```
 
 ## Malformed JSON in an issue file
@@ -51,11 +51,11 @@ Error: invalid transition from 'open' to 'blocked' for type 'task'
 
 **Cause**
 
-The transition is not permitted by the workflow defined in `taskulus.yml`.
+The transition is not permitted by the workflow defined in `kanbus.yml`.
 
 **Fix**
 
-- Check the workflow rules in `taskulus.yml`.
+- Check the workflow rules in `kanbus.yml`.
 - Use a valid intermediate status, or adjust the workflow definition.
 
 ## Corrupted or stale cache
@@ -92,9 +92,9 @@ A parent-child relationship violates the configured hierarchy or a non-hierarchi
 
 **Fix**
 
-- Review the `hierarchy` and `types` settings in `taskulus.yml`.
+- Review the `hierarchy` and `types` settings in `kanbus.yml`.
 - Update the issue to a valid parent or change the issue type.
 
 ## Still stuck
 
-If you cannot resolve an issue, run `tsk validate` to get a full integrity report and inspect the errors for additional context.
+If you cannot resolve an issue, run `kanbus validate` to get a full integrity report and inspect the errors for additional context.

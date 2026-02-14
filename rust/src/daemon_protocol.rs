@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 
 /// Current protocol version supported by the daemon.
 pub const PROTOCOL_VERSION: &str = "1.0";
@@ -54,44 +54,44 @@ pub struct ResponseEnvelope {
 /// * `daemon_version` - Daemon protocol version string.
 ///
 /// # Errors
-/// Returns `TaskulusError::ProtocolError` if versions are incompatible.
+/// Returns `KanbusError::ProtocolError` if versions are incompatible.
 pub fn validate_protocol_compatibility(
     client_version: &str,
     daemon_version: &str,
-) -> Result<(), TaskulusError> {
+) -> Result<(), KanbusError> {
     let (client_major, client_minor) = parse_version(client_version)?;
     let (daemon_major, daemon_minor) = parse_version(daemon_version)?;
     if client_major != daemon_major {
-        return Err(TaskulusError::ProtocolError(
+        return Err(KanbusError::ProtocolError(
             "protocol version mismatch".to_string(),
         ));
     }
     if client_minor > daemon_minor {
-        return Err(TaskulusError::ProtocolError(
+        return Err(KanbusError::ProtocolError(
             "protocol version unsupported".to_string(),
         ));
     }
     Ok(())
 }
 
-fn parse_version(version: &str) -> Result<(u32, u32), TaskulusError> {
+fn parse_version(version: &str) -> Result<(u32, u32), KanbusError> {
     let mut parts = version.split('.');
     let major = parts
         .next()
-        .ok_or_else(|| TaskulusError::ProtocolError("invalid protocol version".to_string()))?;
+        .ok_or_else(|| KanbusError::ProtocolError("invalid protocol version".to_string()))?;
     let minor = parts
         .next()
-        .ok_or_else(|| TaskulusError::ProtocolError("invalid protocol version".to_string()))?;
+        .ok_or_else(|| KanbusError::ProtocolError("invalid protocol version".to_string()))?;
     if parts.next().is_some() {
-        return Err(TaskulusError::ProtocolError(
+        return Err(KanbusError::ProtocolError(
             "invalid protocol version".to_string(),
         ));
     }
     let major: u32 = major
         .parse()
-        .map_err(|_| TaskulusError::ProtocolError("invalid protocol version".to_string()))?;
+        .map_err(|_| KanbusError::ProtocolError("invalid protocol version".to_string()))?;
     let minor: u32 = minor
         .parse()
-        .map_err(|_| TaskulusError::ProtocolError("invalid protocol version".to_string()))?;
+        .map_err(|_| KanbusError::ProtocolError("invalid protocol version".to_string()))?;
     Ok((major, minor))
 }

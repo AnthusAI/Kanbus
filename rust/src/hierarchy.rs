@@ -1,6 +1,6 @@
 //! Hierarchy validation for parent-child relationships.
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::models::ProjectConfiguration;
 
 /// Return the allowed child types for a parent issue type.
@@ -40,15 +40,15 @@ pub fn get_allowed_child_types(
 /// * `child_type` - Child issue type.
 ///
 /// # Errors
-/// Returns `TaskulusError::InvalidHierarchy` if the relationship is not permitted.
+/// Returns `KanbusError::InvalidHierarchy` if the relationship is not permitted.
 pub fn validate_parent_child_relationship(
     configuration: &ProjectConfiguration,
     parent_type: &str,
     child_type: &str,
-) -> Result<(), TaskulusError> {
+) -> Result<(), KanbusError> {
     let allowed_child_types = get_allowed_child_types(configuration, parent_type);
     if !allowed_child_types.iter().any(|entry| entry == child_type) {
-        return Err(TaskulusError::InvalidHierarchy(format!(
+        return Err(KanbusError::InvalidHierarchy(format!(
             "invalid parent-child relationship: '{parent_type}' cannot have child '{child_type}'"
         )));
     }

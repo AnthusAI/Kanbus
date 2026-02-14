@@ -8,12 +8,12 @@ from pathlib import Path
 from behave import given, then, when
 
 from features.steps.shared import ensure_git_repository, run_cli
-from taskulus.agents_management import (
+from kanbus.agents_management import (
     build_project_management_text,
-    TASKULUS_SECTION_TEXT,
+    KANBUS_SECTION_TEXT,
 )
 
-README_STUB = "This is a sample project that uses Taskulus."
+README_STUB = "This is a sample project that uses Kanbus."
 
 
 def _examples_root() -> Path:
@@ -39,18 +39,18 @@ def when_create_example_project(context: object, name: str) -> None:
     ensure_git_repository(path)
 
 
-@when('I run "tsk setup agents" in the "{name}" example project')
+@when('I run "kanbus setup agents" in the "{name}" example project')
 def when_run_setup_agents_in_example(context: object, name: str) -> None:
     path = _example_dir(name)
     context.working_directory = path
-    run_cli(context, "tsk setup agents")
+    run_cli(context, "kanbus setup agents")
 
 
-@when('I run "tsk init" in the "{name}" example project')
+@when('I run "kanbus init" in the "{name}" example project')
 def when_run_init_in_example(context: object, name: str) -> None:
     path = _example_dir(name)
     context.working_directory = path
-    run_cli(context, "tsk init")
+    run_cli(context, "kanbus init")
 
 
 @when('I add a README stub to the "{name}" example project')
@@ -69,10 +69,10 @@ def then_example_contains_readme(context: object, name: str) -> None:
     assert content == README_STUB
 
 
-@then('the "{name}" example project should contain .taskulus.yml')
+@then('the "{name}" example project should contain .kanbus.yml')
 def then_example_contains_config(context: object, name: str) -> None:
     path = _example_dir(name)
-    assert (path / ".taskulus.yml").exists()
+    assert (path / ".kanbus.yml").exists()
 
 
 @then('the "{name}" example project should contain the project directory')
@@ -82,14 +82,14 @@ def then_example_contains_project_dir(context: object, name: str) -> None:
 
 
 @then(
-    'the "{name}" example project should contain AGENTS.md with Taskulus instructions'
+    'the "{name}" example project should contain AGENTS.md with Kanbus instructions'
 )
 def then_example_contains_agents(context: object, name: str) -> None:
     path = _example_dir(name)
     agents = path / "AGENTS.md"
     assert agents.exists()
     content = agents.read_text(encoding="utf-8")
-    assert TASKULUS_SECTION_TEXT.strip() in content
+    assert KANBUS_SECTION_TEXT.strip() in content
 
 
 @then('the "{name}" example project should contain CONTRIBUTING_AGENT.md')

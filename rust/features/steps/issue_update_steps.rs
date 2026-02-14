@@ -4,13 +4,13 @@ use std::path::PathBuf;
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
-use taskulus::cli::run_from_args_with_output;
-use taskulus::file_io::load_project_directory;
-use taskulus::models::IssueData;
+use kanbus::cli::run_from_args_with_output;
+use kanbus::file_io::load_project_directory;
+use kanbus::models::IssueData;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-fn run_cli(world: &mut TaskulusWorld, command: &str) {
+fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
@@ -31,7 +31,7 @@ fn run_cli(world: &mut TaskulusWorld, command: &str) {
     }
 }
 
-fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
+fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
     load_project_directory(cwd).expect("project dir")
 }
@@ -52,12 +52,12 @@ fn load_issue(project_dir: &PathBuf, identifier: &str) -> IssueData {
     serde_json::from_str(&contents).expect("parse issue")
 }
 
-#[given("an issue \"tsk-aaa\" exists with title \"Old Title\"")]
-fn given_issue_with_title(world: &mut TaskulusWorld) {
+#[given("an issue \"kanbus-aaa\" exists with title \"Old Title\"")]
+fn given_issue_with_title(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
     let issue = IssueData {
-        identifier: "tsk-aaa".to_string(),
+        identifier: "kanbus-aaa".to_string(),
         title: "Old Title".to_string(),
         description: "".to_string(),
         issue_type: "task".to_string(),
@@ -77,12 +77,12 @@ fn given_issue_with_title(world: &mut TaskulusWorld) {
     write_issue_file(&project_dir, &issue);
 }
 
-#[given("an issue \"tsk-bbb\" exists with title \"Duplicate Title\"")]
-fn given_issue_with_duplicate_title(world: &mut TaskulusWorld) {
+#[given("an issue \"kanbus-bbb\" exists with title \"Duplicate Title\"")]
+fn given_issue_with_duplicate_title(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
     let issue = IssueData {
-        identifier: "tsk-bbb".to_string(),
+        identifier: "kanbus-bbb".to_string(),
         title: "Duplicate Title".to_string(),
         description: "".to_string(),
         issue_type: "task".to_string(),
@@ -102,76 +102,76 @@ fn given_issue_with_duplicate_title(world: &mut TaskulusWorld) {
     write_issue_file(&project_dir, &issue);
 }
 
-#[when("I run \"tsk update tsk-aaa --title \\\"New Title\\\" --description \\\"Updated description\\\"\"")]
-fn when_run_update_title(world: &mut TaskulusWorld) {
+#[when("I run \"kanbus update kanbus-aaa --title \\\"New Title\\\" --description \\\"Updated description\\\"\"")]
+fn when_run_update_title(world: &mut KanbusWorld) {
     run_cli(
         world,
-        "tsk update tsk-aaa --title \"New Title\" --description \"Updated description\"",
+        "kanbus update kanbus-aaa --title \"New Title\" --description \"Updated description\"",
     );
 }
 
-#[when("I run \"tsk update tsk-aaa --status in_progress\"")]
-fn when_run_update_status(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk update tsk-aaa --status in_progress");
+#[when("I run \"kanbus update kanbus-aaa --status in_progress\"")]
+fn when_run_update_status(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus update kanbus-aaa --status in_progress");
 }
 
-#[when("I run \"tsk update tsk-aaa --status blocked\"")]
-fn when_run_update_invalid_status(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk update tsk-aaa --status blocked");
+#[when("I run \"kanbus update kanbus-aaa --status blocked\"")]
+fn when_run_update_invalid_status(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus update kanbus-aaa --status blocked");
 }
 
-#[when("I run \"tsk update tsk-aaa\"")]
-fn when_run_update_no_changes(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk update tsk-aaa");
+#[when("I run \"kanbus update kanbus-aaa\"")]
+fn when_run_update_no_changes(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus update kanbus-aaa");
 }
 
-#[when(expr = "I run \"tsk update tsk-test01 --status {word}\"")]
-fn when_run_update_status_test01(world: &mut TaskulusWorld, status: String) {
-    run_cli(world, &format!("tsk update tsk-test01 --status {status}"));
+#[when(expr = "I run \"kanbus update kanbus-test01 --status {word}\"")]
+fn when_run_update_status_test01(world: &mut KanbusWorld, status: String) {
+    run_cli(world, &format!("kanbus update kanbus-test01 --status {status}"));
 }
 
-#[when("I run \"tsk update tsk-epic01 --status deferred\"")]
-fn when_run_update_status_epic01(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk update tsk-epic01 --status deferred");
+#[when("I run \"kanbus update kanbus-epic01 --status deferred\"")]
+fn when_run_update_status_epic01(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus update kanbus-epic01 --status deferred");
 }
 
-#[when("I run \"tsk update tsk-test01 --claim\"")]
-fn when_run_update_claim_test01(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk update tsk-test01 --claim");
+#[when("I run \"kanbus update kanbus-test01 --claim\"")]
+fn when_run_update_claim_test01(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus update kanbus-test01 --claim");
 }
 
-#[when("I run \"tsk update tsk-missing --title \\\"New Title\\\"\"")]
-fn when_run_update_missing(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk update tsk-missing --title \"New Title\"");
+#[when("I run \"kanbus update kanbus-missing --title \\\"New Title\\\"\"")]
+fn when_run_update_missing(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus update kanbus-missing --title \"New Title\"");
 }
 
-#[when("I run \"tsk update tsk-aaa --title \\\"New Title\\\"\"")]
-fn when_run_update_title_only(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk update tsk-aaa --title \"New Title\"");
+#[when("I run \"kanbus update kanbus-aaa --title \\\"New Title\\\"\"")]
+fn when_run_update_title_only(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus update kanbus-aaa --title \"New Title\"");
 }
 
-#[when("I run \"tsk update tsk-aaa --title \\\"duplicate title\\\"\"")]
-fn when_run_update_duplicate_title(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk update tsk-aaa --title \"duplicate title\"");
+#[when("I run \"kanbus update kanbus-aaa --title \\\"duplicate title\\\"\"")]
+fn when_run_update_duplicate_title(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus update kanbus-aaa --title \"duplicate title\"");
 }
 
-#[then("issue \"tsk-aaa\" should have title \"New Title\"")]
-fn then_issue_has_title(world: &mut TaskulusWorld) {
+#[then("issue \"kanbus-aaa\" should have title \"New Title\"")]
+fn then_issue_has_title(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let issue = load_issue(&project_dir, "tsk-aaa");
+    let issue = load_issue(&project_dir, "kanbus-aaa");
     assert_eq!(issue.title, "New Title");
 }
 
-#[then("issue \"tsk-aaa\" should have description \"Updated description\"")]
-fn then_issue_has_description(world: &mut TaskulusWorld) {
+#[then("issue \"kanbus-aaa\" should have description \"Updated description\"")]
+fn then_issue_has_description(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let issue = load_issue(&project_dir, "tsk-aaa");
+    let issue = load_issue(&project_dir, "kanbus-aaa");
     assert_eq!(issue.description, "Updated description");
 }
 
-#[then("issue \"tsk-aaa\" should have an updated_at timestamp")]
-fn then_issue_has_updated_at(world: &mut TaskulusWorld) {
+#[then("issue \"kanbus-aaa\" should have an updated_at timestamp")]
+fn then_issue_has_updated_at(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let issue = load_issue(&project_dir, "tsk-aaa");
+    let issue = load_issue(&project_dir, "kanbus-aaa");
     assert!(issue.updated_at.timestamp() > 0);
 }

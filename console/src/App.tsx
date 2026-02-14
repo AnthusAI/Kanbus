@@ -18,9 +18,9 @@ import { useAppearance } from "./hooks/useAppearance";
 
 type ViewMode = "initiatives" | "epics" | "tasks";
 
-const VIEW_MODE_STORAGE_KEY = "taskulus.console.viewMode";
-const SHOW_CLOSED_STORAGE_KEY = "taskulus.console.showClosed";
-const DETAIL_WIDTH_STORAGE_KEY = "taskulus.console.detailWidth";
+const VIEW_MODE_STORAGE_KEY = "kanbus.console.viewMode";
+const SHOW_CLOSED_STORAGE_KEY = "kanbus.console.showClosed";
+const DETAIL_WIDTH_STORAGE_KEY = "kanbus.console.detailWidth";
 
 function loadStoredViewMode(): ViewMode {
   if (typeof window === "undefined") {

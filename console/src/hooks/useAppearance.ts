@@ -12,7 +12,7 @@ interface AppearanceState {
   motion: Motion;
 }
 
-const STORAGE_KEY = "taskulus.console.appearance";
+const STORAGE_KEY = "kanbus.console.appearance";
 
 function getSystemReduceMotion(): boolean {
   if (typeof window === "undefined") {

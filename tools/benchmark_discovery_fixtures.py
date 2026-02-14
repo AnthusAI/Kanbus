@@ -16,7 +16,7 @@ PYTHON_SRC = ROOT / "python" / "src"
 if str(PYTHON_SRC) not in sys.path:
     sys.path.insert(0, str(PYTHON_SRC))
 
-from taskulus.models import IssueData
+from kanbus.models import IssueData
 
 
 @dataclass(frozen=True)
@@ -37,7 +37,7 @@ def _issue_identifier(project_index: int, issue_index: int) -> str:
     :return: Issue identifier string.
     :rtype: str
     """
-    return f"tsk-{project_index:02d}{issue_index:04d}"
+    return f"kanbus-{project_index:02d}{issue_index:04d}"
 
 
 def _issue_title(project_index: int, issue_index: int) -> str:

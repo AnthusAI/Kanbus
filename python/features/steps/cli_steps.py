@@ -18,13 +18,13 @@ def when_run_cli_entrypoint_help(context: object) -> None:
     stdout_buffer = io.StringIO()
     stderr_buffer = io.StringIO()
     exit_code = 0
-    sys.argv = ["taskulus.cli", "--help"]
+    sys.argv = ["kanbus.cli", "--help"]
     try:
         with (
             contextlib.redirect_stdout(stdout_buffer),
             contextlib.redirect_stderr(stderr_buffer),
         ):
-            runpy.run_module("taskulus.cli", run_name="__main__")
+            runpy.run_module("kanbus.cli", run_name="__main__")
     except SystemExit as exc:
         if exc.code is None:
             exit_code = 0
@@ -52,7 +52,7 @@ def when_run_cli_entrypoint_args(context: object, arguments: str) -> None:
     stdout_buffer = io.StringIO()
     stderr_buffer = io.StringIO()
     exit_code = 0
-    sys.argv = ["taskulus.cli", *arguments.split()]
+    sys.argv = ["kanbus.cli", *arguments.split()]
     working_directory = getattr(context, "working_directory", None)
     if working_directory is not None:
         original_cwd = os.getcwd()
@@ -62,7 +62,7 @@ def when_run_cli_entrypoint_args(context: object, arguments: str) -> None:
             contextlib.redirect_stdout(stdout_buffer),
             contextlib.redirect_stderr(stderr_buffer),
         ):
-            runpy.run_module("taskulus.cli", run_name="__main__")
+            runpy.run_module("kanbus.cli", run_name="__main__")
     except SystemExit as exc:
         if exc.code is None:
             exit_code = 0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Beads interoperability checks across Taskulus Python and Rust CLIs."""
+"""Run Beads interoperability checks across Kanbus Python and Rust CLIs."""
 
 from __future__ import annotations
 
@@ -143,8 +143,8 @@ def load_beads_records(issues_path: Path) -> list[dict]:
     return records
 
 
-def parse_taskulus_identifier(output: str) -> str:
-    """Extract a Taskulus or Beads identifier from CLI output.
+def parse_kanbus_identifier(output: str) -> str:
+    """Extract a Kanbus or Beads identifier from CLI output.
 
     :param output: CLI output text.
     :type output: str
@@ -308,14 +308,14 @@ def find_issue_by_title(
     return None
 
 
-def run_taskulus_python(
+def run_kanbus_python(
     python_executable: Path, args: list[str], cwd: Path, env: dict[str, str]
 ) -> CommandResult:
-    """Run the Taskulus Python CLI.
+    """Run the Kanbus Python CLI.
 
     :param python_executable: Path to the Python interpreter.
     :type python_executable: Path
-    :param args: CLI arguments for taskulus.cli.
+    :param args: CLI arguments for kanbus.cli.
     :type args: list[str]
     :param cwd: Working directory for the command.
     :type cwd: Path
@@ -324,14 +324,14 @@ def run_taskulus_python(
     :return: Command result.
     :rtype: CommandResult
     """
-    command = [str(python_executable), "-m", "taskulus.cli", *args]
+    command = [str(python_executable), "-m", "kanbus.cli", *args]
     return run_command(command, cwd=cwd, env=env)
 
 
-def run_taskulus_rust(
+def run_kanbus_rust(
     rust_binary: Path, args: list[str], cwd: Path, env: dict[str, str]
 ) -> CommandResult:
-    """Run the Taskulus Rust CLI.
+    """Run the Kanbus Rust CLI.
 
     :param rust_binary: Path to the Rust CLI binary.
     :type rust_binary: Path
@@ -348,8 +348,8 @@ def run_taskulus_rust(
     return run_command(command, cwd=cwd, env=env)
 
 
-def parse_taskulus_json(result: CommandResult, label: str) -> dict:
-    """Parse JSON output from Taskulus show --json.
+def parse_kanbus_json(result: CommandResult, label: str) -> dict:
+    """Parse JSON output from Kanbus show --json.
 
     :param result: Command result.
     :type result: CommandResult
@@ -411,7 +411,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--python",
         default=None,
-        help="Python interpreter to use for Taskulus CLI.",
+        help="Python interpreter to use for Kanbus CLI.",
     )
     parser.add_argument(
         "--bd-binary",
@@ -421,7 +421,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--rust-binary",
         default=None,
-        help="Path to the Taskulus Rust CLI binary.",
+        help="Path to the Kanbus Rust CLI binary.",
     )
     args = parser.parse_args(argv)
 
@@ -430,7 +430,7 @@ def main(argv: list[str]) -> int:
     rust_binary = (
         Path(args.rust_binary)
         if args.rust_binary
-        else repo_root / "rust" / "target" / "release" / "tskr"
+        else repo_root / "rust" / "target" / "release" / "kanbusr"
     )
 
     if not rust_binary.exists():
@@ -439,10 +439,10 @@ def main(argv: list[str]) -> int:
 
     env = os.environ.copy()
     env["NO_COLOR"] = "1"
-    env["TASKULUS_NO_DAEMON"] = "1"
+    env["KANBUS_NO_DAEMON"] = "1"
 
     try:
-        with tempfile.TemporaryDirectory(prefix="taskulus-beads-interop-") as temp_dir:
+        with tempfile.TemporaryDirectory(prefix="kanbus-beads-interop-") as temp_dir:
             workspace = Path(temp_dir)
             beads_repo = workspace / "beads_repo"
             clone_result = clone_beads_repo(
@@ -468,23 +468,23 @@ def main(argv: list[str]) -> int:
             if existing_issue_id not in list_ids:
                 raise RuntimeError("selected Beads issue not found in bd list output")
 
-            python_show = run_taskulus_python(
+            python_show = run_kanbus_python(
                 python_executable,
                 ["--beads", "show", existing_issue_id, "--json"],
                 cwd=beads_repo,
                 env=env,
             )
-            python_payload = parse_taskulus_json(python_show, "taskulus python show")
+            python_payload = parse_kanbus_json(python_show, "kanbus python show")
             if python_payload.get("id") != existing_issue_id:
                 raise RuntimeError("python CLI failed to read existing Beads issue")
 
-            rust_show = run_taskulus_rust(
+            rust_show = run_kanbus_rust(
                 rust_binary,
                 ["--beads", "show", existing_issue_id, "--json"],
                 cwd=beads_repo,
                 env=env,
             )
-            rust_payload = parse_taskulus_json(rust_show, "taskulus rust show")
+            rust_payload = parse_kanbus_json(rust_show, "kanbus rust show")
             if rust_payload.get("id") != existing_issue_id:
                 raise RuntimeError("rust CLI failed to read existing Beads issue")
 
@@ -511,32 +511,32 @@ def main(argv: list[str]) -> int:
             if not beads_created_id:
                 raise RuntimeError("bd create did not return an id")
 
-            python_show_created = run_taskulus_python(
+            python_show_created = run_kanbus_python(
                 python_executable,
                 ["--beads", "show", beads_created_id, "--json"],
                 cwd=beads_repo,
                 env=env,
             )
-            python_created_payload = parse_taskulus_json(
-                python_show_created, "taskulus python show beads created"
+            python_created_payload = parse_kanbus_json(
+                python_show_created, "kanbus python show beads created"
             )
             if python_created_payload.get("id") != beads_created_id:
                 raise RuntimeError("python CLI failed to read Beads-created issue")
 
-            rust_show_created = run_taskulus_rust(
+            rust_show_created = run_kanbus_rust(
                 rust_binary,
                 ["--beads", "show", beads_created_id, "--json"],
                 cwd=beads_repo,
                 env=env,
             )
-            rust_created_payload = parse_taskulus_json(
-                rust_show_created, "taskulus rust show beads created"
+            rust_created_payload = parse_kanbus_json(
+                rust_show_created, "kanbus rust show beads created"
             )
             if rust_created_payload.get("id") != beads_created_id:
                 raise RuntimeError("rust CLI failed to read Beads-created issue")
 
             python_child_title = "Interop child from python"
-            python_create = run_taskulus_python(
+            python_create = run_kanbus_python(
                 python_executable,
                 [
                     "--beads",
@@ -548,19 +548,19 @@ def main(argv: list[str]) -> int:
                 cwd=beads_repo,
                 env=env,
             )
-            ensure_success(python_create, "taskulus python create")
+            ensure_success(python_create, "kanbus python create")
             records_after_python = load_beads_records(beads_dir / "issues.jsonl")
             python_child_record = find_issue_by_title(
                 records_after_python, python_child_title, beads_created_id
             )
             if python_child_record is None:
-                raise RuntimeError("Taskulus Python did not write Beads JSONL record")
+                raise RuntimeError("Kanbus Python did not write Beads JSONL record")
             python_child_id = str(python_child_record.get("id"))
 
             list_after_python = run_beads_list(bd_binary, beads_repo, env)
             beads_child = find_issue_in_list(list_after_python, python_child_id)
             if beads_child is None:
-                raise RuntimeError("Beads CLI failed to list Taskulus-created issue")
+                raise RuntimeError("Beads CLI failed to list Kanbus-created issue")
             dependencies = beads_child.get("dependencies") or []
             parent_links = [
                 dep
@@ -572,13 +572,13 @@ def main(argv: list[str]) -> int:
             if not parent_links:
                 raise RuntimeError("Beads CLI did not report expected parent")
 
-            rust_update = run_taskulus_rust(
+            rust_update = run_kanbus_rust(
                 rust_binary,
                 ["--beads", "update", python_child_id, "--status", "closed"],
                 cwd=beads_repo,
                 env=env,
             )
-            ensure_success(rust_update, "taskulus rust update")
+            ensure_success(rust_update, "kanbus rust update")
             list_after_update = run_beads_list(bd_binary, beads_repo, env)
             beads_child_updated = find_issue_in_list(
                 list_after_update, python_child_id
@@ -588,13 +588,13 @@ def main(argv: list[str]) -> int:
             if beads_child_updated.get("status") != "closed":
                 raise RuntimeError("Beads CLI did not report updated status")
 
-            rust_delete = run_taskulus_rust(
+            rust_delete = run_kanbus_rust(
                 rust_binary,
                 ["--beads", "delete", python_child_id],
                 cwd=beads_repo,
                 env=env,
             )
-            ensure_success(rust_delete, "taskulus rust delete")
+            ensure_success(rust_delete, "kanbus rust delete")
             list_after = run_beads_list(bd_binary, beads_repo, env)
             list_after_ids = {item.get("id") for item in list_after}
             if python_child_id in list_after_ids:

@@ -1,4 +1,4 @@
-//! Taskulus Rust library.
+//! Kanbus Rust library.
 
 pub mod agents_management;
 pub mod beads_write;

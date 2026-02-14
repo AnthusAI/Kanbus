@@ -4,7 +4,7 @@ use chrono::Utc;
 use std::path::{Path, PathBuf};
 
 use crate::config_loader::load_project_configuration;
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::ids::{generate_issue_identifier, IssueIdentifierRequest};
 use crate::issue_files::{
@@ -46,8 +46,8 @@ pub struct IssueCreationResult {
 /// * `request` - Issue creation request payload.
 ///
 /// # Errors
-/// Returns `TaskulusError` if validation or file operations fail.
-pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResult, TaskulusError> {
+/// Returns `KanbusError` if validation or file operations fail.
+pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResult, KanbusError> {
     let project_dir = load_project_directory(request.root.as_path())?;
     let mut issues_dir = project_dir.join("issues");
     let mut local_dir = find_project_local_directory(&project_dir);
@@ -63,7 +63,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
 
     let resolved_priority = request.priority.unwrap_or(configuration.default_priority);
     if !configuration.priorities.contains_key(&resolved_priority) {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "invalid priority".to_string(),
         ));
     }
@@ -71,7 +71,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
     if let Some(parent_identifier) = request.parent.as_deref() {
         let parent_path = issue_path_for_identifier(&issues_dir, parent_identifier);
         if !parent_path.exists() {
-            return Err(TaskulusError::IssueOperation("not found".to_string()));
+            return Err(KanbusError::IssueOperation("not found".to_string()));
         }
         let parent_issue = read_issue_from_file(&parent_path)?;
         validate_parent_child_relationship(
@@ -82,7 +82,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
     }
 
     if let Some(duplicate_identifier) = find_duplicate_title(&issues_dir, &request.title)? {
-        return Err(TaskulusError::IssueOperation(format!(
+        return Err(KanbusError::IssueOperation(format!(
             "duplicate title: \"{}\" already exists as {}",
             request.title, duplicate_identifier
         )));
@@ -139,26 +139,26 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
 fn validate_issue_type(
     configuration: &ProjectConfiguration,
     issue_type: &str,
-) -> Result<(), TaskulusError> {
+) -> Result<(), KanbusError> {
     let is_known = configuration
         .hierarchy
         .iter()
         .chain(configuration.types.iter())
         .any(|entry| entry == issue_type);
     if !is_known {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "unknown issue type".to_string(),
         ));
     }
     Ok(())
 }
 
-fn find_duplicate_title(issues_dir: &Path, title: &str) -> Result<Option<String>, TaskulusError> {
+fn find_duplicate_title(issues_dir: &Path, title: &str) -> Result<Option<String>, KanbusError> {
     let normalized_title = title.trim().to_lowercase();
     for entry in
-        std::fs::read_dir(issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?
+        std::fs::read_dir(issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?
     {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;

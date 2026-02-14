@@ -1,13 +1,13 @@
 Feature: Console snapshot
-  As a Taskulus user
+  As a Kanbus user
   I want a console snapshot command
   So that the console server can stream updates
 
   Scenario: Snapshot emits config and issues
-    Given a Taskulus project with default configuration
-    When I run "tsk create Snapshot issue"
+    Given a Kanbus project with default configuration
+    When I run "kanbus create Snapshot issue"
     Then the command should succeed
-    When I run "tsk console snapshot"
+    When I run "kanbus console snapshot"
     Then the command should succeed
     And stdout should contain "\"config\""
     And stdout should contain "\"assignee\""
@@ -18,64 +18,64 @@ Feature: Console snapshot
     And stdout should contain "\"issues\""
 
   Scenario: Snapshot fails when configuration is missing
-    Given a Taskulus project with default configuration
-    And the Taskulus configuration file is missing
-    When I run "tsk console snapshot"
+    Given a Kanbus project with default configuration
+    And the Kanbus configuration file is missing
+    When I run "kanbus console snapshot"
     Then the command should fail with exit code 1
     And stderr should contain "project not initialized"
 
   Scenario: Snapshot fails when configuration is not a mapping
-    Given a Taskulus project with default configuration
-    And a Taskulus configuration file that is not a mapping
-    When I run "tsk console snapshot"
+    Given a Kanbus project with default configuration
+    And a Kanbus configuration file that is not a mapping
+    When I run "kanbus console snapshot"
     Then the command should fail with exit code 1
     And stderr should contain "configuration must be a mapping"
 
   Scenario: Snapshot fails when issues directory is missing
-    Given a Taskulus project with default configuration
+    Given a Kanbus project with default configuration
     And the issues directory is missing
-    When I run "tsk console snapshot"
+    When I run "kanbus console snapshot"
     Then the command should fail with exit code 1
     And stderr should contain "project/issues directory not found"
 
   Scenario: Snapshot fails when issues path is a file
-    Given a Taskulus project with default configuration
+    Given a Kanbus project with default configuration
     And the issues directory is a file
-    When I run "tsk console snapshot"
+    When I run "kanbus console snapshot"
     Then the command should fail with exit code 1
     And stderr should contain "project/issues directory not found"
 
   Scenario: Snapshot fails when issues directory is unreadable
-    Given a Taskulus project with default configuration
+    Given a Kanbus project with default configuration
     And the issues directory is unreadable
-    When I run "tsk console snapshot"
+    When I run "kanbus console snapshot"
     Then the command should fail with exit code 1
     And stderr should contain "Permission denied"
 
   Scenario: Snapshot fails when an issue file is invalid JSON
-    Given a Taskulus project with default configuration
+    Given a Kanbus project with default configuration
     And an issue file contains invalid JSON
-    When I run "tsk console snapshot"
+    When I run "kanbus console snapshot"
     Then the command should fail with exit code 1
     And stderr should contain "issue file is invalid"
 
   Scenario: Snapshot fails when an issue file has invalid data
-    Given a Taskulus project with default configuration
+    Given a Kanbus project with default configuration
     And an issue file contains invalid issue data
-    When I run "tsk console snapshot"
+    When I run "kanbus console snapshot"
     Then the command should fail with exit code 1
     And stderr should contain "issue file is invalid"
 
   Scenario: Snapshot fails when configuration path lookup fails
-    Given a Taskulus project with default configuration
+    Given a Kanbus project with default configuration
     And configuration path lookup will fail
     When I build a console snapshot directly
     Then the command should fail with exit code 1
     And stderr should contain "configuration path lookup failed"
 
   Scenario: Snapshot ignores non-issue files
-    Given a Taskulus project with default configuration
+    Given a Kanbus project with default configuration
     And a non-issue file exists in the issues directory
-    When I run "tsk console snapshot"
+    When I run "kanbus console snapshot"
     Then the command should succeed
     And stdout should contain "\"issues\""

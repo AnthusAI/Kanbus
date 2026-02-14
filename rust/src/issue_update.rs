@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::config_loader::load_project_configuration;
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::load_issue_from_project;
@@ -24,7 +24,7 @@ use crate::workflows::{apply_transition_side_effects, validate_status_transition
 /// * `claim` - Whether to claim the issue.
 ///
 /// # Errors
-/// Returns `TaskulusError` if the update fails.
+/// Returns `KanbusError` if the update fails.
 pub fn update_issue(
     root: &Path,
     identifier: &str,
@@ -33,7 +33,7 @@ pub fn update_issue(
     status: Option<&str>,
     assignee: Option<&str>,
     claim: bool,
-) -> Result<IssueData, TaskulusError> {
+) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let config_path = get_configuration_path(lookup.project_dir.as_path())?;
     let configuration = load_project_configuration(&config_path)?;
@@ -52,7 +52,7 @@ pub fn update_issue(
                 normalized_title,
                 &updated_issue.identifier,
             )? {
-                return Err(TaskulusError::IssueOperation(format!(
+                return Err(KanbusError::IssueOperation(format!(
                     "duplicate title: \"{}\" already exists as {}",
                     normalized_title, duplicate_identifier
                 )));
@@ -85,7 +85,7 @@ pub fn update_issue(
         && updated_description.is_none()
         && updated_assignee.is_none()
     {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "no updates requested".to_string(),
         ));
     }
@@ -120,10 +120,10 @@ fn find_duplicate_title(
     issues_dir: &Path,
     title: &str,
     current_identifier: &str,
-) -> Result<Option<String>, TaskulusError> {
+) -> Result<Option<String>, KanbusError> {
     let normalized_title = title.trim().to_lowercase();
-    for entry in fs::read_dir(issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))? {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+    for entry in fs::read_dir(issues_dir).map_err(|error| KanbusError::Io(error.to_string()))? {
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;

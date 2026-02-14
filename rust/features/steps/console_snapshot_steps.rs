@@ -3,19 +3,19 @@ use std::fs;
 use cucumber::{given, when};
 use serde_json;
 
-use taskulus::console_snapshot::build_console_snapshot;
-use taskulus::file_io::load_project_directory;
+use kanbus::console_snapshot::build_console_snapshot;
+use kanbus::file_io::load_project_directory;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-#[given("the Taskulus configuration file is missing")]
-fn given_taskulus_configuration_missing(world: &mut TaskulusWorld) {
+#[given("the Kanbus configuration file is missing")]
+fn given_kanbus_configuration_missing(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("working directory");
     let project_dir = load_project_directory(root).expect("project dir");
     let config_path = project_dir
         .parent()
         .expect("project root")
-        .join(".taskulus.yml");
+        .join(".kanbus.yml");
     if config_path.exists() {
         if config_path.is_dir() {
             fs::remove_dir_all(&config_path).expect("remove config dir");
@@ -25,19 +25,19 @@ fn given_taskulus_configuration_missing(world: &mut TaskulusWorld) {
     }
 }
 
-#[given("a Taskulus configuration file that is not a mapping")]
-fn given_taskulus_configuration_not_mapping(world: &mut TaskulusWorld) {
+#[given("a Kanbus configuration file that is not a mapping")]
+fn given_kanbus_configuration_not_mapping(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("working directory");
     let project_dir = load_project_directory(root).expect("project dir");
     let config_path = project_dir
         .parent()
         .expect("project root")
-        .join(".taskulus.yml");
+        .join(".kanbus.yml");
     fs::write(config_path, "- item\n- other\n").expect("write non-mapping config");
 }
 
 #[given("the issues directory is a file")]
-fn given_issues_directory_is_file(world: &mut TaskulusWorld) {
+fn given_issues_directory_is_file(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("working directory");
     let project_dir = load_project_directory(root).expect("project dir");
     let issues_path = project_dir.join("issues");
@@ -52,7 +52,7 @@ fn given_issues_directory_is_file(world: &mut TaskulusWorld) {
 }
 
 #[given("the issues directory is unreadable")]
-fn given_issues_directory_is_unreadable(world: &mut TaskulusWorld) {
+fn given_issues_directory_is_unreadable(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("working directory");
     let project_dir = load_project_directory(root).expect("project dir");
     let issues_dir = project_dir.join("issues");
@@ -70,7 +70,7 @@ fn given_issues_directory_is_unreadable(world: &mut TaskulusWorld) {
 }
 
 #[when("I build a console snapshot directly")]
-fn when_build_console_snapshot_directly(world: &mut TaskulusWorld) {
+fn when_build_console_snapshot_directly(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("working directory");
     match build_console_snapshot(root) {
         Ok(snapshot) => {

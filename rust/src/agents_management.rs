@@ -1,4 +1,4 @@
-//! Helpers for managing AGENTS.md Taskulus instructions.
+//! Helpers for managing AGENTS.md Kanbus instructions.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -8,7 +8,7 @@ use std::path::Path;
 #[cfg(tarpaulin)]
 use crate::config::default_project_configuration;
 use crate::config_loader::load_project_configuration;
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
@@ -16,16 +16,16 @@ use crate::project_management_template::{
 };
 use serde::Serialize;
 
-const TASKULUS_SECTION_HEADER: &str = "## Project management with Taskulus";
-const TASKULUS_SECTION_LINES: [&str; 9] = [
-    TASKULUS_SECTION_HEADER,
+const KANBUS_SECTION_HEADER: &str = "## Project management with Kanbus";
+const KANBUS_SECTION_LINES: [&str; 9] = [
+    KANBUS_SECTION_HEADER,
     "",
-    "Use Taskulus for task management.",
-    "Why: Taskulus task management is MANDATORY here; every task must live in Taskulus.",
-    "When: Create/update the Taskulus task before coding; close it only after the change lands.",
-    "How: See CONTRIBUTING_AGENT.md for the Taskulus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Taskulus commands only.",
-    "Performance: Prefer tskr (Rust) when available; tsk (Python) is equivalent but slower.",
-    "Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Taskulus.",
+    "Use Kanbus for task management.",
+    "Why: Kanbus task management is MANDATORY here; every task must live in Kanbus.",
+    "When: Create/update the Kanbus task before coding; close it only after the change lands.",
+    "How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.",
+    "Performance: Prefer kanbusr (Rust) when available; kanbus (Python) is equivalent but slower.",
+    "Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Kanbus.",
     "",
 ];
 const AGENTS_HEADER_LINES: [&str; 2] = ["# Agent Instructions", ""];
@@ -37,89 +37,89 @@ struct SectionMatch {
     end: usize,
 }
 
-/// Ensure AGENTS.md exists and contains the Taskulus section.
+/// Ensure AGENTS.md exists and contains the Kanbus section.
 ///
 /// # Arguments
 /// * `root` - Repository root path
-/// * `force` - Overwrite existing Taskulus section without prompting
+/// * `force` - Overwrite existing Kanbus section without prompting
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if overwrite is required but not confirmed.
-pub fn ensure_agents_file(root: &Path, force: bool) -> Result<(), TaskulusError> {
+/// Returns `KanbusError::IssueOperation` if overwrite is required but not confirmed.
+pub fn ensure_agents_file(root: &Path, force: bool) -> Result<(), KanbusError> {
     let instructions_text = build_project_management_text(root)?;
     let agents_path = root.join("AGENTS.md");
     if !agents_path.exists() {
         let content = build_new_agents_file();
-        fs::write(&agents_path, content).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        fs::write(&agents_path, content).map_err(|error| KanbusError::Io(error.to_string()))?;
         ensure_project_management_file(root, force, &instructions_text)?;
         ensure_project_guard_files(root)?;
         return Ok(());
     }
 
     let contents =
-        fs::read_to_string(&agents_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        fs::read_to_string(&agents_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let lines: Vec<String> = contents.lines().map(|line| line.to_string()).collect();
-    let sections = find_taskulus_sections(&lines);
+    let sections = find_kanbus_sections(&lines);
     if let Some(section) = sections.first() {
         if !force && !confirm_overwrite()? {
             ensure_project_management_file(root, force, &instructions_text)?;
             ensure_project_guard_files(root)?;
             return Ok(());
         }
-        let updated = replace_sections(&lines, &sections, section, &TASKULUS_SECTION_LINES);
-        fs::write(&agents_path, updated).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let updated = replace_sections(&lines, &sections, section, &KANBUS_SECTION_LINES);
+        fs::write(&agents_path, updated).map_err(|error| KanbusError::Io(error.to_string()))?;
         ensure_project_management_file(root, force, &instructions_text)?;
         ensure_project_guard_files(root)?;
         return Ok(());
     }
 
-    let updated = insert_taskulus_section(&lines, &TASKULUS_SECTION_LINES);
-    fs::write(&agents_path, updated).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let updated = insert_kanbus_section(&lines, &KANBUS_SECTION_LINES);
+    fs::write(&agents_path, updated).map_err(|error| KanbusError::Io(error.to_string()))?;
     ensure_project_management_file(root, force, &instructions_text)?;
     ensure_project_guard_files(root)?;
     Ok(())
 }
 
-/// Return the canonical Taskulus section text.
-pub fn taskulus_section_text() -> String {
-    let lines = TASKULUS_SECTION_LINES
+/// Return the canonical Kanbus section text.
+pub fn kanbus_section_text() -> String {
+    let lines = KANBUS_SECTION_LINES
         .iter()
         .map(|value| value.to_string())
         .collect::<Vec<_>>();
     join_lines(&lines)
 }
 
-/// Return the Taskulus project management text derived from configuration.
+/// Return the Kanbus project management text derived from configuration.
 ///
 /// # Arguments
 /// * `root` - Repository root path
 ///
 /// # Errors
-/// Returns `TaskulusError` if configuration lookup fails.
-pub fn project_management_text(root: &Path) -> Result<String, TaskulusError> {
+/// Returns `KanbusError` if configuration lookup fails.
+pub fn project_management_text(root: &Path) -> Result<String, KanbusError> {
     build_project_management_text(root)
 }
 
-fn build_project_management_text(root: &Path) -> Result<String, TaskulusError> {
+fn build_project_management_text(root: &Path) -> Result<String, KanbusError> {
     let configuration_path = get_configuration_path(root)?;
     let configuration = load_project_configuration(&configuration_path)?;
     let template_path = resolve_project_management_template_path(root, &configuration)?;
     let template_text = match template_path {
         Some(path) => {
-            std::fs::read_to_string(&path).map_err(|error| TaskulusError::Io(error.to_string()))?
+            std::fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?
         }
         None => DEFAULT_PROJECT_MANAGEMENT_TEMPLATE.to_string(),
     };
     let context = build_project_management_context(&configuration);
     let env = minijinja::Environment::new();
     env.render_str(&template_text, context)
-        .map_err(|error| TaskulusError::IssueOperation(error.to_string()))
+        .map_err(|error| KanbusError::IssueOperation(error.to_string()))
 }
 
 fn build_new_agents_file() -> String {
     let mut lines: Vec<&str> = Vec::new();
     lines.extend(AGENTS_HEADER_LINES);
-    lines.extend(TASKULUS_SECTION_LINES);
+    lines.extend(KANBUS_SECTION_LINES);
     join_lines(
         &lines
             .iter()
@@ -172,7 +172,7 @@ struct ProjectManagementContext {
 fn resolve_project_management_template_path(
     root: &Path,
     configuration: &ProjectConfiguration,
-) -> Result<Option<std::path::PathBuf>, TaskulusError> {
+) -> Result<Option<std::path::PathBuf>, KanbusError> {
     if let Some(path) = configuration.project_management_template.as_ref() {
         let resolved = if std::path::Path::new(path).is_absolute() {
             std::path::PathBuf::from(path)
@@ -180,7 +180,7 @@ fn resolve_project_management_template_path(
             root.join(path)
         };
         if !resolved.exists() {
-            return Err(TaskulusError::IssueOperation(format!(
+            return Err(KanbusError::IssueOperation(format!(
                 "project management template not found: {}",
                 resolved.display()
             )));
@@ -321,17 +321,17 @@ fn build_command_examples(configuration: &ProjectConfiguration) -> Vec<String> {
     let status_set = collect_statuses(workflow);
     let mut lines = Vec::new();
     if let Some(top) = hierarchy.first() {
-        lines.push(format!("tsk create \"Plan the roadmap\" --type {top}"));
+        lines.push(format!("kanbus create \"Plan the roadmap\" --type {top}"));
     }
     if hierarchy.len() > 1 {
         lines.push(format!(
-            "tsk create \"Release v1\" --type {} --parent <{}-id>",
+            "kanbus create \"Release v1\" --type {} --parent <{}-id>",
             hierarchy[1], hierarchy[0]
         ));
     }
     if hierarchy.len() > 2 {
         lines.push(format!(
-            "tsk create \"Implement feature\" --type {} --parent <{}-id>",
+            "kanbus create \"Implement feature\" --type {} --parent <{}-id>",
             hierarchy[2], hierarchy[1]
         ));
     }
@@ -345,21 +345,21 @@ fn build_command_examples(configuration: &ProjectConfiguration) -> Vec<String> {
             .map(|value| format!(" --parent <{value}-id>"))
             .unwrap_or_default();
         lines.push(format!(
-            "tsk create \"Fix crash on launch\" --type {issue_type} --priority {priority_example}{parent_fragment}"
+            "kanbus create \"Fix crash on launch\" --type {issue_type} --priority {priority_example}{parent_fragment}"
         ));
     }
     lines.push(format!(
-        "tsk update <id> --status {status_example} --assignee \"you@example.com\""
+        "kanbus update <id> --status {status_example} --assignee \"you@example.com\""
     ));
     if status_set.contains("blocked") && status_example != "blocked" {
-        lines.push("tsk update <id> --status blocked".to_string());
+        lines.push("kanbus update <id> --status blocked".to_string());
     }
-    lines.push("tsk comment <id> \"Progress note\"".to_string());
+    lines.push("kanbus comment <id> \"Progress note\"".to_string());
     lines.push(format!(
-        "tsk list --status {}",
+        "kanbus list --status {}",
         configuration.initial_status
     ));
-    lines.push("tsk close <id> --comment \"Summary of the change\"".to_string());
+    lines.push("kanbus close <id> --comment \"Summary of the change\"".to_string());
     lines
 }
 
@@ -411,16 +411,16 @@ fn ensure_project_management_file(
     root: &Path,
     force: bool,
     content: &str,
-) -> Result<(), TaskulusError> {
+) -> Result<(), KanbusError> {
     let instructions_path = root.join(PROJECT_MANAGEMENT_FILENAME);
     if instructions_path.exists() && !force {
         return Ok(());
     }
-    fs::write(&instructions_path, content).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    fs::write(&instructions_path, content).map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(())
 }
 
-fn ensure_project_guard_files(root: &Path) -> Result<(), TaskulusError> {
+fn ensure_project_guard_files(root: &Path) -> Result<(), KanbusError> {
     let project_dir = root.join("project");
     if !project_dir.exists() {
         return Ok(());
@@ -430,39 +430,39 @@ fn ensure_project_guard_files(root: &Path) -> Result<(), TaskulusError> {
         "# DO NOT EDIT HERE",
         "",
         "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
-        "Do not read or write in this folder. Use Taskulus commands instead.",
+        "Do not read or write in this folder. Use Kanbus commands instead.",
         "",
         "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
     ]
     .join("\n")
         + "\n";
     fs::write(&project_agents, project_agents_content)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let do_not_edit = project_dir.join("DO_NOT_EDIT");
     let do_not_edit_content = [
         "DO NOT EDIT ANYTHING IN project/",
         "This folder is guarded by The Way.",
-        "All changes must go through Taskulus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
+        "All changes must go through Kanbus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
     ]
     .join("\n")
         + "\n";
     fs::write(&do_not_edit, do_not_edit_content)
-        .map_err(|error| TaskulusError::Io(error.to_string()))
+        .map_err(|error| KanbusError::Io(error.to_string()))
 }
 
-fn confirm_overwrite() -> Result<bool, TaskulusError> {
-    print!("Taskulus section already exists in AGENTS.md. Overwrite it? [y/N] ");
+fn confirm_overwrite() -> Result<bool, KanbusError> {
+    print!("Kanbus section already exists in AGENTS.md. Overwrite it? [y/N] ");
     io::stdout()
         .flush()
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     let mut input = String::new();
     let bytes = io::stdin()
         .read_line(&mut input)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     if bytes == 0 {
-        return Err(TaskulusError::IssueOperation(
-            "Taskulus section already exists in AGENTS.md. Re-run with --force to overwrite."
+        return Err(KanbusError::IssueOperation(
+            "Kanbus section already exists in AGENTS.md. Re-run with --force to overwrite."
                 .to_string(),
         ));
     }
@@ -470,11 +470,11 @@ fn confirm_overwrite() -> Result<bool, TaskulusError> {
     Ok(response == "y" || response == "yes")
 }
 
-fn find_taskulus_sections(lines: &[String]) -> Vec<SectionMatch> {
+fn find_kanbus_sections(lines: &[String]) -> Vec<SectionMatch> {
     let mut sections = Vec::new();
     for (index, line) in lines.iter().enumerate() {
         if let Some((level, text)) = parse_header(line) {
-            if text.to_lowercase().contains("taskulus") {
+            if text.to_lowercase().contains("kanbus") {
                 let end = find_section_end(lines, index + 1, level);
                 sections.push(SectionMatch { start: index, end });
             }
@@ -570,7 +570,7 @@ pub fn cover_agents_management_paths(root: &Path) {
         &[String::from("# Header")],
         &[],
         &SectionMatch { start: 1, end: 1 },
-        &["## Project management with Taskulus"],
+        &["## Project management with Kanbus"],
     );
     let _ = find_insert_index(&[String::from("No header here")]);
 
@@ -609,7 +609,7 @@ fn is_in_sections(index: usize, sections: &[SectionMatch]) -> bool {
         .any(|section| index >= section.start && index < section.end)
 }
 
-fn insert_taskulus_section(lines: &[String], section_lines: &[&str]) -> String {
+fn insert_kanbus_section(lines: &[String], section_lines: &[&str]) -> String {
     let mut updated: Vec<String> = lines.to_vec();
     let mut insert_index = find_insert_index(lines);
     if insert_index > 0 && insert_index < updated.len() && !updated[insert_index].trim().is_empty()

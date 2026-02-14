@@ -5,11 +5,11 @@ use std::process::Command;
 use cucumber::{given, then, when};
 use serde_json::Value;
 
-use taskulus::beads_write::set_test_beads_slug_sequence;
-use taskulus::cli::run_from_args_with_output;
-use taskulus::config::default_project_configuration;
+use kanbus::beads_write::set_test_beads_slug_sequence;
+use kanbus::cli::run_from_args_with_output;
+use kanbus::config::default_project_configuration;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 use regex::Regex;
 
 fn fixture_beads_dir() -> PathBuf {
@@ -35,7 +35,7 @@ fn copy_dir(source: &std::path::Path, destination: &std::path::Path) {
     }
 }
 
-fn run_cli(world: &mut TaskulusWorld, command: &str) {
+fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
@@ -56,7 +56,7 @@ fn run_cli(world: &mut TaskulusWorld, command: &str) {
     }
 }
 
-fn capture_last_issue_id(world: &TaskulusWorld) -> Option<String> {
+fn capture_last_issue_id(world: &KanbusWorld) -> Option<String> {
     let stdout = world.stdout.as_ref()?;
     let regex = Regex::new(r"([A-Za-z]+-[A-Za-z0-9.]+)").expect("compile regex");
     regex
@@ -64,8 +64,8 @@ fn capture_last_issue_id(world: &TaskulusWorld) -> Option<String> {
         .and_then(|caps| caps.get(1).map(|m| m.as_str().to_lowercase()))
 }
 
-#[given("a Taskulus project with beads compatibility enabled")]
-fn given_project_with_beads_compatibility(world: &mut TaskulusWorld) {
+#[given("a Kanbus project with beads compatibility enabled")]
+fn given_project_with_beads_compatibility(world: &mut KanbusWorld) {
     let temp_dir = tempfile::TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().join("repo");
     fs::create_dir_all(&repo_path).expect("create repo dir");
@@ -83,48 +83,48 @@ fn given_project_with_beads_compatibility(world: &mut TaskulusWorld) {
     let issues_dir = project_dir.join("issues");
     fs::create_dir_all(&issues_dir).expect("create issues dir");
     let contents = serde_yaml::to_string(&configuration).expect("serialize config");
-    fs::write(repo_path.join(".taskulus.yml"), contents).expect("write config");
+    fs::write(repo_path.join(".kanbus.yml"), contents).expect("write config");
 
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
 }
 
-#[when("I run \"tsk --beads list\"")]
-fn when_run_list_beads(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads list");
+#[when("I run \"kanbus --beads list\"")]
+fn when_run_list_beads(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads list");
 }
 
-#[when("I run \"tsk --beads list --no-local\"")]
-fn when_run_list_beads_no_local(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads list --no-local");
+#[when("I run \"kanbus --beads list --no-local\"")]
+fn when_run_list_beads_no_local(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads list --no-local");
 }
 
-#[when("I run \"tsk --beads ready\"")]
-fn when_run_ready_beads(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads ready");
+#[when("I run \"kanbus --beads ready\"")]
+fn when_run_ready_beads(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads ready");
 }
 
-#[when("I run \"tsk --beads ready --no-local\"")]
-fn when_run_ready_beads_no_local(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads ready --no-local");
+#[when("I run \"kanbus --beads ready --no-local\"")]
+fn when_run_ready_beads_no_local(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads ready --no-local");
 }
 
-#[when(expr = "I run \"tsk --beads show {word}\"")]
-fn when_run_show_beads(world: &mut TaskulusWorld, identifier: String) {
-    run_cli(world, &format!("tsk --beads show {}", identifier));
+#[when(expr = "I run \"kanbus --beads show {word}\"")]
+fn when_run_show_beads(world: &mut KanbusWorld, identifier: String) {
+    run_cli(world, &format!("kanbus --beads show {}", identifier));
 }
 
-#[when("I run \"tsk --beads create New beads child --parent bdx-epic\"")]
-fn when_run_create_beads_child(world: &mut TaskulusWorld) {
+#[when("I run \"kanbus --beads create New beads child --parent bdx-epic\"")]
+fn when_run_create_beads_child(world: &mut KanbusWorld) {
     run_cli(
         world,
-        "tsk --beads create New beads child --parent bdx-epic",
+        "kanbus --beads create New beads child --parent bdx-epic",
     );
     world.last_beads_issue_id = capture_last_issue_id(world);
 }
 
 #[then(expr = "beads issues.jsonl should contain {string}")]
-fn then_beads_jsonl_contains(world: &mut TaskulusWorld, identifier: String) {
+fn then_beads_jsonl_contains(world: &mut KanbusWorld, identifier: String) {
     let root = world
         .working_directory
         .as_ref()
@@ -134,92 +134,92 @@ fn then_beads_jsonl_contains(world: &mut TaskulusWorld, identifier: String) {
     assert!(contents.contains(&identifier));
 }
 
-#[when("I run \"tsk --beads create Local beads issue --local\"")]
-fn when_run_create_beads_local(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Local beads issue --local");
+#[when("I run \"kanbus --beads create Local beads issue --local\"")]
+fn when_run_create_beads_local(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Local beads issue --local");
 }
 
-#[when("I run \"tsk --beads create Missing beads issue\"")]
-fn when_run_create_beads_missing(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Missing beads issue");
+#[when("I run \"kanbus --beads create Missing beads issue\"")]
+fn when_run_create_beads_missing(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Missing beads issue");
 }
 
-#[when("I run \"tsk --beads create Missing issues file\"")]
-fn when_run_create_beads_missing_issues(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Missing issues file");
+#[when("I run \"kanbus --beads create Missing issues file\"")]
+fn when_run_create_beads_missing_issues(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Missing issues file");
 }
 
-#[when("I run \"tsk --beads create Empty beads file\"")]
-fn when_run_create_beads_empty(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Empty beads file");
+#[when("I run \"kanbus --beads create Empty beads file\"")]
+fn when_run_create_beads_empty(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Empty beads file");
 }
 
-#[when("I run \"tsk --beads create Orphan beads issue --parent bdx-missing\"")]
-fn when_run_create_beads_orphan(world: &mut TaskulusWorld) {
+#[when("I run \"kanbus --beads create Orphan beads issue --parent bdx-missing\"")]
+fn when_run_create_beads_orphan(world: &mut KanbusWorld) {
     run_cli(
         world,
-        "tsk --beads create Orphan beads issue --parent bdx-missing",
+        "kanbus --beads create Orphan beads issue --parent bdx-missing",
     );
 }
 
-#[when("I run \"tsk --beads create Assigned beads issue --assignee dev@example.com\"")]
-fn when_run_create_beads_assigned(world: &mut TaskulusWorld) {
+#[when("I run \"kanbus --beads create Assigned beads issue --assignee dev@example.com\"")]
+fn when_run_create_beads_assigned(world: &mut KanbusWorld) {
     run_cli(
         world,
-        "tsk --beads create Assigned beads issue --assignee dev@example.com",
+        "kanbus --beads create Assigned beads issue --assignee dev@example.com",
     );
 }
 
-#[when("I run \"tsk --beads create Described beads issue --description Details\"")]
-fn when_run_create_beads_description(world: &mut TaskulusWorld) {
+#[when("I run \"kanbus --beads create Described beads issue --description Details\"")]
+fn when_run_create_beads_description(world: &mut KanbusWorld) {
     run_cli(
         world,
-        "tsk --beads create Described beads issue --description Details",
+        "kanbus --beads create Described beads issue --description Details",
     );
 }
 
-#[when("I run \"tsk --beads create Beads with blanks\"")]
-fn when_run_create_beads_with_blanks(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Beads with blanks");
+#[when("I run \"kanbus --beads create Beads with blanks\"")]
+fn when_run_create_beads_with_blanks(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Beads with blanks");
 }
 
-#[when("I run \"tsk --beads create Invalid prefix\"")]
-fn when_run_create_beads_invalid_prefix(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Invalid prefix");
+#[when("I run \"kanbus --beads create Invalid prefix\"")]
+fn when_run_create_beads_invalid_prefix(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Invalid prefix");
 }
 
-#[when("I run \"tsk --beads create Colliding beads issue\"")]
-fn when_run_create_beads_collision(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Colliding beads issue");
+#[when("I run \"kanbus --beads create Colliding beads issue\"")]
+fn when_run_create_beads_collision(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Colliding beads issue");
 }
 
-#[when("I run \"tsk --beads create Next child --parent bdx-epic\"")]
-fn when_run_create_beads_next_child(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Next child --parent bdx-epic");
+#[when("I run \"kanbus --beads create Next child --parent bdx-epic\"")]
+fn when_run_create_beads_next_child(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Next child --parent bdx-epic");
 }
 
-#[when("I run \"tsk --beads update bdx-missing --status closed\"")]
-fn when_run_update_beads_missing(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads update bdx-missing --status closed");
+#[when("I run \"kanbus --beads update bdx-missing --status closed\"")]
+fn when_run_update_beads_missing(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads update bdx-missing --status closed");
 }
 
-#[when("I run \"tsk --beads update bdx-epic --status closed\"")]
-fn when_run_update_beads_success(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads update bdx-epic --status closed");
+#[when("I run \"kanbus --beads update bdx-epic --status closed\"")]
+fn when_run_update_beads_success(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads update bdx-epic --status closed");
 }
 
-#[when("I run \"tsk --beads delete bdx-missing\"")]
-fn when_run_delete_beads_missing(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads delete bdx-missing");
+#[when("I run \"kanbus --beads delete bdx-missing\"")]
+fn when_run_delete_beads_missing(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads delete bdx-missing");
 }
 
-#[when("I run \"tsk --beads delete bdx-task\"")]
-fn when_run_delete_beads_success(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads delete bdx-task");
+#[when("I run \"kanbus --beads delete bdx-task\"")]
+fn when_run_delete_beads_success(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads delete bdx-task");
 }
 
 #[then(expr = "beads issues.jsonl should include assignee {string}")]
-fn then_beads_jsonl_includes_assignee(world: &mut TaskulusWorld, assignee: String) {
+fn then_beads_jsonl_includes_assignee(world: &mut KanbusWorld, assignee: String) {
     let root = world
         .working_directory
         .as_ref()
@@ -241,7 +241,7 @@ fn then_beads_jsonl_includes_assignee(world: &mut TaskulusWorld, assignee: Strin
 }
 
 #[then(expr = "beads issues.jsonl should include description {string}")]
-fn then_beads_jsonl_includes_description(world: &mut TaskulusWorld, description: String) {
+fn then_beads_jsonl_includes_description(world: &mut KanbusWorld, description: String) {
     let root = world
         .working_directory
         .as_ref()
@@ -265,7 +265,7 @@ fn then_beads_jsonl_includes_description(world: &mut TaskulusWorld, description:
 
 #[then(expr = "beads issues.jsonl should include status {string} for {string}")]
 fn then_beads_jsonl_includes_status_for(
-    world: &mut TaskulusWorld,
+    world: &mut KanbusWorld,
     status: String,
     identifier: String,
 ) {
@@ -292,7 +292,7 @@ fn then_beads_jsonl_includes_status_for(
 }
 
 #[then(expr = "beads issues.jsonl should not contain {string}")]
-fn then_beads_jsonl_not_contains(world: &mut TaskulusWorld, identifier: String) {
+fn then_beads_jsonl_not_contains(world: &mut KanbusWorld, identifier: String) {
     let root = world
         .working_directory
         .as_ref()
@@ -303,12 +303,12 @@ fn then_beads_jsonl_not_contains(world: &mut TaskulusWorld, identifier: String) 
 }
 
 #[given(expr = "the beads slug generator always returns {string}")]
-fn given_beads_slug_generator_returns(_world: &mut TaskulusWorld, slug: String) {
+fn given_beads_slug_generator_returns(_world: &mut KanbusWorld, slug: String) {
     set_test_beads_slug_sequence(Some(vec![slug; 11]));
 }
 
 #[given(expr = "a beads issue with id {string} exists")]
-fn given_beads_issue_exists(world: &mut TaskulusWorld, identifier: String) {
+fn given_beads_issue_exists(world: &mut KanbusWorld, identifier: String) {
     let root = world
         .working_directory
         .as_ref()
@@ -333,29 +333,29 @@ fn given_beads_issue_exists(world: &mut TaskulusWorld, identifier: String) {
     fs::write(&path, contents).expect("write issues.jsonl");
 }
 
-#[when("I run \"tsk --beads create Interop deletable --parent bdx-epic\"")]
-fn when_run_create_beads_deletable(world: &mut TaskulusWorld) {
+#[when("I run \"kanbus --beads create Interop deletable --parent bdx-epic\"")]
+fn when_run_create_beads_deletable(world: &mut KanbusWorld) {
     run_cli(
         world,
-        "tsk --beads create Interop deletable --parent bdx-epic",
+        "kanbus --beads create Interop deletable --parent bdx-epic",
     );
     world.last_beads_issue_id = capture_last_issue_id(world);
 }
 
-#[when("I run \"tsk --beads create Interop child via Taskulus --parent bdx-epic\"")]
-fn when_run_create_beads_child_via_taskulus(world: &mut TaskulusWorld) {
+#[when("I run \"kanbus --beads create Interop child via Kanbus --parent bdx-epic\"")]
+fn when_run_create_beads_child_via_kanbus(world: &mut KanbusWorld) {
     run_cli(
         world,
-        "tsk --beads create Interop child via Taskulus --parent bdx-epic",
+        "kanbus --beads create Interop child via Kanbus --parent bdx-epic",
     );
     world.last_beads_issue_id = capture_last_issue_id(world);
 }
 
-#[when("I run \"tsk --beads create Interop updatable --parent bdx-epic\"")]
-fn when_run_create_beads_updatable(world: &mut TaskulusWorld) {
+#[when("I run \"kanbus --beads create Interop updatable --parent bdx-epic\"")]
+fn when_run_create_beads_updatable(world: &mut KanbusWorld) {
     run_cli(
         world,
-        "tsk --beads create Interop updatable --parent bdx-epic",
+        "kanbus --beads create Interop updatable --parent bdx-epic",
     );
     world.last_beads_issue_id = capture_last_issue_id(world);
 }

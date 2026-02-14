@@ -16,10 +16,10 @@ PYTHON_SRC = ROOT / "python" / "src"
 if str(PYTHON_SRC) not in sys.path:
     sys.path.insert(0, str(PYTHON_SRC))
 
-from taskulus.cache import collect_issue_file_mtimes, load_cache_if_valid, write_cache
-from taskulus.index import IssueIndex, build_index_from_directory
-from taskulus.issue_files import read_issue_from_file, write_issue_to_file
-from taskulus.models import DependencyLink, IssueData
+from kanbus.cache import collect_issue_file_mtimes, load_cache_if_valid, write_cache
+from kanbus.index import IssueIndex, build_index_from_directory
+from kanbus.issue_files import read_issue_from_file, write_issue_to_file
+from kanbus.models import DependencyLink, IssueData
 
 ISSUE_COUNT = 1000
 PYTHON_INDEX_BUILD_TARGET_MS = 50.0
@@ -38,7 +38,7 @@ def create_issue(identifier: str, now: datetime) -> IssueData:
     """
     dependencies = []
     if identifier.endswith("0"):
-        dependencies = [DependencyLink(target="tsk-000001", type="blocked-by")]
+        dependencies = [DependencyLink(target="kanbus-000001", type="blocked-by")]
     return IssueData(
         id=identifier,
         title=f"Benchmark issue {identifier}",
@@ -149,7 +149,7 @@ def run_benchmark() -> None:
     issues_directory = temp_root / "project" / "issues"
     cache_path = temp_root / "project" / ".cache" / "index.json"
 
-    identifiers = [f"tsk-{i:06d}" for i in range(ISSUE_COUNT)]
+    identifiers = [f"kanbus-{i:06d}" for i in range(ISSUE_COUNT)]
     generate_issues(issues_directory, identifiers)
 
     serial_results = _run_serial_benchmark(issues_directory, cache_path)

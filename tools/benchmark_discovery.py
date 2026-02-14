@@ -20,15 +20,15 @@ TOOLS_DIR = ROOT / "tools"
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from taskulus.project import discover_project_directories
-from taskulus.issue_files import read_issue_from_file
-from taskulus.issue_listing import list_issues
-from taskulus.dependencies import list_ready_issues
-from taskulus.models import IssueData
+from kanbus.project import discover_project_directories
+from kanbus.issue_files import read_issue_from_file
+from kanbus.issue_listing import list_issues
+from kanbus.dependencies import list_ready_issues
+from kanbus.models import IssueData
 
 from benchmark_discovery_fixtures import FixturePlan, generate_multi_project, generate_single_project
 
-os.environ.setdefault("TASKULUS_NO_DAEMON", "1")
+os.environ.setdefault("KANBUS_NO_DAEMON", "1")
 
 
 @dataclass(frozen=True)

@@ -4,13 +4,13 @@ use std::path::PathBuf;
 use chrono::{TimeZone, Utc};
 use cucumber::{gherkin::Step, given, then, when};
 
-use taskulus::cli::run_from_args_with_output;
-use taskulus::file_io::load_project_directory;
-use taskulus::models::IssueData;
+use kanbus::cli::run_from_args_with_output;
+use kanbus::file_io::load_project_directory;
+use kanbus::models::IssueData;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-fn run_cli(world: &mut TaskulusWorld, command: &str) {
+fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
@@ -31,7 +31,7 @@ fn run_cli(world: &mut TaskulusWorld, command: &str) {
     }
 }
 
-fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
+fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
     load_project_directory(cwd).expect("project dir")
 }
@@ -67,14 +67,14 @@ fn build_issue(identifier: &str, title: &str, status: &str) -> IssueData {
 }
 
 #[given("3 open tasks and 2 closed tasks exist")]
-fn given_open_and_closed_tasks(world: &mut TaskulusWorld) {
+fn given_open_and_closed_tasks(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let issues = vec![
-        build_issue("tsk-open01", "Open 1", "open"),
-        build_issue("tsk-open02", "Open 2", "open"),
-        build_issue("tsk-open03", "Open 3", "open"),
-        build_issue("tsk-closed01", "Closed 1", "closed"),
-        build_issue("tsk-closed02", "Closed 2", "closed"),
+        build_issue("kanbus-open01", "Open 1", "open"),
+        build_issue("kanbus-open02", "Open 2", "open"),
+        build_issue("kanbus-open03", "Open 3", "open"),
+        build_issue("kanbus-closed01", "Closed 1", "closed"),
+        build_issue("kanbus-closed02", "Closed 2", "closed"),
     ];
     for issue in issues {
         write_issue_file(&project_dir, &issue);
@@ -82,11 +82,11 @@ fn given_open_and_closed_tasks(world: &mut TaskulusWorld) {
 }
 
 #[given(expr = "open tasks {string} and {string} exist")]
-fn given_open_tasks(world: &mut TaskulusWorld, first: String, second: String) {
+fn given_open_tasks(world: &mut KanbusWorld, first: String, second: String) {
     let project_dir = load_project_dir(world);
     let issues = vec![
-        build_issue("tsk-alpha", &first, "open"),
-        build_issue("tsk-beta", &second, "open"),
+        build_issue("kanbus-alpha", &first, "open"),
+        build_issue("kanbus-beta", &second, "open"),
     ];
     for issue in issues {
         write_issue_file(&project_dir, &issue);
@@ -94,10 +94,10 @@ fn given_open_tasks(world: &mut TaskulusWorld, first: String, second: String) {
 }
 
 #[given("open tasks \"Urgent\" and \"Later\" exist with priorities 1 and 3")]
-fn given_open_tasks_with_priorities(world: &mut TaskulusWorld) {
+fn given_open_tasks_with_priorities(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let mut urgent = build_issue("tsk-urgent", "Urgent", "open");
-    let mut later = build_issue("tsk-later", "Later", "open");
+    let mut urgent = build_issue("kanbus-urgent", "Urgent", "open");
+    let mut later = build_issue("kanbus-later", "Later", "open");
     urgent.priority = 1;
     later.priority = 3;
     for issue in vec![urgent, later] {
@@ -106,7 +106,7 @@ fn given_open_tasks_with_priorities(world: &mut TaskulusWorld) {
 }
 
 #[given(expr = "a wiki page {string} with content:")]
-fn given_wiki_page_with_content(world: &mut TaskulusWorld, filename: String, step: &Step) {
+fn given_wiki_page_with_content(world: &mut KanbusWorld, filename: String, step: &Step) {
     let project_dir = load_project_dir(world);
     let wiki_dir = project_dir.join("wiki");
     fs::create_dir_all(&wiki_dir).expect("create wiki dir");
@@ -115,7 +115,7 @@ fn given_wiki_page_with_content(world: &mut TaskulusWorld, filename: String, ste
 }
 
 #[given(expr = "a raw wiki page {string} with content:")]
-fn given_raw_wiki_page_with_content(world: &mut TaskulusWorld, filename: String, step: &Step) {
+fn given_raw_wiki_page_with_content(world: &mut KanbusWorld, filename: String, step: &Step) {
     let cwd = world
         .working_directory
         .as_ref()
@@ -124,20 +124,20 @@ fn given_raw_wiki_page_with_content(world: &mut TaskulusWorld, filename: String,
     fs::write(cwd.join(filename), content).expect("write wiki page");
 }
 
-#[when(expr = "I run \"tsk wiki render {string}\"")]
-fn when_render_page(world: &mut TaskulusWorld, page: String) {
-    run_cli(world, &format!("tsk wiki render {page}"));
+#[when(expr = "I run \"kanbus wiki render {string}\"")]
+fn when_render_page(world: &mut KanbusWorld, page: String) {
+    run_cli(world, &format!("kanbus wiki render {page}"));
 }
 
 #[when(expr = "I render the wiki page {string} by absolute path")]
-fn when_render_absolute(world: &mut TaskulusWorld, filename: String) {
+fn when_render_absolute(world: &mut KanbusWorld, filename: String) {
     let project_dir = load_project_dir(world);
     let page_path = project_dir.join("wiki").join(filename);
-    run_cli(world, &format!("tsk wiki render {}", page_path.display()));
+    run_cli(world, &format!("kanbus wiki render {}", page_path.display()));
 }
 
 #[then(expr = "\"{string}\" should appear before \"{string}\" in the output")]
-fn then_text_before_text(world: &mut TaskulusWorld, first: String, second: String) {
+fn then_text_before_text(world: &mut KanbusWorld, first: String, second: String) {
     let stdout = world.stdout.as_ref().expect("stdout");
     let first_index = stdout.find(&first).expect("first value in stdout");
     let second_index = stdout.find(&second).expect("second value in stdout");

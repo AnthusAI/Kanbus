@@ -6,7 +6,7 @@ use std::path::Path;
 use serde_yaml::{Mapping, Value};
 
 use crate::config::default_project_configuration;
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::models::ProjectConfiguration;
 
 /// Load a project configuration from disk.
@@ -17,13 +17,13 @@ use crate::models::ProjectConfiguration;
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError::Configuration` if the configuration is invalid.
-pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, TaskulusError> {
+/// Returns `KanbusError::Configuration` if the configuration is invalid.
+pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, KanbusError> {
     let contents = fs::read_to_string(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
-            TaskulusError::Configuration("configuration file not found".to_string())
+            KanbusError::Configuration("configuration file not found".to_string())
         } else {
-            TaskulusError::Io(error.to_string())
+            KanbusError::Io(error.to_string())
         }
     })?;
 
@@ -32,11 +32,11 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, T
     let overrides = load_override_configuration(path.parent().unwrap_or(Path::new(".")))?;
     merged_value = apply_overrides(merged_value, overrides);
     let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
-        .map_err(|error| TaskulusError::Configuration(map_configuration_error(&error)))?;
+        .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
 
     let errors = validate_project_configuration(&configuration);
     if !errors.is_empty() {
-        return Err(TaskulusError::Configuration(errors.join("; ")));
+        return Err(KanbusError::Configuration(errors.join("; ")));
     }
 
     Ok(configuration)
@@ -97,9 +97,9 @@ fn map_configuration_error(error: &serde_yaml::Error) -> String {
     message
 }
 
-fn merge_with_defaults(value: Value) -> Result<Mapping, TaskulusError> {
+fn merge_with_defaults(value: Value) -> Result<Mapping, KanbusError> {
     let defaults_value = serde_yaml::to_value(default_project_configuration())
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     let mut defaults = defaults_value
         .as_mapping()
         .cloned()
@@ -108,7 +108,7 @@ fn merge_with_defaults(value: Value) -> Result<Mapping, TaskulusError> {
         Value::Null => Mapping::new(),
         Value::Mapping(mapping) => mapping,
         _ => {
-            return Err(TaskulusError::Configuration(
+            return Err(KanbusError::Configuration(
                 "configuration must be a mapping".to_string(),
             ))
         }
@@ -120,31 +120,31 @@ fn merge_with_defaults(value: Value) -> Result<Mapping, TaskulusError> {
     Ok(defaults)
 }
 
-fn load_configuration_value(contents: &str) -> Result<Value, TaskulusError> {
+fn load_configuration_value(contents: &str) -> Result<Value, KanbusError> {
     if contents.trim().is_empty() {
         return Ok(Value::Mapping(Mapping::new()));
     }
     let raw_value: Value = serde_yaml::from_str(contents)
-        .map_err(|error| TaskulusError::Configuration(map_configuration_error(&error)))?;
+        .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
     Ok(raw_value)
 }
 
-fn load_override_configuration(root: &Path) -> Result<Mapping, TaskulusError> {
-    let override_path = root.join(".taskulus.override.yml");
+fn load_override_configuration(root: &Path) -> Result<Mapping, KanbusError> {
+    let override_path = root.join(".kanbus.override.yml");
     if !override_path.exists() {
         return Ok(Mapping::new());
     }
     let contents =
-        fs::read_to_string(&override_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        fs::read_to_string(&override_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     if contents.trim().is_empty() {
         return Ok(Mapping::new());
     }
     let raw_value: Value = serde_yaml::from_str(&contents).map_err(|_error| {
-        TaskulusError::Configuration("override configuration is invalid".to_string())
+        KanbusError::Configuration("override configuration is invalid".to_string())
     })?;
     match raw_value {
         Value::Mapping(mapping) => Ok(mapping),
-        _ => Err(TaskulusError::Configuration(
+        _ => Err(KanbusError::Configuration(
             "override configuration must be a mapping".to_string(),
         )),
     }

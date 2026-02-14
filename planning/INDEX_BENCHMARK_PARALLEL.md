@@ -9,5 +9,5 @@ Provide a parallel IO variant for index benchmarks to evaluate potential speedup
 - Parallel mode uses thread pools to read issue files concurrently, then builds the index sequentially.
 
 ## Notes
-- Parallel mode is benchmark-only and does not alter Taskulus runtime behavior.
+- Parallel mode is benchmark-only and does not alter Kanbus runtime behavior.
 - Serial timings remain the source of truth for performance targets.

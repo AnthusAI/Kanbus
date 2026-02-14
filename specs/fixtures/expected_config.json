@@ -8,7 +8,7 @@
     "sub-task"
   ],
   "initial_status": "open",
-  "prefix": "tsk",
+  "prefix": "kanbus",
   "priorities": {
     "0": "critical",
     "1": "high",

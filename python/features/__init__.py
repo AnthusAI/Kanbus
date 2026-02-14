@@ -1,1 +1,1 @@
-"""Taskulus Behave feature support package."""
+"""Kanbus Behave feature support package."""

@@ -12,74 +12,74 @@ from features.steps.shared import (
     read_issue_file,
     run_cli,
 )
-from taskulus.issue_creation import IssueCreationError, create_issue
+from kanbus.issue_creation import IssueCreationError, create_issue
 
 
-@when('I run "tsk create Implement OAuth2 flow"')
+@when('I run "kanbus create Implement OAuth2 flow"')
 def when_run_create_default(context: object) -> None:
-    run_cli(context, "tsk create Implement OAuth2 flow")
+    run_cli(context, "kanbus create Implement OAuth2 flow")
 
 
-@when('I run "tsk create implement oauth2 flow"')
+@when('I run "kanbus create implement oauth2 flow"')
 def when_run_create_duplicate_title(context: object) -> None:
-    run_cli(context, "tsk create implement oauth2 flow")
+    run_cli(context, "kanbus create implement oauth2 flow")
 
 
 @when(
-    'I run "tsk create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent tsk-epic01 --label auth --label urgent --description \\"Bug in login\\""'
+    'I run "kanbus create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent kanbus-epic01 --label auth --label urgent --description \\"Bug in login\\""'
 )
 def when_run_create_full(context: object) -> None:
     run_cli(
         context,
-        "tsk create Fix login bug --type bug --priority 1 --assignee dev@example.com "
-        '--parent tsk-epic01 --label auth --label urgent --description "Bug in login"',
+        "kanbus create Fix login bug --type bug --priority 1 --assignee dev@example.com "
+        '--parent kanbus-epic01 --label auth --label urgent --description "Bug in login"',
     )
 
 
-@when('I run "tsk create Bad Issue --type nonexistent"')
+@when('I run "kanbus create Bad Issue --type nonexistent"')
 def when_run_create_invalid_type(context: object) -> None:
-    run_cli(context, "tsk create Bad Issue --type nonexistent")
+    run_cli(context, "kanbus create Bad Issue --type nonexistent")
 
 
-@when('I run "tsk create Orphan --parent tsk-nonexistent"')
+@when('I run "kanbus create Orphan --parent kanbus-nonexistent"')
 def when_run_create_missing_parent(context: object) -> None:
-    run_cli(context, "tsk create Orphan --parent tsk-nonexistent")
+    run_cli(context, "kanbus create Orphan --parent kanbus-nonexistent")
 
 
-@when('I run "tsk create"')
+@when('I run "kanbus create"')
 def when_run_create_without_title(context: object) -> None:
-    run_cli(context, "tsk create")
+    run_cli(context, "kanbus create")
 
 
-@when('I run "tsk create Bad Priority --priority 99"')
+@when('I run "kanbus create Bad Priority --priority 99"')
 def when_run_create_invalid_priority(context: object) -> None:
-    run_cli(context, "tsk create Bad Priority --priority 99")
+    run_cli(context, "kanbus create Bad Priority --priority 99")
 
 
-@when('I run "tsk create Child Task --type {issue_type} --parent tsk-parent"')
+@when('I run "kanbus create Child Task --type {issue_type} --parent kanbus-parent"')
 def when_run_create_child_task_with_parent(context: object, issue_type: str) -> None:
     run_cli(
         context,
-        f"tsk create Child Task --type {issue_type} --parent tsk-parent",
+        f"kanbus create Child Task --type {issue_type} --parent kanbus-parent",
     )
 
 
-@when('I run "tsk create Child --type {issue_type} --parent tsk-bug01"')
+@when('I run "kanbus create Child --type {issue_type} --parent kanbus-bug01"')
 def when_run_create_child_with_bug_parent(context: object, issue_type: str) -> None:
     run_cli(
         context,
-        f"tsk create Child --type {issue_type} --parent tsk-bug01",
+        f"kanbus create Child --type {issue_type} --parent kanbus-bug01",
     )
 
 
-@when('I run "tsk create Standalone Task --type task"')
+@when('I run "kanbus create Standalone Task --type task"')
 def when_run_create_standalone_task(context: object) -> None:
-    run_cli(context, "tsk create Standalone Task --type task")
+    run_cli(context, "kanbus create Standalone Task --type task")
 
 
-@when('I run "tsk create Snapshot issue"')
+@when('I run "kanbus create Snapshot issue"')
 def when_run_create_snapshot_issue(context: object) -> None:
-    run_cli(context, "tsk create Snapshot issue")
+    run_cli(context, "kanbus create Snapshot issue")
 
 
 @when('I create an issue directly with title "Implement OAuth2 flow"')
@@ -223,12 +223,12 @@ def then_created_issue_assignee(context: object) -> None:
     assert issue.assignee == "dev@example.com"
 
 
-@then('the created issue should have parent "tsk-epic01"')
+@then('the created issue should have parent "kanbus-epic01"')
 def then_created_issue_parent(context: object) -> None:
     identifier = capture_issue_identifier(context)
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
-    assert issue.parent == "tsk-epic01"
+    assert issue.parent == "kanbus-epic01"
 
 
 @then('the created issue should have labels "auth, urgent"')

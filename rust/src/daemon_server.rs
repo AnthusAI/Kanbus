@@ -14,7 +14,7 @@ use crate::daemon_protocol::{
     validate_protocol_compatibility, ErrorEnvelope, RequestEnvelope, ResponseEnvelope,
     PROTOCOL_VERSION,
 };
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::load_project_directory;
 use crate::index::build_index_from_directory;
 use crate::models::IssueData;
@@ -25,23 +25,23 @@ use crate::models::IssueData;
 /// * `root` - Repository root path.
 ///
 /// # Errors
-/// Returns `TaskulusError` if the daemon fails to bind or serve requests.
+/// Returns `KanbusError` if the daemon fails to bind or serve requests.
 #[cfg(unix)]
-pub fn run_daemon(root: &Path) -> Result<(), TaskulusError> {
+pub fn run_daemon(root: &Path) -> Result<(), KanbusError> {
     let socket_path = get_daemon_socket_path(root)?;
     let socket_dir = socket_path
         .parent()
-        .ok_or_else(|| TaskulusError::Io("invalid socket path".to_string()))?;
-    std::fs::create_dir_all(socket_dir).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .ok_or_else(|| KanbusError::Io("invalid socket path".to_string()))?;
+    std::fs::create_dir_all(socket_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     if socket_path.exists() {
-        std::fs::remove_file(&socket_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        std::fs::remove_file(&socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
 
     let listener =
-        UnixListener::bind(&socket_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        UnixListener::bind(&socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     warm_cache(root)?;
     for stream in listener.incoming() {
-        let stream = stream.map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let stream = stream.map_err(|error| KanbusError::Io(error.to_string()))?;
         if handle_stream(root, stream)? {
             break;
         }
@@ -50,28 +50,28 @@ pub fn run_daemon(root: &Path) -> Result<(), TaskulusError> {
 }
 
 #[cfg(not(unix))]
-pub fn run_daemon(_root: &Path) -> Result<(), TaskulusError> {
-    Err(TaskulusError::IssueOperation(
+pub fn run_daemon(_root: &Path) -> Result<(), KanbusError> {
+    Err(KanbusError::IssueOperation(
         "daemon not supported on this platform".to_string(),
     ))
 }
 
-fn warm_cache(root: &Path) -> Result<(), TaskulusError> {
+fn warm_cache(root: &Path) -> Result<(), KanbusError> {
     let _ = load_index(root)?;
     Ok(())
 }
 
 #[cfg(unix)]
-fn handle_stream(root: &Path, stream: UnixStream) -> Result<bool, TaskulusError> {
+fn handle_stream(root: &Path, stream: UnixStream) -> Result<bool, KanbusError> {
     let mut reader = BufReader::new(
         stream
             .try_clone()
-            .map_err(|error| TaskulusError::Io(format!("failed to clone stream: {error}")))?,
+            .map_err(|error| KanbusError::Io(format!("failed to clone stream: {error}")))?,
     );
     let mut line = String::new();
     if reader
         .read_line(&mut line)
-        .map_err(|error| TaskulusError::Io(format!("failed to read from stream: {error}")))?
+        .map_err(|error| KanbusError::Io(format!("failed to read from stream: {error}")))?
         == 0
     {
         return Ok(false);
@@ -95,13 +95,13 @@ fn handle_stream(root: &Path, stream: UnixStream) -> Result<bool, TaskulusError>
         ),
     };
     let payload =
-        serde_json::to_string(&response).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        serde_json::to_string(&response).map_err(|error| KanbusError::Io(error.to_string()))?;
     stream
         .write_all(payload.as_bytes())
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     stream
         .write_all(b"\n")
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(should_shutdown)
 }
 
@@ -228,7 +228,7 @@ pub fn handle_request_for_testing(root: &Path, request: RequestEnvelope) -> Resp
     handle_request(root, request).0
 }
 
-fn load_index(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
+fn load_index(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let project_dir = load_project_directory(root)?;
     let issues_dir = project_dir.join("issues");
     let cache_path = get_index_cache_path(root)?;

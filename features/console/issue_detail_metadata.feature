@@ -1,6 +1,6 @@
 @console
 Feature: Console issue detail metadata
-  As a Taskulus user
+  As a Kanbus user
   I want issue timestamps and assignee shown in the detail view
   So that I can see recent activity quickly
 

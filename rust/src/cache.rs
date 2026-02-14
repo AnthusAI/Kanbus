@@ -1,4 +1,4 @@
-//! Index cache utilities for Taskulus.
+//! Index cache utilities for Kanbus.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::index::IssueIndex;
 use crate::models::IssueData;
 
@@ -24,12 +24,12 @@ pub struct IndexCache {
 /// Collect file modification times for issues.
 pub fn collect_issue_file_mtimes(
     issues_directory: &Path,
-) -> Result<BTreeMap<String, f64>, TaskulusError> {
+) -> Result<BTreeMap<String, f64>, KanbusError> {
     let mut mtimes = BTreeMap::new();
     let entries = std::fs::read_dir(issues_directory)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     for entry in entries {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
@@ -42,16 +42,16 @@ pub fn collect_issue_file_mtimes(
     Ok(mtimes)
 }
 
-fn mtime_from_entry(entry: &std::fs::DirEntry) -> Result<f64, TaskulusError> {
+fn mtime_from_entry(entry: &std::fs::DirEntry) -> Result<f64, KanbusError> {
     let metadata = entry
         .metadata()
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     let modified = metadata
         .modified()
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     let duration = modified
         .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(normalize_mtime(duration.as_secs_f64()))
 }
 
@@ -63,21 +63,21 @@ fn normalize_mtime(value: f64) -> f64 {
 pub fn load_cache_if_valid(
     cache_path: &Path,
     issues_directory: &Path,
-) -> Result<Option<IssueIndex>, TaskulusError> {
+) -> Result<Option<IssueIndex>, KanbusError> {
     if !cache_path.exists() {
         return Ok(None);
     }
     let contents = std::fs::read_to_string(cache_path)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     let payload: serde_json::Value =
-        serde_json::from_str(&contents).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        serde_json::from_str(&contents).map_err(|error| KanbusError::Io(error.to_string()))?;
     let file_mtimes: BTreeMap<String, f64> = serde_json::from_value(
         payload
             .get("file_mtimes")
             .cloned()
             .unwrap_or_else(|| serde_json::json!({})),
     )
-    .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
     let current_mtimes = collect_issue_file_mtimes(issues_directory)?;
     if file_mtimes != current_mtimes {
         return Ok(None);
@@ -88,14 +88,14 @@ pub fn load_cache_if_valid(
             .cloned()
             .unwrap_or_else(|| serde_json::json!([])),
     )
-    .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
     let reverse_deps: BTreeMap<String, Vec<String>> = serde_json::from_value(
         payload
             .get("reverse_deps")
             .cloned()
             .unwrap_or_else(|| serde_json::json!({})),
     )
-    .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
 
     Ok(Some(build_index_from_cache(issues, reverse_deps)))
 }
@@ -105,7 +105,7 @@ pub fn write_cache(
     index: &IssueIndex,
     cache_path: &Path,
     file_mtimes: &BTreeMap<String, f64>,
-) -> Result<(), TaskulusError> {
+) -> Result<(), KanbusError> {
     let cache = IndexCache {
         version: 1,
         built_at: Utc::now(),
@@ -137,14 +137,14 @@ pub fn write_cache(
         "reverse_deps": cache.reverse_deps,
     });
     if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        std::fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     std::fs::write(
         cache_path,
         serde_json::to_string_pretty(&payload)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?,
+            .map_err(|error| KanbusError::Io(error.to_string()))?,
     )
-    .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(())
 }
 

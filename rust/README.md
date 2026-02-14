@@ -1,19 +1,19 @@
-# Taskulus (Rust crate)
+# Kanbus (Rust crate)
 
-Taskulus is a command-line interface for the Beads-backed issue tracker used by the Taskulus project.
+Kanbus is a command-line interface for the Beads-backed issue tracker used by the Kanbus project.
 
 ## Install
 
 ```
-cargo install taskulus
+cargo install kanbus
 ```
 
 ## Usage
 
-After installation, the CLI binary `tskr` will be available. Run `tskr --help` for available commands. For full guidance, see the Taskulus documentation:
+After installation, the CLI binary `kanbusr` will be available. Run `kanbusr --help` for available commands. For full guidance, see the Kanbus documentation:
 
-- Homepage: https://taskul.us
-- Documentation: https://taskul.us/docs
+- Homepage: https://kanb.us
+- Documentation: https://kanb.us/docs
 
 ## License
 

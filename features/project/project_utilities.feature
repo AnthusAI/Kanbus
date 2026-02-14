@@ -1,5 +1,5 @@
 Feature: Project utility helpers
-  As a Taskulus maintainer
+  As a Kanbus maintainer
   I want project discovery helpers to handle edge cases
   So that project resolution is predictable
 
@@ -29,27 +29,27 @@ Feature: Project utility helpers
     Then configuration path lookup should fail with "project not initialized"
 
   Scenario: Configuration paths must exist
-    Given a repository with a .taskulus.yml file referencing a missing path
+    Given a repository with a .kanbus.yml file referencing a missing path
     When project directories are discovered
-    Then project discovery should fail with "taskulus path not found"
+    Then project discovery should fail with "kanbus path not found"
 
   Scenario: Project discovery fails with invalid configuration
-    Given a repository with an invalid .taskulus.yml file
+    Given a repository with an invalid .kanbus.yml file
     When project directories are discovered
     Then project discovery should fail with "unknown configuration fields"
 
   Scenario: Configuration paths may include blank lines
-    Given a repository with a .taskulus.yml file referencing a valid path with blank lines
+    Given a repository with a .kanbus.yml file referencing a valid path with blank lines
     When project directories are discovered
     Then project discovery should include the referenced path
 
   Scenario: Dotfile paths are ignored
-    Given a repository with a .taskulus file referencing another project
+    Given a repository with a .kanbus file referencing another project
     When project directories are discovered
     Then project discovery should return no projects
 
   Scenario: Dotfile paths are ignored when missing
-    Given a repository with a .taskulus file referencing a missing path
+    Given a repository with a .kanbus file referencing a missing path
     When project directories are discovered
     Then project discovery should return no projects
 
@@ -69,5 +69,5 @@ Feature: Project utility helpers
     Then project discovery should return no projects
 
   Scenario: Configuration search stops at filesystem root
-    When taskulus configuration paths are discovered from the filesystem root
+    When kanbus configuration paths are discovered from the filesystem root
     Then project discovery should return no projects

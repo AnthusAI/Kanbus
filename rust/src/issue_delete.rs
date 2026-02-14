@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::issue_lookup::load_issue_from_project;
 
 /// Delete an issue file from disk.
@@ -12,8 +12,8 @@ use crate::issue_lookup::load_issue_from_project;
 /// * `identifier` - Issue identifier.
 ///
 /// # Errors
-/// Returns `TaskulusError` if deletion fails.
-pub fn delete_issue(root: &Path, identifier: &str) -> Result<(), TaskulusError> {
+/// Returns `KanbusError` if deletion fails.
+pub fn delete_issue(root: &Path, identifier: &str) -> Result<(), KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
-    std::fs::remove_file(&lookup.issue_path).map_err(|error| TaskulusError::Io(error.to_string()))
+    std::fs::remove_file(&lookup.issue_path).map_err(|error| KanbusError::Io(error.to_string()))
 }

@@ -4,11 +4,11 @@ use std::process::Command;
 
 use cucumber::{given, then, when};
 
-use taskulus::agents_management::{project_management_text, taskulus_section_text};
+use kanbus::agents_management::{project_management_text, kanbus_section_text};
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-const README_STUB: &str = "This is a sample project that uses Taskulus.";
+const README_STUB: &str = "This is a sample project that uses Kanbus.";
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
@@ -21,20 +21,20 @@ fn example_dir(name: &str) -> PathBuf {
 
 fn tskr_binary_path() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let binary_path = manifest_dir.join("target").join("debug").join("tskr");
+    let binary_path = manifest_dir.join("target").join("debug").join("kanbusr");
     let status = Command::new("cargo")
-        .args(["build", "--bin", "tskr"])
+        .args(["build", "--bin", "kanbusr"])
         .current_dir(&manifest_dir)
         .status()
-        .expect("build tskr binary");
+        .expect("build kanbusr binary");
     if !status.success() {
-        panic!("failed to build tskr binary");
+        panic!("failed to build kanbusr binary");
     }
     binary_path
 }
 
 #[given(expr = "the {string} example project does not exist")]
-fn given_example_missing(_world: &mut TaskulusWorld, name: String) {
+fn given_example_missing(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     if path.exists() {
         fs::remove_dir_all(&path).expect("remove example dir");
@@ -42,7 +42,7 @@ fn given_example_missing(_world: &mut TaskulusWorld, name: String) {
 }
 
 #[when(expr = "I create the {string} example project")]
-fn when_create_example_project(_world: &mut TaskulusWorld, name: String) {
+fn when_create_example_project(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     fs::create_dir_all(&path).expect("create example dir");
     let status = Command::new("git")
@@ -55,45 +55,45 @@ fn when_create_example_project(_world: &mut TaskulusWorld, name: String) {
     }
 }
 
-#[when(expr = "I run \"tsk init\" in the {string} example project")]
-fn when_run_init_in_example(world: &mut TaskulusWorld, name: String) {
+#[when(expr = "I run \"kanbus init\" in the {string} example project")]
+fn when_run_init_in_example(world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     let binary_path = tskr_binary_path();
     let mut command = Command::new(binary_path);
     command
         .current_dir(&path)
         .args(["init"])
-        .env("TASKULUS_NO_DAEMON", "1");
-    let output = command.output().expect("run tskr init");
+        .env("KANBUS_NO_DAEMON", "1");
+    let output = command.output().expect("run kanbusr init");
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
     world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
 }
 
 #[when(expr = "I add a README stub to the {string} example project")]
-fn when_add_readme_stub(_world: &mut TaskulusWorld, name: String) {
+fn when_add_readme_stub(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     let readme = path.join("README.md");
     fs::write(readme, format!("{README_STUB}\n")).expect("write README");
 }
 
-#[when(expr = "I run \"tsk setup agents\" in the {string} example project")]
-fn when_run_setup_agents_in_example(world: &mut TaskulusWorld, name: String) {
+#[when(expr = "I run \"kanbus setup agents\" in the {string} example project")]
+fn when_run_setup_agents_in_example(world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     let binary_path = tskr_binary_path();
     let mut command = Command::new(binary_path);
     command
         .current_dir(&path)
         .args(["setup", "agents"])
-        .env("TASKULUS_NO_DAEMON", "1");
-    let output = command.output().expect("run tskr setup agents");
+        .env("KANBUS_NO_DAEMON", "1");
+    let output = command.output().expect("run kanbusr setup agents");
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
     world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
 }
 
 #[then(expr = "the {string} example project should contain a README stub")]
-fn then_example_contains_readme(_world: &mut TaskulusWorld, name: String) {
+fn then_example_contains_readme(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     let readme = path.join("README.md");
     assert!(readme.exists());
@@ -101,29 +101,29 @@ fn then_example_contains_readme(_world: &mut TaskulusWorld, name: String) {
     assert_eq!(content.trim(), README_STUB);
 }
 
-#[then(expr = "the {string} example project should contain .taskulus.yml")]
-fn then_example_contains_config(_world: &mut TaskulusWorld, name: String) {
+#[then(expr = "the {string} example project should contain .kanbus.yml")]
+fn then_example_contains_config(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
-    assert!(path.join(".taskulus.yml").exists());
+    assert!(path.join(".kanbus.yml").exists());
 }
 
 #[then(expr = "the {string} example project should contain the project directory")]
-fn then_example_contains_project_dir(_world: &mut TaskulusWorld, name: String) {
+fn then_example_contains_project_dir(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     assert!(path.join("project").exists());
 }
 
-#[then(expr = "the {string} example project should contain AGENTS.md with Taskulus instructions")]
-fn then_example_contains_agents(_world: &mut TaskulusWorld, name: String) {
+#[then(expr = "the {string} example project should contain AGENTS.md with Kanbus instructions")]
+fn then_example_contains_agents(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     let agents = path.join("AGENTS.md");
     assert!(agents.exists());
     let content = fs::read_to_string(agents).expect("read AGENTS.md");
-    assert!(content.contains(taskulus_section_text().trim()));
+    assert!(content.contains(kanbus_section_text().trim()));
 }
 
 #[then(expr = "the {string} example project should contain CONTRIBUTING_AGENT.md")]
-fn then_example_contains_instructions(_world: &mut TaskulusWorld, name: String) {
+fn then_example_contains_instructions(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     let instructions = path.join("CONTRIBUTING_AGENT.md");
     assert!(instructions.exists());

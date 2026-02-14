@@ -1,16 +1,16 @@
 [package]
-name = "taskulus"
+name = "kanbus"
 version = "0.1.0"
 edition = "2021"
-description = "Taskulus command-line interface for managing issues with the Beads-backed tracker."
+description = "Kanbus command-line interface for managing issues with the Beads-backed tracker."
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/AnthusAI/Taskulus"
-homepage = "https://taskul.us"
-documentation = "https://taskul.us/docs"
-keywords = ["taskulus", "task-management", "issue-tracker", "cli", "beads"]
+repository = "https://github.com/AnthusAI/Kanbus"
+homepage = "https://kanb.us"
+documentation = "https://kanb.us/docs"
+keywords = ["kanbus", "task-management", "issue-tracker", "cli", "beads"]
 categories = ["command-line-utilities"]
-authors = ["Taskulus Contributors"]
+authors = ["Kanbus Contributors"]
 
 [dependencies]
 clap = { version = "4.5.0", features = ["derive"] }
@@ -41,5 +41,5 @@ harness = false
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
 
 [[bin]]
-name = "tskr"
+name = "kanbusr"
 path = "src/main.rs"

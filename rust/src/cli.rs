@@ -15,7 +15,7 @@ use crate::daemon_server::run_daemon;
 use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
 use crate::dependency_tree::{build_dependency_tree, render_dependency_tree};
 use crate::doctor::run_doctor;
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::{
     ensure_git_repository, get_configuration_path, initialize_project, resolve_root,
 };
@@ -37,9 +37,9 @@ use crate::queries::{filter_issues, search_issues};
 use crate::users::get_current_user;
 use crate::wiki::{render_wiki_page, WikiRenderRequest};
 
-/// Taskulus CLI arguments.
+/// Kanbus CLI arguments.
 #[derive(Debug, Parser)]
-#[command(name = "tsk", version)]
+#[command(name = "kanbus", version)]
 pub struct Cli {
     /// Enable Beads compatibility mode (read .beads/issues.jsonl).
     #[arg(long)]
@@ -50,13 +50,13 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Initialize a Taskulus project in the current repository.
+    /// Initialize a Kanbus project in the current repository.
     Init {
         /// Create project-local alongside project.
         #[arg(long)]
         local: bool,
     },
-    /// Set up Taskulus helper files.
+    /// Set up Kanbus helper files.
     Setup {
         #[command(subcommand)]
         command: SetupCommands,
@@ -189,7 +189,7 @@ enum Commands {
         #[arg(long = "local-only")]
         local_only: bool,
     },
-    /// Migrate Beads issues into Taskulus.
+    /// Migrate Beads issues into Kanbus.
     Migrate,
     /// Run environment diagnostics.
     Doctor,
@@ -272,9 +272,9 @@ enum DependencyCommands {
 
 #[derive(Debug, Subcommand)]
 enum SetupCommands {
-    /// Ensure AGENTS.md includes Taskulus guidance.
+    /// Ensure AGENTS.md includes Kanbus guidance.
     Agents {
-        /// Overwrite existing Taskulus section without prompting.
+        /// Overwrite existing Kanbus section without prompting.
         #[arg(long)]
         force: bool,
     },
@@ -310,8 +310,8 @@ pub struct CommandOutput {
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError` if execution fails.
-pub fn run_from_args<I, T>(args: I, cwd: &Path) -> Result<(), TaskulusError>
+/// Returns `KanbusError` if execution fails.
+pub fn run_from_args<I, T>(args: I, cwd: &Path) -> Result<(), KanbusError>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -332,8 +332,8 @@ where
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError` if execution fails.
-pub fn run_from_args_with_output<I, T>(args: I, cwd: &Path) -> Result<CommandOutput, TaskulusError>
+/// Returns `KanbusError` if execution fails.
+pub fn run_from_args_with_output<I, T>(args: I, cwd: &Path) -> Result<CommandOutput, KanbusError>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -349,7 +349,7 @@ where
             if is_help_request(error.kind()) {
                 return Ok(CommandOutput { stdout: rendered });
             }
-            return Err(TaskulusError::IssueOperation(rendered));
+            return Err(KanbusError::IssueOperation(rendered));
         }
     };
     let root = resolve_root(cwd);
@@ -361,16 +361,16 @@ where
     })
 }
 
-fn resolve_beads_mode(root: &Path, beads_flag: bool) -> Result<(bool, bool), TaskulusError> {
+fn resolve_beads_mode(root: &Path, beads_flag: bool) -> Result<(bool, bool), KanbusError> {
     if beads_flag {
         return Ok((true, true));
     }
     let configuration_path = match get_configuration_path(root) {
         Ok(path) => path,
-        Err(TaskulusError::IssueOperation(message)) if message == "project not initialized" => {
+        Err(KanbusError::IssueOperation(message)) if message == "project not initialized" => {
             return Ok((false, false))
         }
-        Err(TaskulusError::Io(message)) if message == "configuration path lookup failed" => {
+        Err(KanbusError::Io(message)) if message == "configuration path lookup failed" => {
             return Ok((false, false))
         }
         Err(error) => return Err(error),
@@ -384,7 +384,7 @@ fn execute_command(
     root: &Path,
     beads_mode: bool,
     beads_forced: bool,
-) -> Result<Option<String>, TaskulusError> {
+) -> Result<Option<String>, KanbusError> {
     match command {
         Commands::Init { local } => {
             ensure_git_repository(root)?;
@@ -409,7 +409,7 @@ fn execute_command(
         } => {
             let title_text = title.join(" ");
             if title_text.trim().is_empty() {
-                return Err(TaskulusError::IssueOperation(
+                return Err(KanbusError::IssueOperation(
                     "title is required".to_string(),
                 ));
             }
@@ -419,7 +419,7 @@ fn execute_command(
                 .unwrap_or_default();
             if beads_mode {
                 if local {
-                    return Err(TaskulusError::IssueOperation(
+                    return Err(KanbusError::IssueOperation(
                         "beads mode does not support local issues".to_string(),
                     ));
                 }
@@ -574,7 +574,7 @@ fn execute_command(
         } => {
             let issues = if beads_mode {
                 if local_only || no_local {
-                    return Err(TaskulusError::IssueOperation(
+                    return Err(KanbusError::IssueOperation(
                         "beads mode does not support local filtering".to_string(),
                     ));
                 }
@@ -612,7 +612,7 @@ fn execute_command(
             } else {
                 match get_configuration_path(root) {
                     Ok(path) => Some(load_project_configuration(&path)?),
-                    Err(TaskulusError::IssueOperation(message))
+                    Err(KanbusError::IssueOperation(message))
                         if message == "project not initialized" =>
                     {
                         None
@@ -671,7 +671,7 @@ fn execute_command(
                     (Some(value), _) => (value, "blocked-by"),
                     (None, Some(value)) => (value, "relates-to"),
                     (None, None) => {
-                        return Err(TaskulusError::IssueOperation(
+                        return Err(KanbusError::IssueOperation(
                             "dependency target is required".to_string(),
                         ));
                     }
@@ -688,7 +688,7 @@ fn execute_command(
                     (Some(value), _) => (value, "blocked-by"),
                     (None, Some(value)) => (value, "relates-to"),
                     (None, None) => {
-                        return Err(TaskulusError::IssueOperation(
+                        return Err(KanbusError::IssueOperation(
                             "dependency target is required".to_string(),
                         ));
                     }
@@ -712,7 +712,7 @@ fn execute_command(
         } => {
             let issues = if beads_mode {
                 if local_only || no_local {
-                    return Err(TaskulusError::IssueOperation(
+                    return Err(KanbusError::IssueOperation(
                         "beads mode does not support local filtering".to_string(),
                     ));
                 }
@@ -755,20 +755,20 @@ fn execute_command(
             ConsoleCommands::Snapshot => {
                 let snapshot = build_console_snapshot(root)?;
                 let payload = serde_json::to_string_pretty(&snapshot)
-                    .map_err(|error| TaskulusError::Io(error.to_string()))?;
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
                 Ok(Some(payload))
             }
         },
         Commands::DaemonStatus => {
             let status = request_status(root).map_err(format_daemon_project_error)?;
             let payload = serde_json::to_string_pretty(&status)
-                .map_err(|error| TaskulusError::Io(error.to_string()))?;
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
             Ok(Some(payload))
         }
         Commands::DaemonStop => {
             let status = request_shutdown(root).map_err(format_daemon_project_error)?;
             let payload = serde_json::to_string_pretty(&status)
-                .map_err(|error| TaskulusError::Io(error.to_string()))?;
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
             Ok(Some(payload))
         }
     }
@@ -778,8 +778,8 @@ fn execute_command(
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError` if execution fails.
-pub fn run_from_env() -> Result<(), TaskulusError> {
+/// Returns `KanbusError` if execution fails.
+pub fn run_from_env() -> Result<(), KanbusError> {
     run_from_args(std::env::args_os(), Path::new("."))
 }
 
@@ -805,18 +805,18 @@ fn is_issue_blocked(issue: &IssueData) -> bool {
         .any(|dependency| dependency.dependency_type == "blocked-by")
 }
 
-fn format_daemon_project_error(error: TaskulusError) -> TaskulusError {
+fn format_daemon_project_error(error: KanbusError) -> KanbusError {
     match error {
-        TaskulusError::IssueOperation(message)
+        KanbusError::IssueOperation(message)
             if message.starts_with("multiple projects found") =>
         {
-            TaskulusError::IssueOperation(
+            KanbusError::IssueOperation(
                 "multiple projects found. Run this command from a directory containing a single project/ folder.".to_string(),
             )
         }
-        TaskulusError::IssueOperation(message) if message == "project not initialized" => {
-            TaskulusError::IssueOperation(
-                "project not initialized. Run \"tsk init\" to create a project/ folder."
+        KanbusError::IssueOperation(message) if message == "project not initialized" => {
+            KanbusError::IssueOperation(
+                "project not initialized. Run \"kanbus init\" to create a project/ folder."
                     .to_string(),
             )
         }

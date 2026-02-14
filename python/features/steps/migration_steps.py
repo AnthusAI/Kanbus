@@ -9,7 +9,7 @@ from pathlib import Path
 from behave import given, then, when
 
 from features.steps.shared import ensure_git_repository, load_project_directory, run_cli
-from taskulus.migration import MigrationError, migrate_from_beads
+from kanbus.migration import MigrationError, migrate_from_beads
 
 
 def _fixture_beads_dir() -> Path:
@@ -68,7 +68,7 @@ def given_repo_with_blank_lines(context: object) -> None:
     beads_dir = repository_path / ".beads"
     beads_dir.mkdir()
     record = {
-        "id": "tsk-001",
+        "id": "kanbus-001",
         "title": "Title",
         "issue_type": "task",
         "status": "open",
@@ -78,7 +78,7 @@ def given_repo_with_blank_lines(context: object) -> None:
         "dependencies": [],
         "comments": [],
     }
-    lines = "\n".join([json.dumps(record), "", json.dumps({**record, "id": "tsk-002"})])
+    lines = "\n".join([json.dumps(record), "", json.dumps({**record, "id": "kanbus-002"})])
     (beads_dir / "issues.jsonl").write_text(lines, encoding="utf-8")
     context.working_directory = repository_path
 
@@ -122,11 +122,11 @@ def given_repo_with_metadata_dependencies(context: object) -> None:
         "dependencies": [],
         "comments": [],
     }
-    parent = {**base, "id": "tsk-parent"}
+    parent = {**base, "id": "kanbus-parent"}
     child = {
         **base,
-        "id": "tsk-child",
-        "dependencies": [{"type": "blocked-by", "depends_on_id": "tsk-parent"}],
+        "id": "kanbus-child",
+        "dependencies": [{"type": "blocked-by", "depends_on_id": "kanbus-parent"}],
         "notes": "Notes",
         "acceptance_criteria": "Criteria",
         "close_reason": "Done",
@@ -259,15 +259,15 @@ def given_repo_with_fractional_timestamps(context: object) -> None:
     context.working_directory = repository_path
 
 
-@given("a Taskulus project already exists")
-def given_taskulus_project_exists(context: object) -> None:
+@given("a Kanbus project already exists")
+def given_kanbus_project_exists(context: object) -> None:
     repository_path = context.working_directory
     (repository_path / "project" / "issues").mkdir(parents=True, exist_ok=True)
 
 
-@when('I run "tsk migrate"')
+@when('I run "kanbus migrate"')
 def when_run_migrate(context: object) -> None:
-    run_cli(context, "tsk migrate")
+    run_cli(context, "kanbus migrate")
 
 
 @when("I validate migration error cases")
@@ -290,7 +290,7 @@ def when_validate_migration_errors(context: object) -> None:
         errors.append("expected error not raised")
 
     valid_base = {
-        "id": "tsk-001",
+        "id": "kanbus-001",
         "title": "Title",
         "issue_type": "task",
         "status": "open",
@@ -327,7 +327,7 @@ def when_validate_migration_errors(context: object) -> None:
             {
                 **valid_base,
                 "dependencies": [
-                    {"type": "blocked-by", "depends_on_id": "tsk-missing"}
+                    {"type": "blocked-by", "depends_on_id": "kanbus-missing"}
                 ],
             }
         ],
@@ -337,19 +337,19 @@ def when_validate_migration_errors(context: object) -> None:
         [
             {
                 **valid_base,
-                "id": "tsk-child",
+                "id": "kanbus-child",
                 "dependencies": [
-                    {"type": "parent-child", "depends_on_id": "tsk-parent"},
-                    {"type": "parent-child", "depends_on_id": "tsk-parent-2"},
+                    {"type": "parent-child", "depends_on_id": "kanbus-parent"},
+                    {"type": "parent-child", "depends_on_id": "kanbus-parent-2"},
                 ],
             },
             {
                 **valid_base,
-                "id": "tsk-parent",
+                "id": "kanbus-parent",
             },
             {
                 **valid_base,
-                "id": "tsk-parent-2",
+                "id": "kanbus-parent-2",
             },
         ],
         "multiple-parents",
@@ -358,13 +358,13 @@ def when_validate_migration_errors(context: object) -> None:
         [
             {
                 **valid_base,
-                "id": "tsk-child",
+                "id": "kanbus-child",
                 "dependencies": [
-                    {"type": "parent-child", "depends_on_id": "tsk-parent"}
+                    {"type": "parent-child", "depends_on_id": "kanbus-parent"}
                 ],
             },
             {
-                "id": "tsk-parent",
+                "id": "kanbus-parent",
                 "title": "Parent",
                 "status": "open",
                 "priority": 2,
@@ -435,13 +435,13 @@ def when_validate_migration_errors(context: object) -> None:
     context.migration_errors = errors
 
 
-@then("a Taskulus project should be initialized")
-def then_taskulus_initialized(context: object) -> None:
+@then("a Kanbus project should be initialized")
+def then_kanbus_initialized(context: object) -> None:
     project_dir = load_project_directory(context)
     assert project_dir.is_dir()
 
 
-@then("all Beads issues should be converted to Taskulus issues")
+@then("all Beads issues should be converted to Kanbus issues")
 def then_beads_converted(context: object) -> None:
     issues_path = context.working_directory / ".beads" / "issues.jsonl"
     lines = [
@@ -457,7 +457,7 @@ def then_beads_converted(context: object) -> None:
 @then("migrated issues should include metadata and dependencies")
 def then_migration_includes_metadata(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue_path = project_dir / "issues" / "tsk-child.json"
+    issue_path = project_dir / "issues" / "kanbus-child.json"
     payload = json.loads(issue_path.read_text(encoding="utf-8"))
     custom = payload.get("custom", {})
     assert custom.get("beads_notes") == "Notes"
@@ -466,7 +466,7 @@ def then_migration_includes_metadata(context: object) -> None:
     assert custom.get("beads_owner") == "dev@example.com"
     dependencies = payload.get("dependencies", [])
     assert any(
-        item.get("target") == "tsk-parent" and item.get("type") == "blocked-by"
+        item.get("target") == "kanbus-parent" and item.get("type") == "blocked-by"
         for item in dependencies
     )
 

@@ -12,8 +12,8 @@ from pathlib import Path
 from behave import given, then, when
 
 from features.steps.shared import run_cli
-from taskulus.ids import format_issue_key
-from taskulus.migration import migrate_from_beads
+from kanbus.ids import format_issue_key
+from kanbus.migration import migrate_from_beads
 
 
 def _fixture_beads_dir() -> Path:
@@ -26,8 +26,8 @@ def _fixture_beads_dir() -> Path:
     )
 
 
-@given("a migrated Taskulus repository from the Beads fixture")
-def given_migrated_taskulus_repo(context: object) -> None:
+@given("a migrated Kanbus repository from the Beads fixture")
+def given_migrated_kanbus_repo(context: object) -> None:
     temp_dir = Path(tempfile.mkdtemp())
     repo_path = temp_dir
     beads_dir = repo_path / ".beads"
@@ -39,32 +39,32 @@ def given_migrated_taskulus_repo(context: object) -> None:
     migrate_from_beads(repo_path)
     context.working_directory = repo_path
     context.before_ids = set()
-    context.last_taskulus_id = None
+    context.last_kanbus_id = None
 
 
-@when('I run "tsk --beads create Beads epic --type epic"')
+@when('I run "kanbus --beads create Beads epic --type epic"')
 def when_run_create_beads_epic(context: object) -> None:
-    run_cli(context, "tsk --beads create Beads epic --type epic")
+    run_cli(context, "kanbus --beads create Beads epic --type epic")
 
 
-@when('I run "tsk --beads create Beads child --parent bdx-epic"')
+@when('I run "kanbus --beads create Beads child --parent bdx-epic"')
 def when_run_create_beads_child(context: object) -> None:
-    run_cli(context, "tsk --beads create Beads child --parent bdx-epic")
+    run_cli(context, "kanbus --beads create Beads child --parent bdx-epic")
 
 
-@when('I run "tsk create Native epic --type epic"')
-@given('I run "tsk create Native epic --type epic"')
+@when('I run "kanbus create Native epic --type epic"')
+@given('I run "kanbus create Native epic --type epic"')
 def when_run_create_native_epic(context: object) -> None:
-    run_cli(context, "tsk create Native epic --type epic")
+    run_cli(context, "kanbus create Native epic --type epic")
 
 
-@when('I run "tsk create Native deletable --type epic"')
+@when('I run "kanbus create Native deletable --type epic"')
 def when_run_create_native_deletable(context: object) -> None:
-    run_cli(context, "tsk create Native deletable --type epic")
-    given_record_new_taskulus_id(context)
+    run_cli(context, "kanbus create Native deletable --type epic")
+    given_record_new_kanbus_id(context)
 
 
-@given("I record existing Taskulus issue ids")
+@given("I record existing Kanbus issue ids")
 def given_record_existing_ids(context: object) -> None:
     project_dir = Path(context.working_directory) / "project" / "issues"
     context.before_ids = {path.stem for path in project_dir.glob("*.json")}
@@ -94,8 +94,8 @@ def then_beads_jsonl_contains_pattern(context: object, pattern: str) -> None:
     assert any(regex.match(value) for value in ids), f"no id matching {pattern}"
 
 
-@then('the last Taskulus issue id should match "{pattern}"')
-def then_last_taskulus_id_matches(context: object, pattern: str) -> None:
+@then('the last Kanbus issue id should match "{pattern}"')
+def then_last_kanbus_id_matches(context: object, pattern: str) -> None:
     project_dir = Path(context.working_directory) / "project" / "issues"
     current_ids = {path.stem for path in project_dir.glob("*.json")}
     new_ids = current_ids - getattr(context, "before_ids", set())
@@ -104,60 +104,60 @@ def then_last_taskulus_id_matches(context: object, pattern: str) -> None:
     identifier = next(iter(new_ids))
     regex = re.compile(pattern)
     assert regex.match(identifier), f"{identifier} does not match {pattern}"
-    context.last_taskulus_id = identifier
+    context.last_kanbus_id = identifier
 
 
-@given("I record the new Taskulus issue id")
-def given_record_new_taskulus_id(context: object) -> None:
+@given("I record the new Kanbus issue id")
+def given_record_new_kanbus_id(context: object) -> None:
     project_dir = Path(context.working_directory) / "project" / "issues"
     current_ids = {path.stem for path in project_dir.glob("*.json")}
     before = getattr(context, "before_ids", set())
     new_ids = current_ids - before
     assert new_ids, "no new issue created"
     assert len(new_ids) == 1, f"expected one new id, found {len(new_ids)}"
-    context.last_taskulus_id = next(iter(new_ids))
+    context.last_kanbus_id = next(iter(new_ids))
     context.before_ids = current_ids
 
 
-@then("the last Taskulus issue id should be recorded")
-def then_last_taskulus_id_recorded(context: object) -> None:
-    assert getattr(context, "last_taskulus_id", None), "no Taskulus issue id recorded"
+@then("the last Kanbus issue id should be recorded")
+def then_last_kanbus_id_recorded(context: object) -> None:
+    assert getattr(context, "last_kanbus_id", None), "no Kanbus issue id recorded"
 
 
-@then("the recorded Taskulus issue id should appear in the Taskulus list output")
+@then("the recorded Kanbus issue id should appear in the Kanbus list output")
 def then_recorded_id_in_list_output(context: object) -> None:
-    identifier = getattr(context, "last_taskulus_id", None)
-    assert identifier, "no Taskulus issue id recorded"
+    identifier = getattr(context, "last_kanbus_id", None)
+    assert identifier, "no Kanbus issue id recorded"
     result = getattr(context, "result", None)
     assert result is not None, "command result missing"
     display_key = format_issue_key(identifier, project_context=True)
-    assert display_key in result.stdout, "recorded id not found in Taskulus list output"
+    assert display_key in result.stdout, "recorded id not found in Kanbus list output"
 
 
-@then("the recorded Taskulus issue id should not appear in the Taskulus list output")
+@then("the recorded Kanbus issue id should not appear in the Kanbus list output")
 def then_recorded_id_not_in_list_output(context: object) -> None:
-    identifier = getattr(context, "last_taskulus_id", None)
-    assert identifier, "no Taskulus issue id recorded"
+    identifier = getattr(context, "last_kanbus_id", None)
+    assert identifier, "no Kanbus issue id recorded"
     result = getattr(context, "result", None)
     assert result is not None, "command result missing"
     display_key = format_issue_key(identifier, project_context=True)
     assert (
         display_key not in result.stdout
-    ), "recorded id unexpectedly present in Taskulus list output"
+    ), "recorded id unexpectedly present in Kanbus list output"
 
 
-@when("I delete the recorded Taskulus issue")
-def when_delete_recorded_taskulus_issue(context: object) -> None:
-    identifier = getattr(context, "last_taskulus_id", None)
-    assert identifier, "no Taskulus issue id recorded"
-    run_cli(context, f"tsk delete {identifier}")
+@when("I delete the recorded Kanbus issue")
+def when_delete_recorded_kanbus_issue(context: object) -> None:
+    identifier = getattr(context, "last_kanbus_id", None)
+    assert identifier, "no Kanbus issue id recorded"
+    run_cli(context, f"kanbus delete {identifier}")
 
 
-@when("I create a native task under the recorded Taskulus epic")
+@when("I create a native task under the recorded Kanbus epic")
 def when_create_native_task_under_recorded_epic(context: object) -> None:
-    parent_id = getattr(context, "last_taskulus_id", None)
+    parent_id = getattr(context, "last_kanbus_id", None)
     assert parent_id, "no recorded epic id"
     run_cli(
         context,
-        f"tsk create Native task --parent {parent_id}",
+        f"kanbus create Native task --parent {parent_id}",
     )

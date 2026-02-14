@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use std::collections::BTreeMap;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::models::{IssueData, ProjectConfiguration};
 
 /// Return the workflow definition for a specific issue type.
@@ -16,18 +16,18 @@ use crate::models::{IssueData, ProjectConfiguration};
 /// Workflow definition for the issue type.
 ///
 /// # Errors
-/// Returns `TaskulusError::Configuration` if the default workflow is missing.
+/// Returns `KanbusError::Configuration` if the default workflow is missing.
 pub fn get_workflow_for_issue_type<'a>(
     configuration: &'a ProjectConfiguration,
     issue_type: &str,
-) -> Result<&'a BTreeMap<String, Vec<String>>, TaskulusError> {
+) -> Result<&'a BTreeMap<String, Vec<String>>, KanbusError> {
     if let Some(workflow) = configuration.workflows.get(issue_type) {
         return Ok(workflow);
     }
     configuration
         .workflows
         .get("default")
-        .ok_or_else(|| TaskulusError::Configuration("default workflow not defined".to_string()))
+        .ok_or_else(|| KanbusError::Configuration("default workflow not defined".to_string()))
 }
 
 /// Validate that a status transition is permitted by the workflow.
@@ -44,13 +44,13 @@ pub fn get_workflow_for_issue_type<'a>(
 /// * `new_status` - Desired new status.
 ///
 /// # Errors
-/// Returns `TaskulusError::InvalidTransition` if the transition is not permitted.
+/// Returns `KanbusError::InvalidTransition` if the transition is not permitted.
 pub fn validate_status_transition(
     configuration: &ProjectConfiguration,
     issue_type: &str,
     current_status: &str,
     new_status: &str,
-) -> Result<(), TaskulusError> {
+) -> Result<(), KanbusError> {
     let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
     let allowed_transitions = workflow
         .get(current_status)
@@ -60,7 +60,7 @@ pub fn validate_status_transition(
         .iter()
         .any(|status| status == new_status)
     {
-        return Err(TaskulusError::InvalidTransition(format!(
+        return Err(KanbusError::InvalidTransition(format!(
             "invalid transition from '{current_status}' to '{new_status}' for type '{issue_type}'"
         )));
     }

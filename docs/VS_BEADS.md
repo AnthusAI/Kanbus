@@ -1,12 +1,12 @@
-# Taskulus vs. Beads
+# Kanbus vs. Beads
 
-Taskulus is a spiritual successor to [Beads](https://github.com/steveyegge/beads). We are huge fans of the domain-specific cognitive model that Beads pioneered—treating project management as a first-class citizen within the repo, alongside the code.
+Kanbus is a spiritual successor to [Beads](https://github.com/steveyegge/beads). We are huge fans of the domain-specific cognitive model that Beads pioneered—treating project management as a first-class citizen within the repo, alongside the code.
 
 However, after using Beads extensively, we identified several architectural areas where the model could be improved for AI agents and distributed teams. This page details those differences.
 
 ## At a Glance
 
-| Feature | Beads | Taskulus | Why it matters |
+| Feature | Beads | Kanbus | Why it matters |
 | :--- | :--- | :--- | :--- |
 | **Database** | SQLite + JSONL | Files Only (JSON) | Removes synchronization friction; simpler for agents. |
 | **Storage** | Monolithic `issues.jsonl` | One file per issue | Eliminates merge conflicts; allows parallel work. |
@@ -44,8 +44,8 @@ Exporting beads to JSONL...
 ✓ .beads/issues.jsonl updated
 ```
 
-**The Taskulus Solution:**
-Taskulus removes the SQLite database entirely. It reads the JSON files directly. There is nothing to sync, nothing to export, and nothing to "forget" to run. The files on disk are the source of truth, always.
+**The Kanbus Solution:**
+Kanbus removes the SQLite database entirely. It reads the JSON files directly. There is nothing to sync, nothing to export, and nothing to "forget" to run. The files on disk are the source of truth, always.
 
 ## 2. Concurrency & Merge Conflicts
 
@@ -54,14 +54,14 @@ Beads stores all issues in a single `issues.jsonl` file.
 *   **The Problem:** If User A updates Task 1 and User B updates Task 2, they both modify the same file (`issues.jsonl`). When they try to merge, they get a conflict, even though they were working on completely unrelated tasks.
 *   **The AI Impact:** When multiple AI agents are working on different tasks in parallel, a monolithic file guarantees they will block each other.
 
-**The Taskulus Solution:**
-Taskulus stores **one file per issue** (e.g., `issues/tsk-123.json`, `issues/tsk-124.json`). Git handles the merging naturally. Two people can edit different files without ever seeing a conflict.
+**The Kanbus Solution:**
+Kanbus stores **one file per issue** (e.g., `issues/kanbus-123.json`, `issues/kanbus-124.json`). Git handles the merging naturally. Two people can edit different files without ever seeing a conflict.
 
 ## 3. Cognitive Overload
 
 Beads has a very rich schema with over 130 attributes per issue. While powerful, this creates significant "context pollution" for AI coding assistants. When you feed the schema to an LLM, it has to process a lot of fields it will never use.
 
-**The Taskulus Solution:**
+**The Kanbus Solution:**
 We streamlined the schema to the absolute essentials required for a Jira-like graph:
 *   Status
 *   Priority
@@ -75,15 +75,15 @@ This focused model allows AI agents to spend their tokens on solving the problem
 
 Beads introduces new terminology (e.g., "beads", "exclusive claims") that the user (and the AI) must learn.
 
-**The Taskulus Solution:**
+**The Kanbus Solution:**
 We use the standard vocabulary that every developer (and every LLM) already knows: **Epics**, **Tasks**, **Sub-tasks**. By aligning with the ubiquitous Jira model, we leverage the massive amount of pre-training that models already have about how project management works.
 
 ## 5. Scope & Privacy
 
 Beads uses a complex system of "contributor roles" to handle local vs. shared tasks, which imposes opinions about why you might want private tasks. It also stores project-related data outside the project directory, which can be confusing.
 
-**The Taskulus Solution:**
-Taskulus leverages the existing Git model for scoping:
-*   **Monorepo Support:** Run `tsk list` at the root to see everything. Run it in a subfolder to see only that folder's tasks.
-*   **Local Tasks:** Want private tasks that aren't shared? Just put them in a folder and add it to `.gitignore`. Taskulus will still index them for you locally, but they won't be committed.
+**The Kanbus Solution:**
+Kanbus leverages the existing Git model for scoping:
+*   **Monorepo Support:** Run `kanbus list` at the root to see everything. Run it in a subfolder to see only that folder's tasks.
+*   **Local Tasks:** Want private tasks that aren't shared? Just put them in a folder and add it to `.gitignore`. Kanbus will still index them for you locally, but they won't be committed.
 *   **Simple Mental Model:** You don't need to learn a new permission system. You just use `.gitignore` like you do for everything else.

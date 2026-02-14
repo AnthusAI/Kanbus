@@ -1,4 +1,4 @@
-//! Taskulus data models.
+//! Kanbus data models.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -43,7 +43,7 @@ pub struct IssueData {
     pub custom: BTreeMap<String, serde_json::Value>,
 }
 
-/// Project configuration loaded from .taskulus.yml.
+/// Project configuration loaded from .kanbus.yml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProjectConfiguration {

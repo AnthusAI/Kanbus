@@ -1,6 +1,6 @@
 @console
 Feature: Console settings
-  As a Taskulus user
+  As a Kanbus user
   I want appearance settings
   So that the console matches my preferences
 

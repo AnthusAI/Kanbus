@@ -1,6 +1,6 @@
-# Taskulus Documentation
+# Kanbus Documentation
 
-Welcome to the Taskulus documentation site. Taskulus is a git-backed project management system with dual Python and Rust implementations. It is a spiritual successor to [Beads](https://github.com/steveyegge/beads), adapting its elegant domain-specific cognitive framework for the modern era of AI agents and distributed Git workflows.
+Welcome to the Kanbus documentation site. Kanbus is a git-backed project management system with dual Python and Rust implementations. It is a spiritual successor to [Beads](https://github.com/steveyegge/beads), adapting its elegant domain-specific cognitive framework for the modern era of AI agents and distributed Git workflows.
 
 ## Guides
 
@@ -10,5 +10,5 @@ Welcome to the Taskulus documentation site. Taskulus is a git-backed project man
 - [Wiki Guide](WIKI_GUIDE.md)
 - [Troubleshooting](TROUBLESHOOTING.md)
 - [Migration from Beads](MIGRATION.md)
-- [Taskulus vs. Beads](VS_BEADS.md)
+- [Kanbus vs. Beads](VS_BEADS.md)
 - [Architecture](ARCHITECTURE.md)

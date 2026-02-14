@@ -16,28 +16,28 @@ from features.steps.shared import (
     run_cli,
     write_issue_file,
 )
-from taskulus.maintenance import (
+from kanbus.maintenance import (
     ProjectValidationError,
     _collect_workflow_statuses,
     validate_project,
 )
-from taskulus.models import DependencyLink
-from taskulus.doctor import DoctorError, run_doctor
+from kanbus.models import DependencyLink
+from kanbus.doctor import DoctorError, run_doctor
 
 
-@when('I run "tsk validate"')
+@when('I run "kanbus validate"')
 def when_run_validate(context: object) -> None:
-    run_cli(context, "tsk validate")
+    run_cli(context, "kanbus validate")
 
 
-@when('I run "tsk stats"')
+@when('I run "kanbus stats"')
 def when_run_stats(context: object) -> None:
-    run_cli(context, "tsk stats")
+    run_cli(context, "kanbus stats")
 
 
-@when('I run "tsk doctor"')
+@when('I run "kanbus doctor"')
 def when_run_doctor(context: object) -> None:
-    run_cli(context, "tsk doctor")
+    run_cli(context, "kanbus doctor")
 
 
 @when("I validate the project directly")
@@ -104,13 +104,13 @@ def given_issues_directory_missing(context: object) -> None:
 def given_issue_file_contains_invalid_issue_data(context: object) -> None:
     project_dir = load_project_directory(context)
     issue_path = project_dir / "issues" / "invalid-data.json"
-    issue_path.write_text(json.dumps({"id": "tsk-bad"}), encoding="utf-8")
+    issue_path.write_text(json.dumps({"id": "kanbus-bad"}), encoding="utf-8")
 
 
 @given("an issue file contains out-of-range priority")
 def given_issue_file_contains_out_of_range_priority(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue = build_issue("tsk-priority", "Priority", "task", "open", None, [])
+    issue = build_issue("kanbus-priority", "Priority", "task", "open", None, [])
     issue = issue.model_copy(update={"priority": -1})
     write_issue_file(project_dir, issue)
 
@@ -120,55 +120,55 @@ def given_invalid_issues_with_errors(context: object) -> None:
     project_dir = load_project_directory(context)
     timestamp = datetime(2026, 2, 11, tzinfo=timezone.utc)
 
-    issue_unknown = build_issue("tsk-unknown", "Unknown", "unknown", "open", None, [])
+    issue_unknown = build_issue("kanbus-unknown", "Unknown", "unknown", "open", None, [])
     issue_unknown = issue_unknown.model_copy(update={"priority": 99})
     write_issue_file(project_dir, issue_unknown)
 
-    issue_status_bad = build_issue("tsk-status", "Bad", "task", "bogus", None, [])
+    issue_status_bad = build_issue("kanbus-status", "Bad", "task", "bogus", None, [])
     write_issue_file(project_dir, issue_status_bad)
 
-    issue_closed = build_issue("tsk-closed", "Closed", "task", "closed", None, [])
+    issue_closed = build_issue("kanbus-closed", "Closed", "task", "closed", None, [])
     issue_closed = issue_closed.model_copy(update={"closed_at": None})
     write_issue_file(project_dir, issue_closed)
 
-    issue_open_closed_at = build_issue("tsk-open", "Open", "task", "open", None, [])
+    issue_open_closed_at = build_issue("kanbus-open", "Open", "task", "open", None, [])
     issue_open_closed_at = issue_open_closed_at.model_copy(
         update={"closed_at": timestamp}
     )
     write_issue_file(project_dir, issue_open_closed_at)
 
-    issue_mismatch = build_issue("tsk-mismatch", "Mismatch", "task", "open", None, [])
+    issue_mismatch = build_issue("kanbus-mismatch", "Mismatch", "task", "open", None, [])
     mismatch_path = project_dir / "issues" / "wrong-id.json"
     mismatch_path.write_text(
         json.dumps(issue_mismatch.model_dump(by_alias=True, mode="json"), indent=2),
         encoding="utf-8",
     )
 
-    issue_dep = build_issue("tsk-dep", "Dep", "task", "open", None, [])
+    issue_dep = build_issue("kanbus-dep", "Dep", "task", "open", None, [])
     issue_dep = issue_dep.model_copy(
         update={
-            "dependencies": [DependencyLink(target="tsk-missing", type="unsupported")]
+            "dependencies": [DependencyLink(target="kanbus-missing", type="unsupported")]
         }
     )
     write_issue_file(project_dir, issue_dep)
 
     issue_parent_missing = build_issue(
-        "tsk-orphan", "Orphan", "task", "open", "tsk-missing", []
+        "kanbus-orphan", "Orphan", "task", "open", "kanbus-missing", []
     )
     write_issue_file(project_dir, issue_parent_missing)
 
-    issue_parent = build_issue("tsk-bug", "Bug parent", "bug", "open", None, [])
+    issue_parent = build_issue("kanbus-bug", "Bug parent", "bug", "open", None, [])
     write_issue_file(project_dir, issue_parent)
-    issue_child = build_issue("tsk-child", "Child", "task", "open", "tsk-bug", [])
+    issue_child = build_issue("kanbus-child", "Child", "task", "open", "kanbus-bug", [])
     write_issue_file(project_dir, issue_child)
 
 
 @given("duplicate issue identifiers exist")
 def given_duplicate_issue_identifiers(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue = build_issue("tsk-dup", "Duplicate", "task", "open", None, [])
+    issue = build_issue("kanbus-dup", "Duplicate", "task", "open", None, [])
     write_issue_file(project_dir, issue)
-    duplicate_path = project_dir / "issues" / "tsk-dup-copy.json"
+    duplicate_path = project_dir / "issues" / "kanbus-dup-copy.json"
     duplicate_path.write_text(
         json.dumps(issue.model_dump(by_alias=True, mode="json"), indent=2),
         encoding="utf-8",
@@ -182,7 +182,7 @@ def when_collect_workflow_statuses(context: object, issue_type: str) -> None:
         project_dir = load_project_directory(context)
         config_path = project_dir / "config.yaml"
         import yaml
-        from taskulus.models import ProjectConfiguration
+        from kanbus.models import ProjectConfiguration
 
         data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
         configuration = ProjectConfiguration.model_validate(data)

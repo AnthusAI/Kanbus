@@ -1,6 +1,6 @@
 # Installation
 
-This repository contains two implementations of Taskulus: Python and Rust. Both use the same Gherkin specs.
+This repository contains two implementations of Kanbus: Python and Rust. Both use the same Gherkin specs.
 
 ## Prerequisites
 
@@ -19,11 +19,11 @@ pip install -e python
 Run the CLI:
 
 ```bash
-tsk --version
-tsk doctor
+kanbus --version
+kanbus doctor
 ```
 
-Note: the `tsk` console script is available when the virtual environment is active.
+Note: the `kanbus` console script is available when the virtual environment is active.
 
 ## Rust (developer install)
 
@@ -35,8 +35,8 @@ cargo build
 Run the CLI:
 
 ```bash
-./target/debug/tskr --version
-./target/debug/tskr doctor
+./target/debug/kanbusr --version
+./target/debug/kanbusr doctor
 ```
 
 ## Verify
@@ -58,7 +58,7 @@ Run locally:
 
 ```bash
 python tools/build_rust_release.py
-python tools/run_beads_interop_suite.py --bd-binary "$(command -v bd)" --rust-binary rust/target/release/tskr
+python tools/run_beads_interop_suite.py --bd-binary "$(command -v bd)" --rust-binary rust/target/release/kanbusr
 ```
 
 CI runs this suite in the `beads-interop` job after the standard quality gates.
@@ -78,6 +78,6 @@ Rust publish guardrails:
 
 | Platform | Python install | Rust release build | Notes |
 |----------|----------------|--------------------|-------|
-| macOS (local) | Verified | Verified | `tsk --version` and `tsk doctor` run in temp repo |
+| macOS (local) | Verified | Verified | `kanbus --version` and `kanbus doctor` run in temp repo |
 | Linux | Pending | Pending | Needs validation |
 | Windows | Pending | Pending | Needs validation |

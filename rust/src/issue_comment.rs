@@ -3,7 +3,7 @@
 use chrono::Utc;
 use std::path::Path;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::issue_files::write_issue_to_file;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueComment, IssueData};
@@ -24,13 +24,13 @@ pub struct IssueCommentResult {
 /// * `text` - Comment text.
 ///
 /// # Errors
-/// Returns `TaskulusError` if the issue cannot be found or updated.
+/// Returns `KanbusError` if the issue cannot be found or updated.
 pub fn add_comment(
     root: &Path,
     identifier: &str,
     author: &str,
     text: &str,
-) -> Result<IssueCommentResult, TaskulusError> {
+) -> Result<IssueCommentResult, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let timestamp = Utc::now();
     let comment = IssueComment {

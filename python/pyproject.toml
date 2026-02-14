@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "taskulus"
+name = "kanbus"
 version = "0.4.0"
 description = "A git-backed project management system."
 readme = "README.md"
@@ -34,12 +34,12 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://taskul.us"
-Repository = "https://github.com/AnthusAI/Taskulus"
-Issues = "https://github.com/AnthusAI/Taskulus/issues"
+Homepage = "https://kanb.us"
+Repository = "https://github.com/AnthusAI/Kanbus"
+Issues = "https://github.com/AnthusAI/Kanbus/issues"
 
 [project.scripts]
-tsk = "taskulus.cli:cli"
+kanbus = "kanbus.cli:cli"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -57,6 +57,7 @@ target-version = "py311"
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
+version_variable = ["src/kanbus/__init__.py:__version__"]
 tag_format = "v{version}"
 build_command = "python -m build"
 allow_zero_version = true

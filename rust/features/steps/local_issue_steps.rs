@@ -4,13 +4,13 @@ use std::path::PathBuf;
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
-use taskulus::cli::run_from_args_with_output;
-use taskulus::file_io::load_project_directory;
-use taskulus::models::IssueData;
+use kanbus::cli::run_from_args_with_output;
+use kanbus::file_io::load_project_directory;
+use kanbus::models::IssueData;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-fn run_cli(world: &mut TaskulusWorld, command: &str) {
+fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
@@ -31,12 +31,12 @@ fn run_cli(world: &mut TaskulusWorld, command: &str) {
     }
 }
 
-fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
+fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
     load_project_directory(cwd).expect("project dir")
 }
 
-fn local_project_dir(world: &TaskulusWorld) -> PathBuf {
+fn local_project_dir(world: &KanbusWorld) -> PathBuf {
     let project_dir = load_project_dir(world);
     let local_dir = project_dir
         .parent()
@@ -76,83 +76,83 @@ fn build_issue(identifier: &str, title: &str) -> IssueData {
     }
 }
 
-#[when("I run \"tsk create --local Local task\"")]
-fn when_run_create_local(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create --local Local task");
+#[when("I run \"kanbus create --local Local task\"")]
+fn when_run_create_local(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create --local Local task");
 }
 
-#[when("I run \"tsk create --local local\"")]
-fn when_run_create_local_duplicate(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create --local local");
+#[when("I run \"kanbus create --local local\"")]
+fn when_run_create_local_duplicate(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create --local local");
 }
 
-#[when("I run \"tsk promote tsk-local01\"")]
-fn when_run_promote(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk promote tsk-local01");
+#[when("I run \"kanbus promote kanbus-local01\"")]
+fn when_run_promote(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus promote kanbus-local01");
 }
 
-#[when("I run \"tsk localize tsk-shared01\"")]
-fn when_run_localize(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk localize tsk-shared01");
+#[when("I run \"kanbus localize kanbus-shared01\"")]
+fn when_run_localize(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus localize kanbus-shared01");
 }
 
-#[when("I run \"tsk promote tsk-missing\"")]
-fn when_run_promote_missing(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk promote tsk-missing");
+#[when("I run \"kanbus promote kanbus-missing\"")]
+fn when_run_promote_missing(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus promote kanbus-missing");
 }
 
-#[when("I run \"tsk promote tsk-dupe01\"")]
-fn when_run_promote_dupe(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk promote tsk-dupe01");
+#[when("I run \"kanbus promote kanbus-dupe01\"")]
+fn when_run_promote_dupe(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus promote kanbus-dupe01");
 }
 
-#[when("I run \"tsk localize tsk-missing\"")]
-fn when_run_localize_missing(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk localize tsk-missing");
+#[when("I run \"kanbus localize kanbus-missing\"")]
+fn when_run_localize_missing(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus localize kanbus-missing");
 }
 
-#[when("I run \"tsk localize tsk-dupe02\"")]
-fn when_run_localize_dupe(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk localize tsk-dupe02");
+#[when("I run \"kanbus localize kanbus-dupe02\"")]
+fn when_run_localize_dupe(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus localize kanbus-dupe02");
 }
 
-#[given("a local issue \"tsk-local01\" exists")]
-fn given_local_issue_exists(world: &mut TaskulusWorld) {
+#[given("a local issue \"kanbus-local01\" exists")]
+fn given_local_issue_exists(world: &mut KanbusWorld) {
     let local_dir = local_project_dir(world);
-    let issue = build_issue("tsk-local01", "Local");
+    let issue = build_issue("kanbus-local01", "Local");
     write_issue_file(&local_dir, &issue);
 }
 
-#[given("a local issue \"tsk-dupe01\" exists")]
-fn given_local_issue_dupe_exists(world: &mut TaskulusWorld) {
+#[given("a local issue \"kanbus-dupe01\" exists")]
+fn given_local_issue_dupe_exists(world: &mut KanbusWorld) {
     let local_dir = local_project_dir(world);
-    let issue = build_issue("tsk-dupe01", "Local");
+    let issue = build_issue("kanbus-dupe01", "Local");
     write_issue_file(&local_dir, &issue);
 }
 
-#[given("a local issue \"tsk-other\" exists")]
-fn given_local_issue_other_exists(world: &mut TaskulusWorld) {
+#[given("a local issue \"kanbus-other\" exists")]
+fn given_local_issue_other_exists(world: &mut KanbusWorld) {
     let local_dir = local_project_dir(world);
-    let issue = build_issue("tsk-other", "Local");
+    let issue = build_issue("kanbus-other", "Local");
     write_issue_file(&local_dir, &issue);
 }
 
-#[given("a local issue \"tsk-dupe02\" exists")]
-fn given_local_issue_dupe02_exists(world: &mut TaskulusWorld) {
+#[given("a local issue \"kanbus-dupe02\" exists")]
+fn given_local_issue_dupe02_exists(world: &mut KanbusWorld) {
     let local_dir = local_project_dir(world);
-    let issue = build_issue("tsk-dupe02", "Local");
+    let issue = build_issue("kanbus-dupe02", "Local");
     write_issue_file(&local_dir, &issue);
 }
 
-#[given("a local issue \"tsk-local\" exists")]
-fn given_local_issue_local_exists(world: &mut TaskulusWorld) {
+#[given("a local issue \"kanbus-local\" exists")]
+fn given_local_issue_local_exists(world: &mut KanbusWorld) {
     let local_dir = local_project_dir(world);
-    let issue = build_issue("tsk-local", "Local");
+    let issue = build_issue("kanbus-local", "Local");
     write_issue_file(&local_dir, &issue);
 }
 
 #[given(".gitignore already includes \"project-local/\"")]
-fn given_gitignore_includes_project_local(world: &mut TaskulusWorld) {
+fn given_gitignore_includes_project_local(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let gitignore_path = project_dir
         .parent()
@@ -162,7 +162,7 @@ fn given_gitignore_includes_project_local(world: &mut TaskulusWorld) {
 }
 
 #[given("a .gitignore without a trailing newline exists")]
-fn given_gitignore_without_trailing_newline(world: &mut TaskulusWorld) {
+fn given_gitignore_without_trailing_newline(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let gitignore_path = project_dir
         .parent()
@@ -172,7 +172,7 @@ fn given_gitignore_without_trailing_newline(world: &mut TaskulusWorld) {
 }
 
 #[then("a local issue file should be created in the local issues directory")]
-fn then_local_issue_file_created(world: &mut TaskulusWorld) {
+fn then_local_issue_file_created(world: &mut KanbusWorld) {
     let local_dir = local_project_dir(world);
     let issues_dir = local_dir.join("issues");
     let count = fs::read_dir(&issues_dir)
@@ -192,7 +192,7 @@ fn then_local_issue_file_created(world: &mut TaskulusWorld) {
 }
 
 #[then(expr = "the local issues directory should contain {int} issue file")]
-fn then_local_issues_directory_contains_count(world: &mut TaskulusWorld, count: i32) {
+fn then_local_issues_directory_contains_count(world: &mut KanbusWorld, count: i32) {
     let local_dir = local_project_dir(world);
     let issues_dir = local_dir.join("issues");
     let actual = fs::read_dir(&issues_dir)
@@ -211,36 +211,36 @@ fn then_local_issues_directory_contains_count(world: &mut TaskulusWorld, count: 
     assert_eq!(actual as i32, count);
 }
 
-#[then("issue \"tsk-local01\" should exist in the shared issues directory")]
-fn then_issue_exists_shared_local(world: &mut TaskulusWorld) {
+#[then("issue \"kanbus-local01\" should exist in the shared issues directory")]
+fn then_issue_exists_shared_local(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let issue_path = project_dir.join("issues").join("tsk-local01.json");
+    let issue_path = project_dir.join("issues").join("kanbus-local01.json");
     assert!(issue_path.exists());
 }
 
-#[then("issue \"tsk-local01\" should not exist in the local issues directory")]
-fn then_issue_missing_local_local(world: &mut TaskulusWorld) {
+#[then("issue \"kanbus-local01\" should not exist in the local issues directory")]
+fn then_issue_missing_local_local(world: &mut KanbusWorld) {
     let local_dir = local_project_dir(world);
-    let issue_path = local_dir.join("issues").join("tsk-local01.json");
+    let issue_path = local_dir.join("issues").join("kanbus-local01.json");
     assert!(!issue_path.exists());
 }
 
-#[then("issue \"tsk-shared01\" should exist in the local issues directory")]
-fn then_issue_exists_local_shared(world: &mut TaskulusWorld) {
+#[then("issue \"kanbus-shared01\" should exist in the local issues directory")]
+fn then_issue_exists_local_shared(world: &mut KanbusWorld) {
     let local_dir = local_project_dir(world);
-    let issue_path = local_dir.join("issues").join("tsk-shared01.json");
+    let issue_path = local_dir.join("issues").join("kanbus-shared01.json");
     assert!(issue_path.exists());
 }
 
-#[then("issue \"tsk-shared01\" should not exist in the shared issues directory")]
-fn then_issue_missing_shared_shared(world: &mut TaskulusWorld) {
+#[then("issue \"kanbus-shared01\" should not exist in the shared issues directory")]
+fn then_issue_missing_shared_shared(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let issue_path = project_dir.join("issues").join("tsk-shared01.json");
+    let issue_path = project_dir.join("issues").join("kanbus-shared01.json");
     assert!(!issue_path.exists());
 }
 
 #[then(".gitignore should include \"project-local/\"")]
-fn then_gitignore_includes_project_local(world: &mut TaskulusWorld) {
+fn then_gitignore_includes_project_local(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let gitignore_path = project_dir
         .parent()
@@ -251,7 +251,7 @@ fn then_gitignore_includes_project_local(world: &mut TaskulusWorld) {
 }
 
 #[then(".gitignore should include \"project-local/\" only once")]
-fn then_gitignore_includes_once(world: &mut TaskulusWorld) {
+fn then_gitignore_includes_once(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let gitignore_path = project_dir
         .parent()

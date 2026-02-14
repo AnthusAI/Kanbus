@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::models::IssueData;
 
 /// Filter issues by common fields.
@@ -36,11 +36,11 @@ pub fn filter_issues(
 /// * `sort_key` - Sort key name.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if the sort key is unsupported.
+/// Returns `KanbusError::IssueOperation` if the sort key is unsupported.
 pub fn sort_issues(
     mut issues: Vec<IssueData>,
     sort_key: Option<&str>,
-) -> Result<Vec<IssueData>, TaskulusError> {
+) -> Result<Vec<IssueData>, KanbusError> {
     let Some(key) = sort_key else {
         return Ok(issues);
     };
@@ -50,7 +50,7 @@ pub fn sort_issues(
         return Ok(issues);
     }
 
-    Err(TaskulusError::IssueOperation(
+    Err(KanbusError::IssueOperation(
         "invalid sort key".to_string(),
     ))
 }

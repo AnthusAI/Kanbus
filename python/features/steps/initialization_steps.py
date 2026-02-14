@@ -23,8 +23,8 @@ def given_directory_not_git_repository(context: object) -> None:
     context.working_directory = repository_path
 
 
-@given("a git repository with an existing Taskulus project")
-def given_existing_taskulus_project(context: object) -> None:
+@given("a git repository with an existing Kanbus project")
+def given_existing_kanbus_project(context: object) -> None:
     repository_path = Path(context.temp_dir) / "existing"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
@@ -40,19 +40,19 @@ def given_git_metadata_directory(context: object) -> None:
     context.working_directory = repository_path / ".git"
 
 
-@when('I run "tsk init"')
+@when('I run "kanbus init"')
 def when_run_tsk_init(context: object) -> None:
-    run_cli(context, "tsk init")
+    run_cli(context, "kanbus init")
 
 
-@when('I run "tsk init --local"')
+@when('I run "kanbus init --local"')
 def when_run_tsk_init_local(context: object) -> None:
-    run_cli(context, "tsk init --local")
+    run_cli(context, "kanbus init --local")
 
 
-@then('a ".taskulus.yml" file should be created')
+@then('a ".kanbus.yml" file should be created')
 def then_marker_created(context: object) -> None:
-    assert (context.working_directory / ".taskulus.yml").is_file()
+    assert (context.working_directory / ".kanbus.yml").is_file()
 
 
 @then('a "CONTRIBUTING_AGENT.template.md" file should be created')

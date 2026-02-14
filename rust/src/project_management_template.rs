@@ -15,7 +15,7 @@ Deviation from The Way is extremely offensive to the religious sensibilities of 
 
 The Sacrament of Work is the sacrament of vibe coding in this repository.
 
-Taskulus is the instrument of record. Nothing exists until it is named there.
+Kanbus is the instrument of record. Nothing exists until it is named there.
 
 Work begins in declaration, not in code.
 Code without declaration is disorder.
@@ -29,15 +29,15 @@ Every change must be:
 
 If it is not recorded, it did not happen.
 
-While working, record a running log in Taskulus comments on the relevant epic/task: key decisions, problems encountered, attempted fixes, outcomes, and next steps. This log is mandatory so other agents can collaborate and audit the work.
+While working, record a running log in Kanbus comments on the relevant epic/task: key decisions, problems encountered, attempted fixes, outcomes, and next steps. This log is mandatory so other agents can collaborate and audit the work.
 
 Chores that are purely about maintaining the project-management machinery (for example, updating CONTRIBUTING_AGENT.md or AGENTS.md) do not need their own project-management issues; attach them to the existing project-management epic/task to avoid infinite recursion.
 
 For complex work, break the plan into sub-tasks and file them under the parent task/bug/chore/epic as appropriate. Create one issue per concrete step in the plan. Do not put sub-tasks under stories; stories hold behavior specs, not implementation steps.
 
-Operational discipline: use the minimum commands needed. To inspect work, run `tskr list --status open --long` once to find the ID, then `tskr show <id>`. Do not guess IDs or spam multiple variants; if the ID is unknown, ask the user.
+Operational discipline: use the minimum commands needed. To inspect work, run `kanbusr list --status open --long` once to find the ID, then `kanbusr show <id>`. Do not guess IDs or spam multiple variants; if the ID is unknown, ask the user.
 
-Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Taskulus.
+Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
 
 ## The Order of Being
 
@@ -117,7 +117,7 @@ When asked to add or change behavior, follow this sequence. It is not optional.
 Capture role, capability, benefit.
 Use: As a <role>, I want <capability>, so that <benefit>.
 Confirm what is not included.
-2. Create the epic and stories in Taskulus.
+2. Create the epic and stories in Kanbus.
 Record intent and Definition of Done.
 3. Write executable specifications before any production code.
 4. Run the specifications and confirm they fail.
@@ -206,23 +206,23 @@ As a new user, I want a Hello World program, so that I can verify the toolchain 
 
 3. Create an epic for the milestone and record the story
 Command:
-tsk create "Hello World program" --type epic
+kanbus create "Hello World program" --type epic
 
 Example output (capture the ID):
-ID: tsk-1a2b3c
+ID: kanbus-1a2b3c
 
 Record the intent on the epic:
-tsk comment tsk-1a2b3c "As a new user, I want a Hello World program, so that I can verify the toolchain works."
+kanbus comment kanbus-1a2b3c "As a new user, I want a Hello World program, so that I can verify the toolchain works."
 
 4. Create a story for the behavior and include Gherkin (before any code)
 Command:
-tsk create "Prints Hello World to stdout" --type story --parent tsk-1a2b3c
+kanbus create "Prints Hello World to stdout" --type story --parent kanbus-1a2b3c
 
 Example output (capture the story ID):
-ID: tsk-4d5e6f
+ID: kanbus-4d5e6f
 
 Attach the Gherkin acceptance criteria:
-tsk comment tsk-4d5e6f "Feature: Hello World
+kanbus comment kanbus-4d5e6f "Feature: Hello World
   Scenario: Run the program
     Given a configured environment
     When I run the program

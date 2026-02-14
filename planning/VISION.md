@@ -1,13 +1,13 @@
-# Taskulus: Vision & Specification
+# Kanbus: Vision & Specification
 
 ## What Is This?
 
-Taskulus is a git-backed project management system that stores all data as plain files in a repository. It replaces external tools like Jira and Confluence with two integrated subsystems:
+Kanbus is a git-backed project management system that stores all data as plain files in a repository. It replaces external tools like Jira and Confluence with two integrated subsystems:
 
 1. **Issue Tracker** - Individual JSON files per issue, with configurable types, strict hierarchy, workflow state machines, and cross-issue dependencies
 2. **Wiki** - Markdown files with Jinja2 template interpolation that query live issue data, providing narrative context ("the forest") around individual tasks ("the trees")
 
-Both are accessed through a single CLI tool: `tsk`.
+Both are accessed through a single CLI tool: `kanbus`.
 
 ## Why Does This Exist?
 
@@ -17,9 +17,9 @@ This project was inspired by [Beads](https://github.com/steveyegge/beads), a git
 - **SQLite indexing server**: A daemon process with RPC, auto-sync, auto-import, and 42 migration files just to keep a cache in sync with the source files
 - **Schema bloat**: 130+ fields per issue, far beyond what most projects need
 
-Taskulus simplifies radically:
+Kanbus simplifies radically:
 
-| Problem in Beads | Taskulus Solution |
+| Problem in Beads | Kanbus Solution |
 |-----------------|-------------------|
 | JSONL merge conflicts | One JSON file per issue |
 | SQLite + daemon + RPC | In-memory index, scan files on startup |
@@ -33,46 +33,46 @@ Taskulus simplifies radically:
 1. **Files are the database.** There is no separate storage layer. The JSON files in `project/issues/` are the source of truth. We index them into memory on demand.
 2. **Human-readable by default.** The `project/` directory is visible (not hidden), uses pretty-printed JSON, and can be browsed in any file explorer or text editor.
 3. **Minimal required schema, open extensibility.** A small set of canonical fields that every issue has, plus a `custom` map where any project can store whatever it needs.
-4. **Two implementations, one spec.** Python for easy installation in Python environments (`pip install taskulus`). Rust for maximum performance (`cargo install taskulus`). Both pass the same shared behavior test suite and read/write the same files.
+4. **Two implementations, one spec.** Python for easy installation in Python environments (`pip install kanbus`). Rust for maximum performance (`cargo install kanbus`). Both pass the same shared behavior test suite and read/write the same files.
 5. **The spec is the artifact.** Neither implementation is primary. The shared behavior specifications are the source of truth. Both implementations are first-class.
 
 ---
 
 ## Project Directory Structure
 
-When a user runs `tsk init` in their repository, this is created:
+When a user runs `kanbus init` in their repository, this is created:
 
 ```
 project/                          # Visible, human-browsable. Name configurable.
-  taskulus.yml                    # Types, workflows, hierarchy, project settings
+  kanbus.yml                    # Types, workflows, hierarchy, project settings
   issues/                         # One JSON file per issue
-    tsk-a1b2c3.json
-    tsk-d4e5f6.json
+    kanbus-a1b2c3.json
+    kanbus-d4e5f6.json
   wiki/                           # Jinja2 markdown templates
     index.md                      # Wiki entry point
   .cache/                         # Gitignored. Shared index cache.
     index.json
 
-.taskulus.yml                    # Repo root marker (points to project directory)
+.kanbus.yml                    # Repo root marker (points to project directory)
 ```
 
-The `.taskulus.yml` root marker allows the CLI to find the project directory from any subdirectory:
+The `.kanbus.yml` root marker allows the CLI to find the project directory from any subdirectory:
 
 ```yaml
 project_directory: project
 ```
 
-The directory name is configurable via `tsk init --dir <name>`.
+The directory name is configurable via `kanbus init --dir <name>`.
 
 ---
 
 ## Configuration
 
-**File:** `taskulus.yml`
+**File:** `kanbus.yml`
 
 ```yaml
 # Project identity
-prefix: "tsk"                     # ID prefix for issues: tsk-a1b2c3
+prefix: "kanbus"                     # ID prefix for issues: kanbus-a1b2c3
 
 # Issue type hierarchy (strict ordering, top to bottom)
 hierarchy:
@@ -150,7 +150,7 @@ The CLI validates every status transition against the workflow before writing.
 
 ```json
 {
-  "id": "tsk-a1b2c3",
+  "id": "kanbus-a1b2c3",
   "title": "Implement OAuth2 authorization flow",
   "description": "Markdown description.\n\nCan be multi-line.",
   "type": "task",
@@ -158,11 +158,11 @@ The CLI validates every status transition against the workflow before writing.
   "priority": 2,
   "assignee": null,
   "creator": "ryan@example.com",
-  "parent": "tsk-d4e5f6",
+  "parent": "kanbus-d4e5f6",
   "labels": ["auth", "backend"],
   "dependencies": [
-    {"target": "tsk-g7h8i9", "type": "blocked-by"},
-    {"target": "tsk-j0k1l2", "type": "relates-to"}
+    {"target": "kanbus-g7h8i9", "type": "blocked-by"},
+    {"target": "kanbus-j0k1l2", "type": "relates-to"}
   ],
   "comments": [
     {
@@ -203,7 +203,7 @@ The CLI validates every status transition against the workflow before writing.
 
 1. Compute SHA256 of: `title + ISO 8601 timestamp + 8 cryptographically random bytes`
 2. Take first 6 hex characters of the hash
-3. Prefix with the project's configured prefix: `tsk-a1b2c3`
+3. Prefix with the project's configured prefix: `kanbus-a1b2c3`
 4. Check for collision against existing files in `project/issues/`; regenerate with new random bytes if collision occurs
 5. 6 hex characters = 16.7 million possibilities, sufficient for any single project
 
@@ -230,9 +230,9 @@ JSON was chosen over YAML for issue files because:
 
 Dependencies are stored as **outbound references** on the dependent issue. Only one direction is stored on disk. The in-memory index computes reverse links at scan time.
 
-Example: If issue `tsk-a1b2c3` contains `{"target": "tsk-g7h8i9", "type": "blocked-by"}`, then:
-- On disk: `tsk-a1b2c3.json` records that it is blocked by `tsk-g7h8i9`
-- In the index: `tsk-g7h8i9` is computed to **block** `tsk-a1b2c3`
+Example: If issue `kanbus-a1b2c3` contains `{"target": "kanbus-g7h8i9", "type": "blocked-by"}`, then:
+- On disk: `kanbus-a1b2c3.json` records that it is blocked by `kanbus-g7h8i9`
+- In the index: `kanbus-g7h8i9` is computed to **block** `kanbus-a1b2c3`
 
 This avoids redundant storage and the possibility of the two directions getting out of sync.
 
@@ -255,7 +255,7 @@ This is one of the most important queries in the system. It answers: "What can I
 ### Transition Validation
 
 Every status change is validated:
-1. Look up the workflow for the issue's `type` in `taskulus.yml`
+1. Look up the workflow for the issue's `type` in `kanbus.yml`
 2. If no type-specific workflow exists, use the `default` workflow
 3. Verify the new status appears in the allowed transitions list for the current status
 4. If not allowed, reject with error: `"invalid transition from '{current}' to '{new}' for type '{type}'"`
@@ -288,7 +288,7 @@ The wiki solves this by embedding live issue data into human-written narrative d
 
 ### How It Works
 
-Wiki files in `project/wiki/` are Markdown files containing Jinja2 template syntax. The `tsk wiki render <page>` command:
+Wiki files in `project/wiki/` are Markdown files containing Jinja2 template syntax. The `kanbus wiki render <page>` command:
 1. Loads the in-memory issue index
 2. Passes it as template context to the Jinja2 engine
 3. Renders the template, replacing `{{ }}` expressions and `{% %}` blocks with live data
@@ -342,7 +342,7 @@ There are {{ count(status="open", type="bug") }} open bugs.
 Fetch a single issue by its ID.
 
 ```jinja2
-{% set epic = issue("tsk-d4e5f6") %}
+{% set epic = issue("kanbus-d4e5f6") %}
 ## {{ epic.title }}
 {{ count(parent=epic.id, status="closed") }}/{{ count(parent=epic.id) }} tasks complete
 ```
@@ -391,7 +391,7 @@ See [reliability initiative](reliability.md) for the full rationale.
 
 The intended workflow for AI agents:
 1. Human writes planning wiki pages with strategic context + dynamic issue queries
-2. Human references wiki pages in `AGENTS.md`: "Run `tsk wiki render project/wiki/sprint-plan.md` to understand current priorities before starting work"
+2. Human references wiki pages in `AGENTS.md`: "Run `kanbus wiki render project/wiki/sprint-plan.md` to understand current priorities before starting work"
 3. Agent runs the render command and receives a fully interpolated briefing document
 4. Agent understands not just what tasks exist, but why they exist and how they relate
 
@@ -399,7 +399,7 @@ The intended workflow for AI agents:
 
 Wiki pages can link to:
 - Other wiki pages: `[page title](other-page.md)` (standard Markdown links)
-- Issues: `[tsk-a1b2c3]` (the render command can optionally resolve these to include the issue title)
+- Issues: `[kanbus-a1b2c3]` (the render command can optionally resolve these to include the issue title)
 
 ---
 
@@ -429,8 +429,8 @@ On every CLI invocation, the index is built (or loaded from cache):
   "version": 1,
   "built_at": "2025-02-10T12:00:00Z",
   "file_mtimes": {
-    "tsk-a1b2c3.json": 1707567600.123,
-    "tsk-d4e5f6.json": 1707567601.456
+    "kanbus-a1b2c3.json": 1707567600.123,
+    "kanbus-d4e5f6.json": 1707567601.456
   },
   "issues": [ ... ],
   "reverse_deps": { ... }
@@ -453,7 +453,7 @@ On every CLI invocation, the index is built (or loaded from cache):
 
 ### Local Indexing Daemon (Optional)
 
-Taskulus may run a local resident daemon to keep an in-memory index warm between CLI invocations.
+Kanbus may run a local resident daemon to keep an in-memory index warm between CLI invocations.
 The daemon is an optimization only; JSON issue files remain the source of truth.
 
 Daemon lifecycle:
@@ -481,40 +481,40 @@ No compaction: closed issues remain as files indefinitely. The cache keeps queri
 
 ```
 SETUP
-  tsk init [--dir <name>]              Initialize project/ structure in current repo
+  kanbus init [--dir <name>]              Initialize project/ structure in current repo
 
 ISSUE CRUD
-  tsk create <title> [options]         Create a new issue
-  tsk show <id>                        Show issue details, deps, and comments
-  tsk update <id> [options]            Update issue fields
-  tsk close <id> [--comment <text>]    Close an issue (shortcut for --status closed)
-  tsk delete <id>                      Delete issue (removes the file)
+  kanbus create <title> [options]         Create a new issue
+  kanbus show <id>                        Show issue details, deps, and comments
+  kanbus update <id> [options]            Update issue fields
+  kanbus close <id> [--comment <text>]    Close an issue (shortcut for --status closed)
+  kanbus delete <id>                      Delete issue (removes the file)
 
 QUERIES
-  tsk list [filters]                   List issues with optional filters
-  tsk ready                            List open issues with no open blockers
-  tsk blocked                          List issues in blocked status
-  tsk search <text>                    Full-text search across titles and descriptions
+  kanbus list [filters]                   List issues with optional filters
+  kanbus ready                            List open issues with no open blockers
+  kanbus blocked                          List issues in blocked status
+  kanbus search <text>                    Full-text search across titles and descriptions
 
 DEPENDENCIES
-  tsk dep add <id> --blocked-by <tid>  Add a blocked-by dependency
-  tsk dep add <id> --relates-to <tid>  Add a relates-to dependency
-  tsk dep remove <id> <target-id>      Remove a dependency
-  tsk dep tree <id>                    Display the dependency tree for an issue
+  kanbus dep add <id> --blocked-by <tid>  Add a blocked-by dependency
+  kanbus dep add <id> --relates-to <tid>  Add a relates-to dependency
+  kanbus dep remove <id> <target-id>      Remove a dependency
+  kanbus dep tree <id>                    Display the dependency tree for an issue
 
 COMMENTS
-  tsk comment <id> <text>              Add a comment to an issue
+  kanbus comment <id> <text>              Add a comment to an issue
 
 WIKI
-  tsk wiki render <page>               Render a wiki page with live interpolated data
-  tsk wiki list                        List all wiki pages
+  kanbus wiki render <page>               Render a wiki page with live interpolated data
+  kanbus wiki list                        List all wiki pages
 
 MAINTENANCE
-  tsk validate                         Check all issues for integrity errors
-  tsk stats                            Display project overview statistics
+  kanbus validate                         Check all issues for integrity errors
+  kanbus stats                            Display project overview statistics
 ```
 
-### `tsk create` Options
+### `kanbus create` Options
 
 ```
 --type <type>           Issue type (default: task)
@@ -526,7 +526,7 @@ MAINTENANCE
 --description <text>    Set description body (use - to read from stdin)
 ```
 
-### `tsk update` Options
+### `kanbus update` Options
 
 ```
 --status <status>       Transition status (validated against workflow)
@@ -538,7 +538,7 @@ MAINTENANCE
 --remove-label <label>  Remove a label
 ```
 
-### `tsk list` Filters
+### `kanbus list` Filters
 
 ```
 --type <type>           Filter by issue type
@@ -561,7 +561,7 @@ All commands support `--json` for structured JSON output, intended for agent con
 
 ### Philosophy
 
-The shared behavior spec suite is the **single source of truth** for what Taskulus does. It is not a test suite for one implementation that the other copies -- it is the contract that both implementations independently fulfill.
+The shared behavior spec suite is the **single source of truth** for what Kanbus does. It is not a test suite for one implementation that the other copies -- it is the contract that both implementations independently fulfill.
 
 ### Test Case Structure
 
@@ -580,20 +580,20 @@ specs/
         input/
           config.yaml
           issues/
-            tsk-parent.json
+            kanbus-parent.json
     workflow/
       valid-transition/
         test.yaml
         input/
           config.yaml
           issues/
-            tsk-test01.json           # An issue in "open" status
+            kanbus-test01.json           # An issue in "open" status
       invalid-transition/
         test.yaml
         input/
           config.yaml
           issues/
-            tsk-test01.json
+            kanbus-test01.json
     dependencies/
       blocked-by-basic/
         ...
@@ -612,8 +612,8 @@ specs/
         input/
           config.yaml
           issues/
-            tsk-task1.json
-            tsk-task2.json
+            kanbus-task1.json
+            kanbus-task2.json
           wiki/
             test.md
 ```
@@ -626,7 +626,7 @@ description: "Creating a basic task assigns correct default values"
 command: ["create", "New Task", "--type", "task"]
 expect:
   exit_code: 0
-  stdout_contains: ["tsk-"]
+  stdout_contains: ["kanbus-"]
   issues_created: 1
   created_issue:
     title: "New Task"
@@ -638,12 +638,12 @@ expect:
 ```yaml
 # A test that expects failure
 description: "Cannot transition from open directly to blocked"
-command: ["update", "tsk-test01", "--status", "blocked"]
+command: ["update", "kanbus-test01", "--status", "blocked"]
 expect:
   exit_code: 1
   stderr_contains: ["invalid transition"]
   issue:
-    id: "tsk-test01"
+    id: "kanbus-test01"
     status: "open"              # Unchanged
 ```
 
@@ -661,7 +661,7 @@ Each implementation provides a spec runner that:
 ## Repository Layout
 
 ```
-Taskulus/
+Kanbus/
   planning/                           # This directory - vision and planning docs
     VISION.md                         # This document
   specs/                              # Shared behavior specifications
@@ -669,7 +669,7 @@ Taskulus/
     fixtures/                         # Reusable input fixtures
   python/                             # Python implementation
     src/
-      taskulus/
+      kanbus/
         __init__.py
         cli.py                        # CLI entry point (Click)
         models.py                     # Dataclasses: Issue, Config, Dependency, Comment
@@ -733,9 +733,9 @@ Taskulus/
 
 ### Phase 3: Polish
 
-15. Full-text search: `tsk search` across titles and descriptions
-16. Validation: `tsk validate` for comprehensive integrity checking
-17. Statistics: `tsk stats` for project overview
+15. Full-text search: `kanbus search` across titles and descriptions
+16. Validation: `kanbus validate` for comprehensive integrity checking
+17. Statistics: `kanbus stats` for project overview
 18. VS Code extension: live wiki preview with interpolated data in the editor
 
 ---
@@ -748,7 +748,7 @@ Taskulus/
 | One file per issue | Yes | Merge conflicts only happen when two branches modify the same issue, which is a real conflict |
 | Project directory | `project/` (visible, not hidden) | Human-browsable, not hidden infrastructure. Name is configurable. |
 | Hierarchy enforcement | Strict | Initiative > Epic > Task > Sub-Task. Prevents misuse. Non-hierarchical types are separate. |
-| CLI command name | `tsk` | Short, evokes "task", unlikely to conflict with existing tools |
+| CLI command name | `kanbus` | Short, evokes "task", unlikely to conflict with existing tools |
 | Wiki template syntax | Jinja2 | Well-known syntax. Python has native Jinja2, Rust has MiniJinja (by the same author). |
 | Indexing | In-memory, scan on startup | Eliminates the entire SQLite/daemon/RPC/sync layer that dominates Beads' complexity |
 | Cache | Shared JSON file, mtime-based invalidation | Simple, either implementation can read the other's cache. Gitignored. |

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use minijinja::value::{Kwargs, Value};
 use minijinja::{context, Environment, Error, ErrorKind};
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::issue_listing::list_issues;
 use crate::models::IssueData;
 
@@ -28,8 +28,8 @@ pub struct WikiRenderRequest {
 /// Rendered wiki content.
 ///
 /// # Errors
-/// Returns `TaskulusError` if rendering fails.
-pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, TaskulusError> {
+/// Returns `KanbusError` if rendering fails.
+pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusError> {
     let page_path = request.root.join(&request.page_path);
     validate_page_exists(&page_path)?;
 
@@ -82,7 +82,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, TaskulusE
             context! {},
         );
         let dummy_issue = IssueData {
-            identifier: "tsk-dummy".to_string(),
+            identifier: "kanbus-dummy".to_string(),
             title: "Dummy".to_string(),
             description: "".to_string(),
             issue_type: "task".to_string(),
@@ -104,9 +104,9 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, TaskulusE
     }
 
     let template =
-        fs::read_to_string(&page_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        fs::read_to_string(&page_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     env.render_str(&template, context! {})
-        .map_err(|error| TaskulusError::IssueOperation(error.to_string()))
+        .map_err(|error| KanbusError::IssueOperation(error.to_string()))
 }
 
 fn filter_issues_from_kwargs(
@@ -134,9 +134,9 @@ fn apply_issue_type_filter(issues: &mut Vec<IssueData>, issue_type_filter: &str)
     }
 }
 
-fn validate_page_exists(page_path: &std::path::Path) -> Result<(), TaskulusError> {
+fn validate_page_exists(page_path: &std::path::Path) -> Result<(), KanbusError> {
     if !page_path.exists() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "wiki page not found".to_string(),
         ));
     }

@@ -6,20 +6,20 @@ import os
 
 from behave import given, then, when
 
-from taskulus.users import get_current_user
+from kanbus.users import get_current_user
 
 
-@given('TASKULUS_USER is set to "{value}"')
-def given_taskulus_user_set(context: object, value: str) -> None:
+@given('KANBUS_USER is set to "{value}"')
+def given_kanbus_user_set(context: object, value: str) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides["TASKULUS_USER"] = value
+    overrides["KANBUS_USER"] = value
     context.environment_overrides = overrides
 
 
-@given("TASKULUS_USER is unset")
-def given_taskulus_user_unset(context: object) -> None:
+@given("KANBUS_USER is unset")
+def given_kanbus_user_unset(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides.pop("TASKULUS_USER", None)
+    overrides.pop("KANBUS_USER", None)
     context.environment_overrides = overrides
 
 
@@ -40,23 +40,23 @@ def given_user_unset(context: object) -> None:
 @when("I resolve the current user")
 def when_resolve_current_user(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    original_taskulus_user = os.environ.get("TASKULUS_USER")
+    original_kanbus_user = os.environ.get("KANBUS_USER")
     original_user = os.environ.get("USER")
     try:
-        if "TASKULUS_USER" in overrides:
-            os.environ["TASKULUS_USER"] = overrides["TASKULUS_USER"]
+        if "KANBUS_USER" in overrides:
+            os.environ["KANBUS_USER"] = overrides["KANBUS_USER"]
         else:
-            os.environ.pop("TASKULUS_USER", None)
+            os.environ.pop("KANBUS_USER", None)
         if "USER" in overrides:
             os.environ["USER"] = overrides["USER"]
         else:
             os.environ.pop("USER", None)
         context.current_user = get_current_user()
     finally:
-        if original_taskulus_user is None:
-            os.environ.pop("TASKULUS_USER", None)
+        if original_kanbus_user is None:
+            os.environ.pop("KANBUS_USER", None)
         else:
-            os.environ["TASKULUS_USER"] = original_taskulus_user
+            os.environ["KANBUS_USER"] = original_kanbus_user
         if original_user is None:
             os.environ.pop("USER", None)
         else:

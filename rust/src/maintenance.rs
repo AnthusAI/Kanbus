@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::config_loader::load_project_configuration;
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::{get_configuration_path, load_project_directory};
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::models::IssueData;
@@ -22,18 +22,18 @@ pub struct ProjectStats {
     pub type_counts: BTreeMap<String, usize>,
 }
 
-/// Validate issue data and configuration for a Taskulus project.
+/// Validate issue data and configuration for a Kanbus project.
 ///
 /// # Arguments
 /// * `root` - Repository root path.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if validation fails.
-pub fn validate_project(root: &Path) -> Result<(), TaskulusError> {
+/// Returns `KanbusError::IssueOperation` if validation fails.
+pub fn validate_project(root: &Path) -> Result<(), KanbusError> {
     let project_dir = load_project_directory(root)?;
     let issues_dir = project_dir.join("issues");
     if !issues_dir.exists() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "issues directory missing".to_string(),
         ));
     }
@@ -45,7 +45,7 @@ pub fn validate_project(root: &Path) -> Result<(), TaskulusError> {
     let mut issues: BTreeMap<String, IssueData> = BTreeMap::new();
 
     let mut paths: Vec<_> = fs::read_dir(&issues_dir)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?
+        .map_err(|error| KanbusError::Io(error.to_string()))?
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
         .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
@@ -98,7 +98,7 @@ pub fn validate_project(root: &Path) -> Result<(), TaskulusError> {
     if errors.is_empty() {
         Ok(())
     } else {
-        Err(TaskulusError::IssueOperation(format_errors(&errors)))
+        Err(KanbusError::IssueOperation(format_errors(&errors)))
     }
 }
 
@@ -111,34 +111,34 @@ pub fn validate_project(root: &Path) -> Result<(), TaskulusError> {
 /// Aggregated project statistics.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if stats cannot be computed.
-pub fn collect_project_stats(root: &Path) -> Result<ProjectStats, TaskulusError> {
+/// Returns `KanbusError::IssueOperation` if stats cannot be computed.
+pub fn collect_project_stats(root: &Path) -> Result<ProjectStats, KanbusError> {
     let project_dir = load_project_directory(root)?;
     let issues_dir = project_dir.join("issues");
     if !issues_dir.exists() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "issues directory missing".to_string(),
         ));
     }
 
     let mut issues: Vec<IssueData> = Vec::new();
-    for entry in fs::read_dir(&issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))? {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+    for entry in fs::read_dir(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))? {
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
         }
         let contents =
-            fs::read_to_string(&path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+            fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
         let filename = path
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("unknown");
         let payload: serde_json::Value = serde_json::from_str(&contents).map_err(|error| {
-            TaskulusError::IssueOperation(format!("{filename}: invalid json: {error}"))
+            KanbusError::IssueOperation(format!("{filename}: invalid json: {error}"))
         })?;
         let issue: IssueData = serde_json::from_value(payload).map_err(|error| {
-            TaskulusError::IssueOperation(format!("{filename}: invalid issue data: {error}"))
+            KanbusError::IssueOperation(format!("{filename}: invalid issue data: {error}"))
         })?;
         issues.push(issue);
     }
@@ -230,7 +230,7 @@ fn validate_issue_fields(
 fn collect_workflow_statuses(
     configuration: &crate::models::ProjectConfiguration,
     issue_type: &str,
-) -> Result<BTreeSet<String>, TaskulusError> {
+) -> Result<BTreeSet<String>, KanbusError> {
     let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
     let mut statuses: BTreeSet<String> = workflow.keys().cloned().collect();
     for transitions in workflow.values() {

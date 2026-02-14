@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::issue_update::update_issue;
 use crate::models::IssueData;
 
@@ -13,7 +13,7 @@ use crate::models::IssueData;
 /// * `identifier` - Issue identifier.
 ///
 /// # Errors
-/// Returns `TaskulusError` if closing fails.
-pub fn close_issue(root: &Path, identifier: &str) -> Result<IssueData, TaskulusError> {
+/// Returns `KanbusError` if closing fails.
+pub fn close_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusError> {
     update_issue(root, identifier, None, None, Some("closed"), None, false)
 }

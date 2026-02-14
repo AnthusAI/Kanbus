@@ -25,7 +25,7 @@ def before_scenario(context: object, scenario: object) -> None:
     context.working_directory = None
     context.result = None
     context.last_issue_id = None
-    context.environment_overrides = {"TASKULUS_NO_DAEMON": "1"}
+    context.environment_overrides = {"KANBUS_NO_DAEMON": "1"}
     context.daemon_core = None
 
 
@@ -59,7 +59,7 @@ def after_scenario(context: object, scenario: object) -> None:
     original_spawn = getattr(context, "daemon_original_spawn", None)
     original_send = getattr(context, "daemon_original_send", None)
     if original_spawn or original_send:
-        import taskulus.daemon_client as daemon_client
+        import kanbus.daemon_client as daemon_client
 
         if original_spawn:
             daemon_client.spawn_daemon = original_spawn
@@ -71,7 +71,7 @@ def after_scenario(context: object, scenario: object) -> None:
 
     original_request = getattr(context, "original_request_with_recovery", None)
     if original_request is not None:
-        import taskulus.daemon_client as daemon_client
+        import kanbus.daemon_client as daemon_client
 
         daemon_client._request_with_recovery = original_request
         context.original_request_with_recovery = None
@@ -85,42 +85,42 @@ def after_scenario(context: object, scenario: object) -> None:
 
     original_request_index_list = getattr(context, "original_request_index_list", None)
     if original_request_index_list is not None:
-        import taskulus.issue_listing as issue_listing
+        import kanbus.issue_listing as issue_listing
 
         issue_listing.request_index_list = original_request_index_list
         context.original_request_index_list = None
 
     original_send_request = getattr(context, "original_send_request", None)
     if original_send_request is not None:
-        import taskulus.daemon_client as daemon_client
+        import kanbus.daemon_client as daemon_client
 
         daemon_client.send_request = original_send_request
         context.original_send_request = None
 
     original_daemon_socket = getattr(context, "original_daemon_socket", None)
     if original_daemon_socket is not None:
-        import taskulus.daemon_client as daemon_client
+        import kanbus.daemon_client as daemon_client
 
         daemon_client.socket.socket = original_daemon_socket
         context.original_daemon_socket = None
 
     original_list_with_local = getattr(context, "original_list_with_local", None)
     if original_list_with_local is not None:
-        import taskulus.issue_listing as issue_listing
+        import kanbus.issue_listing as issue_listing
 
         issue_listing._list_issues_with_local = original_list_with_local
         context.original_list_with_local = None
 
     original_load_issues = getattr(context, "original_load_issues", None)
     if original_load_issues is not None:
-        import taskulus.issue_listing as issue_listing
+        import kanbus.issue_listing as issue_listing
 
         issue_listing._load_issues_from_directory = original_load_issues
         context.original_load_issues = None
 
     original_load_local = getattr(context, "original_load_local", None)
     if original_load_local is not None:
-        import taskulus.issue_listing as issue_listing
+        import kanbus.issue_listing as issue_listing
 
         issue_listing._load_issues_from_directory = original_load_local
         context.original_load_local = None
@@ -137,20 +137,20 @@ def after_scenario(context: object, scenario: object) -> None:
         import os
 
         if original_daemon_env is None or original_daemon_env == "":
-            os.environ.pop("TASKULUS_NO_DAEMON", None)
+            os.environ.pop("KANBUS_NO_DAEMON", None)
         else:
-            os.environ["TASKULUS_NO_DAEMON"] = original_daemon_env
+            os.environ["KANBUS_NO_DAEMON"] = original_daemon_env
         context.original_daemon_env = None
 
     original_daemon_socket = getattr(context, "original_daemon_socket", None)
     if original_daemon_socket is not None:
-        import taskulus.daemon_client as daemon_client
+        import kanbus.daemon_client as daemon_client
 
         daemon_client.socket.socket = original_daemon_socket
         context.original_daemon_socket = None
 
     if getattr(context, "daemon_patched", False):
-        import taskulus.daemon_client as daemon_client
+        import kanbus.daemon_client as daemon_client
 
         daemon_client.spawn_daemon = context.daemon_original_spawn
         daemon_client.send_request = context.daemon_original_send
@@ -173,9 +173,9 @@ def after_scenario(context: object, scenario: object) -> None:
         import os
 
         if original_canonicalize is None or original_canonicalize == "":
-            os.environ.pop("TASKULUS_TEST_CANONICALIZE_FAILURE", None)
+            os.environ.pop("KANBUS_TEST_CANONICALIZE_FAILURE", None)
         else:
-            os.environ["TASKULUS_TEST_CANONICALIZE_FAILURE"] = original_canonicalize
+            os.environ["KANBUS_TEST_CANONICALIZE_FAILURE"] = original_canonicalize
         context.original_canonicalize_env = None
 
     original_config_path_failure = getattr(
@@ -185,9 +185,9 @@ def after_scenario(context: object, scenario: object) -> None:
         import os
 
         if original_config_path_failure is None or original_config_path_failure == "":
-            os.environ.pop("TASKULUS_TEST_CONFIGURATION_PATH_FAILURE", None)
+            os.environ.pop("KANBUS_TEST_CONFIGURATION_PATH_FAILURE", None)
         else:
-            os.environ["TASKULUS_TEST_CONFIGURATION_PATH_FAILURE"] = (
+            os.environ["KANBUS_TEST_CONFIGURATION_PATH_FAILURE"] = (
                 original_config_path_failure
             )
         context.original_configuration_path_failure_env = None
@@ -214,12 +214,12 @@ def after_scenario(context: object, scenario: object) -> None:
         context.daemon_thread = None
         context.real_daemon_running = False
 
-    original_discover = getattr(context, "original_discover_taskulus_projects", None)
+    original_discover = getattr(context, "original_discover_kanbus_projects", None)
     if original_discover is not None:
-        import taskulus.project as project
+        import kanbus.project as project
 
-        project.discover_taskulus_projects = original_discover
-        context.original_discover_taskulus_projects = None
+        project.discover_kanbus_projects = original_discover
+        context.original_discover_kanbus_projects = None
 
     unreadable_path = getattr(context, "unreadable_path", None)
     if unreadable_path is not None:
@@ -230,8 +230,8 @@ def after_scenario(context: object, scenario: object) -> None:
         context.unreadable_path = None
         context.unreadable_mode = None
 
-    import taskulus.beads_write as beads_write
-    import taskulus.ids as ids
+    import kanbus.beads_write as beads_write
+    import kanbus.ids as ids
 
     beads_write.set_test_beads_slug_sequence(None)
     ids.set_test_uuid_sequence(None)
@@ -249,8 +249,8 @@ def _run_coverage_helper() -> None:
 
     import click
 
-    from taskulus.agents_management import (
-        TASKULUS_SECTION_LINES,
+    from kanbus.agents_management import (
+        KANBUS_SECTION_LINES,
         SectionMatch,
         _build_parent_child_rules,
         _build_semantic_release_mapping,
@@ -267,33 +267,33 @@ def _run_coverage_helper() -> None:
         build_project_management_text,
         ensure_agents_file,
     )
-    from taskulus.cli import _maybe_run_setup_agents, cli
-    from taskulus.console_snapshot import build_console_snapshot
-    from taskulus.dependencies import (
+    from kanbus.cli import _maybe_run_setup_agents, cli
+    from kanbus.console_snapshot import build_console_snapshot
+    from kanbus.dependencies import (
         DependencyError,
         add_dependency,
         list_ready_issues,
         remove_dependency,
     )
-    from taskulus.doctor import DoctorError, run_doctor
-    from taskulus.file_io import initialize_project
-    from taskulus.issue_creation import create_issue
-    from taskulus.issue_listing import IssueListingError, list_issues
-    from taskulus.issue_update import (
+    from kanbus.doctor import DoctorError, run_doctor
+    from kanbus.file_io import initialize_project
+    from kanbus.issue_creation import create_issue
+    from kanbus.issue_listing import IssueListingError, list_issues
+    from kanbus.issue_update import (
         IssueUpdateError,
         _find_duplicate_title,
         update_issue,
     )
-    from taskulus.migration import (
+    from kanbus.migration import (
         MigrationError,
         _convert_dependencies,
         load_beads_issue,
         load_beads_issues,
         migrate_from_beads,
     )
-    from taskulus.config_loader import load_project_configuration
+    from kanbus.config_loader import load_project_configuration
 
-    os.environ["TASKULUS_NO_DAEMON"] = "1"
+    os.environ["KANBUS_NO_DAEMON"] = "1"
 
     with TemporaryDirectory(dir="/tmp") as temp_dir:
         root = Path(temp_dir)
@@ -305,8 +305,8 @@ def _run_coverage_helper() -> None:
             stderr=subprocess.DEVNULL,
         )
         initialize_project(root, create_local=True)
-        (root / "project" / "taskulus.yml").write_text("", encoding="utf-8")
-        config_path = root / ".taskulus.yml"
+        (root / "project" / "kanbus.yml").write_text("", encoding="utf-8")
+        config_path = root / ".kanbus.yml"
         config_path.write_text(
             config_path.read_text(encoding="utf-8") + "\nbeads_compatibility: true\n",
             encoding="utf-8",
@@ -539,7 +539,7 @@ def _run_coverage_helper() -> None:
         except MigrationError:
             pass
 
-        (root / ".taskulus.yml").write_text(
+        (root / ".kanbus.yml").write_text(
             "beads_compatibility: true\n", encoding="utf-8"
         )
         config_path.write_text(
@@ -560,13 +560,13 @@ def _run_coverage_helper() -> None:
             pass
 
         runner = CliRunner()
-        runner.invoke(cli, ["--help"], env={"TASKULUS_NO_DAEMON": "1"})
+        runner.invoke(cli, ["--help"], env={"KANBUS_NO_DAEMON": "1"})
         runner.invoke(
             cli,
             ["list"],
             env={
-                "TASKULUS_NO_DAEMON": "1",
-                "TASKULUS_TEST_CONFIGURATION_PATH_FAILURE": "1",
+                "KANBUS_NO_DAEMON": "1",
+                "KANBUS_TEST_CONFIGURATION_PATH_FAILURE": "1",
             },
         )
 
@@ -577,27 +577,27 @@ def _run_coverage_helper() -> None:
             sys.stdin.isatty = lambda: True
             sys.stdout.isatty = lambda: True
             click.confirm = lambda *args, **kwargs: True
-            os.environ["TASKULUS_FORCE_INTERACTIVE"] = "1"
+            os.environ["KANBUS_FORCE_INTERACTIVE"] = "1"
             _maybe_run_setup_agents(root)
         finally:
             sys.stdin.isatty = original_stdin_isatty
             sys.stdout.isatty = original_stdout_isatty
             click.confirm = original_confirm
-            os.environ.pop("TASKULUS_FORCE_INTERACTIVE", None)
+            os.environ.pop("KANBUS_FORCE_INTERACTIVE", None)
 
         agents_path = root / "AGENTS.md"
         agents_path.write_text(
-            "\n".join(["# Agent Instructions", ""] + TASKULUS_SECTION_LINES),
+            "\n".join(["# Agent Instructions", ""] + KANBUS_SECTION_LINES),
             encoding="utf-8",
         )
-        os.environ["TASKULUS_FORCE_INTERACTIVE"] = "1"
+        os.environ["KANBUS_FORCE_INTERACTIVE"] = "1"
         original_confirm = click.confirm
         try:
             click.confirm = lambda *args, **kwargs: False
             ensure_agents_file(root, force=False)
         finally:
             click.confirm = original_confirm
-            os.environ.pop("TASKULUS_FORCE_INTERACTIVE", None)
+            os.environ.pop("KANBUS_FORCE_INTERACTIVE", None)
 
         agents_path.write_text("# Agent Instructions\n\n## Notes\n", encoding="utf-8")
         ensure_agents_file(root, force=False)
@@ -614,7 +614,7 @@ def _run_coverage_helper() -> None:
             lines,
             [SectionMatch(start=10, end=11, level=2)],
             SectionMatch(start=10, end=11, level=2),
-            TASKULUS_SECTION_LINES,
+            KANBUS_SECTION_LINES,
         )
         _find_insert_index(["No header here"])
 
@@ -640,7 +640,7 @@ def _run_coverage_helper() -> None:
         finally:
             click.get_text_stream = original_get_text_stream
 
-        os.environ["TASKULUS_FORCE_INTERACTIVE"] = "1"
+        os.environ["KANBUS_FORCE_INTERACTIVE"] = "1"
         original_confirm = click.confirm
         try:
             click.confirm = lambda *args, **kwargs: (_ for _ in ()).throw(click.Abort())
@@ -649,7 +649,7 @@ def _run_coverage_helper() -> None:
             pass
         finally:
             click.confirm = original_confirm
-            os.environ.pop("TASKULUS_FORCE_INTERACTIVE", None)
+            os.environ.pop("KANBUS_FORCE_INTERACTIVE", None)
 
         with TemporaryDirectory(dir="/tmp") as empty_root:
             try:
@@ -659,7 +659,7 @@ def _run_coverage_helper() -> None:
 
         invalid_root = root / "invalid-config"
         invalid_root.mkdir(parents=True, exist_ok=True)
-        (invalid_root / ".taskulus.yml").write_text(
+        (invalid_root / ".kanbus.yml").write_text(
             "unknown_field: 123\n", encoding="utf-8"
         )
         try:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Taskulus Python installation in a clean virtual environment."""
+"""Verify Kanbus Python installation in a clean virtual environment."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ def locate_venv_python(venv_dir: Path) -> Path:
 
 
 def locate_venv_tsk(venv_dir: Path) -> Path | None:
-    """Locate the Taskulus CLI script inside a virtual environment.
+    """Locate the Kanbus CLI script inside a virtual environment.
 
     :param venv_dir: Path to the virtual environment.
     :type venv_dir: Path
@@ -80,9 +80,9 @@ def locate_venv_tsk(venv_dir: Path) -> Path | None:
     :rtype: Path | None
     """
     candidates = [
-        venv_dir / "bin" / "tsk",
-        venv_dir / "Scripts" / "tsk.exe",
-        venv_dir / "Scripts" / "tsk",
+        venv_dir / "bin" / "kanbus",
+        venv_dir / "Scripts" / "kanbus.exe",
+        venv_dir / "Scripts" / "kanbus",
     ]
     for candidate in candidates:
         if candidate.exists():
@@ -105,7 +105,7 @@ def ensure_success(result: CommandResult, label: str) -> None:
 
 
 def verify_installation(repo_root: Path, keep_venv: bool, base_python: str) -> None:
-    """Verify Taskulus installation via pip in an isolated venv.
+    """Verify Kanbus installation via pip in an isolated venv.
 
     :param repo_root: Path to the repository root.
     :type repo_root: Path
@@ -137,24 +137,24 @@ def verify_installation(repo_root: Path, keep_venv: bool, base_python: str) -> N
 
         tsk_path = locate_venv_tsk(venv_dir)
         if tsk_path is None:
-            raise RuntimeError("tsk script not found in virtual environment")
+            raise RuntimeError("kanbus script not found in virtual environment")
 
         env = os.environ.copy()
         env["PATH"] = f"{tsk_path.parent}{os.pathsep}{env.get('PATH', '')}"
 
         ensure_success(
             run_command([str(tsk_path), "--version"], env=env),
-            "tsk --version",
+            "kanbus --version",
         )
 
         repo_dir = temp_path / "repo"
         repo_dir.mkdir()
         ensure_success(run_command(["git", "init"], cwd=repo_dir), "git init")
 
-        ensure_success(run_command([str(tsk_path), "init"], cwd=repo_dir, env=env), "tsk init")
+        ensure_success(run_command([str(tsk_path), "init"], cwd=repo_dir, env=env), "kanbus init")
         ensure_success(
             run_command([str(tsk_path), "doctor"], cwd=repo_dir, env=env),
-            "tsk doctor",
+            "kanbus doctor",
         )
 
         if keep_venv:
@@ -198,7 +198,7 @@ def main(argv: list[str]) -> int:
     :return: Exit code.
     :rtype: int
     """
-    parser = argparse.ArgumentParser(description="Verify Taskulus Python installation")
+    parser = argparse.ArgumentParser(description="Verify Kanbus Python installation")
     parser.add_argument(
         "--keep-venv",
         action="store_true",

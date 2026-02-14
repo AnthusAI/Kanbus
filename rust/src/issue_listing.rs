@@ -4,9 +4,9 @@ use std::path::Path;
 
 use crate::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
 use crate::daemon_client::{is_daemon_enabled, request_index_list};
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::{
-    canonicalize_path, discover_project_directories, discover_taskulus_projects,
+    canonicalize_path, discover_project_directories, discover_kanbus_projects,
     find_project_local_directory, load_project_directory,
 };
 use crate::index::build_index_from_directory;
@@ -19,7 +19,7 @@ use crate::queries::{filter_issues, search_issues, sort_issues};
 /// * `root` - Repository root path.
 ///
 /// # Errors
-/// Returns `TaskulusError` when listing fails.
+/// Returns `KanbusError` when listing fails.
 #[allow(clippy::too_many_arguments)]
 pub fn list_issues(
     root: &Path,
@@ -31,15 +31,15 @@ pub fn list_issues(
     search: Option<&str>,
     include_local: bool,
     local_only: bool,
-) -> Result<Vec<IssueData>, TaskulusError> {
+) -> Result<Vec<IssueData>, KanbusError> {
     if local_only && !include_local {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "local-only conflicts with no-local".to_string(),
         ));
     }
     let mut projects = Vec::new();
     discover_project_directories(root, &mut projects)?;
-    let mut dotfile_projects = discover_taskulus_projects(root)?;
+    let mut dotfile_projects = discover_kanbus_projects(root)?;
     projects.append(&mut dotfile_projects);
     let mut normalized = Vec::new();
     for path in projects {
@@ -52,7 +52,7 @@ pub fn list_issues(
     normalized.dedup();
     let projects = normalized;
     if projects.is_empty() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "project not initialized".to_string(),
         ));
     }
@@ -72,20 +72,20 @@ pub fn list_issues(
         let issues: Vec<IssueData> = payloads
             .into_iter()
             .map(serde_json::from_value::<IssueData>)
-            .map(|result| result.map_err(|error| TaskulusError::Io(error.to_string())))
-            .collect::<Result<Vec<IssueData>, TaskulusError>>()?;
+            .map(|result| result.map_err(|error| KanbusError::Io(error.to_string())))
+            .collect::<Result<Vec<IssueData>, KanbusError>>()?;
         return apply_query(issues, status, issue_type, assignee, label, sort, search);
     }
     let issues = list_issues_local(root)?;
     apply_query(issues, status, issue_type, assignee, label, sort, search)
 }
 
-fn list_issues_local(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
+fn list_issues_local(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let project_dir = load_project_directory(root)?;
     list_issues_for_project(&project_dir)
 }
 
-fn list_issues_for_project(project_dir: &Path) -> Result<Vec<IssueData>, TaskulusError> {
+fn list_issues_for_project(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let issues_dir = project_dir.join("issues");
     let cache_path = project_dir.join(".cache").join("index.json");
     if let Some(index) = load_cache_if_valid(&cache_path, &issues_dir)? {
@@ -109,7 +109,7 @@ fn list_issues_with_local(
     project_dir: &Path,
     local_dir: Option<&Path>,
     local_only: bool,
-) -> Result<Vec<IssueData>, TaskulusError> {
+) -> Result<Vec<IssueData>, KanbusError> {
     let shared_issues = list_issues_for_project(project_dir)?;
     let mut local_issues = Vec::new();
     if let Some(local_dir) = local_dir {
@@ -129,7 +129,7 @@ fn list_issues_across_projects(
     projects: &[std::path::PathBuf],
     include_local: bool,
     local_only: bool,
-) -> Result<Vec<IssueData>, TaskulusError> {
+) -> Result<Vec<IssueData>, KanbusError> {
     let mut issues = Vec::new();
     for project_dir in projects {
         let local_dir = if include_local || local_only {
@@ -161,12 +161,12 @@ fn tag_issue_project(issue: &mut IssueData, root: &Path, project_dir: &Path) {
     );
 }
 
-fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, TaskulusError> {
+fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let mut issues = Vec::new();
     for entry in
-        std::fs::read_dir(issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?
+        std::fs::read_dir(issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?
     {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
@@ -185,7 +185,7 @@ fn apply_query(
     label: Option<&str>,
     sort: Option<&str>,
     search: Option<&str>,
-) -> Result<Vec<IssueData>, TaskulusError> {
+) -> Result<Vec<IssueData>, KanbusError> {
     let filtered = filter_issues(issues, status, issue_type, assignee, label);
     let searched = search_issues(filtered, search);
     sort_issues(searched, sort)

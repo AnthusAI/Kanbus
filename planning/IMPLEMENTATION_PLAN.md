@@ -1,4 +1,4 @@
-# Taskulus Implementation Plan
+# Kanbus Implementation Plan
 
 ## Preamble: The Governing Philosophy
 
@@ -23,7 +23,7 @@ However, we must respect real constraints:
 ### The Recommended Layout
 
 ```
-Taskulus/
+Kanbus/
     planning/
         VISION.md
         IMPLEMENTATION_PLAN.md
@@ -70,7 +70,7 @@ Taskulus/
                 create-basic/
                     test.yaml
                     input/
-                        taskulus.yml
+                        kanbus.yml
                 ...
         fixtures/                           # Reusable input fixtures
             default_config.yaml
@@ -85,7 +85,7 @@ Taskulus/
     python/                                 # Python implementation
         pyproject.toml
         src/
-            taskulus/
+            kanbus/
                 __init__.py
                 cli.py
                 models.py
@@ -207,7 +207,7 @@ Taskulus/
 
 **Python:**
 - `pyproject.toml` with dependencies: click, jinja2, pyyaml, behave, ruff, black, sphinx
-- `src/taskulus/__init__.py` with version string
+- `src/kanbus/__init__.py` with version string
 - Empty test suite that passes
 
 **Rust:**
@@ -241,28 +241,28 @@ Taskulus/
 
 ---
 
-### Epic 1: Project Initialization (`tsk init`)
+### Epic 1: Project Initialization (`kanbus init`)
 
-**Goal:** A user can run `tsk init` in a git repository and get a properly structured project directory.
+**Goal:** A user can run `kanbus init` in a git repository and get a properly structured project directory.
 
 **Dependencies:** Epic 0.
 
-#### Task 1.1: Write Gherkin scenarios for `tsk init`
+#### Task 1.1: Write Gherkin scenarios for `kanbus init`
 
 Write `features/initialization/project_initialization.feature`:
 
 ```gherkin
 Feature: Project initialization
     As a developer starting a new project
-    I want to initialize a Taskulus project directory
+    I want to initialize a Kanbus project directory
     So that I can begin tracking issues alongside my code
 
     Scenario: Initialize with default settings
         Given an empty git repository
-        When I run "tsk init"
-        Then a ".taskulus.yml" file should exist in the repository root
+        When I run "kanbus init"
+        Then a ".kanbus.yml" file should exist in the repository root
         And a "project" directory should exist
-        And a "taskulus.yml" file should exist with default configuration
+        And a "kanbus.yml" file should exist with default configuration
         And a "project/issues" directory should exist and be empty
         And a "project/wiki" directory should exist
         And a "project/wiki/index.md" file should exist
@@ -270,30 +270,30 @@ Feature: Project initialization
 
     Scenario: Initialize with custom directory name
         Given an empty git repository
-        When I run "tsk init --dir tracking"
-        Then a ".taskulus.yml" file should exist pointing to "tracking"
+        When I run "kanbus init --dir tracking"
+        Then a ".kanbus.yml" file should exist pointing to "tracking"
         And a "tracking" directory should exist
-        And a "tracking/taskulus.yml" file should exist with default configuration
+        And a "tracking/kanbus.yml" file should exist with default configuration
 
     Scenario: Refuse to initialize when project already exists
-        Given a git repository with an existing Taskulus project
-        When I run "tsk init"
+        Given a git repository with an existing Kanbus project
+        When I run "kanbus init"
         Then the command should fail with exit code 1
         And stderr should contain "already initialized"
 
     Scenario: Refuse to initialize outside a git repository
         Given a directory that is not a git repository
-        When I run "tsk init"
+        When I run "kanbus init"
         Then the command should fail with exit code 1
         And stderr should contain "not a git repository"
 ```
 
 **Quality gate:** Both behave and cucumber-rs can parse and report these scenarios as pending.
 
-#### Task 1.2: Implement `tsk init` in Python
+#### Task 1.2: Implement `kanbus init` in Python
 
 **Implementation:**
-- `config.py`: `DefaultConfiguration` class that produces the default `taskulus.yml` content
+- `config.py`: `DefaultConfiguration` class that produces the default `kanbus.yml` content
 - `file_io.py`: Functions to write YAML, create directories, detect git repositories
 - `cli.py`: Click command group with `init` subcommand
 
@@ -303,7 +303,7 @@ Feature: Project initialization
 - `black --check` clean
 - Every class and public function has a Sphinx docstring
 
-#### Task 1.3: Implement `tsk init` in Rust
+#### Task 1.3: Implement `kanbus init` in Rust
 
 **Implementation:**
 - `config.rs`: `DefaultConfiguration` struct with serialization
@@ -316,7 +316,7 @@ Feature: Project initialization
 - `cargo fmt --check` clean
 - Every public item has a `///` doc comment
 
-#### Task 1.4: Write YAML test cases for `tsk init`
+#### Task 1.4: Write YAML test cases for `kanbus init`
 
 Data-driven tests covering: default init, custom directory, already-initialized, not-a-repo.
 
@@ -324,7 +324,7 @@ Data-driven tests covering: default init, custom directory, already-initialized,
 
 ### Epic 2: Data Model and Configuration
 
-**Goal:** Both implementations can parse `taskulus.yml`, represent issues as typed structures, and serialize/deserialize issue JSON files with identical behavior.
+**Goal:** Both implementations can parse `kanbus.yml`, represent issues as typed structures, and serialize/deserialize issue JSON files with identical behavior.
 
 **Dependencies:** Epic 1 (needs config file to exist).
 
@@ -334,14 +334,14 @@ Data-driven tests covering: default init, custom directory, already-initialized,
 
 ```gherkin
 Feature: Configuration loading
-    As the Taskulus system
+    As the Kanbus system
     I need to load and validate project configuration
     So that all operations use consistent type, workflow, and hierarchy rules
 
     Scenario: Load default configuration
-        Given a Taskulus project with default configuration
+        Given a Kanbus project with default configuration
         When the configuration is loaded
-        Then the prefix should be "tsk"
+        Then the prefix should be "kanbus"
         And the hierarchy should be "initiative, epic, task, sub-task"
         And the non-hierarchical types should be "bug, story, chore"
         And the initial status should be "open"
@@ -364,7 +364,7 @@ Feature: Configuration loading
   - `IssueData` dataclass (all fields from the spec)
   - `DependencyLink` dataclass (`target`, `dependency_type`)
   - `IssueComment` dataclass (`author`, `text`, `created_at`)
-  - `ProjectConfiguration` dataclass (parsed from `taskulus.yml`)
+  - `ProjectConfiguration` dataclass (parsed from `kanbus.yml`)
   - `WorkflowDefinition` dataclass (state machine graph)
 - `config.py`:
   - `load_project_configuration(path) -> ProjectConfiguration`
@@ -401,21 +401,21 @@ Feature: Configuration loading
 ```gherkin
 Feature: Issue ID generation
     Scenario: Generated IDs follow the prefix-hex format
-        Given a project with prefix "tsk"
+        Given a project with prefix "kanbus"
         When I generate an issue ID
-        Then the ID should match the pattern "tsk-[0-9a-f]{6}"
+        Then the ID should match the pattern "kanbus-[0-9a-f]{6}"
 
     Scenario: Generated IDs are unique across multiple creations
-        Given a project with prefix "tsk"
+        Given a project with prefix "kanbus"
         When I generate 100 issue IDs
         Then all 100 IDs should be unique
 
     Scenario: ID generation handles collision with existing issues
-        Given a project with an existing issue "tsk-aaaaaa"
+        Given a project with an existing issue "kanbus-aaaaaa"
         And the hash function would produce "aaaaaa" for the next issue
         When I generate an issue ID
-        Then the ID should not be "tsk-aaaaaa"
-        And the ID should match the pattern "tsk-[0-9a-f]{6}"
+        Then the ID should not be "kanbus-aaaaaa"
+        And the ID should match the pattern "kanbus-[0-9a-f]{6}"
 ```
 
 Implement `ids.py` and `ids.rs`. Both use SHA256 of `title + timestamp + random bytes`, take first 6 hex chars, retry on collision.
@@ -439,11 +439,11 @@ Feature: Workflow status transitions
     So that issues move through a predictable lifecycle
 
     Scenario Outline: Valid transitions in default workflow
-        Given a Taskulus project with default configuration
-        And an issue "tsk-test01" of type "task" with status "<from_status>"
-        When I run "tsk update tsk-test01 --status <to_status>"
+        Given a Kanbus project with default configuration
+        And an issue "kanbus-test01" of type "task" with status "<from_status>"
+        When I run "kanbus update kanbus-test01 --status <to_status>"
         Then the command should succeed
-        And issue "tsk-test01" should have status "<to_status>"
+        And issue "kanbus-test01" should have status "<to_status>"
 
         Examples:
             | from_status | to_status   |
@@ -460,12 +460,12 @@ Feature: Workflow status transitions
             | deferred    | closed      |
 
     Scenario Outline: Invalid transitions in default workflow
-        Given a Taskulus project with default configuration
-        And an issue "tsk-test01" of type "task" with status "<from_status>"
-        When I run "tsk update tsk-test01 --status <to_status>"
+        Given a Kanbus project with default configuration
+        And an issue "kanbus-test01" of type "task" with status "<from_status>"
+        When I run "kanbus update kanbus-test01 --status <to_status>"
         Then the command should fail with exit code 1
         And stderr should contain "invalid transition"
-        And issue "tsk-test01" should have status "<from_status>"
+        And issue "kanbus-test01" should have status "<from_status>"
 
         Examples:
             | from_status | to_status   |
@@ -479,9 +479,9 @@ Feature: Workflow status transitions
             | deferred    | blocked     |
 
     Scenario: Type-specific workflow overrides default
-        Given a Taskulus project with default configuration
-        And an issue "tsk-epic01" of type "epic" with status "open"
-        When I run "tsk update tsk-epic01 --status deferred"
+        Given a Kanbus project with default configuration
+        And an issue "kanbus-epic01" of type "epic" with status "open"
+        When I run "kanbus update kanbus-epic01 --status deferred"
         Then the command should fail with exit code 1
         And stderr should contain "invalid transition"
 ```
@@ -491,18 +491,18 @@ Feature: Workflow status transitions
 ```gherkin
 Feature: Automatic side effects on status transitions
     Scenario: Closing an issue sets closed_at timestamp
-        Given a Taskulus project with default configuration
-        And an issue "tsk-test01" of type "task" with status "open"
-        And issue "tsk-test01" has no closed_at timestamp
-        When I run "tsk update tsk-test01 --status closed"
-        Then issue "tsk-test01" should have a closed_at timestamp
+        Given a Kanbus project with default configuration
+        And an issue "kanbus-test01" of type "task" with status "open"
+        And issue "kanbus-test01" has no closed_at timestamp
+        When I run "kanbus update kanbus-test01 --status closed"
+        Then issue "kanbus-test01" should have a closed_at timestamp
 
     Scenario: Reopening an issue clears closed_at timestamp
-        Given a Taskulus project with default configuration
-        And an issue "tsk-test01" of type "task" with status "closed"
-        And issue "tsk-test01" has a closed_at timestamp
-        When I run "tsk update tsk-test01 --status open"
-        Then issue "tsk-test01" should have no closed_at timestamp
+        Given a Kanbus project with default configuration
+        And an issue "kanbus-test01" of type "task" with status "closed"
+        And issue "kanbus-test01" has a closed_at timestamp
+        When I run "kanbus update kanbus-test01 --status open"
+        Then issue "kanbus-test01" should have no closed_at timestamp
 ```
 
 `features/workflow/claim_workflow.feature`:
@@ -510,12 +510,12 @@ Feature: Automatic side effects on status transitions
 ```gherkin
 Feature: Claim workflow
     Scenario: Claiming an issue sets assignee and transitions to in_progress
-        Given a Taskulus project with default configuration
-        And an issue "tsk-test01" of type "task" with status "open"
+        Given a Kanbus project with default configuration
+        And an issue "kanbus-test01" of type "task" with status "open"
         And the current user is "dev@example.com"
-        When I run "tsk update tsk-test01 --claim"
-        Then issue "tsk-test01" should have status "in_progress"
-        And issue "tsk-test01" should have assignee "dev@example.com"
+        When I run "kanbus update kanbus-test01 --claim"
+        Then issue "kanbus-test01" should have status "in_progress"
+        And issue "kanbus-test01" should have assignee "dev@example.com"
 ```
 
 #### Task 3.2: Implement workflows in Python
@@ -547,9 +547,9 @@ Feature: Claim workflow
 ```gherkin
 Feature: Parent-child hierarchy validation
     Scenario Outline: Valid parent-child relationships
-        Given a Taskulus project with default configuration
-        And a "<parent_type>" issue "tsk-parent" exists
-        When I run "tsk create Child Task --type <child_type> --parent tsk-parent"
+        Given a Kanbus project with default configuration
+        And a "<parent_type>" issue "kanbus-parent" exists
+        When I run "kanbus create Child Task --type <child_type> --parent kanbus-parent"
         Then the command should succeed
 
         Examples:
@@ -561,9 +561,9 @@ Feature: Parent-child hierarchy validation
             | task        | story      |
 
     Scenario Outline: Invalid parent-child relationships
-        Given a Taskulus project with default configuration
-        And a "<parent_type>" issue "tsk-parent" exists
-        When I run "tsk create Child Task --type <child_type> --parent tsk-parent"
+        Given a Kanbus project with default configuration
+        And a "<parent_type>" issue "kanbus-parent" exists
+        When I run "kanbus create Child Task --type <child_type> --parent kanbus-parent"
         Then the command should fail with exit code 1
         And stderr should contain "invalid parent-child"
 
@@ -576,15 +576,15 @@ Feature: Parent-child hierarchy validation
             | story       | sub-task    |
 
     Scenario: Standalone issues do not require a parent
-        Given a Taskulus project with default configuration
-        When I run "tsk create Standalone Task --type task"
+        Given a Kanbus project with default configuration
+        When I run "kanbus create Standalone Task --type task"
         Then the command should succeed
         And the created issue should have no parent
 
     Scenario: Non-hierarchical types cannot have children
-        Given a Taskulus project with default configuration
-        And a "bug" issue "tsk-bug01" exists
-        When I run "tsk create Child --type task --parent tsk-bug01"
+        Given a Kanbus project with default configuration
+        And a "bug" issue "kanbus-bug01" exists
+        When I run "kanbus create Child --type task --parent kanbus-bug01"
         Then the command should fail with exit code 1
 ```
 
@@ -615,8 +615,8 @@ Feature: Parent-child hierarchy validation
 ```gherkin
 Feature: Issue creation
     Scenario: Create a basic task with defaults
-        Given a Taskulus project with default configuration
-        When I run "tsk create Implement OAuth2 flow"
+        Given a Kanbus project with default configuration
+        When I run "kanbus create Implement OAuth2 flow"
         Then the command should succeed
         And stdout should contain a valid issue ID
         And an issue file should be created in the issues directory
@@ -630,33 +630,33 @@ Feature: Issue creation
         And the created issue should have an updated_at timestamp
 
     Scenario: Create an issue with all options specified
-        Given a Taskulus project with default configuration
-        And an "epic" issue "tsk-epic01" exists
-        When I run "tsk create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent tsk-epic01 --label auth --label urgent --description Bug in login"
+        Given a Kanbus project with default configuration
+        And an "epic" issue "kanbus-epic01" exists
+        When I run "kanbus create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent kanbus-epic01 --label auth --label urgent --description Bug in login"
         Then the command should succeed
         And the created issue should have type "bug"
         And the created issue should have priority 1
         And the created issue should have assignee "dev@example.com"
-        And the created issue should have parent "tsk-epic01"
+        And the created issue should have parent "kanbus-epic01"
         And the created issue should have labels "auth, urgent"
         And the created issue should have description "Bug in login"
 
     Scenario: Create an issue with invalid type
-        Given a Taskulus project with default configuration
-        When I run "tsk create Bad Issue --type nonexistent"
+        Given a Kanbus project with default configuration
+        When I run "kanbus create Bad Issue --type nonexistent"
         Then the command should fail with exit code 1
         And stderr should contain "unknown issue type"
 
     Scenario: Create an issue with nonexistent parent
-        Given a Taskulus project with default configuration
-        When I run "tsk create Orphan --parent tsk-nonexistent"
+        Given a Kanbus project with default configuration
+        When I run "kanbus create Orphan --parent kanbus-nonexistent"
         Then the command should fail with exit code 1
         And stderr should contain "not found"
 ```
 
 #### Task 5.2: Write Gherkin scenarios for issue display, update, close, delete
 
-Similar detailed scenarios for `tsk show`, `tsk update`, `tsk close`, `tsk delete`. Each scenario specifies expected behavior precisely.
+Similar detailed scenarios for `kanbus show`, `kanbus update`, `kanbus close`, `kanbus delete`. Each scenario specifies expected behavior precisely.
 
 #### Task 5.3: Implement CRUD in Python
 
@@ -683,7 +683,7 @@ Similar detailed scenarios for `tsk show`, `tsk update`, `tsk close`, `tsk delet
 ```gherkin
 Feature: In-memory index building
     Scenario: Index builds lookup maps from issue files
-        Given a Taskulus project with 5 issues of varying types and statuses
+        Given a Kanbus project with 5 issues of varying types and statuses
         When the index is built
         Then the index should contain 5 issues
         And querying by status "open" should return the correct issues
@@ -691,10 +691,10 @@ Feature: In-memory index building
         And querying by parent should return the correct children
 
     Scenario: Index computes reverse dependency links
-        Given a Taskulus project with default configuration
-        And issue "tsk-aaa" exists with a blocked-by dependency on "tsk-bbb"
+        Given a Kanbus project with default configuration
+        And issue "kanbus-aaa" exists with a blocked-by dependency on "kanbus-bbb"
         When the index is built
-        Then the reverse dependency index should show "tsk-bbb" blocks "tsk-aaa"
+        Then the reverse dependency index should show "kanbus-bbb" blocks "kanbus-aaa"
 ```
 
 `features/index/cache_invalidation.feature`:
@@ -702,31 +702,31 @@ Feature: In-memory index building
 ```gherkin
 Feature: Cache invalidation
     Scenario: Cache is created on first run
-        Given a Taskulus project with issues but no cache file
-        When any tsk command is run
+        Given a Kanbus project with issues but no cache file
+        When any kanbus command is run
         Then a cache file should be created in project/.cache/index.json
 
     Scenario: Cache is used when issue files have not changed
-        Given a Taskulus project with a valid cache
-        When any tsk command is run
+        Given a Kanbus project with a valid cache
+        When any kanbus command is run
         Then the cache should be loaded without re-scanning issue files
 
     Scenario: Cache is rebuilt when an issue file changes
-        Given a Taskulus project with a valid cache
+        Given a Kanbus project with a valid cache
         When an issue file is modified (mtime changes)
-        And any tsk command is run
+        And any kanbus command is run
         Then the cache should be rebuilt from the issue files
 
     Scenario: Cache is rebuilt when an issue file is added
-        Given a Taskulus project with a valid cache
+        Given a Kanbus project with a valid cache
         When a new issue file appears in the issues directory
-        And any tsk command is run
+        And any kanbus command is run
         Then the cache should be rebuilt
 
     Scenario: Cache is rebuilt when an issue file is deleted
-        Given a Taskulus project with a valid cache
+        Given a Kanbus project with a valid cache
         When an issue file is removed from the issues directory
-        And any tsk command is run
+        And any kanbus command is run
         Then the cache should be rebuilt
 ```
 
@@ -771,18 +771,18 @@ Explicit behavior:
 ```gherkin
 Feature: Blocked-by dependencies
     Scenario: Add a blocked-by dependency
-        Given a Taskulus project with default configuration
-        And issues "tsk-aaa" and "tsk-bbb" exist
-        When I run "tsk dep add tsk-aaa --blocked-by tsk-bbb"
+        Given a Kanbus project with default configuration
+        And issues "kanbus-aaa" and "kanbus-bbb" exist
+        When I run "kanbus dep add kanbus-aaa --blocked-by kanbus-bbb"
         Then the command should succeed
-        And issue "tsk-aaa" should have a blocked-by dependency on "tsk-bbb"
+        And issue "kanbus-aaa" should have a blocked-by dependency on "kanbus-bbb"
 
     Scenario: Remove a dependency
-        Given a Taskulus project with default configuration
-        And issue "tsk-aaa" has a blocked-by dependency on "tsk-bbb"
-        When I run "tsk dep remove tsk-aaa tsk-bbb"
+        Given a Kanbus project with default configuration
+        And issue "kanbus-aaa" has a blocked-by dependency on "kanbus-bbb"
+        When I run "kanbus dep remove kanbus-aaa kanbus-bbb"
         Then the command should succeed
-        And issue "tsk-aaa" should have no dependencies
+        And issue "kanbus-aaa" should have no dependencies
 ```
 
 `features/dependencies/cycle_detection.feature`:
@@ -790,24 +790,24 @@ Feature: Blocked-by dependencies
 ```gherkin
 Feature: Dependency cycle detection
     Scenario: Reject a direct cycle
-        Given a Taskulus project with default configuration
-        And issue "tsk-aaa" has a blocked-by dependency on "tsk-bbb"
-        When I run "tsk dep add tsk-bbb --blocked-by tsk-aaa"
+        Given a Kanbus project with default configuration
+        And issue "kanbus-aaa" has a blocked-by dependency on "kanbus-bbb"
+        When I run "kanbus dep add kanbus-bbb --blocked-by kanbus-aaa"
         Then the command should fail with exit code 1
         And stderr should contain "cycle"
 
     Scenario: Reject a transitive cycle
-        Given a Taskulus project with default configuration
-        And issue "tsk-aaa" is blocked-by "tsk-bbb"
-        And issue "tsk-bbb" is blocked-by "tsk-ccc"
-        When I run "tsk dep add tsk-ccc --blocked-by tsk-aaa"
+        Given a Kanbus project with default configuration
+        And issue "kanbus-aaa" is blocked-by "kanbus-bbb"
+        And issue "kanbus-bbb" is blocked-by "kanbus-ccc"
+        When I run "kanbus dep add kanbus-ccc --blocked-by kanbus-aaa"
         Then the command should fail with exit code 1
         And stderr should contain "cycle"
 
     Scenario: relates-to dependencies do not participate in cycle detection
-        Given a Taskulus project with default configuration
-        And issue "tsk-aaa" has a relates-to dependency on "tsk-bbb"
-        When I run "tsk dep add tsk-bbb --relates-to tsk-aaa"
+        Given a Kanbus project with default configuration
+        And issue "kanbus-aaa" has a relates-to dependency on "kanbus-bbb"
+        When I run "kanbus dep add kanbus-bbb --relates-to kanbus-aaa"
         Then the command should succeed
 ```
 
@@ -816,32 +816,32 @@ Feature: Dependency cycle detection
 ```gherkin
 Feature: Ready query
     Scenario: An open issue with no blockers is ready
-        Given a Taskulus project with an open issue "tsk-aaa" and no dependencies
-        When I run "tsk ready"
-        Then "tsk-aaa" should appear in the results
+        Given a Kanbus project with an open issue "kanbus-aaa" and no dependencies
+        When I run "kanbus ready"
+        Then "kanbus-aaa" should appear in the results
 
     Scenario: An open issue blocked by an open issue is not ready
-        Given a Taskulus project with default configuration
-        And an open issue "tsk-aaa" blocked-by open issue "tsk-bbb"
-        When I run "tsk ready"
-        Then "tsk-aaa" should not appear in the results
-        And "tsk-bbb" should appear in the results
+        Given a Kanbus project with default configuration
+        And an open issue "kanbus-aaa" blocked-by open issue "kanbus-bbb"
+        When I run "kanbus ready"
+        Then "kanbus-aaa" should not appear in the results
+        And "kanbus-bbb" should appear in the results
 
     Scenario: An open issue blocked by a closed issue is ready
-        Given a Taskulus project with default configuration
-        And an open issue "tsk-aaa" blocked-by closed issue "tsk-bbb"
-        When I run "tsk ready"
-        Then "tsk-aaa" should appear in the results
+        Given a Kanbus project with default configuration
+        And an open issue "kanbus-aaa" blocked-by closed issue "kanbus-bbb"
+        When I run "kanbus ready"
+        Then "kanbus-aaa" should appear in the results
 
     Scenario: A closed issue is never ready
-        Given a Taskulus project with a closed issue "tsk-aaa"
-        When I run "tsk ready"
-        Then "tsk-aaa" should not appear in the results
+        Given a Kanbus project with a closed issue "kanbus-aaa"
+        When I run "kanbus ready"
+        Then "kanbus-aaa" should not appear in the results
 
     Scenario: An in_progress issue is not ready
-        Given a Taskulus project with an in_progress issue "tsk-aaa"
-        When I run "tsk ready"
-        Then "tsk-aaa" should not appear in the results
+        Given a Kanbus project with an in_progress issue "kanbus-aaa"
+        When I run "kanbus ready"
+        Then "kanbus-aaa" should not appear in the results
 ```
 
 #### Task 7.2: Implement dependencies in Python
@@ -861,7 +861,7 @@ Same functions, same algorithm (DFS for cycle detection), Rust idioms.
 
 ### Epic 8: Query Commands
 
-**Goal:** `tsk list`, `tsk ready`, `tsk blocked`, `tsk search` provide filtered views of the issue database.
+**Goal:** `kanbus list`, `kanbus ready`, `kanbus blocked`, `kanbus search` provide filtered views of the issue database.
 
 **Dependencies:** Epic 6 (needs index).
 
@@ -889,17 +889,17 @@ Detailed scenarios for each filter combination, sorting, limits, JSON output, an
 ```gherkin
 Feature: Issue comments
     Scenario: Add a comment to an issue
-        Given a Taskulus project with default configuration
-        And an issue "tsk-aaa" exists
-        When I run 'tsk comment tsk-aaa "This is a comment"'
+        Given a Kanbus project with default configuration
+        And an issue "kanbus-aaa" exists
+        When I run 'kanbus comment kanbus-aaa "This is a comment"'
         Then the command should succeed
-        And issue "tsk-aaa" should have 1 comment
+        And issue "kanbus-aaa" should have 1 comment
         And the comment should have text "This is a comment"
         And the comment should have a created_at timestamp
 
     Scenario: Comments appear in issue display
-        Given an issue "tsk-aaa" with 2 comments
-        When I run "tsk show tsk-aaa"
+        Given an issue "kanbus-aaa" with 2 comments
+        When I run "kanbus show kanbus-aaa"
         Then stdout should display both comments in chronological order
 ```
 
@@ -922,19 +922,19 @@ Straightforward: append to `comments` list, update `updated_at`, write file.
 ```gherkin
 Feature: Wiki rendering
     Scenario: Render a wiki page with a simple query
-        Given a Taskulus project with default configuration
+        Given a Kanbus project with default configuration
         And 3 open tasks and 2 closed tasks exist
         And a wiki page "status.md" with content:
             """
             Open: {{ count(status="open") }}
             Closed: {{ count(status="closed") }}
             """
-        When I run "tsk wiki render project/wiki/status.md"
+        When I run "kanbus wiki render project/wiki/status.md"
         Then stdout should contain "Open: 3"
         And stdout should contain "Closed: 2"
 
     Scenario: Render a wiki page with a for loop
-        Given a Taskulus project with default configuration
+        Given a Kanbus project with default configuration
         And open tasks "Alpha" and "Beta" exist
         And a wiki page "tasks.md" with content:
             """
@@ -942,7 +942,7 @@ Feature: Wiki rendering
             - {{ issue.title }}
             {% endfor %}
             """
-        When I run "tsk wiki render project/wiki/tasks.md"
+        When I run "kanbus wiki render project/wiki/tasks.md"
         Then stdout should contain "- Alpha"
         And stdout should contain "- Beta"
         And "Alpha" should appear before "Beta" in the output
@@ -971,7 +971,7 @@ Scenarios for each template function: `query`, `count`, `issue`, `children`, `bl
 
 ### Epic 11: Maintenance Commands
 
-**Goal:** `tsk validate` checks integrity, `tsk stats` shows project overview.
+**Goal:** `kanbus validate` checks integrity, `kanbus stats` shows project overview.
 
 **Dependencies:** Epic 6 (needs index).
 
@@ -980,14 +980,14 @@ Scenarios for each template function: `query`, `count`, `issue`, `children`, `bl
 ```gherkin
 Feature: Project validation
     Scenario: Valid project passes validation
-        Given a Taskulus project with consistent data
-        When I run "tsk validate"
+        Given a Kanbus project with consistent data
+        When I run "kanbus validate"
         Then the command should succeed
         And stdout should contain "no issues found"
 
     Scenario: Dangling parent reference detected
-        Given a Taskulus project where issue "tsk-aaa" references parent "tsk-nonexistent"
-        When I run "tsk validate"
+        Given a Kanbus project where issue "kanbus-aaa" references parent "kanbus-nonexistent"
+        When I run "kanbus validate"
         Then the command should fail with exit code 1
         And stderr should contain "dangling parent reference"
 
@@ -1003,13 +1003,13 @@ Feature: Project validation
 
 #### Task 11.2-11.3: Implement in Python and Rust
 
-`tsk validate` runs all integrity checks and reports all errors (not just the first one). `tsk stats` aggregates counts by type, status, priority, and reports blockers.
+`kanbus validate` runs all integrity checks and reports all errors (not just the first one). `kanbus stats` aggregates counts by type, status, priority, and reports blockers.
 
 ---
 
 ### Epic 12: Dependency Tree Display
 
-**Goal:** `tsk dep tree <id>` renders a visual dependency tree.
+**Goal:** `kanbus dep tree <id>` renders a visual dependency tree.
 
 **Dependencies:** Epic 7.
 
@@ -1031,29 +1031,29 @@ Brief epic -- write scenarios for tree display format, implement ASCII tree rend
 
 ### Epic 15: GitHub Issue Sync
 
-**Goal:** Bidirectional sync between the Taskulus plan repository and GitHub Issues. Every Taskulus issue file has a corresponding GitHub issue whose body contains a clickable link to that file (blob URL). Every GitHub issue that does not link back to a Taskulus issue gets a new Taskulus issue created and its body updated with the link.
+**Goal:** Bidirectional sync between the Kanbus plan repository and GitHub Issues. Every Kanbus issue file has a corresponding GitHub issue whose body contains a clickable link to that file (blob URL). Every GitHub issue that does not link back to a Kanbus issue gets a new Kanbus issue created and its body updated with the link.
 
 **Dependencies:** Epic 5 (CRUD), Epic 6 (index).
 
-Sync runs via GitHub Actions using the `gh` CLI only. The link from each GitHub issue to the source JSON file is a blob URL built from `GITHUB_REPOSITORY`, default branch, and relative path (e.g. `project/issues/tsk-a1b2c3.json`). See `docs/GITHUB_SYNC.md` for link format and discovery.
+Sync runs via GitHub Actions using the `gh` CLI only. The link from each GitHub issue to the source JSON file is a blob URL built from `GITHUB_REPOSITORY`, default branch, and relative path (e.g. `project/issues/kanbus-a1b2c3.json`). See `docs/GITHUB_SYNC.md` for link format and discovery.
 
 #### Task 15.1: Link format and discovery
 
-- Define body format: blob URL plus HTML comment `<!-- taskulus-source: project/issues/tsk-abc.json -->` for parsing.
+- Define body format: blob URL plus HTML comment `<!-- kanbus-source: project/issues/kanbus-abc.json -->` for parsing.
 - Document derivation of blob URL from `GITHUB_REPOSITORY`, default branch (`gh repo view --json defaultBranchRef`), and relative path.
 - No Gherkin; document in epic and in `docs/GITHUB_SYNC.md`.
 
-#### Task 15.2: Taskulus to GitHub (ensure link exists)
+#### Task 15.2: Kanbus to GitHub (ensure link exists)
 
 - For each `project/issues/{id}.json`, ensure a GitHub issue exists with the blob link in the body.
 - If no GitHub issue: create one (title from issue, body with description and source link). Optionally store `custom.github_issue_number` in JSON.
 - If GitHub issue exists but body lacks link: edit body to add link (preserve existing content).
 - Script uses `gh issue list`, `gh issue create`, `gh issue view`, `gh issue edit`.
 
-#### Task 15.3: GitHub to Taskulus (create missing issues)
+#### Task 15.3: GitHub to Kanbus (create missing issues)
 
-- List GitHub issues; for each, parse body for Taskulus source marker.
-- If no source link: create new Taskulus issue (new ID, write `project/issues/{id}.json`), then update GitHub issue body with blob link and marker.
+- List GitHub issues; for each, parse body for Kanbus source marker.
+- If no source link: create new Kanbus issue (new ID, write `project/issues/{id}.json`), then update GitHub issue body with blob link and marker.
 - Copy title and optional description from GitHub issue into new JSON.
 
 #### Task 15.4: GitHub Action workflow
@@ -1063,7 +1063,7 @@ Sync runs via GitHub Actions using the `gh` CLI only. The link from each GitHub 
 
 #### Task 15.5: Sync script and documentation
 
-- Sync is script-only (`tools/sync_github_issues.py`), invoked by the workflow. No `tsk sync-github` CLI in this epic; document in `docs/GITHUB_SYNC.md` how to run sync locally (e.g. `python tools/sync_github_issues.py --dry-run`).
+- Sync is script-only (`tools/sync_github_issues.py`), invoked by the workflow. No `kanbus sync-github` CLI in this epic; document in `docs/GITHUB_SYNC.md` how to run sync locally (e.g. `python tools/sync_github_issues.py --dry-run`).
 
 ---
 
@@ -1104,7 +1104,7 @@ STAGE 5: YAML Test Cases
     Rust:   cd rust && cargo test --test spec_runner
 
 STAGE 6: Coverage Reporting
-    Python: coverage run --source=taskulus -m behave -c behave.ini
+    Python: coverage run --source=kanbus -m behave -c behave.ini
     Rust:   cargo tarpaulin --out Stdout --fail-under 100
             (or cargo llvm-cov with threshold)
 ```
@@ -1249,7 +1249,7 @@ use cucumber::World;
 
 #[tokio::main]
 async fn main() {
-    TaskulusWorld::run("tests/features/").await;
+    KanbusWorld::run("tests/features/").await;
     // tests/features/ is a path to ../../features/
 }
 ```
@@ -1299,7 +1299,7 @@ Both implementations also provide a runner for the YAML test case format describ
 2. For each test case:
    - Creates a temporary directory
    - Copies the `input/` directory contents into a proper project structure
-   - Invokes the `tsk` binary (or the library API directly) with the specified command
+   - Invokes the `kanbus` binary (or the library API directly) with the specified command
    - Asserts exit code, stdout/stderr content, and resulting file states
 3. Reports pass/fail per test case
 
@@ -1331,7 +1331,7 @@ The `@wip` tag acts as an explicit acknowledgment of incomplete work, visible in
 
 ```
 Epic 0:  Repository Bootstrap                    (no Gherkin)
-Epic 1:  Project Initialization (tsk init)       (4-6 scenarios)
+Epic 1:  Project Initialization (kanbus init)       (4-6 scenarios)
 Epic 2:  Data Model and Configuration            (8-12 scenarios)
 Epic 3:  Workflow State Machine                   (20-30 scenarios, heavy use of Scenario Outline)
 Epic 4:  Hierarchy Enforcement                    (12-16 scenarios)
@@ -1364,7 +1364,7 @@ Each epic depends on the ones before it. Within an epic, the flow is always:
 
 ### Local Development Workflow
 
-A developer working on Taskulus should be able to:
+A developer working on Kanbus should be able to:
 
 ```bash
 make fmt          # Auto-format everything
@@ -1378,15 +1378,15 @@ make check-parity # Run just the parity checker (~2 seconds)
 When a new contributor clones the repo:
 
 ```bash
-git clone https://github.com/.../Taskulus.git
-cd Taskulus
+git clone https://github.com/.../Kanbus.git
+cd Kanbus
 make setup        # Installs Python venv + deps, checks Rust toolchain
 make check-all    # Everything green
 ```
 
 ### Error Message Philosophy
 
-Every error message from `tsk` should:
+Every error message from `kanbus` should:
 - State what went wrong in plain English
 - State what was expected vs. what was found
 - Suggest what the user can do to fix it
@@ -1400,7 +1400,7 @@ The 'default' workflow allows these transitions from 'open':
   - closed
   - deferred
 
-To see the full workflow: tsk show-workflow task
+To see the full workflow: kanbus show-workflow task
 ```
 
 This is tested in the Gherkin scenarios by asserting on stderr content.

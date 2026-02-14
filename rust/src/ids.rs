@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 use uuid::Uuid;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 
 /// Request to generate a unique issue identifier.
 #[derive(Debug, Clone)]
@@ -110,10 +110,10 @@ pub fn format_issue_key(identifier: &str, project_context: bool) -> String {
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError::IdGenerationFailed` if unable to generate unique ID after 10 attempts.
+/// Returns `KanbusError::IdGenerationFailed` if unable to generate unique ID after 10 attempts.
 pub fn generate_issue_identifier(
     request: &IssueIdentifierRequest,
-) -> Result<IssueIdentifierResult, TaskulusError> {
+) -> Result<IssueIdentifierResult, KanbusError> {
     for _ in 0..10 {
         let identifier = format!("{}-{}", request.prefix, next_uuid());
         if !request.existing_ids.contains(&identifier) {
@@ -121,7 +121,7 @@ pub fn generate_issue_identifier(
         }
     }
 
-    Err(TaskulusError::IdGenerationFailed(
+    Err(KanbusError::IdGenerationFailed(
         "unable to generate unique id after 10 attempts".to_string(),
     ))
 }
@@ -140,12 +140,12 @@ pub fn generate_issue_identifier(
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError` if ID generation fails.
+/// Returns `KanbusError` if ID generation fails.
 pub fn generate_many_identifiers(
     title: &str,
     prefix: &str,
     count: usize,
-) -> Result<HashSet<String>, TaskulusError> {
+) -> Result<HashSet<String>, KanbusError> {
     let mut existing = HashSet::new();
     for _ in 0..count {
         let request = IssueIdentifierRequest {

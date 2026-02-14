@@ -1,4 +1,4 @@
-//! Beads to Taskulus migration helpers.
+//! Beads to Kanbus migration helpers.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
@@ -8,9 +8,9 @@ use chrono::{DateTime, TimeZone, Utc};
 use serde_json::Value;
 
 use crate::config_loader::load_project_configuration;
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::{
-    discover_project_directories, discover_taskulus_projects, ensure_git_repository,
+    discover_project_directories, discover_kanbus_projects, ensure_git_repository,
     get_configuration_path, initialize_project,
 };
 use crate::hierarchy::validate_parent_child_relationship;
@@ -32,18 +32,18 @@ pub struct MigrationResult {
 /// * `root` - Repository root path.
 ///
 /// # Errors
-/// Returns `TaskulusError` if Beads data is missing or invalid.
-pub fn load_beads_issues(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
+/// Returns `KanbusError` if Beads data is missing or invalid.
+pub fn load_beads_issues(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let beads_dir = root.join(".beads");
     if !beads_dir.exists() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "no .beads directory".to_string(),
         ));
     }
 
     let issues_path = beads_dir.join("issues.jsonl");
     if !issues_path.exists() {
-        return Err(TaskulusError::IssueOperation("no issues.jsonl".to_string()));
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
 
     let records = load_beads_records(&issues_path)?;
@@ -53,7 +53,7 @@ pub fn load_beads_issues(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
         let identifier = record
             .get("id")
             .and_then(Value::as_str)
-            .ok_or_else(|| TaskulusError::IssueOperation("missing id".to_string()))?;
+            .ok_or_else(|| KanbusError::IssueOperation("missing id".to_string()))?;
         record_by_id.insert(identifier.to_string(), record.clone());
     }
 
@@ -71,45 +71,45 @@ pub fn load_beads_issues(root: &Path) -> Result<Vec<IssueData>, TaskulusError> {
 /// * `identifier` - Issue identifier to locate.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if the issue is missing.
-pub fn load_beads_issue_by_id(root: &Path, identifier: &str) -> Result<IssueData, TaskulusError> {
+/// Returns `KanbusError::IssueOperation` if the issue is missing.
+pub fn load_beads_issue_by_id(root: &Path, identifier: &str) -> Result<IssueData, KanbusError> {
     let issues = load_beads_issues(root)?;
     for issue in issues {
         if issue.identifier == identifier {
             return Ok(issue);
         }
     }
-    Err(TaskulusError::IssueOperation("not found".to_string()))
+    Err(KanbusError::IssueOperation("not found".to_string()))
 }
 
-/// Migrate Beads issues.jsonl into a Taskulus project.
+/// Migrate Beads issues.jsonl into a Kanbus project.
 ///
 /// # Arguments
 /// * `root` - Repository root path.
 ///
 /// # Errors
-/// Returns `TaskulusError` if migration fails.
-pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, TaskulusError> {
+/// Returns `KanbusError` if migration fails.
+pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, KanbusError> {
     ensure_git_repository(root)?;
 
     let beads_dir = root.join(".beads");
     if !beads_dir.exists() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "no .beads directory".to_string(),
         ));
     }
 
     let issues_path = beads_dir.join("issues.jsonl");
     if !issues_path.exists() {
-        return Err(TaskulusError::IssueOperation("no issues.jsonl".to_string()));
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
 
     let mut projects = Vec::new();
     discover_project_directories(root, &mut projects)?;
-    let mut dotfile_projects = discover_taskulus_projects(root)?;
+    let mut dotfile_projects = discover_kanbus_projects(root)?;
     projects.append(&mut dotfile_projects);
     if !projects.is_empty() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "already initialized".to_string(),
         ));
     }
@@ -125,7 +125,7 @@ pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, TaskulusError>
         let identifier = record
             .get("id")
             .and_then(Value::as_str)
-            .ok_or_else(|| TaskulusError::IssueOperation("missing id".to_string()))?;
+            .ok_or_else(|| KanbusError::IssueOperation("missing id".to_string()))?;
         record_by_id.insert(identifier.to_string(), record.clone());
     }
 
@@ -142,18 +142,18 @@ pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, TaskulusError>
     })
 }
 
-fn load_beads_records(path: &Path) -> Result<Vec<Value>, TaskulusError> {
+fn load_beads_records(path: &Path) -> Result<Vec<Value>, KanbusError> {
     let contents =
-        fs::read_to_string(path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        fs::read_to_string(path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let mut records = Vec::new();
     for line in contents.lines() {
         if line.trim().is_empty() {
             continue;
         }
         let record: Value =
-            serde_json::from_str(line).map_err(|error| TaskulusError::Io(error.to_string()))?;
+            serde_json::from_str(line).map_err(|error| KanbusError::Io(error.to_string()))?;
         if record.get("id").is_none() {
-            return Err(TaskulusError::IssueOperation("missing id".to_string()));
+            return Err(KanbusError::IssueOperation("missing id".to_string()));
         }
         records.push(record);
     }
@@ -164,7 +164,7 @@ fn convert_record(
     record: &Value,
     record_by_id: &HashMap<String, Value>,
     configuration: &ProjectConfiguration,
-) -> Result<IssueData, TaskulusError> {
+) -> Result<IssueData, KanbusError> {
     let identifier = required_string(record, "id")?;
     let title = required_string(record, "title")?;
     let issue_type_raw = required_string(record, "issue_type")?;
@@ -176,12 +176,12 @@ fn convert_record(
 
     let priority_value = record
         .get("priority")
-        .ok_or_else(|| TaskulusError::IssueOperation("priority is required".to_string()))?;
+        .ok_or_else(|| KanbusError::IssueOperation("priority is required".to_string()))?;
     let priority = priority_value
         .as_i64()
-        .ok_or_else(|| TaskulusError::IssueOperation("priority is required".to_string()))?;
+        .ok_or_else(|| KanbusError::IssueOperation("priority is required".to_string()))?;
     if !configuration.priorities.contains_key(&(priority as u8)) {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "invalid priority".to_string(),
         ));
     }
@@ -275,7 +275,7 @@ fn convert_dependencies(
     configuration: &ProjectConfiguration,
     identifier: &str,
     issue_type: &str,
-) -> Result<(Option<String>, Vec<DependencyLink>), TaskulusError> {
+) -> Result<(Option<String>, Vec<DependencyLink>), KanbusError> {
     let mut parent: Option<String> = None;
     let mut extra_parents: Vec<String> = Vec::new();
     let mut links: Vec<DependencyLink> = Vec::new();
@@ -288,12 +288,12 @@ fn convert_dependencies(
                 .and_then(Value::as_str)
                 .unwrap_or("");
             if dependency_type.is_empty() || depends_on_id.is_empty() {
-                return Err(TaskulusError::IssueOperation(
+                return Err(KanbusError::IssueOperation(
                     "invalid dependency".to_string(),
                 ));
             }
             if !record_by_id.contains_key(depends_on_id) {
-                return Err(TaskulusError::IssueOperation(
+                return Err(KanbusError::IssueOperation(
                     "missing dependency".to_string(),
                 ));
             }
@@ -325,7 +325,7 @@ fn convert_dependencies(
             .and_then(Value::as_str)
             .unwrap_or("");
         if parent_issue_type.is_empty() {
-            return Err(TaskulusError::IssueOperation(
+            return Err(KanbusError::IssueOperation(
                 "parent issue_type is required".to_string(),
             ));
         }
@@ -334,14 +334,14 @@ fn convert_dependencies(
             && (canonical_parent == "epic" || canonical_parent == "task");
         if !skip_validation {
             let validation_result =
-                if cfg!(tarpaulin) && std::env::var_os("TASKULUS_TEST_HIERARCHY_ERROR").is_some() {
-                    Err(TaskulusError::Io("forced hierarchy error".to_string()))
+                if cfg!(tarpaulin) && std::env::var_os("KANBUS_TEST_HIERARCHY_ERROR").is_some() {
+                    Err(KanbusError::Io("forced hierarchy error".to_string()))
                 } else {
                     validate_parent_child_relationship(configuration, &canonical_parent, issue_type)
                 };
             match validation_result {
                 Ok(()) => {}
-                Err(TaskulusError::InvalidHierarchy(message)) => {
+                Err(KanbusError::InvalidHierarchy(message)) => {
                     eprintln!(
                         "Suggestion: {message}. Remove the parent from '{identifier}' or update the hierarchy in project/config.yaml to allow this relationship."
                     );
@@ -355,14 +355,14 @@ fn convert_dependencies(
     Ok((parent, links))
 }
 
-fn convert_comments(comments: Option<&Vec<Value>>) -> Result<Vec<IssueComment>, TaskulusError> {
+fn convert_comments(comments: Option<&Vec<Value>>) -> Result<Vec<IssueComment>, KanbusError> {
     let mut results = Vec::new();
     if let Some(comments) = comments {
         for comment in comments {
             let author = comment.get("author").and_then(Value::as_str).unwrap_or("");
             let text = comment.get("text").and_then(Value::as_str).unwrap_or("");
             if author.trim().is_empty() || text.trim().is_empty() {
-                return Err(TaskulusError::IssueOperation("invalid comment".to_string()));
+                return Err(KanbusError::IssueOperation("invalid comment".to_string()));
             }
             let created_at = parse_timestamp(comment.get("created_at"), "comment.created_at")?;
             results.push(IssueComment {
@@ -378,24 +378,24 @@ fn convert_comments(comments: Option<&Vec<Value>>) -> Result<Vec<IssueComment>, 
 fn parse_timestamp(
     value: Option<&Value>,
     field_name: &str,
-) -> Result<DateTime<Utc>, TaskulusError> {
+) -> Result<DateTime<Utc>, KanbusError> {
     let Some(value) = value else {
-        return Err(TaskulusError::IssueOperation(format!(
+        return Err(KanbusError::IssueOperation(format!(
             "{field_name} is required"
         )));
     };
     if value.is_null() {
-        return Err(TaskulusError::IssueOperation(format!(
+        return Err(KanbusError::IssueOperation(format!(
             "{field_name} is required"
         )));
     }
     let Some(text) = value.as_str() else {
-        return Err(TaskulusError::IssueOperation(format!(
+        return Err(KanbusError::IssueOperation(format!(
             "{field_name} must be a string"
         )));
     };
     if text.is_empty() {
-        return Err(TaskulusError::IssueOperation(format!(
+        return Err(KanbusError::IssueOperation(format!(
             "{field_name} is required"
         )));
     }
@@ -407,19 +407,19 @@ fn parse_timestamp(
     normalized = normalize_fractional_seconds(&normalized);
     if has_timezone(&normalized) {
         let parsed = DateTime::parse_from_rfc3339(&normalized)
-            .map_err(|_| TaskulusError::IssueOperation(format!("invalid {field_name}")))?;
+            .map_err(|_| KanbusError::IssueOperation(format!("invalid {field_name}")))?;
         return Ok(parsed.with_timezone(&Utc));
     }
     let parsed = chrono::NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H:%M:%S%.f")
         .or_else(|_| chrono::NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H:%M:%S"))
-        .map_err(|_| TaskulusError::IssueOperation(format!("invalid {field_name}")))?;
+        .map_err(|_| KanbusError::IssueOperation(format!("invalid {field_name}")))?;
     Ok(Utc.from_utc_datetime(&parsed))
 }
 
-fn required_string(record: &Value, key: &str) -> Result<String, TaskulusError> {
+fn required_string(record: &Value, key: &str) -> Result<String, KanbusError> {
     let value = record.get(key).and_then(Value::as_str).unwrap_or("");
     if value.trim().is_empty() {
-        return Err(TaskulusError::IssueOperation(format!("{key} is required")));
+        return Err(KanbusError::IssueOperation(format!("{key} is required")));
     }
     Ok(value.to_string())
 }
@@ -468,14 +468,14 @@ fn has_timezone(text: &str) -> bool {
 fn validate_issue_type(
     configuration: &ProjectConfiguration,
     issue_type: &str,
-) -> Result<(), TaskulusError> {
+) -> Result<(), KanbusError> {
     let known = configuration
         .hierarchy
         .iter()
         .chain(configuration.types.iter())
         .any(|value| value == issue_type);
     if !known {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "unknown issue type".to_string(),
         ));
     }
@@ -486,7 +486,7 @@ fn validate_status(
     configuration: &ProjectConfiguration,
     issue_type: &str,
     status: &str,
-) -> Result<(), TaskulusError> {
+) -> Result<(), KanbusError> {
     let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
     let mut statuses = HashSet::new();
     for (key, values) in workflow.iter() {
@@ -496,7 +496,7 @@ fn validate_status(
         }
     }
     if !statuses.contains(status) {
-        return Err(TaskulusError::IssueOperation("invalid status".to_string()));
+        return Err(KanbusError::IssueOperation("invalid status".to_string()));
     }
     Ok(())
 }

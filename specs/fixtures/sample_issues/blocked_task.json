@@ -1,5 +1,5 @@
 {
-  "id": "tsk-blocked01",
+  "id": "kanbus-blocked01",
   "title": "Blocked task",
   "description": "",
   "type": "task",
@@ -11,7 +11,7 @@
   "labels": [],
   "dependencies": [
     {
-      "target": "tsk-closed01",
+      "target": "kanbus-closed01",
       "type": "blocked-by"
     }
   ],

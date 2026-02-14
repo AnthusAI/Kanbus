@@ -9,11 +9,11 @@ use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use taskulus::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
-use taskulus::index::build_index_from_directory;
-use taskulus::index::IssueIndex;
-use taskulus::issue_files::read_issue_from_file;
-use taskulus::models::{DependencyLink, IssueData};
+use kanbus::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
+use kanbus::index::build_index_from_directory;
+use kanbus::index::IssueIndex;
+use kanbus::issue_files::read_issue_from_file;
+use kanbus::models::{DependencyLink, IssueData};
 
 const ISSUE_COUNT: usize = 1000;
 const RUST_INDEX_BUILD_TARGET_MS: f64 = 1.0;
@@ -22,7 +22,7 @@ const RUST_CACHE_LOAD_TARGET_MS: f64 = 1.0;
 fn create_issue(identifier: &str, now: DateTime<Utc>) -> IssueData {
     let dependencies = if identifier.ends_with('0') {
         vec![DependencyLink {
-            target: "tsk-000001".to_string(),
+            target: "kanbus-000001".to_string(),
             dependency_type: "blocked-by".to_string(),
         }]
     } else {
@@ -54,7 +54,7 @@ fn generate_issues(issues_directory: &PathBuf) -> Result<(), Box<dyn std::error:
     fs::create_dir_all(issues_directory)?;
 
     for index in 0..ISSUE_COUNT {
-        let identifier = format!("tsk-{index:06}");
+        let identifier = format!("kanbus-{index:06}");
         let issue = create_issue(&identifier, now);
         let payload = serde_json::to_string_pretty(&issue)?;
         let path = issues_directory.join(format!("{identifier}.json"));
@@ -218,7 +218,7 @@ fn run_parallel(
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let temp_root = std::env::temp_dir().join(format!("taskulus-index-bench-{}", Uuid::new_v4()));
+    let temp_root = std::env::temp_dir().join(format!("kanbus-index-bench-{}", Uuid::new_v4()));
     let issues_directory = temp_root.join("project").join("issues");
     let cache_path = temp_root.join("project").join(".cache").join("index.json");
 

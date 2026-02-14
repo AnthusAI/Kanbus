@@ -2,7 +2,7 @@ use chrono::{DateTime, Datelike, Timelike, Utc};
 use chrono_tz::Tz;
 use cucumber::{given, then, when};
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
 #[derive(Debug, Clone)]
 pub struct ConsoleIssue {
@@ -58,35 +58,35 @@ pub struct ConsoleState {
 }
 
 #[given("the console is open")]
-fn given_console_open(world: &mut TaskulusWorld) {
+fn given_console_open(world: &mut KanbusWorld) {
     world.console_state = Some(open_console(world));
 }
 
 #[given("local storage is cleared")]
-fn given_local_storage_cleared(world: &mut TaskulusWorld) {
+fn given_local_storage_cleared(world: &mut KanbusWorld) {
     world.console_local_storage = ConsoleLocalStorage::default();
 }
 
 #[when("the console is reloaded")]
-fn when_console_reloaded(world: &mut TaskulusWorld) {
+fn when_console_reloaded(world: &mut KanbusWorld) {
     world.console_state = Some(open_console(world));
 }
 
 #[when(expr = "I switch to the {string} tab")]
-fn when_switch_tab(world: &mut TaskulusWorld, tab: String) {
+fn when_switch_tab(world: &mut KanbusWorld, tab: String) {
     let state = require_console_state(world);
     state.selected_tab = tab.clone();
     world.console_local_storage.selected_tab = Some(tab);
 }
 
 #[when(expr = "I open the task {string}")]
-fn when_open_task(world: &mut TaskulusWorld, title: String) {
+fn when_open_task(world: &mut KanbusWorld, title: String) {
     let state = require_console_state(world);
     state.selected_task_title = Some(title);
 }
 
 #[when(expr = "a new task issue named {string} is added")]
-fn when_add_task_issue(world: &mut TaskulusWorld, title: String) {
+fn when_add_task_issue(world: &mut KanbusWorld, title: String) {
     let state = require_console_state(world);
     state.issues.push(ConsoleIssue {
         title,
@@ -101,12 +101,12 @@ fn when_add_task_issue(world: &mut TaskulusWorld, title: String) {
 }
 
 #[when("I open settings")]
-fn when_open_settings(world: &mut TaskulusWorld) {
+fn when_open_settings(world: &mut KanbusWorld) {
     require_console_state(world);
 }
 
 #[given(expr = "the console configuration sets time zone {string}")]
-fn given_console_time_zone(world: &mut TaskulusWorld, time_zone: String) {
+fn given_console_time_zone(world: &mut KanbusWorld, time_zone: String) {
     world.console_time_zone = Some(time_zone.clone());
     let state = require_console_state(world);
     state.time_zone = Some(time_zone);
@@ -114,7 +114,7 @@ fn given_console_time_zone(world: &mut TaskulusWorld, time_zone: String) {
 
 #[given(expr = "the console has a comment from {string} at {string} on task {string}")]
 fn given_console_comment(
-    world: &mut TaskulusWorld,
+    world: &mut KanbusWorld,
     author: String,
     timestamp: String,
     title: String,
@@ -134,7 +134,7 @@ fn given_console_comment(
 
 #[given(expr = "the console has a task {string} created at {string} updated at {string}")]
 fn given_console_task_timestamps(
-    world: &mut TaskulusWorld,
+    world: &mut KanbusWorld,
     title: String,
     created_at: String,
     updated_at: String,
@@ -154,7 +154,7 @@ fn given_console_task_timestamps(
     expr = "the console has a closed task {string} created at {string} updated at {string} closed at {string}"
 )]
 fn given_console_closed_task(
-    world: &mut TaskulusWorld,
+    world: &mut KanbusWorld,
     title: String,
     created_at: String,
     updated_at: String,
@@ -173,7 +173,7 @@ fn given_console_closed_task(
 }
 
 #[given(expr = "the console has an assignee {string} on task {string}")]
-fn given_console_task_assignee(world: &mut TaskulusWorld, assignee: String, title: String) {
+fn given_console_task_assignee(world: &mut KanbusWorld, assignee: String, title: String) {
     let state = require_console_state(world);
     for issue in &mut state.issues {
         if issue.title == title {
@@ -185,55 +185,55 @@ fn given_console_task_assignee(world: &mut TaskulusWorld, assignee: String, titl
 }
 
 #[when(expr = "I set the theme to {string}")]
-fn when_set_theme(world: &mut TaskulusWorld, theme: String) {
+fn when_set_theme(world: &mut KanbusWorld, theme: String) {
     let state = require_console_state(world);
     state.settings.theme = theme.clone();
     world.console_local_storage.settings.theme = theme;
 }
 
 #[when(expr = "I set the mode to {string}")]
-fn when_set_mode(world: &mut TaskulusWorld, mode: String) {
+fn when_set_mode(world: &mut KanbusWorld, mode: String) {
     let state = require_console_state(world);
     state.settings.mode = mode.clone();
     world.console_local_storage.settings.mode = mode;
 }
 
 #[when(expr = "I set the typeface to {string}")]
-fn when_set_typeface(world: &mut TaskulusWorld, typeface: String) {
+fn when_set_typeface(world: &mut KanbusWorld, typeface: String) {
     let state = require_console_state(world);
     state.settings.typeface = typeface.clone();
     world.console_local_storage.settings.typeface = typeface;
 }
 
 #[when(expr = "I set motion to {string}")]
-fn when_set_motion(world: &mut TaskulusWorld, motion: String) {
+fn when_set_motion(world: &mut KanbusWorld, motion: String) {
     let state = require_console_state(world);
     state.settings.motion = motion.clone();
     world.console_local_storage.settings.motion = motion;
 }
 
 #[then(expr = "the {string} tab should be selected")]
-fn then_tab_selected(world: &mut TaskulusWorld, tab: String) {
+fn then_tab_selected(world: &mut KanbusWorld, tab: String) {
     let state = require_console_state(world);
     assert_eq!(state.selected_tab, tab);
 }
 
 #[then(expr = "I should see the issue {string}")]
-fn then_should_see_issue(world: &mut TaskulusWorld, title: String) {
+fn then_should_see_issue(world: &mut KanbusWorld, title: String) {
     let state = require_console_state(world);
     let visible_titles = visible_issue_titles(state);
     assert!(visible_titles.contains(&title));
 }
 
 #[then(expr = "I should not see the issue {string}")]
-fn then_should_not_see_issue(world: &mut TaskulusWorld, title: String) {
+fn then_should_not_see_issue(world: &mut KanbusWorld, title: String) {
     let state = require_console_state(world);
     let visible_titles = visible_issue_titles(state);
     assert!(!visible_titles.contains(&title));
 }
 
 #[then(expr = "I should see the sub-task {string}")]
-fn then_should_see_subtask(world: &mut TaskulusWorld, title: String) {
+fn then_should_see_subtask(world: &mut KanbusWorld, title: String) {
     let state = require_console_state(world);
     let selected = state.selected_task_title.clone().expect("no task selected");
     let matches: Vec<&String> = state
@@ -246,31 +246,31 @@ fn then_should_see_subtask(world: &mut TaskulusWorld, title: String) {
 }
 
 #[then(expr = "the theme should be {string}")]
-fn then_theme_should_be(world: &mut TaskulusWorld, theme: String) {
+fn then_theme_should_be(world: &mut KanbusWorld, theme: String) {
     let state = require_console_state(world);
     assert_eq!(state.settings.theme, theme);
 }
 
 #[then(expr = "the mode should be {string}")]
-fn then_mode_should_be(world: &mut TaskulusWorld, mode: String) {
+fn then_mode_should_be(world: &mut KanbusWorld, mode: String) {
     let state = require_console_state(world);
     assert_eq!(state.settings.mode, mode);
 }
 
 #[then(expr = "the typeface should be {string}")]
-fn then_typeface_should_be(world: &mut TaskulusWorld, typeface: String) {
+fn then_typeface_should_be(world: &mut KanbusWorld, typeface: String) {
     let state = require_console_state(world);
     assert_eq!(state.settings.typeface, typeface);
 }
 
 #[then(expr = "the motion mode should be {string}")]
-fn then_motion_should_be(world: &mut TaskulusWorld, motion: String) {
+fn then_motion_should_be(world: &mut KanbusWorld, motion: String) {
     let state = require_console_state(world);
     assert_eq!(state.settings.motion, motion);
 }
 
 #[then(expr = "the comment timestamp should be {string}")]
-fn then_comment_timestamp_should_be(world: &mut TaskulusWorld, timestamp: String) {
+fn then_comment_timestamp_should_be(world: &mut KanbusWorld, timestamp: String) {
     let state = require_console_state(world);
     let selected = state.selected_task_title.clone().expect("no task selected");
     for issue in &state.issues {
@@ -286,30 +286,30 @@ fn then_comment_timestamp_should_be(world: &mut TaskulusWorld, timestamp: String
 }
 
 #[then(expr = "the issue metadata should include created timestamp {string}")]
-fn then_issue_created_timestamp(world: &mut TaskulusWorld, timestamp: String) {
+fn then_issue_created_timestamp(world: &mut KanbusWorld, timestamp: String) {
     let formatted = get_selected_issue_timestamp(world, "created_at");
     assert_eq!(formatted, timestamp);
 }
 
 #[then(expr = "the issue metadata should include updated timestamp {string}")]
-fn then_issue_updated_timestamp(world: &mut TaskulusWorld, timestamp: String) {
+fn then_issue_updated_timestamp(world: &mut KanbusWorld, timestamp: String) {
     let formatted = get_selected_issue_timestamp(world, "updated_at");
     assert_eq!(formatted, timestamp);
 }
 
 #[then(expr = "the issue metadata should include closed timestamp {string}")]
-fn then_issue_closed_timestamp(world: &mut TaskulusWorld, timestamp: String) {
+fn then_issue_closed_timestamp(world: &mut KanbusWorld, timestamp: String) {
     let formatted = get_selected_issue_timestamp(world, "closed_at");
     assert_eq!(formatted, timestamp);
 }
 
 #[then(expr = "the issue metadata should include assignee {string}")]
-fn then_issue_metadata_assignee(world: &mut TaskulusWorld, assignee: String) {
+fn then_issue_metadata_assignee(world: &mut KanbusWorld, assignee: String) {
     let issue = get_selected_issue(world);
     assert_eq!(issue.assignee.as_deref(), Some(assignee.as_str()));
 }
 
-fn open_console(world: &TaskulusWorld) -> ConsoleState {
+fn open_console(world: &KanbusWorld) -> ConsoleState {
     let selected_tab = world
         .console_local_storage
         .selected_tab
@@ -326,7 +326,7 @@ fn open_console(world: &TaskulusWorld) -> ConsoleState {
     }
 }
 
-fn require_console_state(world: &mut TaskulusWorld) -> &mut ConsoleState {
+fn require_console_state(world: &mut KanbusWorld) -> &mut ConsoleState {
     world
         .console_state
         .as_mut()
@@ -413,7 +413,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
     ]
 }
 
-fn get_selected_issue(world: &mut TaskulusWorld) -> &mut ConsoleIssue {
+fn get_selected_issue(world: &mut KanbusWorld) -> &mut ConsoleIssue {
     let state = require_console_state(world);
     let selected = state.selected_task_title.clone().expect("no task selected");
     state
@@ -423,7 +423,7 @@ fn get_selected_issue(world: &mut TaskulusWorld) -> &mut ConsoleIssue {
         .expect("selected task not found")
 }
 
-fn get_selected_issue_timestamp(world: &mut TaskulusWorld, field: &str) -> String {
+fn get_selected_issue_timestamp(world: &mut KanbusWorld, field: &str) -> String {
     let state = require_console_state(world);
     let selected = state.selected_task_title.clone().expect("no task selected");
     let issue = state

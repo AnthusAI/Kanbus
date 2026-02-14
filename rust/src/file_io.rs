@@ -5,7 +5,7 @@ use std::process::Command;
 
 use crate::config::default_project_configuration;
 use crate::config_loader::load_project_configuration;
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
     DEFAULT_PROJECT_MANAGEMENT_TEMPLATE, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
@@ -14,7 +14,7 @@ use serde_json;
 use serde_yaml;
 
 fn should_force_canonicalize_failure() -> bool {
-    std::env::var_os("TASKULUS_TEST_CANONICALIZE_FAILURE").is_some()
+    std::env::var_os("KANBUS_TEST_CANONICALIZE_FAILURE").is_some()
 }
 
 pub(crate) fn canonicalize_path(path: &Path) -> Result<PathBuf, std::io::Error> {
@@ -32,23 +32,23 @@ pub(crate) fn canonicalize_path(path: &Path) -> Result<PathBuf, std::io::Error> 
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError::Initialization` if the directory is not a git repository.
-pub fn ensure_git_repository(root: &Path) -> Result<(), TaskulusError> {
+/// Returns `KanbusError::Initialization` if the directory is not a git repository.
+pub fn ensure_git_repository(root: &Path) -> Result<(), KanbusError> {
     let output = Command::new("git")
         .args(["rev-parse", "--is-inside-work-tree"])
         .current_dir(root)
         .output()
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
 
     if !output.status.success() {
-        return Err(TaskulusError::Initialization(
+        return Err(KanbusError::Initialization(
             "not a git repository".to_string(),
         ));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if stdout != "true" {
-        return Err(TaskulusError::Initialization(
+        return Err(KanbusError::Initialization(
             "not a git repository".to_string(),
         ));
     }
@@ -56,7 +56,7 @@ pub fn ensure_git_repository(root: &Path) -> Result<(), TaskulusError> {
     Ok(())
 }
 
-/// Initialize the Taskulus project structure.
+/// Initialize the Kanbus project structure.
 ///
 /// # Arguments
 ///
@@ -65,31 +65,31 @@ pub fn ensure_git_repository(root: &Path) -> Result<(), TaskulusError> {
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError::Initialization` if already initialized.
-pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), TaskulusError> {
+/// Returns `KanbusError::Initialization` if already initialized.
+pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), KanbusError> {
     let project_dir = root.join("project");
     if project_dir.exists() {
-        return Err(TaskulusError::Initialization(
+        return Err(KanbusError::Initialization(
             "already initialized".to_string(),
         ));
     }
 
     let issues_dir = project_dir.join("issues");
 
-    std::fs::create_dir(&project_dir).map_err(|error| TaskulusError::Io(error.to_string()))?;
-    std::fs::create_dir(&issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?;
-    let config_path = root.join(".taskulus.yml");
+    std::fs::create_dir(&project_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::create_dir(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let config_path = root.join(".kanbus.yml");
     if !config_path.exists() {
         let default_configuration = default_project_configuration();
         let contents = serde_yaml::to_string(&default_configuration)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
         std::fs::write(&config_path, contents)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     let template_path = root.join(DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME);
     if !template_path.exists() {
         std::fs::write(&template_path, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     write_project_guard_files(&project_dir)?;
     write_tool_block_files(root)?;
@@ -113,44 +113,44 @@ pub fn resolve_root(cwd: &Path) -> PathBuf {
     cwd.to_path_buf()
 }
 
-fn write_project_guard_files(project_dir: &Path) -> Result<(), TaskulusError> {
+fn write_project_guard_files(project_dir: &Path) -> Result<(), KanbusError> {
     let agents_path = project_dir.join("AGENTS.md");
     let agents_content = [
         "# DO NOT EDIT HERE",
         "",
         "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
-        "Do not read or write in this folder. Do not inspect issue JSON with tools like cat or jq. Use Taskulus commands instead.",
+        "Do not read or write in this folder. Do not inspect issue JSON with tools like cat or jq. Use Kanbus commands instead.",
         "",
         "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
     ]
     .join("\n")
         + "\n";
     std::fs::write(&agents_path, agents_content)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let do_not_edit = project_dir.join("DO_NOT_EDIT");
     let do_not_edit_content = [
         "DO NOT EDIT ANYTHING IN project/",
         "This folder is guarded by The Way.",
         "Do not inspect issue JSON with tools like cat or jq.",
-        "All changes must go through Taskulus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
+        "All changes must go through Kanbus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
     ]
     .join("\n")
         + "\n";
     std::fs::write(&do_not_edit, do_not_edit_content)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(())
 }
 
-fn write_tool_block_files(root: &Path) -> Result<(), TaskulusError> {
+fn write_tool_block_files(root: &Path) -> Result<(), KanbusError> {
     let cursorignore = root.join(".cursorignore");
     if !cursorignore.exists() {
         std::fs::write(&cursorignore, "project/\n")
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
 
     let claude_dir = root.join(".claude");
-    std::fs::create_dir_all(&claude_dir).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    std::fs::create_dir_all(&claude_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     let claude_settings = claude_dir.join("settings.json");
     if !claude_settings.exists() {
         let payload = serde_json::json!({
@@ -162,13 +162,13 @@ fn write_tool_block_files(root: &Path) -> Result<(), TaskulusError> {
             }
         });
         let content = serde_json::to_string_pretty(&payload)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
         std::fs::write(&claude_settings, format!("{}\n", content))
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
 
     let vscode_dir = root.join(".vscode");
-    std::fs::create_dir_all(&vscode_dir).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    std::fs::create_dir_all(&vscode_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     let vscode_settings = vscode_dir.join("settings.json");
     if !vscode_settings.exists() {
         let payload = serde_json::json!({
@@ -177,14 +177,14 @@ fn write_tool_block_files(root: &Path) -> Result<(), TaskulusError> {
             "search.exclude": {"**/project/**": true},
         });
         let content = serde_json::to_string_pretty(&payload)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
         std::fs::write(&vscode_settings, format!("{}\n", content))
-            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     Ok(())
 }
 
-/// Load a single Taskulus project directory by downward discovery.
+/// Load a single Kanbus project directory by downward discovery.
 ///
 /// # Arguments
 ///
@@ -192,11 +192,11 @@ fn write_tool_block_files(root: &Path) -> Result<(), TaskulusError> {
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError::IssueOperation` if no project or multiple projects are found.
-pub fn load_project_directory(root: &Path) -> Result<PathBuf, TaskulusError> {
+/// Returns `KanbusError::IssueOperation` if no project or multiple projects are found.
+pub fn load_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
     let mut projects = Vec::new();
     discover_project_directories(root, &mut projects)?;
-    let mut dotfile_projects = discover_taskulus_projects(root)?;
+    let mut dotfile_projects = discover_kanbus_projects(root)?;
     projects.append(&mut dotfile_projects);
     let mut normalized = Vec::new();
     for path in projects {
@@ -208,7 +208,7 @@ pub fn load_project_directory(root: &Path) -> Result<PathBuf, TaskulusError> {
     normalized.sort();
     normalized.dedup();
     if normalized.is_empty() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "project not initialized".to_string(),
         ));
     }
@@ -218,10 +218,10 @@ pub fn load_project_directory(root: &Path) -> Result<PathBuf, TaskulusError> {
             .map(|path| path.display().to_string())
             .collect::<Vec<String>>()
             .join(", ");
-        return Err(TaskulusError::IssueOperation(format!(
+        return Err(KanbusError::IssueOperation(format!(
             "multiple projects found: {joined}. \
              Run this command from a directory with a single project/, \
-             or remove extra entries from external_projects in .taskulus.yml."
+             or remove extra entries from external_projects in .kanbus.yml."
         )));
     }
     Ok(normalized[0].clone())
@@ -251,18 +251,18 @@ pub fn find_project_local_directory(project_dir: &Path) -> Option<PathBuf> {
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError::Io` if filesystem operations fail.
-pub fn ensure_project_local_directory(project_dir: &Path) -> Result<PathBuf, TaskulusError> {
+/// Returns `KanbusError::Io` if filesystem operations fail.
+pub fn ensure_project_local_directory(project_dir: &Path) -> Result<PathBuf, KanbusError> {
     let local_dir = project_dir
         .parent()
         .map(|parent| parent.join("project-local"))
-        .ok_or_else(|| TaskulusError::Io("project-local path unavailable".to_string()))?;
+        .ok_or_else(|| KanbusError::Io("project-local path unavailable".to_string()))?;
     let issues_dir = local_dir.join("issues");
-    std::fs::create_dir_all(&issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    std::fs::create_dir_all(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     ensure_gitignore_entry(
         project_dir
             .parent()
-            .ok_or_else(|| TaskulusError::Io("project-local path unavailable".to_string()))?,
+            .ok_or_else(|| KanbusError::Io("project-local path unavailable".to_string()))?,
         "project-local/",
     )?;
     Ok(local_dir)
@@ -276,26 +276,26 @@ pub fn ensure_project_local_directory(project_dir: &Path) -> Result<PathBuf, Tas
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError::IssueOperation` if the configuration file is missing.
-pub fn get_configuration_path(root: &Path) -> Result<PathBuf, TaskulusError> {
-    if std::env::var_os("TASKULUS_TEST_CONFIGURATION_PATH_FAILURE").is_some() {
-        return Err(TaskulusError::Io(
+/// Returns `KanbusError::IssueOperation` if the configuration file is missing.
+pub fn get_configuration_path(root: &Path) -> Result<PathBuf, KanbusError> {
+    if std::env::var_os("KANBUS_TEST_CONFIGURATION_PATH_FAILURE").is_some() {
+        return Err(KanbusError::Io(
             "configuration path lookup failed".to_string(),
         ));
     }
     let Some(path) = find_configuration_file(root)? else {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "project not initialized".to_string(),
         ));
     };
     Ok(path)
 }
 
-fn ensure_gitignore_entry(root: &Path, entry: &str) -> Result<(), TaskulusError> {
+fn ensure_gitignore_entry(root: &Path, entry: &str) -> Result<(), KanbusError> {
     let gitignore_path = root.join(".gitignore");
     let existing = if gitignore_path.exists() {
         std::fs::read_to_string(&gitignore_path)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?
+            .map_err(|error| KanbusError::Io(error.to_string()))?
     } else {
         String::new()
     };
@@ -310,18 +310,18 @@ fn ensure_gitignore_entry(root: &Path, entry: &str) -> Result<(), TaskulusError>
     updated.push_str(entry);
     updated.push('\n');
     std::fs::write(&gitignore_path, updated)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(())
 }
 
-/// Discover configured project paths from .taskulus.yml.
+/// Discover configured project paths from .kanbus.yml.
 ///
 /// # Arguments
 /// * `root` - Repository root path.
 ///
 /// # Errors
-/// Returns `TaskulusError` if configuration or dotfile paths are invalid.
-pub fn discover_taskulus_projects(root: &Path) -> Result<Vec<PathBuf>, TaskulusError> {
+/// Returns `KanbusError` if configuration or dotfile paths are invalid.
+pub fn discover_kanbus_projects(root: &Path) -> Result<Vec<PathBuf>, KanbusError> {
     let mut projects = Vec::new();
     if let Some(config_path) = find_configuration_file(root)? {
         let configuration = load_project_configuration(&config_path)?;
@@ -333,13 +333,13 @@ pub fn discover_taskulus_projects(root: &Path) -> Result<Vec<PathBuf>, TaskulusE
     Ok(projects)
 }
 
-fn find_configuration_file(root: &Path) -> Result<Option<PathBuf>, TaskulusError> {
+fn find_configuration_file(root: &Path) -> Result<Option<PathBuf>, KanbusError> {
     let git_root = find_git_root(root);
     let mut current = root
         .canonicalize()
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     loop {
-        let candidate = current.join(".taskulus.yml");
+        let candidate = current.join(".kanbus.yml");
         if candidate.is_file() {
             return Ok(Some(candidate));
         }
@@ -364,7 +364,7 @@ fn find_configuration_file(root: &Path) -> Result<Option<PathBuf>, TaskulusError
 fn resolve_project_directories(
     base: &Path,
     configuration: &ProjectConfiguration,
-) -> Result<Vec<PathBuf>, TaskulusError> {
+) -> Result<Vec<PathBuf>, KanbusError> {
     let mut projects = Vec::new();
     let primary = base.join(&configuration.project_directory);
     projects.push(primary);
@@ -376,8 +376,8 @@ fn resolve_project_directories(
             base.join(candidate)
         };
         if !resolved.is_dir() {
-            return Err(TaskulusError::IssueOperation(format!(
-                "taskulus path not found: {}",
+            return Err(KanbusError::IssueOperation(format!(
+                "kanbus path not found: {}",
                 resolved.display()
             )));
         }
@@ -403,9 +403,9 @@ fn find_git_root(root: &Path) -> Option<PathBuf> {
 pub(crate) fn discover_project_directories(
     root: &Path,
     projects: &mut Vec<PathBuf>,
-) -> Result<(), TaskulusError> {
-    for entry in std::fs::read_dir(root).map_err(|error| TaskulusError::Io(error.to_string()))? {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+) -> Result<(), KanbusError> {
+    for entry in std::fs::read_dir(root).map_err(|error| KanbusError::Io(error.to_string()))? {
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -427,7 +427,7 @@ pub(crate) fn discover_project_directories(
         }
         // Avoid recursing into every subdirectory; doing so pulls in fixture
         // projects (e.g., console/tests/fixtures/project) that are not real
-        // Taskulus workspaces and can break commands with incomplete data.
+        // Kanbus workspaces and can break commands with incomplete data.
         // Additional projects must be declared explicitly via configuration.
     }
     Ok(())

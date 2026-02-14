@@ -11,7 +11,7 @@ use futures::stream;
 #[path = "../features/steps/mod.rs"]
 mod step_definitions;
 
-use step_definitions::initialization_steps::TaskulusWorld;
+use step_definitions::initialization_steps::KanbusWorld;
 
 #[derive(Clone, Debug, Default)]
 struct RecursiveFeatureParser;
@@ -84,7 +84,7 @@ async fn main() {
     }
     #[cfg(tarpaulin)]
     cover_additional_paths();
-    TaskulusWorld::cucumber::<PathBuf>()
+    KanbusWorld::cucumber::<PathBuf>()
         .with_parser(RecursiveFeatureParser::default())
         .max_concurrent_scenarios(1)
         .filter_run(features_dir, |feature, _, scenario| {
@@ -106,22 +106,22 @@ fn cover_additional_paths() {
     use serde_json::json;
     use tempfile::TempDir;
 
-    use taskulus::agents_management::{
+    use kanbus::agents_management::{
         cover_agents_management_paths, cover_parse_header_cases, ensure_agents_file,
     };
-    use taskulus::cli::run_from_args_with_output;
-    use taskulus::console_snapshot::build_console_snapshot;
-    use taskulus::dependencies::{
+    use kanbus::cli::run_from_args_with_output;
+    use kanbus::console_snapshot::build_console_snapshot;
+    use kanbus::dependencies::{
         add_dependency, cover_dependencies_paths, list_ready_issues, remove_dependency,
     };
-    use taskulus::doctor::run_doctor;
-    use taskulus::file_io::{get_configuration_path, initialize_project, load_project_directory};
-    use taskulus::issue_creation::{create_issue, IssueCreationRequest};
-    use taskulus::issue_listing::list_issues;
-    use taskulus::issue_update::update_issue;
-    use taskulus::migration::{load_beads_issue_by_id, load_beads_issues, migrate_from_beads};
+    use kanbus::doctor::run_doctor;
+    use kanbus::file_io::{get_configuration_path, initialize_project, load_project_directory};
+    use kanbus::issue_creation::{create_issue, IssueCreationRequest};
+    use kanbus::issue_listing::list_issues;
+    use kanbus::issue_update::update_issue;
+    use kanbus::migration::{load_beads_issue_by_id, load_beads_issues, migrate_from_beads};
 
-    std::env::set_var("TASKULUS_NO_DAEMON", "1");
+    std::env::set_var("KANBUS_NO_DAEMON", "1");
 
     let temp_dir = TempDir::new().expect("tempdir");
     let root = temp_dir.path();
@@ -132,7 +132,7 @@ fn cover_additional_paths() {
         .expect("git init");
 
     initialize_project(root, true).expect("initialize project");
-    fs::write(root.join("project").join("taskulus.yml"), "").expect("write doctor config");
+    fs::write(root.join("project").join("kanbus.yml"), "").expect("write doctor config");
     ensure_agents_file(root, true).expect("ensure agents");
     cover_parse_header_cases();
     cover_agents_management_paths(root);
@@ -286,17 +286,17 @@ fn cover_additional_paths() {
     let _ = load_beads_issues(root);
     let _ = load_beads_issue_by_id(root, "bdx-001");
 
-    fs::write(root.join(".taskulus.yml"), "beads_compatibility: true\n").expect("enable beads");
+    fs::write(root.join(".kanbus.yml"), "beads_compatibility: true\n").expect("enable beads");
     let _ = build_console_snapshot(root);
 
     let _ = run_doctor(root);
     let _ = migrate_from_beads(root);
 
-    let _ = run_from_args_with_output(["tsk", "--help"], root);
-    std::env::set_var("TASKULUS_TEST_CONFIGURATION_PATH_FAILURE", "1");
-    let _ = run_from_args_with_output(["tsk", "list"], root);
-    std::env::remove_var("TASKULUS_TEST_CONFIGURATION_PATH_FAILURE");
-    let _ = run_from_args_with_output(["tsk", "doctor"], root);
+    let _ = run_from_args_with_output(["kanbus", "--help"], root);
+    std::env::set_var("KANBUS_TEST_CONFIGURATION_PATH_FAILURE", "1");
+    let _ = run_from_args_with_output(["kanbus", "list"], root);
+    std::env::remove_var("KANBUS_TEST_CONFIGURATION_PATH_FAILURE");
+    let _ = run_from_args_with_output(["kanbus", "doctor"], root);
 
     let temp_dir = TempDir::new().expect("tempdir");
     let root_no_config = temp_dir.path();
@@ -306,7 +306,7 @@ fn cover_additional_paths() {
         .output()
         .expect("git init");
     initialize_project(root_no_config, false).expect("initialize project");
-    let config_path = root_no_config.join(".taskulus.yml");
+    let config_path = root_no_config.join(".kanbus.yml");
     let _ = create_issue(&IssueCreationRequest {
         root: root_no_config.to_path_buf(),
         title: "Configless issue".to_string(),
@@ -319,7 +319,7 @@ fn cover_additional_paths() {
         local: false,
     });
     fs::remove_file(&config_path).expect("remove config");
-    let _ = run_from_args_with_output(["tsk", "list"], root_no_config);
+    let _ = run_from_args_with_output(["kanbus", "list"], root_no_config);
 
     let temp_dir = TempDir::new().expect("tempdir");
     let root_no_local = temp_dir.path();
@@ -343,16 +343,16 @@ fn cover_additional_paths() {
     let extra_project = root_multi.join("extra");
     fs::create_dir_all(extra_project.join("project").join("issues")).expect("extra project");
     fs::write(
-        root_multi.join(".taskulus.yml"),
+        root_multi.join(".kanbus.yml"),
         "external_projects:\n  - extra/project\n",
     )
     .expect("write external projects");
     let _ = load_project_directory(root_multi);
     let _ = list_issues(root_multi, None, None, None, None, None, None, true, true);
     let _ = list_issues(root_multi, None, None, None, None, None, None, false, false);
-    std::env::remove_var("TASKULUS_NO_DAEMON");
-    let _ = run_from_args_with_output(["tsk", "daemon-status"], root_multi);
-    std::env::set_var("TASKULUS_NO_DAEMON", "1");
+    std::env::remove_var("KANBUS_NO_DAEMON");
+    let _ = run_from_args_with_output(["kanbus", "daemon-status"], root_multi);
+    std::env::set_var("KANBUS_NO_DAEMON", "1");
     let _ = get_configuration_path(root_multi);
 
     let temp_dir = TempDir::new().expect("tempdir");
@@ -430,7 +430,7 @@ fn cover_additional_paths() {
     let beads_dir = root_migrate_error.join(".beads");
     fs::create_dir_all(&beads_dir).expect("create beads dir");
     fs::write(beads_dir.join("issues.jsonl"), issues_jsonl).expect("write beads issues");
-    std::env::set_var("TASKULUS_TEST_HIERARCHY_ERROR", "1");
+    std::env::set_var("KANBUS_TEST_HIERARCHY_ERROR", "1");
     let _ = migrate_from_beads(root_migrate_error);
-    std::env::remove_var("TASKULUS_TEST_HIERARCHY_ERROR");
+    std::env::remove_var("KANBUS_TEST_HIERARCHY_ERROR");
 }
