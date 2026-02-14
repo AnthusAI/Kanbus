@@ -536,7 +536,8 @@ fn execute_command(
         }
         Commands::Close { identifier } => {
             close_issue(root, &identifier)?;
-            Ok(None)
+            let formatted_identifier = format_issue_key(&identifier, false);
+            Ok(Some(format!("Closed {}", formatted_identifier)))
         }
         Commands::Delete { identifier } => {
             if beads_mode {
@@ -544,7 +545,8 @@ fn execute_command(
             } else {
                 delete_issue(root, &identifier)?;
             }
-            Ok(None)
+            let formatted_identifier = format_issue_key(&identifier, false);
+            Ok(Some(format!("Deleted {}", formatted_identifier)))
         }
         Commands::Comment { identifier, text } => {
             let text_value = text.join(" ");

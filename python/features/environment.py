@@ -279,7 +279,7 @@ def _run_coverage_helper() -> None:
     from taskulus.file_io import initialize_project
     from taskulus.issue_creation import create_issue
     from taskulus.issue_listing import IssueListingError, list_issues
-    from taskulus.issue_update import IssueUpdateError, update_issue
+    from taskulus.issue_update import IssueUpdateError, _find_duplicate_title, update_issue
     from taskulus.migration import (
         MigrationError,
         _convert_dependencies,
@@ -343,6 +343,18 @@ def _run_coverage_helper() -> None:
             )
         except IssueUpdateError:
             pass
+        try:
+            update_issue(
+                root,
+                "missing-issue",
+                None,
+                None,
+                None,
+                None,
+                False,
+            )
+        except IssueUpdateError:
+            pass
 
         try:
             update_issue(
@@ -365,6 +377,30 @@ def _run_coverage_helper() -> None:
                 issue_two.issue.status,
                 issue_two.issue.assignee,
                 False,
+            )
+        except IssueUpdateError:
+            pass
+        try:
+            update_issue(
+                root,
+                issue_two.issue.identifier,
+                None,
+                None,
+                "invalid-status",
+                None,
+                False,
+            )
+        except IssueUpdateError:
+            pass
+        try:
+            update_issue(
+                root,
+                issue_two.issue.identifier,
+                None,
+                None,
+                None,
+                None,
+                True,
             )
         except IssueUpdateError:
             pass
@@ -411,6 +447,9 @@ def _run_coverage_helper() -> None:
             None,
             False,
         )
+        _find_duplicate_title(issues_dir, "Third issue", "missing")
+        (issues_dir / "invalid.json").write_text("{", encoding="utf-8")
+        _find_duplicate_title(issues_dir, "No duplicate", "missing")
         try:
             update_issue(
                 root,
