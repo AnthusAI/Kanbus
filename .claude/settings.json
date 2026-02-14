@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(command -v:*)",
+      "Bash(bd --help:*)",
+      "Bash(bd info:*)",
+      "Bash(bd create:*)",
+      "Bash(bd init:*)",
+      "Bash(bd epic:*)",
+      "Bash(bd dep:*)",
+      "Bash(bd list:*)",
+      "Bash(bd ready:*)",
+      "Bash(bd status:*)",
+      "Bash(bd graph:*)"
+    ],
+    "deny": [
+      "Read(./project/**)",
+      "Edit(./project/**)"
+    ]
+  }
+}
