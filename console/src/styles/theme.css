@@ -49,6 +49,12 @@ html.theme-neutral {
   --text-selected: var(--gray-12);
 }
 
+html.light.theme-neutral {
+  --text-foreground: var(--gray-11);
+  --text-muted: var(--gray-10);
+  --text-selected: var(--gray-12);
+}
+
 html.theme-cool {
   --background: var(--blue-1);
   --card: var(--blue-1);
@@ -74,6 +80,12 @@ html.theme-warm {
   --card-outline: var(--sand-6);
   --frame: var(--sand-1);
   --column: var(--sand-3);
+  --text-foreground: var(--sand-11);
+  --text-muted: var(--sand-10);
+  --text-selected: var(--sand-12);
+}
+
+html.light.theme-warm {
   --text-foreground: var(--sand-11);
   --text-muted: var(--sand-10);
   --text-selected: var(--sand-12);
