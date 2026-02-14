@@ -53,7 +53,7 @@ There are no per-seat licenses or hosted fees. If you have a git repository, you
 
 ## Status: Planning Phase
 
-This repository contains the complete vision, implementation plan, and task breakdown for building Taskulus. We are building it in public, using Taskulus (via Beads) to track itself.
+This repository contains the complete vision, implementation plan, and task breakdown for building Taskulus. We are building it in public, using Taskulus to track itself.
 
 ## Quick Start
 
@@ -138,7 +138,7 @@ Taskulus/
 ## Contributing
 
 We welcome contributions! Please:
-1. Pick a task from `bd ready` (we use Beads for bootstrapping).
+1. Pick a task from `tsk ready`.
 2. Follow the BDD workflow in [AGENTS.md](AGENTS.md).
 3. Ensure all quality gates pass.
 

@@ -61,3 +61,5 @@ type_colors:
   story: yellow
   chore: green
   event: bright_blue
+
+beads_compatibility: true

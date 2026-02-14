@@ -88,6 +88,62 @@ tsk --help`}
             </CodeBlock>
           </div>
         </Section>
+
+        <Section
+          title="Initialize Your Repository"
+          subtitle="Create the Taskulus structure in an existing git repo."
+        >
+          <div className="space-y-6">
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+              Run <code>tsk init</code> once in the repository root. It creates
+              the <code>project/</code> directory and the repo-level
+              <code>.taskulus.yml</code> file.
+            </p>
+            <CodeBlock label="Initialize">
+              {`cd your-repo
+git init
+tsk init`}
+            </CodeBlock>
+          </div>
+        </Section>
+
+        <Section
+          title="Keep Configuration Updated"
+          subtitle="Evolve workflows and defaults without re-running init."
+          variant="alt"
+        >
+          <div className="space-y-6">
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+              Edit <code>project/config.yaml</code> to change hierarchy,
+              workflows, priorities, and defaults. Use
+              <code>.taskulus.override.yml</code> for local-only settings like
+              assignee or time zone.
+            </p>
+            <CodeBlock label="Validate">
+              {`tsk list
+tsk ready`}
+            </CodeBlock>
+          </div>
+        </Section>
+
+        <Section
+          title="Beads Compatibility During Transition"
+          subtitle="Keep JSONL data while moving to Taskulus."
+        >
+          <div className="space-y-6">
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+              If your repo still stores issues in <code>.beads/issues.jsonl</code>,
+              enable compatibility in both config files.
+            </p>
+            <CodeBlock label="Compatibility">
+              {`.taskulus.yml
+beads_compatibility: true
+
+project/config.yaml
+beads_compatibility: true`}
+            </CodeBlock>
+          </div>
+        </Section>
       </div>
     </Layout>
   );
