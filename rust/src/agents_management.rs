@@ -520,7 +520,7 @@ fn parse_header(line: &str) -> Option<(usize, String)> {
 }
 
 #[cfg(tarpaulin)]
-pub(crate) fn cover_parse_header_cases() {
+pub fn cover_parse_header_cases() {
     let _ = parse_header("plain text");
     let _ = parse_header("####### too many");
     let _ = parse_header("#NoSpace");
