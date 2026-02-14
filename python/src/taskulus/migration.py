@@ -266,6 +266,7 @@ def _convert_dependencies(
     issue_type: str,
 ) -> tuple[str | None, List[DependencyLink]]:
     parent = None
+    extra_parents: List[str] = []
     dependency_links: List[DependencyLink] = []
     for dependency in dependencies:
         dependency_type = dependency.get("type")
@@ -278,11 +279,20 @@ def _convert_dependencies(
             if parent is None:
                 parent = depends_on_id
             else:
-                raise MigrationError("multiple parents")
+                extra_parents.append(depends_on_id)
         else:
             dependency_links.append(
                 DependencyLink(target=depends_on_id, type=dependency_type)
             )
+
+    if parent is not None and extra_parents:
+        extras = ", ".join(extra_parents)
+        click.echo(
+            f"Suggestion: '{identifier}' has multiple parents ({parent}, {extras}). "
+            f"Using '{parent}' and ignoring the rest. Remove extra parents in Beads or "
+            "migrate to a single parent-child relationship.",
+            err=True,
+        )
 
     if parent is not None:
         parent_issue_type = record_by_id[parent].get("issue_type", "")
