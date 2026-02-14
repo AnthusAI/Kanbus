@@ -84,3 +84,12 @@ Feature: Local issue routing
     When I run "tsk create --local Local task"
     Then the command should succeed
     And .gitignore should include "project-local/"
+
+  Scenario: Local create fails when title already exists in local issues
+    Given a Taskulus project with default configuration
+    And a local issue "tsk-local01" exists
+    When I run "tsk create --local local"
+    Then the command should fail with exit code 1
+    And stderr should contain "duplicate title"
+    And stderr should contain "tsk-local01"
+    And the local issues directory should contain 1 issue file

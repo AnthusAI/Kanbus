@@ -1,7 +1,7 @@
 //! Issue creation workflow.
 
 use chrono::Utc;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;
@@ -81,6 +81,13 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         )?;
     }
 
+    if let Some(duplicate_identifier) = find_duplicate_title(&issues_dir, &request.title)? {
+        return Err(TaskulusError::IssueOperation(format!(
+            "duplicate title: \"{}\" already exists as {}",
+            request.title, duplicate_identifier
+        )));
+    }
+
     let mut existing_ids = list_issue_identifiers(&project_dir.join("issues"))?;
     if let Some(local_dir) = local_dir {
         let local_issues = local_dir.join("issues");
@@ -144,4 +151,22 @@ fn validate_issue_type(
         ));
     }
     Ok(())
+}
+
+fn find_duplicate_title(issues_dir: &Path, title: &str) -> Result<Option<String>, TaskulusError> {
+    let normalized_title = title.trim().to_lowercase();
+    for entry in std::fs::read_dir(issues_dir)
+        .map_err(|error| TaskulusError::Io(error.to_string()))?
+    {
+        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+        let issue = read_issue_from_file(&path)?;
+        if issue.title.trim().to_lowercase() == normalized_title {
+            return Ok(Some(issue.identifier));
+        }
+    }
+    Ok(None)
 }

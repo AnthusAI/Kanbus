@@ -1,5 +1,6 @@
 //! Taskulus Rust library.
 
+pub mod agents_management;
 pub mod beads_write;
 pub mod cache;
 pub mod cli;
@@ -33,6 +34,7 @@ pub mod maintenance;
 pub mod migration;
 pub mod models;
 pub mod project;
+pub mod project_management_template;
 pub mod queries;
 pub mod users;
 pub mod wiki;

@@ -51,6 +51,8 @@ pub struct ProjectConfiguration {
     #[serde(default)]
     pub external_projects: Vec<String>,
     pub project_key: String,
+    #[serde(default)]
+    pub project_management_template: Option<String>,
     pub hierarchy: Vec<String>,
     pub types: Vec<String>,
     pub workflows: BTreeMap<String, BTreeMap<String, Vec<String>>>,

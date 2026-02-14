@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
+from pydantic import ValidationError
+
 from taskulus.config_loader import ConfigurationError, load_project_configuration
 from taskulus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
 from taskulus.ids import IssueIdentifierRequest, generate_issue_identifier
@@ -111,6 +113,11 @@ def create_issue(
         except InvalidHierarchyError as error:
             raise IssueCreationError(str(error)) from error
 
+    duplicate_identifier = _find_duplicate_title(issues_dir, title)
+    if duplicate_identifier is not None:
+        message = f'duplicate title: "{title}" already exists as {duplicate_identifier}'
+        raise IssueCreationError(message)
+
     existing_ids = list_issue_identifiers(project_dir / "issues")
     if local_dir is not None:
         local_issues_dir = local_dir / "issues"
@@ -149,3 +156,15 @@ def create_issue(
     issue_path = issues_dir / f"{identifier}.json"
     write_issue_to_file(issue, issue_path)
     return IssueCreationResult(issue=issue, configuration=configuration)
+
+
+def _find_duplicate_title(issues_dir: Path, title: str) -> Optional[str]:
+    normalized_title = title.strip().casefold()
+    for issue_path in issues_dir.glob("*.json"):
+        try:
+            issue = read_issue_from_file(issue_path)
+        except (ValueError, ValidationError):
+            continue
+        if issue.title.strip().casefold() == normalized_title:
+            return issue.identifier
+    return None

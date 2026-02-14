@@ -5,6 +5,7 @@ Feature: Issue update
     And an issue "tsk-aaa" exists with title "Old Title"
     When I run "tsk update tsk-aaa --title \"New Title\" --description \"Updated description\""
     Then the command should succeed
+    And stdout should contain "Updated tsk-aaa"
     And issue "tsk-aaa" should have title "New Title"
     And issue "tsk-aaa" should have description "Updated description"
     And issue "tsk-aaa" should have an updated_at timestamp
@@ -14,6 +15,7 @@ Feature: Issue update
     And an issue "tsk-aaa" exists with status "open"
     When I run "tsk update tsk-aaa --status in_progress"
     Then the command should succeed
+    And stdout should contain "Updated tsk-aaa"
     And issue "tsk-aaa" should have status "in_progress"
 
   Scenario: Reject invalid status transition
@@ -29,6 +31,22 @@ Feature: Issue update
     When I run "tsk update tsk-missing --title \"New Title\""
     Then the command should fail with exit code 1
     And stderr should contain "not found"
+
+  Scenario: Update fails when no changes are requested
+    Given a Taskulus project with default configuration
+    And an issue "tsk-aaa" exists with title "Old Title"
+    When I run "tsk update tsk-aaa"
+    Then the command should fail with exit code 1
+    And stderr should contain "no updates requested"
+
+  Scenario: Update fails when title already exists
+    Given a Taskulus project with default configuration
+    And an issue "tsk-aaa" exists with title "Old Title"
+    And an issue "tsk-bbb" exists with title "Duplicate Title"
+    When I run "tsk update tsk-aaa --title \"duplicate title\""
+    Then the command should fail with exit code 1
+    And stderr should contain "duplicate title"
+    And stderr should contain "tsk-bbb"
 
   Scenario: Update fails without a project
     Given an empty git repository

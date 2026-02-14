@@ -422,7 +422,10 @@ pub(crate) fn discover_project_directories(
         if name == "project-local" {
             continue;
         }
-        discover_project_directories(&path, projects)?;
+        // Avoid recursing into every subdirectory; doing so pulls in fixture
+        // projects (e.g., console/tests/fixtures/project) that are not real
+        // Taskulus workspaces and can break commands with incomplete data.
+        // Additional projects must be declared explicitly via configuration.
     }
     Ok(())
 }

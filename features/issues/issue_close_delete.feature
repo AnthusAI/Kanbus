@@ -5,6 +5,7 @@ Feature: Issue close and delete
     And an issue "tsk-aaa" exists with status "open"
     When I run "tsk close tsk-aaa"
     Then the command should succeed
+    And stdout should contain "Closed tsk-aaa"
     And issue "tsk-aaa" should have status "closed"
     And issue "tsk-aaa" should have a closed_at timestamp
 
@@ -19,6 +20,7 @@ Feature: Issue close and delete
     And an issue "tsk-aaa" exists
     When I run "tsk delete tsk-aaa"
     Then the command should succeed
+    And stdout should contain "Deleted tsk-aaa"
     And issue "tsk-aaa" should not exist
 
   Scenario: Delete missing issue fails

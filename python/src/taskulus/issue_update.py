@@ -6,8 +6,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from pydantic import ValidationError
+
 from taskulus.config_loader import load_project_configuration
-from taskulus.issue_files import write_issue_to_file
+from taskulus.issue_files import read_issue_from_file, write_issue_to_file
 from taskulus.issue_lookup import IssueLookupError, load_issue_from_project
 from taskulus.models import IssueData
 from taskulus.project import get_configuration_path
@@ -65,6 +67,38 @@ def update_issue(
     if claim:
         resolved_status = "in_progress"
 
+    if title is not None:
+        normalized_title = title.strip()
+        if normalized_title.casefold() == updated_issue.title.strip().casefold():
+            title = None
+        else:
+            duplicate_identifier = _find_duplicate_title(
+                project_dir / "issues",
+                normalized_title,
+                updated_issue.identifier,
+            )
+            if duplicate_identifier is not None:
+                message = (
+                    f'duplicate title: "{normalized_title}" '
+                    f"already exists as {duplicate_identifier}"
+                )
+                raise IssueUpdateError(message)
+            title = normalized_title
+
+    if description is not None:
+        description = description.strip()
+        if description == updated_issue.description:
+            description = None
+
+    if assignee is not None and assignee == updated_issue.assignee:
+        assignee = None
+
+    if resolved_status is not None and resolved_status == updated_issue.status:
+        resolved_status = None
+
+    if resolved_status is None and title is None and description is None and assignee is None:
+        raise IssueUpdateError("no updates requested")
+
     if resolved_status is not None:
         try:
             validate_status_transition(
@@ -93,3 +127,19 @@ def update_issue(
     updated_issue = updated_issue.model_copy(update=update_fields)
     write_issue_to_file(updated_issue, lookup.issue_path)
     return updated_issue
+
+
+def _find_duplicate_title(
+    issues_dir: Path, title: str, current_identifier: str
+) -> Optional[str]:
+    normalized_title = title.strip().casefold()
+    for issue_path in issues_dir.glob("*.json"):
+        if issue_path.stem == current_identifier:
+            continue
+        try:
+            issue = read_issue_from_file(issue_path)
+        except (ValueError, ValidationError):
+            continue
+        if issue.title.strip().casefold() == normalized_title:
+            return issue.identifier
+    return None

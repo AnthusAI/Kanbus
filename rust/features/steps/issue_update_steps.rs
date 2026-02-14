@@ -77,6 +77,31 @@ fn given_issue_with_title(world: &mut TaskulusWorld) {
     write_issue_file(&project_dir, &issue);
 }
 
+#[given("an issue \"tsk-bbb\" exists with title \"Duplicate Title\"")]
+fn given_issue_with_duplicate_title(world: &mut TaskulusWorld) {
+    let project_dir = load_project_dir(world);
+    let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
+    let issue = IssueData {
+        identifier: "tsk-bbb".to_string(),
+        title: "Duplicate Title".to_string(),
+        description: "".to_string(),
+        issue_type: "task".to_string(),
+        status: "open".to_string(),
+        priority: 2,
+        assignee: None,
+        creator: None,
+        parent: None,
+        labels: Vec::new(),
+        dependencies: Vec::new(),
+        comments: Vec::new(),
+        created_at: timestamp,
+        updated_at: timestamp,
+        closed_at: None,
+        custom: std::collections::BTreeMap::new(),
+    };
+    write_issue_file(&project_dir, &issue);
+}
+
 #[when("I run \"tsk update tsk-aaa --title \\\"New Title\\\" --description \\\"Updated description\\\"\"")]
 fn when_run_update_title(world: &mut TaskulusWorld) {
     run_cli(
@@ -93,6 +118,11 @@ fn when_run_update_status(world: &mut TaskulusWorld) {
 #[when("I run \"tsk update tsk-aaa --status blocked\"")]
 fn when_run_update_invalid_status(world: &mut TaskulusWorld) {
     run_cli(world, "tsk update tsk-aaa --status blocked");
+}
+
+#[when("I run \"tsk update tsk-aaa\"")]
+fn when_run_update_no_changes(world: &mut TaskulusWorld) {
+    run_cli(world, "tsk update tsk-aaa");
 }
 
 #[when(expr = "I run \"tsk update tsk-test01 --status {word}\"")]
@@ -118,6 +148,11 @@ fn when_run_update_missing(world: &mut TaskulusWorld) {
 #[when("I run \"tsk update tsk-aaa --title \\\"New Title\\\"\"")]
 fn when_run_update_title_only(world: &mut TaskulusWorld) {
     run_cli(world, "tsk update tsk-aaa --title \"New Title\"");
+}
+
+#[when("I run \"tsk update tsk-aaa --title \\\"duplicate title\\\"\"")]
+fn when_run_update_duplicate_title(world: &mut TaskulusWorld) {
+    run_cli(world, "tsk update tsk-aaa --title \"duplicate title\"");
 }
 
 #[then("issue \"tsk-aaa\" should have title \"New Title\"")]

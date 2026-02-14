@@ -1,25 +1,27 @@
 {
-  "id": "tskl-20z",
-  "title": "Basic Index and File Scanning",
-  "description": "Implement basic issue indexing capability to scan project/issues/ directory and build a by_id map. Required before CRUD operations can validate parent references.",
-  "type": "epic",
-  "status": "closed",
-  "priority": 0,
   "assignee": null,
+  "closed_at": "2026-02-11T06:23:35.007914Z",
+  "comments": [],
+  "created_at": "2026-02-11T01:32:57.492474Z",
   "creator": "Ryan Alyn Porter",
-  "parent": null,
-  "labels": [],
+  "custom": {
+    "beads_owner": "agent@example.com"
+  },
   "dependencies": [
     {
+      "created_at": "2026-02-11T01:32:57.492474Z",
+      "created_by": "Ryan Alyn Porter",
       "target": "tskl-1z1",
       "type": "blocks"
     }
   ],
-  "comments": [],
-  "created_at": "2026-02-11T01:32:57.492474Z",
-  "updated_at": "2026-02-11T06:23:35.007912Z",
-  "closed_at": "2026-02-11T06:23:35.007914Z",
-  "custom": {
-    "beads_owner": "agent@example.com"
-  }
+  "description": "Implement basic issue indexing capability to scan project/issues/ directory and build a by_id map. Required before CRUD operations can validate parent references.",
+  "id": "tskl-20z",
+  "labels": [],
+  "parent": null,
+  "priority": 0,
+  "status": "closed",
+  "title": "Basic Index and File Scanning",
+  "type": "epic",
+  "updated_at": "2026-02-11T06:23:35.007912Z"
 }

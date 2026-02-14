@@ -1,38 +1,40 @@
 {
-  "id": "tskl-8k1.3",
-  "title": "IPC protocol and versioning",
-  "description": "Define request/response envelope, protocol version checks, and error contracts for client-daemon communication.",
-  "type": "task",
-  "status": "closed",
-  "priority": 0,
   "assignee": "Ryan Alyn Porter",
+  "closed_at": "2026-02-11T07:40:41.687825Z",
+  "comments": [
+    {
+      "author": "Ryan Alyn Porter",
+      "created_at": "2026-02-11T07:40:38Z",
+      "text": "Drafted IPC protocol doc in docs/IPC_PROTOCOL.md and added to mkdocs nav. Defines envelope, versioning rules, and error contract for enforcement."
+    },
+    {
+      "author": "Ryan Alyn Porter",
+      "created_at": "2026-02-11T07:40:46Z",
+      "text": "Completed IPC protocol documentation. Tests not run (doc-only change)."
+    }
+  ],
+  "created_at": "2026-02-11T06:31:40.090741Z",
   "creator": "Ryan Alyn Porter",
-  "parent": "tskl-8k1",
-  "labels": [],
+  "custom": {
+    "beads_acceptance_criteria": "Protocol schema and compatibility checks are documented and enforceable in Python and Rust.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "agent@example.com"
+  },
   "dependencies": [
     {
+      "created_at": "2026-02-11T06:31:40.090741Z",
+      "created_by": "Ryan Alyn Porter",
       "target": "tskl-8k1.1",
       "type": "blocks"
     }
   ],
-  "comments": [
-    {
-      "author": "Ryan Alyn Porter",
-      "text": "Drafted IPC protocol doc in docs/IPC_PROTOCOL.md and added to mkdocs nav. Defines envelope, versioning rules, and error contract for enforcement.",
-      "created_at": "2026-02-11T07:40:38Z"
-    },
-    {
-      "author": "Ryan Alyn Porter",
-      "text": "Completed IPC protocol documentation. Tests not run (doc-only change).",
-      "created_at": "2026-02-11T07:40:46Z"
-    }
-  ],
-  "created_at": "2026-02-11T06:31:40.090741Z",
-  "updated_at": "2026-02-11T07:40:41.687825Z",
-  "closed_at": "2026-02-11T07:40:41.687825Z",
-  "custom": {
-    "beads_owner": "agent@example.com",
-    "beads_acceptance_criteria": "Protocol schema and compatibility checks are documented and enforceable in Python and Rust.",
-    "beads_close_reason": "Closed"
-  }
+  "description": "Define request/response envelope, protocol version checks, and error contracts for client-daemon communication.",
+  "id": "tskl-8k1.3",
+  "labels": [],
+  "parent": "tskl-8k1",
+  "priority": 0,
+  "status": "closed",
+  "title": "IPC protocol and versioning",
+  "type": "task",
+  "updated_at": "2026-02-11T07:40:41.687825Z"
 }

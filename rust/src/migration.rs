@@ -296,11 +296,13 @@ fn convert_dependencies(
             }
             if dependency_type == "parent-child" {
                 if parent.is_some() {
-                    return Err(TaskulusError::IssueOperation(
-                        "multiple parents".to_string(),
-                    ));
+                    links.push(DependencyLink {
+                        target: depends_on_id.to_string(),
+                        dependency_type: "parent-child".to_string(),
+                    });
+                } else {
+                    parent = Some(depends_on_id.to_string());
                 }
-                parent = Some(depends_on_id.to_string());
             } else {
                 links.push(DependencyLink {
                     target: depends_on_id.to_string(),
@@ -533,6 +535,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         project_directory: "project".to_string(),
         external_projects: Vec::new(),
         project_key: "BD".to_string(),
+        project_management_template: None,
         hierarchy: vec![
             "epic".to_string(),
             "task".to_string(),

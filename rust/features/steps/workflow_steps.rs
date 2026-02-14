@@ -227,6 +227,7 @@ fn when_lookup_workflow(world: &mut TaskulusWorld, issue_type: String) {
         project_directory: "project".to_string(),
         external_projects: Vec::new(),
         project_key: "tsk".to_string(),
+        project_management_template: None,
         hierarchy: vec!["initiative".to_string(), "epic".to_string()],
         types: vec!["bug".to_string()],
         workflows,

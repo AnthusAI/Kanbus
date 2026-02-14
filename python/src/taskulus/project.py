@@ -68,6 +68,14 @@ def _resolve_project_directories(
 
 
 def _collect_project_directories(root: Path, projects: List[Path]) -> None:
+    """Collect project directories at the current root level only.
+
+    Historically we recursed through the entire tree, which pulled in fixture
+    projects (e.g., console/tests/fixtures/project) and caused CLI commands to
+    fail on incomplete sample data. To avoid accidental discovery of fixtures
+    or nested repos, limit discovery to the immediate children of the current
+    root and rely on explicit configuration for anything else.
+    """
     try:
         entries = list(root.iterdir())
     except OSError as error:
@@ -78,10 +86,8 @@ def _collect_project_directories(root: Path, projects: List[Path]) -> None:
         name = entry.name
         if name == "project":
             projects.append(entry)
-            continue
-        if name == "project-local":
-            continue
-        _collect_project_directories(entry, projects)
+        # Do not recurse into subdirectories; explicit configuration controls
+        # additional project discovery.
 
 
 def _normalize_project_directories(paths: Iterable[Path]) -> List[Path]:

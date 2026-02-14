@@ -188,6 +188,11 @@ fn when_run_create_default(world: &mut TaskulusWorld) {
     run_cli(world, "tsk create Implement OAuth2 flow");
 }
 
+#[when("I run \"tsk create implement oauth2 flow\"")]
+fn when_run_create_duplicate_title(world: &mut TaskulusWorld) {
+    run_cli(world, "tsk create implement oauth2 flow");
+}
+
 #[when("I run \"tsk create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent tsk-epic01 --label auth --label urgent --description \\\"Bug in login\\\"\"")]
 fn when_run_create_full(world: &mut TaskulusWorld) {
     run_cli(world, "tsk create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent tsk-epic01 --label auth --label urgent --description \"Bug in login\"");
@@ -272,6 +277,26 @@ fn then_issue_file_created(world: &mut TaskulusWorld) {
         })
         .count();
     assert_eq!(count, 1);
+}
+
+#[then(expr = "the issues directory should contain {int} issue file")]
+fn then_issues_directory_contains_count(world: &mut TaskulusWorld, count: i32) {
+    let project_dir = load_project_dir(world);
+    let issues_dir = project_dir.join("issues");
+    let actual = fs::read_dir(&issues_dir)
+        .expect("read issues dir")
+        .filter(|entry| {
+            let Ok(item) = entry else {
+                return false;
+            };
+            let path = item.path();
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext == "json")
+                .unwrap_or(false)
+        })
+        .count();
+    assert_eq!(actual as i32, count);
 }
 
 #[then("the created issue should have title \"Implement OAuth2 flow\"")]

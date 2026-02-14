@@ -20,6 +20,13 @@ def given_issue_with_title(context: object) -> None:
     write_issue_file(project_dir, issue)
 
 
+@given('an issue "tsk-bbb" exists with title "Duplicate Title"')
+def given_issue_with_duplicate_title(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issue = build_issue("tsk-bbb", "Duplicate Title", "task", "open", None, [])
+    write_issue_file(project_dir, issue)
+
+
 @when(
     'I run "tsk update tsk-aaa --title \\"New Title\\" --description \\"Updated description\\""'
 )
@@ -38,6 +45,11 @@ def when_run_update_status(context: object) -> None:
 @when('I run "tsk update tsk-aaa --status blocked"')
 def when_run_update_invalid_status(context: object) -> None:
     run_cli(context, "tsk update tsk-aaa --status blocked")
+
+
+@when('I run "tsk update tsk-aaa"')
+def when_run_update_no_changes(context: object) -> None:
+    run_cli(context, "tsk update tsk-aaa")
 
 
 @when('I run "tsk update tsk-test01 --status {status}"')
@@ -63,6 +75,11 @@ def when_run_update_missing(context: object) -> None:
 @when('I run "tsk update tsk-aaa --title \\"New Title\\""')
 def when_run_update_title_only(context: object) -> None:
     run_cli(context, 'tsk update tsk-aaa --title "New Title"')
+
+
+@when('I run "tsk update tsk-aaa --title \\"duplicate title\\""')
+def when_run_update_duplicate_title(context: object) -> None:
+    run_cli(context, 'tsk update tsk-aaa --title "duplicate title"')
 
 
 @then('issue "tsk-aaa" should have title "New Title"')

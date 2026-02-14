@@ -46,6 +46,23 @@ make check-python
 make check-rust
 ```
 
+## Beads interoperability suite
+
+This is a full integration check that uses the real Beads CLI and the real Beads repository data.
+
+Prerequisites:
+- Beads CLI (`bd`) installed and on PATH
+- Go toolchain (for CI builds of Beads, not required if you use an existing `bd` binary)
+
+Run locally:
+
+```bash
+python tools/build_rust_release.py
+python tools/run_beads_interop_suite.py --bd-binary "$(command -v bd)" --rust-binary rust/target/release/tskr
+```
+
+CI runs this suite in the `beads-interop` job after the standard quality gates.
+
 ## CI publish (semantic-release + crates.io)
 
 Semantic-release runs in `python/` and creates version tags. The release workflow then:

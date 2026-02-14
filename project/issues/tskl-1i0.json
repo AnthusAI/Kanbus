@@ -1,25 +1,27 @@
 {
-  "id": "tskl-1i0",
-  "title": "Workflow State Machine",
-  "description": "Implement workflow status validation and state transitions. Includes state machine enforcement, transition side-effects, and per-type workflows.",
-  "type": "epic",
-  "status": "closed",
-  "priority": 0,
   "assignee": null,
+  "closed_at": "2026-02-11T06:15:56.002491Z",
+  "comments": [],
+  "created_at": "2026-02-11T01:32:57.253866Z",
   "creator": "Ryan Alyn Porter",
-  "parent": null,
-  "labels": [],
+  "custom": {
+    "beads_owner": "agent@example.com"
+  },
   "dependencies": [
     {
+      "created_at": "2026-02-11T01:32:57.253866Z",
+      "created_by": "Ryan Alyn Porter",
       "target": "tskl-1z1",
       "type": "blocks"
     }
   ],
-  "comments": [],
-  "created_at": "2026-02-11T01:32:57.253866Z",
-  "updated_at": "2026-02-11T06:15:56.002489Z",
-  "closed_at": "2026-02-11T06:15:56.002491Z",
-  "custom": {
-    "beads_owner": "agent@example.com"
-  }
+  "description": "Implement workflow status validation and state transitions. Includes state machine enforcement, transition side-effects, and per-type workflows.",
+  "id": "tskl-1i0",
+  "labels": [],
+  "parent": null,
+  "priority": 0,
+  "status": "closed",
+  "title": "Workflow State Machine",
+  "type": "epic",
+  "updated_at": "2026-02-11T06:15:56.002489Z"
 }

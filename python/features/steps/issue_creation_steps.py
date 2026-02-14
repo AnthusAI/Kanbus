@@ -20,6 +20,11 @@ def when_run_create_default(context: object) -> None:
     run_cli(context, "tsk create Implement OAuth2 flow")
 
 
+@when('I run "tsk create implement oauth2 flow"')
+def when_run_create_duplicate_title(context: object) -> None:
+    run_cli(context, "tsk create implement oauth2 flow")
+
+
 @when(
     'I run "tsk create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent tsk-epic01 --label auth --label urgent --description \\"Bug in login\\""'
 )
@@ -118,6 +123,13 @@ def then_stdout_contains_issue_id(context: object) -> None:
 
 @then("an issue file should be created in the issues directory")
 def then_issue_file_created(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issues = list((project_dir / "issues").glob("*.json"))
+    assert len(issues) == 1
+
+
+@then("the issues directory should contain 1 issue file")
+def then_issues_directory_contains_one(context: object) -> None:
     project_dir = load_project_directory(context)
     issues = list((project_dir / "issues").glob("*.json"))
     assert len(issues) == 1

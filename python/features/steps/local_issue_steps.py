@@ -27,6 +27,11 @@ def when_run_create_local(context: object) -> None:
     run_cli(context, "tsk create --local Local task")
 
 
+@when('I run "tsk create --local local"')
+def when_run_create_local_duplicate(context: object) -> None:
+    run_cli(context, "tsk create --local local")
+
+
 @when('I run "tsk promote tsk-local01"')
 def when_run_promote(context: object) -> None:
     run_cli(context, "tsk promote tsk-local01")
@@ -109,6 +114,13 @@ def given_gitignore_without_trailing_newline(context: object) -> None:
 @then("a local issue file should be created in the local issues directory")
 def then_local_issue_file_created(context: object) -> None:
     _ = capture_issue_identifier(context)
+    local_dir = _local_project_directory(context)
+    issues = list((local_dir / "issues").glob("*.json"))
+    assert len(issues) == 1
+
+
+@then("the local issues directory should contain 1 issue file")
+def then_local_issue_directory_contains_one(context: object) -> None:
     local_dir = _local_project_directory(context)
     issues = list((local_dir / "issues").glob("*.json"))
     assert len(issues) == 1

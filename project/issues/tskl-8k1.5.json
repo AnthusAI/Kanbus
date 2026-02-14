@@ -1,52 +1,56 @@
 {
-  "id": "tskl-8k1.5",
-  "title": "Rust daemon and client path",
-  "description": "Implement connect-or-spawn client behavior and resident daemon in Rust with protocol parity and index update handling.",
-  "type": "task",
-  "status": "closed",
-  "priority": 0,
   "assignee": "Ryan Alyn Porter",
+  "closed_at": "2026-02-11T07:53:06.766360Z",
+  "comments": [
+    {
+      "author": "Ryan Alyn Porter",
+      "created_at": "2026-02-11T07:48:06Z",
+      "text": "Starting Rust daemon/client path to mirror Python behavior: socket reuse, spawn-on-missing, stale socket recovery, and index.list IPC."
+    },
+    {
+      "author": "Ryan Alyn Porter",
+      "created_at": "2026-02-11T07:53:00Z",
+      "text": "Implemented Rust daemon/client path: protocol models, cache helpers, socket paths, daemon server, list command using daemon index.list with TASKULUS_NO_DAEMON fallback. Ran make check-rust (fmt/clippy/test)."
+    },
+    {
+      "author": "Ryan Alyn Porter",
+      "created_at": "2026-02-11T07:53:12Z",
+      "text": "Completed Rust daemon/client path to match Python behavior (spawn, reuse, stale socket recovery, index.list). Tests: make check-rust."
+    },
+    {
+      "author": "Ryan Alyn Porter",
+      "created_at": "2026-02-11T07:54:19Z",
+      "text": "Commit: c926635. Tests: make check-rust."
+    }
+  ],
+  "created_at": "2026-02-11T06:31:40.458948Z",
   "creator": "Ryan Alyn Porter",
-  "parent": "tskl-8k1",
-  "labels": [],
+  "custom": {
+    "beads_acceptance_criteria": "Rust CLI behavior matches Python for startup, reuse, and daemon RPC responses.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "agent@example.com"
+  },
   "dependencies": [
     {
+      "created_at": "2026-02-11T06:31:40.458948Z",
+      "created_by": "Ryan Alyn Porter",
       "target": "tskl-8k1.2",
       "type": "blocks"
     },
     {
+      "created_at": "2026-02-11T06:31:40.458948Z",
+      "created_by": "Ryan Alyn Porter",
       "target": "tskl-8k1.3",
       "type": "blocks"
     }
   ],
-  "comments": [
-    {
-      "author": "Ryan Alyn Porter",
-      "text": "Starting Rust daemon/client path to mirror Python behavior: socket reuse, spawn-on-missing, stale socket recovery, and index.list IPC.",
-      "created_at": "2026-02-11T07:48:06Z"
-    },
-    {
-      "author": "Ryan Alyn Porter",
-      "text": "Implemented Rust daemon/client path: protocol models, cache helpers, socket paths, daemon server, list command using daemon index.list with TASKULUS_NO_DAEMON fallback. Ran make check-rust (fmt/clippy/test).",
-      "created_at": "2026-02-11T07:53:00Z"
-    },
-    {
-      "author": "Ryan Alyn Porter",
-      "text": "Completed Rust daemon/client path to match Python behavior (spawn, reuse, stale socket recovery, index.list). Tests: make check-rust.",
-      "created_at": "2026-02-11T07:53:12Z"
-    },
-    {
-      "author": "Ryan Alyn Porter",
-      "text": "Commit: c926635. Tests: make check-rust.",
-      "created_at": "2026-02-11T07:54:19Z"
-    }
-  ],
-  "created_at": "2026-02-11T06:31:40.458948Z",
-  "updated_at": "2026-02-11T07:53:06.766360Z",
-  "closed_at": "2026-02-11T07:53:06.766360Z",
-  "custom": {
-    "beads_owner": "agent@example.com",
-    "beads_acceptance_criteria": "Rust CLI behavior matches Python for startup, reuse, and daemon RPC responses.",
-    "beads_close_reason": "Closed"
-  }
+  "description": "Implement connect-or-spawn client behavior and resident daemon in Rust with protocol parity and index update handling.",
+  "id": "tskl-8k1.5",
+  "labels": [],
+  "parent": "tskl-8k1",
+  "priority": 0,
+  "status": "closed",
+  "title": "Rust daemon and client path",
+  "type": "task",
+  "updated_at": "2026-02-11T07:53:06.766360Z"
 }

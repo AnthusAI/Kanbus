@@ -81,6 +81,11 @@ fn when_run_create_local(world: &mut TaskulusWorld) {
     run_cli(world, "tsk create --local Local task");
 }
 
+#[when("I run \"tsk create --local local\"")]
+fn when_run_create_local_duplicate(world: &mut TaskulusWorld) {
+    run_cli(world, "tsk create --local local");
+}
+
 #[when("I run \"tsk promote tsk-local01\"")]
 fn when_run_promote(world: &mut TaskulusWorld) {
     run_cli(world, "tsk promote tsk-local01");
@@ -184,6 +189,26 @@ fn then_local_issue_file_created(world: &mut TaskulusWorld) {
         })
         .count();
     assert_eq!(count, 1);
+}
+
+#[then(expr = "the local issues directory should contain {int} issue file")]
+fn then_local_issues_directory_contains_count(world: &mut TaskulusWorld, count: i32) {
+    let local_dir = local_project_dir(world);
+    let issues_dir = local_dir.join("issues");
+    let actual = fs::read_dir(&issues_dir)
+        .expect("read local issues")
+        .filter(|entry| {
+            let Ok(item) = entry else {
+                return false;
+            };
+            let path = item.path();
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext == "json")
+                .unwrap_or(false)
+        })
+        .count();
+    assert_eq!(actual as i32, count);
 }
 
 #[then("issue \"tsk-local01\" should exist in the shared issues directory")]

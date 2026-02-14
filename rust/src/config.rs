@@ -58,6 +58,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         project_directory: "project".to_string(),
         external_projects: Vec::new(),
         project_key: "tsk".to_string(),
+        project_management_template: None,
         hierarchy: vec![
             "initiative".to_string(),
             "epic".to_string(),

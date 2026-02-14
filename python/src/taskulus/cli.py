@@ -336,6 +336,8 @@ def close(identifier: str) -> None:
         close_issue(root, identifier)
     except IssueCloseError as error:
         raise click.ClickException(str(error)) from error
+    formatted_identifier = format_issue_key(identifier, project_context=False)
+    click.echo(f"Closed {formatted_identifier}")
 
 
 @cli.command("delete")
@@ -358,6 +360,8 @@ def delete(identifier: str) -> None:
             delete_issue(root, identifier)
         except IssueDeleteError as error:
             raise click.ClickException(str(error)) from error
+    formatted_identifier = format_issue_key(identifier, project_context=False)
+    click.echo(f"Deleted {formatted_identifier}")
 
 
 @cli.command("promote")

@@ -82,3 +82,12 @@ Feature: Issue creation
     And a non-issue file exists in the issues directory
     When I run "tsk create Implement OAuth2 flow"
     Then the command should succeed
+
+  Scenario: Create fails when title already exists in shared issues
+    Given a Taskulus project with default configuration
+    And an issue "tsk-aaa" exists with title "Implement OAuth2 flow"
+    When I run "tsk create implement oauth2 flow"
+    Then the command should fail with exit code 1
+    And stderr should contain "duplicate title"
+    And stderr should contain "tsk-aaa"
+    And the issues directory should contain 1 issue file

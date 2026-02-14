@@ -1,30 +1,34 @@
 {
-  "id": "tskl-0lb.4",
-  "title": "Provision and launch site on Amplify",
-  "description": "Provision on Amplify Gen 2, configure Gatsby build, wire to repo, get site live.",
-  "type": "task",
-  "status": "closed",
-  "priority": 1,
   "assignee": null,
+  "closed_at": "2026-02-11T04:50:17.410185Z",
+  "comments": [],
+  "created_at": "2026-02-11T04:20:30.282219Z",
   "creator": "Ryan Alyn Porter",
-  "parent": "tskl-0lb",
-  "labels": [],
+  "custom": {
+    "beads_close_reason": "Amplify app d11ru5nyvcz6ac provisioned. Gatsby build fixed (gatsby-plugin-postcss). Site building and live. Launched with placeholder content; design/author tasks deferred.",
+    "beads_owner": "agent@example.com"
+  },
   "dependencies": [
     {
+      "created_at": "2026-02-11T04:20:30.282219Z",
+      "created_by": "Ryan Alyn Porter",
       "target": "tskl-0lb.1",
       "type": "blocks"
     },
     {
+      "created_at": "2026-02-11T04:20:30.282219Z",
+      "created_by": "Ryan Alyn Porter",
       "target": "tskl-0lb.3",
       "type": "blocks"
     }
   ],
-  "comments": [],
-  "created_at": "2026-02-11T04:20:30.282219Z",
-  "updated_at": "2026-02-11T04:50:17.410185Z",
-  "closed_at": "2026-02-11T04:50:17.410185Z",
-  "custom": {
-    "beads_owner": "agent@example.com",
-    "beads_close_reason": "Amplify app d11ru5nyvcz6ac provisioned. Gatsby build fixed (gatsby-plugin-postcss). Site building and live. Launched with placeholder content; design/author tasks deferred."
-  }
+  "description": "Provision on Amplify Gen 2, configure Gatsby build, wire to repo, get site live.",
+  "id": "tskl-0lb.4",
+  "labels": [],
+  "parent": "tskl-0lb",
+  "priority": 1,
+  "status": "closed",
+  "title": "Provision and launch site on Amplify",
+  "type": "task",
+  "updated_at": "2026-02-11T04:50:17.410185Z"
 }
