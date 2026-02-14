@@ -8,9 +8,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
+import click
+
 from taskulus.config_loader import load_project_configuration
 from taskulus.file_io import ensure_git_repository, initialize_project
-from taskulus.hierarchy import validate_parent_child_relationship
+from taskulus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
 from taskulus.issue_files import write_issue_to_file
 from taskulus.models import (
     DependencyLink,
@@ -295,9 +297,17 @@ def _convert_dependencies(
             canonical_parent_type == issue_type
             and canonical_parent_type in {"epic", "task"}
         ):
-            validate_parent_child_relationship(
-                configuration, canonical_parent_type, issue_type
-            )
+            try:
+                validate_parent_child_relationship(
+                    configuration, canonical_parent_type, issue_type
+                )
+            except InvalidHierarchyError as error:
+                click.echo(
+                    f"Suggestion: {error}. Remove the parent from '{identifier}' or "
+                    "update the hierarchy in project/config.yaml to allow this relationship.",
+                    err=True,
+                )
+                parent = None
 
     return parent, dependency_links
 
