@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { mkdtemp, cp, rm } from "fs/promises";
+import { mkdtemp, cp, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -8,6 +8,8 @@ const consoleRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   ".."
 );
+const repoRoot = path.resolve(consoleRoot, "..");
+const pythonPath = path.join(repoRoot, "python", "src");
 const fixtureSource = path.resolve(consoleRoot, "tests", "fixtures", "project");
 
 function runCommand(command: string, args: string[], env: NodeJS.ProcessEnv) {
@@ -32,12 +34,17 @@ async function main() {
   const tempDir = await mkdtemp(path.join(tmpdir(), "taskulus-console-"));
   const projectDir = path.join(tempDir, "project");
   await cp(fixtureSource, projectDir, { recursive: true });
+  const configurationPath = path.join(tempDir, ".taskulus.yml");
+  await writeFile(configurationPath, "project_directory: project\n", "utf-8");
 
   const env = {
     ...process.env,
     CONSOLE_PROJECT_ROOT: projectDir,
     CONSOLE_PORT: "5174",
-    VITE_PORT: "5173"
+    VITE_PORT: "5173",
+    TASKULUS_PYTHON:
+      process.env.TASKULUS_PYTHON ?? "/opt/anaconda3/envs/py311/bin/python",
+    TASKULUS_PYTHONPATH: process.env.TASKULUS_PYTHONPATH ?? pythonPath
   };
 
   try {

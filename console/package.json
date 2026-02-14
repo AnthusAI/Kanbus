@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
-    "dev:client": "vite",
-    "dev:server": "tsx watch server/index.ts",
+    "dev:client": "vite --port ${VITE_PORT:-5173} --strictPort",
+    "dev:server": "CONSOLE_PROJECT_ROOT=../project TASKULUS_PYTHONPATH=python/src TASKULUS_PYTHON=/opt/anaconda3/envs/py311/bin/python tsx watch server/index.ts",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",

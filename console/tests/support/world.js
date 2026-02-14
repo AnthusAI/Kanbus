@@ -27,11 +27,12 @@ AfterAll(async () => {
 
 Before(async function () {
   this.page = await browser.newPage();
-  await this.page.addInitScript(() => window.localStorage.clear());
   await this.page.goto(BASE_URL, {
     waitUntil: "domcontentloaded",
     timeout: 60000
   });
+  await this.page.evaluate(() => window.localStorage.clear());
+  await this.page.reload({ waitUntil: "domcontentloaded" });
 });
 
 After(async function () {

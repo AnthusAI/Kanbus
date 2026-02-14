@@ -199,6 +199,16 @@ List available wiki pages.
 tsk wiki list
 ```
 
+## Console
+
+### `tsk console snapshot`
+
+Emit a JSON snapshot for the console server.
+
+```bash
+tsk console snapshot
+```
+
 ## Maintenance
 
 ### `tsk validate`

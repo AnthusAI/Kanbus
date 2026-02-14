@@ -17,8 +17,11 @@ npm run dev
 
 - Client runs on `http://localhost:5173`
 - Server runs on `http://localhost:5174`
+- `CONSOLE_PROJECT_ROOT` must point to the `project/` directory
 
 ## Data Sources
+
+The server executes `tsk console snapshot` from the repo root to read:
 
 - `project/config.yaml`
 - `project/issues/*.json`
@@ -32,7 +35,7 @@ The server reads these files directly and exposes:
 
 ## Realtime Updates
 
-The server watches the entire `project/` directory. Any change triggers a debounced reload (250ms) and emits a full snapshot over SSE. The client updates the board immediately after receiving the snapshot.
+The server watches the entire `project/` directory. Any change triggers a debounced reload (250ms), runs the CLI snapshot command, and emits the full snapshot over SSE. The client updates the board immediately after receiving the snapshot.
 
 ## UI Specs
 

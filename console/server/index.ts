@@ -1,21 +1,25 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
-import fs from "fs/promises";
-import yaml from "js-yaml";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import chokidar from "chokidar";
-import type { Issue, IssuesSnapshot, ProjectConfig } from "../src/types/issues";
-import { fileURLToPath } from "url";
+import type { IssuesSnapshot } from "../src/types/issues";
 
 const app = express();
 const port = Number(process.env.CONSOLE_PORT ?? 5174);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT
   ? path.resolve(process.env.CONSOLE_PROJECT_ROOT)
-  : path.resolve(__dirname, "..", "..", "project");
-const issuesDir = path.join(projectRoot, "issues");
-const configPath = path.join(projectRoot, "config.yaml");
+  : null;
+if (!projectRoot) {
+  throw new Error("CONSOLE_PROJECT_ROOT is required");
+}
+const repoRoot = path.dirname(projectRoot);
+const execFileAsync = promisify(execFile);
+const taskulusPython = process.env.TASKULUS_PYTHON ?? null;
+const pythonPath = process.env.TASKULUS_PYTHONPATH
+  ? path.resolve(repoRoot, process.env.TASKULUS_PYTHONPATH)
+  : null;
 
 app.use(
   cors({
@@ -24,63 +28,53 @@ app.use(
   })
 );
 
-async function loadConfig(): Promise<ProjectConfig> {
-  let raw: string;
-  try {
-    raw = await fs.readFile(configPath, "utf-8");
-  } catch (error) {
-    const err = error as NodeJS.ErrnoException;
-    if (err.code === "ENOENT") {
-      throw new Error("project/config.yaml not found");
-    }
-    throw error;
-  }
+let cachedSnapshot: IssuesSnapshot | null = null;
+let snapshotPromise: Promise<IssuesSnapshot> | null = null;
 
-  const parsed = yaml.load(raw);
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("config.yaml is invalid");
-  }
-  return parsed as ProjectConfig;
+async function runSnapshot(): Promise<IssuesSnapshot> {
+  const command = taskulusPython ?? "tsk";
+  const args = taskulusPython
+    ? ["-m", "taskulus.cli", "console", "snapshot"]
+    : ["console", "snapshot"];
+  const { stdout } = await execFileAsync(command, args, {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      TASKULUS_NO_DAEMON: "1",
+      PYTHONPATH: taskulusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
+    },
+    maxBuffer: 10 * 1024 * 1024
+  });
+  return JSON.parse(stdout) as IssuesSnapshot;
 }
 
-async function loadIssues(): Promise<Issue[]> {
-  let entries: fs.Dirent[];
-  try {
-    entries = await fs.readdir(issuesDir, { withFileTypes: true });
-  } catch (error) {
-    const err = error as NodeJS.ErrnoException;
-    if (err.code === "ENOENT") {
-      throw new Error("project/issues directory not found");
-    }
-    throw error;
+async function getSnapshot(): Promise<IssuesSnapshot> {
+  if (cachedSnapshot) {
+    return cachedSnapshot;
   }
-  const issueFiles = entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
-    .map((entry) => path.join(issuesDir, entry.name));
-
-  const issues = await Promise.all(
-    issueFiles.map(async (file) => {
-      const raw = await fs.readFile(file, "utf-8");
-      return JSON.parse(raw) as Issue;
-    })
-  );
-
-  return issues.sort((a, b) => a.id.localeCompare(b.id));
+  if (!snapshotPromise) {
+    snapshotPromise = runSnapshot()
+      .then((snapshot) => {
+        cachedSnapshot = snapshot;
+        return snapshot;
+      })
+      .finally(() => {
+        snapshotPromise = null;
+      });
+  }
+  return snapshotPromise;
 }
 
-async function buildSnapshot(): Promise<IssuesSnapshot> {
-  const [config, issues] = await Promise.all([loadConfig(), loadIssues()]);
-  return {
-    config,
-    issues,
-    updated_at: new Date().toISOString()
-  };
+async function refreshSnapshot(): Promise<IssuesSnapshot> {
+  const snapshot = await runSnapshot();
+  cachedSnapshot = snapshot;
+  return snapshot;
 }
 
 app.get("/api/config", async (_req, res) => {
   try {
-    const config = await loadConfig();
-    res.json(config);
+    const snapshot = await getSnapshot();
+    res.json(snapshot.config);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -88,8 +82,8 @@ app.get("/api/config", async (_req, res) => {
 
 app.get("/api/issues", async (_req, res) => {
   try {
-    const issues = await loadIssues();
-    res.json(issues);
+    const snapshot = await getSnapshot();
+    res.json(snapshot.issues);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -97,8 +91,8 @@ app.get("/api/issues", async (_req, res) => {
 
 app.get("/api/issues/:id", async (req, res) => {
   try {
-    const issues = await loadIssues();
-    const issue = issues.find((item) => item.id === req.params.id);
+    const snapshot = await getSnapshot();
+    const issue = snapshot.issues.find((item) => item.id === req.params.id);
     if (!issue) {
       res.status(404).json({ error: "issue not found" });
       return;
@@ -121,7 +115,7 @@ app.get("/api/events", async (req, res) => {
   sseClients.add(res);
 
   try {
-    const snapshot = await buildSnapshot();
+    const snapshot = await getSnapshot();
     res.write(`data: ${JSON.stringify(snapshot)}\n\n`);
   } catch (error) {
     res.write(
@@ -161,7 +155,7 @@ watcher.on("all", () => {
   debounceTimer = setTimeout(async () => {
     debounceTimer = null;
     try {
-      const snapshot = await buildSnapshot();
+      const snapshot = await refreshSnapshot();
       broadcastSnapshot(snapshot);
     } catch (error) {
       const payload = {

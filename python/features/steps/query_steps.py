@@ -123,6 +123,11 @@ def when_run_unknown(context: object) -> None:
     run_cli(context, "tsk --unknown")
 
 
+@when('I run "tsk console snapshot"')
+def when_run_console_snapshot(context: object) -> None:
+    run_cli(context, "tsk console snapshot")
+
+
 @given('issue "{identifier}" has title "{title}"')
 def given_issue_has_title(context: object, identifier: str, title: str) -> None:
     project_dir = load_project_directory(context)

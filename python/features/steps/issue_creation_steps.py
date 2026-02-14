@@ -69,6 +69,11 @@ def when_run_create_standalone_task(context: object) -> None:
     run_cli(context, "tsk create Standalone Task --type task")
 
 
+@when('I run "tsk create Snapshot issue"')
+def when_run_create_snapshot_issue(context: object) -> None:
+    run_cli(context, "tsk create Snapshot issue")
+
+
 @then("the command should succeed")
 def then_command_succeeds(context: object) -> None:
     assert context.result.exit_code == 0

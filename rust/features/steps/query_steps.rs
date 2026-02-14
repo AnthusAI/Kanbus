@@ -235,6 +235,11 @@ fn when_run_unknown(world: &mut TaskulusWorld) {
     run_cli(world, "tsk --unknown");
 }
 
+#[when("I run \"tsk console snapshot\"")]
+fn when_run_console_snapshot(world: &mut TaskulusWorld) {
+    run_cli(world, "tsk console snapshot");
+}
+
 #[given(expr = "issue {string} has title {string}")]
 fn given_issue_has_title(world: &mut TaskulusWorld, identifier: String, title: String) {
     let project_dir = load_project_dir(world);

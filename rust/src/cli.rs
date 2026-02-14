@@ -8,6 +8,7 @@ use clap::{Parser, Subcommand};
 
 use crate::beads_write::{create_beads_issue, delete_beads_issue, update_beads_issue};
 use crate::config_loader::load_project_configuration;
+use crate::console_snapshot::build_console_snapshot;
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
 use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
@@ -197,6 +198,11 @@ enum Commands {
         #[command(subcommand)]
         command: WikiCommands,
     },
+    /// Console helpers.
+    Console {
+        #[command(subcommand)]
+        command: ConsoleCommands,
+    },
     /// Report daemon status.
     #[command(name = "daemon-status")]
     DaemonStatus,
@@ -265,6 +271,12 @@ enum WikiCommands {
         /// Wiki page path.
         page: String,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum ConsoleCommands {
+    /// Emit a JSON snapshot for the console.
+    Snapshot,
 }
 
 /// Output produced by a CLI command.
@@ -703,6 +715,14 @@ fn execute_command(
                 };
                 let output = render_wiki_page(&request)?;
                 Ok(Some(output))
+            }
+        },
+        Commands::Console { command } => match command {
+            ConsoleCommands::Snapshot => {
+                let snapshot = build_console_snapshot(root)?;
+                let payload = serde_json::to_string_pretty(&snapshot)
+                    .map_err(|error| TaskulusError::Io(error.to_string()))?;
+                Ok(Some(payload))
             }
         },
         Commands::DaemonStatus => {

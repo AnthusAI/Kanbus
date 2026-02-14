@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   CheckCheck,
-  Eye,
-  EyeOff,
+  Filter,
+  FilterX,
   Lightbulb,
   ListChecks,
   SquareCheckBig
@@ -238,7 +238,7 @@ useEffect(() => {
       ? "transition-opacity duration-150"
       : "transition-opacity duration-300";
 
-  const transitionKey = `${viewMode}-${showClosed}-${filteredIssues.length}-${snapshot?.updated_at ?? ""}`;
+  const transitionKey = `${viewMode}-${showClosed}-${snapshot?.updated_at ?? ""}`;
 
   return (
     <AppShell>
@@ -288,7 +288,7 @@ useEffect(() => {
             data-testid="toggle-closed"
           >
             <span className="flex items-center gap-2 max-md:gap-1">
-              {showClosed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showClosed ? <FilterX className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
               <span className={`${toggleMotionClass} whitespace-nowrap label-text`}>
                 {showClosed ? "All" : "Open"}
               </span>

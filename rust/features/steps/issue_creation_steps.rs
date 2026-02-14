@@ -202,6 +202,11 @@ fn when_run_create_standalone_task(world: &mut TaskulusWorld) {
     run_cli(world, "tsk create Standalone Task --type task");
 }
 
+#[when("I run \"tsk create Snapshot issue\"")]
+fn when_run_create_snapshot_issue(world: &mut TaskulusWorld) {
+    run_cli(world, "tsk create Snapshot issue");
+}
+
 #[then("the command should succeed")]
 fn then_command_succeeds(world: &mut TaskulusWorld) {
     assert_eq!(world.exit_code, Some(0));

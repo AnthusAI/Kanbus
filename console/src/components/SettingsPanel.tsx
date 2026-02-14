@@ -173,6 +173,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 key={option.id}
                 type="button"
                 onClick={() => setTheme(option.id as any)}
+                data-selector="theme"
+                data-option={option.id}
                 className={`rounded-full h-10 px-3 flex flex-col items-center justify-center gap-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${
                   appearance.theme === option.id ? "text-foreground bg-card-muted" : "text-muted bg-card"
                 }`}

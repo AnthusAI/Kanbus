@@ -47,6 +47,7 @@ export function IssueCard({
       data-status={issue.status}
       data-type={issue.type}
       data-priority={priorityName}
+      data-issue-id={issue.id}
       onClick={handleClick}
       role="button"
       tabIndex={0}

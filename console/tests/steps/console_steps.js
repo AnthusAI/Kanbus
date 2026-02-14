@@ -45,7 +45,11 @@ When("a new task issue named {string} is added", async function (title) {
     creator: "System",
     labels: [],
     dependencies: [],
-    comments: []
+    comments: [],
+    created_at: "2026-02-11T04:00:00.000Z",
+    updated_at: "2026-02-11T04:00:00.000Z",
+    closed_at: null,
+    custom: {}
   };
   const filePath = path.join(projectRoot, "issues", `${issueId}.json`);
   await writeFile(filePath, JSON.stringify(issue, null, 2));

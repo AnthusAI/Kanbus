@@ -5,6 +5,7 @@ pub mod cache;
 pub mod cli;
 pub mod config;
 pub mod config_loader;
+pub mod console_snapshot;
 pub mod daemon_client;
 pub mod daemon_paths;
 pub mod daemon_protocol;
