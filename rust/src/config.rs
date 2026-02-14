@@ -82,7 +82,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
 ///
 /// # Arguments
 ///
-/// * `path` - Path to the config.yaml file.
+/// * `path` - Path to the taskulus.yml file.
 ///
 /// # Errors
 ///

@@ -22,6 +22,6 @@ pub struct DoctorResult {
 pub fn run_doctor(root: &Path) -> Result<DoctorResult, TaskulusError> {
     ensure_git_repository(root)?;
     let project_dir = load_project_directory(root)?;
-    load_project_configuration(&project_dir.join("config.yaml"))?;
+    load_project_configuration(&project_dir.join("taskulus.yml"))?;
     Ok(DoctorResult { project_dir })
 }

@@ -19,7 +19,7 @@ const DocsPage = () => {
             <pre className="block overflow-x-auto rounded-xl bg-slate-100 dark:bg-slate-800 p-6 text-sm text-slate-800 dark:text-slate-200 font-mono leading-relaxed border border-slate-200 dark:border-slate-700">
               {`project/
 ├── .taskulus/               # Hidden configuration and state
-│   ├── config.yaml          # Project-level configuration
+│   ├── taskulus.yml         # Project-level configuration
 │   └── state.json           # Local cache (gitignored)
 ├── issues/                  # The database of issues
 │   ├── tskl-001.json
@@ -109,7 +109,7 @@ const DocsPage = () => {
         >
           <div className="w-full">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
-              config.yaml
+              taskulus.yml
             </h3>
             <p className="mb-4 text-slate-600 dark:text-slate-400 leading-relaxed">
               The configuration file defines your issue hierarchy (Epic vs Task),

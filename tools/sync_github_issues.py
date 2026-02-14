@@ -269,7 +269,7 @@ def main() -> int:
     except ValueError:
         project_dir_relative = Path(project_dir_name)
 
-    configuration = load_project_configuration(project_dir / "config.yaml")
+    configuration = load_project_configuration(project_dir / "taskulus.yml")
     local_identifiers = list_issue_identifiers(issues_dir)
     existing_gh_issues: list[dict] = []
     source_to_gh_number: dict[str, int] = {}
