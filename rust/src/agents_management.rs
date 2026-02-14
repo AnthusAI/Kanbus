@@ -15,7 +15,7 @@ use crate::project_management_template::{
 use serde::Serialize;
 
 const TASKULUS_SECTION_HEADER: &str = "## Project management with Taskulus";
-const TASKULUS_SECTION_LINES: [&str; 7] = [
+const TASKULUS_SECTION_LINES: [&str; 8] = [
     TASKULUS_SECTION_HEADER,
     "",
     "Use Taskulus for task management.",

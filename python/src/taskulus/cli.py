@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 import click
@@ -58,20 +59,20 @@ from taskulus.dependency_tree import (
 from taskulus.wiki import WikiError, WikiRenderRequest, render_wiki_page
 from taskulus.project import ProjectMarkerError, get_configuration_path
 from taskulus.config_loader import ConfigurationError, load_project_configuration
-from taskulus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from taskulus.agents_management import _ensure_project_guard_files, ensure_agents_file
 
 
-def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool, bool]:
+def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> bool:
     source = context.get_parameter_source("beads_mode")
     if source == click.core.ParameterSource.COMMANDLINE and beads_mode:
-        return True, True
+        return True
     try:
         configuration = load_project_configuration(get_configuration_path(Path.cwd()))
     except ProjectMarkerError:
-        return False, False
+        return False
     except ConfigurationError as error:
         raise click.ClickException(str(error)) from error
-    return configuration.beads_compatibility, False
+    return configuration.beads_compatibility
 
 
 @click.group()
@@ -80,11 +81,25 @@ def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool,
 @click.pass_context
 def cli(context: click.Context, beads_mode: bool) -> None:
     """Taskulus command line interface."""
-    resolved_mode, forced_mode = _resolve_beads_mode(context, beads_mode)
-    context.obj = {
-        "beads_mode": resolved_mode,
-        "beads_mode_forced": forced_mode,
-    }
+    context.obj = {"beads_mode": _resolve_beads_mode(context, beads_mode)}
+
+
+@cli.group("setup")
+def setup() -> None:
+    """Setup utilities for Taskulus."""
+
+
+@setup.command("agents")
+@click.option("--force", is_flag=True, default=False)
+def setup_agents(force: bool) -> None:
+    """Ensure AGENTS.md contains Taskulus instructions.
+
+    :param force: Overwrite existing Taskulus section without prompting.
+    :type force: bool
+    """
+    root = Path.cwd()
+    ensure_agents_file(root, force)
+    _ensure_project_guard_files(root)
 
 
 @cli.command("init")
@@ -101,6 +116,14 @@ def init(create_local: bool) -> None:
         initialize_project(root, create_local)
     except InitializationError as error:
         raise click.ClickException(str(error)) from error
+    _maybe_run_setup_agents(root)
+
+
+def _maybe_run_setup_agents(root: Path) -> None:
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return
+    if click.confirm('Run "tsk setup agents" now?', default=False):
+        ensure_agents_file(root, force=False)
 
 
 @cli.command("create")
@@ -429,9 +452,6 @@ def list_command(
     """List issues in the current project."""
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
-    beads_mode_forced = (
-        bool(context.obj.get("beads_mode_forced")) if context.obj else False
-    )
     try:
         issues = list_issues(
             root,
@@ -469,10 +489,9 @@ def list_command(
         except ConfigurationError as error:
             raise click.ClickException(str(error)) from error
 
-    if beads_mode:
-        project_context = beads_mode_forced
-    else:
-        project_context = not any(issue.custom.get("project_path") for issue in issues)
+    project_context = beads_mode or not any(
+        issue.custom.get("project_path") for issue in issues
+    )
     widths = (
         None if porcelain else compute_widths(issues, project_context=project_context)
     )
@@ -514,22 +533,6 @@ def render_wiki(page: str) -> None:
     except WikiError as error:
         raise click.ClickException(str(error)) from error
     click.echo(output)
-
-
-@cli.group("console")
-def console() -> None:
-    """Console helpers."""
-
-
-@console.command("snapshot")
-def console_snapshot() -> None:
-    """Emit a JSON snapshot for the console."""
-    root = Path.cwd()
-    try:
-        snapshot = build_console_snapshot(root)
-    except ConsoleSnapshotError as error:
-        raise click.ClickException(str(error)) from error
-    click.echo(json.dumps(snapshot, indent=2, sort_keys=False))
 
 
 @cli.command("validate")

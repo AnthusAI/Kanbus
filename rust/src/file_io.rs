@@ -7,6 +7,9 @@ use crate::config::default_project_configuration;
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;
 use crate::models::ProjectConfiguration;
+use crate::project_management_template::{
+    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
+};
 use serde_yaml;
 
 fn should_force_canonicalize_failure() -> bool {
@@ -82,6 +85,12 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), Taskulu
         std::fs::write(&config_path, contents)
             .map_err(|error| TaskulusError::Io(error.to_string()))?;
     }
+    let template_path = root.join(DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME);
+    if !template_path.exists() {
+        std::fs::write(&template_path, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE)
+            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    }
+    write_project_guard_files(&project_dir)?;
     if create_local {
         ensure_project_local_directory(&project_dir)?;
     }
@@ -100,6 +109,34 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), Taskulu
 /// The root path used for initialization.
 pub fn resolve_root(cwd: &Path) -> PathBuf {
     cwd.to_path_buf()
+}
+
+fn write_project_guard_files(project_dir: &Path) -> Result<(), TaskulusError> {
+    let agents_path = project_dir.join("AGENTS.md");
+    let agents_content = [
+        "# DO NOT EDIT HERE",
+        "",
+        "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
+        "Do not read or write in this folder. Use Taskulus commands instead.",
+        "",
+        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+    ]
+    .join("\n")
+        + "\n";
+    std::fs::write(&agents_path, agents_content)
+        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+
+    let do_not_edit = project_dir.join("DO_NOT_EDIT");
+    let do_not_edit_content = [
+        "DO NOT EDIT ANYTHING IN project/",
+        "This folder is guarded by The Way.",
+        "All changes must go through Taskulus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
+    ]
+    .join("\n")
+        + "\n";
+    std::fs::write(&do_not_edit, do_not_edit_content)
+        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    Ok(())
 }
 
 /// Load a single Taskulus project directory by downward discovery.
