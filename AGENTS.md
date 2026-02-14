@@ -12,6 +12,15 @@ This applies to:
 
 Use clear, professional text instead. Emojis reduce clarity and professionalism.
 
+## Task Tracking
+
+This repo uses Taskulus for its work-tracking, not Beads. Always:
+
+- Pick the next item from `tsk ready` or `tsk list` before starting work, then set it to `in_progress`.
+- Log updates, blockers, and decisions by editing the corresponding issue JSON under `project/issues/`.
+- Reference the Taskulus issue ID in branch names, PRs, and commits when possible for traceability.
+- Close or transition the Taskulus issue before marking the work as done.
+
 # Code Quality Standards for Taskulus
 
 ## Behavior-Driven Development (BDD)
