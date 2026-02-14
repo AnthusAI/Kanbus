@@ -15,13 +15,14 @@ use crate::project_management_template::{
 use serde::Serialize;
 
 const TASKULUS_SECTION_HEADER: &str = "## Project management with Taskulus";
-const TASKULUS_SECTION_LINES: [&str; 6] = [
+const TASKULUS_SECTION_LINES: [&str; 7] = [
     TASKULUS_SECTION_HEADER,
     "",
     "Use Taskulus for task management.",
     "Why: Taskulus task management is MANDATORY here; every task must live in Taskulus.",
     "When: Create/update the Taskulus task before coding; close it only after the change lands.",
-    "How: See CONTRIBUTING_AGENT.md for the Taskulus workflow, hierarchy, status rules, priorities, and command examples.",
+    "How: See CONTRIBUTING_AGENT.md for the Taskulus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid.",
+    "Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Taskulus.",
 ];
 const AGENTS_HEADER_LINES: [&str; 2] = ["# Agent Instructions", ""];
 const PROJECT_MANAGEMENT_FILENAME: &str = "CONTRIBUTING_AGENT.md";
@@ -47,6 +48,7 @@ pub fn ensure_agents_file(root: &Path, force: bool) -> Result<(), TaskulusError>
         let content = build_new_agents_file();
         fs::write(&agents_path, content).map_err(|error| TaskulusError::Io(error.to_string()))?;
         ensure_project_management_file(root, force, &instructions_text)?;
+        ensure_project_guard_files(root)?;
         return Ok(());
     }
 
@@ -57,18 +59,21 @@ pub fn ensure_agents_file(root: &Path, force: bool) -> Result<(), TaskulusError>
         if !force {
             if !confirm_overwrite()? {
                 ensure_project_management_file(root, force, &instructions_text)?;
+                ensure_project_guard_files(root)?;
                 return Ok(());
             }
         }
         let updated = replace_section(&lines, &section, &TASKULUS_SECTION_LINES);
         fs::write(&agents_path, updated).map_err(|error| TaskulusError::Io(error.to_string()))?;
         ensure_project_management_file(root, force, &instructions_text)?;
+        ensure_project_guard_files(root)?;
         return Ok(());
     }
 
     let updated = insert_taskulus_section(&lines, &TASKULUS_SECTION_LINES);
     fs::write(&agents_path, updated).map_err(|error| TaskulusError::Io(error.to_string()))?;
     ensure_project_management_file(root, force, &instructions_text)?;
+    ensure_project_guard_files(root)?;
     Ok(())
 }
 
@@ -410,6 +415,37 @@ fn ensure_project_management_file(
     }
     fs::write(&instructions_path, content).map_err(|error| TaskulusError::Io(error.to_string()))?;
     Ok(())
+}
+
+fn ensure_project_guard_files(root: &Path) -> Result<(), TaskulusError> {
+    let project_dir = root.join("project");
+    if !project_dir.exists() {
+        return Ok(());
+    }
+    let project_agents = project_dir.join("AGENTS.md");
+    let project_agents_content = [
+        "# DO NOT EDIT HERE",
+        "",
+        "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
+        "Do not read or write in this folder. Use Taskulus commands instead.",
+        "",
+        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+    ]
+    .join("\n")
+        + "\n";
+    fs::write(&project_agents, project_agents_content)
+        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+
+    let do_not_edit = project_dir.join("DO_NOT_EDIT");
+    let do_not_edit_content = [
+        "DO NOT EDIT ANYTHING IN project/",
+        "This folder is guarded by The Way.",
+        "All changes must go through Taskulus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
+    ]
+    .join("\n")
+        + "\n";
+    fs::write(&do_not_edit, do_not_edit_content)
+        .map_err(|error| TaskulusError::Io(error.to_string()))
 }
 
 fn confirm_overwrite() -> Result<bool, TaskulusError> {
