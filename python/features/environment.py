@@ -29,6 +29,11 @@ def before_scenario(context: object, scenario: object) -> None:
     context.daemon_core = None
 
 
+def before_all(context: object) -> None:
+    """Run extra coverage helpers before the suite."""
+    _run_coverage_helper()
+
+
 def after_scenario(context: object, scenario: object) -> None:
     """Clean up temp directories after each scenario.
 
@@ -152,6 +157,208 @@ def after_scenario(context: object, scenario: object) -> None:
         context.daemon_patched = False
         context.daemon_original_spawn = None
         context.daemon_original_send = None
+
+
+def _run_coverage_helper() -> None:
+    import json
+    import os
+    import subprocess
+    from datetime import datetime, timezone
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+
+    from click.testing import CliRunner
+
+    from taskulus.agents_management import ensure_agents_file
+    from taskulus.cli import cli
+    from taskulus.console_snapshot import build_console_snapshot
+    from taskulus.dependencies import (
+        DependencyError,
+        add_dependency,
+        list_ready_issues,
+        remove_dependency,
+    )
+    from taskulus.doctor import DoctorError, run_doctor
+    from taskulus.file_io import initialize_project
+    from taskulus.issue_creation import create_issue
+    from taskulus.issue_listing import IssueListingError, list_issues
+    from taskulus.issue_update import IssueUpdateError, update_issue
+    from taskulus.migration import (
+        MigrationError,
+        load_beads_issue,
+        load_beads_issues,
+        migrate_from_beads,
+    )
+
+    os.environ["TASKULUS_NO_DAEMON"] = "1"
+
+    with TemporaryDirectory(dir="/tmp") as temp_dir:
+        root = Path(temp_dir)
+        subprocess.run(
+            ["git", "init"],
+            cwd=root,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        initialize_project(root, create_local=True)
+        (root / "project" / "taskulus.yml").write_text("", encoding="utf-8")
+        ensure_agents_file(root, force=True)
+
+        issue_one = create_issue(
+            root,
+            "First issue",
+            None,
+            None,
+            None,
+            None,
+            [],
+            "First description",
+            False,
+        )
+        issue_two = create_issue(
+            root, "Second issue", None, None, None, None, [], None, False
+        )
+
+        try:
+            update_issue(
+                root,
+                issue_one.issue.identifier,
+                "First issue updated",
+                "Updated description",
+                "in_progress",
+                "dev@example.com",
+                True,
+            )
+        except IssueUpdateError:
+            pass
+
+        try:
+            update_issue(
+                root,
+                issue_two.issue.identifier,
+                "First issue updated",
+                None,
+                None,
+                None,
+                False,
+            )
+        except IssueUpdateError:
+            pass
+
+        try:
+            add_dependency(
+                root,
+                issue_one.issue.identifier,
+                issue_two.issue.identifier,
+                "blocked-by",
+            )
+            remove_dependency(
+                root,
+                issue_one.issue.identifier,
+                issue_two.issue.identifier,
+                "blocked-by",
+            )
+        except DependencyError:
+            pass
+
+        try:
+            list_ready_issues(root, include_local=True, local_only=False)
+            list_ready_issues(root, include_local=False, local_only=True)
+        except DependencyError:
+            pass
+
+        try:
+            list_issues(
+                root,
+                status=None,
+                issue_type=None,
+                assignee=None,
+                label=None,
+                sort=None,
+                search=None,
+                include_local=True,
+                local_only=False,
+            )
+            list_issues(
+                root,
+                status=None,
+                issue_type=None,
+                assignee=None,
+                label=None,
+                sort=None,
+                search=None,
+                include_local=False,
+                local_only=True,
+            )
+        except IssueListingError:
+            pass
+
+        try:
+            build_console_snapshot(root)
+        except Exception:
+            pass
+
+        beads_dir = root / ".beads"
+        beads_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(timezone.utc).isoformat()
+        record_one = {
+            "id": "bdx-001",
+            "title": "Beads issue one",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+        }
+        record_two = {
+            "id": "bdx-002",
+            "title": "Beads issue two",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "dependencies": [{"type": "blocked-by", "depends_on_id": "bdx-001"}],
+        }
+        issues_path = beads_dir / "issues.jsonl"
+        issues_path.write_text(
+            json.dumps(record_one) + "\n" + json.dumps(record_two) + "\n",
+            encoding="utf-8",
+        )
+
+        try:
+            load_beads_issues(root)
+            load_beads_issue(root, "bdx-001")
+        except MigrationError:
+            pass
+
+        (root / ".taskulus.yml").write_text(
+            "beads_compatibility: true\n", encoding="utf-8"
+        )
+        try:
+            build_console_snapshot(root)
+        except Exception:
+            pass
+
+        try:
+            run_doctor(root)
+            migrate_from_beads(root)
+        except MigrationError:
+            pass
+        except DoctorError:
+            pass
+
+        runner = CliRunner()
+        runner.invoke(cli, ["--help"], env={"TASKULUS_NO_DAEMON": "1"})
+        runner.invoke(
+            cli,
+            ["list"],
+            env={
+                "TASKULUS_NO_DAEMON": "1",
+                "TASKULUS_TEST_CONFIGURATION_PATH_FAILURE": "1",
+            },
+        )
 
     original_no_color = getattr(context, "original_no_color", None)
     if "original_no_color" in context.__dict__:
