@@ -30,6 +30,14 @@ Every change must be:
 
 If it is not recorded, it did not happen.
 
+While working, record a running log in Taskulus comments on the relevant epic/task: key decisions, problems encountered, attempted fixes, outcomes, and next steps. This log is mandatory so other agents can collaborate and audit the work.
+
+Chores that are purely about maintaining the project-management machinery (for example, updating CONTRIBUTING_AGENT.md or AGENTS.md) do not need their own project-management issues; attach them to the existing project-management epic/task to avoid infinite recursion.
+
+For complex work, break the plan into sub-tasks and file them under the parent task/bug/chore/epic as appropriate. Create one issue per concrete step in the plan. Do not put sub-tasks under stories; stories hold behavior specs, not implementation steps.
+
+Operational discipline: use the minimum commands needed. To inspect work, run `tskr list --status open --long` once to find the ID, then `tskr show <id>`. Do not guess IDs or spam multiple variants; if the ID is unknown, ask the user.
+
 Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. All work must pass through Taskulus.
 
 ## The Order of Being
@@ -43,6 +51,7 @@ Hierarchy: {{ hierarchy_order }}.
 Non-hierarchical types: {{ non_hierarchical_types | join(", ") if non_hierarchical_types else "none" }}.
 
 Only hierarchy types may be parents.
+Initiatives are top-level milestones; they may contain epics only. Tasks, stories, bugs, and chores must roll up under an epic (or sub-task under task). Creating tasks directly under an initiative is a violation of The Way.
 
 Permitted relationships are fixed and not to be altered.
 

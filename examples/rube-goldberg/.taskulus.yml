@@ -1,0 +1,73 @@
+project_directory: project
+external_projects: []
+project_key: tsk
+hierarchy:
+- initiative
+- epic
+- task
+- sub-task
+types:
+- bug
+- story
+- chore
+workflows:
+  default:
+    open:
+    - in_progress
+    - closed
+    - deferred
+    in_progress:
+    - open
+    - blocked
+    - closed
+    blocked:
+    - in_progress
+    - closed
+    closed:
+    - open
+    deferred:
+    - open
+    - closed
+  epic:
+    open:
+    - in_progress
+    - closed
+    in_progress:
+    - open
+    - closed
+    closed:
+    - open
+initial_status: open
+priorities:
+  0:
+    name: critical
+    color: red
+  1:
+    name: high
+    color: bright_red
+  2:
+    name: medium
+    color: yellow
+  3:
+    name: low
+    color: blue
+  4:
+    name: trivial
+    color: white
+default_priority: 2
+status_colors:
+  open: cyan
+  in_progress: blue
+  blocked: red
+  closed: green
+  deferred: yellow
+type_colors:
+  initiative: bright_blue
+  epic: magenta
+  task: cyan
+  sub-task: bright_cyan
+  bug: red
+  story: yellow
+  chore: green
+  event: bright_blue
+beads_compatibility: false
