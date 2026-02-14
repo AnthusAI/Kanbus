@@ -16,11 +16,26 @@ All commands support:
 Initialize a Taskulus project in the current git repository.
 
 ```bash
-tsk init [--dir <name>]
+tsk init [--local]
 ```
 
 Flags:
-- `--dir <name>` Project directory name (default: `project`)
+- `--local` Create a `project-local/` sibling directory for personal issues
+
+### `tsk setup agents`
+
+Ensure `AGENTS.md` contains the Taskulus project-management section and refresh `CONTRIBUTING_AGENT.md`.
+
+```bash
+tsk setup agents [--force]
+```
+
+Flags:
+- `--force` Overwrite the Taskulus section without prompting
+
+Notes:
+- Run this after you update Taskulus templates or configuration so agent guidance stays current.
+- This command only updates documentation and guard files. It does not modify issue data.
 
 ## Issue CRUD
 

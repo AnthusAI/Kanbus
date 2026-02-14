@@ -40,12 +40,40 @@ You should now see:
 
 ```
 project/
-  taskulus.yml
+  config.yaml
   issues/
   wiki/
   .cache/   # created on demand
 .taskulus.yml
 ```
+
+If you want a local-only workspace for personal issues, initialize with:
+
+```bash
+tsk init --local
+```
+
+That creates `project-local/` alongside `project/` and adds it to `.gitignore`.
+
+## Step 1b: Keep agent guidance updated
+
+Taskulus keeps agent instructions in sync with your configuration. Run this anytime the template or configuration changes.
+
+```bash
+tsk setup agents
+```
+
+This updates `AGENTS.md`, refreshes `CONTRIBUTING_AGENT.md`, and re-writes the guard files under `project/`.
+
+## Beads compatibility mode
+
+If you are transitioning from Beads and keeping `.beads/issues.jsonl` for a while, enable compatibility mode in both configuration files:
+
+```yaml
+beads_compatibility: true
+```
+
+Set it in `.taskulus.yml` and in `project/config.yaml`. Taskulus will read Beads JSONL while still using `project/` for configuration and wiki content.
 
 ## Step 2: Create your first issue
 
