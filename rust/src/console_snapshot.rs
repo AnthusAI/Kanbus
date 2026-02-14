@@ -9,6 +9,7 @@ use serde::Serialize;
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;
 use crate::file_io::get_configuration_path;
+use crate::migration::load_beads_issues;
 use crate::models::{IssueData, ProjectConfiguration};
 
 /// Snapshot payload for the console.
@@ -30,7 +31,11 @@ pub struct ConsoleSnapshot {
 /// Returns `TaskulusError` if snapshot creation fails.
 pub fn build_console_snapshot(root: &Path) -> Result<ConsoleSnapshot, TaskulusError> {
     let (project_dir, config) = load_project_context(root)?;
-    let mut issues = load_console_issues(&project_dir)?;
+    let mut issues = if config.beads_compatibility {
+        load_beads_issues(root)?
+    } else {
+        load_console_issues(&project_dir)?
+    };
     issues.sort_by(|left, right| left.identifier.cmp(&right.identifier));
     let updated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     Ok(ConsoleSnapshot {
