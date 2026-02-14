@@ -26,6 +26,21 @@ Feature: Issue update
     And stderr should contain "invalid transition"
     And issue "kanbus-aaa" should have status "open"
 
+  Scenario: Reject unknown status
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists with status "open"
+    When I run "kanbus update kanbus-aaa --status does_not_exist"
+    Then the command should fail with exit code 1
+    And stderr should contain "unknown status"
+    And issue "kanbus-aaa" should have status "open"
+
+  Scenario: Update bypasses validation with --no-validate
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists with status "open"
+    When I run "kanbus update kanbus-aaa --status does_not_exist --no-validate"
+    Then the command should succeed
+    And issue "kanbus-aaa" should have status "does_not_exist"
+
   Scenario: Update missing issue fails
     Given a Kanbus project with default configuration
     When I run "kanbus update kanbus-missing --title \"New Title\""

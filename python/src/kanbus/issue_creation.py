@@ -25,6 +25,7 @@ from kanbus.project import (
     get_configuration_path,
     load_project_directory,
 )
+from kanbus.workflows import InvalidTransitionError, validate_status_value
 
 
 class IssueCreationError(RuntimeError):
@@ -49,6 +50,7 @@ def create_issue(
     labels: Iterable[str],
     description: Optional[str],
     local: bool = False,
+    validate: bool = True,
 ) -> IssueCreationResult:
     """Create a new issue and write it to disk.
 
@@ -90,33 +92,42 @@ def create_issue(
         raise IssueCreationError(str(error)) from error
 
     resolved_type = issue_type or "task"
-    valid_types = configuration.hierarchy + configuration.types
-    if resolved_type not in valid_types:
-        raise IssueCreationError("unknown issue type")
-
     resolved_priority = (
         priority if priority is not None else configuration.default_priority
     )
-    if resolved_priority not in configuration.priorities:
-        raise IssueCreationError("invalid priority")
+    if validate:
+        valid_types = configuration.hierarchy + configuration.types
+        if resolved_type not in valid_types:
+            raise IssueCreationError("unknown issue type")
 
-    parent_issue = None
-    if parent is not None:
-        parent_path = issues_dir / f"{parent}.json"
-        if not parent_path.exists():
-            raise IssueCreationError("not found")
-        parent_issue = read_issue_from_file(parent_path)
-        try:
-            validate_parent_child_relationship(
-                configuration, parent_issue.issue_type, resolved_type
+        if resolved_priority not in configuration.priorities:
+            raise IssueCreationError("invalid priority")
+
+        if parent is not None:
+            parent_path = issues_dir / f"{parent}.json"
+            if not parent_path.exists():
+                raise IssueCreationError("not found")
+            parent_issue = read_issue_from_file(parent_path)
+            try:
+                validate_parent_child_relationship(
+                    configuration, parent_issue.issue_type, resolved_type
+                )
+            except InvalidHierarchyError as error:
+                raise IssueCreationError(str(error)) from error
+
+        duplicate_identifier = _find_duplicate_title(issues_dir, title)
+        if duplicate_identifier is not None:
+            message = (
+                f'duplicate title: "{title}" already exists as {duplicate_identifier}'
             )
-        except InvalidHierarchyError as error:
-            raise IssueCreationError(str(error)) from error
+            raise IssueCreationError(message)
 
-    duplicate_identifier = _find_duplicate_title(issues_dir, title)
-    if duplicate_identifier is not None:
-        message = f'duplicate title: "{title}" already exists as {duplicate_identifier}'
-        raise IssueCreationError(message)
+        try:
+            validate_status_value(
+                configuration, resolved_type, configuration.initial_status
+            )
+        except InvalidTransitionError as error:
+            raise IssueCreationError(str(error)) from error
 
     existing_ids = list_issue_identifiers(project_dir / "issues")
     if local_dir is not None:

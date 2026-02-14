@@ -17,6 +17,7 @@ from kanbus.workflows import (
     InvalidTransitionError,
     apply_transition_side_effects,
     validate_status_transition,
+    validate_status_value,
 )
 
 
@@ -32,6 +33,7 @@ def update_issue(
     status: Optional[str],
     assignee: Optional[str],
     claim: bool,
+    validate: bool = True,
 ) -> IssueData:
     """Update an issue and persist it to disk.
 
@@ -105,15 +107,19 @@ def update_issue(
         raise IssueUpdateError("no updates requested")
 
     if resolved_status is not None:
-        try:
-            validate_status_transition(
-                configuration,
-                updated_issue.issue_type,
-                updated_issue.status,
-                resolved_status,
-            )
-        except InvalidTransitionError as error:
-            raise IssueUpdateError(str(error)) from error
+        if validate:
+            try:
+                validate_status_value(
+                    configuration, updated_issue.issue_type, resolved_status
+                )
+                validate_status_transition(
+                    configuration,
+                    updated_issue.issue_type,
+                    updated_issue.status,
+                    resolved_status,
+                )
+            except InvalidTransitionError as error:
+                raise IssueUpdateError(str(error)) from error
         updated_issue = apply_transition_side_effects(
             updated_issue,
             resolved_status,

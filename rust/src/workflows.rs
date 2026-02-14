@@ -67,6 +67,29 @@ pub fn validate_status_transition(
     Ok(())
 }
 
+/// Validate that a status value exists in the workflow.
+///
+/// # Errors
+/// Returns `KanbusError::InvalidTransition` if the status is unknown.
+pub fn validate_status_value(
+    configuration: &ProjectConfiguration,
+    issue_type: &str,
+    status: &str,
+) -> Result<(), KanbusError> {
+    let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
+    let mut valid_statuses: std::collections::BTreeSet<&str> =
+        workflow.keys().map(String::as_str).collect();
+    for allowed in workflow.values() {
+        for entry in allowed {
+            valid_statuses.insert(entry.as_str());
+        }
+    }
+    if !valid_statuses.contains(status) {
+        return Err(KanbusError::InvalidTransition("unknown status".to_string()));
+    }
+    Ok(())
+}
+
 /// Apply workflow side effects based on a status transition.
 ///
 /// # Arguments
