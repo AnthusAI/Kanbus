@@ -1,10 +1,10 @@
 # Wiki Guide
 
-Taskulus wiki pages are Markdown files with Jinja2-style templates. At render time, Taskulus evaluates the template against the live issue index and outputs a fully rendered Markdown document.
+Kanbus wiki pages are Markdown files with Jinja2-style templates. At render time, Kanbus evaluates the template against the live issue index and outputs a fully rendered Markdown document.
 
 ## Where wiki pages live
 
-Wiki pages live in `project/wiki/`. Use `tsk wiki render <page>` to render a page and print the result to stdout.
+Wiki pages live in `project/wiki/`. Use `kanbus wiki render <page>` to render a page and print the result to stdout.
 
 ## Jinja2 primer
 
@@ -66,7 +66,7 @@ Closed: {{ count(status="closed") }}
 ### 3) Epic progress summary
 
 ```markdown
-{% set epic = issue("tsk-epic01") %}
+{% set epic = issue("kanbus-epic01") %}
 ## {{ epic.title }}
 {{ count(parent=epic.id, status="closed") }}/{{ count(parent=epic.id) }} tasks complete
 ```
@@ -113,7 +113,7 @@ Closed: {{ count(status="closed") }}
 ### 8) Single issue detail block
 
 ```markdown
-{% set item = issue("tsk-a1b2c3") %}
+{% set item = issue("kanbus-a1b2c3") %}
 ## {{ item.title }}
 Status: {{ item.status }}
 Priority: {{ item.priority }}
@@ -123,7 +123,7 @@ Assignee: {{ item.assignee or "unassigned" }}
 ### 9) Show children of an epic
 
 ```markdown
-{% for child in children("tsk-epic01") %}
+{% for child in children("kanbus-epic01") %}
 - [{{ child.id }}] {{ child.title }} ({{ child.status }})
 {% endfor %}
 ```
@@ -131,7 +131,7 @@ Assignee: {{ item.assignee or "unassigned" }}
 ### 10) Show what an issue blocks
 
 ```markdown
-{% for blocked in blocks("tsk-epic01") %}
+{% for blocked in blocks("kanbus-epic01") %}
 - [{{ blocked.id }}] {{ blocked.title }}
 {% endfor %}
 ```
@@ -149,7 +149,7 @@ Assignee: {{ item.assignee or "unassigned" }}
 Render a wiki page from the project root:
 
 ```bash
-tsk wiki render project/wiki/index.md
+kanbus wiki render project/wiki/index.md
 ```
 
 For more CLI details, see [CLI_REFERENCE.md](CLI_REFERENCE.md).

@@ -7,11 +7,11 @@ use std::time::Instant;
 use chrono::{TimeZone, Utc};
 use serde_json::json;
 
-use taskulus::dependencies::list_ready_issues;
-use taskulus::issue_files::read_issue_from_file;
-use taskulus::issue_listing::list_issues;
-use taskulus::models::IssueData;
-use taskulus::project::discover_project_directories;
+use kanbus::dependencies::list_ready_issues;
+use kanbus::issue_files::read_issue_from_file;
+use kanbus::issue_listing::list_issues;
+use kanbus::models::IssueData;
+use kanbus::project::discover_project_directories;
 
 #[derive(Clone, Copy)]
 struct FixturePlan {
@@ -29,7 +29,7 @@ struct ScenarioResult {
 }
 
 fn issue_identifier(project_index: usize, issue_index: usize) -> String {
-    format!("tsk-{project_index:02}{issue_index:04}")
+    format!("kanbus-{project_index:02}{issue_index:04}")
 }
 
 fn issue_title(project_index: usize, issue_index: usize) -> String {

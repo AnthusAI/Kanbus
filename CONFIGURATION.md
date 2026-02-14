@@ -1,18 +1,18 @@
 # Configuration Reference
 
-Taskulus projects are configured via `taskulus.yml`. This file defines the issue hierarchy, types, workflows, and default values used by the CLI and validators.
+Kanbus projects are configured via `kanbus.yml`. This file defines the issue hierarchy, types, workflows, and default values used by the CLI and validators.
 
 ## File location
 
 ```
-taskulus.yml
+kanbus.yml
 ```
 
 ## Full schema
 
 ```yaml
 # Project identity
-prefix: "tsk"
+prefix: "kanbus"
 
 # Issue type hierarchy (strict ordering, top to bottom)
 hierarchy:
@@ -107,7 +107,7 @@ Defaults to `false`.
 ### Software team workflow
 
 ```yaml
-prefix: "tsk"
+prefix: "kanbus"
 hierarchy:
   - initiative
   - epic

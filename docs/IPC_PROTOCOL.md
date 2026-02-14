@@ -1,6 +1,6 @@
 # IPC Protocol
 
-This document defines the client-daemon protocol for Taskulus just-in-time indexing.
+This document defines the client-daemon protocol for Kanbus just-in-time indexing.
 It is the shared contract that both Python and Rust implementations must enforce.
 
 ## Transport

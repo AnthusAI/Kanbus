@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke-test the Rust Taskulus binary in a temp repository."""
+"""Smoke-test the Rust Kanbus binary in a temp repository."""
 
 from __future__ import annotations
 
@@ -61,9 +61,9 @@ def ensure_success(result: CommandResult, label: str) -> None:
 
 
 def verify_binary(binary: Path) -> None:
-    """Verify the Taskulus binary in a temp git repository.
+    """Verify the Kanbus binary in a temp git repository.
 
-    :param binary: Path to the Taskulus binary.
+    :param binary: Path to the Kanbus binary.
     :type binary: Path
     :return: None.
     :rtype: None
@@ -75,8 +75,8 @@ def verify_binary(binary: Path) -> None:
         repo_dir = Path(temp_dir) / "repo"
         repo_dir.mkdir(parents=True)
         ensure_success(run_command(["git", "init"], cwd=repo_dir), "git init")
-        ensure_success(run_command([str(binary), "init"], cwd=repo_dir), "tskr init")
-        ensure_success(run_command([str(binary), "doctor"], cwd=repo_dir), "tskr doctor")
+        ensure_success(run_command([str(binary), "init"], cwd=repo_dir), "kanbusr init")
+        ensure_success(run_command([str(binary), "doctor"], cwd=repo_dir), "kanbusr doctor")
 
 
 def main(argv: list[str]) -> int:
@@ -87,12 +87,12 @@ def main(argv: list[str]) -> int:
     :return: Exit code.
     :rtype: int
     """
-    parser = argparse.ArgumentParser(description="Verify Taskulus Rust binary")
-    parser.add_argument("--binary", help="Path to the Taskulus binary")
+    parser = argparse.ArgumentParser(description="Verify Kanbus Rust binary")
+    parser.add_argument("--binary", help="Path to the Kanbus binary")
     args = parser.parse_args(argv)
 
     repo_root = Path(__file__).resolve().parents[1]
-    binary = Path(args.binary) if args.binary else repo_root / "rust" / "target" / "release" / "tskr"
+    binary = Path(args.binary) if args.binary else repo_root / "rust" / "target" / "release" / "kanbusr"
     if args.binary is None and sys.platform.startswith("win"):
         binary = binary.with_suffix(".exe")
     try:

@@ -1,10 +1,10 @@
-//! Error types for Taskulus.
+//! Error types for Kanbus.
 
 use std::fmt::{self, Display, Formatter};
 
-/// Errors returned by Taskulus operations.
+/// Errors returned by Kanbus operations.
 #[derive(Debug)]
-pub enum TaskulusError {
+pub enum KanbusError {
     /// Initialization failed due to user-facing validation.
     Initialization(String),
     /// An unexpected IO error occurred.
@@ -23,19 +23,19 @@ pub enum TaskulusError {
     ProtocolError(String),
 }
 
-impl Display for TaskulusError {
+impl Display for KanbusError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            TaskulusError::Initialization(message) => write!(formatter, "{message}"),
-            TaskulusError::Io(message) => write!(formatter, "{message}"),
-            TaskulusError::IdGenerationFailed(message) => write!(formatter, "{message}"),
-            TaskulusError::Configuration(message) => write!(formatter, "{message}"),
-            TaskulusError::InvalidTransition(message) => write!(formatter, "{message}"),
-            TaskulusError::InvalidHierarchy(message) => write!(formatter, "{message}"),
-            TaskulusError::IssueOperation(message) => write!(formatter, "{message}"),
-            TaskulusError::ProtocolError(message) => write!(formatter, "{message}"),
+            KanbusError::Initialization(message) => write!(formatter, "{message}"),
+            KanbusError::Io(message) => write!(formatter, "{message}"),
+            KanbusError::IdGenerationFailed(message) => write!(formatter, "{message}"),
+            KanbusError::Configuration(message) => write!(formatter, "{message}"),
+            KanbusError::InvalidTransition(message) => write!(formatter, "{message}"),
+            KanbusError::InvalidHierarchy(message) => write!(formatter, "{message}"),
+            KanbusError::IssueOperation(message) => write!(formatter, "{message}"),
+            KanbusError::ProtocolError(message) => write!(formatter, "{message}"),
         }
     }
 }
 
-impl std::error::Error for TaskulusError {}
+impl std::error::Error for KanbusError {}

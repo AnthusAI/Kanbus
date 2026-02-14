@@ -31,10 +31,10 @@ function runCommand(command: string, args: string[], env: NodeJS.ProcessEnv) {
 }
 
 async function main() {
-  const tempDir = await mkdtemp(path.join(tmpdir(), "taskulus-console-"));
+  const tempDir = await mkdtemp(path.join(tmpdir(), "kanbus-console-"));
   const projectDir = path.join(tempDir, "project");
   await cp(fixtureSource, projectDir, { recursive: true });
-  const configurationPath = path.join(tempDir, ".taskulus.yml");
+  const configurationPath = path.join(tempDir, ".kanbus.yml");
   await writeFile(configurationPath, "project_directory: project\n", "utf-8");
 
   const env = {
@@ -45,8 +45,8 @@ async function main() {
     CONSOLE_BASE_URL:
       process.env.CONSOLE_BASE_URL ??
       `http://localhost:${process.env.VITE_PORT ?? "5173"}`,
-    TASKULUS_PYTHON: process.env.TASKULUS_PYTHON ?? "python3",
-    TASKULUS_PYTHONPATH: process.env.TASKULUS_PYTHONPATH ?? pythonPath
+    KANBUS_PYTHON: process.env.KANBUS_PYTHON ?? "python3",
+    KANBUS_PYTHONPATH: process.env.KANBUS_PYTHONPATH ?? pythonPath
   };
   const vitePort = env.VITE_PORT ?? "5173";
 

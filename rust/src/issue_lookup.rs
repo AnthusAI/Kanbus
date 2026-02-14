@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::load_project_directory;
 use crate::issue_files::{issue_path_for_identifier, read_issue_from_file};
 use crate::models::IssueData;
@@ -22,16 +22,16 @@ pub struct IssueLookupResult {
 /// * `identifier` - Issue identifier.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if the issue cannot be found.
+/// Returns `KanbusError::IssueOperation` if the issue cannot be found.
 pub fn load_issue_from_project(
     root: &Path,
     identifier: &str,
-) -> Result<IssueLookupResult, TaskulusError> {
+) -> Result<IssueLookupResult, KanbusError> {
     let project_dir = load_project_directory(root)?;
     let issues_dir = project_dir.join("issues");
     let issue_path = issue_path_for_identifier(&issues_dir, identifier);
     if !issue_path.exists() {
-        return Err(TaskulusError::IssueOperation("not found".to_string()));
+        return Err(KanbusError::IssueOperation("not found".to_string()));
     }
     let issue = read_issue_from_file(&issue_path)?;
     Ok(IssueLookupResult {

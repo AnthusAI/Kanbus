@@ -1,5 +1,5 @@
 Feature: Workflow lookup
-  As a Taskulus maintainer
+  As a Kanbus maintainer
   I want workflow lookup to fail when defaults are missing
   So that configuration errors surface early
 

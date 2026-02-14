@@ -10,10 +10,10 @@ use crate::file_io::load_project_directory;
 /// * `root` - Repository root path.
 ///
 /// # Errors
-/// Returns `TaskulusError` if the project marker is missing.
-pub fn get_daemon_socket_path(root: &Path) -> Result<PathBuf, crate::error::TaskulusError> {
+/// Returns `KanbusError` if the project marker is missing.
+pub fn get_daemon_socket_path(root: &Path) -> Result<PathBuf, crate::error::KanbusError> {
     let project_dir = load_project_directory(root)?;
-    Ok(project_dir.join(".cache").join("taskulus.sock"))
+    Ok(project_dir.join(".cache").join("kanbus.sock"))
 }
 
 /// Return the index cache path for a repository.
@@ -22,8 +22,8 @@ pub fn get_daemon_socket_path(root: &Path) -> Result<PathBuf, crate::error::Task
 /// * `root` - Repository root path.
 ///
 /// # Errors
-/// Returns `TaskulusError` if the project marker is missing.
-pub fn get_index_cache_path(root: &Path) -> Result<PathBuf, crate::error::TaskulusError> {
+/// Returns `KanbusError` if the project marker is missing.
+pub fn get_index_cache_path(root: &Path) -> Result<PathBuf, crate::error::KanbusError> {
     let project_dir = load_project_directory(root)?;
     Ok(project_dir.join(".cache").join("index.json"))
 }

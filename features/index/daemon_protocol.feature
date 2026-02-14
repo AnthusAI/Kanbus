@@ -1,5 +1,5 @@
 Feature: Daemon protocol validation
-  As a Taskulus maintainer
+  As a Kanbus maintainer
   I want protocol version checks to reject incompatible clients
   So that daemon communication is safe
 

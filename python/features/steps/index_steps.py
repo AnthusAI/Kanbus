@@ -14,22 +14,22 @@ from features.steps.shared import (
     run_cli,
     write_issue_file,
 )
-from taskulus.cache import load_cache_if_valid
-from taskulus.daemon_paths import get_index_cache_path
-from taskulus.index import build_index_from_directory
-from taskulus.models import DependencyLink
+from kanbus.cache import load_cache_if_valid
+from kanbus.daemon_paths import get_index_cache_path
+from kanbus.index import build_index_from_directory
+from kanbus.models import DependencyLink
 
 
-@given("a Taskulus project with 5 issues of varying types and statuses")
+@given("a Kanbus project with 5 issues of varying types and statuses")
 def given_project_with_varied_issues(context: object) -> None:
     initialize_default_project(context)
     project_dir = load_project_directory(context)
     issues = [
-        build_issue("tsk-parent", "Parent", "epic", "open", None, []),
-        build_issue("tsk-child", "Child", "task", "open", "tsk-parent", []),
-        build_issue("tsk-closed", "Closed", "bug", "closed", None, []),
-        build_issue("tsk-deferred", "Deferred", "task", "deferred", None, []),
-        build_issue("tsk-other", "Other", "story", "open", None, []),
+        build_issue("kanbus-parent", "Parent", "epic", "open", None, []),
+        build_issue("kanbus-child", "Child", "task", "open", "kanbus-parent", []),
+        build_issue("kanbus-closed", "Closed", "bug", "closed", None, []),
+        build_issue("kanbus-deferred", "Deferred", "task", "deferred", None, []),
+        build_issue("kanbus-other", "Other", "story", "open", None, []),
     ]
     for issue in issues:
         write_issue_file(project_dir, issue)
@@ -54,7 +54,7 @@ def then_index_status_open(context: object) -> None:
     index = getattr(context, "index", None)
     assert index is not None
     identifiers = sorted(issue.identifier for issue in index.by_status.get("open", []))
-    assert identifiers == ["tsk-child", "tsk-other", "tsk-parent"]
+    assert identifiers == ["kanbus-child", "kanbus-other", "kanbus-parent"]
 
 
 @then('querying by type "task" should return the correct issues')
@@ -62,45 +62,45 @@ def then_index_type_task(context: object) -> None:
     index = getattr(context, "index", None)
     assert index is not None
     identifiers = sorted(issue.identifier for issue in index.by_type.get("task", []))
-    assert identifiers == ["tsk-child", "tsk-deferred"]
+    assert identifiers == ["kanbus-child", "kanbus-deferred"]
 
 
 @then("querying by parent should return the correct children")
 def then_index_parent_children(context: object) -> None:
     index = getattr(context, "index", None)
     assert index is not None
-    children = index.by_parent.get("tsk-parent", [])
+    children = index.by_parent.get("kanbus-parent", [])
     identifiers = sorted(issue.identifier for issue in children)
-    assert identifiers == ["tsk-child"]
+    assert identifiers == ["kanbus-child"]
 
 
-@given('issue "tsk-aaa" exists with a blocked-by dependency on "tsk-bbb"')
+@given('issue "kanbus-aaa" exists with a blocked-by dependency on "kanbus-bbb"')
 def given_issue_with_blocked_dependency(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue = build_issue("tsk-aaa", "Title", "task", "open", None, [])
+    issue = build_issue("kanbus-aaa", "Title", "task", "open", None, [])
     issue = issue.model_copy(
-        update={"dependencies": [DependencyLink(target="tsk-bbb", type="blocked-by")]}
+        update={"dependencies": [DependencyLink(target="kanbus-bbb", type="blocked-by")]}
     )
     write_issue_file(project_dir, issue)
     write_issue_file(
-        project_dir, build_issue("tsk-bbb", "Target", "task", "open", None, [])
+        project_dir, build_issue("kanbus-bbb", "Target", "task", "open", None, [])
     )
 
 
-@then('the reverse dependency index should show "tsk-bbb" blocks "tsk-aaa"')
+@then('the reverse dependency index should show "kanbus-bbb" blocks "kanbus-aaa"')
 def then_reverse_dependency_index(context: object) -> None:
     index = getattr(context, "index", None)
     assert index is not None
-    dependents = index.reverse_dependencies.get("tsk-bbb", [])
+    dependents = index.reverse_dependencies.get("kanbus-bbb", [])
     identifiers = [issue.identifier for issue in dependents]
-    assert identifiers == ["tsk-aaa"]
+    assert identifiers == ["kanbus-aaa"]
 
 
-@given("a Taskulus project with issues but no cache file")
+@given("a Kanbus project with issues but no cache file")
 def given_project_with_issues_no_cache(context: object) -> None:
     initialize_default_project(context)
     project_dir = load_project_directory(context)
-    issue = build_issue("tsk-cache", "Cache", "task", "open", None, [])
+    issue = build_issue("kanbus-cache", "Cache", "task", "open", None, [])
     write_issue_file(project_dir, issue)
     cache_path = get_index_cache_path(project_dir.parent)
     if cache_path.exists():
@@ -135,9 +135,9 @@ def given_non_issue_file_local(context: object) -> None:
     notes_path.write_text("ignore", encoding="utf-8")
 
 
-@when("any tsk command is run")
+@when("any kanbus command is run")
 def when_any_tsk_command(context: object) -> None:
-    run_cli(context, "tsk list")
+    run_cli(context, "kanbus list")
 
 
 @then("a cache file should be created in project/.cache/index.json")
@@ -149,16 +149,16 @@ def then_cache_file_created(context: object) -> None:
     assert cache_path.exists()
 
 
-@given("a Taskulus project with a valid cache")
+@given("a Kanbus project with a valid cache")
 def given_project_with_valid_cache(context: object) -> None:
     initialize_default_project(context)
     project_dir = load_project_directory(context)
-    issue = build_issue("tsk-cache", "Cache", "task", "open", None, [])
+    issue = build_issue("kanbus-cache", "Cache", "task", "open", None, [])
     write_issue_file(project_dir, issue)
     cache_path = get_index_cache_path(project_dir.parent)
     if cache_path.exists():
         cache_path.unlink()
-    run_cli(context, "tsk list")
+    run_cli(context, "kanbus list")
     context.cache_path = cache_path
     context.cache_mtime = cache_path.stat().st_mtime
 
@@ -177,7 +177,7 @@ def then_cache_loaded_without_rebuild(context: object) -> None:
 @when("an issue file is modified (mtime changes)")
 def when_issue_file_modified(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue = read_issue_file(project_dir, "tsk-cache")
+    issue = read_issue_file(project_dir, "kanbus-cache")
     issue = issue.model_copy(update={"title": "Cache updated"})
     write_issue_file(project_dir, issue)
     time.sleep(0.01)
@@ -192,7 +192,7 @@ def then_cache_rebuilt(context: object) -> None:
 @when("a new issue file appears in the issues directory")
 def when_new_issue_file_appears(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue = build_issue("tsk-cache-new", "New", "task", "open", None, [])
+    issue = build_issue("kanbus-cache-new", "New", "task", "open", None, [])
     write_issue_file(project_dir, issue)
     time.sleep(0.01)
 
@@ -206,27 +206,27 @@ def then_cache_rebuilt_after_change(context: object) -> None:
 @when("an issue file is removed from the issues directory")
 def when_issue_file_removed(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue_path = project_dir / "issues" / "tsk-cache.json"
+    issue_path = project_dir / "issues" / "kanbus-cache.json"
     if issue_path.exists():
         issue_path.unlink()
     time.sleep(0.01)
 
 
-@given("a Taskulus project with cacheable issue metadata")
+@given("a Kanbus project with cacheable issue metadata")
 def given_project_cacheable_metadata(context: object) -> None:
     initialize_default_project(context)
     project_dir = load_project_directory(context)
-    parent = build_issue("tsk-parent", "Parent", "epic", "open", None, ["core"])
-    child = build_issue("tsk-child", "Child", "task", "open", "tsk-parent", [])
-    blocked = build_issue("tsk-blocked", "Blocked", "task", "open", None, [])
+    parent = build_issue("kanbus-parent", "Parent", "epic", "open", None, ["core"])
+    child = build_issue("kanbus-child", "Child", "task", "open", "kanbus-parent", [])
+    blocked = build_issue("kanbus-blocked", "Blocked", "task", "open", None, [])
     blocked = blocked.model_copy(
         update={
-            "dependencies": [DependencyLink(target="tsk-parent", type="blocked-by")]
+            "dependencies": [DependencyLink(target="kanbus-parent", type="blocked-by")]
         }
     )
     for issue in (parent, child, blocked):
         write_issue_file(project_dir, issue)
-    run_cli(context, "tsk list")
+    run_cli(context, "kanbus list")
     context.cache_path = get_index_cache_path(project_dir.parent)
 
 
@@ -244,8 +244,8 @@ def when_cache_loaded(context: object) -> None:
 def then_cached_index_parents(context: object) -> None:
     index = getattr(context, "cached_index", None)
     assert index is not None
-    identifiers = [issue.identifier for issue in index.by_parent.get("tsk-parent", [])]
-    assert identifiers == ["tsk-child"]
+    identifiers = [issue.identifier for issue in index.by_parent.get("kanbus-parent", [])]
+    assert identifiers == ["kanbus-child"]
 
 
 @then("the cached index should include label indexes")
@@ -253,7 +253,7 @@ def then_cached_index_labels(context: object) -> None:
     index = getattr(context, "cached_index", None)
     assert index is not None
     identifiers = [issue.identifier for issue in index.by_label.get("core", [])]
-    assert identifiers == ["tsk-parent"]
+    assert identifiers == ["kanbus-parent"]
 
 
 @then("the cached index should include reverse dependencies")
@@ -261,6 +261,6 @@ def then_cached_index_reverse_dependencies(context: object) -> None:
     index = getattr(context, "cached_index", None)
     assert index is not None
     identifiers = [
-        issue.identifier for issue in index.reverse_dependencies.get("tsk-parent", [])
+        issue.identifier for issue in index.reverse_dependencies.get("kanbus-parent", [])
     ]
-    assert identifiers == ["tsk-blocked"]
+    assert identifiers == ["kanbus-blocked"]

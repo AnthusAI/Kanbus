@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::migration::load_beads_issue_by_id;
 use crate::models::{DependencyLink, IssueData};
 use crate::users::get_current_user;
@@ -23,27 +23,27 @@ pub fn create_beads_issue(
     assignee: Option<&str>,
     parent: Option<&str>,
     description: Option<&str>,
-) -> Result<IssueData, TaskulusError> {
+) -> Result<IssueData, KanbusError> {
     let beads_dir = root.join(".beads");
     if !beads_dir.exists() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "no .beads directory".to_string(),
         ));
     }
     let issues_path = beads_dir.join("issues.jsonl");
     if !issues_path.exists() {
-        return Err(TaskulusError::IssueOperation("no issues.jsonl".to_string()));
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
     let records = load_beads_records(&issues_path)?;
     if records.is_empty() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "no beads issues available".to_string(),
         ));
     }
     let existing_ids = collect_ids(&records)?;
     if let Some(parent_id) = parent {
         if !existing_ids.contains(parent_id) {
-            return Err(TaskulusError::IssueOperation("not found".to_string()));
+            return Err(KanbusError::IssueOperation("not found".to_string()));
         }
     }
     let prefix = derive_prefix(&existing_ids)?;
@@ -118,16 +118,16 @@ pub fn update_beads_issue(
     root: &Path,
     identifier: &str,
     status: Option<&str>,
-) -> Result<IssueData, TaskulusError> {
+) -> Result<IssueData, KanbusError> {
     let beads_dir = root.join(".beads");
     if !beads_dir.exists() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "no .beads directory".to_string(),
         ));
     }
     let issues_path = beads_dir.join("issues.jsonl");
     if !issues_path.exists() {
-        return Err(TaskulusError::IssueOperation("no issues.jsonl".to_string()));
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
 
     let mut records = load_beads_records(&issues_path)?;
@@ -151,53 +151,53 @@ pub fn update_beads_issue(
         break;
     }
     if !updated {
-        return Err(TaskulusError::IssueOperation("not found".to_string()));
+        return Err(KanbusError::IssueOperation("not found".to_string()));
     }
 
     write_beads_records(&issues_path, &records)?;
     load_beads_issue_by_id(root, identifier)
 }
 
-fn load_beads_records(path: &Path) -> Result<Vec<Value>, TaskulusError> {
+fn load_beads_records(path: &Path) -> Result<Vec<Value>, KanbusError> {
     let contents =
-        fs::read_to_string(path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        fs::read_to_string(path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let mut records = Vec::new();
     for line in contents.lines() {
         if line.trim().is_empty() {
             continue;
         }
         let record: Value =
-            serde_json::from_str(line).map_err(|error| TaskulusError::Io(error.to_string()))?;
+            serde_json::from_str(line).map_err(|error| KanbusError::Io(error.to_string()))?;
         records.push(record);
     }
     Ok(records)
 }
 
-fn write_beads_records(path: &Path, records: &[Value]) -> Result<(), TaskulusError> {
+fn write_beads_records(path: &Path, records: &[Value]) -> Result<(), KanbusError> {
     let mut file = OpenOptions::new()
         .write(true)
         .truncate(true)
         .open(path)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     for record in records {
         let line =
-            serde_json::to_string(record).map_err(|error| TaskulusError::Io(error.to_string()))?;
-        writeln!(file, "{}", line).map_err(|error| TaskulusError::Io(error.to_string()))?;
+            serde_json::to_string(record).map_err(|error| KanbusError::Io(error.to_string()))?;
+        writeln!(file, "{}", line).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     Ok(())
 }
 
 /// Delete a Beads-compatible issue in .beads/issues.jsonl.
-pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), TaskulusError> {
+pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusError> {
     let beads_dir = root.join(".beads");
     if !beads_dir.exists() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "no .beads directory".to_string(),
         ));
     }
     let issues_path = beads_dir.join("issues.jsonl");
     if !issues_path.exists() {
-        return Err(TaskulusError::IssueOperation("no issues.jsonl".to_string()));
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
     let records = load_beads_records(&issues_path)?;
     let original_count = records.len();
@@ -206,31 +206,31 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), TaskulusE
         .filter(|record| record.get("id").and_then(|id| id.as_str()) != Some(identifier))
         .collect();
     if remaining.len() == original_count {
-        return Err(TaskulusError::IssueOperation("not found".to_string()));
+        return Err(KanbusError::IssueOperation("not found".to_string()));
     }
     write_beads_records(&issues_path, &remaining)?;
     Ok(())
 }
 
-fn collect_ids(records: &[Value]) -> Result<HashSet<String>, TaskulusError> {
+fn collect_ids(records: &[Value]) -> Result<HashSet<String>, KanbusError> {
     let mut ids = HashSet::new();
     for record in records {
         let identifier = record
             .get("id")
             .and_then(|value| value.as_str())
-            .ok_or_else(|| TaskulusError::IssueOperation("missing id".to_string()))?;
+            .ok_or_else(|| KanbusError::IssueOperation("missing id".to_string()))?;
         ids.insert(identifier.to_string());
     }
     Ok(ids)
 }
 
-fn derive_prefix(existing_ids: &HashSet<String>) -> Result<String, TaskulusError> {
+fn derive_prefix(existing_ids: &HashSet<String>) -> Result<String, KanbusError> {
     for identifier in existing_ids {
         if let Some((prefix, _rest)) = identifier.split_once('-') {
             return Ok(prefix.to_string());
         }
     }
-    Err(TaskulusError::IssueOperation(
+    Err(KanbusError::IssueOperation(
         "invalid beads id".to_string(),
     ))
 }
@@ -239,7 +239,7 @@ fn generate_identifier(
     existing_ids: &HashSet<String>,
     prefix: &str,
     parent: Option<&str>,
-) -> Result<String, TaskulusError> {
+) -> Result<String, KanbusError> {
     if let Some(parent_id) = parent {
         let suffix = next_child_suffix(existing_ids, parent_id);
         return Ok(format!("{parent_id}.{suffix}"));
@@ -251,7 +251,7 @@ fn generate_identifier(
             return Ok(identifier);
         }
     }
-    Err(TaskulusError::IdGenerationFailed(
+    Err(KanbusError::IdGenerationFailed(
         "unable to generate unique id after 10 attempts".to_string(),
     ))
 }
@@ -285,13 +285,13 @@ fn generate_slug() -> String {
         .collect()
 }
 
-fn append_record(path: &Path, record: Value) -> Result<(), TaskulusError> {
+fn append_record(path: &Path, record: Value) -> Result<(), KanbusError> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
-    writeln!(file, "{record}").map_err(|error| TaskulusError::Io(error.to_string()))?;
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    writeln!(file, "{record}").map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(())
 }
 static TEST_BEADS_SLUG_SEQUENCE: OnceLock<Mutex<Vec<String>>> = OnceLock::new();

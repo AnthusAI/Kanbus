@@ -5,12 +5,12 @@ use cucumber::{given, then, when};
 use serde_json::Value;
 use tempfile::TempDir;
 
-use taskulus::cli::run_from_args_with_output;
-use taskulus::ids::format_issue_key;
+use kanbus::cli::run_from_args_with_output;
+use kanbus::ids::format_issue_key;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-fn run_cli(world: &mut TaskulusWorld, command: &str) {
+fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
@@ -41,7 +41,7 @@ fn fixture_beads_dir() -> PathBuf {
         .join(".beads")
 }
 
-fn beads_issues_path(world: &TaskulusWorld) -> PathBuf {
+fn beads_issues_path(world: &KanbusWorld) -> PathBuf {
     world
         .working_directory
         .as_ref()
@@ -67,7 +67,7 @@ fn load_beads_records(path: &Path) -> Vec<Value> {
 }
 
 #[given("a Beads fixture repository")]
-fn given_beads_fixture_repo(world: &mut TaskulusWorld) {
+fn given_beads_fixture_repo(world: &mut KanbusWorld) {
     let temp_dir = TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().join("beads-interop");
     if repo_path.exists() {
@@ -85,35 +85,35 @@ fn given_beads_fixture_repo(world: &mut TaskulusWorld) {
         repo_path.join(".beads").join("metadata.json"),
     )
     .expect("copy metadata");
-    fs::write(repo_path.join(".taskulus.yml"), "").expect("write taskulus config");
+    fs::write(repo_path.join(".kanbus.yml"), "").expect("write kanbus config");
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
     world.last_beads_issue_id = None;
 }
 
 #[when(expr = "I update the last created beads issue to status {string}")]
-fn when_update_last_beads_issue(world: &mut TaskulusWorld, status: String) {
+fn when_update_last_beads_issue(world: &mut KanbusWorld, status: String) {
     let identifier = world
         .last_beads_issue_id
         .as_ref()
         .expect("last beads issue id missing");
     run_cli(
         world,
-        &format!("tsk --beads update {} --status {}", identifier, status),
+        &format!("kanbus --beads update {} --status {}", identifier, status),
     );
 }
 
 #[when("I delete the last created beads issue")]
-fn when_delete_last_beads_issue(world: &mut TaskulusWorld) {
+fn when_delete_last_beads_issue(world: &mut KanbusWorld) {
     let identifier = world
         .last_beads_issue_id
         .as_ref()
         .expect("last beads issue id missing");
-    run_cli(world, &format!("tsk --beads delete {}", identifier));
+    run_cli(world, &format!("kanbus --beads delete {}", identifier));
 }
 
 #[then("the last created beads issue should exist in beads issues.jsonl")]
-fn then_last_issue_exists(world: &mut TaskulusWorld) {
+fn then_last_issue_exists(world: &mut KanbusWorld) {
     let identifier = world
         .last_beads_issue_id
         .as_ref()
@@ -125,12 +125,12 @@ fn then_last_issue_exists(world: &mut TaskulusWorld) {
 }
 
 #[then("beads issues.jsonl should contain the last created beads issue")]
-fn then_beads_contains_last_issue(world: &mut TaskulusWorld) {
+fn then_beads_contains_last_issue(world: &mut KanbusWorld) {
     then_last_issue_exists(world);
 }
 
 #[then(expr = "beads issues.jsonl should show the last created beads issue with status {string}")]
-fn then_last_issue_has_status(world: &mut TaskulusWorld, status: String) {
+fn then_last_issue_has_status(world: &mut KanbusWorld, status: String) {
     let identifier = world
         .last_beads_issue_id
         .as_ref()
@@ -152,7 +152,7 @@ fn then_last_issue_has_status(world: &mut TaskulusWorld, status: String) {
 }
 
 #[then("beads issues.jsonl should not contain the last created beads issue")]
-fn then_beads_missing_last_issue(world: &mut TaskulusWorld) {
+fn then_beads_missing_last_issue(world: &mut KanbusWorld) {
     let identifier = world
         .last_beads_issue_id
         .as_ref()
@@ -167,8 +167,8 @@ fn then_beads_missing_last_issue(world: &mut TaskulusWorld) {
     }));
 }
 
-#[then("the last created beads issue should appear in the Taskulus beads list output")]
-fn then_last_issue_in_list_output(world: &mut TaskulusWorld) {
+#[then("the last created beads issue should appear in the Kanbus beads list output")]
+fn then_last_issue_in_list_output(world: &mut KanbusWorld) {
     let identifier = world
         .last_beads_issue_id
         .as_ref()
@@ -181,8 +181,8 @@ fn then_last_issue_in_list_output(world: &mut TaskulusWorld) {
     );
 }
 
-#[then("the last created beads issue should not appear in the Taskulus beads list output")]
-fn then_last_issue_not_in_list_output(world: &mut TaskulusWorld) {
+#[then("the last created beads issue should not appear in the Kanbus beads list output")]
+fn then_last_issue_not_in_list_output(world: &mut KanbusWorld) {
     let identifier = world
         .last_beads_issue_id
         .as_ref()

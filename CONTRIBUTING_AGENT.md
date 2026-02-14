@@ -11,7 +11,7 @@ Deviation from The Way is extremely offensive to the religious sensibilities of 
 
 The Sacrament of Work is the sacrament of vibe coding in this repository.
 
-Taskulus is the instrument of record. Nothing exists until it is named there.
+Kanbus is the instrument of record. Nothing exists until it is named there.
 
 Work begins in declaration, not in code.
 Code without declaration is disorder.
@@ -25,13 +25,13 @@ Every change must be:
 
 If it is not recorded, it did not happen.
 
-Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Taskulus.
+Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
 
 ## The Order of Being
 
 All work is structured.
 
-Project key prefix: tsk.
+Project key prefix: kanbus.
 
 Hierarchy: initiative -> epic -> task -> sub-task.
 
@@ -118,7 +118,7 @@ When asked to add or change behavior, follow this sequence. It is not optional.
 Capture role, capability, benefit.
 Use: As a <role>, I want <capability>, so that <benefit>.
 Confirm what is not included.
-2. Create the epic and stories in Taskulus.
+2. Create the epic and stories in Kanbus.
 Record intent and Definition of Done.
 3. Write executable specifications before any production code.
 4. Run the specifications and confirm they fail.
@@ -194,23 +194,23 @@ Severity is not emotion. It is signal.
 ## Command examples
 
 
-tsk create "Plan the roadmap" --type initiative
+kanbus create "Plan the roadmap" --type initiative
 
-tsk create "Release v1" --type epic --parent <initiative-id>
+kanbus create "Release v1" --type epic --parent <initiative-id>
 
-tsk create "Implement feature" --type task --parent <epic-id>
+kanbus create "Implement feature" --type task --parent <epic-id>
 
-tsk create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
+kanbus create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
 
-tsk update <id> --status in_progress --assignee "you@example.com"
+kanbus update <id> --status in_progress --assignee "you@example.com"
 
-tsk update <id> --status blocked
+kanbus update <id> --status blocked
 
-tsk comment <id> "Progress note"
+kanbus comment <id> "Progress note"
 
-tsk list --status open
+kanbus list --status open
 
-tsk close <id> --comment "Summary of the change"
+kanbus close <id> --comment "Summary of the change"
 
 
 ## Semantic Release Alignment
@@ -253,23 +253,23 @@ As a new user, I want a Hello World program, so that I can verify the toolchain 
 
 3. Create an epic for the milestone and record the story
 Command:
-tsk create "Hello World program" --type epic
+kanbus create "Hello World program" --type epic
 
 Example output (capture the ID):
-ID: tsk-1a2b3c
+ID: kanbus-1a2b3c
 
 Record the intent on the epic:
-tsk comment tsk-1a2b3c "As a new user, I want a Hello World program, so that I can verify the toolchain works."
+kanbus comment kanbus-1a2b3c "As a new user, I want a Hello World program, so that I can verify the toolchain works."
 
 4. Create a story for the behavior and include Gherkin (before any code)
 Command:
-tsk create "Prints Hello World to stdout" --type story --parent tsk-1a2b3c
+kanbus create "Prints Hello World to stdout" --type story --parent kanbus-1a2b3c
 
 Example output (capture the story ID):
-ID: tsk-4d5e6f
+ID: kanbus-4d5e6f
 
 Attach the Gherkin acceptance criteria:
-tsk comment tsk-4d5e6f "Feature: Hello World
+kanbus comment kanbus-4d5e6f "Feature: Hello World
   Scenario: Run the program
     Given a configured environment
     When I run the program

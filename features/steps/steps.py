@@ -17,7 +17,7 @@ def _load_python_steps() -> None:
     for path in sorted(python_steps.glob("*.py")):
         if path.name == "__init__.py":
             continue
-        module_name = f"taskulus_behave_steps.{path.stem}"
+        module_name = f"kanbus_behave_steps.{path.stem}"
         spec = importlib.util.spec_from_file_location(module_name, path)
         if spec is None or spec.loader is None:
             raise RuntimeError(f"unable to load step module: {path}")

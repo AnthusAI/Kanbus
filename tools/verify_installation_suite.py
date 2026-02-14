@@ -67,7 +67,7 @@ def main(argv: list[str]) -> int:
     :return: Exit code.
     :rtype: int
     """
-    parser = argparse.ArgumentParser(description="Verify Taskulus installation suite")
+    parser = argparse.ArgumentParser(description="Verify Kanbus installation suite")
     parser.add_argument(
         "--python",
         help="Path to a Python 3.11+ interpreter for install verification.",

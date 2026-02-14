@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Bidirectional sync between Taskulus issue files and GitHub Issues.
+Bidirectional sync between Kanbus issue files and GitHub Issues.
 
-Ensures every Taskulus issue has a GitHub issue with a clickable link to its
-JSON file, and every GitHub issue without such a link gets a new Taskulus
+Ensures every Kanbus issue has a GitHub issue with a clickable link to its
+JSON file, and every GitHub issue without such a link gets a new Kanbus
 issue and an updated body. Uses the `gh` CLI only.
 
-Run from repository root (where .taskulus.yaml and the project directory live).
+Run from repository root (where .kanbus.yaml and the project directory live).
 Requires: gh installed and authenticated, PYTHONPATH including python/src or
 pip install -e python.
 
@@ -28,18 +28,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT / "python" / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "python" / "src"))
 
-from taskulus.config_loader import load_project_configuration  # noqa: E402
-from taskulus.ids import IssueIdentifierRequest, generate_issue_identifier  # noqa: E402
-from taskulus.issue_files import (  # noqa: E402
+from kanbus.config_loader import load_project_configuration  # noqa: E402
+from kanbus.ids import IssueIdentifierRequest, generate_issue_identifier  # noqa: E402
+from kanbus.issue_files import (  # noqa: E402
     list_issue_identifiers,
     read_issue_from_file,
     write_issue_to_file,
 )
-from taskulus.models import IssueData  # noqa: E402
-from taskulus.project import ProjectMarkerError, load_project_directory  # noqa: E402
+from kanbus.models import IssueData  # noqa: E402
+from kanbus.project import ProjectMarkerError, load_project_directory  # noqa: E402
 
-TASKULUS_SOURCE_PATTERN = re.compile(
-    r"<!--\s*taskulus-source:\s*([^\s]+)\s*-->", re.IGNORECASE
+KANBUS_SOURCE_PATTERN = re.compile(
+    r"<!--\s*kanbus-source:\s*([^\s]+)\s*-->", re.IGNORECASE
 )
 
 
@@ -115,7 +115,7 @@ def build_blob_url(repository: str, branch: str, relative_path: str) -> str:
 
 
 def make_link_block(relative_path: str, blob_url: str) -> str:
-    """Build the Taskulus source link block.
+    """Build the Kanbus source link block.
 
     :param relative_path: Relative path to the issue file.
     :type relative_path: str
@@ -125,14 +125,14 @@ def make_link_block(relative_path: str, blob_url: str) -> str:
     :rtype: str
     """
     return (
-        "\n\n---\n**Taskulus source:** "
+        "\n\n---\n**Kanbus source:** "
         f"[{relative_path}]({blob_url})\n"
-        f"<!-- taskulus-source: {relative_path} -->"
+        f"<!-- kanbus-source: {relative_path} -->"
     )
 
 
-def parse_taskulus_source_from_body(body: str | None) -> str | None:
-    """Parse the Taskulus source marker from an issue body.
+def parse_kanbus_source_from_body(body: str | None) -> str | None:
+    """Parse the Kanbus source marker from an issue body.
 
     :param body: Issue body text.
     :type body: str | None
@@ -141,7 +141,7 @@ def parse_taskulus_source_from_body(body: str | None) -> str | None:
     """
     if not body:
         return None
-    match = TASKULUS_SOURCE_PATTERN.search(body)
+    match = KANBUS_SOURCE_PATTERN.search(body)
     return match.group(1).strip() if match else None
 
 
@@ -224,13 +224,13 @@ def gh_issue_edit_body(number: int, body: str) -> bool:
 
 
 def main() -> int:
-    """Sync Taskulus issues with GitHub issues.
+    """Sync Kanbus issues with GitHub issues.
 
     :return: Exit code.
     :rtype: int
     """
     parser = argparse.ArgumentParser(
-        description="Sync Taskulus issues with GitHub Issues."
+        description="Sync Kanbus issues with GitHub Issues."
     )
     parser.add_argument(
         "--dry-run",
@@ -252,7 +252,7 @@ def main() -> int:
     try:
         project_dir = load_project_directory(repo_root)
     except ProjectMarkerError:
-        print("No Taskulus project found; skipping sync.", file=sys.stderr)
+        print("No Kanbus project found; skipping sync.", file=sys.stderr)
         return 0
 
     branch = get_default_branch()
@@ -269,7 +269,7 @@ def main() -> int:
     except ValueError:
         project_dir_relative = Path(project_dir_name)
 
-    configuration = load_project_configuration(project_dir / "taskulus.yml")
+    configuration = load_project_configuration(project_dir / "kanbus.yml")
     local_identifiers = list_issue_identifiers(issues_dir)
     existing_gh_issues: list[dict] = []
     source_to_gh_number: dict[str, int] = {}
@@ -284,7 +284,7 @@ def main() -> int:
             continue
         existing_gh_issues.append(view)
         body = view.get("body") or ""
-        source = parse_taskulus_source_from_body(body)
+        source = parse_kanbus_source_from_body(body)
         if source:
             source_to_gh_number[source] = num
         else:
@@ -318,9 +318,9 @@ def main() -> int:
             if view and link_block.strip() not in (view.get("body") or ""):
                 if not dry_run:
                     existing_body = view.get("body") or ""
-                    if "<!-- taskulus-source:" in existing_body:
-                        new_body = TASKULUS_SOURCE_PATTERN.sub(
-                            f"<!-- taskulus-source: {rel_path} -->",
+                    if "<!-- kanbus-source:" in existing_body:
+                        new_body = KANBUS_SOURCE_PATTERN.sub(
+                            f"<!-- kanbus-source: {rel_path} -->",
                             existing_body,
                             count=1,
                         )
@@ -357,7 +357,7 @@ def main() -> int:
 
         if dry_run:
             print(
-                f"[dry-run] Would create Taskulus issue from GitHub #{gh_num}: {title}"
+                f"[dry-run] Would create Kanbus issue from GitHub #{gh_num}: {title}"
             )
             created += 1
             continue
@@ -407,7 +407,7 @@ def main() -> int:
 
     if dry_run:
         print(
-            f"[dry-run] Would create {created} and update {updated} GitHub/Taskulus issues."
+            f"[dry-run] Would create {created} and update {updated} GitHub/Kanbus issues."
         )
     else:
         print(f"Created {created} and updated {updated} issues.")

@@ -1,5 +1,5 @@
 Feature: CLI entrypoint
-  As a Taskulus user
+  As a Kanbus user
   I want the CLI entrypoint to provide help output
   So that I can discover available commands
 

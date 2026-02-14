@@ -6,13 +6,13 @@ use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 use serde_json::Value;
 
-use taskulus::file_io::load_project_directory;
-use taskulus::models::{IssueData, PriorityDefinition, ProjectConfiguration};
-use taskulus::workflows::get_workflow_for_issue_type;
+use kanbus::file_io::load_project_directory;
+use kanbus::models::{IssueData, PriorityDefinition, ProjectConfiguration};
+use kanbus::workflows::get_workflow_for_issue_type;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
+fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
     load_project_directory(cwd).expect("project dir")
 }
@@ -35,7 +35,7 @@ fn read_issue_json(project_dir: &PathBuf, identifier: &str) -> Value {
 
 #[given(expr = "an issue {string} of type {string} with status {string}")]
 fn given_issue_with_type_and_status(
-    world: &mut TaskulusWorld,
+    world: &mut KanbusWorld,
     identifier: String,
     issue_type: String,
     status: String,
@@ -69,7 +69,7 @@ fn given_issue_with_type_and_status(
 }
 
 #[given(expr = "an issue {string} exists")]
-fn given_issue_exists(world: &mut TaskulusWorld, identifier: String) {
+fn given_issue_exists(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
     let issue = IssueData {
@@ -94,7 +94,7 @@ fn given_issue_exists(world: &mut TaskulusWorld, identifier: String) {
 }
 
 #[given(expr = "an issue {string} exists with status {string}")]
-fn given_issue_exists_with_status(world: &mut TaskulusWorld, identifier: String, status: String) {
+fn given_issue_exists_with_status(world: &mut KanbusWorld, identifier: String, status: String) {
     let project_dir = load_project_dir(world);
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
     let closed_at = if status == "closed" {
@@ -124,7 +124,7 @@ fn given_issue_exists_with_status(world: &mut TaskulusWorld, identifier: String,
 }
 
 #[given(expr = "a {string} issue {string} exists")]
-fn given_typed_issue_exists(world: &mut TaskulusWorld, issue_type: String, identifier: String) {
+fn given_typed_issue_exists(world: &mut KanbusWorld, issue_type: String, identifier: String) {
     let project_dir = load_project_dir(world);
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
     let issue = IssueData {
@@ -149,12 +149,12 @@ fn given_typed_issue_exists(world: &mut TaskulusWorld, issue_type: String, ident
 }
 
 #[given(expr = "an {string} issue {string} exists")]
-fn given_typed_issue_exists_an(world: &mut TaskulusWorld, issue_type: String, identifier: String) {
+fn given_typed_issue_exists_an(world: &mut KanbusWorld, issue_type: String, identifier: String) {
     given_typed_issue_exists(world, issue_type, identifier);
 }
 
 #[given(expr = "issue {string} has no closed_at timestamp")]
-fn given_issue_no_closed_at(world: &mut TaskulusWorld, identifier: String) {
+fn given_issue_no_closed_at(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
     let mut issue = read_issue_json(&project_dir, &identifier);
     issue["closed_at"] = Value::Null;
@@ -169,7 +169,7 @@ fn given_issue_no_closed_at(world: &mut TaskulusWorld, identifier: String) {
 }
 
 #[given(expr = "issue {string} has a closed_at timestamp")]
-fn given_issue_has_closed_at(world: &mut TaskulusWorld, identifier: String) {
+fn given_issue_has_closed_at(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
     let mut issue = read_issue_json(&project_dir, &identifier);
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
@@ -185,40 +185,40 @@ fn given_issue_has_closed_at(world: &mut TaskulusWorld, identifier: String) {
 }
 
 #[then(expr = "issue {string} should have status {string}")]
-fn then_issue_status_matches(world: &mut TaskulusWorld, identifier: String, status: String) {
+fn then_issue_status_matches(world: &mut KanbusWorld, identifier: String, status: String) {
     let project_dir = load_project_dir(world);
     let issue = read_issue_json(&project_dir, &identifier);
     assert_eq!(issue["status"], status);
 }
 
 #[then(expr = "issue {string} should have assignee {string}")]
-fn then_issue_assignee_matches(world: &mut TaskulusWorld, identifier: String, assignee: String) {
+fn then_issue_assignee_matches(world: &mut KanbusWorld, identifier: String, assignee: String) {
     let project_dir = load_project_dir(world);
     let issue = read_issue_json(&project_dir, &identifier);
     assert_eq!(issue["assignee"], assignee);
 }
 
 #[then(expr = "issue {string} should have a closed_at timestamp")]
-fn then_issue_has_closed_at(world: &mut TaskulusWorld, identifier: String) {
+fn then_issue_has_closed_at(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
     let issue = read_issue_json(&project_dir, &identifier);
     assert!(!issue["closed_at"].is_null());
 }
 
 #[then(expr = "issue {string} should have no closed_at timestamp")]
-fn then_issue_no_closed_at(world: &mut TaskulusWorld, identifier: String) {
+fn then_issue_no_closed_at(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
     let issue = read_issue_json(&project_dir, &identifier);
     assert!(issue["closed_at"].is_null());
 }
 
 #[given("a configuration without a default workflow")]
-fn given_config_without_default_workflow(world: &mut TaskulusWorld) {
+fn given_config_without_default_workflow(world: &mut KanbusWorld) {
     world.workflow_error = None;
 }
 
 #[when(expr = "I look up the workflow for issue type {string}")]
-fn when_lookup_workflow(world: &mut TaskulusWorld, issue_type: String) {
+fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
     let workflows = BTreeMap::from([(
         "epic".to_string(),
         BTreeMap::from([("open".to_string(), vec!["in_progress".to_string()])]),
@@ -226,7 +226,7 @@ fn when_lookup_workflow(world: &mut TaskulusWorld, issue_type: String) {
     let configuration = ProjectConfiguration {
         project_directory: "project".to_string(),
         external_projects: Vec::new(),
-        project_key: "tsk".to_string(),
+        project_key: "kanbus".to_string(),
         project_management_template: None,
         hierarchy: vec!["initiative".to_string(), "epic".to_string()],
         types: vec!["bug".to_string()],
@@ -253,7 +253,7 @@ fn when_lookup_workflow(world: &mut TaskulusWorld, issue_type: String) {
 }
 
 #[then("workflow lookup should fail with \"default workflow not defined\"")]
-fn then_workflow_lookup_failed(world: &mut TaskulusWorld) {
+fn then_workflow_lookup_failed(world: &mut KanbusWorld) {
     assert_eq!(
         world.workflow_error.as_deref(),
         Some("default workflow not defined")

@@ -4,15 +4,15 @@ use std::path::PathBuf;
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
-use taskulus::cli::run_from_args_with_output;
-use taskulus::config_loader::load_project_configuration;
-use taskulus::file_io::load_project_directory;
-use taskulus::issue_display::format_issue_for_display;
-use taskulus::models::IssueData;
+use kanbus::cli::run_from_args_with_output;
+use kanbus::config_loader::load_project_configuration;
+use kanbus::file_io::load_project_directory;
+use kanbus::issue_display::format_issue_for_display;
+use kanbus::models::IssueData;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-fn run_cli(world: &mut TaskulusWorld, command: &str) {
+fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
@@ -33,7 +33,7 @@ fn run_cli(world: &mut TaskulusWorld, command: &str) {
     }
 }
 
-fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
+fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
     load_project_directory(cwd).expect("project dir")
 }
@@ -68,24 +68,24 @@ fn build_issue(identifier: &str, title: &str) -> IssueData {
     }
 }
 
-#[given("an issue \"tsk-aaa\" exists with title \"Implement OAuth2 flow\"")]
-fn given_issue_exists(world: &mut TaskulusWorld) {
+#[given("an issue \"kanbus-aaa\" exists with title \"Implement OAuth2 flow\"")]
+fn given_issue_exists(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let issue = build_issue("tsk-aaa", "Implement OAuth2 flow");
+    let issue = build_issue("kanbus-aaa", "Implement OAuth2 flow");
     write_issue_file(&project_dir, &issue);
 }
 
-#[given("an issue \"tsk-desc\" exists with title \"Describe me\"")]
-fn given_issue_desc_exists(world: &mut TaskulusWorld) {
+#[given("an issue \"kanbus-desc\" exists with title \"Describe me\"")]
+fn given_issue_desc_exists(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let issue = build_issue("tsk-desc", "Describe me");
+    let issue = build_issue("kanbus-desc", "Describe me");
     write_issue_file(&project_dir, &issue);
 }
 
-#[given("issue \"tsk-aaa\" has status \"open\" and type \"task\"")]
-fn given_issue_status_type(world: &mut TaskulusWorld) {
+#[given("issue \"kanbus-aaa\" has status \"open\" and type \"task\"")]
+fn given_issue_status_type(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let issue_path = project_dir.join("issues").join("tsk-aaa.json");
+    let issue_path = project_dir.join("issues").join("kanbus-aaa.json");
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     let mut payload: serde_json::Value = serde_json::from_str(&contents).expect("parse");
     payload["status"] = "open".into();
@@ -94,42 +94,42 @@ fn given_issue_status_type(world: &mut TaskulusWorld) {
     fs::write(&issue_path, updated).expect("write issue");
 }
 
-#[when("I run \"tsk show tsk-aaa\"")]
-fn when_run_show(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk show tsk-aaa");
+#[when("I run \"kanbus show kanbus-aaa\"")]
+fn when_run_show(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus show kanbus-aaa");
 }
 
-#[when("I run \"tsk show tsk-desc\"")]
-fn when_run_show_desc(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk show tsk-desc");
+#[when("I run \"kanbus show kanbus-desc\"")]
+fn when_run_show_desc(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus show kanbus-desc");
 }
 
-#[when("I run \"tsk show tsk-aaa --json\"")]
-fn when_run_show_json(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk show tsk-aaa --json");
+#[when("I run \"kanbus show kanbus-aaa --json\"")]
+fn when_run_show_json(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus show kanbus-aaa --json");
 }
 
-#[when("I run \"tsk show tsk-labels\"")]
-fn when_run_show_labels(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk show tsk-labels");
+#[when("I run \"kanbus show kanbus-labels\"")]
+fn when_run_show_labels(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus show kanbus-labels");
 }
 
-#[when("I run \"tsk show tsk-missing\"")]
-fn when_run_show_missing(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk show tsk-missing");
+#[when("I run \"kanbus show kanbus-missing\"")]
+fn when_run_show_missing(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus show kanbus-missing");
 }
 
-#[when("I format issue \"tsk-labels\" for display")]
-fn when_format_issue_display(world: &mut TaskulusWorld) {
+#[when("I format issue \"kanbus-labels\" for display")]
+fn when_format_issue_display(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
-    let issue_path = project_dir.join("issues").join("tsk-labels.json");
+    let issue_path = project_dir.join("issues").join("kanbus-labels.json");
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
     world.formatted_output = Some(format_issue_for_display(&issue, None, false, false));
 }
 
 #[when(expr = "I format issue {string} for display with color enabled")]
-fn when_format_issue_display_with_color(world: &mut TaskulusWorld, identifier: String) {
+fn when_format_issue_display_with_color(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
     let issue_path = project_dir
         .join("issues")
@@ -139,7 +139,7 @@ fn when_format_issue_display_with_color(world: &mut TaskulusWorld, identifier: S
     let config_path = project_dir
         .parent()
         .unwrap_or(&project_dir)
-        .join(".taskulus.yml");
+        .join(".kanbus.yml");
     let configuration = if config_path.exists() {
         Some(load_project_configuration(&config_path).expect("load configuration"))
     } else {
@@ -154,7 +154,7 @@ fn when_format_issue_display_with_color(world: &mut TaskulusWorld, identifier: S
 }
 
 #[when(expr = "I format issue {string} for display with color enabled without configuration")]
-fn when_format_issue_display_without_configuration(world: &mut TaskulusWorld, identifier: String) {
+fn when_format_issue_display_without_configuration(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
     let issue_path = project_dir
         .join("issues")
@@ -165,13 +165,13 @@ fn when_format_issue_display_without_configuration(world: &mut TaskulusWorld, id
 }
 
 #[then("the formatted output should contain ANSI color codes")]
-fn then_formatted_output_contains_ansi(world: &mut TaskulusWorld) {
+fn then_formatted_output_contains_ansi(world: &mut KanbusWorld) {
     let output = world.formatted_output.as_deref().unwrap_or("");
     assert!(output.contains("\u{1b}["));
 }
 
 #[then(expr = "the formatted output should contain text {string}")]
-fn then_formatted_output_contains_text(world: &mut TaskulusWorld, text: String) {
+fn then_formatted_output_contains_text(world: &mut KanbusWorld, text: String) {
     let output = world.formatted_output.as_deref().unwrap_or("");
     assert!(output.contains(&text));
 }

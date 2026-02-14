@@ -6,7 +6,7 @@ import re
 
 from behave import given, then, when
 
-from taskulus.ids import (
+from kanbus.ids import (
     IssueIdentifierRequest,
     generate_issue_identifier,
     generate_many_identifiers,
@@ -28,7 +28,7 @@ def given_project_with_existing_issue(context: object, identifier: str) -> None:
 
 @when("I generate an issue ID")
 def when_generate_issue_id(context: object) -> None:
-    prefix = getattr(context, "id_prefix", "tsk")
+    prefix = getattr(context, "id_prefix", "kanbus")
     existing = getattr(context, "existing_ids", set())
     request = IssueIdentifierRequest(
         title="Test title",
@@ -40,7 +40,7 @@ def when_generate_issue_id(context: object) -> None:
 
 @when("I generate 100 issue IDs")
 def when_generate_many_issue_ids(context: object) -> None:
-    prefix = getattr(context, "id_prefix", "tsk")
+    prefix = getattr(context, "id_prefix", "kanbus")
     context.generated_ids = generate_many_identifiers("Test title", prefix, 100)
 
 
@@ -51,7 +51,7 @@ def given_uuid_generator_returns(context: object, uuid_text: str) -> None:
 
 @when("I attempt to generate an issue ID")
 def when_attempt_generate_issue_id(context: object) -> None:
-    prefix = getattr(context, "id_prefix", "tsk")
+    prefix = getattr(context, "id_prefix", "kanbus")
     existing = getattr(context, "existing_ids", set())
     request = IssueIdentifierRequest(
         title="Test title",

@@ -16,9 +16,9 @@ from features.steps.shared import (
     read_issue_file,
     write_issue_file,
 )
-from taskulus.config import DEFAULT_CONFIGURATION
-from taskulus.models import ProjectConfiguration
-from taskulus.workflows import get_workflow_for_issue_type
+from kanbus.config import DEFAULT_CONFIGURATION
+from kanbus.models import ProjectConfiguration
+from kanbus.workflows import get_workflow_for_issue_type
 
 
 @given('an issue "{identifier}" of type "{issue_type}" with status "{status}"')

@@ -16,9 +16,9 @@ if (!projectRoot) {
 }
 const repoRoot = path.dirname(projectRoot);
 const execFileAsync = promisify(execFile);
-const taskulusPython = process.env.TASKULUS_PYTHON ?? null;
-const pythonPath = process.env.TASKULUS_PYTHONPATH
-  ? path.resolve(repoRoot, process.env.TASKULUS_PYTHONPATH)
+const kanbusPython = process.env.KANBUS_PYTHON ?? null;
+const pythonPath = process.env.KANBUS_PYTHONPATH
+  ? path.resolve(repoRoot, process.env.KANBUS_PYTHONPATH)
   : null;
 
 app.use(
@@ -32,16 +32,16 @@ let cachedSnapshot: IssuesSnapshot | null = null;
 let snapshotPromise: Promise<IssuesSnapshot> | null = null;
 
 async function runSnapshot(): Promise<IssuesSnapshot> {
-  const command = taskulusPython ?? "tsk";
-  const args = taskulusPython
-    ? ["-m", "taskulus.cli", "console", "snapshot"]
+  const command = kanbusPython ?? "kanbus";
+  const args = kanbusPython
+    ? ["-m", "kanbus.cli", "console", "snapshot"]
     : ["console", "snapshot"];
   const { stdout } = await execFileAsync(command, args, {
     cwd: repoRoot,
     env: {
       ...process.env,
-      TASKULUS_NO_DAEMON: "1",
-      PYTHONPATH: taskulusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
+      KANBUS_NO_DAEMON: "1",
+      PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
     },
     maxBuffer: 10 * 1024 * 1024
   });
@@ -160,8 +160,8 @@ function broadcastSnapshot(snapshot: IssuesSnapshot) {
 
 let debounceTimer: NodeJS.Timeout | null = null;
 
-const configPath = path.join(repoRoot, ".taskulus.yml");
-const overridePath = path.join(repoRoot, ".taskulus.override.yml");
+const configPath = path.join(repoRoot, ".kanbus.yml");
+const overridePath = path.join(repoRoot, ".kanbus.override.yml");
 const watcher = chokidar.watch([projectRoot, configPath, overridePath], {
   ignoreInitial: true,
   awaitWriteFinish: {
@@ -193,5 +193,5 @@ watcher.on("all", () => {
 });
 
 app.listen(port, () => {
-  console.log(`Taskulus console server running on ${port}`);
+  console.log(`Kanbus console server running on ${port}`);
 });

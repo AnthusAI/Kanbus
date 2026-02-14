@@ -1,6 +1,6 @@
 @console
 Feature: Console kanban board
-  As a Taskulus user
+  As a Kanbus user
   I want a realtime kanban console for issues
   So that I can track work visually
 

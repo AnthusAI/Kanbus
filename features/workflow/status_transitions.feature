@@ -4,11 +4,11 @@ Feature: Workflow status transitions
   So that issues move through a predictable lifecycle
 
   Scenario Outline: Valid transitions in default workflow
-    Given a Taskulus project with default configuration
-    And an issue "tsk-test01" of type "task" with status "<from_status>"
-    When I run "tsk update tsk-test01 --status <to_status>"
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-test01" of type "task" with status "<from_status>"
+    When I run "kanbus update kanbus-test01 --status <to_status>"
     Then the command should succeed
-    And issue "tsk-test01" should have status "<to_status>"
+    And issue "kanbus-test01" should have status "<to_status>"
 
     Examples:
       | from_status | to_status   |
@@ -25,12 +25,12 @@ Feature: Workflow status transitions
       | deferred    | closed      |
 
   Scenario Outline: Invalid transitions in default workflow
-    Given a Taskulus project with default configuration
-    And an issue "tsk-test01" of type "task" with status "<from_status>"
-    When I run "tsk update tsk-test01 --status <to_status>"
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-test01" of type "task" with status "<from_status>"
+    When I run "kanbus update kanbus-test01 --status <to_status>"
     Then the command should fail with exit code 1
     And stderr should contain "invalid transition"
-    And issue "tsk-test01" should have status "<from_status>"
+    And issue "kanbus-test01" should have status "<from_status>"
 
     Examples:
       | from_status | to_status   |
@@ -44,8 +44,8 @@ Feature: Workflow status transitions
       | deferred    | blocked     |
 
   Scenario: Type-specific workflow overrides default
-    Given a Taskulus project with default configuration
-    And an issue "tsk-epic01" of type "epic" with status "open"
-    When I run "tsk update tsk-epic01 --status deferred"
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-epic01" of type "epic" with status "open"
+    When I run "kanbus update kanbus-epic01 --status deferred"
     Then the command should fail with exit code 1
     And stderr should contain "invalid transition"

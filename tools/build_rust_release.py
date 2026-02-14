@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Taskulus Rust release binaries for the current platform."""
+"""Build Kanbus Rust release binaries for the current platform."""
 
 from __future__ import annotations
 
@@ -78,7 +78,7 @@ def build_release(repo_root: Path, target: str | None) -> Path:
     target_dir = rust_dir / "target"
     if target:
         target_dir = target_dir / target
-    binary = target_dir / "release" / "tskr"
+    binary = target_dir / "release" / "kanbusr"
     if sys.platform.startswith("win"):
         binary = binary.with_suffix(".exe")
     if not binary.exists():
@@ -94,7 +94,7 @@ def main(argv: list[str]) -> int:
     :return: Exit code.
     :rtype: int
     """
-    parser = argparse.ArgumentParser(description="Build Taskulus Rust release binary")
+    parser = argparse.ArgumentParser(description="Build Kanbus Rust release binary")
     parser.add_argument(
         "--target",
         help="Optional cargo target triple for cross-compilation.",

@@ -64,19 +64,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            binary: tskr
+            binary: kanbusr
             archive: tar.gz
           - os: macos-14
             target: aarch64-apple-darwin
-            binary: tskr
+            binary: kanbusr
             archive: tar.gz
           - os: macos-14
             target: x86_64-apple-darwin
-            binary: tskr
+            binary: kanbusr
             archive: tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: tskr.exe
+            binary: kanbusr.exe
             archive: zip
     steps:
       - name: Checkout
@@ -97,7 +97,7 @@ jobs:
         run: |
           mkdir -p dist
           cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/
-          tar -czf dist/tskr-${{ matrix.target }}.tar.gz -C dist ${{ matrix.binary }}
+          tar -czf dist/kanbusr-${{ matrix.target }}.tar.gz -C dist ${{ matrix.binary }}
 
       - name: Package binary (zip)
         if: ${{ matrix.archive == 'zip' && matrix.os != 'windows-latest' }}
@@ -105,7 +105,7 @@ jobs:
           mkdir -p dist
           cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/
           cd dist
-          zip tskr-${{ matrix.target }}.zip ${{ matrix.binary }}
+          zip kanbusr-${{ matrix.target }}.zip ${{ matrix.binary }}
 
       - name: Package binary (zip, windows)
         if: ${{ matrix.archive == 'zip' && matrix.os == 'windows-latest' }}
@@ -113,14 +113,14 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/${{ matrix.binary }}"
-          Compress-Archive -Path "dist/${{ matrix.binary }}" -DestinationPath "dist/tskr-${{ matrix.target }}.zip" -Force
+          Compress-Archive -Path "dist/${{ matrix.binary }}" -DestinationPath "dist/kanbusr-${{ matrix.target }}.zip" -Force
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.publish.outputs.release_tag }}
           files: |
-            dist/tskr-${{ matrix.target }}.${{ matrix.archive }}
+            dist/kanbusr-${{ matrix.target }}.${{ matrix.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -197,7 +197,7 @@ jobs:
           import urllib.request
 
           version = sys.argv[1]
-          url = "https://crates.io/api/v1/crates/taskulus"
+          url = "https://crates.io/api/v1/crates/kanbus"
           exists = True
           try:
               with urllib.request.urlopen(url, timeout=10) as response:

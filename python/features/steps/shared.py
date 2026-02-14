@@ -14,13 +14,13 @@ from typing import Iterable
 
 from click.testing import CliRunner
 
-from taskulus.cli import cli
-from taskulus.models import IssueData
-from taskulus.project import load_project_directory as resolve_project_directory
+from kanbus.cli import cli
+from kanbus.models import IssueData
+from kanbus.project import load_project_directory as resolve_project_directory
 
 
 def run_cli(context: object, command: str) -> None:
-    """Run the Taskulus CLI in the scenario working directory.
+    """Run the Kanbus CLI in the scenario working directory.
 
     :param context: Behave context object.
     :type context: object
@@ -78,7 +78,7 @@ def run_cli(context: object, command: str) -> None:
 
 
 def run_cli_with_input(context: object, command: str, input_text: str) -> None:
-    """Run the Taskulus CLI with stdin input in the scenario working directory.
+    """Run the Kanbus CLI with stdin input in the scenario working directory.
 
     :param context: Behave context object.
     :type context: object
@@ -99,7 +99,7 @@ def run_cli_with_input(context: object, command: str, input_text: str) -> None:
     overrides = getattr(context, "environment_overrides", None)
     if overrides:
         environment.update(overrides)
-    environment.setdefault("TASKULUS_FORCE_INTERACTIVE", "1")
+    environment.setdefault("KANBUS_FORCE_INTERACTIVE", "1")
     try:
         os.chdir(working_directory)
     except (FileNotFoundError, PermissionError) as error:
@@ -148,7 +148,7 @@ def ensure_git_repository(path: Path) -> None:
 
 
 def initialize_default_project(context: object) -> None:
-    """Create a default project repository and run tsk init.
+    """Create a default project repository and run kanbus init.
 
     :param context: Behave context object.
     :type context: object
@@ -157,7 +157,7 @@ def initialize_default_project(context: object) -> None:
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
     context.working_directory = repository_path
-    run_cli(context, "tsk init")
+    run_cli(context, "kanbus init")
     if context.result.exit_code != 0:
         raise AssertionError("failed to initialize project")
 

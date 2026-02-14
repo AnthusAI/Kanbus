@@ -1,11 +1,11 @@
-# Taskulus Configuration (Python + Rust)
+# Kanbus Configuration (Python + Rust)
 
-Taskulus uses a single configuration file to define project identity, hierarchy, workflows, and priorities. The same schema and behaviors apply to both implementations.
+Kanbus uses a single configuration file to define project identity, hierarchy, workflows, and priorities. The same schema and behaviors apply to both implementations.
 
 ## Location
 
 ```
-taskulus.yml
+kanbus.yml
 ```
 
 The file must exist; there is no fallback path. A missing file is a hard error with a clear message.
@@ -13,8 +13,8 @@ The file must exist; there is no fallback path. A missing file is a hard error w
 ## Loading semantics (dotyaml parity)
 
 1. Load `.env` (unless disabled), setting variables only when they are not already defined.
-2. Parse `taskulus.yml`, interpolating `{{ VAR|default }}` expressions from the environment.
-3. Flatten the resulting config into environment variables with the `TASKULUS_` prefix (nested keys joined by underscores, lists as comma-separated strings, booleans as `true`/`false`, null as empty string).
+2. Parse `kanbus.yml`, interpolating `{{ VAR|default }}` expressions from the environment.
+3. Flatten the resulting config into environment variables with the `KANBUS_` prefix (nested keys joined by underscores, lists as comma-separated strings, booleans as `true`/`false`, null as empty string).
 4. Never override an environment variable that is already set unless `override=true` is explicitly requested.
 
 These rules mirror the Python `dotyaml` package and must be matched in the Rust crate. citeturn0search3
@@ -22,7 +22,7 @@ These rules mirror the Python `dotyaml` package and must be matched in the Rust 
 ## Schema (required fields)
 
 ```yaml
-project_key: "TSK"              # 2–6 uppercase letters; used as issue prefix
+project_key: "KAN"              # 2–6 uppercase letters; used as issue prefix
 hierarchy:                       # fixed; user must not change
   - initiative
   - epic
@@ -57,7 +57,7 @@ priority_import_aliases:         # optional mapping from external → canonical
   P2: medium
   P3: low
 priority_accept_unmapped: true   # allow unmapped on import, block on create/update
-data_dir: .taskulus              # optional; single location for caches
+data_dir: .kanbus              # optional; single location for caches
 timezone: America/New_York       # optional; IANA tz
 date_format: RFC3339             # optional; defaults to RFC3339
 ```
@@ -86,7 +86,7 @@ date_format: RFC3339             # optional; defaults to RFC3339
 
 ## Environment integration
 
-- Prefix for exported env vars is fixed to `TASKULUS_`.
+- Prefix for exported env vars is fixed to `KANBUS_`.
 - `.env` loading is enabled by default; disable with a loader flag (CLI option to be defined in both implementations).
 - `override=true` is an opt-in flag to let YAML values overwrite existing env vars; default is non-overriding. citeturn0search3
 
@@ -95,7 +95,7 @@ date_format: RFC3339             # optional; defaults to RFC3339
 ### Default software project
 
 ```yaml
-project_key: "TSK"
+project_key: "KAN"
 issue_types: [bug, story, chore]
 workflow_bindings:
   bug: default

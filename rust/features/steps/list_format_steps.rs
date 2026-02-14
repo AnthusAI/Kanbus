@@ -4,14 +4,14 @@ use std::path::PathBuf;
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
-use taskulus::config_loader::load_project_configuration;
-use taskulus::file_io::load_project_directory;
-use taskulus::issue_line::{compute_widths, format_issue_line};
-use taskulus::models::IssueData;
+use kanbus::config_loader::load_project_configuration;
+use kanbus::file_io::load_project_directory;
+use kanbus::issue_line::{compute_widths, format_issue_line};
+use kanbus::models::IssueData;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
+fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
     load_project_directory(cwd).expect("project dir")
 }
@@ -54,23 +54,23 @@ fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
 }
 
 #[given("issues for list color coverage exist")]
-fn given_issues_for_list_color_coverage(world: &mut TaskulusWorld) {
+fn given_issues_for_list_color_coverage(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let issues = vec![
-        build_issue("tsk-line-epic", "Epic", "epic", "open", None, 0),
+        build_issue("kanbus-line-epic", "Epic", "epic", "open", None, 0),
         build_issue(
-            "tsk-line-task",
+            "kanbus-line-task",
             "Task",
             "task",
             "in_progress",
-            Some("tsk-line-epic"),
+            Some("kanbus-line-epic"),
             1,
         ),
-        build_issue("tsk-line-bug", "Bug", "bug", "blocked", None, 2),
-        build_issue("tsk-line-story", "Story", "story", "closed", None, 3),
-        build_issue("tsk-line-chore", "Chore", "chore", "deferred", None, 4),
+        build_issue("kanbus-line-bug", "Bug", "bug", "blocked", None, 2),
+        build_issue("kanbus-line-story", "Story", "story", "closed", None, 3),
+        build_issue("kanbus-line-chore", "Chore", "chore", "deferred", None, 4),
         build_issue(
-            "tsk-line-initiative",
+            "kanbus-line-initiative",
             "Initiative",
             "initiative",
             "unknown",
@@ -78,15 +78,15 @@ fn given_issues_for_list_color_coverage(world: &mut TaskulusWorld) {
             9,
         ),
         build_issue(
-            "tsk-line-sub",
+            "kanbus-line-sub",
             "Sub",
             "sub-task",
             "open",
-            Some("tsk-line-epic"),
+            Some("kanbus-line-epic"),
             2,
         ),
-        build_issue("tsk-line-event", "Event", "event", "open", None, 2),
-        build_issue("tsk-line-unknown", "Unknown", "mystery", "open", None, 2),
+        build_issue("kanbus-line-event", "Event", "event", "open", None, 2),
+        build_issue("kanbus-line-unknown", "Unknown", "mystery", "open", None, 2),
     ];
     for issue in issues {
         write_issue_file(&project_dir, &issue);
@@ -94,7 +94,7 @@ fn given_issues_for_list_color_coverage(world: &mut TaskulusWorld) {
 }
 
 #[when("I format list lines for color coverage")]
-fn when_format_list_lines_for_color_coverage(world: &mut TaskulusWorld) {
+fn when_format_list_lines_for_color_coverage(world: &mut KanbusWorld) {
     let original_no_color = std::env::var("NO_COLOR").ok();
     std::env::remove_var("NO_COLOR");
 
@@ -102,7 +102,7 @@ fn when_format_list_lines_for_color_coverage(world: &mut TaskulusWorld) {
     let config_path = project_dir
         .parent()
         .unwrap_or(&project_dir)
-        .join(".taskulus.yml");
+        .join(".kanbus.yml");
     let configuration = if config_path.exists() {
         Some(load_project_configuration(&config_path).expect("load configuration"))
     } else {
@@ -136,7 +136,7 @@ fn when_format_list_lines_for_color_coverage(world: &mut TaskulusWorld) {
 }
 
 #[when(expr = "I format the list line for issue {string}")]
-fn when_format_list_line_for_issue(world: &mut TaskulusWorld, identifier: String) {
+fn when_format_list_line_for_issue(world: &mut KanbusWorld, identifier: String) {
     let original_no_color = std::env::var("NO_COLOR").ok();
     std::env::remove_var("NO_COLOR");
 
@@ -144,7 +144,7 @@ fn when_format_list_line_for_issue(world: &mut TaskulusWorld, identifier: String
     let config_path = project_dir
         .parent()
         .unwrap_or(&project_dir)
-        .join(".taskulus.yml");
+        .join(".kanbus.yml");
     let configuration = if config_path.exists() {
         Some(load_project_configuration(&config_path).expect("load configuration"))
     } else {
@@ -166,7 +166,7 @@ fn when_format_list_line_for_issue(world: &mut TaskulusWorld, identifier: String
 }
 
 #[when(expr = "I format the list line for issue {string} with NO_COLOR set")]
-fn when_format_list_line_for_issue_no_color(world: &mut TaskulusWorld, identifier: String) {
+fn when_format_list_line_for_issue_no_color(world: &mut KanbusWorld, identifier: String) {
     let original_no_color = std::env::var("NO_COLOR").ok();
     std::env::set_var("NO_COLOR", "1");
 
@@ -174,7 +174,7 @@ fn when_format_list_line_for_issue_no_color(world: &mut TaskulusWorld, identifie
     let config_path = project_dir
         .parent()
         .unwrap_or(&project_dir)
-        .join(".taskulus.yml");
+        .join(".kanbus.yml");
     let configuration = if config_path.exists() {
         Some(load_project_configuration(&config_path).expect("load configuration"))
     } else {
@@ -196,7 +196,7 @@ fn when_format_list_line_for_issue_no_color(world: &mut TaskulusWorld, identifie
 }
 
 #[then("each formatted line should contain ANSI color codes")]
-fn then_each_formatted_line_contains_ansi(world: &mut TaskulusWorld) {
+fn then_each_formatted_line_contains_ansi(world: &mut KanbusWorld) {
     let output = world.formatted_output.as_deref().unwrap_or("");
     let lines: Vec<&str> = output
         .lines()
@@ -207,7 +207,7 @@ fn then_each_formatted_line_contains_ansi(world: &mut TaskulusWorld) {
 }
 
 #[then("the formatted output should contain no ANSI color codes")]
-fn then_formatted_output_has_no_ansi(world: &mut TaskulusWorld) {
+fn then_formatted_output_has_no_ansi(world: &mut KanbusWorld) {
     let output = world.formatted_output.as_deref().unwrap_or("");
     let lines: Vec<&str> = output
         .lines()

@@ -1,6 +1,6 @@
 # CLI Reference
 
-This reference describes the intended Taskulus CLI for the first release. It is based on the current specification and will be kept in parity with both implementations.
+This reference describes the intended Kanbus CLI for the first release. It is based on the current specification and will be kept in parity with both implementations.
 
 ## Global Flags
 
@@ -11,40 +11,40 @@ All commands support:
 
 ## Setup
 
-### `tsk init`
+### `kanbus init`
 
-Initialize a Taskulus project in the current git repository.
+Initialize a Kanbus project in the current git repository.
 
 ```bash
-tsk init [--local]
+kanbus init [--local]
 ```
 
 Flags:
 - `--local` Create a `project-local/` sibling directory for personal issues
 
-### `tsk setup agents`
+### `kanbus setup agents`
 
-Ensure `AGENTS.md` contains the Taskulus project-management section and refresh `CONTRIBUTING_AGENT.md`.
+Ensure `AGENTS.md` contains the Kanbus project-management section and refresh `CONTRIBUTING_AGENT.md`.
 
 ```bash
-tsk setup agents [--force]
+kanbus setup agents [--force]
 ```
 
 Flags:
-- `--force` Overwrite the Taskulus section without prompting
+- `--force` Overwrite the Kanbus section without prompting
 
 Notes:
-- Run this after you update Taskulus templates or configuration so agent guidance stays current.
+- Run this after you update Kanbus templates or configuration so agent guidance stays current.
 - This command only updates documentation and guard files. It does not modify issue data.
 
 ## Issue CRUD
 
-### `tsk create`
+### `kanbus create`
 
 Create a new issue.
 
 ```bash
-tsk create <title> [options]
+kanbus create <title> [options]
 ```
 
 Options:
@@ -59,23 +59,23 @@ Options:
 Example:
 
 ```bash
-tsk create "Implement OAuth2 flow" --type task --priority 1 --label auth
+kanbus create "Implement OAuth2 flow" --type task --priority 1 --label auth
 ```
 
-### `tsk show`
+### `kanbus show`
 
 Show issue details, dependencies, and comments.
 
 ```bash
-tsk show <id>
+kanbus show <id>
 ```
 
-### `tsk update`
+### `kanbus update`
 
 Update issue fields.
 
 ```bash
-tsk update <id> [options]
+kanbus update <id> [options]
 ```
 
 Options:
@@ -90,33 +90,33 @@ Options:
 Example:
 
 ```bash
-tsk update tsk-a1b2c3 --status in_progress --assignee "you@example.com"
+kanbus update kanbus-a1b2c3 --status in_progress --assignee "you@example.com"
 ```
 
-### `tsk close`
+### `kanbus close`
 
 Close an issue (shortcut for `--status closed`).
 
 ```bash
-tsk close <id> [--comment <text>]
+kanbus close <id> [--comment <text>]
 ```
 
-### `tsk delete`
+### `kanbus delete`
 
 Delete an issue (removes the file).
 
 ```bash
-tsk delete <id>
+kanbus delete <id>
 ```
 
 ## Queries
 
-### `tsk list`
+### `kanbus list`
 
 List issues with optional filters. Uses the index daemon by default.
 
 ```bash
-tsk list [filters]
+kanbus list [filters]
 ```
 
 Filters:
@@ -132,148 +132,148 @@ Filters:
 Example:
 
 ```bash
-tsk list --status open --sort priority --limit 10
+kanbus list --status open --sort priority --limit 10
 ```
 
 ## Daemon
 
-### `tsk daemon-status`
+### `kanbus daemon-status`
 
 Report daemon status.
 
 ```bash
-tsk daemon-status
+kanbus daemon-status
 ```
 
-### `tsk daemon-stop`
+### `kanbus daemon-stop`
 
 Stop the daemon process.
 
 ```bash
-tsk daemon-stop
+kanbus daemon-stop
 ```
 
-### `tsk ready`
+### `kanbus ready`
 
 List open issues with no open blockers.
 
 ```bash
-tsk ready
+kanbus ready
 ```
 
-### `tsk blocked`
+### `kanbus blocked`
 
 List issues in blocked status.
 
 ```bash
-tsk blocked
+kanbus blocked
 ```
 
-### `tsk search`
+### `kanbus search`
 
 Full-text search across titles and descriptions.
 
 ```bash
-tsk search <text>
+kanbus search <text>
 ```
 
 ## Dependencies
 
-### `tsk dep add`
+### `kanbus dep add`
 
 Add a dependency.
 
 ```bash
-tsk dep add <id> --blocked-by <target-id>
-tsk dep add <id> --relates-to <target-id>
+kanbus dep add <id> --blocked-by <target-id>
+kanbus dep add <id> --relates-to <target-id>
 ```
 
-### `tsk dep remove`
+### `kanbus dep remove`
 
 Remove a dependency.
 
 ```bash
-tsk dep remove <id> <target-id>
+kanbus dep remove <id> <target-id>
 ```
 
-### `tsk dep tree`
+### `kanbus dep tree`
 
 Display the dependency tree for an issue.
 
 ```bash
-tsk dep tree <id>
+kanbus dep tree <id>
 ```
 
 ## Comments
 
-### `tsk comment`
+### `kanbus comment`
 
 Add a comment to an issue.
 
 ```bash
-tsk comment <id> <text>
+kanbus comment <id> <text>
 ```
 
 ## Migration
 
-### `tsk migrate`
+### `kanbus migrate`
 
-Migrate Beads issues into Taskulus.
+Migrate Beads issues into Kanbus.
 
 ```bash
-tsk migrate
+kanbus migrate
 ```
 
 ## Diagnostics
 
-### `tsk doctor`
+### `kanbus doctor`
 
 Run environment diagnostics.
 
 ```bash
-tsk doctor
+kanbus doctor
 ```
 
-### `tsk --version`
+### `kanbus --version`
 
-Show the Taskulus version.
+Show the Kanbus version.
 
 ```bash
-tsk --version
+kanbus --version
 ```
 
 ## Wiki
 
-### `tsk wiki render`
+### `kanbus wiki render`
 
 Render a wiki page with live interpolated data.
 
 ```bash
-tsk wiki render <page>
+kanbus wiki render <page>
 ```
 
-### `tsk wiki list`
+### `kanbus wiki list`
 
 List available wiki pages.
 
 ```bash
-tsk wiki list
+kanbus wiki list
 ```
 
 ## Maintenance
 
-### `tsk validate`
+### `kanbus validate`
 
 Validate project integrity.
 
 ```bash
-tsk validate
+kanbus validate
 ```
 
-### `tsk stats`
+### `kanbus stats`
 
 Display project overview statistics.
 
 ```bash
-tsk stats
+kanbus stats
 ```

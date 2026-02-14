@@ -12,7 +12,7 @@ Error: not a git repository
 
 **Cause**
 
-`tsk init` requires a git repository to exist in the current directory.
+`kanbus init` requires a git repository to exist in the current directory.
 
 **Fix**
 
@@ -20,7 +20,7 @@ Initialize git, then retry:
 
 ```bash
 git init
-tsk init
+kanbus init
 ```
 
 ## Malformed JSON in an issue file
@@ -94,14 +94,14 @@ The daemon socket is stale or daemon mode is disabled.
 - Stop and restart the daemon:
 
 ```bash
-tsk daemon-stop
-tsk daemon-status
+kanbus daemon-stop
+kanbus daemon-status
 ```
 
 - To bypass the daemon for a single command:
 
 ```bash
-TASKULUS_NO_DAEMON=1 tsk list
+KANBUS_NO_DAEMON=1 kanbus list
 ```
 
 ## Workflow or hierarchy validation failures
@@ -123,4 +123,4 @@ A parent-child relationship violates the configured hierarchy or a non-hierarchi
 
 ## Still stuck
 
-If you cannot resolve an issue, run `tsk validate` to get a full integrity report and inspect the errors for additional context.
+If you cannot resolve an issue, run `kanbus validate` to get a full integrity report and inspect the errors for additional context.

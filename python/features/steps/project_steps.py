@@ -11,11 +11,11 @@ from behave import given, then, when
 import yaml
 
 from features.steps.shared import ensure_git_repository, write_issue_file
-from taskulus.models import IssueData
-from taskulus.project import (
+from kanbus.models import IssueData
+from kanbus.project import (
     ProjectMarkerError,
     discover_project_directories,
-    discover_taskulus_projects,
+    discover_kanbus_projects,
     get_configuration_path,
     load_project_directory,
 )
@@ -61,7 +61,7 @@ def given_repo_project_cannot_canonicalize(context: object) -> None:
     project_dir.mkdir()
     _set_env_override(
         context,
-        "TASKULUS_TEST_CANONICALIZE_FAILURE",
+        "KANBUS_TEST_CANONICALIZE_FAILURE",
         "original_canonicalize_env",
         "1",
     )
@@ -75,7 +75,7 @@ def given_repo_project_cannot_canonicalize(context: object) -> None:
 def given_project_directory_canonicalization_failure(context: object) -> None:
     _set_env_override(
         context,
-        "TASKULUS_TEST_CANONICALIZE_FAILURE",
+        "KANBUS_TEST_CANONICALIZE_FAILURE",
         "original_canonicalize_env",
         "1",
     )
@@ -85,7 +85,7 @@ def given_project_directory_canonicalization_failure(context: object) -> None:
 def given_configuration_path_lookup_failure(context: object) -> None:
     _set_env_override(
         context,
-        "TASKULUS_TEST_CONFIGURATION_PATH_FAILURE",
+        "KANBUS_TEST_CONFIGURATION_PATH_FAILURE",
         "original_configuration_path_failure_env",
         "1",
     )
@@ -136,8 +136,8 @@ def given_repo_multiple_projects_with_issues(context: object) -> None:
     beta_project = root / "beta" / "project"
     (alpha_project / "issues").mkdir(parents=True)
     (beta_project / "issues").mkdir(parents=True)
-    write_issue_file(alpha_project, _build_issue("tsk-alpha", "Alpha task"))
-    write_issue_file(beta_project, _build_issue("tsk-beta", "Beta task"))
+    write_issue_file(alpha_project, _build_issue("kanbus-alpha", "Alpha task"))
+    write_issue_file(beta_project, _build_issue("kanbus-beta", "Beta task"))
 
 
 @given("a repository with multiple projects and local issues")
@@ -147,26 +147,26 @@ def given_repo_multiple_projects_with_local_issues(context: object) -> None:
     beta_project = root / "beta" / "project"
     (alpha_project / "issues").mkdir(parents=True)
     (beta_project / "issues").mkdir(parents=True)
-    write_issue_file(alpha_project, _build_issue("tsk-alpha", "Alpha task"))
-    write_issue_file(beta_project, _build_issue("tsk-beta", "Beta task"))
+    write_issue_file(alpha_project, _build_issue("kanbus-alpha", "Alpha task"))
+    write_issue_file(beta_project, _build_issue("kanbus-beta", "Beta task"))
     local_project = root / "alpha" / "project-local"
     (local_project / "issues").mkdir(parents=True)
-    write_issue_file(local_project, _build_issue("tsk-alpha-local", "Alpha local task"))
+    write_issue_file(local_project, _build_issue("kanbus-alpha-local", "Alpha local task"))
 
 
-@given("a repository with a .taskulus.yml file referencing another project")
-def given_repo_taskulus_external_project(context: object) -> None:
-    root = _create_repo(context, "taskulus-external")
+@given("a repository with a .kanbus.yml file referencing another project")
+def given_repo_kanbus_external_project(context: object) -> None:
+    root = _create_repo(context, "kanbus-external")
     (root / "project" / "issues").mkdir(parents=True)
-    write_issue_file(root / "project", _build_issue("tsk-internal", "Internal task"))
+    write_issue_file(root / "project", _build_issue("kanbus-internal", "Internal task"))
     external_root = Path(context.temp_dir) / "external-project"
     external_project = external_root / "project"
     (external_project / "issues").mkdir(parents=True)
-    write_issue_file(external_project, _build_issue("tsk-external", "External task"))
+    write_issue_file(external_project, _build_issue("kanbus-external", "External task"))
     payload = {
         "project_directory": "project",
         "external_projects": [str(external_project)],
-        "project_key": "tsk",
+        "project_key": "kanbus",
         "hierarchy": ["initiative", "epic", "task", "sub-task"],
         "types": ["bug", "story", "chore"],
         "workflows": {
@@ -188,20 +188,20 @@ def given_repo_taskulus_external_project(context: object) -> None:
         },
         "default_priority": 2,
     }
-    (root / ".taskulus.yml").write_text(
+    (root / ".kanbus.yml").write_text(
         yaml.safe_dump(payload, sort_keys=False), encoding="utf-8"
     )
     context.external_project_path = external_project.resolve()
     context.external_issue_title = "External task"
 
 
-@given("a repository with a .taskulus.yml file referencing a missing path")
-def given_repo_taskulus_missing_path(context: object) -> None:
-    root = _create_repo(context, "taskulus-missing")
+@given("a repository with a .kanbus.yml file referencing a missing path")
+def given_repo_kanbus_missing_path(context: object) -> None:
+    root = _create_repo(context, "kanbus-missing")
     payload = {
         "project_directory": "project",
         "external_projects": ["missing/project"],
-        "project_key": "tsk",
+        "project_key": "kanbus",
         "hierarchy": ["initiative", "epic", "task", "sub-task"],
         "types": ["bug", "story", "chore"],
         "workflows": {
@@ -223,30 +223,30 @@ def given_repo_taskulus_missing_path(context: object) -> None:
         },
         "default_priority": 2,
     }
-    (root / ".taskulus.yml").write_text(
+    (root / ".kanbus.yml").write_text(
         yaml.safe_dump(payload, sort_keys=False), encoding="utf-8"
     )
 
 
-@given("a repository with an invalid .taskulus.yml file")
-def given_repo_invalid_taskulus_config(context: object) -> None:
-    root = _create_repo(context, "taskulus-invalid")
-    (root / ".taskulus.yml").write_text(
+@given("a repository with an invalid .kanbus.yml file")
+def given_repo_invalid_kanbus_config(context: object) -> None:
+    root = _create_repo(context, "kanbus-invalid")
+    (root / ".kanbus.yml").write_text(
         "unknown_field: value\n",
         encoding="utf-8",
     )
 
 
 @given(
-    "a repository with a .taskulus.yml file referencing a valid path with blank lines"
+    "a repository with a .kanbus.yml file referencing a valid path with blank lines"
 )
-def given_repo_taskulus_with_blank_lines(context: object) -> None:
-    root = _create_repo(context, "taskulus-blank-lines")
+def given_repo_kanbus_with_blank_lines(context: object) -> None:
+    root = _create_repo(context, "kanbus-blank-lines")
     (root / "extras" / "project").mkdir(parents=True)
     payload = {
         "project_directory": "extras/project",
         "external_projects": [],
-        "project_key": "tsk",
+        "project_key": "kanbus",
         "hierarchy": ["initiative", "epic", "task", "sub-task"],
         "types": ["bug", "story", "chore"],
         "workflows": {
@@ -268,7 +268,7 @@ def given_repo_taskulus_with_blank_lines(context: object) -> None:
         },
         "default_priority": 2,
     }
-    (root / ".taskulus.yml").write_text(
+    (root / ".kanbus.yml").write_text(
         yaml.safe_dump(payload, sort_keys=False), encoding="utf-8"
     )
     context.expected_project_dir = (root / "extras" / "project").resolve()
@@ -306,10 +306,10 @@ def when_project_dirs_discovered(context: object) -> None:
         context.project_error = str(error)
 
 
-@when("taskulus configuration paths are discovered from the filesystem root")
-def when_taskulus_configuration_paths_from_root(context: object) -> None:
+@when("kanbus configuration paths are discovered from the filesystem root")
+def when_kanbus_configuration_paths_from_root(context: object) -> None:
     try:
-        context.project_dirs = discover_taskulus_projects(Path("/"))
+        context.project_dirs = discover_kanbus_projects(Path("/"))
         context.project_error = None
     except ProjectMarkerError as error:
         context.project_dirs = []
@@ -356,9 +356,9 @@ def then_project_multiple(context: object) -> None:
     assert "multiple projects found" in context.project_error
 
 
-@then('project discovery should fail with "taskulus path not found"')
+@then('project discovery should fail with "kanbus path not found"')
 def then_project_missing_path(context: object) -> None:
-    assert context.project_error.startswith("taskulus path not found")
+    assert context.project_error.startswith("kanbus path not found")
 
 
 @then('project discovery should fail with "unknown configuration fields"')

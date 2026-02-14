@@ -9,13 +9,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from features.steps.shared import load_project_directory
-from taskulus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 
 
-@given("the Taskulus configuration file is missing")
-def given_taskulus_configuration_missing(context: object) -> None:
+@given("the Kanbus configuration file is missing")
+def given_kanbus_configuration_missing(context: object) -> None:
     project_dir = load_project_directory(context)
-    config_path = project_dir.parent / ".taskulus.yml"
+    config_path = project_dir.parent / ".kanbus.yml"
     if config_path.exists():
         if config_path.is_dir():
             shutil.rmtree(config_path)
@@ -23,10 +23,10 @@ def given_taskulus_configuration_missing(context: object) -> None:
             config_path.unlink()
 
 
-@given("a Taskulus configuration file that is not a mapping")
-def given_taskulus_configuration_not_mapping(context: object) -> None:
+@given("a Kanbus configuration file that is not a mapping")
+def given_kanbus_configuration_not_mapping(context: object) -> None:
     project_dir = load_project_directory(context)
-    config_path = project_dir.parent / ".taskulus.yml"
+    config_path = project_dir.parent / ".kanbus.yml"
     config_path.write_text("- item\n- other\n", encoding="utf-8")
 
 

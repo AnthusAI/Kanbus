@@ -1,81 +1,81 @@
 Feature: Dependency tree display
-  As a Taskulus user
+  As a Kanbus user
   I want to visualize dependency trees
   So that I can understand blocked work at a glance
 
   Scenario: ASCII tree display
-    Given a Taskulus project with default configuration
-    And issues "tsk-root" and "tsk-child" exist
-    And issue "tsk-child" depends on "tsk-root" with type "blocked-by"
+    Given a Kanbus project with default configuration
+    And issues "kanbus-root" and "kanbus-child" exist
+    And issue "kanbus-child" depends on "kanbus-root" with type "blocked-by"
     And a non-issue file exists in the issues directory
-    When I run "tsk dep tree tsk-child"
-    Then stdout should contain "tsk-child"
-    And stdout should contain "tsk-root"
+    When I run "kanbus dep tree kanbus-child"
+    Then stdout should contain "kanbus-child"
+    And stdout should contain "kanbus-root"
 
   Scenario: Dependency tree depth limit
-    Given a Taskulus project with default configuration
-    And issues "tsk-a" and "tsk-b" exist
-    And issues "tsk-b" and "tsk-c" exist
-    And issue "tsk-b" depends on "tsk-a" with type "blocked-by"
-    And issue "tsk-c" depends on "tsk-b" with type "blocked-by"
-    When I run "tsk dep tree tsk-c --depth 1"
-    Then stdout should contain "tsk-c"
-    And stdout should contain "tsk-b"
-    And stdout should not contain "tsk-a"
+    Given a Kanbus project with default configuration
+    And issues "kanbus-a" and "kanbus-b" exist
+    And issues "kanbus-b" and "kanbus-c" exist
+    And issue "kanbus-b" depends on "kanbus-a" with type "blocked-by"
+    And issue "kanbus-c" depends on "kanbus-b" with type "blocked-by"
+    When I run "kanbus dep tree kanbus-c --depth 1"
+    Then stdout should contain "kanbus-c"
+    And stdout should contain "kanbus-b"
+    And stdout should not contain "kanbus-a"
 
   Scenario: Large dependency trees summarize output
-    Given a Taskulus project with default configuration
+    Given a Kanbus project with default configuration
     And a dependency tree with more than 25 nodes exists
-    When I run "tsk dep tree tsk-root"
+    When I run "kanbus dep tree kanbus-root"
     Then stdout should contain "additional nodes omitted"
 
   Scenario: JSON format output
-    Given a Taskulus project with default configuration
-    And issues "tsk-root" and "tsk-child" exist
-    And issue "tsk-child" depends on "tsk-root" with type "blocked-by"
-    When I run "tsk dep tree tsk-child --format json"
-    Then stdout should contain "\"id\": \"tsk-child\""
+    Given a Kanbus project with default configuration
+    And issues "kanbus-root" and "kanbus-child" exist
+    And issue "kanbus-child" depends on "kanbus-root" with type "blocked-by"
+    When I run "kanbus dep tree kanbus-child --format json"
+    Then stdout should contain "\"id\": \"kanbus-child\""
     And stdout should contain "\"dependencies\""
 
   Scenario: DOT format output
-    Given a Taskulus project with default configuration
-    And issues "tsk-root" and "tsk-child" exist
-    And issue "tsk-child" depends on "tsk-root" with type "blocked-by"
-    When I run "tsk dep tree tsk-child --format dot"
+    Given a Kanbus project with default configuration
+    And issues "kanbus-root" and "kanbus-child" exist
+    And issue "kanbus-child" depends on "kanbus-root" with type "blocked-by"
+    When I run "kanbus dep tree kanbus-child --format dot"
     Then stdout should contain "digraph"
-    And stdout should contain "\"tsk-child\" -> \"tsk-root\""
+    And stdout should contain "\"kanbus-child\" -> \"kanbus-root\""
 
   Scenario: Dependency tree fails without a project
     Given an empty git repository
-    When I run "tsk dep tree tsk-missing"
+    When I run "kanbus dep tree kanbus-missing"
     Then the command should fail with exit code 1
     And stderr should contain "project not initialized"
 
   Scenario: Dependency tree fails for missing issue
-    Given a Taskulus project with default configuration
-    When I run "tsk dep tree tsk-missing"
+    Given a Kanbus project with default configuration
+    When I run "kanbus dep tree kanbus-missing"
     Then the command should fail with exit code 1
     And stderr should contain "not found"
 
   Scenario: Dependency tree rejects invalid format
-    Given a Taskulus project with default configuration
-    And issues "tsk-root" and "tsk-child" exist
-    And issue "tsk-child" depends on "tsk-root" with type "blocked-by"
-    When I run "tsk dep tree tsk-child --format invalid"
+    Given a Kanbus project with default configuration
+    And issues "kanbus-root" and "kanbus-child" exist
+    And issue "kanbus-child" depends on "kanbus-root" with type "blocked-by"
+    When I run "kanbus dep tree kanbus-child --format invalid"
     Then the command should fail with exit code 1
     And stderr should contain "invalid format"
 
   Scenario: Dependency tree reports missing dependency targets
-    Given a Taskulus project with default configuration
-    And issue "tsk-child" depends on "tsk-missing" with type "blocked-by"
-    When I run "tsk dep tree tsk-child"
+    Given a Kanbus project with default configuration
+    And issue "kanbus-child" depends on "kanbus-missing" with type "blocked-by"
+    When I run "kanbus dep tree kanbus-child"
     Then the command should fail with exit code 1
-    And stderr should contain "dependency target 'tsk-missing' does not exist"
+    And stderr should contain "dependency target 'kanbus-missing' does not exist"
 
   Scenario: Dependency tree handles cyclic data
-    Given a Taskulus project with default configuration
-    And issue "tsk-a" depends on "tsk-b" with type "blocked-by"
-    And issue "tsk-b" depends on "tsk-a" with type "blocked-by"
-    When I run "tsk dep tree tsk-a"
-    Then stdout should contain "tsk-a"
-    And stdout should contain "tsk-b"
+    Given a Kanbus project with default configuration
+    And issue "kanbus-a" depends on "kanbus-b" with type "blocked-by"
+    And issue "kanbus-b" depends on "kanbus-a" with type "blocked-by"
+    When I run "kanbus dep tree kanbus-a"
+    Then stdout should contain "kanbus-a"
+    And stdout should contain "kanbus-b"

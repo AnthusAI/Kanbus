@@ -8,13 +8,13 @@ use serde_json::Value;
 use std::env;
 use tempfile::TempDir;
 
-use taskulus::cli::run_from_args_with_output;
-use taskulus::file_io::load_project_directory;
-use taskulus::issue_creation::{create_issue, IssueCreationRequest};
+use kanbus::cli::run_from_args_with_output;
+use kanbus::file_io::load_project_directory;
+use kanbus::issue_creation::{create_issue, IssueCreationRequest};
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-fn run_cli(world: &mut TaskulusWorld, command: &str) {
+fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
@@ -36,7 +36,7 @@ fn run_cli(world: &mut TaskulusWorld, command: &str) {
 }
 
 #[when("I create an issue directly with title \"Implement OAuth2 flow\"")]
-fn when_create_issue_directly(world: &mut TaskulusWorld) {
+fn when_create_issue_directly(world: &mut KanbusWorld) {
     let root = world
         .working_directory
         .as_ref()
@@ -66,12 +66,12 @@ fn when_create_issue_directly(world: &mut TaskulusWorld) {
     }
 }
 
-fn load_project_dir(world: &TaskulusWorld) -> PathBuf {
+fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
     load_project_directory(cwd).expect("project dir")
 }
 
-fn capture_issue_identifier(world: &mut TaskulusWorld) -> String {
+fn capture_issue_identifier(world: &mut KanbusWorld) -> String {
     let stdout = world.stdout.as_ref().expect("stdout");
     let ansi_regex = Regex::new(r"\x1b\[[0-9;]*m").expect("regex");
     let clean_stdout = ansi_regex.replace_all(stdout, "");
@@ -166,9 +166,9 @@ fn load_issue_json(project_dir: &PathBuf, identifier: &str) -> Value {
     serde_json::from_str(&contents).expect("parse issue")
 }
 
-#[given("a Taskulus project with default configuration")]
-fn given_taskulus_project(world: &mut TaskulusWorld) {
-    env::set_var("TASKULUS_NO_DAEMON", "1");
+#[given("a Kanbus project with default configuration")]
+fn given_kanbus_project(world: &mut KanbusWorld) {
+    env::set_var("KANBUS_NO_DAEMON", "1");
     let temp_dir = TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().join("repo");
     fs::create_dir_all(&repo_path).expect("create repo dir");
@@ -179,73 +179,73 @@ fn given_taskulus_project(world: &mut TaskulusWorld) {
         .expect("git init failed");
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
-    run_cli(world, "tsk init");
+    run_cli(world, "kanbus init");
     assert_eq!(world.exit_code, Some(0));
 }
 
-#[when("I run \"tsk create Implement OAuth2 flow\"")]
-fn when_run_create_default(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create Implement OAuth2 flow");
+#[when("I run \"kanbus create Implement OAuth2 flow\"")]
+fn when_run_create_default(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create Implement OAuth2 flow");
 }
 
-#[when("I run \"tsk create implement oauth2 flow\"")]
-fn when_run_create_duplicate_title(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create implement oauth2 flow");
+#[when("I run \"kanbus create implement oauth2 flow\"")]
+fn when_run_create_duplicate_title(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create implement oauth2 flow");
 }
 
-#[when("I run \"tsk create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent tsk-epic01 --label auth --label urgent --description \\\"Bug in login\\\"\"")]
-fn when_run_create_full(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent tsk-epic01 --label auth --label urgent --description \"Bug in login\"");
+#[when("I run \"kanbus create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent kanbus-epic01 --label auth --label urgent --description \\\"Bug in login\\\"\"")]
+fn when_run_create_full(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent kanbus-epic01 --label auth --label urgent --description \"Bug in login\"");
 }
 
-#[when("I run \"tsk create Bad Issue --type nonexistent\"")]
-fn when_run_create_invalid_type(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create Bad Issue --type nonexistent");
+#[when("I run \"kanbus create Bad Issue --type nonexistent\"")]
+fn when_run_create_invalid_type(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create Bad Issue --type nonexistent");
 }
 
-#[when("I run \"tsk create Orphan --parent tsk-nonexistent\"")]
-fn when_run_create_missing_parent(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create Orphan --parent tsk-nonexistent");
+#[when("I run \"kanbus create Orphan --parent kanbus-nonexistent\"")]
+fn when_run_create_missing_parent(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create Orphan --parent kanbus-nonexistent");
 }
 
-#[when("I run \"tsk create\"")]
-fn when_run_create_without_title(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create");
+#[when("I run \"kanbus create\"")]
+fn when_run_create_without_title(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create");
 }
 
-#[when("I run \"tsk create Bad Priority --priority 99\"")]
-fn when_run_create_invalid_priority(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create Bad Priority --priority 99");
+#[when("I run \"kanbus create Bad Priority --priority 99\"")]
+fn when_run_create_invalid_priority(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create Bad Priority --priority 99");
 }
 
-#[when(expr = "I run \"tsk create Child Task --type {word} --parent tsk-parent\"")]
-fn when_run_create_child_task_with_parent(world: &mut TaskulusWorld, issue_type: String) {
+#[when(expr = "I run \"kanbus create Child Task --type {word} --parent kanbus-parent\"")]
+fn when_run_create_child_task_with_parent(world: &mut KanbusWorld, issue_type: String) {
     run_cli(
         world,
-        &format!("tsk create Child Task --type {issue_type} --parent tsk-parent"),
+        &format!("kanbus create Child Task --type {issue_type} --parent kanbus-parent"),
     );
 }
 
-#[when(expr = "I run \"tsk create Child --type {word} --parent tsk-bug01\"")]
-fn when_run_create_child_with_bug_parent(world: &mut TaskulusWorld, issue_type: String) {
+#[when(expr = "I run \"kanbus create Child --type {word} --parent kanbus-bug01\"")]
+fn when_run_create_child_with_bug_parent(world: &mut KanbusWorld, issue_type: String) {
     run_cli(
         world,
-        &format!("tsk create Child --type {issue_type} --parent tsk-bug01"),
+        &format!("kanbus create Child --type {issue_type} --parent kanbus-bug01"),
     );
 }
 
-#[when("I run \"tsk create Standalone Task --type task\"")]
-fn when_run_create_standalone_task(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create Standalone Task --type task");
+#[when("I run \"kanbus create Standalone Task --type task\"")]
+fn when_run_create_standalone_task(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create Standalone Task --type task");
 }
 
-#[when("I run \"tsk create Snapshot issue\"")]
-fn when_run_create_snapshot_issue(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create Snapshot issue");
+#[when("I run \"kanbus create Snapshot issue\"")]
+fn when_run_create_snapshot_issue(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create Snapshot issue");
 }
 
 #[then("the command should succeed")]
-fn then_command_succeeds(world: &mut TaskulusWorld) {
+fn then_command_succeeds(world: &mut KanbusWorld) {
     assert_eq!(
         world.exit_code,
         Some(0),
@@ -255,12 +255,12 @@ fn then_command_succeeds(world: &mut TaskulusWorld) {
 }
 
 #[then("stdout should contain a valid issue ID")]
-fn then_stdout_contains_issue_id(world: &mut TaskulusWorld) {
+fn then_stdout_contains_issue_id(world: &mut KanbusWorld) {
     let _ = capture_issue_identifier(world);
 }
 
 #[then("an issue file should be created in the issues directory")]
-fn then_issue_file_created(world: &mut TaskulusWorld) {
+fn then_issue_file_created(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let issues_dir = project_dir.join("issues");
     let count = fs::read_dir(&issues_dir)
@@ -280,7 +280,7 @@ fn then_issue_file_created(world: &mut TaskulusWorld) {
 }
 
 #[then(expr = "the issues directory should contain {int} issue file")]
-fn then_issues_directory_contains_count(world: &mut TaskulusWorld, count: i32) {
+fn then_issues_directory_contains_count(world: &mut KanbusWorld, count: i32) {
     let project_dir = load_project_dir(world);
     let issues_dir = project_dir.join("issues");
     let actual = fs::read_dir(&issues_dir)
@@ -300,7 +300,7 @@ fn then_issues_directory_contains_count(world: &mut TaskulusWorld, count: i32) {
 }
 
 #[then("the created issue should have title \"Implement OAuth2 flow\"")]
-fn then_created_issue_title(world: &mut TaskulusWorld) {
+fn then_created_issue_title(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -308,7 +308,7 @@ fn then_created_issue_title(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have type \"task\"")]
-fn then_created_issue_type_task(world: &mut TaskulusWorld) {
+fn then_created_issue_type_task(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -316,7 +316,7 @@ fn then_created_issue_type_task(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have status \"open\"")]
-fn then_created_issue_status(world: &mut TaskulusWorld) {
+fn then_created_issue_status(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -324,7 +324,7 @@ fn then_created_issue_status(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have priority 2")]
-fn then_created_issue_priority(world: &mut TaskulusWorld) {
+fn then_created_issue_priority(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -332,7 +332,7 @@ fn then_created_issue_priority(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have an empty labels list")]
-fn then_created_issue_labels_empty(world: &mut TaskulusWorld) {
+fn then_created_issue_labels_empty(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -340,7 +340,7 @@ fn then_created_issue_labels_empty(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have an empty dependencies list")]
-fn then_created_issue_dependencies_empty(world: &mut TaskulusWorld) {
+fn then_created_issue_dependencies_empty(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -348,7 +348,7 @@ fn then_created_issue_dependencies_empty(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have a created_at timestamp")]
-fn then_created_issue_created_at(world: &mut TaskulusWorld) {
+fn then_created_issue_created_at(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -356,7 +356,7 @@ fn then_created_issue_created_at(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have an updated_at timestamp")]
-fn then_created_issue_updated_at(world: &mut TaskulusWorld) {
+fn then_created_issue_updated_at(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -364,7 +364,7 @@ fn then_created_issue_updated_at(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have type \"bug\"")]
-fn then_created_issue_type_bug(world: &mut TaskulusWorld) {
+fn then_created_issue_type_bug(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -372,7 +372,7 @@ fn then_created_issue_type_bug(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have priority 1")]
-fn then_created_issue_priority_one(world: &mut TaskulusWorld) {
+fn then_created_issue_priority_one(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -380,23 +380,23 @@ fn then_created_issue_priority_one(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have assignee \"dev@example.com\"")]
-fn then_created_issue_assignee(world: &mut TaskulusWorld) {
+fn then_created_issue_assignee(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
     assert_eq!(payload["assignee"], "dev@example.com");
 }
 
-#[then("the created issue should have parent \"tsk-epic01\"")]
-fn then_created_issue_parent(world: &mut TaskulusWorld) {
+#[then("the created issue should have parent \"kanbus-epic01\"")]
+fn then_created_issue_parent(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
-    assert_eq!(payload["parent"], "tsk-epic01");
+    assert_eq!(payload["parent"], "kanbus-epic01");
 }
 
 #[then("the created issue should have labels \"auth, urgent\"")]
-fn then_created_issue_labels(world: &mut TaskulusWorld) {
+fn then_created_issue_labels(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -410,7 +410,7 @@ fn then_created_issue_labels(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have description \"Bug in login\"")]
-fn then_created_issue_description(world: &mut TaskulusWorld) {
+fn then_created_issue_description(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
@@ -418,7 +418,7 @@ fn then_created_issue_description(world: &mut TaskulusWorld) {
 }
 
 #[then("the created issue should have no parent")]
-fn then_created_issue_no_parent(world: &mut TaskulusWorld) {
+fn then_created_issue_no_parent(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);

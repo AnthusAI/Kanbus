@@ -22,78 +22,78 @@ def _local_project_directory(context: object) -> Path:
     return local_dir
 
 
-@when('I run "tsk create --local Local task"')
+@when('I run "kanbus create --local Local task"')
 def when_run_create_local(context: object) -> None:
-    run_cli(context, "tsk create --local Local task")
+    run_cli(context, "kanbus create --local Local task")
 
 
-@when('I run "tsk create --local local"')
+@when('I run "kanbus create --local local"')
 def when_run_create_local_duplicate(context: object) -> None:
-    run_cli(context, "tsk create --local local")
+    run_cli(context, "kanbus create --local local")
 
 
-@when('I run "tsk promote tsk-local01"')
+@when('I run "kanbus promote kanbus-local01"')
 def when_run_promote(context: object) -> None:
-    run_cli(context, "tsk promote tsk-local01")
+    run_cli(context, "kanbus promote kanbus-local01")
 
 
-@when('I run "tsk localize tsk-shared01"')
+@when('I run "kanbus localize kanbus-shared01"')
 def when_run_localize(context: object) -> None:
-    run_cli(context, "tsk localize tsk-shared01")
+    run_cli(context, "kanbus localize kanbus-shared01")
 
 
-@when('I run "tsk promote tsk-missing"')
+@when('I run "kanbus promote kanbus-missing"')
 def when_run_promote_missing(context: object) -> None:
-    run_cli(context, "tsk promote tsk-missing")
+    run_cli(context, "kanbus promote kanbus-missing")
 
 
-@when('I run "tsk promote tsk-dupe01"')
+@when('I run "kanbus promote kanbus-dupe01"')
 def when_run_promote_dupe(context: object) -> None:
-    run_cli(context, "tsk promote tsk-dupe01")
+    run_cli(context, "kanbus promote kanbus-dupe01")
 
 
-@when('I run "tsk localize tsk-missing"')
+@when('I run "kanbus localize kanbus-missing"')
 def when_run_localize_missing(context: object) -> None:
-    run_cli(context, "tsk localize tsk-missing")
+    run_cli(context, "kanbus localize kanbus-missing")
 
 
-@when('I run "tsk localize tsk-dupe02"')
+@when('I run "kanbus localize kanbus-dupe02"')
 def when_run_localize_dupe(context: object) -> None:
-    run_cli(context, "tsk localize tsk-dupe02")
+    run_cli(context, "kanbus localize kanbus-dupe02")
 
 
-@given('a local issue "tsk-local01" exists')
+@given('a local issue "kanbus-local01" exists')
 def given_local_issue_exists(context: object) -> None:
     local_dir = _local_project_directory(context)
-    issue = build_issue("tsk-local01", "Local", "task", "open", None, [])
+    issue = build_issue("kanbus-local01", "Local", "task", "open", None, [])
     write_issue_file(local_dir, issue)
 
 
-@given('a local issue "tsk-dupe01" exists')
+@given('a local issue "kanbus-dupe01" exists')
 def given_local_issue_dupe_exists(context: object) -> None:
     local_dir = _local_project_directory(context)
-    issue = build_issue("tsk-dupe01", "Local", "task", "open", None, [])
+    issue = build_issue("kanbus-dupe01", "Local", "task", "open", None, [])
     write_issue_file(local_dir, issue)
 
 
-@given('a local issue "tsk-other" exists')
+@given('a local issue "kanbus-other" exists')
 def given_local_issue_other_exists(context: object) -> None:
     local_dir = _local_project_directory(context)
-    issue = build_issue("tsk-other", "Local", "task", "open", None, [])
+    issue = build_issue("kanbus-other", "Local", "task", "open", None, [])
     write_issue_file(local_dir, issue)
 
 
-@given('a local issue "tsk-dupe02" exists')
+@given('a local issue "kanbus-dupe02" exists')
 def given_local_issue_dupe02_exists(context: object) -> None:
     local_dir = _local_project_directory(context)
-    issue = build_issue("tsk-dupe02", "Local", "task", "open", None, [])
+    issue = build_issue("kanbus-dupe02", "Local", "task", "open", None, [])
     write_issue_file(local_dir, issue)
 
 
-@given('a local issue "tsk-local" exists')
+@given('a local issue "kanbus-local" exists')
 def given_local_issue_local_exists(context: object) -> None:
     local_dir = _local_project_directory(context)
-    issue = build_issue("tsk-local", "Local", "task", "open", None, [])
+    issue = build_issue("kanbus-local", "Local", "task", "open", None, [])
     write_issue_file(local_dir, issue)
 
 
@@ -128,31 +128,31 @@ def then_local_issue_directory_contains_count(
     assert len(issues) == issue_count
 
 
-@then('issue "tsk-local01" should exist in the shared issues directory')
+@then('issue "kanbus-local01" should exist in the shared issues directory')
 def then_issue_exists_shared_local(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue_path = project_dir / "issues" / "tsk-local01.json"
+    issue_path = project_dir / "issues" / "kanbus-local01.json"
     assert issue_path.exists()
 
 
-@then('issue "tsk-local01" should not exist in the local issues directory')
+@then('issue "kanbus-local01" should not exist in the local issues directory')
 def then_issue_missing_local_local(context: object) -> None:
     local_dir = _local_project_directory(context)
-    issue_path = local_dir / "issues" / "tsk-local01.json"
+    issue_path = local_dir / "issues" / "kanbus-local01.json"
     assert not issue_path.exists()
 
 
-@then('issue "tsk-shared01" should exist in the local issues directory')
+@then('issue "kanbus-shared01" should exist in the local issues directory')
 def then_issue_exists_local_shared(context: object) -> None:
     local_dir = _local_project_directory(context)
-    issue_path = local_dir / "issues" / "tsk-shared01.json"
+    issue_path = local_dir / "issues" / "kanbus-shared01.json"
     assert issue_path.exists()
 
 
-@then('issue "tsk-shared01" should not exist in the shared issues directory')
+@then('issue "kanbus-shared01" should not exist in the shared issues directory')
 def then_issue_missing_shared_shared(context: object) -> None:
     project_dir = load_project_directory(context)
-    issue_path = project_dir / "issues" / "tsk-shared01.json"
+    issue_path = project_dir / "issues" / "kanbus-shared01.json"
     assert not issue_path.exists()
 
 

@@ -12,8 +12,8 @@ Measure the latency impact of recursive project discovery versus a single-projec
 - Dataset size: 1 project, 200 issues (default).
 - Intended operations:
   - Discovery: `discover_project_directories` on the working directory.
-  - Listing: `tsk list` end-to-end execution time.
-  - Ready query: `tsk ready` end-to-end execution time.
+  - Listing: `kanbus list` end-to-end execution time.
+  - Ready query: `kanbus ready` end-to-end execution time.
   - Parallel mode: load issues per project concurrently and report timings alongside serial runs.
 
 ### Scenario B: Multi-project recursive discovery
@@ -26,8 +26,8 @@ Measure the latency impact of recursive project discovery versus a single-projec
 - Dataset size: 10 projects, 200 issues per project (default).
 - Intended operations:
   - Discovery: `discover_project_directories` on the monorepo root.
-  - Listing: `tsk list` end-to-end execution time.
-  - Ready query: `tsk ready` end-to-end execution time.
+  - Listing: `kanbus list` end-to-end execution time.
+  - Ready query: `kanbus ready` end-to-end execution time.
   - Parallel mode: load issues per project concurrently and report timings alongside serial runs.
 
 ## Fixture Generation
@@ -47,7 +47,7 @@ Expected output:
 
 ## Determinism
 - Fixed timestamp: `2026-02-11T00:00:00Z`
-- Identifiers: `tsk-{project:02d}{issue:04d}`
+- Identifiers: `kanbus-{project:02d}{issue:04d}`
 - Titles: `Project {project} issue {issue}`
 
 ## Notes

@@ -1,9 +1,9 @@
-//! Default configuration for new Taskulus projects.
+//! Default configuration for new Kanbus projects.
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::models::{PriorityDefinition, ProjectConfiguration};
 
 /// Return the default project configuration.
@@ -95,7 +95,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
     ProjectConfiguration {
         project_directory: "project".to_string(),
         external_projects: Vec::new(),
-        project_key: "tsk".to_string(),
+        project_key: "kanbus".to_string(),
         project_management_template: None,
         hierarchy: vec![
             "initiative".to_string(),
@@ -135,14 +135,14 @@ pub fn default_project_configuration() -> ProjectConfiguration {
 ///
 /// # Arguments
 ///
-/// * `path` - Path to the taskulus.yml file.
+/// * `path` - Path to the kanbus.yml file.
 ///
 /// # Errors
 ///
-/// Returns `TaskulusError::Io` if writing fails.
-pub fn write_default_configuration(path: &Path) -> Result<(), TaskulusError> {
+/// Returns `KanbusError::Io` if writing fails.
+pub fn write_default_configuration(path: &Path) -> Result<(), KanbusError> {
     let configuration = default_project_configuration();
     let contents = serde_yaml::to_string(&configuration)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
-    std::fs::write(path, contents).map_err(|error| TaskulusError::Io(error.to_string()))
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::write(path, contents).map_err(|error| KanbusError::Io(error.to_string()))
 }

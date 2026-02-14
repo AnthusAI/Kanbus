@@ -18,11 +18,11 @@ from features.steps.shared import (
 def given_open_and_closed_tasks(context: object) -> None:
     project_dir = load_project_directory(context)
     issues = [
-        build_issue("tsk-open01", "Open 1", "task", "open", None, []),
-        build_issue("tsk-open02", "Open 2", "task", "open", None, []),
-        build_issue("tsk-open03", "Open 3", "task", "open", None, []),
-        build_issue("tsk-closed01", "Closed 1", "task", "closed", None, []),
-        build_issue("tsk-closed02", "Closed 2", "task", "closed", None, []),
+        build_issue("kanbus-open01", "Open 1", "task", "open", None, []),
+        build_issue("kanbus-open02", "Open 2", "task", "open", None, []),
+        build_issue("kanbus-open03", "Open 3", "task", "open", None, []),
+        build_issue("kanbus-closed01", "Closed 1", "task", "closed", None, []),
+        build_issue("kanbus-closed02", "Closed 2", "task", "closed", None, []),
     ]
     for issue in issues:
         write_issue_file(project_dir, issue)
@@ -32,8 +32,8 @@ def given_open_and_closed_tasks(context: object) -> None:
 def given_open_tasks_alpha_beta(context: object, first: str, second: str) -> None:
     project_dir = load_project_directory(context)
     issues = [
-        build_issue("tsk-alpha", first, "task", "open", None, []),
-        build_issue("tsk-beta", second, "task", "open", None, []),
+        build_issue("kanbus-alpha", first, "task", "open", None, []),
+        build_issue("kanbus-beta", second, "task", "open", None, []),
     ]
     for issue in issues:
         write_issue_file(project_dir, issue)
@@ -42,8 +42,8 @@ def given_open_tasks_alpha_beta(context: object, first: str, second: str) -> Non
 @given('open tasks "Urgent" and "Later" exist with priorities 1 and 3')
 def given_open_tasks_with_priorities(context: object) -> None:
     project_dir = load_project_directory(context)
-    urgent = build_issue("tsk-urgent", "Urgent", "task", "open", None, [])
-    later = build_issue("tsk-later", "Later", "task", "open", None, [])
+    urgent = build_issue("kanbus-urgent", "Urgent", "task", "open", None, [])
+    later = build_issue("kanbus-later", "Later", "task", "open", None, [])
     urgent = urgent.model_copy(update={"priority": 1})
     later = later.model_copy(update={"priority": 3})
     for issue in [urgent, later]:
@@ -66,16 +66,16 @@ def given_raw_wiki_page_with_content(context: object, filename: str) -> None:
     (working_directory / filename).write_text(content, encoding="utf-8")
 
 
-@when('I run "tsk wiki render {page}"')
+@when('I run "kanbus wiki render {page}"')
 def when_render_page(context: object, page: str) -> None:
-    run_cli(context, f"tsk wiki render {page}")
+    run_cli(context, f"kanbus wiki render {page}")
 
 
 @when('I render the wiki page "{filename}" by absolute path')
 def when_render_page_absolute(context: object, filename: str) -> None:
     project_dir = load_project_directory(context)
     page_path = (project_dir / "wiki" / filename).resolve()
-    run_cli(context, f"tsk wiki render {page_path}")
+    run_cli(context, f"kanbus wiki render {page_path}")
 
 
 @then('"{first}" should appear before "{second}" in the output')

@@ -1,4 +1,4 @@
-//! In-memory index building for Taskulus issues.
+//! In-memory index building for Kanbus issues.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -6,12 +6,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::models::IssueData;
 
-fn read_issue_data(path: &Path) -> Result<IssueData, TaskulusError> {
-    let contents = fs::read(path).map_err(|error| TaskulusError::Io(error.to_string()))?;
-    serde_json::from_slice(&contents).map_err(|error| TaskulusError::Io(error.to_string()))
+fn read_issue_data(path: &Path) -> Result<IssueData, KanbusError> {
+    let contents = fs::read(path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    serde_json::from_slice(&contents).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
 fn add_issue_to_index(index: &mut IssueIndex, issue: IssueData) {
@@ -84,14 +84,14 @@ impl IssueIndex {
 /// * `issues_directory` - Directory containing issue JSON files.
 ///
 /// # Errors
-/// Returns `TaskulusError::Io` if file reads or JSON parsing fails.
-pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex, TaskulusError> {
+/// Returns `KanbusError::Io` if file reads or JSON parsing fails.
+pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex, KanbusError> {
     let mut index = IssueIndex::new();
     let entries =
-        fs::read_dir(issues_directory).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        fs::read_dir(issues_directory).map_err(|error| KanbusError::Io(error.to_string()))?;
     let mut json_entries: Vec<PathBuf> = Vec::new();
     for entry in entries {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
@@ -135,7 +135,7 @@ pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex,
                 let issue = read_issue_data(&path)?;
                 batch.push((index, issue));
             }
-            Ok::<_, TaskulusError>(batch)
+            Ok::<_, KanbusError>(batch)
         }));
     }
 
@@ -143,7 +143,7 @@ pub fn build_index_from_directory(issues_directory: &Path) -> Result<IssueIndex,
     for handle in handles {
         let batch = handle
             .join()
-            .map_err(|_| TaskulusError::Io("index thread panicked".to_string()))??;
+            .map_err(|_| KanbusError::Io("index thread panicked".to_string()))??;
         for (index, issue) in batch {
             ordered[index] = Some(issue);
         }

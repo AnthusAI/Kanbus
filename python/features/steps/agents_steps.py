@@ -1,4 +1,4 @@
-"""Steps for managing AGENTS.md Taskulus instructions."""
+"""Steps for managing AGENTS.md Kanbus instructions."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from pathlib import Path
 from behave import given, then, when
 
 from features.steps.shared import ensure_git_repository, run_cli, run_cli_with_input
-from taskulus.agents_management import (
+from kanbus.agents_management import (
     build_project_management_text,
-    TASKULUS_SECTION_TEXT,
+    KANBUS_SECTION_TEXT,
 )
 
 
@@ -21,13 +21,13 @@ def _fixture_path(name: str) -> Path:
 
 def _config_path() -> Path:
     root = Path(__file__).resolve().parents[3]
-    return root / ".taskulus.yml"
+    return root / ".kanbus.yml"
 
 
 def _copy_configuration(repo_path: Path) -> None:
     config = _config_path()
     if config.exists():
-        (repo_path / ".taskulus.yml").write_text(
+        (repo_path / ".kanbus.yml").write_text(
             config.read_text(encoding="utf-8"), encoding="utf-8"
         )
 
@@ -52,13 +52,13 @@ def _read_agents(context: object) -> str:
     return (repo_path / "AGENTS.md").read_text(encoding="utf-8")
 
 
-def _extract_taskulus_section(content: str) -> str:
+def _extract_kanbus_section(content: str) -> str:
     lines = content.splitlines()
     start = None
     end = len(lines)
     for index, line in enumerate(lines):
         stripped = line.lstrip()
-        if stripped.startswith("#") and "taskulus" in stripped.lower():
+        if stripped.startswith("#") and "kanbus" in stripped.lower():
             start = index
             level = len(stripped) - len(stripped.lstrip("#"))
             for next_index in range(index + 1, len(lines)):
@@ -75,7 +75,7 @@ def _extract_taskulus_section(content: str) -> str:
     return "\n".join(lines[start:end]).strip()
 
 
-@given("a Taskulus repository without AGENTS.md")
+@given("a Kanbus repository without AGENTS.md")
 def given_repo_without_agents(context: object) -> None:
     temp_dir = Path(context.temp_dir)
     repo_path = temp_dir / "repo"
@@ -87,37 +87,37 @@ def given_repo_without_agents(context: object) -> None:
     context.working_directory = repo_path
 
 
-@given("a Taskulus repository with AGENTS.md without a Taskulus section")
-def given_repo_agents_without_taskulus(context: object) -> None:
-    _write_agents_fixture(context, "agents_no_taskulus.md")
+@given("a Kanbus repository with AGENTS.md without a Kanbus section")
+def given_repo_agents_without_kanbus(context: object) -> None:
+    _write_agents_fixture(context, "agents_no_kanbus.md")
 
 
-@given("a Taskulus repository with AGENTS.md containing a Taskulus section")
-def given_repo_agents_with_taskulus(context: object) -> None:
-    _write_agents_fixture(context, "agents_with_taskulus.md")
+@given("a Kanbus repository with AGENTS.md containing a Kanbus section")
+def given_repo_agents_with_kanbus(context: object) -> None:
+    _write_agents_fixture(context, "agents_with_kanbus.md")
 
 
-@when('I run "tsk setup agents"')
+@when('I run "kanbus setup agents"')
 def when_run_setup_agents(context: object) -> None:
-    run_cli(context, "tsk setup agents")
+    run_cli(context, "kanbus setup agents")
 
 
-@when('I run "tsk setup agents --force"')
+@when('I run "kanbus setup agents --force"')
 def when_run_setup_agents_force(context: object) -> None:
-    run_cli(context, "tsk setup agents --force")
+    run_cli(context, "kanbus setup agents --force")
 
 
-@when('I run "tsk setup agents" and respond "{response}"')
+@when('I run "kanbus setup agents" and respond "{response}"')
 def when_run_setup_agents_with_response(context: object, response: str) -> None:
-    run_cli_with_input(context, "tsk setup agents", f"{response}\n")
+    run_cli_with_input(context, "kanbus setup agents", f"{response}\n")
 
 
-@when('I run "tsk setup agents" non-interactively')
+@when('I run "kanbus setup agents" non-interactively')
 def when_run_setup_agents_non_interactive(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides["TASKULUS_NON_INTERACTIVE"] = "1"
+    overrides["KANBUS_NON_INTERACTIVE"] = "1"
     context.environment_overrides = overrides
-    run_cli(context, "tsk setup agents")
+    run_cli(context, "kanbus setup agents")
 
 
 @then("AGENTS.md should exist")
@@ -126,27 +126,27 @@ def then_agents_exists(context: object) -> None:
     assert (repo_path / "AGENTS.md").exists()
 
 
-@then("AGENTS.md should contain the Taskulus section")
-def then_agents_contains_taskulus(context: object) -> None:
+@then("AGENTS.md should contain the Kanbus section")
+def then_agents_contains_kanbus(context: object) -> None:
     content = _read_agents(context)
-    section = _extract_taskulus_section(content)
-    assert section == TASKULUS_SECTION_TEXT.strip()
+    section = _extract_kanbus_section(content)
+    assert section == KANBUS_SECTION_TEXT.strip()
 
 
-@then("the Taskulus section should appear after the H1 heading")
-def then_taskulus_after_h1(context: object) -> None:
+@then("the Kanbus section should appear after the H1 heading")
+def then_kanbus_after_h1(context: object) -> None:
     content = _read_agents(context)
     lines = content.splitlines()
     h1_index = next(
         index for index, line in enumerate(lines) if line.strip().startswith("# ")
     )
-    taskulus_index = next(
-        index for index, line in enumerate(lines) if "taskulus" in line.lower()
+    kanbus_index = next(
+        index for index, line in enumerate(lines) if "kanbus" in line.lower()
     )
-    assert taskulus_index > h1_index
-    for index in range(h1_index + 1, taskulus_index):
+    assert kanbus_index > h1_index
+    for index in range(h1_index + 1, kanbus_index):
         if lines[index].strip().startswith("## "):
-            raise AssertionError("Taskulus section is not the first H2")
+            raise AssertionError("Kanbus section is not the first H2")
 
 
 @then("AGENTS.md should be unchanged")

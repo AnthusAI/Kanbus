@@ -5,14 +5,14 @@ use std::path::{Path, PathBuf};
 use cucumber::{given, then, when};
 use regex::Regex;
 
-use taskulus::cli::run_from_args_with_output;
-use taskulus::ids::format_issue_key;
-use taskulus::migration::migrate_from_beads;
+use kanbus::cli::run_from_args_with_output;
+use kanbus::ids::format_issue_key;
+use kanbus::migration::migrate_from_beads;
 use tempfile::TempDir;
 
-use crate::step_definitions::initialization_steps::TaskulusWorld;
+use crate::step_definitions::initialization_steps::KanbusWorld;
 
-fn run_cli(world: &mut TaskulusWorld, command: &str) {
+fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
         .working_directory
@@ -43,7 +43,7 @@ fn fixture_beads_dir() -> PathBuf {
         .join(".beads")
 }
 
-fn project_issues_dir(world: &TaskulusWorld) -> PathBuf {
+fn project_issues_dir(world: &KanbusWorld) -> PathBuf {
     world
         .working_directory
         .as_ref()
@@ -52,7 +52,7 @@ fn project_issues_dir(world: &TaskulusWorld) -> PathBuf {
         .join("issues")
 }
 
-fn current_issue_ids(world: &TaskulusWorld) -> HashSet<String> {
+fn current_issue_ids(world: &KanbusWorld) -> HashSet<String> {
     project_issues_dir(world)
         .read_dir()
         .expect("read issues dir")
@@ -67,8 +67,8 @@ fn current_issue_ids(world: &TaskulusWorld) -> HashSet<String> {
         .collect()
 }
 
-#[given("a migrated Taskulus repository from the Beads fixture")]
-fn given_migrated_taskulus_repo(world: &mut TaskulusWorld) {
+#[given("a migrated Kanbus repository from the Beads fixture")]
+fn given_migrated_kanbus_repo(world: &mut KanbusWorld) {
     let temp_dir = TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().to_path_buf();
     let beads_dir = repo_path.join(".beads");
@@ -88,60 +88,60 @@ fn given_migrated_taskulus_repo(world: &mut TaskulusWorld) {
     migrate_from_beads(&repo_path).expect("migrate from beads");
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
-    world.existing_taskulus_ids = None;
-    world.last_taskulus_issue_id = None;
+    world.existing_kanbus_ids = None;
+    world.last_kanbus_issue_id = None;
 }
 
-#[given("I record existing Taskulus issue ids")]
-fn given_record_existing_ids(world: &mut TaskulusWorld) {
+#[given("I record existing Kanbus issue ids")]
+fn given_record_existing_ids(world: &mut KanbusWorld) {
     let ids = current_issue_ids(world);
-    world.existing_taskulus_ids = Some(ids);
+    world.existing_kanbus_ids = Some(ids);
 }
 
-#[when("I run \"tsk --beads create Beads epic --type epic\"")]
-fn when_run_create_beads_epic(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Beads epic --type epic");
+#[when("I run \"kanbus --beads create Beads epic --type epic\"")]
+fn when_run_create_beads_epic(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Beads epic --type epic");
 }
 
-#[when("I run \"tsk --beads create Beads child --parent bdx-epic\"")]
-fn when_run_create_beads_child(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk --beads create Beads child --parent bdx-epic");
+#[when("I run \"kanbus --beads create Beads child --parent bdx-epic\"")]
+fn when_run_create_beads_child(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus --beads create Beads child --parent bdx-epic");
 }
 
-#[when("I run \"tsk create Native epic --type epic\"")]
-#[given("I run \"tsk create Native epic --type epic\"")]
-fn when_run_create_native_epic(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create Native epic --type epic");
+#[when("I run \"kanbus create Native epic --type epic\"")]
+#[given("I run \"kanbus create Native epic --type epic\"")]
+fn when_run_create_native_epic(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create Native epic --type epic");
 }
 
-#[when("I run \"tsk create Native deletable --type epic\"")]
-fn when_run_create_native_deletable(world: &mut TaskulusWorld) {
-    run_cli(world, "tsk create Native deletable --type epic");
-    record_new_taskulus_id(world);
+#[when("I run \"kanbus create Native deletable --type epic\"")]
+fn when_run_create_native_deletable(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus create Native deletable --type epic");
+    record_new_kanbus_id(world);
 }
 
-fn record_new_taskulus_id(world: &mut TaskulusWorld) {
+fn record_new_kanbus_id(world: &mut KanbusWorld) {
     let before = world
-        .existing_taskulus_ids
+        .existing_kanbus_ids
         .clone()
         .unwrap_or_else(HashSet::new);
     let current = current_issue_ids(world);
     let new_ids: HashSet<String> = current.difference(&before).cloned().collect();
     assert!(
         !new_ids.is_empty(),
-        "no new issue created to record Taskulus id"
+        "no new issue created to record Kanbus id"
     );
     assert!(
         new_ids.len() == 1,
         "expected one new id, found {}",
         new_ids.len()
     );
-    world.last_taskulus_issue_id = Some(new_ids.iter().next().expect("new id").to_string());
-    world.existing_taskulus_ids = Some(current);
+    world.last_kanbus_issue_id = Some(new_ids.iter().next().expect("new id").to_string());
+    world.existing_kanbus_ids = Some(current);
 }
 
 #[then(expr = "stdout should match pattern {string}")]
-fn then_stdout_matches_pattern(world: &mut TaskulusWorld, pattern: String) {
+fn then_stdout_matches_pattern(world: &mut KanbusWorld, pattern: String) {
     let stdout = world.stdout.as_ref().expect("command result missing");
     let ansi_regex = Regex::new(r"\x1b\[[0-9;]*m").expect("regex");
     let cleaned = ansi_regex.replace_all(stdout, "");
@@ -158,7 +158,7 @@ fn then_stdout_matches_pattern(world: &mut TaskulusWorld, pattern: String) {
 }
 
 #[then(expr = "beads issues.jsonl should contain an id matching {string}")]
-fn then_beads_jsonl_contains_pattern(world: &mut TaskulusWorld, pattern: String) {
+fn then_beads_jsonl_contains_pattern(world: &mut KanbusWorld, pattern: String) {
     let issues_path = world
         .working_directory
         .as_ref()
@@ -183,10 +183,10 @@ fn then_beads_jsonl_contains_pattern(world: &mut TaskulusWorld, pattern: String)
     assert!(matches, "no id matching {}", pattern);
 }
 
-#[then(expr = "the last Taskulus issue id should match {string}")]
-fn then_last_taskulus_id_matches(world: &mut TaskulusWorld, pattern: String) {
+#[then(expr = "the last Kanbus issue id should match {string}")]
+fn then_last_kanbus_id_matches(world: &mut KanbusWorld, pattern: String) {
     let before = world
-        .existing_taskulus_ids
+        .existing_kanbus_ids
         .clone()
         .unwrap_or_else(HashSet::new);
     let current = current_issue_ids(world);
@@ -205,68 +205,68 @@ fn then_last_taskulus_id_matches(world: &mut TaskulusWorld, pattern: String) {
         identifier,
         pattern
     );
-    world.last_taskulus_issue_id = Some(identifier.to_string());
-    world.existing_taskulus_ids = Some(current);
+    world.last_kanbus_issue_id = Some(identifier.to_string());
+    world.existing_kanbus_ids = Some(current);
 }
 
-#[given("I record the new Taskulus issue id")]
-fn given_record_new_taskulus_id(world: &mut TaskulusWorld) {
-    record_new_taskulus_id(world);
+#[given("I record the new Kanbus issue id")]
+fn given_record_new_kanbus_id(world: &mut KanbusWorld) {
+    record_new_kanbus_id(world);
 }
 
-#[when("I create a native task under the recorded Taskulus epic")]
-fn when_create_native_task_under_recorded_epic(world: &mut TaskulusWorld) {
+#[when("I create a native task under the recorded Kanbus epic")]
+fn when_create_native_task_under_recorded_epic(world: &mut KanbusWorld) {
     let parent_id = world
-        .last_taskulus_issue_id
+        .last_kanbus_issue_id
         .as_ref()
         .expect("no recorded epic id");
     run_cli(
         world,
-        &format!("tsk create Native task --parent {}", parent_id),
+        &format!("kanbus create Native task --parent {}", parent_id),
     );
 }
 
-#[then("the last Taskulus issue id should be recorded")]
-fn then_last_taskulus_id_recorded(world: &mut TaskulusWorld) {
+#[then("the last Kanbus issue id should be recorded")]
+fn then_last_kanbus_id_recorded(world: &mut KanbusWorld) {
     assert!(
-        world.last_taskulus_issue_id.is_some(),
-        "no Taskulus issue id recorded"
+        world.last_kanbus_issue_id.is_some(),
+        "no Kanbus issue id recorded"
     );
 }
 
-#[then("the recorded Taskulus issue id should appear in the Taskulus list output")]
-fn then_recorded_id_in_list_output(world: &mut TaskulusWorld) {
+#[then("the recorded Kanbus issue id should appear in the Kanbus list output")]
+fn then_recorded_id_in_list_output(world: &mut KanbusWorld) {
     let identifier = world
-        .last_taskulus_issue_id
+        .last_kanbus_issue_id
         .as_ref()
-        .expect("no Taskulus issue id recorded");
+        .expect("no Kanbus issue id recorded");
     let stdout = world.stdout.as_ref().expect("command result missing");
     let display_key = format_issue_key(identifier, true);
     assert!(
         stdout.contains(&display_key),
-        "recorded id not found in Taskulus list output"
+        "recorded id not found in Kanbus list output"
     );
 }
 
-#[then("the recorded Taskulus issue id should not appear in the Taskulus list output")]
-fn then_recorded_id_not_in_list_output(world: &mut TaskulusWorld) {
+#[then("the recorded Kanbus issue id should not appear in the Kanbus list output")]
+fn then_recorded_id_not_in_list_output(world: &mut KanbusWorld) {
     let identifier = world
-        .last_taskulus_issue_id
+        .last_kanbus_issue_id
         .as_ref()
-        .expect("no Taskulus issue id recorded");
+        .expect("no Kanbus issue id recorded");
     let stdout = world.stdout.as_ref().expect("command result missing");
     let display_key = format_issue_key(identifier, true);
     assert!(
         !stdout.contains(&display_key),
-        "recorded id unexpectedly present in Taskulus list output"
+        "recorded id unexpectedly present in Kanbus list output"
     );
 }
 
-#[when("I delete the recorded Taskulus issue")]
-fn when_delete_recorded_taskulus_issue(world: &mut TaskulusWorld) {
+#[when("I delete the recorded Kanbus issue")]
+fn when_delete_recorded_kanbus_issue(world: &mut KanbusWorld) {
     let identifier = world
-        .last_taskulus_issue_id
+        .last_kanbus_issue_id
         .as_ref()
-        .expect("no Taskulus issue id recorded");
-    run_cli(world, &format!("tsk delete {}", identifier));
+        .expect("no Kanbus issue id recorded");
+    run_cli(world, &format!("kanbus delete {}", identifier));
 }

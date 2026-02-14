@@ -3,9 +3,9 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::{
-    discover_project_directories, discover_taskulus_projects, find_project_local_directory,
+    discover_project_directories, discover_kanbus_projects, find_project_local_directory,
     load_project_directory,
 };
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
@@ -26,13 +26,13 @@ const ALLOWED_DEPENDENCY_TYPES: [&str; 2] = ["blocked-by", "relates-to"];
 /// Updated issue data.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if the dependency cannot be added.
+/// Returns `KanbusError::IssueOperation` if the dependency cannot be added.
 pub fn add_dependency(
     root: &Path,
     source_id: &str,
     target_id: &str,
     dependency_type: &str,
-) -> Result<IssueData, TaskulusError> {
+) -> Result<IssueData, KanbusError> {
     validate_dependency_type(dependency_type)?;
     let source_lookup = load_issue_from_project(root, source_id)?;
     load_issue_from_project(root, target_id)?;
@@ -66,13 +66,13 @@ pub fn add_dependency(
 /// Updated issue data.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if the dependency cannot be removed.
+/// Returns `KanbusError::IssueOperation` if the dependency cannot be removed.
 pub fn remove_dependency(
     root: &Path,
     source_id: &str,
     target_id: &str,
     dependency_type: &str,
-) -> Result<IssueData, TaskulusError> {
+) -> Result<IssueData, KanbusError> {
     validate_dependency_type(dependency_type)?;
     let IssueLookupResult {
         issue,
@@ -104,25 +104,25 @@ pub fn remove_dependency(
 /// Ready issues.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if listing fails.
+/// Returns `KanbusError::IssueOperation` if listing fails.
 pub fn list_ready_issues(
     root: &Path,
     include_local: bool,
     local_only: bool,
-) -> Result<Vec<IssueData>, TaskulusError> {
+) -> Result<Vec<IssueData>, KanbusError> {
     if local_only && !include_local {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "local-only conflicts with no-local".to_string(),
         ));
     }
     let mut projects = Vec::new();
     discover_project_directories(root, &mut projects)?;
-    let mut dotfile_projects = discover_taskulus_projects(root)?;
+    let mut dotfile_projects = discover_kanbus_projects(root)?;
     projects.append(&mut dotfile_projects);
     projects.sort();
     projects.dedup();
     if projects.is_empty() {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "project not initialized".to_string(),
         ));
     }
@@ -151,7 +151,7 @@ fn load_ready_issues_for_project(
     include_local: bool,
     local_only: bool,
     tag_project: bool,
-) -> Result<Vec<IssueData>, TaskulusError> {
+) -> Result<Vec<IssueData>, KanbusError> {
     let mut issues = load_issues_from_directory(&project_dir.join("issues"))?;
     if include_local || local_only {
         if let Some(local_dir) = find_project_local_directory(project_dir) {
@@ -190,12 +190,12 @@ fn tag_issue_project(issue: &mut IssueData, root: &Path, project_dir: &Path) {
     );
 }
 
-fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, TaskulusError> {
+fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let mut issues = Vec::new();
     for entry in
-        std::fs::read_dir(issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?
+        std::fs::read_dir(issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?
     {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
@@ -213,9 +213,9 @@ fn is_blocked(issue: &IssueData) -> bool {
         .any(|dependency| dependency.dependency_type == "blocked-by")
 }
 
-fn validate_dependency_type(dependency_type: &str) -> Result<(), TaskulusError> {
+fn validate_dependency_type(dependency_type: &str) -> Result<(), KanbusError> {
     if !ALLOWED_DEPENDENCY_TYPES.contains(&dependency_type) {
-        return Err(TaskulusError::IssueOperation(
+        return Err(KanbusError::IssueOperation(
             "invalid dependency type".to_string(),
         ));
     }
@@ -228,7 +228,7 @@ fn has_dependency(issue: &IssueData, target_id: &str, dependency_type: &str) -> 
     })
 }
 
-fn ensure_no_cycle(root: &Path, source_id: &str, target_id: &str) -> Result<(), TaskulusError> {
+fn ensure_no_cycle(root: &Path, source_id: &str, target_id: &str) -> Result<(), KanbusError> {
     let mut graph = build_dependency_graph(root)?;
     graph
         .edges
@@ -236,7 +236,7 @@ fn ensure_no_cycle(root: &Path, source_id: &str, target_id: &str) -> Result<(), 
         .or_default()
         .push(target_id.to_string());
     if detect_cycle(&graph, source_id) {
-        return Err(TaskulusError::IssueOperation("cycle detected".to_string()));
+        return Err(KanbusError::IssueOperation("cycle detected".to_string()));
     }
     Ok(())
 }
@@ -245,14 +245,14 @@ struct DependencyGraph {
     edges: HashMap<String, Vec<String>>,
 }
 
-fn build_dependency_graph(root: &Path) -> Result<DependencyGraph, TaskulusError> {
+fn build_dependency_graph(root: &Path) -> Result<DependencyGraph, KanbusError> {
     let project_dir = load_project_directory(root)?;
     let issues_dir = project_dir.join("issues");
     let mut edges: HashMap<String, Vec<String>> = HashMap::new();
     for entry in
-        std::fs::read_dir(&issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?
+        std::fs::read_dir(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?
     {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;

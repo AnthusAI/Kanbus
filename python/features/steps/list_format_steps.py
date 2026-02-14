@@ -12,39 +12,39 @@ from features.steps.shared import (
     read_issue_file,
     write_issue_file,
 )
-from taskulus.config_loader import load_project_configuration
-from taskulus.issue_line import compute_widths, format_issue_line
-from taskulus.project import get_configuration_path
+from kanbus.config_loader import load_project_configuration
+from kanbus.issue_line import compute_widths, format_issue_line
+from kanbus.project import get_configuration_path
 
 
 @given("issues for list color coverage exist")
 def given_issues_for_list_color_coverage(context: object) -> None:
     project_dir = load_project_directory(context)
     issues = [
-        build_issue("tsk-line-epic", "Epic", "epic", "open", None, []),
+        build_issue("kanbus-line-epic", "Epic", "epic", "open", None, []),
         build_issue(
-            "tsk-line-task", "Task", "task", "in_progress", "tsk-line-epic", []
+            "kanbus-line-task", "Task", "task", "in_progress", "kanbus-line-epic", []
         ),
-        build_issue("tsk-line-bug", "Bug", "bug", "blocked", None, []),
-        build_issue("tsk-line-story", "Story", "story", "closed", None, []),
-        build_issue("tsk-line-chore", "Chore", "chore", "deferred", None, []),
+        build_issue("kanbus-line-bug", "Bug", "bug", "blocked", None, []),
+        build_issue("kanbus-line-story", "Story", "story", "closed", None, []),
+        build_issue("kanbus-line-chore", "Chore", "chore", "deferred", None, []),
         build_issue(
-            "tsk-line-initiative", "Initiative", "initiative", "unknown", None, []
+            "kanbus-line-initiative", "Initiative", "initiative", "unknown", None, []
         ),
-        build_issue("tsk-line-sub", "Sub", "sub-task", "open", "tsk-line-epic", []),
-        build_issue("tsk-line-event", "Event", "event", "open", None, []),
-        build_issue("tsk-line-unknown", "Unknown", "mystery", "open", None, []),
+        build_issue("kanbus-line-sub", "Sub", "sub-task", "open", "kanbus-line-epic", []),
+        build_issue("kanbus-line-event", "Event", "event", "open", None, []),
+        build_issue("kanbus-line-unknown", "Unknown", "mystery", "open", None, []),
     ]
     updates = {
-        "tsk-line-epic": {"priority": 0},
-        "tsk-line-task": {"priority": 1},
-        "tsk-line-bug": {"priority": 2},
-        "tsk-line-story": {"priority": 3},
-        "tsk-line-chore": {"priority": 4},
-        "tsk-line-initiative": {"priority": 9},
-        "tsk-line-sub": {"priority": 2},
-        "tsk-line-event": {"priority": 2},
-        "tsk-line-unknown": {"priority": 2},
+        "kanbus-line-epic": {"priority": 0},
+        "kanbus-line-task": {"priority": 1},
+        "kanbus-line-bug": {"priority": 2},
+        "kanbus-line-story": {"priority": 3},
+        "kanbus-line-chore": {"priority": 4},
+        "kanbus-line-initiative": {"priority": 9},
+        "kanbus-line-sub": {"priority": 2},
+        "kanbus-line-event": {"priority": 2},
+        "kanbus-line-unknown": {"priority": 2},
     }
     identifiers = []
     for issue in issues:

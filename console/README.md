@@ -1,6 +1,6 @@
-# Taskulus Console
+# Kanbus Console
 
-A Vite + React + Node console for viewing Taskulus issues as a realtime kanban board.
+A Vite + React + Node console for viewing Kanbus issues as a realtime kanban board.
 
 ## Requirements
 
@@ -21,7 +21,7 @@ npm run dev
 
 ## Data Sources
 
-The server executes `tsk console snapshot` from the repo root to read:
+The server executes `kanbus console snapshot` from the repo root to read:
 
 - `project/config.yaml`
 - `project/issues/*.json`
@@ -62,7 +62,7 @@ The Settings panel controls:
 - Motion: full, reduced, or off
 - Typeface: sans, serif, mono
 
-Settings are stored in local storage under `taskulus.console.appearance`.
+Settings are stored in local storage under `kanbus.console.appearance`.
 
 ## Notes
 

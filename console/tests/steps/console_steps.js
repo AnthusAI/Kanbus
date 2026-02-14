@@ -94,7 +94,7 @@ When("a new task issue named {string} is added", async function (title) {
   if (!projectRoot) {
     throw new Error("CONSOLE_PROJECT_ROOT is required for SSE tests");
   }
-  const issueId = "tsk-task-2";
+  const issueId = "kanbus-task-2";
   const issue = {
     id: issueId,
     title,
@@ -123,7 +123,7 @@ Given(
       throw new Error("CONSOLE_PROJECT_ROOT is required for SSE tests");
     }
     const repoRoot = path.dirname(projectRoot);
-    const overridePath = path.join(repoRoot, ".taskulus.override.yml");
+    const overridePath = path.join(repoRoot, ".kanbus.override.yml");
     const contents = yaml.dump({ time_zone: timeZone }, { sortKeys: false });
     await writeFile(overridePath, contents);
     this.overridePath = overridePath;
@@ -256,28 +256,28 @@ When("I set motion to {string}", async function (motion) {
 });
 
 Then("the theme should be {string}", async function (theme) {
-  const stored = await this.page.evaluate(() => window.localStorage.getItem("taskulus.console.appearance"));
+  const stored = await this.page.evaluate(() => window.localStorage.getItem("kanbus.console.appearance"));
   expect(stored).not.toBeNull();
   const parsed = JSON.parse(stored);
   expect(parsed.theme).toBe(theme);
 });
 
 Then("the mode should be {string}", async function (mode) {
-  const stored = await this.page.evaluate(() => window.localStorage.getItem("taskulus.console.appearance"));
+  const stored = await this.page.evaluate(() => window.localStorage.getItem("kanbus.console.appearance"));
   expect(stored).not.toBeNull();
   const parsed = JSON.parse(stored);
   expect(parsed.mode).toBe(mode);
 });
 
 Then("the typeface should be {string}", async function (font) {
-  const stored = await this.page.evaluate(() => window.localStorage.getItem("taskulus.console.appearance"));
+  const stored = await this.page.evaluate(() => window.localStorage.getItem("kanbus.console.appearance"));
   expect(stored).not.toBeNull();
   const parsed = JSON.parse(stored);
   expect(parsed.font).toBe(font);
 });
 
 Then("the motion mode should be {string}", async function (motion) {
-  const stored = await this.page.evaluate(() => window.localStorage.getItem("taskulus.console.appearance"));
+  const stored = await this.page.evaluate(() => window.localStorage.getItem("kanbus.console.appearance"));
   expect(stored).not.toBeNull();
   const parsed = JSON.parse(stored);
   expect(parsed.motion).toBe(motion);

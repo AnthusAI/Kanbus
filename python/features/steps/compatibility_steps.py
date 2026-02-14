@@ -11,8 +11,8 @@ import yaml
 from behave import given, then, when
 
 from features.steps.shared import ensure_git_repository, run_cli
-from taskulus.beads_write import set_test_beads_slug_sequence
-from taskulus.config import DEFAULT_CONFIGURATION
+from kanbus.beads_write import set_test_beads_slug_sequence
+from kanbus.config import DEFAULT_CONFIGURATION
 
 
 def _fixture_beads_dir() -> Path:
@@ -25,7 +25,7 @@ def _fixture_beads_dir() -> Path:
     )
 
 
-@given("a Taskulus project with beads compatibility enabled")
+@given("a Kanbus project with beads compatibility enabled")
 def given_project_with_beads_compatibility(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
@@ -34,7 +34,7 @@ def given_project_with_beads_compatibility(context: object) -> None:
     shutil.copytree(_fixture_beads_dir(), target_beads)
     payload = copy.deepcopy(DEFAULT_CONFIGURATION)
     payload["beads_compatibility"] = True
-    (repository_path / ".taskulus.yml").write_text(
+    (repository_path / ".kanbus.yml").write_text(
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",
     )
@@ -43,34 +43,34 @@ def given_project_with_beads_compatibility(context: object) -> None:
     context.working_directory = repository_path
 
 
-@when('I run "tsk --beads list"')
+@when('I run "kanbus --beads list"')
 def when_run_list_beads(context: object) -> None:
-    run_cli(context, "tsk --beads list")
+    run_cli(context, "kanbus --beads list")
 
 
-@when('I run "tsk --beads list --no-local"')
+@when('I run "kanbus --beads list --no-local"')
 def when_run_list_beads_no_local(context: object) -> None:
-    run_cli(context, "tsk --beads list --no-local")
+    run_cli(context, "kanbus --beads list --no-local")
 
 
-@when('I run "tsk --beads ready"')
+@when('I run "kanbus --beads ready"')
 def when_run_ready_beads(context: object) -> None:
-    run_cli(context, "tsk --beads ready")
+    run_cli(context, "kanbus --beads ready")
 
 
-@when('I run "tsk --beads ready --no-local"')
+@when('I run "kanbus --beads ready --no-local"')
 def when_run_ready_beads_no_local(context: object) -> None:
-    run_cli(context, "tsk --beads ready --no-local")
+    run_cli(context, "kanbus --beads ready --no-local")
 
 
-@when('I run "tsk --beads show {identifier}"')
+@when('I run "kanbus --beads show {identifier}"')
 def when_run_show_beads(context: object, identifier: str) -> None:
-    run_cli(context, f"tsk --beads show {identifier}")
+    run_cli(context, f"kanbus --beads show {identifier}")
 
 
-@when('I run "tsk --beads create New beads child --parent bdx-epic"')
+@when('I run "kanbus --beads create New beads child --parent bdx-epic"')
 def when_run_create_beads_child(context: object) -> None:
-    run_cli(context, "tsk --beads create New beads child --parent bdx-epic")
+    run_cli(context, "kanbus --beads create New beads child --parent bdx-epic")
 
 
 @then('beads issues.jsonl should contain "{identifier}"')
@@ -80,82 +80,82 @@ def then_beads_jsonl_contains(context: object, identifier: str) -> None:
     assert identifier in contents
 
 
-@when('I run "tsk --beads create Local beads issue --local"')
+@when('I run "kanbus --beads create Local beads issue --local"')
 def when_run_create_beads_local(context: object) -> None:
-    run_cli(context, "tsk --beads create Local beads issue --local")
+    run_cli(context, "kanbus --beads create Local beads issue --local")
 
 
-@when('I run "tsk --beads create Missing beads issue"')
+@when('I run "kanbus --beads create Missing beads issue"')
 def when_run_create_beads_missing(context: object) -> None:
-    run_cli(context, "tsk --beads create Missing beads issue")
+    run_cli(context, "kanbus --beads create Missing beads issue")
 
 
-@when('I run "tsk --beads create Missing issues file"')
+@when('I run "kanbus --beads create Missing issues file"')
 def when_run_create_beads_missing_issues(context: object) -> None:
-    run_cli(context, "tsk --beads create Missing issues file")
+    run_cli(context, "kanbus --beads create Missing issues file")
 
 
-@when('I run "tsk --beads create Empty beads file"')
+@when('I run "kanbus --beads create Empty beads file"')
 def when_run_create_beads_empty(context: object) -> None:
-    run_cli(context, "tsk --beads create Empty beads file")
+    run_cli(context, "kanbus --beads create Empty beads file")
 
 
-@when('I run "tsk --beads create Orphan beads issue --parent bdx-missing"')
+@when('I run "kanbus --beads create Orphan beads issue --parent bdx-missing"')
 def when_run_create_beads_orphan(context: object) -> None:
-    run_cli(context, "tsk --beads create Orphan beads issue --parent bdx-missing")
+    run_cli(context, "kanbus --beads create Orphan beads issue --parent bdx-missing")
 
 
-@when('I run "tsk --beads create Assigned beads issue --assignee dev@example.com"')
+@when('I run "kanbus --beads create Assigned beads issue --assignee dev@example.com"')
 def when_run_create_beads_assigned(context: object) -> None:
     run_cli(
         context,
-        "tsk --beads create Assigned beads issue --assignee dev@example.com",
+        "kanbus --beads create Assigned beads issue --assignee dev@example.com",
     )
 
 
-@when('I run "tsk --beads create Described beads issue --description Details"')
+@when('I run "kanbus --beads create Described beads issue --description Details"')
 def when_run_create_beads_description(context: object) -> None:
-    run_cli(context, "tsk --beads create Described beads issue --description Details")
+    run_cli(context, "kanbus --beads create Described beads issue --description Details")
 
 
-@when('I run "tsk --beads create Beads with blanks"')
+@when('I run "kanbus --beads create Beads with blanks"')
 def when_run_create_beads_blank(context: object) -> None:
-    run_cli(context, "tsk --beads create Beads with blanks")
+    run_cli(context, "kanbus --beads create Beads with blanks")
 
 
-@when('I run "tsk --beads create Invalid prefix"')
+@when('I run "kanbus --beads create Invalid prefix"')
 def when_run_create_beads_invalid_prefix(context: object) -> None:
-    run_cli(context, "tsk --beads create Invalid prefix")
+    run_cli(context, "kanbus --beads create Invalid prefix")
 
 
-@when('I run "tsk --beads create Colliding beads issue"')
+@when('I run "kanbus --beads create Colliding beads issue"')
 def when_run_create_beads_collision(context: object) -> None:
-    run_cli(context, "tsk --beads create Colliding beads issue")
+    run_cli(context, "kanbus --beads create Colliding beads issue")
 
 
-@when('I run "tsk --beads create Next child --parent bdx-epic"')
+@when('I run "kanbus --beads create Next child --parent bdx-epic"')
 def when_run_create_beads_next_child(context: object) -> None:
-    run_cli(context, "tsk --beads create Next child --parent bdx-epic")
+    run_cli(context, "kanbus --beads create Next child --parent bdx-epic")
 
 
-@when('I run "tsk --beads update bdx-missing --status closed"')
+@when('I run "kanbus --beads update bdx-missing --status closed"')
 def when_run_update_beads_missing(context: object) -> None:
-    run_cli(context, "tsk --beads update bdx-missing --status closed")
+    run_cli(context, "kanbus --beads update bdx-missing --status closed")
 
 
-@when('I run "tsk --beads update bdx-epic --status closed"')
+@when('I run "kanbus --beads update bdx-epic --status closed"')
 def when_run_update_beads_success(context: object) -> None:
-    run_cli(context, "tsk --beads update bdx-epic --status closed")
+    run_cli(context, "kanbus --beads update bdx-epic --status closed")
 
 
-@when('I run "tsk --beads delete bdx-missing"')
+@when('I run "kanbus --beads delete bdx-missing"')
 def when_run_delete_beads_missing(context: object) -> None:
-    run_cli(context, "tsk --beads delete bdx-missing")
+    run_cli(context, "kanbus --beads delete bdx-missing")
 
 
-@when('I run "tsk --beads delete bdx-task"')
+@when('I run "kanbus --beads delete bdx-task"')
 def when_run_delete_beads_success(context: object) -> None:
-    run_cli(context, "tsk --beads delete bdx-task")
+    run_cli(context, "kanbus --beads delete bdx-task")
 
 
 @then('beads issues.jsonl should include assignee "{assignee}"')

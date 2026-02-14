@@ -1,0 +1,18 @@
+{
+  "id": "kanbus-subtask-1",
+  "title": "Wire logger middleware",
+  "description": "Hook logger into request pipeline",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 3,
+  "assignee": "dev@example.com",
+  "creator": "System",
+  "parent": "kanbus-task-1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-11T04:00:00.000Z",
+  "updated_at": "2026-02-11T04:00:00.000Z",
+  "closed_at": null,
+  "custom": {}
+}

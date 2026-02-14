@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from behave import given, then, when
 
-from taskulus.ids import format_issue_key
+from kanbus.ids import format_issue_key
 
 
 @given('an issue identifier "{identifier}"')

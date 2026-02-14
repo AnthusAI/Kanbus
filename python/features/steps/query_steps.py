@@ -16,8 +16,8 @@ from features.steps.shared import (
     write_issue_file,
 )
 from features.steps.shared import initialize_default_project
-from taskulus.cli import list_command
-from taskulus.issue_listing import _list_issues_with_local
+from kanbus.cli import list_command
+from kanbus.issue_listing import _list_issues_with_local
 
 
 @given('issues "{first}" and "{second}" exist')
@@ -81,7 +81,7 @@ def given_issue_has_parent(context: object, identifier: str, parent: str) -> Non
     write_issue_file(project_dir, issue)
 
 
-@given("a Taskulus repository with an unreadable project directory")
+@given("a Kanbus repository with an unreadable project directory")
 def given_repo_with_unreadable_project_directory(context: object) -> None:
     initialize_default_project(context)
     project_dir = load_project_directory(context)
@@ -118,19 +118,19 @@ def given_issue_with_full_metadata(
     write_issue_file(project_dir, issue)
 
 
-@when('I run "tsk --help"')
+@when('I run "kanbus --help"')
 def when_run_help(context: object) -> None:
-    run_cli(context, "tsk --help")
+    run_cli(context, "kanbus --help")
 
 
-@when('I run "tsk --unknown"')
+@when('I run "kanbus --unknown"')
 def when_run_unknown(context: object) -> None:
-    run_cli(context, "tsk --unknown")
+    run_cli(context, "kanbus --unknown")
 
 
-@when('I run "tsk console snapshot"')
+@when('I run "kanbus console snapshot"')
 def when_run_console_snapshot(context: object) -> None:
-    run_cli(context, "tsk console snapshot")
+    run_cli(context, "kanbus console snapshot")
 
 
 @when("I list issues directly after configuration path lookup fails")
@@ -141,7 +141,7 @@ def when_list_issues_directly_after_configuration_failure(context: object) -> No
     previous = Path.cwd()
     try:
         os.chdir(working_directory)
-        from taskulus.config_loader import ConfigurationError
+        from kanbus.config_loader import ConfigurationError
 
         click_context = click.Context(list_command)
         click_context.obj = {"beads_mode": False, "beads_mode_forced": False}
@@ -214,69 +214,69 @@ def given_issue_has_description(
     write_issue_file(project_dir, issue)
 
 
-@when('I run "tsk list --status open"')
+@when('I run "kanbus list --status open"')
 def when_run_list_status(context: object) -> None:
-    run_cli(context, "tsk list --status open")
+    run_cli(context, "kanbus list --status open")
 
 
-@when('I run "tsk list --type task"')
+@when('I run "kanbus list --type task"')
 def when_run_list_type(context: object) -> None:
-    run_cli(context, "tsk list --type task")
+    run_cli(context, "kanbus list --type task")
 
 
-@when('I run "tsk list --assignee dev@example.com"')
+@when('I run "kanbus list --assignee dev@example.com"')
 def when_run_list_assignee(context: object) -> None:
-    run_cli(context, "tsk list --assignee dev@example.com")
+    run_cli(context, "kanbus list --assignee dev@example.com")
 
 
-@when('I run "tsk list --label auth"')
+@when('I run "kanbus list --label auth"')
 def when_run_list_label(context: object) -> None:
-    run_cli(context, "tsk list --label auth")
+    run_cli(context, "kanbus list --label auth")
 
 
-@when('I run "tsk list --sort priority"')
+@when('I run "kanbus list --sort priority"')
 def when_run_list_sort(context: object) -> None:
-    run_cli(context, "tsk list --sort priority")
+    run_cli(context, "kanbus list --sort priority")
 
 
-@when('I run "tsk list --search login"')
+@when('I run "kanbus list --search login"')
 def when_run_list_search(context: object) -> None:
-    run_cli(context, "tsk list --search login")
+    run_cli(context, "kanbus list --search login")
 
 
-@when('I run "tsk list --search Searchable"')
+@when('I run "kanbus list --search Searchable"')
 def when_run_list_search_comment(context: object) -> None:
-    run_cli(context, "tsk list --search Searchable")
+    run_cli(context, "kanbus list --search Searchable")
 
 
-@when('I run "tsk list --search Dup"')
+@when('I run "kanbus list --search Dup"')
 def when_run_list_search_dup(context: object) -> None:
-    run_cli(context, "tsk list --search Dup")
+    run_cli(context, "kanbus list --search Dup")
 
 
-@when('I run "tsk list --sort invalid"')
+@when('I run "kanbus list --sort invalid"')
 def when_run_list_invalid_sort(context: object) -> None:
-    run_cli(context, "tsk list --sort invalid")
+    run_cli(context, "kanbus list --sort invalid")
 
 
-@when('I run "tsk list --no-local"')
+@when('I run "kanbus list --no-local"')
 def when_run_list_no_local(context: object) -> None:
-    run_cli(context, "tsk list --no-local")
+    run_cli(context, "kanbus list --no-local")
 
 
-@when('I run "tsk list --local-only"')
+@when('I run "kanbus list --local-only"')
 def when_run_list_local_only(context: object) -> None:
-    run_cli(context, "tsk list --local-only")
+    run_cli(context, "kanbus list --local-only")
 
 
-@when('I run "tsk list --local-only --no-local"')
+@when('I run "kanbus list --local-only --no-local"')
 def when_run_list_local_conflict(context: object) -> None:
-    run_cli(context, "tsk list --local-only --no-local")
+    run_cli(context, "kanbus list --local-only --no-local")
 
 
 @given("the daemon list request will fail")
 def given_daemon_list_request_fails(context: object) -> None:
-    import taskulus.issue_listing as issue_listing
+    import kanbus.issue_listing as issue_listing
 
     context.original_request_index_list = issue_listing.request_index_list
 
@@ -288,7 +288,7 @@ def given_daemon_list_request_fails(context: object) -> None:
 
 @given("local listing will fail")
 def given_local_listing_fails(context: object) -> None:
-    import taskulus.issue_listing as issue_listing
+    import kanbus.issue_listing as issue_listing
 
     project_dir = load_project_directory(context)
     (project_dir.parent / "project-local" / "issues").mkdir(parents=True, exist_ok=True)
@@ -326,9 +326,9 @@ def then_shared_only_not_contains(context: object, identifier: str) -> None:
     assert not any(issue.identifier == identifier for issue in issues)
 
 
-@when('I run "tsk list --porcelain"')
+@when('I run "kanbus list --porcelain"')
 def when_run_list_porcelain(context: object) -> None:
-    run_cli(context, "tsk list --porcelain")
+    run_cli(context, "kanbus list --porcelain")
 
 
 @then('stdout should contain the line "{expected}"')

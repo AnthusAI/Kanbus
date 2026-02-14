@@ -1,6 +1,6 @@
 # Migration from Beads
 
-Taskulus includes a migration path from Beads (JSONL format) to the Taskulus JSON-per-issue format. This guide explains the intended workflow and the field mapping.
+Kanbus includes a migration path from Beads (JSONL format) to the Kanbus JSON-per-issue format. This guide explains the intended workflow and the field mapping.
 
 ## Summary
 
@@ -12,20 +12,20 @@ Taskulus includes a migration path from Beads (JSONL format) to the Taskulus JSO
 ## Planned workflow
 
 1. Export or locate your Beads JSONL data file.
-2. Run the Taskulus migration command (to be provided in Epic 14).
+2. Run the Kanbus migration command (to be provided in Epic 14).
 3. Review the migration report for errors and warnings.
-4. Validate the resulting project with `tsk validate`.
+4. Validate the resulting project with `kanbus validate`.
 
 ## Field mapping
 
-The following table describes the intended mapping between Beads and Taskulus fields.
+The following table describes the intended mapping between Beads and Kanbus fields.
 
-| Beads field | Taskulus field | Notes |
+| Beads field | Kanbus field | Notes |
 |-------------|----------------|-------|
 | id | id | Preserved when possible; otherwise regenerated with prefix |
 | title | title | Required |
 | body | description | Markdown preserved |
-| type | type | Must exist in Taskulus config |
+| type | type | Must exist in Kanbus config |
 | status | status | Must be valid for the workflow |
 | priority | priority | Converted to numeric priority |
 | owner | assignee | String identifier |
@@ -33,7 +33,7 @@ The following table describes the intended mapping between Beads and Taskulus fi
 | parent | parent | Validated against hierarchy |
 | tags | labels | Free-form labels |
 | dependencies | dependencies | Converted to outbound links |
-| comments | comments | Converted to Taskulus comment list |
+| comments | comments | Converted to Kanbus comment list |
 | created_at | created_at | RFC3339 UTC |
 | updated_at | updated_at | RFC3339 UTC |
 | closed_at | closed_at | RFC3339 UTC or null |
@@ -44,11 +44,11 @@ The following table describes the intended mapping between Beads and Taskulus fi
 - Issues referencing missing parents or dependencies are rejected.
 - Status values must exist in the configured workflow.
 - Hierarchy violations must be corrected before import.
-- If a Beads issue type does not exist in the Taskulus config, update the config first.
+- If a Beads issue type does not exist in the Kanbus config, update the config first.
 
 ## After migration
 
-- Run `tsk validate` to check integrity.
+- Run `kanbus validate` to check integrity.
 - Review a sample of migrated issues in `project/issues/`.
 - Commit the migrated files to git.
 

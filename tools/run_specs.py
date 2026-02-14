@@ -106,7 +106,7 @@ def _run_python_specs() -> tuple[bool, CoverageResult | None, CommandResult]:
         "coverage",
         "run",
         "--source",
-        "taskulus",
+        "kanbus",
         "-m",
         "behave",
     ]
@@ -225,7 +225,7 @@ def _summarize_text(summary: SpecRunSummary) -> None:
         rust_coverage = f"{summary.rust_coverage.percentage:.1f}%"
     rust_coverage_status = "passed" if summary.rust_coverage_ok else "failed"
 
-    print("Taskulus spec summary")
+    print("Kanbus spec summary")
     print(f"Python specs: {python_status}")
     print(f"Python coverage: {python_coverage}")
     if summary.python_error:
@@ -239,14 +239,14 @@ def _summarize_text(summary: SpecRunSummary) -> None:
 
 
 def main(argv: list[str]) -> int:
-    """Run the Taskulus spec suite for Python and Rust.
+    """Run the Kanbus spec suite for Python and Rust.
 
     :param argv: Command-line arguments.
     :type argv: list[str]
     :return: Exit code.
     :rtype: int
     """
-    parser = argparse.ArgumentParser(description="Run Taskulus spec suites")
+    parser = argparse.ArgumentParser(description="Run Kanbus spec suites")
     parser.add_argument(
         "--skip-rust-coverage",
         action="store_true",

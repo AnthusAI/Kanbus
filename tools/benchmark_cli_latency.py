@@ -22,7 +22,7 @@ TOOLS_DIR = ROOT / "tools"
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from taskulus.project import discover_project_directories
+from kanbus.project import discover_project_directories
 from benchmark_discovery_fixtures import FixturePlan, generate_multi_project, generate_single_project
 
 
@@ -73,7 +73,7 @@ def _parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser.add_argument(
         "--rust-binary",
         type=Path,
-        default=ROOT / "rust" / "target" / "release" / "tskr",
+        default=ROOT / "rust" / "target" / "release" / "kanbusr",
         help="Path to the Rust CLI binary.",
     )
     return parser.parse_args(list(argv))
@@ -99,7 +99,7 @@ def _write_dotfile(root: Path) -> None:
             lines.append(str(project_dir.relative_to(root)))
         except ValueError:
             lines.append(str(project_dir))
-    (root / ".taskulus").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (root / ".kanbus").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _run_timed_command(command: list[str], cwd: Path, env: dict[str, str]) -> float:
@@ -154,10 +154,10 @@ def main(argv: Iterable[str]) -> int:
     _ensure_rust_binary(args.rust_binary)
 
     env = os.environ.copy()
-    env.setdefault("TASKULUS_NO_DAEMON", "1")
+    env.setdefault("KANBUS_NO_DAEMON", "1")
     env.setdefault("PYTHONPATH", str(PYTHON_SRC))
 
-    python_base = [args.python_executable, "-m", "taskulus.cli"]
+    python_base = [args.python_executable, "-m", "kanbus.cli"]
     rust_base = [str(args.rust_binary)]
 
     python_single_list = _measure_cli(python_base + ["list"], single_root, env, args.iterations)

@@ -3,7 +3,7 @@ Utility to provision Beads-based test workspaces under tmp/ for development.
 
 It creates:
   tmp/beads_way      -> pristine clone of the Beads repository (JSONL)
-  tmp/taskulus_way   -> copy of that clone, migrated to Taskulus JSON files
+  tmp/kanbus_way   -> copy of that clone, migrated to Kanbus JSON files
 
 Usage:
   python tools/setup_beads_test_projects.py \
@@ -32,10 +32,10 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def migrate_taskulus(target: Path) -> None:
+def migrate_kanbus(target: Path) -> None:
     python_src = repo_root() / "python" / "src"
     sys.path.insert(0, str(python_src))
-    from taskulus.migration import migrate_from_beads  # type: ignore
+    from kanbus.migration import migrate_from_beads  # type: ignore
 
     migrate_from_beads(target)
 
@@ -64,7 +64,7 @@ def force_no_db(beads_dir: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Set up Beads and Taskulus test projects under tmp/."
+        description="Set up Beads and Kanbus test projects under tmp/."
     )
     parser.add_argument(
         "--source",
@@ -83,9 +83,9 @@ def main() -> None:
     tmp_dir.mkdir(exist_ok=True)
 
     beads_way = tmp_dir / "beads_way"
-    taskulus_way = tmp_dir / "taskulus_way"
+    kanbus_way = tmp_dir / "kanbus_way"
 
-    for path in (beads_way, taskulus_way):
+    for path in (beads_way, kanbus_way):
         if path.exists():
             shutil.rmtree(path)
 
@@ -98,12 +98,12 @@ def main() -> None:
     ensure_issues_jsonl(beads_way / ".beads")
     force_no_db(beads_way / ".beads")
 
-    shutil.copytree(beads_way, taskulus_way)
+    shutil.copytree(beads_way, kanbus_way)
 
-    migrate_taskulus(taskulus_way)
+    migrate_kanbus(kanbus_way)
 
     print(f"Beads clone:      {beads_way}")
-    print(f"Taskulus project: {taskulus_way}")
+    print(f"Kanbus project: {kanbus_way}")
 
 
 if __name__ == "__main__":

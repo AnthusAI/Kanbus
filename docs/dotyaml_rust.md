@@ -3,10 +3,10 @@
 ## Goals
 - Mirror Python `dotyaml` semantics: dotenv preload, env interpolation, flatten to env vars with prefix, optional override of existing env.
 - Zero fallback logic: one YAML path, explicit options for dotenv path and override.
-- Pure Rust crate suitable for reuse by Taskulus and other projects; publish on crates.io.
+- Pure Rust crate suitable for reuse by Kanbus and other projects; publish on crates.io.
 
 ## Proposed crate metadata
-- Name: `dotyaml` (if available) or `taskulus-dotyaml` (fallback)
+- Name: `dotyaml` (if available) or `kanbus-dotyaml` (fallback)
 - Edition: 2021
 - Dependencies: `serde_yaml`, `serde`, `serde_json` (for value handling), `dotenvy` (dotenv load), `thiserror`, `indexmap` (order preservation), `once_cell` (optional), `path-absolutize` (for resolved paths)
 - License: MIT OR Apache-2.0
@@ -16,7 +16,7 @@
 ```rust
 /// Options controlling how YAML is loaded and exported to the environment.
 pub struct DotYamlOptions {
-    pub prefix: String,            // e.g., "TASKULUS_"; required, non-empty
+    pub prefix: String,            // e.g., "KANBUS_"; required, non-empty
     pub yaml_path: PathBuf,        // required; one file only
     pub dotenv_path: Option<PathBuf>, // default Some(Path::new(".env"))
     pub load_dotenv: bool,         // default true
@@ -51,10 +51,10 @@ pub fn load(options: &DotYamlOptions) -> Result<serde_yaml::Value, DotYamlError>
 - Flattening edge cases: nested objects, arrays, booleans, nulls.
 - No-fallback guarantee: ensure only the specified file is ever read.
 
-### Integration notes for Taskulus (Rust)
-- Taskulus will call `load_and_export` early in CLI startup with prefix `TASKULUS_` and `yaml_path` from `--config` (default `taskulus.yml`).
+### Integration notes for Kanbus (Rust)
+- Kanbus will call `load_and_export` early in CLI startup with prefix `KANBUS_` and `yaml_path` from `--config` (default `kanbus.yml`).
 - Configuration loader will read from env (already set by dotyaml) and deserialize into `ProjectConfiguration` without additional fallbacks.
-- Be explicit in errors: e.g., "taskulus.yml not found" or interpolation failures.
+- Be explicit in errors: e.g., "kanbus.yml not found" or interpolation failures.
 
 ## Open decisions
 - Final crate name depending on crates.io availability.

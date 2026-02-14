@@ -6,7 +6,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::error::TaskulusError;
+use crate::error::KanbusError;
 use crate::file_io::load_project_directory;
 use crate::issue_files::read_issue_from_file;
 use crate::models::{DependencyLink, IssueData};
@@ -32,18 +32,18 @@ pub struct DependencyTreeNode {
 /// * `max_depth` - Optional maximum traversal depth.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if tree building fails.
+/// Returns `KanbusError::IssueOperation` if tree building fails.
 pub fn build_dependency_tree(
     root: &Path,
     identifier: &str,
     max_depth: Option<usize>,
-) -> Result<DependencyTreeNode, TaskulusError> {
+) -> Result<DependencyTreeNode, KanbusError> {
     let project_dir = load_project_directory(root)?;
     let issues_dir = project_dir.join("issues");
     let issues = load_issues(&issues_dir)?;
     let issue = issues
         .get(identifier)
-        .ok_or_else(|| TaskulusError::IssueOperation("not found".to_string()))?;
+        .ok_or_else(|| KanbusError::IssueOperation("not found".to_string()))?;
 
     build_node(issue, &issues, max_depth, 0, &mut HashSet::new(), None)
 }
@@ -56,26 +56,26 @@ pub fn build_dependency_tree(
 /// * `max_nodes` - Maximum nodes to render for text output.
 ///
 /// # Errors
-/// Returns `TaskulusError::IssueOperation` if format is unsupported.
+/// Returns `KanbusError::IssueOperation` if format is unsupported.
 pub fn render_dependency_tree(
     node: &DependencyTreeNode,
     output_format: &str,
     max_nodes: Option<usize>,
-) -> Result<String, TaskulusError> {
+) -> Result<String, KanbusError> {
     match output_format {
         "json" => {
-            serde_json::to_string_pretty(node).map_err(|error| TaskulusError::Io(error.to_string()))
+            serde_json::to_string_pretty(node).map_err(|error| KanbusError::Io(error.to_string()))
         }
         "dot" => Ok(render_dot(node)),
         "text" => Ok(render_ascii(node, max_nodes.unwrap_or(MAX_TREE_NODES))),
-        _ => Err(TaskulusError::IssueOperation("invalid format".to_string())),
+        _ => Err(KanbusError::IssueOperation("invalid format".to_string())),
     }
 }
 
-fn load_issues(issues_dir: &Path) -> Result<BTreeMap<String, IssueData>, TaskulusError> {
+fn load_issues(issues_dir: &Path) -> Result<BTreeMap<String, IssueData>, KanbusError> {
     let mut issues: BTreeMap<String, IssueData> = BTreeMap::new();
-    for entry in fs::read_dir(issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))? {
-        let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
+    for entry in fs::read_dir(issues_dir).map_err(|error| KanbusError::Io(error.to_string()))? {
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
@@ -93,7 +93,7 @@ fn build_node(
     depth: usize,
     visited: &mut HashSet<String>,
     dependency_type: Option<String>,
-) -> Result<DependencyTreeNode, TaskulusError> {
+) -> Result<DependencyTreeNode, KanbusError> {
     if visited.contains(&issue.identifier) {
         return Ok(DependencyTreeNode {
             identifier: issue.identifier.clone(),
@@ -131,9 +131,9 @@ fn build_dependency(
     max_depth: Option<usize>,
     depth: usize,
     visited: &mut HashSet<String>,
-) -> Result<DependencyTreeNode, TaskulusError> {
+) -> Result<DependencyTreeNode, KanbusError> {
     let issue = issues.get(&dependency.target).ok_or_else(|| {
-        TaskulusError::IssueOperation(format!(
+        KanbusError::IssueOperation(format!(
             "dependency target '{}' does not exist",
             dependency.target
         ))

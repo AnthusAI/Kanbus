@@ -1,6 +1,6 @@
 @console
 Feature: Console comment timestamps
-  As a Taskulus user
+  As a Kanbus user
   I want comment timestamps to use the configured time zone
   So that updates are easy to read
 

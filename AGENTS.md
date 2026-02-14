@@ -1,11 +1,11 @@
-## Project management with Taskulus
+## Project management with Kanbus
 
-Use Taskulus for task management.
-Why: Taskulus task management is MANDATORY here; every task must live in Taskulus.
-When: Create/update the Taskulus task before coding; close it only after the change lands.
-How: See CONTRIBUTING_AGENT.md for the Taskulus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Taskulus commands only.
-Performance: Prefer tskr (Rust) when available; tsk (Python) is equivalent but slower.
-Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Taskulus.
+Use Kanbus for task management.
+Why: Kanbus task management is MANDATORY here; every task must live in Kanbus.
+When: Create/update the Kanbus task before coding; close it only after the change lands.
+How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.
+Performance: Prefer kanbusr (Rust) when available; kanbus (Python) is equivalent but slower.
+Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Kanbus.
 
 # CRITICAL PROJECT POLICY: NO EMOJIS
 
@@ -15,7 +15,7 @@ This applies to:
 - Code (comments, docstrings, error messages)
 - Documentation (README, guides, specs, wiki pages)
 - Git commit messages
-- Taskulus issue titles and descriptions
+- Kanbus issue titles and descriptions
 - CLI output
 - Test scenarios and step definitions
 
@@ -23,7 +23,7 @@ Use clear, professional text instead. Emojis reduce clarity and professionalism.
 
 ## CRITICAL: No Backward Compatibility or Fallback Logic
 
-**This is a strict, non-negotiable policy across the entire Taskulus project:**
+**This is a strict, non-negotiable policy across the entire Kanbus project:**
 
 - **NO backward compatibility code**: Never preserve old code paths when updating to a new approach
 - **NO fallback logic**: Never check multiple locations or try alternative approaches
@@ -63,7 +63,7 @@ try:
 except FileNotFoundError as error:
     raise ConfigurationError(
         "No config.yaml found in project/ directory. "
-        "Run 'tsk init' to initialize a new project."
+        "Run 'kanbus init' to initialize a new project."
     ) from error
 ```
 
@@ -102,7 +102,7 @@ except FileNotFoundError as error:
 
       :param request: Validated request containing title and existing IDs.
       :type request: IssueIdentifierRequest
-      :return: A unique ID string with format 'tsk-{6hex}'.
+      :return: A unique ID string with format 'kanbus-{6hex}'.
       :rtype: str
       :raises RuntimeError: If unable to generate unique ID after 10 attempts.
       """
@@ -164,13 +164,13 @@ except FileNotFoundError as error:
   /// * `request` - Validated request containing title and existing IDs
   ///
   /// # Returns
-  /// A unique ID string with format 'tsk-{6hex}'
+  /// A unique ID string with format 'kanbus-{6hex}'
   ///
   /// # Errors
-  /// Returns `TaskulusError::IdGenerationFailed` if unable to generate unique ID after 10 attempts
+  /// Returns `KanbusError::IdGenerationFailed` if unable to generate unique ID after 10 attempts
   pub fn generate_issue_identifier(
       request: &IssueIdentifierRequest,
-  ) -> Result<String, TaskulusError> {
+  ) -> Result<String, KanbusError> {
       // Implementation here
       todo!()
   }
