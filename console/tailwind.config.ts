@@ -13,6 +13,7 @@ const config: Config = {
         column: "var(--column)",
         foreground: "var(--text-foreground)",
         muted: "var(--text-muted)",
+        selected: "var(--text-selected)",
         border: "var(--border)"
       },
       fontFamily: {

@@ -74,7 +74,7 @@ export function IssueCard({
         </div>
       </div>
       <div className="grid gap-1 pt-2">
-        <h3 className="text-base font-medium text-foreground">{issue.title}</h3>
+        <h3 className={`text-base font-medium ${isSelected ? "text-selected" : "text-foreground"}`}>{issue.title}</h3>
         <div className="flex items-center justify-end text-xs text-muted">
           {issue.assignee ? <span>{issue.assignee}</span> : null}
         </div>

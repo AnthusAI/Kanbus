@@ -182,11 +182,11 @@ export function TaskDetailPanel({
                   </span>
                 </button>
               </div>
-                <h2 className="text-lg font-semibold text-foreground">
+                <h2 className="text-lg font-semibold text-selected">
                   {detailTask.title}
                 </h2>
                 {detailTask.description ? (
-                  <p className="text-sm text-foreground">{detailTask.description}</p>
+                  <p className="text-sm text-selected">{detailTask.description}</p>
                 ) : null}
               </div>
               {(formattedCreated || formattedUpdated || formattedClosed || detailTask.assignee) ? (

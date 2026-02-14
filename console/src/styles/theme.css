@@ -22,6 +22,7 @@
   --column: var(--gray-3);
   --text-foreground: var(--gray-11);
   --text-muted: var(--gray-10);
+  --text-selected: var(--gray-12);
 }
 
 html[data-font="sans"] {
@@ -45,6 +46,7 @@ html.theme-neutral {
   --column: var(--gray-3);
   --text-foreground: var(--gray-11);
   --text-muted: var(--gray-10);
+  --text-selected: var(--gray-12);
 }
 
 html.theme-cool {
@@ -56,6 +58,13 @@ html.theme-cool {
   --column: var(--blue-3);
   --text-foreground: var(--sky-11);
   --text-muted: var(--sky-10);
+  --text-selected: var(--sky-12);
+}
+
+html.light.theme-cool {
+  --text-foreground: var(--sky-12);
+  --text-muted: var(--sky-11);
+  --text-selected: var(--sky-12);
 }
 
 html.theme-warm {
@@ -67,4 +76,5 @@ html.theme-warm {
   --column: var(--sand-3);
   --text-foreground: var(--sand-11);
   --text-muted: var(--sand-10);
+  --text-selected: var(--sand-12);
 }
