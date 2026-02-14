@@ -10,6 +10,7 @@ use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
     DEFAULT_PROJECT_MANAGEMENT_TEMPLATE, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
 };
+use serde_json;
 use serde_yaml;
 
 fn should_force_canonicalize_failure() -> bool {
@@ -91,6 +92,7 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), Taskulu
             .map_err(|error| TaskulusError::Io(error.to_string()))?;
     }
     write_project_guard_files(&project_dir)?;
+    write_tool_block_files(root)?;
     if create_local {
         ensure_project_local_directory(&project_dir)?;
     }
@@ -136,6 +138,50 @@ fn write_project_guard_files(project_dir: &Path) -> Result<(), TaskulusError> {
         + "\n";
     std::fs::write(&do_not_edit, do_not_edit_content)
         .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    Ok(())
+}
+
+fn write_tool_block_files(root: &Path) -> Result<(), TaskulusError> {
+    let cursorignore = root.join(".cursorignore");
+    if !cursorignore.exists() {
+        std::fs::write(&cursorignore, "project/\n")
+            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    }
+
+    let claude_dir = root.join(".claude");
+    std::fs::create_dir_all(&claude_dir)
+        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let claude_settings = claude_dir.join("settings.json");
+    if !claude_settings.exists() {
+        let payload = serde_json::json!({
+            "permissions": {
+                "deny": [
+                    "Read(./project/**)",
+                    "Edit(./project/**)"
+                ]
+            }
+        });
+        let content =
+            serde_json::to_string_pretty(&payload).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        std::fs::write(&claude_settings, format!("{}\n", content))
+            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    }
+
+    let vscode_dir = root.join(".vscode");
+    std::fs::create_dir_all(&vscode_dir)
+        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let vscode_settings = vscode_dir.join("settings.json");
+    if !vscode_settings.exists() {
+        let payload = serde_json::json!({
+            "files.exclude": {"**/project/**": true},
+            "files.watcherExclude": {"**/project/**": true},
+            "search.exclude": {"**/project/**": true},
+        });
+        let content =
+            serde_json::to_string_pretty(&payload).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        std::fs::write(&vscode_settings, format!("{}\n", content))
+            .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    }
     Ok(())
 }
 

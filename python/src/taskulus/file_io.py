@@ -5,6 +5,7 @@ File system helpers for initialization.
 from __future__ import annotations
 
 import subprocess
+import json
 from pathlib import Path
 import yaml
 
@@ -62,6 +63,7 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
             encoding="utf-8",
         )
     _write_project_guard_files(project_dir)
+    _write_tool_block_files(root)
     template_path = root / DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME
     if not template_path.exists():
         template_path.write_text(
@@ -100,3 +102,46 @@ def _write_project_guard_files(project_dir: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
+
+
+def _write_tool_block_files(root: Path) -> None:
+    cursorignore = root / ".cursorignore"
+    if not cursorignore.exists():
+        cursorignore.write_text("project/\n", encoding="utf-8")
+
+    claude_dir = root / ".claude"
+    claude_dir.mkdir(parents=True, exist_ok=True)
+    claude_settings = claude_dir / "settings.json"
+    if not claude_settings.exists():
+        claude_settings.write_text(
+            json.dumps(
+                {
+                    "permissions": {
+                        "deny": [
+                            "Read(./project/**)",
+                            "Edit(./project/**)",
+                        ]
+                    }
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    vscode_dir = root / ".vscode"
+    vscode_dir.mkdir(parents=True, exist_ok=True)
+    vscode_settings = vscode_dir / "settings.json"
+    if not vscode_settings.exists():
+        vscode_settings.write_text(
+            json.dumps(
+                {
+                    "files.exclude": {"**/project/**": True},
+                    "files.watcherExclude": {"**/project/**": True},
+                    "search.exclude": {"**/project/**": True},
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
