@@ -18,6 +18,7 @@ tmp/
 coverage-python/
 python/coverage.xml
 rust/cobertura.xml
+examples/
 
 # Docs
 site/
