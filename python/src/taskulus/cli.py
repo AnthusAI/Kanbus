@@ -150,9 +150,6 @@ def create(
 
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
-    beads_mode_forced = (
-        bool(context.obj.get("beads_mode_forced")) if context.obj else False
-    )
     if beads_mode:
         if local_issue:
             raise click.ClickException("beads mode does not support local issues")
