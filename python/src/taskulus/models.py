@@ -108,6 +108,8 @@ class ProjectConfiguration(BaseModel):
     :type external_projects: List[str]
     :param project_key: Issue ID project key (prefix).
     :type project_key: str
+    :param project_management_template: Optional template path for CONTRIBUTING_AGENT.md.
+    :type project_management_template: Optional[str]
     :param hierarchy: Hierarchy ordering.
     :type hierarchy: List[str]
     :param types: Non-hierarchical types.
@@ -137,6 +139,7 @@ class ProjectConfiguration(BaseModel):
     project_directory: str
     external_projects: List[str] = Field(default_factory=list)
     project_key: str = Field(min_length=1)
+    project_management_template: Optional[str] = None
     hierarchy: List[str]
     types: List[str]
     workflows: Dict[str, Dict[str, List[str]]]

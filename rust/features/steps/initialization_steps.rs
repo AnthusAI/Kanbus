@@ -219,6 +219,21 @@ fn then_marker_created(world: &mut TaskulusWorld) {
     assert!(cwd.join(".taskulus.yml").is_file());
 }
 
+#[then("a \"CONTRIBUTING_AGENT.template.md\" file should be created")]
+fn then_project_management_template_created(world: &mut TaskulusWorld) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    assert!(cwd.join("CONTRIBUTING_AGENT.template.md").is_file());
+}
+
+#[then(expr = "CONTRIBUTING_AGENT.template.md should contain {string}")]
+fn then_project_management_template_contains_text(world: &mut TaskulusWorld, text: String) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let content = fs::read_to_string(cwd.join("CONTRIBUTING_AGENT.template.md"))
+        .expect("read project management template");
+    let normalized = text.replace("\\\"", "\"");
+    assert!(content.contains(&normalized));
+}
+
 #[then("a \"project\" directory should exist")]
 fn then_project_directory_exists(world: &mut TaskulusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
