@@ -16,6 +16,7 @@ interface AnimatedSelectorProps {
   name: string;
   motionDurationMs?: number;
   motionEase?: string;
+  highlightOffsetY?: number;
 }
 
 function motionMode(): string {
@@ -29,7 +30,8 @@ export function AnimatedSelector({
   className,
   name,
   motionDurationMs = 240,
-  motionEase = "power3.out"
+  motionEase = "power3.out",
+  highlightOffsetY = -2
 }: AnimatedSelectorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
@@ -46,9 +48,9 @@ export function AnimatedSelector({
     const containerRect = container.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     const left = targetRect.left - containerRect.left;
-    const top = targetRect.top - containerRect.top;
+    const top = targetRect.top - containerRect.top + highlightOffsetY;
     const width = targetRect.width;
-    const height = targetRect.height;
+    const height = 24; // fixed height
 
     const currentMotion = motionMode();
     const shouldAnimate = animate && currentMotion !== "off";
@@ -84,15 +86,19 @@ export function AnimatedSelector({
     <div
       ref={containerRef}
       className={cn(
-        "relative isolate inline-flex items-center gap-3 rounded-full bg-card-muted p-3 max-w-full",
+        "relative isolate inline-flex items-center gap-3 rounded-full bg-[var(--column)] p-2 max-w-full h-8",
+        "md:max-w-none",
         className
       )}
       role="tablist"
       aria-label={name}
       data-selector={name}
     >
-      <div className="pointer-events-none absolute inset-0">
-        <div ref={highlightRef} className="absolute left-0 top-0 rounded-full bg-card" />
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <div
+          ref={highlightRef}
+          className="selector-highlight absolute left-0 rounded-full h-6"
+        />
       </div>
       {options.map((option) => {
         const selected = option.id === value;
@@ -107,8 +113,10 @@ export function AnimatedSelector({
             data-selector={name}
             data-option={option.id}
             className={cn(
-              "relative z-10 flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] whitespace-nowrap",
-              selected ? "text-foreground" : "text-muted"
+              "relative z-10 flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] whitespace-nowrap h-7",
+              "md:px-3",
+              selected ? "text-foreground" : "text-muted",
+              "max-md:px-1 max-md:gap-1 max-md:[&_span.selector-label]:hidden"
             )}
             onClick={() => onChange(option.id)}
             type="button"

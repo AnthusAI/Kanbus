@@ -25,6 +25,11 @@ Every change must be:
 
 If it is not recorded, it did not happen.
 
+Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. All work must pass through Taskulus.
+
+Use the Rust CLI when available: `tskr` and `tsk` are functionally identical; `tskr` is faster. Try `tskr` first; fall back to `tsk` only if `tskr` is unavailable.
+For guidance, run `tskr --help` (or `tsk --help`) and subcommand help like `tskr create --help`.
+
 ## The Order of Being
 
 All work is structured.
@@ -191,6 +196,8 @@ Severity is not emotion. It is signal.
 
 ## Command examples
 
+Use `tskr` when available (Rust, faster). If `tskr` is unavailable, substitute `tsk`; commands are identical.
+
 
 tsk create "Plan the roadmap" --type initiative
 
@@ -271,7 +278,7 @@ tsk comment tsk-4d5e6f "Feature: Hello World
   Scenario: Run the program
     Given a configured environment
     When I run the program
-    Then it prints \"Hello, world\" to stdout"
+    Then it prints "Hello, world" to stdout"
 
 5. Run the Gherkin and confirm it fails (before any production code)
 Run the behavior tests in the repo and confirm the new scenario fails for the right reason.

@@ -34,6 +34,9 @@ If it is not recorded, it did not happen.
 
 Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. All work must pass through Taskulus.
 
+Use the Rust CLI when available: `tskr` and `tsk` are functionally identical; `tskr` is faster. Try `tskr` first; fall back to `tsk` only if `tskr` is unavailable.
+For guidance, run `tskr --help` (or `tsk --help`) and subcommand help like `tskr create --help`.
+
 ## The Order of Being
 
 All work is structured.
@@ -159,6 +162,8 @@ Default is {{ default_priority_value }} ({{ default_priority_name }}).
 Severity is not emotion. It is signal.
 
 ## Command examples
+
+Use `tskr` when available (Rust, faster). If `tskr` is unavailable, substitute `tsk`; commands are identical.
 
 {% for command in command_examples %}
 {{ command }}

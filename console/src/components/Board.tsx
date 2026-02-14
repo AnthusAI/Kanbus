@@ -8,6 +8,7 @@ interface BoardProps {
   issues: Issue[];
   priorityLookup: Record<number, string>;
   onSelectIssue?: (issue: Issue) => void;
+  selectedIssueId?: string | null;
   transitionKey: string;
 }
 
@@ -16,12 +17,13 @@ export function Board({
   issues,
   priorityLookup,
   onSelectIssue,
+  selectedIssueId,
   transitionKey
 }: BoardProps) {
   const scope = useBoardTransitions(transitionKey);
 
   return (
-    <div ref={scope} className="kb-grid">
+    <div ref={scope} className="kb-grid gap-2">
       {columns.map((column) => {
         const columnIssues = issues.filter((issue) => issue.status === column);
         return (
@@ -31,6 +33,7 @@ export function Board({
             issues={columnIssues}
             priorityLookup={priorityLookup}
             onSelectIssue={onSelectIssue}
+            selectedIssueId={selectedIssueId}
           />
         );
       })}

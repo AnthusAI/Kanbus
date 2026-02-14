@@ -4,7 +4,8 @@ import {
   Moon,
   Sun,
   Settings,
-  Type
+  Type,
+  X
 } from "lucide-react";
 import gsap from "gsap";
 import { useAppearance } from "../hooks/useAppearance";
@@ -70,51 +71,38 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
   return (
     <div
-      className="fixed inset-0"
-      style={{
-        pointerEvents: isInteractive ? "auto" : "none",
-        zIndex: 9999
-      }}
+      className={`fixed inset-0 z-[9999] ${isInteractive ? "pointer-events-auto" : "pointer-events-none"}`}
       aria-hidden={!isOpen}
     >
       <div
-        className="absolute inset-0"
-        style={{
-          backgroundColor: "var(--background)",
-          opacity: 0,
-          pointerEvents: isOpen ? "auto" : "none",
-          zIndex: 0
-        }}
+        className={`absolute inset-0 z-0 bg-background opacity-0 ${isOpen ? "pointer-events-auto" : "pointer-events-none"}`}
         ref={backdropRef}
         onClick={onClose}
         data-testid="settings-backdrop"
       />
       <div
         ref={panelRef}
-        className="absolute right-3 top-3 bottom-3 w-[min(360px,90vw)] rounded-3xl p-3"
+        className="absolute right-3 top-3 bottom-3 z-10 w-[min(360px,90vw)] rounded-3xl p-3 bg-card translate-x-[120%] opacity-0 pointer-events-auto flex flex-col"
         data-testid="settings-panel"
-        style={{
-          transform: "translateX(120%)",
-          backgroundColor: "var(--card)",
-          pointerEvents: "auto",
-          zIndex: 1
-        }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-muted">
-            <Settings className="h-3 w-3" />
+            <Settings className="h-4 w-4" />
             <span>Settings</span>
           </div>
-          <button
-            className="rounded-full bg-card px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted"
-            onClick={onClose}
-            type="button"
-          >
-            Close
-          </button>
-        </div>
+        <button
+          className="rounded-full bg-background px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
+          onClick={onClose}
+          type="button"
+        >
+          <span className="flex items-center gap-2">
+            <X className="h-4 w-4" />
+            <span>Close</span>
+          </span>
+        </button>
+      </div>
 
-        <div className="mt-3 grid gap-3">
+        <div className="mt-3 flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto">
           <div className="grid gap-3">
             <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted">
               Mode
@@ -123,14 +111,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             name="mode"
             value={appearance.mode}
             onChange={(value) => setMode(value as any)}
-            className="w-full flex-wrap"
+            className="w-full"
             options={[
               {
                 id: "light",
                 label: "Light",
                 content: (
                   <span className="selector-option">
-                    <Sun className="h-3 w-3" />
+                    <Sun className="h-4 w-4" />
                     <span className="selector-label">Light</span>
                   </span>
                 )
@@ -140,7 +128,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 label: "Dark",
                 content: (
                   <span className="selector-option">
-                    <Moon className="h-3 w-3" />
+                    <Moon className="h-4 w-4" />
                     <span className="selector-label">Dark</span>
                   </span>
                 )
@@ -150,7 +138,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 label: "System",
                 content: (
                   <span className="selector-option">
-                    <Monitor className="h-3 w-3" />
+                    <Monitor className="h-4 w-4" />
                     <span className="selector-label">System</span>
                   </span>
                 )
@@ -163,56 +151,44 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted">
             Theme
           </div>
-          <AnimatedSelector
-            name="theme"
-            value={appearance.theme}
-            onChange={(value) => setTheme(value as any)}
-            className="w-full flex-wrap"
-            options={[
+          <div className="grid grid-cols-3 gap-2">
+            {[
               {
                 id: "neutral",
                 label: "Neutral",
-                content: (
-                  <span className="selector-option">
-                    <span className="selector-swatches">
-                      <span className="h-2 w-2 rounded-full" style={{ background: "var(--gray-3)" }} />
-                      <span className="h-2 w-2 rounded-full" style={{ background: "var(--gray-6)" }} />
-                      <span className="h-2 w-2 rounded-full" style={{ background: "var(--gray-9)" }} />
-                    </span>
-                    <span className="selector-label">Neutral</span>
-                  </span>
-                )
+                swatches: ["swatch-neutral-1", "swatch-neutral-2", "swatch-neutral-3"]
               },
               {
                 id: "cool",
                 label: "Cool",
-                content: (
-                  <span className="selector-option">
-                    <span className="selector-swatches">
-                      <span className="h-2 w-2 rounded-full" style={{ background: "var(--blue-3)" }} />
-                      <span className="h-2 w-2 rounded-full" style={{ background: "var(--blue-6)" }} />
-                      <span className="h-2 w-2 rounded-full" style={{ background: "var(--blue-9)" }} />
-                    </span>
-                    <span className="selector-label">Cool</span>
-                  </span>
-                )
+                swatches: ["swatch-cool-1", "swatch-cool-2", "swatch-cool-3"]
               },
               {
                 id: "warm",
                 label: "Warm",
-                content: (
-                  <span className="selector-option">
-                    <span className="selector-swatches">
-                      <span className="h-2 w-2 rounded-full" style={{ background: "var(--sand-3)" }} />
-                      <span className="h-2 w-2 rounded-full" style={{ background: "var(--sand-6)" }} />
-                      <span className="h-2 w-2 rounded-full" style={{ background: "var(--sand-9)" }} />
-                    </span>
-                    <span className="selector-label">Warm</span>
-                  </span>
-                )
+                swatches: ["swatch-warm-1", "swatch-warm-2", "swatch-warm-3"]
               }
-            ]}
-          />
+            ].map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setTheme(option.id as any)}
+                className={`rounded-full h-10 px-3 flex flex-col items-center justify-center gap-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                  appearance.theme === option.id ? "text-foreground bg-card-muted" : "text-muted bg-card"
+                }`}
+              >
+                <span className="selector-swatches">
+                  {option.swatches.map((color) => (
+                    <span
+                      key={color}
+                      className={`theme-swatch ${color}`}
+                    />
+                  ))}
+                </span>
+                <span className="selector-label">{option.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
           <div className="grid gap-3">
@@ -223,7 +199,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             name="motion"
             value={appearance.motion}
             onChange={(value) => setMotion(value as any)}
-            className="w-full flex-wrap"
+            className="w-full"
             options={[
               { id: "full", label: "Full" },
               { id: "reduced", label: "Reduced" },
@@ -240,14 +216,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             name="font"
             value={appearance.font}
             onChange={(value) => setFont(value as any)}
-            className="w-full flex-wrap"
+            className="w-full"
             options={[
               {
                 id: "sans",
                 label: "Sans",
                 content: (
                   <span className="selector-option">
-                    <Type className="h-3 w-3" />
+                    <Type className="h-4 w-4" />
                     <span className="selector-label font-sans">Sans</span>
                   </span>
                 )
@@ -257,8 +233,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 label: "Serif",
                 content: (
                   <span className="selector-option">
-                    <Type className="h-3 w-3" />
-                    <span className="selector-label" style={{ fontFamily: "var(--font-serif)" }}>
+                    <Type className="h-4 w-4" />
+                    <span className="selector-label font-[var(--font-serif)]">
                       Serif
                     </span>
                   </span>
@@ -269,8 +245,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 label: "Mono",
                 content: (
                   <span className="selector-option">
-                    <Type className="h-3 w-3" />
-                    <span className="selector-label" style={{ fontFamily: "var(--font-mono)" }}>
+                    <Type className="h-4 w-4" />
+                    <span className="selector-label font-[var(--font-mono)]">
                       Mono
                     </span>
                   </span>

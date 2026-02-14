@@ -9,6 +9,8 @@ const config: Config = {
         background: "var(--background)",
         card: "var(--card)",
         "card-muted": "var(--card-muted)",
+        frame: "var(--frame)",
+        column: "var(--column)",
         foreground: "var(--text-foreground)",
         muted: "var(--text-muted)",
         border: "var(--border)"
