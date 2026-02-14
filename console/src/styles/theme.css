@@ -13,11 +13,12 @@
   --font-body: var(--font-sans);
 
   --background: var(--gray-1);
-  --card: var(--gray-2);
-  --card-muted: var(--gray-7);
+  --card: var(--gray-1);
+  --card-muted: var(--gray-5);
+  --frame: var(--gray-1);
   --column: var(--gray-3);
   --text-foreground: var(--gray-12);
-  --text-muted: var(--gray-11);
+  --text-muted: var(--gray-10);
 }
 
 html[data-font="sans"] {
@@ -34,27 +35,30 @@ html[data-font="mono"] {
 
 html.theme-neutral {
   --background: var(--gray-1);
-  --card: var(--gray-2);
-  --card-muted: var(--gray-7);
+  --card: var(--gray-1);
+  --card-muted: var(--gray-5);
+  --frame: var(--gray-1);
   --column: var(--gray-3);
   --text-foreground: var(--gray-12);
-  --text-muted: var(--gray-11);
+  --text-muted: var(--gray-10);
 }
 
 html.theme-cool {
   --background: var(--blue-1);
-  --card: var(--blue-2);
-  --card-muted: var(--blue-7);
+  --card: var(--blue-1);
+  --card-muted: var(--blue-5);
+  --frame: var(--blue-1);
   --column: var(--blue-3);
   --text-foreground: var(--blue-12);
-  --text-muted: var(--blue-11);
+  --text-muted: var(--blue-10);
 }
 
 html.theme-warm {
   --background: var(--sand-1);
-  --card: var(--sand-2);
-  --card-muted: var(--sand-7);
+  --card: var(--sand-1);
+  --card-muted: var(--sand-5);
+  --frame: var(--sand-1);
   --column: var(--sand-3);
   --text-foreground: var(--sand-12);
-  --text-muted: var(--sand-11);
+  --text-muted: var(--sand-10);
 }
