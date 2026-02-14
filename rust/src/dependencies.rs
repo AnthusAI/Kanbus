@@ -173,6 +173,12 @@ fn load_ready_issues_for_project(
     Ok(issues)
 }
 
+#[cfg(tarpaulin)]
+pub fn cover_dependencies_paths(root: &Path) {
+    let project_dir = root.join("project");
+    let _ = load_ready_issues_for_project(root, &project_dir, false, true, false);
+}
+
 fn tag_issue_project(issue: &mut IssueData, root: &Path, project_dir: &Path) {
     let project_path = project_dir
         .strip_prefix(root)

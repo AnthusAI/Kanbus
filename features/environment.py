@@ -24,5 +24,9 @@ def before_scenario(context: object, scenario: object) -> None:
     env_module.before_scenario(context, scenario)
 
 
+def before_all(context: object) -> None:
+    env_module.before_all(context)
+
+
 def after_scenario(context: object, scenario: object) -> None:
     env_module.after_scenario(context, scenario)

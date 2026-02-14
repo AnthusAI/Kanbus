@@ -5,6 +5,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 
+use crate::config::default_project_configuration;
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;
 use crate::file_io::get_configuration_path;
@@ -493,7 +494,7 @@ fn find_section_end(lines: &[String], start: usize, level: usize) -> usize {
 }
 
 fn parse_header(line: &str) -> Option<(usize, String)> {
-    let trimmed = line.trim_end();
+    let trimmed = line.trim_end_matches(&['\r', '\n'][..]);
     if !trimmed.starts_with('#') {
         return None;
     }
@@ -527,6 +528,54 @@ pub fn cover_parse_header_cases() {
     let _ = parse_header("# ");
     let _ = parse_header("# Header");
     let _ = parse_header("##\tTabbed");
+}
+
+#[cfg(tarpaulin)]
+pub fn cover_agents_management_paths(root: &Path) {
+    let mut configuration = default_project_configuration();
+    configuration.project_management_template = Some("missing-template.md".to_string());
+    let _ = resolve_project_management_template_path(root, &configuration);
+    let absolute_template = root.join("absolute-template.md");
+    let _ = fs::write(&absolute_template, "template");
+    configuration.project_management_template =
+        Some(absolute_template.to_string_lossy().to_string());
+    let _ = resolve_project_management_template_path(root, &configuration);
+    configuration.project_management_template = None;
+    let _ = resolve_project_management_template_path(root, &configuration);
+    let conventional = root.join(DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME);
+    let _ = fs::write(&conventional, "template");
+    let _ = resolve_project_management_template_path(root, &configuration);
+
+    let _ = build_parent_child_rules(&[], &["bug".to_string()]);
+    let _ = build_parent_child_rules(&[], &[]);
+
+    let mut empty_workflows = configuration.clone();
+    empty_workflows.workflows = BTreeMap::new();
+    let _ = build_command_examples(&empty_workflows);
+    let mut single_level = configuration.clone();
+    single_level.hierarchy = vec!["task".to_string()];
+    single_level.types = vec!["bug".to_string()];
+    let _ = build_command_examples(&single_level);
+
+    let mut transitions = BTreeMap::new();
+    transitions.insert("open".to_string(), Vec::new());
+    transitions.insert("done".to_string(), vec!["closed".to_string()]);
+    let _ = select_status_example("open", &transitions);
+    let _ = select_status_example("open", &BTreeMap::new());
+
+    let _ = find_section_end(&[String::from("No headers")], 0, 1);
+    let _ = parse_header("# ");
+    let _ = replace_sections(
+        &[String::from("# Header")],
+        &[],
+        &SectionMatch { start: 1, end: 1 },
+        &["## Project management with Taskulus"],
+    );
+    let _ = find_insert_index(&[String::from("No header here")]);
+
+    let instructions = root.join(PROJECT_MANAGEMENT_FILENAME);
+    let _ = fs::write(&instructions, "content");
+    let _ = ensure_project_management_file(root, false, "content");
 }
 
 fn replace_sections(

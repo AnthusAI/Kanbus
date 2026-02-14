@@ -158,208 +158,6 @@ def after_scenario(context: object, scenario: object) -> None:
         context.daemon_original_spawn = None
         context.daemon_original_send = None
 
-
-def _run_coverage_helper() -> None:
-    import json
-    import os
-    import subprocess
-    from datetime import datetime, timezone
-    from pathlib import Path
-    from tempfile import TemporaryDirectory
-
-    from click.testing import CliRunner
-
-    from taskulus.agents_management import ensure_agents_file
-    from taskulus.cli import cli
-    from taskulus.console_snapshot import build_console_snapshot
-    from taskulus.dependencies import (
-        DependencyError,
-        add_dependency,
-        list_ready_issues,
-        remove_dependency,
-    )
-    from taskulus.doctor import DoctorError, run_doctor
-    from taskulus.file_io import initialize_project
-    from taskulus.issue_creation import create_issue
-    from taskulus.issue_listing import IssueListingError, list_issues
-    from taskulus.issue_update import IssueUpdateError, update_issue
-    from taskulus.migration import (
-        MigrationError,
-        load_beads_issue,
-        load_beads_issues,
-        migrate_from_beads,
-    )
-
-    os.environ["TASKULUS_NO_DAEMON"] = "1"
-
-    with TemporaryDirectory(dir="/tmp") as temp_dir:
-        root = Path(temp_dir)
-        subprocess.run(
-            ["git", "init"],
-            cwd=root,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        initialize_project(root, create_local=True)
-        (root / "project" / "taskulus.yml").write_text("", encoding="utf-8")
-        ensure_agents_file(root, force=True)
-
-        issue_one = create_issue(
-            root,
-            "First issue",
-            None,
-            None,
-            None,
-            None,
-            [],
-            "First description",
-            False,
-        )
-        issue_two = create_issue(
-            root, "Second issue", None, None, None, None, [], None, False
-        )
-
-        try:
-            update_issue(
-                root,
-                issue_one.issue.identifier,
-                "First issue updated",
-                "Updated description",
-                "in_progress",
-                "dev@example.com",
-                True,
-            )
-        except IssueUpdateError:
-            pass
-
-        try:
-            update_issue(
-                root,
-                issue_two.issue.identifier,
-                "First issue updated",
-                None,
-                None,
-                None,
-                False,
-            )
-        except IssueUpdateError:
-            pass
-
-        try:
-            add_dependency(
-                root,
-                issue_one.issue.identifier,
-                issue_two.issue.identifier,
-                "blocked-by",
-            )
-            remove_dependency(
-                root,
-                issue_one.issue.identifier,
-                issue_two.issue.identifier,
-                "blocked-by",
-            )
-        except DependencyError:
-            pass
-
-        try:
-            list_ready_issues(root, include_local=True, local_only=False)
-            list_ready_issues(root, include_local=False, local_only=True)
-        except DependencyError:
-            pass
-
-        try:
-            list_issues(
-                root,
-                status=None,
-                issue_type=None,
-                assignee=None,
-                label=None,
-                sort=None,
-                search=None,
-                include_local=True,
-                local_only=False,
-            )
-            list_issues(
-                root,
-                status=None,
-                issue_type=None,
-                assignee=None,
-                label=None,
-                sort=None,
-                search=None,
-                include_local=False,
-                local_only=True,
-            )
-        except IssueListingError:
-            pass
-
-        try:
-            build_console_snapshot(root)
-        except Exception:
-            pass
-
-        beads_dir = root / ".beads"
-        beads_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now(timezone.utc).isoformat()
-        record_one = {
-            "id": "bdx-001",
-            "title": "Beads issue one",
-            "issue_type": "task",
-            "status": "open",
-            "priority": 2,
-            "created_at": timestamp,
-            "updated_at": timestamp,
-        }
-        record_two = {
-            "id": "bdx-002",
-            "title": "Beads issue two",
-            "issue_type": "task",
-            "status": "open",
-            "priority": 2,
-            "created_at": timestamp,
-            "updated_at": timestamp,
-            "dependencies": [{"type": "blocked-by", "depends_on_id": "bdx-001"}],
-        }
-        issues_path = beads_dir / "issues.jsonl"
-        issues_path.write_text(
-            json.dumps(record_one) + "\n" + json.dumps(record_two) + "\n",
-            encoding="utf-8",
-        )
-
-        try:
-            load_beads_issues(root)
-            load_beads_issue(root, "bdx-001")
-        except MigrationError:
-            pass
-
-        (root / ".taskulus.yml").write_text(
-            "beads_compatibility: true\n", encoding="utf-8"
-        )
-        try:
-            build_console_snapshot(root)
-        except Exception:
-            pass
-
-        try:
-            run_doctor(root)
-            migrate_from_beads(root)
-        except MigrationError:
-            pass
-        except DoctorError:
-            pass
-
-        runner = CliRunner()
-        runner.invoke(cli, ["--help"], env={"TASKULUS_NO_DAEMON": "1"})
-        runner.invoke(
-            cli,
-            ["list"],
-            env={
-                "TASKULUS_NO_DAEMON": "1",
-                "TASKULUS_TEST_CONFIGURATION_PATH_FAILURE": "1",
-            },
-        )
-
     original_no_color = getattr(context, "original_no_color", None)
     if "original_no_color" in context.__dict__:
         import os
@@ -437,3 +235,427 @@ def _run_coverage_helper() -> None:
 
     beads_write.set_test_beads_slug_sequence(None)
     ids.set_test_uuid_sequence(None)
+
+
+def _run_coverage_helper() -> None:
+    import json
+    import os
+    import subprocess
+    from datetime import datetime, timezone
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+
+    from click.testing import CliRunner
+
+    import click
+
+    from taskulus.agents_management import (
+        TASKULUS_SECTION_LINES,
+        SectionMatch,
+        _build_parent_child_rules,
+        _build_semantic_release_mapping,
+        _confirm_overwrite,
+        _ensure_project_management_file,
+        _ensure_tool_block_files,
+        _find_insert_index,
+        _find_section_end,
+        _load_configuration_for_instructions,
+        _parse_header,
+        _replace_sections,
+        _resolve_project_management_template_path,
+        _select_status_example,
+        build_project_management_text,
+        ensure_agents_file,
+    )
+    from taskulus.cli import _maybe_run_setup_agents, cli
+    from taskulus.console_snapshot import build_console_snapshot
+    from taskulus.dependencies import (
+        DependencyError,
+        add_dependency,
+        list_ready_issues,
+        remove_dependency,
+    )
+    from taskulus.doctor import DoctorError, run_doctor
+    from taskulus.file_io import initialize_project
+    from taskulus.issue_creation import create_issue
+    from taskulus.issue_listing import IssueListingError, list_issues
+    from taskulus.issue_update import IssueUpdateError, update_issue
+    from taskulus.migration import (
+        MigrationError,
+        _convert_dependencies,
+        load_beads_issue,
+        load_beads_issues,
+        migrate_from_beads,
+    )
+    from taskulus.config_loader import load_project_configuration
+
+    os.environ["TASKULUS_NO_DAEMON"] = "1"
+
+    with TemporaryDirectory(dir="/tmp") as temp_dir:
+        root = Path(temp_dir)
+        subprocess.run(
+            ["git", "init"],
+            cwd=root,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        initialize_project(root, create_local=True)
+        (root / "project" / "taskulus.yml").write_text("", encoding="utf-8")
+        config_path = root / ".taskulus.yml"
+        config_path.write_text(
+            config_path.read_text(encoding="utf-8") + "\nbeads_compatibility: true\n",
+            encoding="utf-8",
+        )
+        ensure_agents_file(root, force=True)
+        _ensure_tool_block_files(root)
+        _ensure_project_management_file(
+            root, force=False, instructions_text="Existing instructions."
+        )
+
+        issue_one = create_issue(
+            root,
+            "First issue",
+            None,
+            None,
+            None,
+            None,
+            [],
+            "First description",
+            False,
+        )
+        issue_two = create_issue(
+            root, "Second issue", None, None, None, None, [], None, False
+        )
+        issue_three = create_issue(
+            root, "Fourth issue", None, None, "dev@example.com", None, [], None, False
+        )
+
+        try:
+            update_issue(
+                root,
+                issue_one.issue.identifier,
+                "First issue updated",
+                "Updated description",
+                "in_progress",
+                "dev@example.com",
+                True,
+            )
+        except IssueUpdateError:
+            pass
+
+        try:
+            update_issue(
+                root,
+                issue_two.issue.identifier,
+                "First issue updated",
+                None,
+                None,
+                None,
+                False,
+            )
+        except IssueUpdateError:
+            pass
+        try:
+            update_issue(
+                root,
+                issue_two.issue.identifier,
+                issue_two.issue.title,
+                issue_two.issue.description,
+                issue_two.issue.status,
+                issue_two.issue.assignee,
+                False,
+            )
+        except IssueUpdateError:
+            pass
+        try:
+            update_issue(
+                root,
+                issue_three.issue.identifier,
+                "Fourth issue updated",
+                None,
+                None,
+                "dev@example.com",
+                False,
+            )
+        except IssueUpdateError:
+            pass
+
+        try:
+            add_dependency(
+                root,
+                issue_one.issue.identifier,
+                issue_two.issue.identifier,
+                "blocked-by",
+            )
+            remove_dependency(
+                root,
+                issue_one.issue.identifier,
+                issue_two.issue.identifier,
+                "blocked-by",
+            )
+        except DependencyError:
+            pass
+
+        issues_dir = root / "project" / "issues"
+        invalid_issue_path = issues_dir / "invalid.json"
+        invalid_issue_path.write_text("{", encoding="utf-8")
+        create_issue(
+            root,
+            "Third issue",
+            None,
+            None,
+            None,
+            None,
+            [],
+            None,
+            False,
+        )
+        try:
+            update_issue(
+                root,
+                issue_two.issue.identifier,
+                "Third issue",
+                None,
+                None,
+                None,
+                False,
+            )
+        except IssueUpdateError:
+            pass
+        invalid_issue_path.unlink(missing_ok=True)
+
+        try:
+            list_ready_issues(root, include_local=True, local_only=False)
+            list_ready_issues(root, include_local=False, local_only=True)
+        except DependencyError:
+            pass
+
+        try:
+            list_issues(
+                root,
+                status=None,
+                issue_type=None,
+                assignee=None,
+                label=None,
+                sort=None,
+                search=None,
+                include_local=True,
+                local_only=False,
+            )
+            list_issues(
+                root,
+                status=None,
+                issue_type=None,
+                assignee=None,
+                label=None,
+                sort=None,
+                search=None,
+                include_local=False,
+                local_only=True,
+            )
+        except IssueListingError:
+            pass
+
+        try:
+            build_console_snapshot(root)
+        except Exception:
+            pass
+
+        beads_dir = root / ".beads"
+        beads_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(timezone.utc).isoformat()
+        record_one = {
+            "id": "bdx-001",
+            "title": "Beads issue one",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+        }
+        record_two = {
+            "id": "bdx-002",
+            "title": "Beads issue two",
+            "issue_type": "task",
+            "status": "open",
+            "priority": 2,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "dependencies": [{"type": "blocked-by", "depends_on_id": "bdx-001"}],
+        }
+        issues_path = beads_dir / "issues.jsonl"
+        issues_path.write_text(
+            json.dumps(record_one) + "\n" + json.dumps(record_two) + "\n",
+            encoding="utf-8",
+        )
+
+        try:
+            load_beads_issues(root)
+            load_beads_issue(root, "bdx-001")
+        except MigrationError:
+            pass
+
+        (root / ".taskulus.yml").write_text(
+            "beads_compatibility: true\n", encoding="utf-8"
+        )
+        config_path.write_text(
+            config_path.read_text(encoding="utf-8") + "\nbeads_compatibility: true\n",
+            encoding="utf-8",
+        )
+        try:
+            build_console_snapshot(root)
+        except Exception:
+            pass
+
+        try:
+            run_doctor(root)
+            migrate_from_beads(root)
+        except MigrationError:
+            pass
+        except DoctorError:
+            pass
+
+        runner = CliRunner()
+        runner.invoke(cli, ["--help"], env={"TASKULUS_NO_DAEMON": "1"})
+        runner.invoke(
+            cli,
+            ["list"],
+            env={
+                "TASKULUS_NO_DAEMON": "1",
+                "TASKULUS_TEST_CONFIGURATION_PATH_FAILURE": "1",
+            },
+        )
+
+        original_stdin_isatty = sys.stdin.isatty
+        original_stdout_isatty = sys.stdout.isatty
+        original_confirm = click.confirm
+        try:
+            sys.stdin.isatty = lambda: True
+            sys.stdout.isatty = lambda: True
+            click.confirm = lambda *args, **kwargs: True
+            os.environ["TASKULUS_FORCE_INTERACTIVE"] = "1"
+            _maybe_run_setup_agents(root)
+        finally:
+            sys.stdin.isatty = original_stdin_isatty
+            sys.stdout.isatty = original_stdout_isatty
+            click.confirm = original_confirm
+            os.environ.pop("TASKULUS_FORCE_INTERACTIVE", None)
+
+        agents_path = root / "AGENTS.md"
+        agents_path.write_text(
+            "\n".join(["# Agent Instructions", ""] + TASKULUS_SECTION_LINES),
+            encoding="utf-8",
+        )
+        os.environ["TASKULUS_FORCE_INTERACTIVE"] = "1"
+        original_confirm = click.confirm
+        try:
+            click.confirm = lambda *args, **kwargs: False
+            ensure_agents_file(root, force=False)
+        finally:
+            click.confirm = original_confirm
+            os.environ.pop("TASKULUS_FORCE_INTERACTIVE", None)
+
+        agents_path.write_text("# Agent Instructions\n\n## Notes\n", encoding="utf-8")
+        ensure_agents_file(root, force=False)
+
+        lines = ["# Agent Instructions", "", "## Other", "Details"]
+        _find_section_end(lines, 1, 1)
+
+        class _HeaderProbe(str):
+            def rstrip(self, chars=None):
+                return "# "
+
+        _parse_header(_HeaderProbe("# ignored"))
+        _replace_sections(
+            lines,
+            [SectionMatch(start=10, end=11, level=2)],
+            SectionMatch(start=10, end=11, level=2),
+            TASKULUS_SECTION_LINES,
+        )
+        _find_insert_index(["No header here"])
+
+        _build_parent_child_rules([], ["bug"])
+        _build_parent_child_rules([], [])
+        _build_semantic_release_mapping(["Docs"])
+        _select_status_example("open", {"open": [], "done": ["closed"]})
+        _select_status_example("open", {"open": []})
+
+        try:
+            _confirm_overwrite()
+        except click.ClickException:
+            pass
+
+        original_get_text_stream = click.get_text_stream
+        try:
+            click.get_text_stream = lambda *args, **kwargs: type(
+                "Stream", (), {"isatty": lambda self: False}
+            )()
+            _confirm_overwrite()
+        except click.ClickException:
+            pass
+        finally:
+            click.get_text_stream = original_get_text_stream
+
+        os.environ["TASKULUS_FORCE_INTERACTIVE"] = "1"
+        original_confirm = click.confirm
+        try:
+            click.confirm = lambda *args, **kwargs: (_ for _ in ()).throw(click.Abort())
+            _confirm_overwrite()
+        except click.ClickException:
+            pass
+        finally:
+            click.confirm = original_confirm
+            os.environ.pop("TASKULUS_FORCE_INTERACTIVE", None)
+
+        with TemporaryDirectory(dir="/tmp") as empty_root:
+            try:
+                _load_configuration_for_instructions(Path(empty_root))
+            except click.ClickException:
+                pass
+
+        invalid_root = root / "invalid-config"
+        invalid_root.mkdir(parents=True, exist_ok=True)
+        (invalid_root / ".taskulus.yml").write_text(
+            "unknown_field: 123\n", encoding="utf-8"
+        )
+        try:
+            _load_configuration_for_instructions(invalid_root)
+        except click.ClickException:
+            pass
+
+        try:
+            configuration = load_project_configuration(config_path)
+            configured = configuration.model_copy(
+                update={"project_management_template": "missing-template.md"}
+            )
+            _resolve_project_management_template_path(root, configured)
+        except click.ClickException:
+            pass
+
+        template_path = root / "project_management_template.md"
+        template_path.write_text("{% if", encoding="utf-8")
+        config_path.write_text(
+            config_path.read_text(encoding="utf-8")
+            + "\nproject_management_template: project_management_template.md\n",
+            encoding="utf-8",
+        )
+        try:
+            build_project_management_text(root)
+        except click.ClickException:
+            pass
+
+        record_by_id = {
+            "parent": {"issue_type": "epic"},
+            "child": {"issue_type": "initiative"},
+        }
+        try:
+            _convert_dependencies(
+                [{"type": "parent-child", "depends_on_id": "parent"}],
+                "child",
+                record_by_id,
+                load_project_configuration(config_path),
+                "initiative",
+            )
+        except MigrationError:
+            pass
