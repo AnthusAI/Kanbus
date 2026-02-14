@@ -2,8 +2,12 @@ import { spawn } from "child_process";
 import { mkdtemp, cp, rm } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
+import { fileURLToPath } from "url";
 
-const consoleRoot = path.resolve(__dirname, "..");
+const consoleRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  ".."
+);
 const fixtureSource = path.resolve(consoleRoot, "tests", "fixtures", "project");
 
 function runCommand(command: string, args: string[], env: NodeJS.ProcessEnv) {

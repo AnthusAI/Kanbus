@@ -71,3 +71,4 @@ pub struct PriorityDefinition {
     pub name: String,
     #[serde(default)]
     pub color: Option<String>,
+}

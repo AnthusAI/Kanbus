@@ -545,6 +545,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         default_priority: 2,
         status_colors: BTreeMap::new(),
         type_colors: BTreeMap::new(),
+        beads_compatibility: false,
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];

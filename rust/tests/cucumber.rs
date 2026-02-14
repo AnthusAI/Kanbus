@@ -90,10 +90,7 @@ async fn main() {
             let feature_has_wip = feature.tags.iter().any(|tag| tag == "wip");
             let scenario_has_console = scenario.tags.iter().any(|tag| tag == "console");
             let feature_has_console = feature.tags.iter().any(|tag| tag == "console");
-            !(scenario_has_wip
-                || feature_has_wip
-                || scenario_has_console
-                || feature_has_console)
+            !(scenario_has_wip || feature_has_wip || scenario_has_console || feature_has_console)
         })
         .await;
 }
