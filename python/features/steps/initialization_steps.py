@@ -55,6 +55,20 @@ def then_marker_created(context: object) -> None:
     assert (context.working_directory / ".taskulus.yml").is_file()
 
 
+@then('a "CONTRIBUTING_AGENT.template.md" file should be created')
+def then_project_management_template_created(context: object) -> None:
+    assert (context.working_directory / "CONTRIBUTING_AGENT.template.md").is_file()
+
+
+@then('CONTRIBUTING_AGENT.template.md should contain "{text}"')
+def then_project_management_template_contains_text(context: object, text: str) -> None:
+    normalized = text.replace('\\"', '"')
+    content = (context.working_directory / "CONTRIBUTING_AGENT.template.md").read_text(
+        encoding="utf-8"
+    )
+    assert normalized in content
+
+
 @then('a "project" directory should exist')
 def then_project_directory_exists(context: object) -> None:
     assert (context.working_directory / "project").is_dir()
