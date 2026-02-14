@@ -155,8 +155,8 @@ fn validate_issue_type(
 
 fn find_duplicate_title(issues_dir: &Path, title: &str) -> Result<Option<String>, TaskulusError> {
     let normalized_title = title.trim().to_lowercase();
-    for entry in std::fs::read_dir(issues_dir)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?
+    for entry in
+        std::fs::read_dir(issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?
     {
         let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
         let path = entry.path();

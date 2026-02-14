@@ -60,7 +60,10 @@ fn when_run_init_in_example(world: &mut TaskulusWorld, name: String) {
     let path = example_dir(&name);
     let binary_path = tskr_binary_path();
     let mut command = Command::new(binary_path);
-    command.current_dir(&path).args(["init"]).env("TASKULUS_NO_DAEMON", "1");
+    command
+        .current_dir(&path)
+        .args(["init"])
+        .env("TASKULUS_NO_DAEMON", "1");
     let output = command.output().expect("run tskr init");
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
@@ -79,7 +82,10 @@ fn when_run_setup_agents_in_example(world: &mut TaskulusWorld, name: String) {
     let path = example_dir(&name);
     let binary_path = tskr_binary_path();
     let mut command = Command::new(binary_path);
-    command.current_dir(&path).args(["setup", "agents"]).env("TASKULUS_NO_DAEMON", "1");
+    command
+        .current_dir(&path)
+        .args(["setup", "agents"])
+        .env("TASKULUS_NO_DAEMON", "1");
     let output = command.output().expect("run tskr setup agents");
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());

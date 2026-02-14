@@ -99,6 +99,7 @@ def run_cli_with_input(context: object, command: str, input_text: str) -> None:
     overrides = getattr(context, "environment_overrides", None)
     if overrides:
         environment.update(overrides)
+    environment.setdefault("TASKULUS_FORCE_INTERACTIVE", "1")
     try:
         os.chdir(working_directory)
     except (FileNotFoundError, PermissionError) as error:

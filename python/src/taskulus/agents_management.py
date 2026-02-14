@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -311,12 +312,23 @@ def _select_status_example(initial_status: str, workflow: dict[str, List[str]]) 
 
 
 def _confirm_overwrite() -> bool:
+    if os.getenv("TASKULUS_NON_INTERACTIVE") == "1":
+        raise click.ClickException(
+            "Taskulus section already exists in AGENTS.md. Re-run with --force to overwrite."
+        )
+    if os.getenv("TASKULUS_FORCE_INTERACTIVE") != "1":
+        stream = click.get_text_stream("stdin")
+        isatty = getattr(stream, "isatty", None)
+        if callable(isatty) and not isatty():
+            raise click.ClickException(
+                "Taskulus section already exists in AGENTS.md. Re-run with --force to overwrite."
+            )
     try:
         return click.confirm(
             "Taskulus section already exists in AGENTS.md. Overwrite it?",
             default=False,
         )
-    except click.Abort as error:
+    except (click.Abort, EOFError) as error:
         raise click.ClickException(
             "Taskulus section already exists in AGENTS.md. Re-run with --force to overwrite."
         ) from error

@@ -68,13 +68,11 @@ def _resolve_project_directories(
 
 
 def _collect_project_directories(root: Path, projects: List[Path]) -> None:
-    """Collect project directories at the current root level only.
+    """Collect project directories without deep recursion.
 
-    Historically we recursed through the entire tree, which pulled in fixture
-    projects (e.g., console/tests/fixtures/project) and caused CLI commands to
-    fail on incomplete sample data. To avoid accidental discovery of fixtures
-    or nested repos, limit discovery to the immediate children of the current
-    root and rely on explicit configuration for anything else.
+    Scan the root and one level of children for a "project" directory. This
+    avoids pulling in deep fixture projects while still supporting repos that
+    organize multiple projects under immediate subdirectories.
     """
     try:
         entries = list(root.iterdir())
@@ -86,6 +84,10 @@ def _collect_project_directories(root: Path, projects: List[Path]) -> None:
         name = entry.name
         if name == "project":
             projects.append(entry)
+            continue
+        nested_project = entry / "project"
+        if nested_project.is_dir():
+            projects.append(nested_project)
         # Do not recurse into subdirectories; explicit configuration controls
         # additional project discovery.
 

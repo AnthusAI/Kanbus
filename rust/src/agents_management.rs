@@ -59,12 +59,10 @@ pub fn ensure_agents_file(root: &Path, force: bool) -> Result<(), TaskulusError>
     let lines: Vec<String> = contents.lines().map(|line| line.to_string()).collect();
     let sections = find_taskulus_sections(&lines);
     if let Some(section) = sections.first() {
-        if !force {
-            if !confirm_overwrite()? {
-                ensure_project_management_file(root, force, &instructions_text)?;
-                ensure_project_guard_files(root)?;
-                return Ok(());
-            }
+        if !force && !confirm_overwrite()? {
+            ensure_project_management_file(root, force, &instructions_text)?;
+            ensure_project_guard_files(root)?;
+            return Ok(());
         }
         let updated = replace_sections(&lines, &sections, section, &TASKULUS_SECTION_LINES);
         fs::write(&agents_path, updated).map_err(|error| TaskulusError::Io(error.to_string()))?;
@@ -105,8 +103,9 @@ fn build_project_management_text(root: &Path) -> Result<String, TaskulusError> {
     let configuration = load_project_configuration(&configuration_path)?;
     let template_path = resolve_project_management_template_path(root, &configuration)?;
     let template_text = match template_path {
-        Some(path) => std::fs::read_to_string(&path)
-            .map_err(|error| TaskulusError::Io(error.to_string()))?,
+        Some(path) => {
+            std::fs::read_to_string(&path).map_err(|error| TaskulusError::Io(error.to_string()))?
+        }
         None => DEFAULT_PROJECT_MANAGEMENT_TEMPLATE.to_string(),
     };
     let context = build_project_management_context(&configuration);
@@ -119,7 +118,12 @@ fn build_new_agents_file() -> String {
     let mut lines: Vec<&str> = Vec::new();
     lines.extend(AGENTS_HEADER_LINES);
     lines.extend(TASKULUS_SECTION_LINES);
-    join_lines(&lines.iter().map(|value| value.to_string()).collect::<Vec<_>>())
+    join_lines(
+        &lines
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<Vec<_>>(),
+    )
 }
 
 #[derive(Debug, Serialize)]
@@ -245,11 +249,7 @@ fn build_parent_child_rules(hierarchy: &[String], types: &[String]) -> Vec<Strin
         if parents.is_empty() {
             rules.push(format!("{} cannot have parents.", types.join(", ")));
         } else {
-            rules.push(format!(
-                "{} can have parent {}.",
-                types.join(", "),
-                parents
-            ));
+            rules.push(format!("{} can have parent {}.", types.join(", "), parents));
         }
     }
     if hierarchy.len() <= 1 && types.is_empty() {
@@ -369,8 +369,6 @@ fn build_semantic_release_mapping(types: &[String]) -> Vec<SemanticReleaseMappin
             "fix"
         } else if lowered.contains("story") || lowered.contains("feature") {
             "feat"
-        } else if lowered.contains("chore") || lowered.contains("maintenance") {
-            "chore"
         } else {
             "chore"
         };
@@ -484,8 +482,8 @@ fn find_taskulus_sections(lines: &[String]) -> Vec<SectionMatch> {
 }
 
 fn find_section_end(lines: &[String], start: usize, level: usize) -> usize {
-    for index in start..lines.len() {
-        if let Some((next_level, _)) = parse_header(&lines[index]) {
+    for (index, line) in lines.iter().enumerate().skip(start) {
+        if let Some((next_level, _)) = parse_header(line) {
             if next_level <= level {
                 return index;
             }
@@ -554,7 +552,8 @@ fn is_in_sections(index: usize, sections: &[SectionMatch]) -> bool {
 fn insert_taskulus_section(lines: &[String], section_lines: &[&str]) -> String {
     let mut updated: Vec<String> = lines.to_vec();
     let mut insert_index = find_insert_index(lines);
-    if insert_index > 0 && insert_index < updated.len() && !updated[insert_index].trim().is_empty() {
+    if insert_index > 0 && insert_index < updated.len() && !updated[insert_index].trim().is_empty()
+    {
         updated.insert(insert_index, String::new());
         insert_index += 1;
     }

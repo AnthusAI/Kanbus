@@ -63,17 +63,17 @@ from taskulus.config_loader import ConfigurationError, load_project_configuratio
 from taskulus.agents_management import _ensure_project_guard_files, ensure_agents_file
 
 
-def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> bool:
+def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool, bool]:
     source = context.get_parameter_source("beads_mode")
     if source == click.core.ParameterSource.COMMANDLINE and beads_mode:
-        return True
+        return True, True
     try:
         configuration = load_project_configuration(get_configuration_path(Path.cwd()))
     except ProjectMarkerError:
-        return False
+        return False, False
     except ConfigurationError as error:
         raise click.ClickException(str(error)) from error
-    return configuration.beads_compatibility
+    return configuration.beads_compatibility, False
 
 
 @click.group()
@@ -82,7 +82,8 @@ def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> bool:
 @click.pass_context
 def cli(context: click.Context, beads_mode: bool) -> None:
     """Taskulus command line interface."""
-    context.obj = {"beads_mode": _resolve_beads_mode(context, beads_mode)}
+    resolved, forced = _resolve_beads_mode(context, beads_mode)
+    context.obj = {"beads_mode": resolved, "beads_mode_forced": forced}
 
 
 @cli.group("setup")
@@ -457,6 +458,7 @@ def list_command(
     """List issues in the current project."""
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    beads_forced = bool(context.obj.get("beads_mode_forced")) if context.obj else False
     try:
         issues = list_issues(
             root,
@@ -494,8 +496,10 @@ def list_command(
         except ConfigurationError as error:
             raise click.ClickException(str(error)) from error
 
-    project_context = beads_mode or not any(
-        issue.custom.get("project_path") for issue in issues
+    project_context = (
+        beads_forced
+        if beads_mode
+        else not any(issue.custom.get("project_path") for issue in issues)
     )
     widths = (
         None if porcelain else compute_widths(issues, project_context=project_context)
