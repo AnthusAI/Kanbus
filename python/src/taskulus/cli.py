@@ -57,6 +57,7 @@ from taskulus.dependency_tree import (
     render_dependency_tree,
 )
 from taskulus.wiki import WikiError, WikiRenderRequest, render_wiki_page
+from taskulus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 from taskulus.project import ProjectMarkerError, get_configuration_path
 from taskulus.config_loader import ConfigurationError, load_project_configuration
 from taskulus.agents_management import _ensure_project_guard_files, ensure_agents_file
@@ -537,6 +538,23 @@ def render_wiki(page: str) -> None:
     except WikiError as error:
         raise click.ClickException(str(error)) from error
     click.echo(output)
+
+
+@cli.group("console")
+def console() -> None:
+    """Console-related utilities."""
+
+
+@console.command("snapshot")
+def console_snapshot() -> None:
+    """Emit a JSON snapshot for the console."""
+    root = Path.cwd()
+    try:
+        snapshot = build_console_snapshot(root)
+    except ConsoleSnapshotError as error:
+        raise click.ClickException(str(error)) from error
+    payload = json.dumps(snapshot, indent=2, sort_keys=False)
+    click.echo(payload)
 
 
 @cli.command("validate")

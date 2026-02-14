@@ -9,6 +9,7 @@ from typing import Dict, List
 
 from pydantic import ValidationError
 from taskulus.config_loader import ConfigurationError, load_project_configuration
+from taskulus.migration import MigrationError, load_beads_issues
 from taskulus.models import IssueData, ProjectConfiguration
 from taskulus.project import ProjectMarkerError, get_configuration_path
 
@@ -27,7 +28,7 @@ def build_console_snapshot(root: Path) -> Dict[str, object]:
     :raises ConsoleSnapshotError: If snapshot creation fails.
     """
     project_dir, config = _load_project_context(root)
-    issues = _load_console_issues(project_dir)
+    issues = _load_console_issues(root, project_dir, config)
     updated_at = _format_timestamp(datetime.now(timezone.utc))
     return {
         "config": config.model_dump(),
@@ -49,7 +50,18 @@ def _load_project_context(root: Path) -> tuple[Path, ProjectConfiguration]:
     return project_dir, configuration
 
 
-def _load_console_issues(project_dir: Path) -> List[IssueData]:
+def _load_console_issues(
+    root: Path,
+    project_dir: Path,
+    configuration: ProjectConfiguration,
+) -> List[IssueData]:
+    if configuration.beads_compatibility:
+        try:
+            issues = load_beads_issues(root)
+        except MigrationError as error:
+            raise ConsoleSnapshotError(str(error)) from error
+        issues.sort(key=lambda issue: issue.identifier)
+        return issues
     issues_dir = project_dir / "issues"
     if not issues_dir.exists():
         raise ConsoleSnapshotError("project/issues directory not found")

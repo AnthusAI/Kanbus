@@ -199,6 +199,7 @@ fn convert_record(
         record.get("dependencies").and_then(Value::as_array),
         record_by_id,
         configuration,
+        &identifier,
         &issue_type,
     )?;
 
@@ -272,6 +273,7 @@ fn convert_dependencies(
     dependencies: Option<&Vec<Value>>,
     record_by_id: &HashMap<String, Value>,
     configuration: &ProjectConfiguration,
+    identifier: &str,
     issue_type: &str,
 ) -> Result<(Option<String>, Vec<DependencyLink>), TaskulusError> {
     let mut parent: Option<String> = None;
@@ -327,7 +329,17 @@ fn convert_dependencies(
         let skip_validation = canonical_parent == issue_type
             && (canonical_parent == "epic" || canonical_parent == "task");
         if !skip_validation {
-            validate_parent_child_relationship(configuration, &canonical_parent, issue_type)?;
+            match validate_parent_child_relationship(configuration, &canonical_parent, issue_type)
+            {
+                Ok(()) => {}
+                Err(TaskulusError::InvalidHierarchy(message)) => {
+                    eprintln!(
+                        "Suggestion: {message}. Remove the parent from '{identifier}' or update the hierarchy in project/config.yaml to allow this relationship."
+                    );
+                    parent = None;
+                }
+                Err(error) => return Err(error),
+            }
         }
     }
 
