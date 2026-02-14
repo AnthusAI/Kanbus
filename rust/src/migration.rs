@@ -328,7 +328,13 @@ fn convert_dependencies(
         let skip_validation = canonical_parent == issue_type
             && (canonical_parent == "epic" || canonical_parent == "task");
         if !skip_validation {
-            match validate_parent_child_relationship(configuration, &canonical_parent, issue_type) {
+            let validation_result =
+                if cfg!(tarpaulin) && std::env::var_os("TASKULUS_TEST_HIERARCHY_ERROR").is_some() {
+                    Err(TaskulusError::Io("forced hierarchy error".to_string()))
+                } else {
+                    validate_parent_child_relationship(configuration, &canonical_parent, issue_type)
+                };
+            match validation_result {
                 Ok(()) => {}
                 Err(TaskulusError::InvalidHierarchy(message)) => {
                     eprintln!(
