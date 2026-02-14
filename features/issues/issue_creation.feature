@@ -40,6 +40,12 @@ Feature: Issue creation
     Then the command should fail with exit code 1
     And stderr should contain "unknown issue type"
 
+  Scenario: Create bypasses validation with --no-validate
+    Given a Kanbus project with default configuration
+    And an "epic" issue "kanbus-epic01" exists
+    When I run "kanbus create Bad Parent --type epic --parent kanbus-epic01 --no-validate"
+    Then the command should succeed
+
   Scenario: Create an issue with invalid priority
     Given a Kanbus project with default configuration
     When I run "kanbus create Bad Priority --priority 99"

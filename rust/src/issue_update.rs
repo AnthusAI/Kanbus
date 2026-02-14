@@ -10,7 +10,9 @@ use crate::file_io::get_configuration_path;
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::IssueData;
-use crate::workflows::{apply_transition_side_effects, validate_status_transition};
+use crate::workflows::{
+    apply_transition_side_effects, validate_status_transition, validate_status_value,
+};
 
 /// Update an issue and persist it to disk.
 ///
@@ -33,6 +35,7 @@ pub fn update_issue(
     status: Option<&str>,
     assignee: Option<&str>,
     claim: bool,
+    validate: bool,
 ) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let config_path = get_configuration_path(lookup.project_dir.as_path())?;
@@ -91,12 +94,15 @@ pub fn update_issue(
     }
 
     if let Some(new_status) = resolved_status {
-        validate_status_transition(
-            &configuration,
-            &updated_issue.issue_type,
-            &updated_issue.status,
-            new_status,
-        )?;
+        if validate {
+            validate_status_value(&configuration, &updated_issue.issue_type, new_status)?;
+            validate_status_transition(
+                &configuration,
+                &updated_issue.issue_type,
+                &updated_issue.status,
+                new_status,
+            )?;
+        }
         updated_issue = apply_transition_side_effects(&updated_issue, new_status, current_time);
         updated_issue.status = new_status.to_string();
     }

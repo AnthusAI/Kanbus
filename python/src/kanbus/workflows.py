@@ -66,6 +66,17 @@ def validate_status_transition(
         )
 
 
+def validate_status_value(
+    configuration: ProjectConfiguration, issue_type: str, status: str
+) -> None:
+    workflow = get_workflow_for_issue_type(configuration, issue_type)
+    valid_statuses = set(workflow.keys())
+    for allowed in workflow.values():
+        valid_statuses.update(allowed)
+    if status not in valid_statuses:
+        raise InvalidTransitionError("unknown status")
+
+
 def apply_transition_side_effects(
     issue: IssueData,
     new_status: str,

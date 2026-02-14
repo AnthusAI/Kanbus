@@ -87,6 +87,9 @@ enum Commands {
         /// Create the issue in project-local.
         #[arg(long)]
         local: bool,
+        /// Bypass validation checks.
+        #[arg(long = "no-validate")]
+        no_validate: bool,
     },
     /// Show an issue.
     Show {
@@ -112,6 +115,9 @@ enum Commands {
         /// Claim the issue.
         #[arg(long)]
         claim: bool,
+        /// Bypass validation checks.
+        #[arg(long = "no-validate")]
+        no_validate: bool,
     },
     /// Close an issue.
     Close {
@@ -406,6 +412,7 @@ fn execute_command(
             label,
             description,
             local,
+            no_validate,
         } => {
             let title_text = title.join(" ");
             if title_text.trim().is_empty() {
@@ -453,6 +460,7 @@ fn execute_command(
                     Some(description_text)
                 },
                 local,
+                validate: !no_validate,
             };
             let result = create_issue(&request)?;
             let configuration = result.configuration;
@@ -494,6 +502,7 @@ fn execute_command(
             description,
             status,
             claim,
+            no_validate,
         } => {
             let title_text = title
                 .as_ref()
@@ -527,6 +536,7 @@ fn execute_command(
                     status.as_deref(),
                     assignee_value.as_deref(),
                     claim,
+                    !no_validate,
                 )?;
             }
             let formatted_identifier = format_issue_key(&identifier, false);

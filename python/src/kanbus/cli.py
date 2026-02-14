@@ -137,6 +137,7 @@ def _maybe_run_setup_agents(root: Path) -> None:
 @click.option("--label", "labels", multiple=True)
 @click.option("--description", default="")
 @click.option("--local", "local_issue", is_flag=True, default=False)
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
 @click.pass_context
 def create(
     context: click.Context,
@@ -148,6 +149,7 @@ def create(
     labels: tuple[str, ...],
     description: str,
     local_issue: bool,
+    no_validate: bool,
 ) -> None:
     """Create a new issue in the current project.
 
@@ -211,6 +213,7 @@ def create(
             labels=labels,
             description=description_text,
             local=local_issue,
+            validate=not no_validate,
         )
     except IssueCreationError as error:
         raise click.ClickException(str(error)) from error
@@ -274,12 +277,14 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
 @click.option("--description")
 @click.option("--status")
 @click.option("--claim", is_flag=True, default=False)
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
 def update(
     identifier: str,
     title: str | None,
     description: str | None,
     status: str | None,
     claim: bool,
+    no_validate: bool,
 ) -> None:
     """Update an existing issue.
 
@@ -318,6 +323,7 @@ def update(
             status=status,
             assignee=assignee,
             claim=claim,
+            validate=not no_validate,
         )
         formatted_identifier = format_issue_key(identifier, project_context=False)
         click.echo(f"Updated {formatted_identifier}")

@@ -11,6 +11,7 @@ use crate::issue_files::{
     issue_path_for_identifier, list_issue_identifiers, read_issue_from_file, write_issue_to_file,
 };
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::workflows::validate_status_value;
 use crate::{
     file_io::{
         ensure_project_local_directory, find_project_local_directory, get_configuration_path,
@@ -31,6 +32,7 @@ pub struct IssueCreationRequest {
     pub labels: Vec<String>,
     pub description: Option<String>,
     pub local: bool,
+    pub validate: bool,
 }
 
 /// Result payload for issue creation.
@@ -59,31 +61,34 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
     let configuration = load_project_configuration(&config_path)?;
 
     let resolved_type = request.issue_type.as_deref().unwrap_or("task");
-    validate_issue_type(&configuration, resolved_type)?;
-
     let resolved_priority = request.priority.unwrap_or(configuration.default_priority);
-    if !configuration.priorities.contains_key(&resolved_priority) {
-        return Err(KanbusError::IssueOperation("invalid priority".to_string()));
-    }
-
-    if let Some(parent_identifier) = request.parent.as_deref() {
-        let parent_path = issue_path_for_identifier(&issues_dir, parent_identifier);
-        if !parent_path.exists() {
-            return Err(KanbusError::IssueOperation("not found".to_string()));
+    if request.validate {
+        validate_issue_type(&configuration, resolved_type)?;
+        if !configuration.priorities.contains_key(&resolved_priority) {
+            return Err(KanbusError::IssueOperation("invalid priority".to_string()));
         }
-        let parent_issue = read_issue_from_file(&parent_path)?;
-        validate_parent_child_relationship(
-            &configuration,
-            &parent_issue.issue_type,
-            resolved_type,
-        )?;
-    }
 
-    if let Some(duplicate_identifier) = find_duplicate_title(&issues_dir, &request.title)? {
-        return Err(KanbusError::IssueOperation(format!(
-            "duplicate title: \"{}\" already exists as {}",
-            request.title, duplicate_identifier
-        )));
+        if let Some(parent_identifier) = request.parent.as_deref() {
+            let parent_path = issue_path_for_identifier(&issues_dir, parent_identifier);
+            if !parent_path.exists() {
+                return Err(KanbusError::IssueOperation("not found".to_string()));
+            }
+            let parent_issue = read_issue_from_file(&parent_path)?;
+            validate_parent_child_relationship(
+                &configuration,
+                &parent_issue.issue_type,
+                resolved_type,
+            )?;
+        }
+
+        if let Some(duplicate_identifier) = find_duplicate_title(&issues_dir, &request.title)? {
+            return Err(KanbusError::IssueOperation(format!(
+                "duplicate title: \"{}\" already exists as {}",
+                request.title, duplicate_identifier
+            )));
+        }
+
+        validate_status_value(&configuration, resolved_type, &configuration.initial_status)?;
     }
 
     let mut existing_ids = list_issue_identifiers(&project_dir.join("issues"))?;

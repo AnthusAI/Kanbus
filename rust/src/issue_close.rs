@@ -15,5 +15,14 @@ use crate::models::IssueData;
 /// # Errors
 /// Returns `KanbusError` if closing fails.
 pub fn close_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusError> {
-    update_issue(root, identifier, None, None, Some("closed"), None, false)
+    update_issue(
+        root,
+        identifier,
+        None,
+        None,
+        Some("closed"),
+        None,
+        false,
+        true,
+    )
 }
