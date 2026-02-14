@@ -127,7 +127,10 @@ fn when_run_update_no_changes(world: &mut KanbusWorld) {
 
 #[when(expr = "I run \"kanbus update kanbus-test01 --status {word}\"")]
 fn when_run_update_status_test01(world: &mut KanbusWorld, status: String) {
-    run_cli(world, &format!("kanbus update kanbus-test01 --status {status}"));
+    run_cli(
+        world,
+        &format!("kanbus update kanbus-test01 --status {status}"),
+    );
 }
 
 #[when("I run \"kanbus update kanbus-epic01 --status deferred\"")]
@@ -152,7 +155,10 @@ fn when_run_update_title_only(world: &mut KanbusWorld) {
 
 #[when("I run \"kanbus update kanbus-aaa --title \\\"duplicate title\\\"\"")]
 fn when_run_update_duplicate_title(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus update kanbus-aaa --title \"duplicate title\"");
+    run_cli(
+        world,
+        "kanbus update kanbus-aaa --title \"duplicate title\"",
+    );
 }
 
 #[then("issue \"kanbus-aaa\" should have title \"New Title\"")]

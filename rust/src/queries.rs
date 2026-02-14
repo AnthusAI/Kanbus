@@ -50,9 +50,7 @@ pub fn sort_issues(
         return Ok(issues);
     }
 
-    Err(KanbusError::IssueOperation(
-        "invalid sort key".to_string(),
-    ))
+    Err(KanbusError::IssueOperation("invalid sort key".to_string()))
 }
 
 /// Search issues by title, description, and comments.

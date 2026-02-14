@@ -20,9 +20,8 @@ use crate::models::IssueData;
 /// Returns `KanbusError::IssueOperation` if promotion fails.
 pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusError> {
     let project_dir = load_project_directory(root)?;
-    let local_dir = find_project_local_directory(&project_dir).ok_or_else(|| {
-        KanbusError::IssueOperation("project-local not initialized".to_string())
-    })?;
+    let local_dir = find_project_local_directory(&project_dir)
+        .ok_or_else(|| KanbusError::IssueOperation("project-local not initialized".to_string()))?;
 
     let local_issue_path = local_dir.join("issues").join(format!("{identifier}.json"));
     if !local_issue_path.exists() {

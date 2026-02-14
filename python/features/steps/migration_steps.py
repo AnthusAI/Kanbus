@@ -78,7 +78,9 @@ def given_repo_with_blank_lines(context: object) -> None:
         "dependencies": [],
         "comments": [],
     }
-    lines = "\n".join([json.dumps(record), "", json.dumps({**record, "id": "kanbus-002"})])
+    lines = "\n".join(
+        [json.dumps(record), "", json.dumps({**record, "id": "kanbus-002"})]
+    )
     (beads_dir / "issues.jsonl").write_text(lines, encoding="utf-8")
     context.working_directory = repository_path
 

@@ -131,9 +131,7 @@ def given_project_with_configuration_file(context: object) -> None:
 
 
 @given('the Kanbus configuration sets default assignee "{assignee}"')
-def given_kanbus_configuration_default_assignee(
-    context: object, assignee: str
-) -> None:
+def given_kanbus_configuration_default_assignee(context: object, assignee: str) -> None:
     repository = Path(context.working_directory)
     config_path = repository / ".kanbus.yml"
     payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -313,9 +311,7 @@ def given_repo_with_bright_white_status_color(context: object) -> None:
     )
 
 
-@given(
-    "a Kanbus repository with a .kanbus.yml file containing an invalid status color"
-)
+@given("a Kanbus repository with a .kanbus.yml file containing an invalid status color")
 def given_repo_with_invalid_status_color(context: object) -> None:
     initialize_default_project(context)
     repository = Path(context.working_directory)

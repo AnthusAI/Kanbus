@@ -63,9 +63,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
 
     let resolved_priority = request.priority.unwrap_or(configuration.default_priority);
     if !configuration.priorities.contains_key(&resolved_priority) {
-        return Err(KanbusError::IssueOperation(
-            "invalid priority".to_string(),
-        ));
+        return Err(KanbusError::IssueOperation("invalid priority".to_string()));
     }
 
     if let Some(parent_identifier) = request.parent.as_deref() {

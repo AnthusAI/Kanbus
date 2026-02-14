@@ -54,8 +54,8 @@ pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError>
 /// # Errors
 /// Returns `KanbusError::Io` if writing fails.
 pub fn write_issue_to_file(issue: &IssueData, issue_path: &Path) -> Result<(), KanbusError> {
-    let contents = serde_json::to_string_pretty(issue)
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let contents =
+        serde_json::to_string_pretty(issue).map_err(|error| KanbusError::Io(error.to_string()))?;
     fs::write(issue_path, contents).map_err(|error| KanbusError::Io(error.to_string()))
 }
 

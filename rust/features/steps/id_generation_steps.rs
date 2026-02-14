@@ -28,7 +28,10 @@ fn given_project_existing_issue(world: &mut KanbusWorld, identifier: String) {
 
 #[when("I generate an issue ID")]
 fn when_generate_issue_id(world: &mut KanbusWorld) {
-    let prefix = world.id_prefix.clone().unwrap_or_else(|| "kanbus".to_string());
+    let prefix = world
+        .id_prefix
+        .clone()
+        .unwrap_or_else(|| "kanbus".to_string());
     let existing = world.existing_ids.clone().unwrap_or_default();
     let request = IssueIdentifierRequest {
         title: "Test title".to_string(),
@@ -41,7 +44,10 @@ fn when_generate_issue_id(world: &mut KanbusWorld) {
 
 #[when("I generate 100 issue IDs")]
 fn when_generate_many_ids(world: &mut KanbusWorld) {
-    let prefix = world.id_prefix.clone().unwrap_or_else(|| "kanbus".to_string());
+    let prefix = world
+        .id_prefix
+        .clone()
+        .unwrap_or_else(|| "kanbus".to_string());
     let ids = generate_many_identifiers("Test title", &prefix, 100).expect("generate ids");
     world.generated_ids = Some(ids);
 }
@@ -54,7 +60,10 @@ fn given_uuid_generator_returns(_world: &mut KanbusWorld, uuid_text: String) {
 
 #[when("I attempt to generate an issue ID")]
 fn when_attempt_generate_issue_id(world: &mut KanbusWorld) {
-    let prefix = world.id_prefix.clone().unwrap_or_else(|| "kanbus".to_string());
+    let prefix = world
+        .id_prefix
+        .clone()
+        .unwrap_or_else(|| "kanbus".to_string());
     let existing = world.existing_ids.clone().unwrap_or_default();
     let request = IssueIdentifierRequest {
         title: "Test title".to_string(),

@@ -6,7 +6,7 @@ use std::process::{Command, Stdio};
 use cucumber::{given, then, when};
 use tempfile::TempDir;
 
-use kanbus::agents_management::{project_management_text, kanbus_section_text};
+use kanbus::agents_management::{kanbus_section_text, project_management_text};
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 

@@ -74,9 +74,7 @@ fn given_repo_with_null_configuration(world: &mut KanbusWorld) {
     fs::write(config_path, "null\n").expect("write null config");
 }
 
-#[given(
-    "a Kanbus repository with a .kanbus.yml file pointing to an absolute project directory"
-)]
+#[given("a Kanbus repository with a .kanbus.yml file pointing to an absolute project directory")]
 fn given_project_with_absolute_project_directory(world: &mut KanbusWorld) {
     initialize_project(world);
     let abs_project = world
@@ -335,7 +333,9 @@ fn given_unreadable_override_file(world: &mut KanbusWorld) {
     }
 }
 
-#[given("a Kanbus repository with a .kanbus.yml file pointing to \"tracking\" as the project directory")]
+#[given(
+    "a Kanbus repository with a .kanbus.yml file pointing to \"tracking\" as the project directory"
+)]
 fn given_project_with_custom_project_directory(world: &mut KanbusWorld) {
     initialize_project(world);
     update_config_file(world, |mapping| {

@@ -78,7 +78,13 @@ fn given_project_with_varied_issues(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let issues = vec![
         build_issue("kanbus-parent", "Parent", "epic", "open", None),
-        build_issue("kanbus-child", "Child", "task", "open", Some("kanbus-parent")),
+        build_issue(
+            "kanbus-child",
+            "Child",
+            "task",
+            "open",
+            Some("kanbus-parent"),
+        ),
         build_issue("kanbus-closed", "Closed", "bug", "closed", None),
         build_issue("kanbus-deferred", "Deferred", "task", "deferred", None),
         build_issue("kanbus-other", "Other", "story", "open", None),
@@ -113,7 +119,10 @@ fn then_index_status_open(world: &mut KanbusWorld) {
         .map(|issue| issue.identifier.clone())
         .collect();
     identifiers.sort();
-    assert_eq!(identifiers, vec!["kanbus-child", "kanbus-other", "kanbus-parent"]);
+    assert_eq!(
+        identifiers,
+        vec!["kanbus-child", "kanbus-other", "kanbus-parent"]
+    );
 }
 
 #[then("querying by type \"task\" should return the correct issues")]
@@ -339,7 +348,13 @@ fn given_project_with_cacheable_metadata(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let mut parent = build_issue("kanbus-parent", "Parent", "epic", "open", None);
     parent.labels = vec!["core".to_string()];
-    let child = build_issue("kanbus-child", "Child", "task", "open", Some("kanbus-parent"));
+    let child = build_issue(
+        "kanbus-child",
+        "Child",
+        "task",
+        "open",
+        Some("kanbus-parent"),
+    );
     let mut blocked = build_issue("kanbus-blocked", "Blocked", "task", "open", None);
     blocked.dependencies = vec![DependencyLink {
         target: "kanbus-parent".to_string(),

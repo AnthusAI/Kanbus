@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::error::KanbusError;
 use crate::file_io::{
-    discover_project_directories, discover_kanbus_projects, find_project_local_directory,
+    discover_kanbus_projects, discover_project_directories, find_project_local_directory,
     load_project_directory,
 };
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};

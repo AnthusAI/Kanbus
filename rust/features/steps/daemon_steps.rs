@@ -10,7 +10,6 @@ use std::time::Duration;
 
 use cucumber::{given, then, when};
 
-use serde_json::Value;
 use kanbus::cli::run_from_args_with_output;
 use kanbus::daemon_client::{
     self, has_test_daemon_response, set_test_daemon_response, set_test_daemon_responses,
@@ -19,6 +18,7 @@ use kanbus::daemon_client::{
 use kanbus::daemon_paths::get_daemon_socket_path;
 use kanbus::daemon_protocol::{RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION};
 use kanbus::daemon_server::{handle_request_for_testing, run_daemon};
+use serde_json::Value;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 

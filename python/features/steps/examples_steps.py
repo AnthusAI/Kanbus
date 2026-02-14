@@ -81,9 +81,7 @@ def then_example_contains_project_dir(context: object, name: str) -> None:
     assert (path / "project").exists()
 
 
-@then(
-    'the "{name}" example project should contain AGENTS.md with Kanbus instructions'
-)
+@then('the "{name}" example project should contain AGENTS.md with Kanbus instructions')
 def then_example_contains_agents(context: object, name: str) -> None:
     path = _example_dir(name)
     agents = path / "AGENTS.md"

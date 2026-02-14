@@ -151,7 +151,9 @@ def given_repo_multiple_projects_with_local_issues(context: object) -> None:
     write_issue_file(beta_project, _build_issue("kanbus-beta", "Beta task"))
     local_project = root / "alpha" / "project-local"
     (local_project / "issues").mkdir(parents=True)
-    write_issue_file(local_project, _build_issue("kanbus-alpha-local", "Alpha local task"))
+    write_issue_file(
+        local_project, _build_issue("kanbus-alpha-local", "Alpha local task")
+    )
 
 
 @given("a repository with a .kanbus.yml file referencing another project")
@@ -237,9 +239,7 @@ def given_repo_invalid_kanbus_config(context: object) -> None:
     )
 
 
-@given(
-    "a repository with a .kanbus.yml file referencing a valid path with blank lines"
-)
+@given("a repository with a .kanbus.yml file referencing a valid path with blank lines")
 def given_repo_kanbus_with_blank_lines(context: object) -> None:
     root = _create_repo(context, "kanbus-blank-lines")
     (root / "extras" / "project").mkdir(parents=True)

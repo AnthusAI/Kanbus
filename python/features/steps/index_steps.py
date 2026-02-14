@@ -79,7 +79,9 @@ def given_issue_with_blocked_dependency(context: object) -> None:
     project_dir = load_project_directory(context)
     issue = build_issue("kanbus-aaa", "Title", "task", "open", None, [])
     issue = issue.model_copy(
-        update={"dependencies": [DependencyLink(target="kanbus-bbb", type="blocked-by")]}
+        update={
+            "dependencies": [DependencyLink(target="kanbus-bbb", type="blocked-by")]
+        }
     )
     write_issue_file(project_dir, issue)
     write_issue_file(
@@ -244,7 +246,9 @@ def when_cache_loaded(context: object) -> None:
 def then_cached_index_parents(context: object) -> None:
     index = getattr(context, "cached_index", None)
     assert index is not None
-    identifiers = [issue.identifier for issue in index.by_parent.get("kanbus-parent", [])]
+    identifiers = [
+        issue.identifier for issue in index.by_parent.get("kanbus-parent", [])
+    ]
     assert identifiers == ["kanbus-child"]
 
 
@@ -261,6 +265,7 @@ def then_cached_index_reverse_dependencies(context: object) -> None:
     index = getattr(context, "cached_index", None)
     assert index is not None
     identifiers = [
-        issue.identifier for issue in index.reverse_dependencies.get("kanbus-parent", [])
+        issue.identifier
+        for issue in index.reverse_dependencies.get("kanbus-parent", [])
     ]
     assert identifiers == ["kanbus-blocked"]

@@ -409,9 +409,7 @@ fn execute_command(
         } => {
             let title_text = title.join(" ");
             if title_text.trim().is_empty() {
-                return Err(KanbusError::IssueOperation(
-                    "title is required".to_string(),
-                ));
+                return Err(KanbusError::IssueOperation("title is required".to_string()));
             }
             let description_text = description
                 .as_ref()

@@ -4,7 +4,7 @@ use std::process::Command;
 
 use cucumber::{given, then, when};
 
-use kanbus::agents_management::{project_management_text, kanbus_section_text};
+use kanbus::agents_management::{kanbus_section_text, project_management_text};
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 

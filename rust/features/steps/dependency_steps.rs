@@ -93,27 +93,42 @@ fn given_issue_depends_on(
 
 #[when("I run \"kanbus dep add kanbus-child --blocked-by kanbus-parent\"")]
 fn when_run_dep_add_blocked(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep add kanbus-child --blocked-by kanbus-parent");
+    run_cli(
+        world,
+        "kanbus dep add kanbus-child --blocked-by kanbus-parent",
+    );
 }
 
 #[when("I run \"kanbus dep add kanbus-left --relates-to kanbus-right\"")]
 fn when_run_dep_add_relates(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep add kanbus-left --relates-to kanbus-right");
+    run_cli(
+        world,
+        "kanbus dep add kanbus-left --relates-to kanbus-right",
+    );
 }
 
 #[when("I run \"kanbus dep add kanbus-left --blocked-by kanbus-right\"")]
 fn when_run_dep_add_blocked_left(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep add kanbus-left --blocked-by kanbus-right");
+    run_cli(
+        world,
+        "kanbus dep add kanbus-left --blocked-by kanbus-right",
+    );
 }
 
 #[when("I run \"kanbus dep remove kanbus-left --blocked-by kanbus-right\"")]
 fn when_run_dep_remove(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep remove kanbus-left --blocked-by kanbus-right");
+    run_cli(
+        world,
+        "kanbus dep remove kanbus-left --blocked-by kanbus-right",
+    );
 }
 
 #[when("I run \"kanbus dep remove kanbus-left --relates-to kanbus-right\"")]
 fn when_run_dep_remove_relates(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep remove kanbus-left --relates-to kanbus-right");
+    run_cli(
+        world,
+        "kanbus dep remove kanbus-left --relates-to kanbus-right",
+    );
 }
 
 #[when("I run \"kanbus dep add kanbus-b --blocked-by kanbus-a\"")]
@@ -128,7 +143,10 @@ fn when_run_dep_add_shared_downstream(world: &mut KanbusWorld) {
 
 #[when("I run \"kanbus dep add kanbus-missing --blocked-by kanbus-parent\"")]
 fn when_run_dep_add_missing_issue(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep add kanbus-missing --blocked-by kanbus-parent");
+    run_cli(
+        world,
+        "kanbus dep add kanbus-missing --blocked-by kanbus-parent",
+    );
 }
 
 #[when("I run \"kanbus ready\"")]
@@ -177,7 +195,10 @@ fn when_run_dep_remove_missing_target(world: &mut KanbusWorld) {
 
 #[when("I run \"kanbus dep remove kanbus-missing --blocked-by kanbus-parent\"")]
 fn when_run_dep_remove_missing_issue(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep remove kanbus-missing --blocked-by kanbus-parent");
+    run_cli(
+        world,
+        "kanbus dep remove kanbus-missing --blocked-by kanbus-parent",
+    );
 }
 
 #[when("I add an invalid dependency type")]
