@@ -61,17 +61,17 @@ from taskulus.config_loader import ConfigurationError, load_project_configuratio
 from taskulus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 
 
-def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> bool:
+def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool, bool]:
     source = context.get_parameter_source("beads_mode")
     if source == click.core.ParameterSource.COMMANDLINE and beads_mode:
-        return True
+        return True, True
     try:
         configuration = load_project_configuration(get_configuration_path(Path.cwd()))
     except ProjectMarkerError:
-        return False
+        return False, False
     except ConfigurationError as error:
         raise click.ClickException(str(error)) from error
-    return configuration.beads_compatibility
+    return configuration.beads_compatibility, False
 
 
 @click.group()
@@ -80,7 +80,11 @@ def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> bool:
 @click.pass_context
 def cli(context: click.Context, beads_mode: bool) -> None:
     """Taskulus command line interface."""
-    context.obj = {"beads_mode": _resolve_beads_mode(context, beads_mode)}
+    resolved_mode, forced_mode = _resolve_beads_mode(context, beads_mode)
+    context.obj = {
+        "beads_mode": resolved_mode,
+        "beads_mode_forced": forced_mode,
+    }
 
 
 @cli.command("init")
@@ -146,6 +150,9 @@ def create(
 
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    beads_mode_forced = (
+        bool(context.obj.get("beads_mode_forced")) if context.obj else False
+    )
     if beads_mode:
         if local_issue:
             raise click.ClickException("beads mode does not support local issues")
@@ -425,6 +432,9 @@ def list_command(
     """List issues in the current project."""
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    beads_mode_forced = (
+        bool(context.obj.get("beads_mode_forced")) if context.obj else False
+    )
     try:
         issues = list_issues(
             root,
@@ -462,11 +472,10 @@ def list_command(
         except ConfigurationError as error:
             raise click.ClickException(str(error)) from error
 
-    project_context = (
-        False
-        if beads_mode
-        else not any(issue.custom.get("project_path") for issue in issues)
-    )
+    if beads_mode:
+        project_context = beads_mode_forced
+    else:
+        project_context = not any(issue.custom.get("project_path") for issue in issues)
     widths = (
         None if porcelain else compute_widths(issues, project_context=project_context)
     )

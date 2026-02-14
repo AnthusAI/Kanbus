@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite --port ${VITE_PORT:-5173} --strictPort",
-    "dev:server": "CONSOLE_PROJECT_ROOT=../project TASKULUS_PYTHONPATH=python/src TASKULUS_PYTHON=${TASKULUS_PYTHON:-python3} tsx watch server/index.ts",
+    "dev:server": "CONSOLE_PROJECT_ROOT=${CONSOLE_PROJECT_ROOT:-../project} TASKULUS_PYTHONPATH=${TASKULUS_PYTHONPATH:-python/src} TASKULUS_PYTHON=${TASKULUS_PYTHON:-python3} tsx watch server/index.ts",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
