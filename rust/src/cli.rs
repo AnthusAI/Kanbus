@@ -15,8 +15,7 @@ use crate::dependency_tree::{build_dependency_tree, render_dependency_tree};
 use crate::doctor::run_doctor;
 use crate::error::TaskulusError;
 use crate::file_io::{
-    ensure_git_repository, get_configuration_path, initialize_project, load_project_directory,
-    resolve_root,
+    ensure_git_repository, get_configuration_path, initialize_project, resolve_root,
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
@@ -432,9 +431,9 @@ fn execute_command(
                 (load_beads_issue_by_id(root, &identifier)?, None)
             } else {
                 let lookup = load_issue_from_project(root, &identifier)?;
-                let configuration = load_project_configuration(
-                    &get_configuration_path(lookup.project_dir.as_path())?,
-                )?;
+                let configuration = load_project_configuration(&get_configuration_path(
+                    lookup.project_dir.as_path(),
+                )?)?;
                 (lookup.issue, Some(configuration))
             };
             if json {
