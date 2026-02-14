@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from behave import given, then, when
+from pathlib import Path
+from types import SimpleNamespace
 
 from datetime import datetime, timezone
 import json
@@ -14,8 +16,13 @@ from features.steps.shared import (
     run_cli,
     write_issue_file,
 )
-from taskulus.maintenance import _collect_workflow_statuses
+from taskulus.maintenance import (
+    ProjectValidationError,
+    _collect_workflow_statuses,
+    validate_project,
+)
 from taskulus.models import DependencyLink
+from taskulus.doctor import DoctorError, run_doctor
 
 
 @when('I run "tsk validate"')
@@ -31,6 +38,44 @@ def when_run_stats(context: object) -> None:
 @when('I run "tsk doctor"')
 def when_run_doctor(context: object) -> None:
     run_cli(context, "tsk doctor")
+
+
+@when("I validate the project directly")
+def when_validate_project_directly(context: object) -> None:
+    working_directory = getattr(context, "working_directory", None)
+    if working_directory is None:
+        raise RuntimeError("working directory not set")
+    root = Path(working_directory)
+    try:
+        validate_project(root)
+    except ProjectValidationError as error:
+        context.result = SimpleNamespace(
+            exit_code=1,
+            stdout="",
+            stderr=str(error),
+            output=str(error),
+        )
+        return
+    context.result = SimpleNamespace(exit_code=0, stdout="", stderr="", output="")
+
+
+@when("I run doctor diagnostics directly")
+def when_run_doctor_directly(context: object) -> None:
+    working_directory = getattr(context, "working_directory", None)
+    if working_directory is None:
+        raise RuntimeError("working directory not set")
+    root = Path(working_directory)
+    try:
+        run_doctor(root)
+    except DoctorError as error:
+        context.result = SimpleNamespace(
+            exit_code=1,
+            stdout="",
+            stderr=str(error),
+            output=str(error),
+        )
+        return
+    context.result = SimpleNamespace(exit_code=0, stdout="", stderr="", output="")
 
 
 @given("an issue file contains invalid JSON")

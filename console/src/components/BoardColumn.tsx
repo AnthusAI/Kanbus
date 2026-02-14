@@ -1,11 +1,12 @@
 import React from "react";
-import type { Issue } from "../types/issues";
+import type { Issue, ProjectConfig } from "../types/issues";
 import { IssueCard } from "./IssueCard";
 
 interface BoardColumnProps {
   title: string;
   issues: Issue[];
   priorityLookup: Record<number, string>;
+  config?: ProjectConfig;
   onSelectIssue?: (issue: Issue) => void;
   selectedIssueId?: string | null;
 }
@@ -14,6 +15,7 @@ export function BoardColumn({
   title,
   issues,
   priorityLookup,
+  config,
   onSelectIssue,
   selectedIssueId
 }: BoardColumnProps) {
@@ -30,6 +32,7 @@ export function BoardColumn({
               key={issue.id}
               issue={issue}
               priorityName={priorityLookup[issue.priority] ?? "medium"}
+              config={config}
               onSelect={onSelectIssue}
               isSelected={selectedIssueId === issue.id}
             />

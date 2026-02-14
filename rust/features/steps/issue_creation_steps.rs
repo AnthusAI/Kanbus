@@ -10,6 +10,7 @@ use tempfile::TempDir;
 
 use taskulus::cli::run_from_args_with_output;
 use taskulus::file_io::load_project_directory;
+use taskulus::issue_creation::{create_issue, IssueCreationRequest};
 
 use crate::step_definitions::initialization_steps::TaskulusWorld;
 
@@ -24,6 +25,37 @@ fn run_cli(world: &mut TaskulusWorld, command: &str) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
+            world.stderr = Some(String::new());
+        }
+        Err(error) => {
+            world.exit_code = Some(1);
+            world.stdout = Some(String::new());
+            world.stderr = Some(error.to_string());
+        }
+    }
+}
+
+#[when("I create an issue directly with title \"Implement OAuth2 flow\"")]
+fn when_create_issue_directly(world: &mut TaskulusWorld) {
+    let root = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let request = IssueCreationRequest {
+        root: root.clone(),
+        title: "Implement OAuth2 flow".to_string(),
+        issue_type: None,
+        priority: None,
+        assignee: None,
+        parent: None,
+        labels: Vec::new(),
+        description: None,
+        local: false,
+    };
+    match create_issue(&request) {
+        Ok(_) => {
+            world.exit_code = Some(0);
+            world.stdout = Some(String::new());
             world.stderr = Some(String::new());
         }
         Err(error) => {
@@ -209,7 +241,12 @@ fn when_run_create_snapshot_issue(world: &mut TaskulusWorld) {
 
 #[then("the command should succeed")]
 fn then_command_succeeds(world: &mut TaskulusWorld) {
-    assert_eq!(world.exit_code, Some(0));
+    assert_eq!(
+        world.exit_code,
+        Some(0),
+        "stderr: {:?}",
+        world.stderr.as_deref().unwrap_or("")
+    );
 }
 
 #[then("stdout should contain a valid issue ID")]

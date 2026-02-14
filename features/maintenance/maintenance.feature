@@ -48,6 +48,13 @@ Feature: Maintenance commands
     Then the command should fail with exit code 1
     And stderr should contain "issues directory missing"
 
+  Scenario: Validation fails when configuration path lookup fails
+    Given a Taskulus project with default configuration
+    And configuration path lookup will fail
+    When I validate the project directly
+    Then the command should fail with exit code 1
+    And stderr should contain "configuration path lookup failed"
+
   Scenario: Validation fails for invalid issue data
     Given a Taskulus project with default configuration
     And an issue file contains invalid issue data

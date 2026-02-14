@@ -11,14 +11,18 @@ import {
   CornerDownRight
 } from "lucide-react";
 import gsap from "gsap";
-import type { Issue } from "../types/issues";
+import type { Issue, ProjectConfig } from "../types/issues";
 import { Board } from "./Board";
+import { buildIssueColorStyle } from "../utils/issue-colors";
+import { formatTimestamp } from "../utils/format-timestamp";
+import { formatIssueId } from "../utils/format-issue-id";
 
 interface TaskDetailPanelProps {
   task: Issue | null;
   subTasks: Issue[];
   columns: string[];
   priorityLookup: Record<number, string>;
+  config?: ProjectConfig;
   isOpen: boolean;
   widthPercent: number;
   onClose: () => void;
@@ -29,6 +33,7 @@ export function TaskDetailPanel({
   subTasks,
   columns,
   priorityLookup,
+  config,
   isOpen,
   widthPercent,
   onClose
@@ -100,6 +105,12 @@ export function TaskDetailPanel({
     ? priorityLookup[detailTask.priority] ?? "medium"
     : "";
   const comments = detailTask?.comments ?? [];
+  const createdAt = detailTask?.created_at;
+  const updatedAt = detailTask?.updated_at;
+  const closedAt = detailTask?.closed_at;
+  const showUpdated = Boolean(
+    updatedAt && (!createdAt || updatedAt !== createdAt)
+  );
   const DetailTypeIcon =
     {
       initiative: Rocket,
@@ -110,6 +121,17 @@ export function TaskDetailPanel({
       story: BookOpen,
       chore: Wrench
     }[detailTask?.type ?? ""] ?? Tag;
+  const issueStyle =
+    detailTask && config ? buildIssueColorStyle(config, detailTask) : undefined;
+  const formattedCreated = createdAt
+    ? formatTimestamp(createdAt, config?.time_zone)
+    : null;
+  const formattedUpdated = showUpdated && updatedAt
+    ? formatTimestamp(updatedAt, config?.time_zone)
+    : null;
+  const formattedClosed = closedAt
+    ? formatTimestamp(closedAt, config?.time_zone)
+    : null;
 
   return (
     <div
@@ -120,7 +142,8 @@ export function TaskDetailPanel({
       {detailTask ? (
         <div ref={contentRef} className="flex flex-col h-full min-h-0">
           <div
-            className="detail-accent-bar issue-card p-3"
+            className="detail-accent-bar issue-card p-3 pb-0"
+            style={issueStyle}
             data-status={detailTask.status}
             data-type={detailTask.type}
             data-priority={priorityName}
@@ -129,7 +152,7 @@ export function TaskDetailPanel({
               <div className="issue-accent-row gap-2 w-full flex items-center justify-between">
                 <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
                   <DetailTypeIcon className="issue-accent-icon" />
-                  <span className="issue-accent-id">{detailTask.id}</span>
+                  <span className="issue-accent-id">{formatIssueId(detailTask.id)}</span>
                 </div>
                 <div className="issue-accent-priority">{priorityName}</div>
               </div>
@@ -138,6 +161,7 @@ export function TaskDetailPanel({
           <div className="detail-scroll flex-1 min-h-0 overflow-y-auto">
             <div
               className="detail-card issue-card p-3 grid gap-2"
+              style={issueStyle}
               data-status={detailTask.status}
               data-type={detailTask.type}
               data-priority={priorityName}
@@ -148,7 +172,7 @@ export function TaskDetailPanel({
                   {detailTask.type} · {detailTask.status}
                 </div>
                 <button
-                  className="rounded-full bg-background px-1 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted h-7"
+                  className="rounded-full bg-[var(--column)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted h-7 flex items-center gap-2 translate-x-3"
                   onClick={onClose}
                   type="button"
                 >
@@ -164,12 +188,44 @@ export function TaskDetailPanel({
                 {detailTask.description ? (
                   <p className="text-sm text-foreground">{detailTask.description}</p>
                 ) : null}
-                {detailTask.assignee ? (
-                  <div className="text-xs text-muted">Assignee: {detailTask.assignee}</div>
-                ) : null}
               </div>
+              {(formattedCreated || formattedUpdated || formattedClosed || detailTask.assignee) ? (
+                <div className="flex flex-wrap items-start gap-2 text-xs text-muted">
+                  <div className="flex flex-col gap-1">
+                    {formattedCreated ? (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="font-semibold uppercase tracking-[0.2em]">
+                          Created
+                        </span>
+                        <span data-testid="issue-created-at">{formattedCreated}</span>
+                      </div>
+                    ) : null}
+                    {formattedUpdated ? (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="font-semibold uppercase tracking-[0.2em]">
+                          Updated
+                        </span>
+                        <span data-testid="issue-updated-at">{formattedUpdated}</span>
+                      </div>
+                    ) : null}
+                    {formattedClosed ? (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="font-semibold uppercase tracking-[0.2em]">
+                          Closed
+                        </span>
+                        <span data-testid="issue-closed-at">{formattedClosed}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  {detailTask.assignee ? (
+                    <div className="ml-auto text-right" data-testid="issue-assignee">
+                      {detailTask.assignee}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
-            <div className="detail-section p-2 grid gap-2">
+            <div className="detail-section p-3 grid gap-2">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
                   Comments
@@ -180,11 +236,13 @@ export function TaskDetailPanel({
                   <div className="text-sm text-muted">No comments yet.</div>
                 ) : (
                   comments.map((comment, index) => (
-                    <div key={`${comment.created_at}-${index}`} className="detail-comment p-2 grid gap-2">
+                    <div key={`${comment.created_at}-${index}`} className="detail-comment grid gap-2">
                       <div className="text-xs font-semibold text-foreground">
                         {comment.author}
                       </div>
-                      <div className="text-xs text-muted">{comment.created_at}</div>
+                      <div className="text-xs text-muted">
+                        {formatTimestamp(comment.created_at, config?.time_zone)}
+                      </div>
                       <div className="text-sm text-foreground">{comment.text}</div>
                     </div>
                   ))
@@ -192,7 +250,7 @@ export function TaskDetailPanel({
               </div>
             </div>
 
-            <div className="detail-section p-2 grid gap-2">
+            <div className="detail-section p-3 grid gap-2">
               <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
                 Sub-tasks
               </div>
@@ -203,6 +261,7 @@ export function TaskDetailPanel({
                   columns={columns}
                   issues={subTasks}
                   priorityLookup={priorityLookup}
+                  config={config}
                   transitionKey={`${detailTask.id}-${subTasks.length}`}
                 />
               )}

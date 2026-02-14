@@ -28,17 +28,9 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     if not path.exists():
         raise ConfigurationError("configuration file not found")
 
-    try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except OSError as error:
-        raise ConfigurationError(str(error)) from error
-
-    if data is None:
-        data = {}
-    if not isinstance(data, dict):
-        raise ConfigurationError("configuration must be a mapping")
-
-    merged = {**DEFAULT_CONFIGURATION, **data}
+    data = _load_configuration_data(path)
+    override = _load_override_configuration(path.parent / ".taskulus.override.yml")
+    merged = {**DEFAULT_CONFIGURATION, **data, **override}
 
     try:
         configuration = ProjectConfiguration.model_validate(merged)
@@ -52,6 +44,36 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
         raise ConfigurationError("; ".join(errors))
 
     return configuration
+
+
+def _load_configuration_data(path: Path) -> dict:
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise ConfigurationError(str(error)) from error
+
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise ConfigurationError("configuration must be a mapping")
+    return data
+
+
+def _load_override_configuration(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise ConfigurationError(str(error)) from error
+    except yaml.YAMLError as error:
+        raise ConfigurationError("override configuration is invalid") from error
+
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise ConfigurationError("override configuration must be a mapping")
+    return data
 
 
 def validate_project_configuration(configuration: ProjectConfiguration) -> List[str]:

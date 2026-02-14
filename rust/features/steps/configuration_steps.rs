@@ -243,6 +243,98 @@ fn given_project_with_configuration_file(world: &mut TaskulusWorld) {
     write_default_configuration(&config_path).expect("write default config");
 }
 
+#[given(expr = "the Taskulus configuration sets default assignee {string}")]
+fn given_taskulus_configuration_default_assignee(world: &mut TaskulusWorld, assignee: String) {
+    update_config_file(world, |mapping| {
+        mapping.insert(
+            Value::String("assignee".to_string()),
+            Value::String(assignee),
+        );
+    });
+}
+
+#[given(expr = "a Taskulus override file sets default assignee {string}")]
+fn given_override_default_assignee(world: &mut TaskulusWorld, assignee: String) {
+    let repo_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let override_path = repo_path.join(".taskulus.override.yml");
+    let payload = serde_yaml::to_string(&serde_yaml::Mapping::from_iter([(
+        Value::String("assignee".to_string()),
+        Value::String(assignee),
+    )]))
+    .expect("serialize override");
+    fs::write(override_path, payload).expect("write override file");
+}
+
+#[given(expr = "a Taskulus override file sets time zone {string}")]
+fn given_override_time_zone(world: &mut TaskulusWorld, time_zone: String) {
+    let repo_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let override_path = repo_path.join(".taskulus.override.yml");
+    let payload = serde_yaml::to_string(&serde_yaml::Mapping::from_iter([(
+        Value::String("time_zone".to_string()),
+        Value::String(time_zone),
+    )]))
+    .expect("serialize override");
+    fs::write(override_path, payload).expect("write override file");
+}
+
+#[given("a Taskulus override file that is not a mapping")]
+fn given_override_not_mapping(world: &mut TaskulusWorld) {
+    let repo_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let override_path = repo_path.join(".taskulus.override.yml");
+    fs::write(override_path, "- item\n").expect("write override file");
+}
+
+#[given("a Taskulus override file containing invalid YAML")]
+fn given_override_invalid_yaml(world: &mut TaskulusWorld) {
+    let repo_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let override_path = repo_path.join(".taskulus.override.yml");
+    fs::write(override_path, "invalid: [").expect("write override file");
+}
+
+#[given("an empty .taskulus.override.yml file")]
+fn given_empty_override_file(world: &mut TaskulusWorld) {
+    let repo_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let override_path = repo_path.join(".taskulus.override.yml");
+    fs::write(override_path, "").expect("write override file");
+}
+
+#[given("an unreadable .taskulus.override.yml file")]
+fn given_unreadable_override_file(world: &mut TaskulusWorld) {
+    let repo_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let override_path = repo_path.join(".taskulus.override.yml");
+    fs::write(&override_path, "assignee: blocked@example.com\n").expect("write override file");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(&override_path)
+            .expect("override metadata")
+            .permissions();
+        let original = permissions.mode();
+        permissions.set_mode(0o000);
+        fs::set_permissions(&override_path, permissions).expect("set permissions");
+        world.unreadable_path = Some(override_path);
+        world.unreadable_mode = Some(original);
+    }
+}
+
 #[given("a Taskulus repository with a .taskulus.yml file pointing to \"tracking\" as the project directory")]
 fn given_project_with_custom_project_directory(world: &mut TaskulusWorld) {
     initialize_project(world);
@@ -422,4 +514,16 @@ fn then_project_directory_should_match(world: &mut TaskulusWorld, value: String)
 fn then_beads_compatibility_should_be_false(world: &mut TaskulusWorld) {
     let configuration = world.configuration.as_ref().expect("configuration");
     assert_eq!(configuration.beads_compatibility, false);
+}
+
+#[then(expr = "the default assignee should be {string}")]
+fn then_default_assignee_should_match(world: &mut TaskulusWorld, assignee: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.assignee.as_deref(), Some(assignee.as_str()));
+}
+
+#[then(expr = "the time zone should be {string}")]
+fn then_time_zone_should_match(world: &mut TaskulusWorld, time_zone: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.time_zone.as_deref(), Some(time_zone.as_str()));
 }

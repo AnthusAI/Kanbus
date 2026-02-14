@@ -4,6 +4,7 @@ __pycache__/
 .coverage
 .venv/
 .ruff_cache/
+.taskulus.override.yml
 .env
 
 # Rust

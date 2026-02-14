@@ -15,6 +15,13 @@ Feature: Issue creation
     And the created issue should have a created_at timestamp
     And the created issue should have an updated_at timestamp
 
+  Scenario: Create uses default assignee from configuration
+    Given a Taskulus project with default configuration
+    And the Taskulus configuration sets default assignee "dev@example.com"
+    When I run "tsk create Implement OAuth2 flow"
+    Then the command should succeed
+    And the created issue should have assignee "dev@example.com"
+
   Scenario: Create an issue with all options specified
     Given a Taskulus project with default configuration
     And an "epic" issue "tsk-epic01" exists
@@ -62,6 +69,13 @@ Feature: Issue creation
     When I run "tsk create Implement OAuth2 flow"
     Then the command should fail with exit code 1
     And stderr should contain "unknown configuration fields"
+
+  Scenario: Create fails when configuration path lookup fails
+    Given a Taskulus project with default configuration
+    And configuration path lookup will fail
+    When I create an issue directly with title "Implement OAuth2 flow"
+    Then the command should fail with exit code 1
+    And stderr should contain "configuration path lookup failed"
 
   Scenario: Create ignores non-issue files in the issues directory
     Given a Taskulus project with default configuration

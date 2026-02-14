@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from behave import then, when
+from pathlib import Path
+from types import SimpleNamespace
 
 from features.steps.shared import (
     capture_issue_identifier,
@@ -10,6 +12,7 @@ from features.steps.shared import (
     read_issue_file,
     run_cli,
 )
+from taskulus.issue_creation import IssueCreationError, create_issue
 
 
 @when('I run "tsk create Implement OAuth2 flow"')
@@ -72,6 +75,35 @@ def when_run_create_standalone_task(context: object) -> None:
 @when('I run "tsk create Snapshot issue"')
 def when_run_create_snapshot_issue(context: object) -> None:
     run_cli(context, "tsk create Snapshot issue")
+
+
+@when('I create an issue directly with title "Implement OAuth2 flow"')
+def when_create_issue_directly(context: object) -> None:
+    working_directory = getattr(context, "working_directory", None)
+    if working_directory is None:
+        raise RuntimeError("working directory not set")
+    root = Path(working_directory)
+    try:
+        create_issue(
+            root=root,
+            title="Implement OAuth2 flow",
+            issue_type=None,
+            priority=None,
+            assignee=None,
+            parent=None,
+            labels=[],
+            description="",
+            local=False,
+        )
+    except IssueCreationError as error:
+        context.result = SimpleNamespace(
+            exit_code=1,
+            stdout="",
+            stderr=str(error),
+            output=str(error),
+        )
+        return
+    context.result = SimpleNamespace(exit_code=0, stdout="", stderr="", output="")
 
 
 @then("the command should succeed")

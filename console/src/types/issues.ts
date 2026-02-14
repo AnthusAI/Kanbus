@@ -1,13 +1,25 @@
 export type WorkflowDefinition = Record<string, string[]>;
 
+export interface PriorityDefinition {
+  name: string;
+  color?: string | null;
+}
+
 export interface ProjectConfig {
-  prefix: string;
+  project_directory: string;
+  external_projects: string[];
+  project_key: string;
   hierarchy: string[];
   types: string[];
   workflows: Record<string, WorkflowDefinition>;
   initial_status: string;
-  priorities: Record<number, string>;
+  priorities: Record<number, PriorityDefinition>;
   default_priority: number;
+  assignee?: string | null;
+  time_zone?: string | null;
+  status_colors: Record<string, string>;
+  type_colors: Record<string, string>;
+  beads_compatibility: boolean;
 }
 
 export interface IssueComment {

@@ -7,10 +7,12 @@ use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
 use taskulus::cli::run_from_args_with_output;
+use taskulus::config_loader::load_project_configuration;
 use taskulus::daemon_client::{has_test_daemon_response, set_test_daemon_response};
 use taskulus::daemon_protocol::{RequestEnvelope, PROTOCOL_VERSION};
 use taskulus::daemon_server::handle_request_for_testing;
-use taskulus::file_io::load_project_directory;
+use taskulus::file_io::{get_configuration_path, load_project_directory};
+use taskulus::issue_listing::list_issues;
 use taskulus::models::IssueData;
 use tempfile::TempDir;
 
@@ -233,6 +235,36 @@ fn when_run_help(world: &mut TaskulusWorld) {
 #[when("I run \"tsk --unknown\"")]
 fn when_run_unknown(world: &mut TaskulusWorld) {
     run_cli(world, "tsk --unknown");
+}
+
+#[when("I list issues directly after configuration path lookup fails")]
+fn when_list_issues_directly_after_configuration_failure(world: &mut TaskulusWorld) {
+    let root = world.working_directory.as_ref().expect("working directory");
+    if let Err(error) = list_issues(root, None, None, None, None, None, None, true, false) {
+        world.exit_code = Some(1);
+        world.stdout = Some(String::new());
+        world.stderr = Some(error.to_string());
+        return;
+    }
+    match get_configuration_path(root) {
+        Ok(path) => match load_project_configuration(&path) {
+            Ok(_) => {
+                world.exit_code = Some(0);
+                world.stdout = Some(String::new());
+                world.stderr = Some(String::new());
+            }
+            Err(error) => {
+                world.exit_code = Some(1);
+                world.stdout = Some(String::new());
+                world.stderr = Some(error.to_string());
+            }
+        },
+        Err(error) => {
+            world.exit_code = Some(1);
+            world.stdout = Some(String::new());
+            world.stderr = Some(error.to_string());
+        }
+    }
 }
 
 #[when("I run \"tsk console snapshot\"")]

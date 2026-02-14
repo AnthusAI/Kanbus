@@ -1,5 +1,5 @@
 import React from "react";
-import type { Issue } from "../types/issues";
+import type { Issue, ProjectConfig } from "../types/issues";
 import { BoardColumn } from "./BoardColumn";
 import { useBoardTransitions } from "../hooks/useBoardTransitions";
 
@@ -7,6 +7,7 @@ interface BoardProps {
   columns: string[];
   issues: Issue[];
   priorityLookup: Record<number, string>;
+  config?: ProjectConfig;
   onSelectIssue?: (issue: Issue) => void;
   selectedIssueId?: string | null;
   transitionKey: string;
@@ -16,6 +17,7 @@ export function Board({
   columns,
   issues,
   priorityLookup,
+  config,
   onSelectIssue,
   selectedIssueId,
   transitionKey
@@ -32,6 +34,7 @@ export function Board({
             title={column}
             issues={columnIssues}
             priorityLookup={priorityLookup}
+            config={config}
             onSelectIssue={onSelectIssue}
             selectedIssueId={selectedIssueId}
           />

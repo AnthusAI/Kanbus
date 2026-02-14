@@ -1,194 +1,81 @@
-@import "@radix-ui/colors/red.css";
-@import "@radix-ui/colors/orange.css";
 @import "@radix-ui/colors/amber.css";
-@import "@radix-ui/colors/yellow.css";
-@import "@radix-ui/colors/green.css";
-@import "@radix-ui/colors/teal.css";
-@import "@radix-ui/colors/cyan.css";
 @import "@radix-ui/colors/blue.css";
-@import "@radix-ui/colors/indigo.css";
-@import "@radix-ui/colors/violet.css";
-@import "@radix-ui/colors/pink.css";
+@import "@radix-ui/colors/bronze.css";
+@import "@radix-ui/colors/brown.css";
+@import "@radix-ui/colors/crimson.css";
+@import "@radix-ui/colors/cyan.css";
+@import "@radix-ui/colors/gold.css";
+@import "@radix-ui/colors/grass.css";
 @import "@radix-ui/colors/gray.css";
+@import "@radix-ui/colors/green.css";
+@import "@radix-ui/colors/indigo.css";
+@import "@radix-ui/colors/iris.css";
+@import "@radix-ui/colors/jade.css";
+@import "@radix-ui/colors/lime.css";
+@import "@radix-ui/colors/mauve.css";
+@import "@radix-ui/colors/mint.css";
+@import "@radix-ui/colors/olive.css";
+@import "@radix-ui/colors/orange.css";
+@import "@radix-ui/colors/pink.css";
+@import "@radix-ui/colors/plum.css";
+@import "@radix-ui/colors/purple.css";
+@import "@radix-ui/colors/red.css";
+@import "@radix-ui/colors/ruby.css";
+@import "@radix-ui/colors/sage.css";
+@import "@radix-ui/colors/sand.css";
+@import "@radix-ui/colors/sky.css";
 @import "@radix-ui/colors/slate.css";
+@import "@radix-ui/colors/teal.css";
+@import "@radix-ui/colors/tomato.css";
+@import "@radix-ui/colors/violet.css";
+@import "@radix-ui/colors/yellow.css";
+@import "@radix-ui/colors/amber-dark.css";
+@import "@radix-ui/colors/blue-dark.css";
+@import "@radix-ui/colors/bronze-dark.css";
+@import "@radix-ui/colors/brown-dark.css";
+@import "@radix-ui/colors/crimson-dark.css";
+@import "@radix-ui/colors/cyan-dark.css";
+@import "@radix-ui/colors/gold-dark.css";
+@import "@radix-ui/colors/grass-dark.css";
+@import "@radix-ui/colors/gray-dark.css";
+@import "@radix-ui/colors/green-dark.css";
+@import "@radix-ui/colors/indigo-dark.css";
+@import "@radix-ui/colors/iris-dark.css";
+@import "@radix-ui/colors/jade-dark.css";
+@import "@radix-ui/colors/lime-dark.css";
+@import "@radix-ui/colors/mauve-dark.css";
+@import "@radix-ui/colors/mint-dark.css";
+@import "@radix-ui/colors/olive-dark.css";
+@import "@radix-ui/colors/orange-dark.css";
+@import "@radix-ui/colors/pink-dark.css";
+@import "@radix-ui/colors/plum-dark.css";
+@import "@radix-ui/colors/purple-dark.css";
+@import "@radix-ui/colors/red-dark.css";
+@import "@radix-ui/colors/ruby-dark.css";
+@import "@radix-ui/colors/sage-dark.css";
+@import "@radix-ui/colors/sand-dark.css";
+@import "@radix-ui/colors/sky-dark.css";
+@import "@radix-ui/colors/slate-dark.css";
+@import "@radix-ui/colors/teal-dark.css";
+@import "@radix-ui/colors/tomato-dark.css";
+@import "@radix-ui/colors/violet-dark.css";
+@import "@radix-ui/colors/yellow-dark.css";
 
 .issue-card {
-  --issue-accent: var(--slate-4);
-  --issue-accent-muted: var(--slate-2);
   --issue-accent-foreground: var(--text-foreground);
-}
-
-.issue-card[data-status="open"] {
-  --issue-accent: var(--green-4);
-  --issue-accent-muted: var(--green-2);
-}
-
-.issue-card[data-status="in_progress"] {
-  --issue-accent: var(--blue-4);
-  --issue-accent-muted: var(--blue-2);
-}
-
-.issue-card[data-status="blocked"] {
-  --issue-accent: var(--red-4);
-  --issue-accent-muted: var(--red-2);
-}
-
-.issue-card[data-status="deferred"] {
-  --issue-accent: var(--amber-4);
-  --issue-accent-muted: var(--amber-2);
-}
-
-.issue-card[data-status="closed"] {
-  --issue-accent: var(--gray-4);
-  --issue-accent-muted: var(--gray-2);
-}
-
-.issue-card[data-type="initiative"] {
-  --issue-accent: var(--violet-4);
-  --issue-accent-muted: var(--violet-2);
-}
-
-.issue-card[data-type="epic"] {
-  --issue-accent: var(--indigo-4);
-  --issue-accent-muted: var(--indigo-2);
-}
-
-.issue-card[data-type="task"] {
-  --issue-accent: var(--cyan-4);
-  --issue-accent-muted: var(--cyan-2);
-}
-
-.issue-card[data-type="sub-task"] {
-  --issue-accent: var(--teal-4);
-  --issue-accent-muted: var(--teal-2);
-}
-
-.issue-card[data-type="bug"] {
-  --issue-accent: var(--red-4);
-  --issue-accent-muted: var(--red-2);
-}
-
-.issue-card[data-type="story"] {
-  --issue-accent: var(--pink-4);
-  --issue-accent-muted: var(--pink-2);
-}
-
-.issue-card[data-type="chore"] {
-  --issue-accent: var(--slate-4);
-  --issue-accent-muted: var(--slate-2);
-}
-
-.issue-card[data-priority="critical"] {
-  --issue-accent: var(--red-4);
-  --issue-accent-muted: var(--red-2);
-}
-
-.issue-card[data-priority="high"] {
-  --issue-accent: var(--orange-4);
-  --issue-accent-muted: var(--orange-2);
-}
-
-.issue-card[data-priority="medium"] {
-  --issue-accent: var(--yellow-4);
-  --issue-accent-muted: var(--yellow-2);
-}
-
-.issue-card[data-priority="low"] {
-  --issue-accent: var(--blue-4);
-  --issue-accent-muted: var(--blue-2);
-}
-
-.issue-card[data-priority="trivial"] {
-  --issue-accent: var(--gray-4);
-  --issue-accent-muted: var(--gray-2);
+  --issue-accent-light: var(--slate-4);
+  --issue-accent-muted-light: var(--slate-2);
+  --issue-accent-dark: var(--slate-11);
+  --issue-accent-muted-dark: var(--slate-6);
+  --issue-accent: var(--issue-accent-light);
+  --issue-accent-muted: var(--issue-accent-muted-light);
+  --issue-priority-light: var(--issue-accent-foreground);
+  --issue-priority-dark: var(--issue-accent-foreground);
+  --issue-priority-color: var(--issue-priority-light);
 }
 
 .dark .issue-card {
-  --issue-accent: var(--slate-11);
-  --issue-accent-muted: var(--slate-6);
-}
-
-.dark .issue-card[data-status="open"] {
-  --issue-accent: var(--green-11);
-  --issue-accent-muted: var(--green-6);
-}
-
-.dark .issue-card[data-status="in_progress"] {
-  --issue-accent: var(--blue-11);
-  --issue-accent-muted: var(--blue-6);
-}
-
-.dark .issue-card[data-status="blocked"] {
-  --issue-accent: var(--red-11);
-  --issue-accent-muted: var(--red-6);
-}
-
-.dark .issue-card[data-status="deferred"] {
-  --issue-accent: var(--amber-11);
-  --issue-accent-muted: var(--amber-6);
-}
-
-.dark .issue-card[data-status="closed"] {
-  --issue-accent: var(--gray-10);
-  --issue-accent-muted: var(--gray-6);
-}
-
-.dark .issue-card[data-type="initiative"] {
-  --issue-accent: var(--violet-11);
-  --issue-accent-muted: var(--violet-6);
-}
-
-.dark .issue-card[data-type="epic"] {
-  --issue-accent: var(--indigo-11);
-  --issue-accent-muted: var(--indigo-6);
-}
-
-.dark .issue-card[data-type="task"] {
-  --issue-accent: var(--cyan-11);
-  --issue-accent-muted: var(--cyan-6);
-}
-
-.dark .issue-card[data-type="sub-task"] {
-  --issue-accent: var(--teal-11);
-  --issue-accent-muted: var(--teal-6);
-}
-
-.dark .issue-card[data-type="bug"] {
-  --issue-accent: var(--red-11);
-  --issue-accent-muted: var(--red-6);
-}
-
-.dark .issue-card[data-type="story"] {
-  --issue-accent: var(--pink-11);
-  --issue-accent-muted: var(--pink-6);
-}
-
-.dark .issue-card[data-type="chore"] {
-  --issue-accent: var(--slate-11);
-  --issue-accent-muted: var(--slate-6);
-}
-
-.dark .issue-card[data-priority="critical"] {
-  --issue-accent: var(--red-11);
-  --issue-accent-muted: var(--red-6);
-}
-
-.dark .issue-card[data-priority="high"] {
-  --issue-accent: var(--orange-11);
-  --issue-accent-muted: var(--orange-6);
-}
-
-.dark .issue-card[data-priority="medium"] {
-  --issue-accent: var(--yellow-11);
-  --issue-accent-muted: var(--yellow-6);
-}
-
-.dark .issue-card[data-priority="low"] {
-  --issue-accent: var(--blue-11);
-  --issue-accent-muted: var(--blue-6);
-}
-
-.dark .issue-card[data-priority="trivial"] {
-  --issue-accent: var(--gray-10);
-  --issue-accent-muted: var(--gray-6);
+  --issue-accent: var(--issue-accent-dark);
+  --issue-accent-muted: var(--issue-accent-muted-dark);
+  --issue-priority-color: var(--issue-priority-dark);
 }

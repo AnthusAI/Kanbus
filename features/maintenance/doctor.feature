@@ -26,3 +26,10 @@ Feature: Doctor diagnostics
     When I run "tsk doctor"
     Then the command should fail with exit code 1
     And stderr should contain "unknown configuration fields"
+
+  Scenario: Doctor fails when configuration path lookup fails
+    Given a Taskulus project with default configuration
+    And configuration path lookup will fail
+    When I run doctor diagnostics directly
+    Then the command should fail with exit code 1
+    And stderr should contain "configuration path lookup failed"

@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from behave import given, then, when
+import os
+from pathlib import Path
+from types import SimpleNamespace
+import click
 
 from features.steps.shared import (
     build_issue,
@@ -12,6 +16,7 @@ from features.steps.shared import (
     write_issue_file,
 )
 from features.steps.shared import initialize_default_project
+from taskulus.cli import list_command
 from taskulus.issue_listing import _list_issues_with_local
 
 
@@ -126,6 +131,70 @@ def when_run_unknown(context: object) -> None:
 @when('I run "tsk console snapshot"')
 def when_run_console_snapshot(context: object) -> None:
     run_cli(context, "tsk console snapshot")
+
+
+@when("I list issues directly after configuration path lookup fails")
+def when_list_issues_directly_after_configuration_failure(context: object) -> None:
+    working_directory = getattr(context, "working_directory", None)
+    if working_directory is None:
+        raise RuntimeError("working directory not set")
+    previous = Path.cwd()
+    try:
+        os.chdir(working_directory)
+        from taskulus.config_loader import ConfigurationError
+
+        click_context = click.Context(list_command)
+        click_context.obj = {"beads_mode": False, "beads_mode_forced": False}
+        original_loader = None
+        original_get_config = None
+        original_list_issues = None
+        try:
+
+            def _raise_configuration_error(_: Path) -> Path:
+                raise ConfigurationError("configuration path lookup failed")
+
+            def _raise_on_load(_: Path) -> object:
+                raise ConfigurationError("configuration path lookup failed")
+
+            globals_dict = list_command.callback.__wrapped__.__globals__  # type: ignore[attr-defined]
+            original_loader = globals_dict.get("load_project_configuration")
+            original_get_config = globals_dict.get("get_configuration_path")
+            original_list_issues = globals_dict.get("list_issues")
+            globals_dict["load_project_configuration"] = _raise_on_load
+            globals_dict["get_configuration_path"] = _raise_configuration_error
+            globals_dict["list_issues"] = lambda *args, **kwargs: []
+            list_command.callback.__wrapped__(  # type: ignore[attr-defined]
+                click_context,
+                status=None,
+                issue_type=None,
+                assignee=None,
+                label=None,
+                sort=None,
+                search=None,
+                no_local=False,
+                local_only=False,
+                limit=50,
+                porcelain=False,
+            )
+        except click.ClickException as error:
+            context.result = SimpleNamespace(
+                exit_code=1,
+                stdout="",
+                stderr=str(error),
+                output=str(error),
+            )
+            return
+        finally:
+            globals_dict = list_command.callback.__wrapped__.__globals__  # type: ignore[attr-defined]
+            if original_loader is not None:
+                globals_dict["load_project_configuration"] = original_loader
+            if original_get_config is not None:
+                globals_dict["get_configuration_path"] = original_get_config
+            if original_list_issues is not None:
+                globals_dict["list_issues"] = original_list_issues
+        context.result = SimpleNamespace(exit_code=0, stdout="", stderr="", output="")
+    finally:
+        os.chdir(previous)
 
 
 @given('issue "{identifier}" has title "{title}"')

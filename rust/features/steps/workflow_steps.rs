@@ -239,6 +239,8 @@ fn when_lookup_workflow(world: &mut TaskulusWorld, issue_type: String) {
             },
         )]),
         default_priority: 2,
+        assignee: None,
+        time_zone: None,
         status_colors: BTreeMap::new(),
         type_colors: BTreeMap::new(),
         beads_compatibility: false,

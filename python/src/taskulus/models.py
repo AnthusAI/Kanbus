@@ -120,6 +120,10 @@ class ProjectConfiguration(BaseModel):
     :type priorities: Dict[int, PriorityDefinition]
     :param default_priority: Default priority.
     :type default_priority: int
+    :param assignee: Default assignee identifier.
+    :type assignee: Optional[str]
+    :param time_zone: Preferred display time zone.
+    :type time_zone: Optional[str]
     :param status_colors: Optional map of status to color name.
     :type status_colors: Dict[str, str]
     :param type_colors: Optional map of issue type to color name.
@@ -139,6 +143,8 @@ class ProjectConfiguration(BaseModel):
     initial_status: str = Field(min_length=1)
     priorities: Dict[int, PriorityDefinition]
     default_priority: int
+    assignee: Optional[str] = Field(default=None, min_length=1)
+    time_zone: Optional[str] = Field(default=None, min_length=1)
     status_colors: Dict[str, str] = Field(default_factory=dict)
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False

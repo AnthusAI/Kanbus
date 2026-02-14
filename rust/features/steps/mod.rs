@@ -4,6 +4,7 @@ pub mod comment_steps;
 pub mod compatibility_steps;
 pub mod configuration_steps;
 pub mod console_snapshot_steps;
+pub mod console_ui_steps;
 pub mod daemon_steps;
 pub mod dependency_steps;
 pub mod discovery_steps;

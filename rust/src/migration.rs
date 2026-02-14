@@ -543,6 +543,8 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         initial_status: "open".to_string(),
         priorities: priority_defs,
         default_priority: 2,
+        assignee: None,
+        time_zone: None,
         status_colors: BTreeMap::new(),
         type_colors: BTreeMap::new(),
         beads_compatibility: false,

@@ -125,6 +125,8 @@ def create_issue(
     identifier = generate_issue_identifier(identifier_request).identifier
     updated_at = created_at
 
+    resolved_assignee = assignee if assignee is not None else configuration.assignee
+
     issue = IssueData(
         id=identifier,
         title=title,
@@ -132,7 +134,7 @@ def create_issue(
         type=resolved_type,
         status=configuration.initial_status,
         priority=resolved_priority,
-        assignee=assignee,
+        assignee=resolved_assignee,
         creator=None,
         parent=parent,
         labels=list(labels),

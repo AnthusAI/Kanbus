@@ -1,7 +1,10 @@
 import { setWorldConstructor, setDefaultTimeout, BeforeAll, AfterAll, Before, After } from "@cucumber/cucumber";
 import { chromium } from "playwright";
+import { rm } from "fs/promises";
 
-const BASE_URL = process.env.CONSOLE_BASE_URL ?? "http://localhost:5173";
+const vitePort = process.env.VITE_PORT ?? "5173";
+const BASE_URL =
+  process.env.CONSOLE_BASE_URL ?? `http://localhost:${vitePort}`;
 
 let browser;
 
@@ -10,6 +13,7 @@ setDefaultTimeout(60 * 1000);
 class ConsoleWorld {
   constructor() {
     this.page = null;
+    this.overridePath = null;
   }
 }
 
@@ -38,5 +42,9 @@ Before(async function () {
 After(async function () {
   if (this.page) {
     await this.page.close();
+  }
+  if (this.overridePath) {
+    await rm(this.overridePath, { force: true });
+    this.overridePath = null;
   }
 });

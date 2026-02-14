@@ -38,6 +38,8 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
         4: {"name": "trivial", "color": "white"},
     },
     "default_priority": 2,
+    "assignee": None,
+    "time_zone": None,
     "status_colors": {
         "open": "cyan",
         "in_progress": "blue",

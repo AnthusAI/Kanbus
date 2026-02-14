@@ -9,11 +9,14 @@ import {
   Wrench,
   CornerDownRight
 } from "lucide-react";
-import type { Issue } from "../types/issues";
+import type { Issue, ProjectConfig } from "../types/issues";
+import { buildIssueColorStyle } from "../utils/issue-colors";
+import { formatIssueId } from "../utils/format-issue-id";
 
 interface IssueCardProps {
   issue: Issue;
   priorityName: string;
+  config?: ProjectConfig;
   onSelect?: (issue: Issue) => void;
   isSelected?: boolean;
 }
@@ -21,6 +24,7 @@ interface IssueCardProps {
 export function IssueCard({
   issue,
   priorityName,
+  config,
   onSelect,
   isSelected
 }: IssueCardProps) {
@@ -40,10 +44,12 @@ export function IssueCard({
       story: BookOpen,
       chore: Wrench
     }[issue.type] ?? Tag;
+  const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
 
   return (
     <div
-      className={`issue-card rounded-xl bg-card p-3 grid cursor-pointer overflow-hidden relative hover:bg-card-muted ${isSelected ? " issue-card-selected" : ""}`}
+      className={`issue-card rounded-xl bg-card p-3 grid cursor-pointer overflow-hidden relative hover:bg-card-muted transition-shadow duration-300 ${isSelected ? " ring-inset ring-[6px] ring-[var(--text-muted)]" : ""}`}
+      style={issueStyle}
       data-status={issue.status}
       data-type={issue.type}
       data-priority={priorityName}
@@ -62,17 +68,16 @@ export function IssueCard({
         <div className="issue-accent-row gap-2 w-full flex items-center justify-between">
           <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
             <IssueTypeIcon className="issue-accent-icon" />
-            <span className="issue-accent-id">{issue.id}</span>
+            <span className="issue-accent-id">{formatIssueId(issue.id)}</span>
           </div>
           <div className="issue-accent-priority">{priorityName}</div>
         </div>
       </div>
       <div className="grid gap-1 pt-2">
-        <div className="flex items-center justify-between text-xs text-muted">
-          {issue.assignee ? <span>{issue.assignee}</span> : <span />}
+        <h3 className="text-base font-medium text-foreground">{issue.title}</h3>
+        <div className="flex items-center justify-end text-xs text-muted">
+          {issue.assignee ? <span>{issue.assignee}</span> : null}
         </div>
-        <h3 className="text-base font-semibold text-foreground">{issue.title}</h3>
-        <div className="flex flex-wrap" />
       </div>
     </div>
   );

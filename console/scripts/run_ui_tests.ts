@@ -40,16 +40,25 @@ async function main() {
   const env = {
     ...process.env,
     CONSOLE_PROJECT_ROOT: projectDir,
-    CONSOLE_PORT: "5174",
-    VITE_PORT: "5173",
+    CONSOLE_PORT: process.env.CONSOLE_PORT ?? "5174",
+    VITE_PORT: process.env.VITE_PORT ?? "5173",
+    CONSOLE_BASE_URL:
+      process.env.CONSOLE_BASE_URL ??
+      `http://localhost:${process.env.VITE_PORT ?? "5173"}`,
     TASKULUS_PYTHON: process.env.TASKULUS_PYTHON ?? "python3",
     TASKULUS_PYTHONPATH: process.env.TASKULUS_PYTHONPATH ?? pythonPath
   };
+  const vitePort = env.VITE_PORT ?? "5173";
 
   try {
     await runCommand(
       "npx",
-      ["start-server-and-test", "dev", "http://localhost:5173", "cucumber"],
+      [
+        "start-server-and-test",
+        "dev",
+        `http://localhost:${vitePort}`,
+        "cucumber"
+      ],
       env
     );
   } finally {

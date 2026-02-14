@@ -108,6 +108,13 @@ fn given_repo_unreadable(world: &mut TaskulusWorld) {
     world.working_directory = Some(root);
 }
 
+#[given("a repository directory that has been removed")]
+fn given_repo_removed(world: &mut TaskulusWorld) {
+    let root = create_repo(world, "removed-projects");
+    fs::remove_dir_all(&root).expect("remove repo");
+    world.working_directory = Some(root);
+}
+
 fn build_issue(identifier: &str, title: &str) -> IssueData {
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
     IssueData {

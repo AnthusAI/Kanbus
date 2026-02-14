@@ -8,6 +8,7 @@ use std::time::SystemTime;
 use cucumber::{given, then, when, World};
 use tempfile::TempDir;
 
+use crate::step_definitions::console_ui_steps::{ConsoleLocalStorage, ConsoleState};
 use serde_json::Value;
 use taskulus::cli::run_from_args_with_output;
 use taskulus::daemon_client;
@@ -73,6 +74,9 @@ pub struct TaskulusWorld {
     pub last_taskulus_issue_id: Option<String>,
     pub unreadable_path: Option<PathBuf>,
     pub unreadable_mode: Option<u32>,
+    pub console_state: Option<ConsoleState>,
+    pub console_local_storage: ConsoleLocalStorage,
+    pub console_time_zone: Option<String>,
 }
 
 impl Drop for TaskulusWorld {

@@ -1,0 +1,400 @@
+"""Behave steps for console UI expectations."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+from behave import given, then, when
+
+
+@dataclass
+class ConsoleIssue:
+    title: str
+    issue_type: str
+    parent_title: str | None = None
+    comments: list["ConsoleComment"] = field(default_factory=list)
+    assignee: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    closed_at: str | None = None
+
+
+@dataclass
+class ConsoleComment:
+    author: str
+    created_at: str
+
+
+@dataclass
+class ConsoleSettings:
+    theme: str = "default"
+    mode: str = "light"
+    typeface: str = "sans"
+    motion: str = "on"
+
+
+@dataclass
+class ConsoleLocalStorage:
+    selected_tab: str | None = None
+    settings: ConsoleSettings = field(default_factory=ConsoleSettings)
+
+
+@dataclass
+class ConsoleState:
+    issues: list[ConsoleIssue]
+    selected_tab: str
+    selected_task_title: str | None
+    settings: ConsoleSettings
+    time_zone: str | None
+
+
+@given("the console is open")
+def given_console_open(context: object) -> None:
+    context.console_state = _open_console(context)
+
+
+@given("local storage is cleared")
+def given_local_storage_cleared(context: object) -> None:
+    context.console_local_storage = ConsoleLocalStorage()
+
+
+@when("the console is reloaded")
+def when_console_reloaded(context: object) -> None:
+    context.console_state = _open_console(context)
+
+
+@when('I switch to the "{tab}" tab')
+def when_switch_tab(context: object, tab: str) -> None:
+    state = _require_console_state(context)
+    state.selected_tab = tab
+    storage = _ensure_console_storage(context)
+    storage.selected_tab = tab
+
+
+@when('I open the task "{title}"')
+def when_open_task(context: object, title: str) -> None:
+    state = _require_console_state(context)
+    state.selected_task_title = title
+
+
+@when('a new task issue named "{title}" is added')
+def when_add_task_issue(context: object, title: str) -> None:
+    state = _require_console_state(context)
+    state.issues.append(ConsoleIssue(title=title, issue_type="task"))
+
+
+@when("I open settings")
+def when_open_settings(context: object) -> None:
+    _require_console_state(context)
+
+
+@given('the console configuration sets time zone "{time_zone}"')
+def given_console_time_zone(context: object, time_zone: str) -> None:
+    context.console_time_zone = time_zone
+    state = _require_console_state(context)
+    state.time_zone = time_zone
+
+
+@given('the console has a comment from "{author}" at "{timestamp}" on task "{title}"')
+def given_console_comment(
+    context: object, author: str, timestamp: str, title: str
+) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.comments.append(ConsoleComment(author=author, created_at=timestamp))
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
+@given(
+    'the console has a task "{title}" created at "{created_at}" updated at "{updated_at}"'
+)
+def given_console_task_timestamps(
+    context: object, title: str, created_at: str, updated_at: str
+) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.created_at = created_at
+            issue.updated_at = updated_at
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
+@given(
+    'the console has a closed task "{title}" created at "{created_at}" updated at "{updated_at}" closed at "{closed_at}"'
+)
+def given_console_closed_task(
+    context: object, title: str, created_at: str, updated_at: str, closed_at: str
+) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.created_at = created_at
+            issue.updated_at = updated_at
+            issue.closed_at = closed_at
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
+@given('the console has an assignee "{assignee}" on task "{title}"')
+def given_console_task_assignee(context: object, assignee: str, title: str) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.assignee = assignee
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
+@when('I set the theme to "{theme}"')
+def when_set_theme(context: object, theme: str) -> None:
+    state = _require_console_state(context)
+    state.settings.theme = theme
+    _ensure_console_storage(context).settings.theme = theme
+
+
+@when('I set the mode to "{mode}"')
+def when_set_mode(context: object, mode: str) -> None:
+    state = _require_console_state(context)
+    state.settings.mode = mode
+    _ensure_console_storage(context).settings.mode = mode
+
+
+@when('I set the typeface to "{typeface}"')
+def when_set_typeface(context: object, typeface: str) -> None:
+    state = _require_console_state(context)
+    state.settings.typeface = typeface
+    _ensure_console_storage(context).settings.typeface = typeface
+
+
+@when('I set motion to "{motion}"')
+def when_set_motion(context: object, motion: str) -> None:
+    state = _require_console_state(context)
+    state.settings.motion = motion
+    _ensure_console_storage(context).settings.motion = motion
+
+
+@then('the "{tab}" tab should be selected')
+def then_tab_selected(context: object, tab: str) -> None:
+    state = _require_console_state(context)
+    if state.selected_tab != tab:
+        raise AssertionError(f"expected tab {tab} but found {state.selected_tab}")
+
+
+@then('I should see the issue "{title}"')
+def then_should_see_issue(context: object, title: str) -> None:
+    state = _require_console_state(context)
+    visible_titles = _visible_issue_titles(state)
+    if title not in visible_titles:
+        raise AssertionError(f"expected to see issue {title}")
+
+
+@then('I should not see the issue "{title}"')
+def then_should_not_see_issue(context: object, title: str) -> None:
+    state = _require_console_state(context)
+    visible_titles = _visible_issue_titles(state)
+    if title in visible_titles:
+        raise AssertionError(f"expected not to see issue {title}")
+
+
+@then('I should see the sub-task "{title}"')
+def then_should_see_subtask(context: object, title: str) -> None:
+    state = _require_console_state(context)
+    if state.selected_task_title is None:
+        raise AssertionError("no task selected")
+    matches = [
+        issue.title
+        for issue in state.issues
+        if issue.parent_title == state.selected_task_title
+    ]
+    if title not in matches:
+        raise AssertionError(
+            f"expected to see sub-task {title} for {state.selected_task_title}"
+        )
+
+
+@then('the theme should be "{theme}"')
+def then_theme_should_be(context: object, theme: str) -> None:
+    state = _require_console_state(context)
+    if state.settings.theme != theme:
+        raise AssertionError(f"expected theme {theme} but found {state.settings.theme}")
+
+
+@then('the mode should be "{mode}"')
+def then_mode_should_be(context: object, mode: str) -> None:
+    state = _require_console_state(context)
+    if state.settings.mode != mode:
+        raise AssertionError(f"expected mode {mode} but found {state.settings.mode}")
+
+
+@then('the typeface should be "{typeface}"')
+def then_typeface_should_be(context: object, typeface: str) -> None:
+    state = _require_console_state(context)
+    if state.settings.typeface != typeface:
+        raise AssertionError(
+            f"expected typeface {typeface} but found {state.settings.typeface}"
+        )
+
+
+@then('the motion mode should be "{motion}"')
+def then_motion_should_be(context: object, motion: str) -> None:
+    state = _require_console_state(context)
+    if state.settings.motion != motion:
+        raise AssertionError(
+            f"expected motion {motion} but found {state.settings.motion}"
+        )
+
+
+@then('the comment timestamp should be "{timestamp}"')
+def then_comment_timestamp_should_be(context: object, timestamp: str) -> None:
+    state = _require_console_state(context)
+    if state.selected_task_title is None:
+        raise AssertionError("no task selected")
+    for issue in state.issues:
+        if issue.title != state.selected_task_title:
+            continue
+        if not issue.comments:
+            raise AssertionError("no comments found")
+        formatted = _format_timestamp(issue.comments[0].created_at, state.time_zone)
+        if formatted != timestamp:
+            raise AssertionError(f"expected {timestamp} but found {formatted}")
+        return
+    raise AssertionError("selected task not found")
+
+
+@then('the issue metadata should include created timestamp "{timestamp}"')
+def then_issue_created_timestamp(context: object, timestamp: str) -> None:
+    formatted = _get_selected_issue_timestamp(context, "created_at")
+    if formatted != timestamp:
+        raise AssertionError(f"expected {timestamp} but found {formatted}")
+
+
+@then('the issue metadata should include updated timestamp "{timestamp}"')
+def then_issue_updated_timestamp(context: object, timestamp: str) -> None:
+    formatted = _get_selected_issue_timestamp(context, "updated_at")
+    if formatted != timestamp:
+        raise AssertionError(f"expected {timestamp} but found {formatted}")
+
+
+@then('the issue metadata should include closed timestamp "{timestamp}"')
+def then_issue_closed_timestamp(context: object, timestamp: str) -> None:
+    formatted = _get_selected_issue_timestamp(context, "closed_at")
+    if formatted != timestamp:
+        raise AssertionError(f"expected {timestamp} but found {formatted}")
+
+
+@then('the issue metadata should include assignee "{assignee}"')
+def then_issue_metadata_assignee(context: object, assignee: str) -> None:
+    issue = _get_selected_issue(context)
+    if issue.assignee != assignee:
+        raise AssertionError(f"expected assignee {assignee} but found {issue.assignee}")
+
+
+def _open_console(context: object) -> ConsoleState:
+    storage = _ensure_console_storage(context)
+    selected_tab = storage.selected_tab or "Epics"
+    settings = ConsoleSettings(
+        theme=storage.settings.theme,
+        mode=storage.settings.mode,
+        typeface=storage.settings.typeface,
+        motion=storage.settings.motion,
+    )
+    time_zone = getattr(context, "console_time_zone", None)
+    return ConsoleState(
+        issues=_default_issues(),
+        selected_tab=selected_tab,
+        selected_task_title=None,
+        settings=settings,
+        time_zone=time_zone,
+    )
+
+
+def _require_console_state(context: object) -> ConsoleState:
+    state = getattr(context, "console_state", None)
+    if state is None:
+        raise RuntimeError("console state not initialized")
+    return state
+
+
+def _ensure_console_storage(context: object) -> ConsoleLocalStorage:
+    storage = getattr(context, "console_local_storage", None)
+    if storage is None:
+        storage = ConsoleLocalStorage()
+        context.console_local_storage = storage
+    return storage
+
+
+def _visible_issue_titles(state: ConsoleState) -> list[str]:
+    if state.selected_tab == "Epics":
+        issues = [issue for issue in state.issues if issue.issue_type == "epic"]
+    elif state.selected_tab == "Initiatives":
+        issues = [issue for issue in state.issues if issue.issue_type == "initiative"]
+    elif state.selected_tab == "Tasks":
+        issues = [
+            issue
+            for issue in state.issues
+            if issue.issue_type == "task" and issue.parent_title is None
+        ]
+    else:
+        issues = []
+    return [issue.title for issue in issues]
+
+
+def _default_issues() -> list[ConsoleIssue]:
+    return [
+        ConsoleIssue(title="Observability overhaul", issue_type="epic"),
+        ConsoleIssue(title="Increase reliability", issue_type="initiative"),
+        ConsoleIssue(title="Add structured logging", issue_type="task"),
+        ConsoleIssue(title="Fix crash on startup", issue_type="task"),
+        ConsoleIssue(
+            title="Wire logger middleware",
+            issue_type="task",
+            parent_title="Add structured logging",
+        ),
+    ]
+
+
+def _get_selected_issue(context: object) -> ConsoleIssue:
+    state = _require_console_state(context)
+    if state.selected_task_title is None:
+        raise AssertionError("no task selected")
+    for issue in state.issues:
+        if issue.title == state.selected_task_title:
+            return issue
+    raise AssertionError("selected task not found")
+
+
+def _get_selected_issue_timestamp(context: object, field: str) -> str:
+    issue = _get_selected_issue(context)
+    value = getattr(issue, field, None)
+    if not value:
+        raise AssertionError(f"{field} not set")
+    state = _require_console_state(context)
+    return _format_timestamp(value, state.time_zone)
+
+
+def _format_timestamp(value: str, time_zone: str | None) -> str:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return value
+    tz = timezone.utc
+    if time_zone:
+        try:
+            tz = ZoneInfo(time_zone)
+        except Exception:
+            tz = timezone.utc
+    localized = parsed.astimezone(tz)
+    hour = localized.hour % 12
+    if hour == 0:
+        hour = 12
+    day_period = "AM" if localized.hour < 12 else "PM"
+    tzname = localized.tzname() or (time_zone or "UTC")
+    return (
+        f"{localized.strftime('%A')}, {localized.strftime('%B')} {localized.day}, "
+        f"{localized.year} {hour}:{localized.minute:02d} {day_period} {tzname}"
+    )

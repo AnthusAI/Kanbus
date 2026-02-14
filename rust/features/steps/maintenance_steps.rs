@@ -5,7 +5,9 @@ use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
 use taskulus::cli::run_from_args_with_output;
+use taskulus::doctor::run_doctor;
 use taskulus::file_io::load_project_directory;
+use taskulus::maintenance::validate_project;
 use taskulus::models::{DependencyLink, IssueData};
 
 use crate::step_definitions::initialization_steps::TaskulusWorld;
@@ -170,6 +172,40 @@ fn given_duplicate_issue_identifiers(world: &mut TaskulusWorld) {
 #[when("I run \"tsk doctor\"")]
 fn when_run_doctor(world: &mut TaskulusWorld) {
     run_cli(world, "tsk doctor");
+}
+
+#[when("I validate the project directly")]
+fn when_validate_project_directly(world: &mut TaskulusWorld) {
+    let root = world.working_directory.as_ref().expect("working directory");
+    match validate_project(root) {
+        Ok(()) => {
+            world.exit_code = Some(0);
+            world.stdout = Some(String::new());
+            world.stderr = Some(String::new());
+        }
+        Err(error) => {
+            world.exit_code = Some(1);
+            world.stdout = Some(String::new());
+            world.stderr = Some(error.to_string());
+        }
+    }
+}
+
+#[when("I run doctor diagnostics directly")]
+fn when_run_doctor_directly(world: &mut TaskulusWorld) {
+    let root = world.working_directory.as_ref().expect("working directory");
+    match run_doctor(root) {
+        Ok(_) => {
+            world.exit_code = Some(0);
+            world.stdout = Some(String::new());
+            world.stderr = Some(String::new());
+        }
+        Err(error) => {
+            world.exit_code = Some(1);
+            world.stdout = Some(String::new());
+            world.stderr = Some(error.to_string());
+        }
+    }
 }
 
 #[when(expr = "workflow statuses are collected for issue type {string}")]

@@ -71,9 +71,29 @@ async function refreshSnapshot(): Promise<IssuesSnapshot> {
   return snapshot;
 }
 
-app.get("/api/config", async (_req, res) => {
+function shouldRefreshSnapshot(
+  refreshValue: unknown
+): boolean {
+  if (Array.isArray(refreshValue)) {
+    return refreshValue.includes("1") || refreshValue.includes("true");
+  }
+  return refreshValue === "1" || refreshValue === "true";
+}
+
+async function getSnapshotForRequest(
+  refreshValue: unknown
+): Promise<IssuesSnapshot> {
+  if (shouldRefreshSnapshot(refreshValue)) {
+    const snapshot = await refreshSnapshot();
+    broadcastSnapshot(snapshot);
+    return snapshot;
+  }
+  return getSnapshot();
+}
+
+app.get("/api/config", async (req, res) => {
   try {
-    const snapshot = await getSnapshot();
+    const snapshot = await getSnapshotForRequest(req.query.refresh);
     res.json(snapshot.config);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
@@ -82,7 +102,7 @@ app.get("/api/config", async (_req, res) => {
 
 app.get("/api/issues", async (_req, res) => {
   try {
-    const snapshot = await getSnapshot();
+    const snapshot = await getSnapshotForRequest(_req.query.refresh);
     res.json(snapshot.issues);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
@@ -91,7 +111,7 @@ app.get("/api/issues", async (_req, res) => {
 
 app.get("/api/issues/:id", async (req, res) => {
   try {
-    const snapshot = await getSnapshot();
+    const snapshot = await getSnapshotForRequest(req.query.refresh);
     const issue = snapshot.issues.find((item) => item.id === req.params.id);
     if (!issue) {
       res.status(404).json({ error: "issue not found" });
@@ -140,7 +160,9 @@ function broadcastSnapshot(snapshot: IssuesSnapshot) {
 
 let debounceTimer: NodeJS.Timeout | null = null;
 
-const watcher = chokidar.watch(projectRoot, {
+const configPath = path.join(repoRoot, ".taskulus.yml");
+const overridePath = path.join(repoRoot, ".taskulus.override.yml");
+const watcher = chokidar.watch([projectRoot, configPath, overridePath], {
   ignoreInitial: true,
   awaitWriteFinish: {
     stabilityThreshold: 200,

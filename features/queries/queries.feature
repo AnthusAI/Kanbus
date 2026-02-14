@@ -111,6 +111,18 @@ Feature: Query and list operations
     Then the command should fail with exit code 1
     And stderr should contain "project not initialized"
 
+  Scenario: List fails when repository directory is missing
+    Given a repository directory that has been removed
+    When I run "tsk list"
+    Then the command should fail with exit code 1
+    And stderr should contain "No such file or directory"
+
+  Scenario: List fails when repository root is unreadable
+    Given a repository directory that is unreadable
+    When I run "tsk list"
+    Then the command should fail with exit code 1
+    And stderr should contain "Permission denied"
+
   Scenario: List fails when the project directory is unreadable
     Given a Taskulus repository with an unreadable project directory
     When I run "tsk list"
@@ -130,6 +142,20 @@ Feature: Query and list operations
     When I run "tsk list"
     Then the command should fail with exit code 1
     And stderr should contain "configuration path lookup failed"
+
+  Scenario: List formatting fails when configuration path lookup fails after startup
+    Given a Taskulus project with default configuration
+    And configuration path lookup will fail
+    When I list issues directly after configuration path lookup fails
+    Then the command should fail with exit code 1
+    And stderr should contain "configuration path lookup failed"
+
+  Scenario: Console snapshot fails when configuration is invalid
+    Given a Taskulus project with default configuration
+    And a Taskulus configuration file that is not a mapping
+    When I build a console snapshot directly
+    Then the command should fail with exit code 1
+    And stderr should contain "configuration must be a mapping"
 
   Scenario: List fails when dotfile references a missing path
     Given a repository with a .taskulus.yml file referencing a missing path
@@ -165,6 +191,13 @@ Feature: Query and list operations
     When I run "tsk list"
     Then the command should fail with exit code 1
     And stderr should contain "local listing failed"
+
+  Scenario: List fails when configuration path lookup fails
+    Given a Taskulus project with default configuration
+    And configuration path lookup will fail
+    When I run "tsk list"
+    Then the command should fail with exit code 1
+    And stderr should contain "configuration path lookup failed"
 
   Scenario: List fails when issue files are invalid
     Given a Taskulus project with default configuration

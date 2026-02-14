@@ -4,6 +4,8 @@
 @import "@radix-ui/colors/blue-dark.css";
 @import "@radix-ui/colors/sand.css";
 @import "@radix-ui/colors/sand-dark.css";
+@import "@radix-ui/colors/sky.css";
+@import "@radix-ui/colors/sky-dark.css";
 
 :root {
   --p3: 12px;
@@ -15,9 +17,10 @@
   --background: var(--gray-1);
   --card: var(--gray-1);
   --card-muted: var(--gray-5);
+  --card-outline: var(--gray-6);
   --frame: var(--gray-1);
   --column: var(--gray-3);
-  --text-foreground: var(--gray-12);
+  --text-foreground: var(--gray-11);
   --text-muted: var(--gray-10);
 }
 
@@ -37,9 +40,10 @@ html.theme-neutral {
   --background: var(--gray-1);
   --card: var(--gray-1);
   --card-muted: var(--gray-5);
+  --card-outline: var(--gray-6);
   --frame: var(--gray-1);
   --column: var(--gray-3);
-  --text-foreground: var(--gray-12);
+  --text-foreground: var(--gray-11);
   --text-muted: var(--gray-10);
 }
 
@@ -47,18 +51,20 @@ html.theme-cool {
   --background: var(--blue-1);
   --card: var(--blue-1);
   --card-muted: var(--blue-5);
+  --card-outline: var(--blue-6);
   --frame: var(--blue-1);
   --column: var(--blue-3);
-  --text-foreground: var(--blue-12);
-  --text-muted: var(--blue-10);
+  --text-foreground: var(--sky-11);
+  --text-muted: var(--sky-10);
 }
 
 html.theme-warm {
   --background: var(--sand-1);
   --card: var(--sand-1);
   --card-muted: var(--sand-5);
+  --card-outline: var(--sand-6);
   --frame: var(--sand-1);
   --column: var(--sand-3);
-  --text-foreground: var(--sand-12);
+  --text-foreground: var(--sand-11);
   --text-muted: var(--sand-10);
 }

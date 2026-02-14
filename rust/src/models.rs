@@ -58,6 +58,10 @@ pub struct ProjectConfiguration {
     pub priorities: BTreeMap<u8, PriorityDefinition>,
     pub default_priority: u8,
     #[serde(default)]
+    pub assignee: Option<String>,
+    #[serde(default)]
+    pub time_zone: Option<String>,
+    #[serde(default)]
     pub status_colors: BTreeMap<String, String>,
     #[serde(default)]
     pub type_colors: BTreeMap<String, String>,

@@ -62,7 +62,7 @@ function loadStoredDetailWidth(): number {
 function buildPriorityLookup(config: ProjectConfig): Record<number, string> {
   return Object.entries(config.priorities).reduce<Record<number, string>>(
     (accumulator, [key, value]) => {
-      accumulator[Number(key)] = value;
+      accumulator[Number(key)] = value.name;
       return accumulator;
     },
     {}
@@ -173,9 +173,13 @@ useEffect(() => {
     if (!selectedTask) {
       return;
     }
-    const stillExists = issues.some((issue) => issue.id === selectedTask.id);
-    if (!stillExists) {
+    const updatedTask = issues.find((issue) => issue.id === selectedTask.id);
+    if (!updatedTask) {
       setSelectedTask(null);
+      return;
+    }
+    if (updatedTask !== selectedTask) {
+      setSelectedTask(updatedTask);
     }
   }, [issues, selectedTask]);
 
@@ -326,6 +330,7 @@ useEffect(() => {
                 columns={columns}
                 issues={filteredIssues}
                 priorityLookup={priorityLookup}
+                config={config}
                 onSelectIssue={handleSelectIssue}
                 selectedIssueId={selectedTask?.id ?? null}
                 transitionKey={transitionKey}
@@ -401,6 +406,7 @@ useEffect(() => {
               widthPercent={detailWidth}
               columns={columns}
               priorityLookup={priorityLookup}
+              config={config}
               onClose={() => setSelectedTask(null)}
             />
           </div>

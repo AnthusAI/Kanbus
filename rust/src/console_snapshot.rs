@@ -1,36 +1,20 @@
 //! Console snapshot helpers.
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use chrono::{SecondsFormat, Utc};
-use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
+use serde::Serialize;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;
 use crate::file_io::get_configuration_path;
-use crate::models::IssueData;
-
-/// Console-visible project configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConsoleProjectConfig {
-    pub prefix: String,
-    pub hierarchy: Vec<String>,
-    pub types: Vec<String>,
-    pub workflows: BTreeMap<String, BTreeMap<String, Vec<String>>>,
-    pub initial_status: String,
-    pub priorities: BTreeMap<u8, String>,
-    pub default_priority: u8,
-    #[serde(default)]
-    pub beads_compatibility: bool,
-}
+use crate::models::{IssueData, ProjectConfiguration};
 
 /// Snapshot payload for the console.
 #[derive(Debug, Clone, Serialize)]
 pub struct ConsoleSnapshot {
-    pub config: ConsoleProjectConfig,
+    pub config: ProjectConfiguration,
     pub issues: Vec<IssueData>,
     pub updated_at: String,
 }
@@ -45,8 +29,7 @@ pub struct ConsoleSnapshot {
 ///
 /// Returns `TaskulusError` if snapshot creation fails.
 pub fn build_console_snapshot(root: &Path) -> Result<ConsoleSnapshot, TaskulusError> {
-    let project_dir = load_project_directory(root)?;
-    let config = load_console_config(&project_dir)?;
+    let (project_dir, config) = load_project_context(root)?;
     let mut issues = load_console_issues(&project_dir)?;
     issues.sort_by(|left, right| left.identifier.cmp(&right.identifier));
     let updated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
@@ -57,36 +40,14 @@ pub fn build_console_snapshot(root: &Path) -> Result<ConsoleSnapshot, TaskulusEr
     })
 }
 
-fn load_project_directory(root: &Path) -> Result<PathBuf, TaskulusError> {
+fn load_project_context(root: &Path) -> Result<(PathBuf, ProjectConfiguration), TaskulusError> {
     let configuration_path = get_configuration_path(root)?;
     let configuration = load_project_configuration(&configuration_path)?;
-    Ok(configuration_path
+    let project_dir = configuration_path
         .parent()
         .unwrap_or(root)
-        .join(configuration.project_directory))
-}
-
-fn load_console_config(project_dir: &Path) -> Result<ConsoleProjectConfig, TaskulusError> {
-    let config_path = project_dir.join("config.yaml");
-    let contents = fs::read_to_string(&config_path).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::NotFound {
-            TaskulusError::Configuration("project/config.yaml not found".to_string())
-        } else {
-            TaskulusError::Io(error.to_string())
-        }
-    })?;
-
-    let raw_value: Value = serde_yaml::from_str(&contents)
-        .map_err(|_error| TaskulusError::Configuration("config.yaml is invalid".to_string()))?;
-
-    if !matches!(raw_value, Value::Mapping(_)) {
-        return Err(TaskulusError::Configuration(
-            "config.yaml is invalid".to_string(),
-        ));
-    }
-
-    serde_yaml::from_value(raw_value)
-        .map_err(|_error| TaskulusError::Configuration("config.yaml is invalid".to_string()))
+        .join(&configuration.project_directory);
+    Ok((project_dir, configuration))
 }
 
 fn load_console_issues(project_dir: &Path) -> Result<Vec<IssueData>, TaskulusError> {

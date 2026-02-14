@@ -337,30 +337,37 @@ where
         }
     };
     let root = resolve_root(cwd);
-    let beads_mode = resolve_beads_mode(&root, beads_flag)?;
-    let stdout = execute_command(cli.command, &root, beads_mode)?;
+    let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
+    let stdout = execute_command(cli.command, &root, beads_mode, beads_forced)?;
 
     Ok(CommandOutput {
         stdout: stdout.unwrap_or_default(),
     })
 }
 
-fn resolve_beads_mode(root: &Path, beads_flag: bool) -> Result<bool, TaskulusError> {
+fn resolve_beads_mode(root: &Path, beads_flag: bool) -> Result<(bool, bool), TaskulusError> {
     if beads_flag {
-        return Ok(true);
+        return Ok((true, true));
     }
-    let project_dir = match crate::file_io::load_project_directory(root) {
-        Ok(dir) => dir,
-        Err(_) => return Ok(false),
+    let configuration_path = match get_configuration_path(root) {
+        Ok(path) => path,
+        Err(TaskulusError::IssueOperation(message)) if message == "project not initialized" => {
+            return Ok((false, false))
+        }
+        Err(TaskulusError::Io(message)) if message == "configuration path lookup failed" => {
+            return Ok((false, false))
+        }
+        Err(error) => return Err(error),
     };
-    let configuration = load_project_configuration(&project_dir.join("config.yaml"))?;
-    Ok(configuration.beads_compatibility)
+    let configuration = load_project_configuration(&configuration_path)?;
+    Ok((configuration.beads_compatibility, false))
 }
 
 fn execute_command(
     command: Commands,
     root: &Path,
     beads_mode: bool,
+    beads_forced: bool,
 ) -> Result<Option<String>, TaskulusError> {
     match command {
         Commands::Init { local } => {
@@ -589,10 +596,13 @@ fn execute_command(
                     Err(error) => return Err(error),
                 }
             };
-            let project_context = beads_mode
-                || !issues
+            let project_context = if beads_mode {
+                beads_forced
+            } else {
+                !issues
                     .iter()
-                    .any(|issue| issue.custom.contains_key("project_path"));
+                    .any(|issue| issue.custom.contains_key("project_path"))
+            };
             let widths = if porcelain {
                 None
             } else {

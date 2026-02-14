@@ -1,12 +1,73 @@
 import { Given, When, Then } from "@cucumber/cucumber";
 import { expect } from "@playwright/test";
-import { writeFile } from "fs/promises";
+import { readFile, readdir, writeFile } from "fs/promises";
 import path from "path";
+import yaml from "js-yaml";
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
+const projectIssuesRoot = projectRoot ? path.join(projectRoot, "issues") : null;
+const consolePort = process.env.CONSOLE_PORT ?? "5174";
+const consoleApiBase =
+  process.env.CONSOLE_API_BASE ?? `http://localhost:${consolePort}/api`;
 
 function issueCardLocator(page, title) {
   return page.locator(".issue-card", { hasText: title });
+}
+
+async function loadIssues() {
+  if (!projectIssuesRoot) {
+    throw new Error("CONSOLE_PROJECT_ROOT is required for issue file access");
+  }
+  const entries = await readdir(projectIssuesRoot);
+  const issues = [];
+  for (const entry of entries) {
+    if (!entry.endsWith(".json")) {
+      continue;
+    }
+    const payload = await readFile(path.join(projectIssuesRoot, entry), "utf-8");
+    issues.push(JSON.parse(payload));
+  }
+  return issues;
+}
+
+async function writeIssue(issue) {
+  if (!projectIssuesRoot) {
+    throw new Error("CONSOLE_PROJECT_ROOT is required for issue file access");
+  }
+  const filePath = path.join(projectIssuesRoot, `${issue.id}.json`);
+  await writeFile(filePath, JSON.stringify(issue, null, 2));
+}
+
+async function fetchIssuesFromServer() {
+  const response = await fetch(`${consoleApiBase}/issues?refresh=1`);
+  if (!response.ok) {
+    throw new Error(`console issues request failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function waitForIssueUpdate(issueId, predicate) {
+  const start = Date.now();
+  while (Date.now() - start < 5000) {
+    const issues = await fetchIssuesFromServer();
+    const issue = issues.find((entry) => entry.id === issueId);
+    if (issue && predicate(issue)) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timed out waiting for issue update: ${issueId}`);
+}
+
+function normalizeTimestamp(value) {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toISOString();
 }
 
 Given("the console is open", async function () {
@@ -54,6 +115,109 @@ When("a new task issue named {string} is added", async function (title) {
   const filePath = path.join(projectRoot, "issues", `${issueId}.json`);
   await writeFile(filePath, JSON.stringify(issue, null, 2));
 });
+
+Given(
+  "the console configuration sets time zone {string}",
+  async function (timeZone) {
+    if (!projectRoot) {
+      throw new Error("CONSOLE_PROJECT_ROOT is required for SSE tests");
+    }
+    const repoRoot = path.dirname(projectRoot);
+    const overridePath = path.join(repoRoot, ".taskulus.override.yml");
+    const contents = yaml.dump({ time_zone: timeZone }, { sortKeys: false });
+    await writeFile(overridePath, contents);
+    this.overridePath = overridePath;
+  }
+);
+
+Given(
+  "the console has a comment from {string} at {string} on task {string}",
+  async function (author, timestamp, title) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    const comments = Array.isArray(issue.comments) ? issue.comments : [];
+    comments.push({
+      author,
+      text: "Test comment",
+      created_at: timestamp
+    });
+    issue.comments = comments;
+    await writeIssue(issue);
+    await waitForIssueUpdate(issue.id, (entry) =>
+      Array.isArray(entry.comments)
+      && entry.comments.some(
+        (comment) =>
+          comment.author === author
+          && normalizeTimestamp(comment.created_at)
+            === normalizeTimestamp(timestamp)
+      )
+    );
+  }
+);
+
+Given(
+  "the console has a task {string} created at {string} updated at {string}",
+  async function (title, createdAt, updatedAt) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    issue.created_at = createdAt;
+    issue.updated_at = updatedAt;
+    await writeIssue(issue);
+    await waitForIssueUpdate(
+      issue.id,
+      (entry) =>
+        normalizeTimestamp(entry.created_at)
+          === normalizeTimestamp(createdAt)
+        && normalizeTimestamp(entry.updated_at)
+          === normalizeTimestamp(updatedAt)
+    );
+  }
+);
+
+Given(
+  "the console has a closed task {string} created at {string} updated at {string} closed at {string}",
+  async function (title, createdAt, updatedAt, closedAt) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    issue.created_at = createdAt;
+    issue.updated_at = updatedAt;
+    issue.closed_at = closedAt;
+    await writeIssue(issue);
+    await waitForIssueUpdate(
+      issue.id,
+      (entry) =>
+        normalizeTimestamp(entry.created_at)
+          === normalizeTimestamp(createdAt)
+        && normalizeTimestamp(entry.updated_at)
+          === normalizeTimestamp(updatedAt)
+        && normalizeTimestamp(entry.closed_at)
+          === normalizeTimestamp(closedAt)
+    );
+  }
+);
+
+Given(
+  "the console has an assignee {string} on task {string}",
+  async function (assignee, title) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    issue.assignee = assignee;
+    await writeIssue(issue);
+    await waitForIssueUpdate(issue.id, (entry) => entry.assignee === assignee);
+  }
+);
 
 Then("I should see the issue {string}", async function (title) {
   await expect(issueCardLocator(this.page, title)).toBeVisible();
@@ -124,4 +288,46 @@ Then("the motion mode should be {string}", async function (motion) {
 Then("I should see the sub-task {string}", async function (title) {
   await expect(this.page.locator("text=Sub-tasks")).toBeVisible();
   await expect(this.page.locator(".issue-card", { hasText: title })).toBeVisible();
+});
+
+Then("the comment timestamp should be {string}", async function (timestamp) {
+  const commentTimestamp = this.page
+    .locator(".detail-comment")
+    .first()
+    .locator(".text-xs.text-muted")
+    .first();
+  await expect(commentTimestamp).toHaveText(timestamp);
+});
+
+Then(
+  "the issue metadata should include created timestamp {string}",
+  async function (timestamp) {
+    await expect(this.page.locator('[data-testid="issue-created-at"]')).toHaveText(
+      timestamp
+    );
+  }
+);
+
+Then(
+  "the issue metadata should include updated timestamp {string}",
+  async function (timestamp) {
+    await expect(this.page.locator('[data-testid="issue-updated-at"]')).toHaveText(
+      timestamp
+    );
+  }
+);
+
+Then(
+  "the issue metadata should include closed timestamp {string}",
+  async function (timestamp) {
+    await expect(this.page.locator('[data-testid="issue-closed-at"]')).toHaveText(
+      timestamp
+    );
+  }
+);
+
+Then("the issue metadata should include assignee {string}", async function (assignee) {
+  await expect(this.page.locator('[data-testid="issue-assignee"]')).toHaveText(
+    assignee
+  );
 });

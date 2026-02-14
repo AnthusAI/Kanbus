@@ -97,6 +97,11 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
     let identifier = generate_issue_identifier(&identifier_request)?.identifier;
     let updated_at = created_at;
 
+    let resolved_assignee = request
+        .assignee
+        .clone()
+        .or_else(|| configuration.assignee.clone());
+
     let issue = IssueData {
         identifier,
         title: request.title.clone(),
@@ -104,7 +109,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         issue_type: resolved_type.to_string(),
         status: configuration.initial_status.clone(),
         priority: resolved_priority as i32,
-        assignee: request.assignee.clone(),
+        assignee: resolved_assignee,
         creator: None,
         parent: request.parent.clone(),
         labels: request.labels.clone(),

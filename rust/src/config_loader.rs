@@ -27,14 +27,11 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, T
         }
     })?;
 
-    let raw_value: Value = if contents.trim().is_empty() {
-        Value::Mapping(Mapping::new())
-    } else {
-        serde_yaml::from_str(&contents)
-            .map_err(|error| TaskulusError::Configuration(map_configuration_error(&error)))?
-    };
-    let merged_value = merge_with_defaults(raw_value)?;
-    let configuration: ProjectConfiguration = serde_yaml::from_value(merged_value)
+    let raw_value = load_configuration_value(&contents)?;
+    let mut merged_value = merge_with_defaults(raw_value)?;
+    let overrides = load_override_configuration(path.parent().unwrap_or(Path::new(".")))?;
+    merged_value = apply_overrides(merged_value, overrides);
+    let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
         .map_err(|error| TaskulusError::Configuration(map_configuration_error(&error)))?;
 
     let errors = validate_project_configuration(&configuration);
@@ -100,9 +97,13 @@ fn map_configuration_error(error: &serde_yaml::Error) -> String {
     message
 }
 
-fn merge_with_defaults(value: Value) -> Result<Value, TaskulusError> {
-    let mut defaults = serde_yaml::to_value(default_project_configuration())
+fn merge_with_defaults(value: Value) -> Result<Mapping, TaskulusError> {
+    let defaults_value = serde_yaml::to_value(default_project_configuration())
         .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    let mut defaults = defaults_value
+        .as_mapping()
+        .cloned()
+        .expect("default configuration must be a mapping");
     let overrides = match value {
         Value::Null => Mapping::new(),
         Value::Mapping(mapping) => mapping,
@@ -113,10 +114,48 @@ fn merge_with_defaults(value: Value) -> Result<Value, TaskulusError> {
         }
     };
 
-    if let Value::Mapping(ref mut default_map) = defaults {
-        for (key, value) in overrides {
-            default_map.insert(key, value);
-        }
+    for (key, value) in overrides {
+        defaults.insert(key, value);
     }
     Ok(defaults)
+}
+
+fn load_configuration_value(contents: &str) -> Result<Value, TaskulusError> {
+    if contents.trim().is_empty() {
+        return Ok(Value::Mapping(Mapping::new()));
+    }
+    let raw_value: Value = serde_yaml::from_str(contents)
+        .map_err(|error| TaskulusError::Configuration(map_configuration_error(&error)))?;
+    Ok(raw_value)
+}
+
+fn load_override_configuration(root: &Path) -> Result<Mapping, TaskulusError> {
+    let override_path = root.join(".taskulus.override.yml");
+    if !override_path.exists() {
+        return Ok(Mapping::new());
+    }
+    let contents =
+        fs::read_to_string(&override_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
+    if contents.trim().is_empty() {
+        return Ok(Mapping::new());
+    }
+    let raw_value: Value = serde_yaml::from_str(&contents).map_err(|_error| {
+        TaskulusError::Configuration("override configuration is invalid".to_string())
+    })?;
+    match raw_value {
+        Value::Mapping(mapping) => Ok(mapping),
+        _ => Err(TaskulusError::Configuration(
+            "override configuration must be a mapping".to_string(),
+        )),
+    }
+}
+
+fn apply_overrides(mut value: Mapping, overrides: Mapping) -> Mapping {
+    if overrides.is_empty() {
+        return value;
+    }
+    for (key, value_override) in overrides {
+        value.insert(key, value_override);
+    }
+    value
 }

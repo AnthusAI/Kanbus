@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, timezone
 import os
+import shutil
 
 from behave import given, then, when
 import yaml
@@ -97,6 +98,13 @@ def given_repo_unreadable(context: object) -> None:
     root.chmod(0)
     context.unreadable_path = root
     context.unreadable_mode = original_mode
+
+
+@given("a repository directory that has been removed")
+def given_repo_removed(context: object) -> None:
+    root = _create_repo(context, "removed-projects")
+    shutil.rmtree(root)
+    context.working_directory = root
 
 
 def _build_issue(identifier: str, title: str) -> IssueData:

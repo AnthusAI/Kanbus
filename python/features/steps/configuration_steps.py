@@ -130,6 +130,74 @@ def given_project_with_configuration_file(context: object) -> None:
     )
 
 
+@given('the Taskulus configuration sets default assignee "{assignee}"')
+def given_taskulus_configuration_default_assignee(
+    context: object, assignee: str
+) -> None:
+    repository = Path(context.working_directory)
+    config_path = repository / ".taskulus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    if payload is None:
+        payload = {}
+    payload["assignee"] = assignee
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given('a Taskulus override file sets default assignee "{assignee}"')
+def given_override_default_assignee(context: object, assignee: str) -> None:
+    repository = Path(context.working_directory)
+    override_path = repository / ".taskulus.override.yml"
+    override_path.write_text(
+        yaml.safe_dump({"assignee": assignee}, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given('a Taskulus override file sets time zone "{time_zone}"')
+def given_override_time_zone(context: object, time_zone: str) -> None:
+    repository = Path(context.working_directory)
+    override_path = repository / ".taskulus.override.yml"
+    override_path.write_text(
+        yaml.safe_dump({"time_zone": time_zone}, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given("a Taskulus override file that is not a mapping")
+def given_override_not_mapping(context: object) -> None:
+    repository = Path(context.working_directory)
+    override_path = repository / ".taskulus.override.yml"
+    override_path.write_text("- item\n", encoding="utf-8")
+
+
+@given("a Taskulus override file containing invalid YAML")
+def given_override_invalid_yaml(context: object) -> None:
+    repository = Path(context.working_directory)
+    override_path = repository / ".taskulus.override.yml"
+    override_path.write_text("invalid: [", encoding="utf-8")
+
+
+@given("an empty .taskulus.override.yml file")
+def given_empty_override_file(context: object) -> None:
+    repository = Path(context.working_directory)
+    override_path = repository / ".taskulus.override.yml"
+    override_path.write_text("", encoding="utf-8")
+
+
+@given("an unreadable .taskulus.override.yml file")
+def given_unreadable_override_file(context: object) -> None:
+    repository = Path(context.working_directory)
+    override_path = repository / ".taskulus.override.yml"
+    override_path.write_text("assignee: blocked@example.com\n", encoding="utf-8")
+    original_mode = override_path.stat().st_mode
+    override_path.chmod(0)
+    context.unreadable_path = override_path
+    context.unreadable_mode = original_mode
+
+
 @given(
     'a Taskulus repository with a .taskulus.yml file pointing to "tracking" as the project directory'
 )
@@ -326,3 +394,13 @@ def then_project_directory_should_match_absolute(context: object) -> None:
 @then("beads compatibility should be false")
 def then_beads_compatibility_should_be_false(context: object) -> None:
     assert context.configuration.beads_compatibility is False
+
+
+@then('the default assignee should be "{assignee}"')
+def then_default_assignee_should_match(context: object, assignee: str) -> None:
+    assert context.configuration.assignee == assignee
+
+
+@then('the time zone should be "{time_zone}"')
+def then_time_zone_should_match(context: object, time_zone: str) -> None:
+    assert context.configuration.time_zone == time_zone

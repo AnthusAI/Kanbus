@@ -41,6 +41,15 @@ def run_cli(context: object, command: str) -> None:
         environment.update(overrides)
     try:
         os.chdir(working_directory)
+    except (FileNotFoundError, PermissionError) as error:
+        context.result = SimpleNamespace(
+            exit_code=1,
+            stdout="",
+            stderr=str(error),
+            output=str(error),
+        )
+        return
+    try:
         result = runner.invoke(cli, args, env=environment)
         stdout = None
         stderr = None

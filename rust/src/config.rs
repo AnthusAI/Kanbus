@@ -105,6 +105,8 @@ pub fn default_project_configuration() -> ProjectConfiguration {
             ),
         ]),
         default_priority: 2,
+        assignee: None,
+        time_zone: None,
         status_colors: BTreeMap::from([
             ("open".to_string(), "cyan".to_string()),
             ("in_progress".to_string(), "blue".to_string()),
