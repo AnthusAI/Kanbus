@@ -42,8 +42,7 @@ async function main() {
     CONSOLE_PROJECT_ROOT: projectDir,
     CONSOLE_PORT: "5174",
     VITE_PORT: "5173",
-    TASKULUS_PYTHON:
-      process.env.TASKULUS_PYTHON ?? "/opt/anaconda3/envs/py311/bin/python",
+    TASKULUS_PYTHON: process.env.TASKULUS_PYTHON ?? "python3",
     TASKULUS_PYTHONPATH: process.env.TASKULUS_PYTHONPATH ?? pythonPath
   };
 
