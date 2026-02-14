@@ -26,3 +26,4 @@ site/
 node_modules/
 .cache/
 public/
+AGENTS.override.md
