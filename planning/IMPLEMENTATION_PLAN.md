@@ -70,7 +70,7 @@ Taskulus/
                 create-basic/
                     test.yaml
                     input/
-                        config.yaml
+                        taskulus.yml
                 ...
         fixtures/                           # Reusable input fixtures
             default_config.yaml
@@ -262,7 +262,7 @@ Feature: Project initialization
         When I run "tsk init"
         Then a ".taskulus.yml" file should exist in the repository root
         And a "project" directory should exist
-        And a "project/config.yaml" file should exist with default configuration
+        And a "taskulus.yml" file should exist with default configuration
         And a "project/issues" directory should exist and be empty
         And a "project/wiki" directory should exist
         And a "project/wiki/index.md" file should exist
@@ -273,7 +273,7 @@ Feature: Project initialization
         When I run "tsk init --dir tracking"
         Then a ".taskulus.yml" file should exist pointing to "tracking"
         And a "tracking" directory should exist
-        And a "tracking/config.yaml" file should exist with default configuration
+        And a "tracking/taskulus.yml" file should exist with default configuration
 
     Scenario: Refuse to initialize when project already exists
         Given a git repository with an existing Taskulus project
@@ -293,7 +293,7 @@ Feature: Project initialization
 #### Task 1.2: Implement `tsk init` in Python
 
 **Implementation:**
-- `config.py`: `DefaultConfiguration` class that produces the default `config.yaml` content
+- `config.py`: `DefaultConfiguration` class that produces the default `taskulus.yml` content
 - `file_io.py`: Functions to write YAML, create directories, detect git repositories
 - `cli.py`: Click command group with `init` subcommand
 
@@ -324,7 +324,7 @@ Data-driven tests covering: default init, custom directory, already-initialized,
 
 ### Epic 2: Data Model and Configuration
 
-**Goal:** Both implementations can parse `config.yaml`, represent issues as typed structures, and serialize/deserialize issue JSON files with identical behavior.
+**Goal:** Both implementations can parse `taskulus.yml`, represent issues as typed structures, and serialize/deserialize issue JSON files with identical behavior.
 
 **Dependencies:** Epic 1 (needs config file to exist).
 
@@ -364,7 +364,7 @@ Feature: Configuration loading
   - `IssueData` dataclass (all fields from the spec)
   - `DependencyLink` dataclass (`target`, `dependency_type`)
   - `IssueComment` dataclass (`author`, `text`, `created_at`)
-  - `ProjectConfiguration` dataclass (parsed from `config.yaml`)
+  - `ProjectConfiguration` dataclass (parsed from `taskulus.yml`)
   - `WorkflowDefinition` dataclass (state machine graph)
 - `config.py`:
   - `load_project_configuration(path) -> ProjectConfiguration`

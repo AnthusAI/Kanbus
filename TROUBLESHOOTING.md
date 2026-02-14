@@ -51,11 +51,11 @@ Error: invalid transition from 'open' to 'blocked' for type 'task'
 
 **Cause**
 
-The transition is not permitted by the workflow defined in `project/config.yaml`.
+The transition is not permitted by the workflow defined in `taskulus.yml`.
 
 **Fix**
 
-- Check the workflow rules in `project/config.yaml`.
+- Check the workflow rules in `taskulus.yml`.
 - Use a valid intermediate status, or adjust the workflow definition.
 
 ## Corrupted or stale cache
@@ -92,7 +92,7 @@ A parent-child relationship violates the configured hierarchy or a non-hierarchi
 
 **Fix**
 
-- Review the `hierarchy` and `types` settings in `project/config.yaml`.
+- Review the `hierarchy` and `types` settings in `taskulus.yml`.
 - Update the issue to a valid parent or change the issue type.
 
 ## Still stuck

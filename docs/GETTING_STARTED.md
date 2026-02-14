@@ -40,7 +40,7 @@ You should now see:
 
 ```
 project/
-  config.yaml
+  taskulus.yml
   issues/
   wiki/
   .cache/   # created on demand

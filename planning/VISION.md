@@ -44,7 +44,7 @@ When a user runs `tsk init` in their repository, this is created:
 
 ```
 project/                          # Visible, human-browsable. Name configurable.
-  config.yaml                     # Types, workflows, hierarchy, project settings
+  taskulus.yml                    # Types, workflows, hierarchy, project settings
   issues/                         # One JSON file per issue
     tsk-a1b2c3.json
     tsk-d4e5f6.json
@@ -68,7 +68,7 @@ The directory name is configurable via `tsk init --dir <name>`.
 
 ## Configuration
 
-**File:** `project/config.yaml`
+**File:** `taskulus.yml`
 
 ```yaml
 # Project identity
@@ -255,7 +255,7 @@ This is one of the most important queries in the system. It answers: "What can I
 ### Transition Validation
 
 Every status change is validated:
-1. Look up the workflow for the issue's `type` in `config.yaml`
+1. Look up the workflow for the issue's `type` in `taskulus.yml`
 2. If no type-specific workflow exists, use the `default` workflow
 3. Verify the new status appears in the allowed transitions list for the current status
 4. If not allowed, reject with error: `"invalid transition from '{current}' to '{new}' for type '{type}'"`

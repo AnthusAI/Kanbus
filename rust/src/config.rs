@@ -54,11 +54,16 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         ]),
     );
 
+    let priorities = BTreeMap::from([
+        (0, "critical".to_string()),
+        (1, "high".to_string()),
+        (2, "medium".to_string()),
+        (3, "low".to_string()),
+        (4, "trivial".to_string()),
+    ]);
+
     ProjectConfiguration {
-        project_directory: "project".to_string(),
-        external_projects: Vec::new(),
-        project_key: "tsk".to_string(),
-        project_management_template: None,
+        prefix: "tsk".to_string(),
         hierarchy: vec![
             "initiative".to_string(),
             "epic".to_string(),
@@ -68,64 +73,8 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         types: vec!["bug".to_string(), "story".to_string(), "chore".to_string()],
         workflows,
         initial_status: "open".to_string(),
-        priorities: BTreeMap::from([
-            (
-                0,
-                crate::models::PriorityDefinition {
-                    name: "critical".to_string(),
-                    color: Some("red".to_string()),
-                },
-            ),
-            (
-                1,
-                crate::models::PriorityDefinition {
-                    name: "high".to_string(),
-                    color: Some("bright_red".to_string()),
-                },
-            ),
-            (
-                2,
-                crate::models::PriorityDefinition {
-                    name: "medium".to_string(),
-                    color: Some("yellow".to_string()),
-                },
-            ),
-            (
-                3,
-                crate::models::PriorityDefinition {
-                    name: "low".to_string(),
-                    color: Some("blue".to_string()),
-                },
-            ),
-            (
-                4,
-                crate::models::PriorityDefinition {
-                    name: "trivial".to_string(),
-                    color: Some("white".to_string()),
-                },
-            ),
-        ]),
+        priorities,
         default_priority: 2,
-        assignee: None,
-        time_zone: None,
-        status_colors: BTreeMap::from([
-            ("open".to_string(), "cyan".to_string()),
-            ("in_progress".to_string(), "blue".to_string()),
-            ("blocked".to_string(), "red".to_string()),
-            ("closed".to_string(), "green".to_string()),
-            ("deferred".to_string(), "yellow".to_string()),
-        ]),
-        type_colors: BTreeMap::from([
-            ("initiative".to_string(), "bright_blue".to_string()),
-            ("epic".to_string(), "magenta".to_string()),
-            ("task".to_string(), "cyan".to_string()),
-            ("sub-task".to_string(), "bright_cyan".to_string()),
-            ("bug".to_string(), "red".to_string()),
-            ("story".to_string(), "yellow".to_string()),
-            ("chore".to_string(), "green".to_string()),
-            ("event".to_string(), "bright_blue".to_string()),
-        ]),
-        beads_compatibility: false,
     }
 }
 
@@ -133,7 +82,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
 ///
 /// # Arguments
 ///
-/// * `path` - Path to the .taskulus.yml file.
+/// * `path` - Path to the taskulus.yml file.
 ///
 /// # Errors
 ///
