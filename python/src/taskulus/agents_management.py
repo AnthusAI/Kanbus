@@ -20,7 +20,6 @@ from taskulus.project_management_template import (
 )
 from taskulus.file_io import _write_project_guard_files, _write_tool_block_files
 
-
 TASKULUS_SECTION_HEADER = "## Project management with Taskulus"
 TASKULUS_SECTION_LINES = [
     TASKULUS_SECTION_HEADER,

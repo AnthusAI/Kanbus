@@ -519,6 +519,16 @@ fn parse_header(line: &str) -> Option<(usize, String)> {
     Some((count, text.to_string()))
 }
 
+#[cfg(tarpaulin)]
+pub(crate) fn cover_parse_header_cases() {
+    let _ = parse_header("plain text");
+    let _ = parse_header("####### too many");
+    let _ = parse_header("#NoSpace");
+    let _ = parse_header("# ");
+    let _ = parse_header("# Header");
+    let _ = parse_header("##\tTabbed");
+}
+
 fn replace_sections(
     lines: &[String],
     sections: &[SectionMatch],

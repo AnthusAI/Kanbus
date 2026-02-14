@@ -13,7 +13,6 @@ from taskulus.agents_management import (
     TASKULUS_SECTION_TEXT,
 )
 
-
 README_STUB = "This is a sample project that uses Taskulus."
 
 
