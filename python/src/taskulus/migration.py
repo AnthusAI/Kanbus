@@ -278,9 +278,7 @@ def _convert_dependencies(
             if parent is None:
                 parent = depends_on_id
             else:
-                dependency_links.append(
-                    DependencyLink(target=depends_on_id, type="parent-child")
-                )
+                raise MigrationError("multiple parents")
         else:
             dependency_links.append(
                 DependencyLink(target=depends_on_id, type=dependency_type)

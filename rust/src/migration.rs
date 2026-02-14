@@ -298,10 +298,9 @@ fn convert_dependencies(
             }
             if dependency_type == "parent-child" {
                 if parent.is_some() {
-                    links.push(DependencyLink {
-                        target: depends_on_id.to_string(),
-                        dependency_type: "parent-child".to_string(),
-                    });
+                    return Err(TaskulusError::IssueOperation(
+                        "multiple parents".to_string(),
+                    ));
                 } else {
                     parent = Some(depends_on_id.to_string());
                 }
@@ -329,8 +328,7 @@ fn convert_dependencies(
         let skip_validation = canonical_parent == issue_type
             && (canonical_parent == "epic" || canonical_parent == "task");
         if !skip_validation {
-            match validate_parent_child_relationship(configuration, &canonical_parent, issue_type)
-            {
+            match validate_parent_child_relationship(configuration, &canonical_parent, issue_type) {
                 Ok(()) => {}
                 Err(TaskulusError::InvalidHierarchy(message)) => {
                     eprintln!(

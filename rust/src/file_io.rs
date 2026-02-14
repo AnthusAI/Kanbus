@@ -150,8 +150,7 @@ fn write_tool_block_files(root: &Path) -> Result<(), TaskulusError> {
     }
 
     let claude_dir = root.join(".claude");
-    std::fs::create_dir_all(&claude_dir)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    std::fs::create_dir_all(&claude_dir).map_err(|error| TaskulusError::Io(error.to_string()))?;
     let claude_settings = claude_dir.join("settings.json");
     if !claude_settings.exists() {
         let payload = serde_json::json!({
@@ -162,15 +161,14 @@ fn write_tool_block_files(root: &Path) -> Result<(), TaskulusError> {
                 ]
             }
         });
-        let content =
-            serde_json::to_string_pretty(&payload).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let content = serde_json::to_string_pretty(&payload)
+            .map_err(|error| TaskulusError::Io(error.to_string()))?;
         std::fs::write(&claude_settings, format!("{}\n", content))
             .map_err(|error| TaskulusError::Io(error.to_string()))?;
     }
 
     let vscode_dir = root.join(".vscode");
-    std::fs::create_dir_all(&vscode_dir)
-        .map_err(|error| TaskulusError::Io(error.to_string()))?;
+    std::fs::create_dir_all(&vscode_dir).map_err(|error| TaskulusError::Io(error.to_string()))?;
     let vscode_settings = vscode_dir.join("settings.json");
     if !vscode_settings.exists() {
         let payload = serde_json::json!({
@@ -178,8 +176,8 @@ fn write_tool_block_files(root: &Path) -> Result<(), TaskulusError> {
             "files.watcherExclude": {"**/project/**": true},
             "search.exclude": {"**/project/**": true},
         });
-        let content =
-            serde_json::to_string_pretty(&payload).map_err(|error| TaskulusError::Io(error.to_string()))?;
+        let content = serde_json::to_string_pretty(&payload)
+            .map_err(|error| TaskulusError::Io(error.to_string()))?;
         std::fs::write(&vscode_settings, format!("{}\n", content))
             .map_err(|error| TaskulusError::Io(error.to_string()))?;
     }

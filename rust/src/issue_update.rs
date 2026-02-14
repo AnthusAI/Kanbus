@@ -122,8 +122,7 @@ fn find_duplicate_title(
     current_identifier: &str,
 ) -> Result<Option<String>, TaskulusError> {
     let normalized_title = title.trim().to_lowercase();
-    for entry in fs::read_dir(issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))?
-    {
+    for entry in fs::read_dir(issues_dir).map_err(|error| TaskulusError::Io(error.to_string()))? {
         let entry = entry.map_err(|error| TaskulusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {

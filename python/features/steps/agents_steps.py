@@ -114,6 +114,9 @@ def when_run_setup_agents_with_response(context: object, response: str) -> None:
 
 @when('I run "tsk setup agents" non-interactively')
 def when_run_setup_agents_non_interactive(context: object) -> None:
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["TASKULUS_NON_INTERACTIVE"] = "1"
+    context.environment_overrides = overrides
     run_cli(context, "tsk setup agents")
 
 

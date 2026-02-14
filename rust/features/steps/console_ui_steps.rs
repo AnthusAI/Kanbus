@@ -16,6 +16,7 @@ pub struct ConsoleIssue {
     pub closed_at: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ConsoleComment {
     pub author: String,

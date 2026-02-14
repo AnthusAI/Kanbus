@@ -128,11 +128,11 @@ def then_issue_file_created(context: object) -> None:
     assert len(issues) == 1
 
 
-@then("the issues directory should contain 1 issue file")
-def then_issues_directory_contains_one(context: object) -> None:
+@then("the issues directory should contain {issue_count:d} issue file")
+def then_issues_directory_contains_count(context: object, issue_count: int) -> None:
     project_dir = load_project_directory(context)
     issues = list((project_dir / "issues").glob("*.json"))
-    assert len(issues) == 1
+    assert len(issues) == issue_count
 
 
 @then('the created issue should have title "Implement OAuth2 flow"')

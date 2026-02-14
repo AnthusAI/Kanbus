@@ -119,11 +119,13 @@ def then_local_issue_file_created(context: object) -> None:
     assert len(issues) == 1
 
 
-@then("the local issues directory should contain 1 issue file")
-def then_local_issue_directory_contains_one(context: object) -> None:
+@then("the local issues directory should contain {issue_count:d} issue file")
+def then_local_issue_directory_contains_count(
+    context: object, issue_count: int
+) -> None:
     local_dir = _local_project_directory(context)
     issues = list((local_dir / "issues").glob("*.json"))
-    assert len(issues) == 1
+    assert len(issues) == issue_count
 
 
 @then('issue "tsk-local01" should exist in the shared issues directory')

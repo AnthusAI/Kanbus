@@ -54,7 +54,12 @@ fn write_agents_fixture(world: &mut TaskulusWorld, fixture_name: &str) {
     fs::write(repo_path.join("AGENTS.md"), content).expect("write agents file");
 }
 
-fn run_cli_with_input(world: &mut TaskulusWorld, command: &str, input: Option<&str>, non_interactive: bool) {
+fn run_cli_with_input(
+    world: &mut TaskulusWorld,
+    command: &str,
+    input: Option<&str>,
+    non_interactive: bool,
+) {
     let args = shell_words::split(command).expect("parse command");
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let binary_path = manifest_dir.join("target").join("debug").join("tskr");
@@ -72,7 +77,10 @@ fn run_cli_with_input(world: &mut TaskulusWorld, command: &str, input: Option<&s
         .unwrap_or_else(|| std::env::current_dir().expect("current dir"));
 
     let mut command_process = Command::new(binary_path);
-    command_process.args(args).current_dir(cwd).env("TASKULUS_NO_DAEMON", "1");
+    command_process
+        .args(args)
+        .current_dir(cwd)
+        .env("TASKULUS_NO_DAEMON", "1");
     if non_interactive {
         command_process.stdin(Stdio::null());
     } else if input.is_some() {
@@ -233,8 +241,8 @@ fn then_project_management_contains_text(world: &mut TaskulusWorld, text: String
         .working_directory
         .as_ref()
         .expect("working directory not set");
-    let content = fs::read_to_string(repo_path.join("CONTRIBUTING_AGENT.md"))
-        .expect("read instructions");
+    let content =
+        fs::read_to_string(repo_path.join("CONTRIBUTING_AGENT.md")).expect("read instructions");
     let normalized = text.replace("\\\"", "\"");
     assert!(content.contains(&normalized));
 }
