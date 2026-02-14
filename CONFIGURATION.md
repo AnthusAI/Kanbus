@@ -1,11 +1,11 @@
 # Configuration Reference
 
-Taskulus projects are configured via `project/config.yaml`. This file defines the issue hierarchy, types, workflows, and default values used by the CLI and validators.
+Taskulus projects are configured via `taskulus.yml`. This file defines the issue hierarchy, types, workflows, and default values used by the CLI and validators.
 
 ## File location
 
 ```
-project/config.yaml
+taskulus.yml
 ```
 
 ## Full schema

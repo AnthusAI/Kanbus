@@ -6,7 +6,7 @@ Ensures every Taskulus issue has a GitHub issue with a clickable link to its
 JSON file, and every GitHub issue without such a link gets a new Taskulus
 issue and an updated body. Uses the `gh` CLI only.
 
-Run from repository root (where .taskulus.yml and the project directory live).
+Run from repository root (where .taskulus.yaml and the project directory live).
 Requires: gh installed and authenticated, PYTHONPATH including python/src or
 pip install -e python.
 
@@ -36,11 +36,7 @@ from taskulus.issue_files import (  # noqa: E402
     write_issue_to_file,
 )
 from taskulus.models import IssueData  # noqa: E402
-from taskulus.project import (  # noqa: E402
-    ProjectMarkerError,
-    get_configuration_path,
-    load_project_directory,
-)
+from taskulus.project import ProjectMarkerError, load_project_directory  # noqa: E402
 
 TASKULUS_SOURCE_PATTERN = re.compile(
     r"<!--\s*taskulus-source:\s*([^\s]+)\s*-->", re.IGNORECASE
@@ -273,7 +269,7 @@ def main() -> int:
     except ValueError:
         project_dir_relative = Path(project_dir_name)
 
-    configuration = load_project_configuration(get_configuration_path(repo_root))
+    configuration = load_project_configuration(project_dir / "taskulus.yml")
     local_identifiers = list_issue_identifiers(issues_dir)
     existing_gh_issues: list[dict] = []
     source_to_gh_number: dict[str, int] = {}
@@ -371,7 +367,8 @@ def main() -> int:
         request = IssueIdentifierRequest(
             title=title,
             existing_ids=existing_ids,
-            prefix=configuration.project_key,
+            prefix=configuration.prefix,
+            created_at=created_at,
         )
         try:
             result = generate_issue_identifier(request)

@@ -1,189 +1,131 @@
-# Configuration Reference
+# Taskulus Configuration (Python + Rust)
 
-Taskulus projects are configured via `project/config.yaml`. This file defines the issue hierarchy, types, workflows, and default values used by the CLI and validators.
+Taskulus uses a single configuration file to define project identity, hierarchy, workflows, and priorities. The same schema and behaviors apply to both implementations.
 
-## File location
+## Location
 
 ```
-project/config.yaml
+taskulus.yml
 ```
 
-## Full schema
+The file must exist; there is no fallback path. A missing file is a hard error with a clear message.
+
+## Loading semantics (dotyaml parity)
+
+1. Load `.env` (unless disabled), setting variables only when they are not already defined.
+2. Parse `taskulus.yml`, interpolating `{{ VAR|default }}` expressions from the environment.
+3. Flatten the resulting config into environment variables with the `TASKULUS_` prefix (nested keys joined by underscores, lists as comma-separated strings, booleans as `true`/`false`, null as empty string).
+4. Never override an environment variable that is already set unless `override=true` is explicitly requested.
+
+These rules mirror the Python `dotyaml` package and must be matched in the Rust crate. citeturn0search3
+
+## Schema (required fields)
 
 ```yaml
-# Project identity
-prefix: "tsk"
-
-# Issue type hierarchy (strict ordering, top to bottom)
-hierarchy:
+project_key: "TSK"              # 2–6 uppercase letters; used as issue prefix
+hierarchy:                       # fixed; user must not change
   - initiative
   - epic
-  - task
-  - sub-task
-
-# Non-hierarchical types (cannot have children)
-types:
+  - issue
+  - subtask
+issue_types:                     # non-hierarchical types
   - bug
   - story
   - chore
-
-# Workflow state machines (per type, with default fallback)
-workflows:
+workflows:                       # state machines
   default:
     open: [in_progress, closed, deferred]
     in_progress: [open, blocked, closed]
     blocked: [in_progress, closed]
     closed: [open]
     deferred: [open, closed]
-  epic:
-    open: [in_progress, closed]
-    in_progress: [open, closed]
-    closed: [open]
-
-# Initial status for new issues
-initial_status: open
-
-# Priority levels (0 = highest)
-priorities:
-  0: critical
-  1: high
-  2: medium
-  3: low
-  4: trivial
-
-# Default priority for new issues
-default_priority: 2
-
-# Enable Beads compatibility mode by default
-beads_compatibility: false
+workflow_bindings:               # required; every type maps to a workflow
+  bug: default
+  story: default
+  chore: default
+initial_status: open             # must exist in the bound workflow
+priorities:                      # canonical, ordered list (highest first)
+  - critical
+  - high
+  - medium
+  - low
+  - trivial
+default_priority: medium         # must be in priorities
+priority_import_aliases:         # optional mapping from external → canonical
+  P0: critical
+  P1: high
+  P2: medium
+  P3: low
+priority_accept_unmapped: true   # allow unmapped on import, block on create/update
+data_dir: .taskulus              # optional; single location for caches
+timezone: America/New_York       # optional; IANA tz
+date_format: RFC3339             # optional; defaults to RFC3339
 ```
-
-## Field reference
-
-### `prefix` (string, required)
-
-Prefix for issue IDs. Each ID is `prefix-<6hex>`.
-
-### `hierarchy` (list of strings, required)
-
-Defines a strict parent-child ordering. Parents can only have children of the next type in the list. The last type cannot have children.
-
-### `types` (list of strings, required)
-
-Non-hierarchical types. These may have a hierarchical parent, but cannot have children.
-
-### `workflows` (map of workflow definitions, required)
-
-Defines allowed status transitions per issue type. `default` is required and used as a fallback when a type-specific workflow is not present.
-
-### `initial_status` (string, required)
-
-Status assigned to newly created issues.
-
-### `priorities` (map of integer to string, required)
-
-Human-readable names for priority levels. Lower numbers indicate higher priority.
-
-### `default_priority` (integer, required)
-
-Priority assigned to new issues when not explicitly provided.
-
-### `beads_compatibility` (boolean, optional)
-
-Whether CLI commands default to Beads compatibility mode when `--beads` is not provided.
-Defaults to `false`.
 
 ## Validation rules
 
-- `hierarchy` must be non-empty.
-- `types` must not overlap with `hierarchy`.
-- `workflows.default` must exist.
-- `initial_status` must exist in the workflow for the issue type (or default).
-- `default_priority` must be a key in `priorities`.
-- No duplicate type names across `hierarchy` and `types`.
+- `project_key` is 2–6 uppercase letters; used as prefix for new IDs.
+- `hierarchy` is fixed to `initiative > epic > issue > subtask`; config must fail if altered.
+- Every `issue_type` must have a `workflow_binding`; no default fallback.
+- All states referenced in workflows must be reachable; transitions are explicit only.
+- `initial_status` must appear in the workflow bound to the issue type.
+- `priorities` is an ordered list; `default_priority` must be one of them.
+- Unknown top-level keys are errors (extra fields forbidden).
+- Only one configuration file is read; no backward-compatible search paths.
+
+## Priority handling behaviors
+
+- **Import/read:** accept any priority string; flag as external when not in `priorities`.
+- **Create/update:** must use canonical priorities; otherwise fail.
+- **Transform/save (e.g., Beads import):** apply `priority_import_aliases`; if unmapped and `priority_accept_unmapped` is false, fail; if true, store the external label.
+
+## Workflow behaviors
+
+- Status transitions must follow the bound workflow; any transition not listed is rejected.
+- Type-specific workflows override default by binding; absence of a binding is an error at load time.
+
+## Environment integration
+
+- Prefix for exported env vars is fixed to `TASKULUS_`.
+- `.env` loading is enabled by default; disable with a loader flag (CLI option to be defined in both implementations).
+- `override=true` is an opt-in flag to let YAML values overwrite existing env vars; default is non-overriding. citeturn0search3
 
 ## Examples
 
-### Software team workflow
+### Default software project
 
 ```yaml
-prefix: "tsk"
-hierarchy:
-  - initiative
-  - epic
-  - task
-  - sub-task
-types:
-  - bug
-  - story
-  - chore
-workflows:
-  default:
-    open: [in_progress, closed, deferred]
-    in_progress: [open, blocked, closed]
-    blocked: [in_progress, closed]
-    closed: [open]
-    deferred: [open, closed]
+project_key: "TSK"
+issue_types: [bug, story, chore]
+workflow_bindings:
+  bug: default
+  story: default
+  chore: default
 initial_status: open
-priorities:
-  0: critical
-  1: high
-  2: medium
-  3: low
-  4: trivial
-default_priority: 2
+priorities: [critical, high, medium, low, trivial]
+default_priority: medium
+priority_import_aliases:
+  P0: critical
+  P1: high
+  P2: medium
+  P3: low
+priority_accept_unmapped: true
 ```
 
-### Customer support queue
+### Beads import mapping
 
 ```yaml
-prefix: "sup"
-hierarchy:
-  - queue
-  - ticket
-types:
-  - bug
-workflows:
-  default:
-    new: [triaged, closed]
-    triaged: [in_progress, closed]
-    in_progress: [waiting_on_customer, closed]
-    waiting_on_customer: [in_progress, closed]
-    closed: [new]
-initial_status: new
-priorities:
-  0: urgent
-  1: high
-  2: normal
-  3: low
-default_priority: 2
-```
-
-### Content production pipeline
-
-```yaml
-prefix: "cnt"
-hierarchy:
-  - initiative
-  - campaign
-  - asset
-types:
-  - request
-workflows:
-  default:
-    planned: [drafting, canceled]
-    drafting: [review, canceled]
-    review: [approved, changes_requested]
-    changes_requested: [drafting, canceled]
-    approved: [published]
-    published: [archived]
-    canceled: []
-    archived: []
-initial_status: planned
-priorities:
-  0: highest
-  1: high
-  2: normal
-  3: low
-default_priority: 2
+project_key: "BDX"
+issue_types: [bug, task]
+workflow_bindings:
+  bug: default
+  task: default
+priorities: [urgent, high, normal, low]
+default_priority: normal
+priority_import_aliases:
+  P0: urgent
+  P1: high
+  P2: normal
+  P3: low
+priority_accept_unmapped: false
 ```
