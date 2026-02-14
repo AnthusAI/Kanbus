@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 import click
@@ -58,6 +59,7 @@ from taskulus.dependency_tree import (
 from taskulus.wiki import WikiError, WikiRenderRequest, render_wiki_page
 from taskulus.project import ProjectMarkerError, get_configuration_path
 from taskulus.config_loader import ConfigurationError, load_project_configuration
+from taskulus.agents_management import _ensure_project_guard_files, ensure_agents_file
 
 
 def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> bool:
@@ -82,6 +84,24 @@ def cli(context: click.Context, beads_mode: bool) -> None:
     context.obj = {"beads_mode": _resolve_beads_mode(context, beads_mode)}
 
 
+@cli.group("setup")
+def setup() -> None:
+    """Setup utilities for Taskulus."""
+
+
+@setup.command("agents")
+@click.option("--force", is_flag=True, default=False)
+def setup_agents(force: bool) -> None:
+    """Ensure AGENTS.md contains Taskulus instructions.
+
+    :param force: Overwrite existing Taskulus section without prompting.
+    :type force: bool
+    """
+    root = Path.cwd()
+    ensure_agents_file(root, force)
+    _ensure_project_guard_files(root)
+
+
 @cli.command("init")
 @click.option("--local", "create_local", is_flag=True, default=False)
 def init(create_local: bool) -> None:
@@ -96,6 +116,14 @@ def init(create_local: bool) -> None:
         initialize_project(root, create_local)
     except InitializationError as error:
         raise click.ClickException(str(error)) from error
+    _maybe_run_setup_agents(root)
+
+
+def _maybe_run_setup_agents(root: Path) -> None:
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return
+    if click.confirm('Run "tsk setup agents" now?', default=False):
+        ensure_agents_file(root, force=False)
 
 
 @cli.command("create")
