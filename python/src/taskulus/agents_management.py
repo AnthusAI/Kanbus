@@ -26,7 +26,8 @@ TASKULUS_SECTION_LINES = [
     "Use Taskulus for task management.",
     "Why: Taskulus task management is MANDATORY here; every task must live in Taskulus.",
     "When: Create/update the Taskulus task before coding; close it only after the change lands.",
-    "How: See CONTRIBUTING_AGENT.md for the Taskulus workflow, hierarchy, status rules, priorities, and command examples.",
+    "How: See CONTRIBUTING_AGENT.md for the Taskulus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid.",
+    "Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Taskulus.",
     "",
 ]
 TASKULUS_SECTION_TEXT = "\n".join(TASKULUS_SECTION_LINES)
@@ -68,15 +69,18 @@ def ensure_agents_file(root: Path, force: bool) -> bool:
         if not force:
             if not _confirm_overwrite():
                 _ensure_project_management_file(root, force, instructions_text)
+                _ensure_project_guard_files(root)
                 return False
         updated = _replace_section(lines, match, TASKULUS_SECTION_LINES)
         agents_path.write_text(updated, encoding="utf-8")
         _ensure_project_management_file(root, force, instructions_text)
+        _ensure_project_guard_files(root)
         return True
 
     updated_lines = _insert_taskulus_section(lines, TASKULUS_SECTION_LINES)
     agents_path.write_text(updated_lines, encoding="utf-8")
     _ensure_project_management_file(root, force, instructions_text)
+    _ensure_project_guard_files(root)
     return True
 
 
@@ -87,6 +91,39 @@ def _ensure_project_management_file(
     if instructions_path.exists() and not force:
         return
     instructions_path.write_text(instructions_text, encoding="utf-8")
+
+
+def _ensure_project_guard_files(root: Path) -> None:
+    project_dir = root / "project"
+    if not project_dir.exists():
+        return
+    project_agents = project_dir / "AGENTS.md"
+    project_agents.write_text(
+        "\n".join(
+            [
+                "# DO NOT EDIT HERE",
+                "",
+                "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
+                "Do not read or write in this folder. Use Taskulus commands instead.",
+                "",
+                "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    do_not_edit = project_dir / "DO_NOT_EDIT"
+    do_not_edit.write_text(
+        "\n".join(
+            [
+                "DO NOT EDIT ANYTHING IN project/",
+                "This folder is guarded by The Way.",
+                "All changes must go through Taskulus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def build_project_management_text(root: Path) -> str:
