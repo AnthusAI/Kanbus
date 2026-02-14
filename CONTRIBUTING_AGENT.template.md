@@ -25,10 +25,17 @@ Every change must be:
 
 If it is not recorded, it did not happen.
 
+While working, record a running log in Taskulus comments on the relevant epic/task: key decisions, problems encountered, attempted fixes, outcomes, and next steps. This log is mandatory so other agents can collaborate and audit the work.
+
+Chores that are purely about maintaining the project-management machinery (for example, updating CONTRIBUTING_AGENT.md or AGENTS.md) do not need their own project-management issues; attach them to the existing project-management epic/task to avoid infinite recursion.
+
+For complex work, break the plan into sub-tasks and file them under the parent task/bug/chore/epic as appropriate. Create one issue per concrete step in the plan. Do not put sub-tasks under stories; stories hold behavior specs, not implementation steps.
+
 Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. All work must pass through Taskulus.
 
 Use the Rust CLI when available: `tskr` and `tsk` are functionally identical; `tskr` is faster. Try `tskr` first; fall back to `tsk` only if `tskr` is unavailable.
 For guidance, run `tskr --help` (or `tsk --help`) and subcommand help like `tskr create --help`.
+Operational discipline: use the minimum commands needed. To inspect work, run `tskr list --status open --long` once to find the ID, then `tskr show <id>`. Do not guess IDs or spam multiple variants; if the ID is unknown, ask the user.
 
 ## The Order of Being
 
