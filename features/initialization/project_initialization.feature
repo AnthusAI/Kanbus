@@ -13,6 +13,8 @@ Feature: Project initialization
     And a "CONTRIBUTING_AGENT.template.md" file should be created
     And CONTRIBUTING_AGENT.template.md should contain "This is The Way."
     And CONTRIBUTING_AGENT.template.md should contain "As a <role>, I want <capability>, so that <benefit>."
+    And project/AGENTS.md should be created with the warning
+    And project/DO_NOT_EDIT should be created with the warning
 
   Scenario: Initialize with a project-local directory
     Given an empty git repository

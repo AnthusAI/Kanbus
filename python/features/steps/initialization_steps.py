@@ -104,3 +104,21 @@ def then_command_failed(context: object) -> None:
 @then("the command should fail")
 def then_command_failed_generic(context: object) -> None:
     assert context.result.exit_code != 0
+
+
+@then("project/AGENTS.md should be created with the warning")
+def then_project_agents_created(context: object) -> None:
+    path = context.working_directory / "project" / "AGENTS.md"
+    assert path.is_file()
+    content = path.read_text(encoding="utf-8")
+    assert "DO NOT EDIT HERE" in content
+    assert "sin against The Way" in content
+
+
+@then("project/DO_NOT_EDIT should be created with the warning")
+def then_project_do_not_edit_created(context: object) -> None:
+    path = context.working_directory / "project" / "DO_NOT_EDIT"
+    assert path.is_file()
+    content = path.read_text(encoding="utf-8")
+    assert "DO NOT EDIT ANYTHING IN project/" in content
+    assert "The Way" in content

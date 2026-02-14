@@ -275,3 +275,23 @@ fn then_command_failed(world: &mut TaskulusWorld) {
 fn then_command_failed_generic(world: &mut TaskulusWorld) {
     assert_ne!(world.exit_code, Some(0));
 }
+
+#[then("project/AGENTS.md should be created with the warning")]
+fn then_project_agents_created(world: &mut TaskulusWorld) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let path = cwd.join("project").join("AGENTS.md");
+    assert!(path.is_file());
+    let content = std::fs::read_to_string(path).expect("read project AGENTS");
+    assert!(content.contains("DO NOT EDIT HERE"));
+    assert!(content.contains("sin against The Way"));
+}
+
+#[then("project/DO_NOT_EDIT should be created with the warning")]
+fn then_project_do_not_edit_created(world: &mut TaskulusWorld) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let path = cwd.join("project").join("DO_NOT_EDIT");
+    assert!(path.is_file());
+    let content = std::fs::read_to_string(path).expect("read DO_NOT_EDIT");
+    assert!(content.contains("DO NOT EDIT ANYTHING IN project/"));
+    assert!(content.contains("The Way"));
+}
