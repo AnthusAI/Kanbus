@@ -545,8 +545,14 @@ fn when_validate_migration_errors(world: &mut KanbusWorld) {
                     ),
                 ],
             ),
-            build_record(&valid_base, vec![("id", serde_json::json!("kanbus-parent"))]),
-            build_record(&valid_base, vec![("id", serde_json::json!("kanbus-parent-2"))]),
+            build_record(
+                &valid_base,
+                vec![("id", serde_json::json!("kanbus-parent"))],
+            ),
+            build_record(
+                &valid_base,
+                vec![("id", serde_json::json!("kanbus-parent-2"))],
+            ),
         ],
         "multiple-parents",
     );

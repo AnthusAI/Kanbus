@@ -115,7 +115,9 @@ def when_run_create_beads_assigned(context: object) -> None:
 
 @when('I run "kanbus --beads create Described beads issue --description Details"')
 def when_run_create_beads_description(context: object) -> None:
-    run_cli(context, "kanbus --beads create Described beads issue --description Details")
+    run_cli(
+        context, "kanbus --beads create Described beads issue --description Details"
+    )
 
 
 @when('I run "kanbus --beads create Beads with blanks"')

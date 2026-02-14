@@ -120,7 +120,9 @@ def given_invalid_issues_with_errors(context: object) -> None:
     project_dir = load_project_directory(context)
     timestamp = datetime(2026, 2, 11, tzinfo=timezone.utc)
 
-    issue_unknown = build_issue("kanbus-unknown", "Unknown", "unknown", "open", None, [])
+    issue_unknown = build_issue(
+        "kanbus-unknown", "Unknown", "unknown", "open", None, []
+    )
     issue_unknown = issue_unknown.model_copy(update={"priority": 99})
     write_issue_file(project_dir, issue_unknown)
 
@@ -137,7 +139,9 @@ def given_invalid_issues_with_errors(context: object) -> None:
     )
     write_issue_file(project_dir, issue_open_closed_at)
 
-    issue_mismatch = build_issue("kanbus-mismatch", "Mismatch", "task", "open", None, [])
+    issue_mismatch = build_issue(
+        "kanbus-mismatch", "Mismatch", "task", "open", None, []
+    )
     mismatch_path = project_dir / "issues" / "wrong-id.json"
     mismatch_path.write_text(
         json.dumps(issue_mismatch.model_dump(by_alias=True, mode="json"), indent=2),
@@ -147,7 +151,9 @@ def given_invalid_issues_with_errors(context: object) -> None:
     issue_dep = build_issue("kanbus-dep", "Dep", "task", "open", None, [])
     issue_dep = issue_dep.model_copy(
         update={
-            "dependencies": [DependencyLink(target="kanbus-missing", type="unsupported")]
+            "dependencies": [
+                DependencyLink(target="kanbus-missing", type="unsupported")
+            ]
         }
     )
     write_issue_file(project_dir, issue_dep)

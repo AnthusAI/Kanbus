@@ -60,7 +60,10 @@ fn given_repo_nested_projects(world: &mut KanbusWorld) {
     let root_project = root.join("project");
     let nested_project = root.join("nested").join("project");
     write_issue(&root_project, &build_issue("kanbus-root", "Root task"));
-    write_issue(&nested_project, &build_issue("kanbus-nested", "Nested task"));
+    write_issue(
+        &nested_project,
+        &build_issue("kanbus-nested", "Nested task"),
+    );
 }
 
 #[given("a repository with a project directory above the current directory")]

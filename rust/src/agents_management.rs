@@ -447,8 +447,7 @@ fn ensure_project_guard_files(root: &Path) -> Result<(), KanbusError> {
     ]
     .join("\n")
         + "\n";
-    fs::write(&do_not_edit, do_not_edit_content)
-        .map_err(|error| KanbusError::Io(error.to_string()))
+    fs::write(&do_not_edit, do_not_edit_content).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
 fn confirm_overwrite() -> Result<bool, KanbusError> {

@@ -117,9 +117,7 @@ def then_last_issue_in_beads_list_output(context: object) -> None:
     ), "issue id not in list output"
 
 
-@then(
-    "the last created beads issue should not appear in the Kanbus beads list output"
-)
+@then("the last created beads issue should not appear in the Kanbus beads list output")
 def then_last_issue_not_in_beads_list_output(context: object) -> None:
     identifier = context.last_beads_issue_id
     assert identifier, "last beads issue id missing"

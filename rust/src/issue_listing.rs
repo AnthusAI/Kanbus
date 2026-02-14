@@ -6,7 +6,7 @@ use crate::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
 use crate::daemon_client::{is_daemon_enabled, request_index_list};
 use crate::error::KanbusError;
 use crate::file_io::{
-    canonicalize_path, discover_project_directories, discover_kanbus_projects,
+    canonicalize_path, discover_kanbus_projects, discover_project_directories,
     find_project_local_directory, load_project_directory,
 };
 use crate::index::build_index_from_directory;

@@ -50,19 +50,32 @@ fn given_current_user(_world: &mut KanbusWorld) {
 
 #[when("I run \"kanbus comment kanbus-aaa \\\"First comment\\\"\"")]
 fn when_comment_first(world: &mut KanbusWorld) {
-    run_cli_args(world, &["kanbus", "comment", "kanbus-aaa", "First", "comment"]);
+    run_cli_args(
+        world,
+        &["kanbus", "comment", "kanbus-aaa", "First", "comment"],
+    );
 }
 
 #[when("I run \"kanbus comment kanbus-aaa \\\"Second comment\\\"\"")]
 fn when_comment_second(world: &mut KanbusWorld) {
-    run_cli_args(world, &["kanbus", "comment", "kanbus-aaa", "Second", "comment"]);
+    run_cli_args(
+        world,
+        &["kanbus", "comment", "kanbus-aaa", "Second", "comment"],
+    );
 }
 
 #[when("I run \"kanbus comment kanbus-missing \\\"Missing issue note\\\"\"")]
 fn when_comment_missing(world: &mut KanbusWorld) {
     run_cli_args(
         world,
-        &["kanbus", "comment", "kanbus-missing", "Missing", "issue", "note"],
+        &[
+            "kanbus",
+            "comment",
+            "kanbus-missing",
+            "Missing",
+            "issue",
+            "note",
+        ],
     );
 }
 
@@ -76,7 +89,10 @@ fn when_comment_note(world: &mut KanbusWorld) {
 
 #[when("I run \"kanbus comment kanbus-dup \\\"Dup keyword\\\"\"")]
 fn when_comment_dup(world: &mut KanbusWorld) {
-    run_cli_args(world, &["kanbus", "comment", "kanbus-dup", "Dup", "keyword"]);
+    run_cli_args(
+        world,
+        &["kanbus", "comment", "kanbus-dup", "Dup", "keyword"],
+    );
 }
 
 #[then("issue \"kanbus-aaa\" should have 1 comment")]

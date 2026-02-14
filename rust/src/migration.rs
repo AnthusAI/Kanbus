@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::{
-    discover_project_directories, discover_kanbus_projects, ensure_git_repository,
+    discover_kanbus_projects, discover_project_directories, ensure_git_repository,
     get_configuration_path, initialize_project,
 };
 use crate::hierarchy::validate_parent_child_relationship;
@@ -143,8 +143,7 @@ pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, KanbusError> {
 }
 
 fn load_beads_records(path: &Path) -> Result<Vec<Value>, KanbusError> {
-    let contents =
-        fs::read_to_string(path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let contents = fs::read_to_string(path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let mut records = Vec::new();
     for line in contents.lines() {
         if line.trim().is_empty() {
@@ -181,9 +180,7 @@ fn convert_record(
         .as_i64()
         .ok_or_else(|| KanbusError::IssueOperation("priority is required".to_string()))?;
     if !configuration.priorities.contains_key(&(priority as u8)) {
-        return Err(KanbusError::IssueOperation(
-            "invalid priority".to_string(),
-        ));
+        return Err(KanbusError::IssueOperation("invalid priority".to_string()));
     }
 
     let created_at = parse_timestamp(record.get("created_at"), "created_at")?;
@@ -375,10 +372,7 @@ fn convert_comments(comments: Option<&Vec<Value>>) -> Result<Vec<IssueComment>, 
     Ok(results)
 }
 
-fn parse_timestamp(
-    value: Option<&Value>,
-    field_name: &str,
-) -> Result<DateTime<Utc>, KanbusError> {
+fn parse_timestamp(value: Option<&Value>, field_name: &str) -> Result<DateTime<Utc>, KanbusError> {
     let Some(value) = value else {
         return Err(KanbusError::IssueOperation(format!(
             "{field_name} is required"

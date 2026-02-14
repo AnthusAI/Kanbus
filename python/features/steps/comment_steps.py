@@ -67,7 +67,9 @@ def then_latest_timestamp(context: object) -> None:
     assert issue.comments[-1].created_at is not None
 
 
-@then('issue "kanbus-aaa" should have comments in order "First comment", "Second comment"')
+@then(
+    'issue "kanbus-aaa" should have comments in order "First comment", "Second comment"'
+)
 def then_comments_order(context: object) -> None:
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, "kanbus-aaa")

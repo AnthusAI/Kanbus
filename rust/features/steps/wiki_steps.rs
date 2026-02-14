@@ -133,7 +133,10 @@ fn when_render_page(world: &mut KanbusWorld, page: String) {
 fn when_render_absolute(world: &mut KanbusWorld, filename: String) {
     let project_dir = load_project_dir(world);
     let page_path = project_dir.join("wiki").join(filename);
-    run_cli(world, &format!("kanbus wiki render {}", page_path.display()));
+    run_cli(
+        world,
+        &format!("kanbus wiki render {}", page_path.display()),
+    );
 }
 
 #[then(expr = "\"{string}\" should appear before \"{string}\" in the output")]

@@ -9,11 +9,11 @@ use cucumber::{given, then, when, World};
 use tempfile::TempDir;
 
 use crate::step_definitions::console_ui_steps::{ConsoleLocalStorage, ConsoleState};
-use serde_json::Value;
 use kanbus::cli::run_from_args_with_output;
 use kanbus::daemon_client;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
+use serde_json::Value;
 
 #[derive(Debug, Default, World)]
 pub struct KanbusWorld {

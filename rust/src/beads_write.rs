@@ -159,8 +159,7 @@ pub fn update_beads_issue(
 }
 
 fn load_beads_records(path: &Path) -> Result<Vec<Value>, KanbusError> {
-    let contents =
-        fs::read_to_string(path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let contents = fs::read_to_string(path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let mut records = Vec::new();
     for line in contents.lines() {
         if line.trim().is_empty() {
@@ -230,9 +229,7 @@ fn derive_prefix(existing_ids: &HashSet<String>) -> Result<String, KanbusError> 
             return Ok(prefix.to_string());
         }
     }
-    Err(KanbusError::IssueOperation(
-        "invalid beads id".to_string(),
-    ))
+    Err(KanbusError::IssueOperation("invalid beads id".to_string()))
 }
 
 fn generate_identifier(

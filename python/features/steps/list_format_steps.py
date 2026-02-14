@@ -31,7 +31,9 @@ def given_issues_for_list_color_coverage(context: object) -> None:
         build_issue(
             "kanbus-line-initiative", "Initiative", "initiative", "unknown", None, []
         ),
-        build_issue("kanbus-line-sub", "Sub", "sub-task", "open", "kanbus-line-epic", []),
+        build_issue(
+            "kanbus-line-sub", "Sub", "sub-task", "open", "kanbus-line-epic", []
+        ),
         build_issue("kanbus-line-event", "Event", "event", "open", None, []),
         build_issue("kanbus-line-unknown", "Unknown", "mystery", "open", None, []),
     ]

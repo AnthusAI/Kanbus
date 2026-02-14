@@ -309,8 +309,7 @@ fn ensure_gitignore_entry(root: &Path, entry: &str) -> Result<(), KanbusError> {
     }
     updated.push_str(entry);
     updated.push('\n');
-    std::fs::write(&gitignore_path, updated)
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::write(&gitignore_path, updated).map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(())
 }
 

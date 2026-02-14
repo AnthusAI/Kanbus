@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::KanbusError;
 use crate::file_io::{
-    discover_project_directories as discover_project_directories_inner, discover_kanbus_projects,
+    discover_kanbus_projects, discover_project_directories as discover_project_directories_inner,
     load_project_directory as load_project_directory_inner,
 };
 
