@@ -5,6 +5,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 
+#[cfg(tarpaulin)]
 use crate::config::default_project_configuration;
 use crate::config_loader::load_project_configuration;
 use crate::error::TaskulusError;

@@ -279,7 +279,11 @@ def _run_coverage_helper() -> None:
     from taskulus.file_io import initialize_project
     from taskulus.issue_creation import create_issue
     from taskulus.issue_listing import IssueListingError, list_issues
-    from taskulus.issue_update import IssueUpdateError, _find_duplicate_title, update_issue
+    from taskulus.issue_update import (
+        IssueUpdateError,
+        _find_duplicate_title,
+        update_issue,
+    )
     from taskulus.migration import (
         MigrationError,
         _convert_dependencies,
