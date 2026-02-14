@@ -6,6 +6,7 @@ use std::path::Path;
 use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 
+use crate::agents_management::ensure_agents_file;
 use crate::beads_write::{create_beads_issue, delete_beads_issue, update_beads_issue};
 use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
@@ -54,6 +55,11 @@ enum Commands {
         /// Create project-local alongside project.
         #[arg(long)]
         local: bool,
+    },
+    /// Set up Taskulus helper files.
+    Setup {
+        #[command(subcommand)]
+        command: SetupCommands,
     },
     /// Create a new issue.
     Create {
@@ -265,6 +271,16 @@ enum DependencyCommands {
 }
 
 #[derive(Debug, Subcommand)]
+enum SetupCommands {
+    /// Ensure AGENTS.md includes Taskulus guidance.
+    Agents {
+        /// Overwrite existing Taskulus section without prompting.
+        #[arg(long)]
+        force: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 enum WikiCommands {
     /// Render a wiki page.
     Render {
@@ -375,6 +391,12 @@ fn execute_command(
             initialize_project(root, local)?;
             Ok(None)
         }
+        Commands::Setup { command } => match command {
+            SetupCommands::Agents { force } => {
+                ensure_agents_file(root, force)?;
+                Ok(None)
+            }
+        },
         Commands::Create {
             title,
             issue_type,

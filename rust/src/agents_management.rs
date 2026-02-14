@@ -508,7 +508,7 @@ fn parse_header(line: &str) -> Option<(usize, String)> {
     if count == 0 || count > 6 {
         return None;
     }
-    let rest = trimmed[count..].trim_start();
+    let rest = &trimmed[count..];
     if !rest.starts_with(' ') && !rest.starts_with('\t') {
         return None;
     }
