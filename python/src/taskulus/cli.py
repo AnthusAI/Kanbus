@@ -462,8 +462,10 @@ def list_command(
         except ConfigurationError as error:
             raise click.ClickException(str(error)) from error
 
-    project_context = False if beads_mode else not any(
-        issue.custom.get("project_path") for issue in issues
+    project_context = (
+        False
+        if beads_mode
+        else not any(issue.custom.get("project_path") for issue in issues)
     )
     widths = (
         None if porcelain else compute_widths(issues, project_context=project_context)
