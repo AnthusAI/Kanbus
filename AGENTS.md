@@ -1,3 +1,12 @@
+## Project management with Taskulus
+
+Use Taskulus for task management.
+Why: Taskulus task management is MANDATORY here; every task must live in Taskulus.
+When: Create/update the Taskulus task before coding; close it only after the change lands.
+How: See CONTRIBUTING_AGENT.md for the Taskulus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid.
+Performance: Prefer tskr (Rust) when available; tsk (Python) is equivalent but slower.
+Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Taskulus. Never inspect issue JSON with tools like cat or jq.
+
 # CRITICAL PROJECT POLICY: NO EMOJIS
 
 **ZERO TOLERANCE: No emojis anywhere in this project.**
@@ -11,29 +20,6 @@ This applies to:
 - Test scenarios and step definitions
 
 Use clear, professional text instead. Emojis reduce clarity and professionalism.
-
-## Task Tracking
-
-This repo uses Taskulus for its work-tracking, not Beads. Always:
-
-- Pick the next item from `tsk ready` or `tsk list` before starting work, then set it to `in_progress`.
-- Log updates, blockers, and decisions by editing the corresponding issue JSON under `project/issues/`.
-- Reference the Taskulus issue ID in branch names, PRs, and commits when possible for traceability.
-- Close or transition the Taskulus issue before marking the work as done.
-
-# Code Quality Standards for Taskulus
-
-## Behavior-Driven Development (BDD)
-
-This project follows a strict outside-in, behavior-driven design approach:
-
-**The specification IS the product.** Every line of production code exists to make a failing Gherkin scenario pass. Write the Gherkin first, watch it fail, then write the minimum code to make it pass.
-
-**Both implementations share the same Gherkin feature files.** Python and Rust are two renderings of the same specification. They must pass the same scenarios.
-
-**100% spec coverage is mandatory.** Every feature must have BDD scenarios. Every scenario must pass in both implementations.
-
-**Specification completeness:** Every behavior that exists must be specified. If a behavior cannot be specified clearly, it should not exist (remove it or make it a hard error).
 
 ## CRITICAL: No Backward Compatibility or Fallback Logic
 
@@ -269,16 +255,6 @@ Before any PR can merge:
 7. **Run parity checker** to verify both implementations are in sync
 8. **Run all quality gates**
 9. **Submit PR only when all gates pass**
-
-## Milestones
-
-**M1 (Minimal Viable Tracker):** Can create, show, update, close, delete issues (Epic 6 complete)
-
-**M2 (Usable for Planning):** Can query, filter, search issues (Epic 9 complete)
-
-**M3 (Self-Hosting):** Wiki system works, can use Taskulus to track Taskulus (Epic 11 complete)
-
-**M4 (1.0 Release):** All features complete, migration works, documentation complete (Epic 17 complete)
 
 ## Landing the Plane (Session Completion)
 

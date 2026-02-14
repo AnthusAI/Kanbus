@@ -25,24 +25,32 @@ Every change must be:
 
 If it is not recorded, it did not happen.
 
+Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Taskulus.
+
 ## The Order of Being
 
 All work is structured.
 
-Project key prefix: {{ project_key }}.
+Project key prefix: tsk.
 
-Hierarchy: {{ hierarchy_order }}.
+Hierarchy: initiative -> epic -> task -> sub-task.
 
-Non-hierarchical types: {{ non_hierarchical_types | join(", ") if non_hierarchical_types else "none" }}.
+Non-hierarchical types: bug, story, chore.
 
 Only hierarchy types may be parents.
 
 Permitted relationships are fixed and not to be altered.
 
 Allowed parent-child relationships:
-{% for rule in parent_child_rules %}
-- {{ rule }}
-{% endfor %}
+
+- epic can have parent initiative.
+
+- task can have parent epic.
+
+- sub-task can have parent task.
+
+- bug, story, chore can have parent initiative, epic, task.
+
 
 Structure is not bureaucracy. Structure is memory.
 
@@ -87,9 +95,17 @@ Chores maintain the ground on which behavior stands.
 Every story must contain a Gherkin form.
 
 Minimum structure:
-{% for line in gherkin_example %}
-{{ line }}
-{% endfor %}
+
+Feature:
+
+Scenario:
+
+Given
+
+When
+
+Then
+
 
 This is required.
 
@@ -125,43 +141,89 @@ Green is peace. Red is unfinished.
 
 Statuses and workflows are fixed. They exist to maintain order.
 
-Initial status: {{ initial_status }}.
+Initial status: open.
 Status changes must follow the workflow transitions below.
 Workflow selection: use a workflow named after the issue type when present; otherwise use the default workflow.
 
-{% for workflow in workflows %}
-{{ workflow.name }} workflow:
-{% if workflow.statuses %}
-{% for status in workflow.statuses %}
-- {{ status.name }} -> {{ status.transitions | join(", ") if status.transitions else "none" }}
-{% endfor %}
-{% else %}
-- No statuses defined.
-{% endif %}
 
-{% endfor %}
+default workflow:
+
+
+- blocked -> in_progress, closed
+
+- closed -> open
+
+- deferred -> open, closed
+
+- in_progress -> open, blocked, closed
+
+- open -> in_progress, closed, deferred
+
+
+
+
+epic workflow:
+
+
+- closed -> open
+
+- in_progress -> open, closed
+
+- open -> in_progress, closed
+
+
+
+
 Priorities are:
 
-{% for priority in priorities %}
-- {{ priority.value }} -- {{ priority.name }}
-{% endfor %}
-Default is {{ default_priority_value }} ({{ default_priority_name }}).
+
+- 0 -- critical
+
+- 1 -- high
+
+- 2 -- medium
+
+- 3 -- low
+
+- 4 -- trivial
+
+Default is 2 (medium).
 
 Severity is not emotion. It is signal.
 
 ## Command examples
 
-{% for command in command_examples %}
-{{ command }}
-{% endfor %}
+
+tsk create "Plan the roadmap" --type initiative
+
+tsk create "Release v1" --type epic --parent <initiative-id>
+
+tsk create "Implement feature" --type task --parent <epic-id>
+
+tsk create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
+
+tsk update <id> --status in_progress --assignee "you@example.com"
+
+tsk update <id> --status blocked
+
+tsk comment <id> "Progress note"
+
+tsk list --status open
+
+tsk close <id> --comment "Summary of the change"
+
 
 ## Semantic Release Alignment
 
 Issue types map directly to release categories.
 
-{% for mapping in semantic_release_mapping %}
-- {{ mapping.type }} -> {{ mapping.category }}
-{% endfor %}
+
+- bug -> fix
+
+- story -> feat
+
+- chore -> chore
+
 
 Release notes are not commentary. They are a ledger of truth.
 

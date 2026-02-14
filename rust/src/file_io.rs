@@ -119,7 +119,7 @@ fn write_project_guard_files(project_dir: &Path) -> Result<(), TaskulusError> {
         "# DO NOT EDIT HERE",
         "",
         "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
-        "Do not read or write in this folder. Use Taskulus commands instead.",
+        "Do not read or write in this folder. Do not inspect issue JSON with tools like cat or jq. Use Taskulus commands instead.",
         "",
         "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
     ]
@@ -132,6 +132,7 @@ fn write_project_guard_files(project_dir: &Path) -> Result<(), TaskulusError> {
     let do_not_edit_content = [
         "DO NOT EDIT ANYTHING IN project/",
         "This folder is guarded by The Way.",
+        "Do not inspect issue JSON with tools like cat or jq.",
         "All changes must go through Taskulus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
     ]
     .join("\n")

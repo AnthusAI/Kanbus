@@ -28,7 +28,8 @@ TASKULUS_SECTION_LINES = [
     "Why: Taskulus task management is MANDATORY here; every task must live in Taskulus.",
     "When: Create/update the Taskulus task before coding; close it only after the change lands.",
     "How: See CONTRIBUTING_AGENT.md for the Taskulus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid.",
-    "Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Taskulus.",
+    "Performance: Prefer tskr (Rust) when available; tsk (Python) is equivalent but slower.",
+    "Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Taskulus. Never inspect issue JSON with tools like cat or jq.",
     "",
 ]
 TASKULUS_SECTION_TEXT = "\n".join(TASKULUS_SECTION_LINES)
@@ -65,15 +66,15 @@ def ensure_agents_file(root: Path, force: bool) -> bool:
         return True
 
     lines = agents_path.read_text(encoding="utf-8").splitlines()
-    match = _find_taskulus_section(lines)
-    if match:
+    matches = _find_taskulus_sections(lines)
+    if matches:
         if not force:
             if not _confirm_overwrite():
                 _ensure_project_management_file(root, force, instructions_text)
                 _ensure_project_guard_files(root)
                 _ensure_tool_block_files(root)
                 return False
-        updated = _replace_section(lines, match, TASKULUS_SECTION_LINES)
+        updated = _replace_sections(lines, matches, matches[0], TASKULUS_SECTION_LINES)
         agents_path.write_text(updated, encoding="utf-8")
         _ensure_project_management_file(root, force, instructions_text)
         _ensure_project_guard_files(root)
@@ -147,9 +148,7 @@ def _resolve_project_management_template_path(
         if not path.is_absolute():
             path = root / configured
         if not path.exists():
-            raise click.ClickException(
-                f"project management template not found: {path}"
-            )
+            raise click.ClickException(f"project management template not found: {path}")
         return path
     conventional = root / DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME
     if conventional.exists():
@@ -166,7 +165,9 @@ def _build_project_management_context(
     priorities = _build_priority_context(configuration.priorities)
     default_priority = configuration.priorities.get(configuration.default_priority)
     default_priority_name = (
-        default_priority.name if default_priority else str(configuration.default_priority)
+        default_priority.name
+        if default_priority
+        else str(configuration.default_priority)
     )
     return {
         "project_key": configuration.project_key,
@@ -191,9 +192,7 @@ def _build_project_management_context(
     }
 
 
-def _build_parent_child_rules(
-    hierarchy: List[str], types: List[str]
-) -> List[str]:
+def _build_parent_child_rules(hierarchy: List[str], types: List[str]) -> List[str]:
     rules: List[str] = []
     if len(hierarchy) > 1:
         for index in range(1, len(hierarchy)):
@@ -203,9 +202,7 @@ def _build_parent_child_rules(
     if types:
         parents = hierarchy[:-1]
         if parents:
-            rules.append(
-                f"{', '.join(types)} can have parent {', '.join(parents)}."
-            )
+            rules.append(f"{', '.join(types)} can have parent {', '.join(parents)}.")
         else:
             rules.append(f"{', '.join(types)} cannot have parents.")
     if len(hierarchy) <= 1 and not types:
@@ -214,7 +211,7 @@ def _build_parent_child_rules(
 
 
 def _build_workflow_context(
-    workflows: dict[str, dict[str, List[str]]]
+    workflows: dict[str, dict[str, List[str]]],
 ) -> List[dict[str, object]]:
     context: List[dict[str, object]] = []
     for workflow_name in sorted(workflows):
@@ -248,38 +245,36 @@ def _build_command_examples(configuration: ProjectConfiguration) -> List[str]:
         else sorted(configuration.workflows)[0]
     )
     workflow = configuration.workflows[workflow_name]
-    status_example = _select_status_example(
-        configuration.initial_status, workflow
-    )
+    status_example = _select_status_example(configuration.initial_status, workflow)
     status_set = _collect_statuses(workflow)
     lines: List[str] = []
     if hierarchy:
-        lines.append(f"tsk create \"Plan the roadmap\" --type {hierarchy[0]}")
+        lines.append(f'tsk create "Plan the roadmap" --type {hierarchy[0]}')
     if len(hierarchy) > 1:
         lines.append(
-            f"tsk create \"Release v1\" --type {hierarchy[1]} "
+            f'tsk create "Release v1" --type {hierarchy[1]} '
             f"--parent <{hierarchy[0]}-id>"
         )
     if len(hierarchy) > 2:
         lines.append(
-            f"tsk create \"Implement feature\" --type {hierarchy[2]} "
+            f'tsk create "Implement feature" --type {hierarchy[2]} '
             f"--parent <{hierarchy[1]}-id>"
         )
     if types:
         parent = hierarchy[1] if len(hierarchy) > 1 else None
         parent_fragment = f" --parent <{parent}-id>" if parent else ""
         lines.append(
-            f"tsk create \"Fix crash on launch\" --type {types[0]} "
+            f'tsk create "Fix crash on launch" --type {types[0]} '
             f"--priority {priority_example}{parent_fragment}"
         )
     lines.append(
-        f"tsk update <id> --status {status_example} --assignee \"you@example.com\""
+        f'tsk update <id> --status {status_example} --assignee "you@example.com"'
     )
     if "blocked" in status_set and status_example != "blocked":
         lines.append("tsk update <id> --status blocked")
-    lines.append("tsk comment <id> \"Progress note\"")
+    lines.append('tsk comment <id> "Progress note"')
     lines.append(f"tsk list --status {configuration.initial_status}")
-    lines.append("tsk close <id> --comment \"Summary of the change\"")
+    lines.append('tsk close <id> --comment "Summary of the change"')
     return lines
 
 
@@ -327,7 +322,8 @@ def _confirm_overwrite() -> bool:
         ) from error
 
 
-def _find_taskulus_section(lines: List[str]) -> Optional[SectionMatch]:
+def _find_taskulus_sections(lines: List[str]) -> List[SectionMatch]:
+    matches: List[SectionMatch] = []
     for index, line in enumerate(lines):
         header = _parse_header(line)
         if not header:
@@ -336,8 +332,8 @@ def _find_taskulus_section(lines: List[str]) -> Optional[SectionMatch]:
         if "taskulus" not in text.lower():
             continue
         end = _find_section_end(lines, index + 1, level)
-        return SectionMatch(start=index, end=end, level=level)
-    return None
+        matches.append(SectionMatch(start=index, end=end, level=level))
+    return matches
 
 
 def _find_section_end(lines: List[str], start: int, level: int) -> int:
@@ -362,15 +358,38 @@ def _parse_header(line: str) -> Optional[Tuple[int, str]]:
     return level, text
 
 
-def _replace_section(lines: List[str], match: SectionMatch, section_lines: List[str]) -> str:
-    updated = lines[: match.start] + section_lines + lines[match.end :]
-    return _join_lines(updated)
+def _replace_sections(
+    lines: List[str],
+    matches: List[SectionMatch],
+    primary: SectionMatch,
+    section_lines: List[str],
+) -> str:
+    updated_lines: List[str] = []
+    inserted = False
+    for index, line in enumerate(lines):
+        if _is_in_sections(index, matches):
+            if index == primary.start and not inserted:
+                updated_lines.extend(section_lines)
+                inserted = True
+            continue
+        updated_lines.append(line)
+    if not inserted:
+        updated_lines.extend(section_lines)
+    return _join_lines(updated_lines)
+
+
+def _is_in_sections(index: int, matches: List[SectionMatch]) -> bool:
+    return any(match.start <= index < match.end for match in matches)
 
 
 def _insert_taskulus_section(lines: List[str], section_lines: List[str]) -> str:
     insert_index = _find_insert_index(lines)
     updated = list(lines)
-    if insert_index > 0 and insert_index < len(updated) and updated[insert_index].strip():
+    if (
+        insert_index > 0
+        and insert_index < len(updated)
+        and updated[insert_index].strip()
+    ):
         updated.insert(insert_index, "")
         insert_index += 1
     updated[insert_index:insert_index] = section_lines

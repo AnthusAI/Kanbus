@@ -32,7 +32,7 @@ Every change must be:
 
 If it is not recorded, it did not happen.
 
-Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. All work must pass through Taskulus.
+Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Taskulus.
 
 ## The Order of Being
 

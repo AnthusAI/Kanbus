@@ -96,7 +96,12 @@ def update_issue(
     if resolved_status is not None and resolved_status == updated_issue.status:
         resolved_status = None
 
-    if resolved_status is None and title is None and description is None and assignee is None:
+    if (
+        resolved_status is None
+        and title is None
+        and description is None
+        and assignee is None
+    ):
         raise IssueUpdateError("no updates requested")
 
     if resolved_status is not None:

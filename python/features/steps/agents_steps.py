@@ -135,9 +135,7 @@ def then_taskulus_after_h1(context: object) -> None:
     content = _read_agents(context)
     lines = content.splitlines()
     h1_index = next(
-        index
-        for index, line in enumerate(lines)
-        if line.strip().startswith("# ")
+        index for index, line in enumerate(lines) if line.strip().startswith("# ")
     )
     taskulus_index = next(
         index for index, line in enumerate(lines) if "taskulus" in line.lower()

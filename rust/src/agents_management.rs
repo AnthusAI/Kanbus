@@ -15,14 +15,16 @@ use crate::project_management_template::{
 use serde::Serialize;
 
 const TASKULUS_SECTION_HEADER: &str = "## Project management with Taskulus";
-const TASKULUS_SECTION_LINES: [&str; 8] = [
+const TASKULUS_SECTION_LINES: [&str; 9] = [
     TASKULUS_SECTION_HEADER,
     "",
     "Use Taskulus for task management.",
     "Why: Taskulus task management is MANDATORY here; every task must live in Taskulus.",
     "When: Create/update the Taskulus task before coding; close it only after the change lands.",
     "How: See CONTRIBUTING_AGENT.md for the Taskulus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid.",
-    "Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Taskulus.",
+    "Performance: Prefer tskr (Rust) when available; tsk (Python) is equivalent but slower.",
+    "Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Taskulus. Never inspect issue JSON with tools like cat or jq.",
+    "",
 ];
 const AGENTS_HEADER_LINES: [&str; 2] = ["# Agent Instructions", ""];
 const PROJECT_MANAGEMENT_FILENAME: &str = "CONTRIBUTING_AGENT.md";
@@ -55,7 +57,8 @@ pub fn ensure_agents_file(root: &Path, force: bool) -> Result<(), TaskulusError>
     let contents =
         fs::read_to_string(&agents_path).map_err(|error| TaskulusError::Io(error.to_string()))?;
     let lines: Vec<String> = contents.lines().map(|line| line.to_string()).collect();
-    if let Some(section) = find_taskulus_section(&lines) {
+    let sections = find_taskulus_sections(&lines);
+    if let Some(section) = sections.first() {
         if !force {
             if !confirm_overwrite()? {
                 ensure_project_management_file(root, force, &instructions_text)?;
@@ -63,7 +66,7 @@ pub fn ensure_agents_file(root: &Path, force: bool) -> Result<(), TaskulusError>
                 return Ok(());
             }
         }
-        let updated = replace_section(&lines, &section, &TASKULUS_SECTION_LINES);
+        let updated = replace_sections(&lines, &sections, section, &TASKULUS_SECTION_LINES);
         fs::write(&agents_path, updated).map_err(|error| TaskulusError::Io(error.to_string()))?;
         ensure_project_management_file(root, force, &instructions_text)?;
         ensure_project_guard_files(root)?;
@@ -467,16 +470,17 @@ fn confirm_overwrite() -> Result<bool, TaskulusError> {
     Ok(response == "y" || response == "yes")
 }
 
-fn find_taskulus_section(lines: &[String]) -> Option<SectionMatch> {
+fn find_taskulus_sections(lines: &[String]) -> Vec<SectionMatch> {
+    let mut sections = Vec::new();
     for (index, line) in lines.iter().enumerate() {
         if let Some((level, text)) = parse_header(line) {
             if text.to_lowercase().contains("taskulus") {
                 let end = find_section_end(lines, index + 1, level);
-                return Some(SectionMatch { start: index, end });
+                sections.push(SectionMatch { start: index, end });
             }
         }
     }
-    None
+    sections
 }
 
 fn find_section_end(lines: &[String], start: usize, level: usize) -> usize {
@@ -517,12 +521,34 @@ fn parse_header(line: &str) -> Option<(usize, String)> {
     Some((count, text.to_string()))
 }
 
-fn replace_section(lines: &[String], section: &SectionMatch, section_lines: &[&str]) -> String {
+fn replace_sections(
+    lines: &[String],
+    sections: &[SectionMatch],
+    primary: &SectionMatch,
+    section_lines: &[&str],
+) -> String {
     let mut updated = Vec::new();
-    updated.extend_from_slice(&lines[..section.start]);
-    updated.extend(section_lines.iter().map(|value| value.to_string()));
-    updated.extend_from_slice(&lines[section.end..]);
+    let mut inserted = false;
+    for (index, line) in lines.iter().enumerate() {
+        if is_in_sections(index, sections) {
+            if index == primary.start && !inserted {
+                updated.extend(section_lines.iter().map(|value| value.to_string()));
+                inserted = true;
+            }
+            continue;
+        }
+        updated.push(line.clone());
+    }
+    if !inserted {
+        updated.extend(section_lines.iter().map(|value| value.to_string()));
+    }
     join_lines(&updated)
+}
+
+fn is_in_sections(index: usize, sections: &[SectionMatch]) -> bool {
+    sections
+        .iter()
+        .any(|section| index >= section.start && index < section.end)
 }
 
 fn insert_taskulus_section(lines: &[String], section_lines: &[&str]) -> String {

@@ -77,6 +77,66 @@ def run_cli(context: object, command: str) -> None:
         os.chdir(previous)
 
 
+def run_cli_with_input(context: object, command: str, input_text: str) -> None:
+    """Run the Taskulus CLI with stdin input in the scenario working directory.
+
+    :param context: Behave context object.
+    :type context: object
+    :param command: Full command string.
+    :type command: str
+    :param input_text: Input to provide on stdin.
+    :type input_text: str
+    """
+    runner = CliRunner()
+    args = shlex.split(command)[1:]
+
+    working_directory = getattr(context, "working_directory", None)
+    if working_directory is None:
+        raise RuntimeError("working directory not set")
+
+    previous = Path.cwd()
+    environment = os.environ.copy()
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides:
+        environment.update(overrides)
+    try:
+        os.chdir(working_directory)
+    except (FileNotFoundError, PermissionError) as error:
+        context.result = SimpleNamespace(
+            exit_code=1,
+            stdout="",
+            stderr=str(error),
+            output=str(error),
+        )
+        return
+    try:
+        result = runner.invoke(cli, args, env=environment, input=input_text)
+        stdout = None
+        stderr = None
+        try:
+            stdout = result.stdout
+        except (AttributeError, ValueError):
+            stdout = None
+        try:
+            stderr = result.stderr
+        except (AttributeError, ValueError):
+            stderr = None
+        if stdout is None:
+            stdout = result.output
+        if stderr is None:
+            stderr = ""
+        if result.exit_code != 0:
+            stderr = result.output
+        context.result = SimpleNamespace(
+            exit_code=result.exit_code,
+            stdout=stdout,
+            stderr=stderr,
+            output=result.output,
+        )
+    finally:
+        os.chdir(previous)
+
+
 def ensure_git_repository(path: Path) -> None:
     """Initialize a git repository for test setup.
 
