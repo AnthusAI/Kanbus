@@ -78,7 +78,6 @@ Feature: Migrate from Beads
     And migration errors should include "invalid status"
     And migration errors should include "invalid dependency"
     And migration errors should include "missing dependency"
-    And migration errors should include "multiple parents"
     And migration errors should include "parent issue_type is required"
     And migration errors should include "invalid comment"
     And migration errors should include "comment.created_at is required"

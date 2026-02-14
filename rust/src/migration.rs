@@ -277,6 +277,7 @@ fn convert_dependencies(
     issue_type: &str,
 ) -> Result<(Option<String>, Vec<DependencyLink>), TaskulusError> {
     let mut parent: Option<String> = None;
+    let mut extra_parents: Vec<String> = Vec::new();
     let mut links: Vec<DependencyLink> = Vec::new();
 
     if let Some(dependencies) = dependencies {
@@ -298,9 +299,7 @@ fn convert_dependencies(
             }
             if dependency_type == "parent-child" {
                 if parent.is_some() {
-                    return Err(TaskulusError::IssueOperation(
-                        "multiple parents".to_string(),
-                    ));
+                    extra_parents.push(depends_on_id.to_string());
                 } else {
                     parent = Some(depends_on_id.to_string());
                 }
@@ -314,6 +313,12 @@ fn convert_dependencies(
     }
 
     if let Some(parent_id) = &parent {
+        if !extra_parents.is_empty() {
+            let extras = extra_parents.join(", ");
+            eprintln!(
+                "Suggestion: '{identifier}' has multiple parents ({parent_id}, {extras}). Using '{parent_id}' and ignoring the rest. Remove extra parents in Beads or migrate to a single parent-child relationship."
+            );
+        }
         let parent_record = record_by_id.get(parent_id).expect("missing dependency");
         let parent_issue_type = parent_record
             .get("issue_type")
