@@ -71,6 +71,38 @@ kanbus list --status todo
 kanbus show kanbus-a1b
 ```
 
+## Console (Rust backend)
+
+The console UI is served by the Rust local server and expects tenant-aware URLs.
+
+Build the console assets once:
+
+```bash
+cd console
+npm install
+npm run build
+```
+
+Run the local backend:
+
+```bash
+cargo run --bin console_local --manifest-path rust/Cargo.toml
+```
+
+Open:
+
+```
+http://127.0.0.1:5174/<account>/<project>/
+```
+
+By default, the server treats the repo root as the data root and serves assets from `console/dist`. Optional env vars:
+
+- `CONSOLE_PORT` (default `5174`)
+- `CONSOLE_ROOT` (sets both data root and assets root)
+- `CONSOLE_DATA_ROOT` (data root override)
+- `CONSOLE_ASSETS_ROOT` (assets root override)
+- `CONSOLE_TENANT_MODE=multi` (enable `/account/project` mapping under data root)
+
 ## Daemon Behavior
 
 Kanbus uses a just-in-time index daemon for read-heavy commands such as `kanbus list`. The CLI auto-starts the daemon when needed, reuses a healthy socket, and removes stale sockets before restarting.
