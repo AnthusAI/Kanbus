@@ -225,6 +225,7 @@ mod tests {
     fn short_id_matches_rejects_invalid_formats() {
         assert!(!short_id_matches("kanbus", "kanbus", "kanbus-abc123"));
         assert!(!short_id_matches("other-abc", "kanbus", "kanbus-abc123"));
+        assert!(!short_id_matches("kanbusx-abc", "kanbus", "kanbus-abc123"));
         assert!(!short_id_matches("kanbus-", "kanbus", "kanbus-abc123"));
         assert!(!short_id_matches(
             "kanbus-abcdefg",
