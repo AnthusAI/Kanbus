@@ -1,30 +1,23 @@
 @import "tailwindcss";
+@import "@kanbus/ui/styles/index.css";
 @import "./content.css";
 
 :root {
-  color-scheme: light;
+  --bg-page: var(--background);
+  --bg-surface: var(--card);
+  --bg-surface-2: var(--column);
+  --bg-surface-3: var(--card-muted);
 
-  --ink-1: #0b0e11;
-  --ink-2: #1f2933;
-  --ink-3: #52606d;
-  --paper-1: #f8f4f0;
-  --paper-2: #efe7df;
-  --paper-3: #e3d8cf;
-  --paper-4: #d5c8bc;
-  --accent-1: #2f6bff;
-  --accent-2: #1b3e9a;
-  --accent-3: #d68b5b;
+  --text-primary: var(--text-foreground);
+  --text-secondary: var(--text-muted);
 
-  --text-primary: var(--ink-1);
-  --text-secondary: var(--ink-3);
+  --accent-1: var(--text-selected);
+  --accent-2: var(--border);
+  --accent-3: var(--card-muted);
 
-  --bg-page: var(--paper-1);
-  --bg-surface: var(--paper-2);
-  --bg-surface-2: var(--paper-3);
-  --bg-surface-3: var(--paper-4);
-
+  --radius-sm: 10px;
   --radius-md: 14px;
-  --radius-lg: 24px;
+  --radius-lg: 20px;
 
   --space-xs: 4px;
   --space-sm: 8px;
@@ -35,7 +28,13 @@
   --space-3xl: 72px;
   --space-4xl: 96px;
 
-  --max-width: 1120px;
+  --max-width: 1200px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
 }
 
 * {
@@ -48,8 +47,13 @@ body {
   padding: 0;
   background: var(--bg-page);
   color: var(--text-primary);
-  font-family: "IBM Plex Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--font-body);
   line-height: 1.6;
+}
+
+html {
+  color-scheme: light dark;
+  background: var(--background);
 }
 
 #___gatsby,
@@ -68,17 +72,87 @@ a {
 }
 
 a:hover {
-  color: var(--accent-1);
+  color: var(--text-selected);
 }
 
 h1,
 h2,
 h3,
 h4 {
-  font-family: "Space Grotesk", "IBM Plex Sans", "Segoe UI", sans-serif;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 main {
   flex: 1;
+}
+
+/* Map older slate utility classes to shared Kanbus palette to keep console parity
+   without rewriting legacy markup. */
+.text-slate-900,
+.dark .text-slate-900,
+.dark .text-white {
+  color: var(--text-foreground) !important;
+}
+
+.text-slate-800,
+.dark .text-slate-800 {
+  color: var(--text-foreground) !important;
+}
+
+.text-slate-600,
+.text-slate-500,
+.text-slate-400,
+.dark .text-slate-400,
+.dark .text-slate-300,
+.dark .text-slate-500 {
+  color: var(--text-muted) !important;
+}
+
+.bg-white,
+.bg-slate-50,
+.dark .bg-slate-900,
+.dark .bg-slate-950 {
+  background: var(--card) !important;
+}
+
+.bg-slate-100,
+.bg-slate-200,
+.dark .bg-slate-800,
+.dark .bg-slate-700 {
+  background: var(--card-muted) !important;
+}
+
+.border-slate-200,
+.dark .border-slate-800,
+.border-slate-300,
+.border-slate-700,
+.dark .border-slate-700 {
+  border: none !important;
+}
+
+.shadow-sm,
+.shadow-md {
+  box-shadow: var(--shadow-card) !important;
+}
+
+/* Nuke any leftover thin outlines/rings from legacy utility classes */
+[class*=" ring-"],
+[class^="ring-"],
+[class*=" ring-offset"],
+[class^="ring-offset"] {
+  box-shadow: var(--shadow-card) !important;
+  outline: none !important;
+  border: none !important;
+}
+
+[class*="border-"],
+[class^="border-"] {
+  border: none !important;
+}
+
+[class*="shadow"],
+[class^="shadow"] {
+  box-shadow: none !important;
 }

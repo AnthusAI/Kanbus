@@ -10,7 +10,7 @@ import {
 import { AppShell } from "./components/AppShell";
 import { Board } from "./components/Board";
 import { TaskDetailPanel } from "./components/TaskDetailPanel";
-import { AnimatedSelector } from "./components/ui/animated-selector";
+import { AnimatedSelector } from "@kanbus/ui";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { fetchSnapshot, subscribeToSnapshots } from "./api/client";
 import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";

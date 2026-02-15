@@ -1,0 +1,55 @@
+{
+  "name": "@kanbus/ui",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./styles/*": "./dist/styles/*"
+  },
+  "sideEffects": [
+    "./dist/styles/*.css",
+    "./dist/styles/**/*.css"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && cp -R src/styles dist/styles",
+    "dev": "tsc -w -p tsconfig.json",
+    "storybook": "storybook dev -p 6006",
+    "build:storybook": "storybook build"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "dependencies": {
+    "@radix-ui/colors": "^3.0.0",
+    "@radix-ui/react-scroll-area": "^1.1.2",
+    "@radix-ui/react-tabs": "^1.1.2",
+    "clsx": "^2.1.1",
+    "gsap": "^3.12.5",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@storybook/addon-essentials": "8.6.15",
+    "@storybook/addon-interactions": "8.6.15",
+    "@storybook/addon-links": "8.6.15",
+    "@storybook/addon-onboarding": "8.6.15",
+    "@storybook/react": "8.6.15",
+    "@storybook/react-vite": "8.6.15",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "storybook": "8.6.15",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.10"
+  }
+}

@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
-import { cn } from "./utils";
+import { cn } from "../utils/cn";
 
 export interface SelectorOption {
   id: string;
@@ -8,7 +8,7 @@ export interface SelectorOption {
   content?: React.ReactNode;
 }
 
-interface AnimatedSelectorProps {
+export interface AnimatedSelectorProps {
   options: SelectorOption[];
   value: string | null;
   onChange: (value: string) => void;
@@ -53,7 +53,7 @@ export function AnimatedSelector({
     const left = targetRect.left - containerRect.left;
     const top = targetRect.top - containerRect.top + highlightOffsetY;
     const width = targetRect.width;
-    const height = 24; // fixed height
+    const height = 24;
 
     const currentMotion = motionMode();
     const shouldAnimate = animate && currentMotion !== "off";
