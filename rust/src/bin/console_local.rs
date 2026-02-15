@@ -116,8 +116,13 @@ async fn get_config(
 
 async fn get_config_root(State(state): State<AppState>) -> Response {
     let store = match store_for_root(&state) {
-        Ok(store) => store,
-        Err(response) => return response,
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
     };
     match store.build_snapshot() {
         Ok(snapshot) => Json(snapshot.config).into_response(),
@@ -138,8 +143,13 @@ async fn get_issues(
 
 async fn get_issues_root(State(state): State<AppState>) -> Response {
     let store = match store_for_root(&state) {
-        Ok(store) => store,
-        Err(response) => return response,
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
     };
     match store.build_snapshot() {
         Ok(snapshot) => Json(snapshot.issues).into_response(),
@@ -170,8 +180,13 @@ async fn get_issue(
 
 async fn get_issue_root(State(state): State<AppState>, AxumPath(id): AxumPath<String>) -> Response {
     let store = match store_for_root(&state) {
-        Ok(store) => store,
-        Err(response) => return response,
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
     };
     let snapshot = match store.build_snapshot() {
         Ok(snapshot) => snapshot,
@@ -227,8 +242,8 @@ async fn get_events_root(
     State(state): State<AppState>,
 ) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
     let store = match store_for_root(&state) {
-        Ok(store) => store,
-        Err(_) => {
+        Some(store) => store,
+        None => {
             let payload = serde_json::json!({
                 "error": "multi-tenant mode requires /:account/:project",
                 "updated_at": chrono::Utc::now().to_rfc3339(),
@@ -280,14 +295,11 @@ fn store_for(state: &AppState, account: &str, project: &str) -> FileStore {
     FileStore::new(root)
 }
 
-fn store_for_root(state: &AppState) -> Result<FileStore, Response> {
+fn store_for_root(state: &AppState) -> Option<FileStore> {
     if state.multi_tenant {
-        return Err(error_response(
-            "multi-tenant mode requires /:account/:project",
-            StatusCode::BAD_REQUEST,
-        ));
+        return None;
     }
-    Ok(FileStore::new(state.base_root.clone()))
+    Some(FileStore::new(state.base_root.clone()))
 }
 
 fn error_response(message: impl Into<String>, status: StatusCode) -> Response {

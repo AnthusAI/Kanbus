@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { mkdtemp, cp, rm, writeFile } from "fs/promises";
+import { mkdtemp, cp, rm, writeFile, access } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -12,12 +12,17 @@ const repoRoot = path.resolve(consoleRoot, "..");
 const pythonPath = path.join(repoRoot, "python", "src");
 const fixtureSource = path.resolve(consoleRoot, "tests", "fixtures", "project");
 
-function runCommand(command: string, args: string[], env: NodeJS.ProcessEnv) {
+function runCommand(
+  command: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  cwd: string = consoleRoot
+) {
   return new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: "inherit",
       env,
-      cwd: consoleRoot
+      cwd
     });
 
     child.on("close", (code) => {
@@ -28,6 +33,19 @@ function runCommand(command: string, args: string[], env: NodeJS.ProcessEnv) {
       }
     });
   });
+}
+
+async function ensureUiBuild(env: NodeJS.ProcessEnv) {
+  const uiRoot = path.resolve(repoRoot, "packages", "ui");
+  const distEntry = path.join(uiRoot, "dist", "index.js");
+  try {
+    await access(distEntry);
+    return;
+  } catch {
+    // Build is required.
+  }
+  await runCommand("npm", ["install"], env, uiRoot);
+  await runCommand("npm", ["run", "build"], env, uiRoot);
 }
 
 async function main() {
@@ -58,6 +76,7 @@ async function main() {
   const vitePort = env.VITE_PORT ?? "5173";
 
   try {
+    await ensureUiBuild(env);
     await runCommand(
       "npx",
       [
