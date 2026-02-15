@@ -3,6 +3,7 @@
 use std::convert::Infallible;
 use std::path::Path;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -13,6 +14,7 @@ use http_body_util::StreamBody;
 use lambda_http::{
     http::StatusCode, run_with_streaming_response, service_fn, Error, Request, Response,
 };
+use tokio::sync::Mutex;
 use tokio_stream::wrappers::IntervalStream;
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
@@ -193,16 +195,25 @@ fn asset_response(path: &str) -> ResponseType {
 }
 
 fn sse_stream(store: FileStore) -> BoxedStream {
-    let initial_store = store.clone();
-    let initial = stream::once(async move {
-        let payload = snapshot_payload(&initial_store);
-        Ok(Frame::data(Bytes::from(payload)))
-    });
+    let initial_payload = snapshot_payload(&store);
+    let last_payload = Arc::new(Mutex::new(initial_payload.clone()));
+    let initial = stream::once(async move { Ok(Frame::data(Bytes::from(initial_payload))) });
     let updates_store = store.clone();
     let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
-    let updates = interval.map(move |_| {
-        let payload = snapshot_payload(&updates_store);
-        Ok(Frame::data(Bytes::from(payload)))
+    let updates_last = Arc::clone(&last_payload);
+    let updates = interval.filter_map(move |_| {
+        let store = updates_store.clone();
+        let last_payload = Arc::clone(&updates_last);
+        async move {
+            let payload = snapshot_payload(&store);
+            let mut guard = last_payload.lock().await;
+            if *guard == payload {
+                None
+            } else {
+                *guard = payload.clone();
+                Some(Ok(Frame::data(Bytes::from(payload))))
+            }
+        }
     });
     Box::pin(initial.chain(updates))
 }
