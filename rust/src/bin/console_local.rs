@@ -1,7 +1,7 @@
 //! Local HTTP server for the console backend.
 
-use std::convert::Infallible;
 use std::collections::hash_map::DefaultHasher;
+use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
 use std::net::SocketAddr;
 use std::path::Path as StdPath;
@@ -206,8 +206,7 @@ fn snapshot_payload(store: &FileStore) -> (String, u64) {
 }
 
 fn snapshot_fingerprint(snapshot: &kanbus::console_backend::ConsoleSnapshot) -> u64 {
-    let payload = serde_json::to_vec(&( &snapshot.config, &snapshot.issues))
-        .unwrap_or_default();
+    let payload = serde_json::to_vec(&(&snapshot.config, &snapshot.issues)).unwrap_or_default();
     hash_bytes(&payload)
 }
 

@@ -1,3 +1,4 @@
+@console
 Feature: Console route navigation
 
   Scenario: Direct epics route selects epics tab
