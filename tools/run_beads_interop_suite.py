@@ -252,8 +252,6 @@ def run_beads_list(
     result = run_command(
         [
             str(bd_binary),
-            "--no-db",
-            "--no-daemon",
             "list",
             "--json",
             "--all",
@@ -497,8 +495,6 @@ def main(argv: list[str]) -> int:
             beads_create = run_command(
                 [
                     str(bd_binary),
-                    "--no-db",
-                    "--no-daemon",
                     "--quiet",
                     "create",
                     "Interop epic from beads",
