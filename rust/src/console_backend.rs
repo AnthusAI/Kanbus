@@ -266,6 +266,13 @@ mod tests {
     }
 
     #[test]
+    fn build_snapshot_payload_errors_when_config_missing() {
+        let temp = TempDir::new().expect("temp dir");
+        let store = FileStore::new(temp.path());
+        assert!(store.build_snapshot_payload().is_err());
+    }
+
+    #[test]
     fn load_issues_errors_when_missing_dir() {
         let temp = TempDir::new().expect("temp dir");
         write_config(temp.path(), "");
@@ -273,6 +280,13 @@ mod tests {
         let config = store.load_config().expect("config");
         let result = store.load_issues(&config);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn load_config_errors_when_missing() {
+        let temp = TempDir::new().expect("temp dir");
+        let store = FileStore::new(temp.path());
+        assert!(store.load_config().is_err());
     }
 
     #[test]
