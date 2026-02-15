@@ -74,12 +74,56 @@ pub fn load_beads_issues(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
 /// Returns `KanbusError::IssueOperation` if the issue is missing.
 pub fn load_beads_issue_by_id(root: &Path, identifier: &str) -> Result<IssueData, KanbusError> {
     let issues = load_beads_issues(root)?;
+    let mut exact_matches = Vec::new();
+    let mut partial_matches = Vec::new();
+
     for issue in issues {
         if issue.identifier == identifier {
-            return Ok(issue);
+            exact_matches.push(issue);
+        } else if issue_id_matches(identifier, &issue.identifier) {
+            partial_matches.push(issue);
         }
     }
-    Err(KanbusError::IssueOperation("not found".to_string()))
+
+    if !exact_matches.is_empty() {
+        return Ok(exact_matches.into_iter().next().unwrap());
+    }
+
+    match partial_matches.len() {
+        0 => Err(KanbusError::IssueOperation("not found".to_string())),
+        1 => Ok(partial_matches.into_iter().next().unwrap()),
+        _ => {
+            let ids: Vec<String> = partial_matches.iter().map(|i| i.identifier.clone()).collect();
+            Err(KanbusError::IssueOperation(format!(
+                "ambiguous identifier, matches: {}",
+                ids.join(", ")
+            )))
+        }
+    }
+}
+
+/// Check if an abbreviated identifier matches a full identifier.
+///
+/// # Arguments
+/// * `abbreviated` - Abbreviated ID (e.g., "tskl-abcdef", "custom-uuid00").
+/// * `full_id` - Full ID (e.g., "tskl-abcdef2", "custom-uuid-0000001").
+///
+/// # Returns
+/// True if abbreviated ID matches the full ID.
+fn issue_id_matches(abbreviated: &str, full_id: &str) -> bool {
+    use crate::ids::format_issue_key;
+
+    let abbreviated_formatted = format_issue_key(full_id, false);
+
+    if abbreviated == abbreviated_formatted {
+        return true;
+    }
+
+    if abbreviated.len() >= full_id.len() {
+        return false;
+    }
+
+    full_id.starts_with(abbreviated)
 }
 
 /// Migrate Beads issues.jsonl into a Kanbus project.
