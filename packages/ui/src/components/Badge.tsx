@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "./utils";
+import { cn } from "../utils/cn";
 
 export const Badge = React.forwardRef<
   HTMLSpanElement,
@@ -7,7 +7,10 @@ export const Badge = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <span
     ref={ref}
-    className={cn("badge inline-flex items-center gap-2 p-2", className)}
+    className={cn(
+      "badge inline-flex items-center gap-2 px-3 py-2 uppercase tracking-[0.08em]",
+      className
+    )}
     {...props}
   />
 ));

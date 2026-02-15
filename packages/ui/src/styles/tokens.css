@@ -8,21 +8,43 @@
 @import "@radix-ui/colors/sky-dark.css";
 
 :root {
-  --p3: 12px;
   --font-sans: "Inter", "SF Pro Text", "Helvetica Neue", "Arial", sans-serif;
   --font-serif: "Source Serif 4", "Iowan Old Style", "Times New Roman", serif;
   --font-mono: "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
   --font-body: var(--font-sans);
 
-  --background: var(--gray-1);
-  --card: var(--gray-1);
+  --background: var(--gray-2);
+  --card: var(--gray-2);
   --card-muted: var(--gray-5);
   --card-outline: var(--gray-6);
-  --frame: var(--gray-1);
+  --frame: var(--gray-2);
   --column: var(--gray-3);
-  --text-foreground: var(--gray-11);
+  --text-foreground: var(--gray-12);
   --text-muted: var(--gray-10);
-  --text-selected: var(--gray-12);
+  --text-selected: var(--sky-11);
+  --border: var(--gray-6);
+  --shadow-card: none;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Console dark */
+    --background: #0f1115;
+    --card: #14171d;
+    --card-muted: #1e222b;
+    --card-outline: #262c36;
+    --frame: #0f1115;
+    --column: #1a1f28;
+    --text-foreground: #e7e9ee;
+    --text-muted: #9ca3af;
+    --text-selected: #7dd3fc;
+    --border: #262c36;
+    --shadow-card: none;
+  }
 }
 
 html[data-font="sans"] {
@@ -49,28 +71,16 @@ html.theme-neutral {
   --text-selected: var(--gray-12);
 }
 
-html.light.theme-neutral {
-  --text-foreground: var(--gray-11);
-  --text-muted: var(--gray-10);
-  --text-selected: var(--gray-12);
-}
-
 html.theme-cool {
-  --background: var(--blue-1);
-  --card: var(--blue-1);
+  --background: var(--blue-2);
+  --card: var(--blue-2);
   --card-muted: var(--blue-5);
   --card-outline: var(--blue-6);
-  --frame: var(--blue-1);
-  --column: var(--blue-3);
-  --text-foreground: var(--sky-11);
-  --text-muted: var(--sky-10);
-  --text-selected: var(--sky-12);
-}
-
-html.light.theme-cool {
+  --frame: var(--blue-2);
+  --column: var(--blue-4);
   --text-foreground: var(--sky-12);
-  --text-muted: var(--sky-11);
-  --text-selected: var(--sky-12);
+  --text-muted: var(--sky-10);
+  --text-selected: var(--sky-11);
 }
 
 html.theme-warm {
@@ -80,12 +90,6 @@ html.theme-warm {
   --card-outline: var(--sand-6);
   --frame: var(--sand-1);
   --column: var(--sand-3);
-  --text-foreground: var(--sand-11);
-  --text-muted: var(--sand-10);
-  --text-selected: var(--sand-12);
-}
-
-html.light.theme-warm {
   --text-foreground: var(--sand-11);
   --text-muted: var(--sand-10);
   --text-selected: var(--sand-12);

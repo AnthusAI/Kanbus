@@ -1,5 +1,4 @@
 import * as React from "react";
-import clsx from "clsx";
 import { Menu, X } from "lucide-react";
 
 const navigation = [
@@ -7,7 +6,6 @@ const navigation = [
   { label: "Architecture", href: "/architecture" },
   { label: "Getting Started", href: "/getting-started" },
   { label: "Documentation", href: "/docs" },
-  { label: "Roadmap", href: "/roadmap" },
 ];
 
 type LayoutProps = {
@@ -17,13 +15,13 @@ type LayoutProps = {
 const Layout = ({ children }: LayoutProps) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans transition-colors duration-200">
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md">
+    <div className="min-h-screen flex flex-col bg-frame text-foreground font-sans">
+      <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-card/90 backdrop-blur supports-[backdrop-filter]:backdrop-blur shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <nav className="flex items-center gap-6 w-full">
             <a
               href="/"
-              className="text-xl font-heading font-bold tracking-tight text-slate-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              className="text-xl font-display font-bold tracking-tight text-foreground hover:text-selected transition-colors"
             >
               Kanbus
             </a>
@@ -32,14 +30,14 @@ const Layout = ({ children }: LayoutProps) => {
                 <a
                   key={item.href}
                   href={item.href}
-                  className="hidden md:block text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  className="hidden md:block text-sm font-medium text-muted hover:text-foreground transition-colors"
                 >
                   {item.label}
                 </a>
               ))}
               <a
                 href="https://github.com/AnthusAI/Kanbus"
-                className="hidden md:inline-flex text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="hidden md:inline-flex text-muted hover:text-foreground transition-colors"
               >
                 <span className="sr-only">GitHub</span>
                 <svg
@@ -57,7 +55,7 @@ const Layout = ({ children }: LayoutProps) => {
               </a>
               <button
                 type="button"
-                className="md:hidden inline-flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+                className="md:hidden inline-flex items-center justify-center rounded-md border border-border/70 p-2 text-muted hover:text-foreground hover:border-border transition-colors bg-card"
                 aria-label="Toggle navigation"
                 onClick={() => setMobileOpen((open) => !open)}
               >
@@ -67,13 +65,13 @@ const Layout = ({ children }: LayoutProps) => {
           </nav>
         </div>
         {mobileOpen ? (
-          <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95">
+          <div className="md:hidden border-t border-border/60 bg-card/95">
             <div className="container mx-auto px-4 sm:px-6 py-4 space-y-3">
               {navigation.map((item) => (
                 <a
                   key={item.href}
                   href={item.href}
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  className="block text-sm font-medium text-muted hover:text-foreground transition-colors"
                   onClick={() => setMobileOpen(false)}
                 >
                   {item.label}
@@ -81,7 +79,7 @@ const Layout = ({ children }: LayoutProps) => {
               ))}
               <a
                 href="https://github.com/AnthusAI/Kanbus"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="block text-sm font-medium text-muted hover:text-foreground transition-colors"
               >
                 GitHub
               </a>
@@ -94,38 +92,37 @@ const Layout = ({ children }: LayoutProps) => {
         {children}
       </main>
 
-      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-12 md:py-16">
+      <footer className="border-t border-border/60 bg-card py-12 md:py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="col-span-2 md:col-span-1">
-              <span className="text-lg font-heading font-bold text-slate-900 dark:text-white">Kanbus</span>
-              <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+              <span className="text-lg font-display font-bold text-foreground">Kanbus</span>
+              <p className="mt-4 text-sm text-muted">
                 Git-backed project management system. Files are the database.
               </p>
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Explore</h4>
+              <h4 className="text-sm font-semibold text-foreground">Explore</h4>
               <ul className="mt-4 space-y-3 text-sm">
-                <li><a href="/philosophy" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Philosophy</a></li>
-                <li><a href="/architecture" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Architecture</a></li>
-                <li><a href="/getting-started" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Getting Started</a></li>
-                <li><a href="/docs" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Documentation</a></li>
-                <li><a href="/roadmap" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">Roadmap</a></li>
+                <li><a href="/philosophy" className="text-muted hover:text-selected">Philosophy</a></li>
+                <li><a href="/architecture" className="text-muted hover:text-selected">Architecture</a></li>
+                <li><a href="/getting-started" className="text-muted hover:text-selected">Getting Started</a></li>
+                <li><a href="/docs" className="text-muted hover:text-selected">Documentation</a></li>
               </ul>
             </div>
             <div>
-               <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Community</h4>
+               <h4 className="text-sm font-semibold text-foreground">Community</h4>
                <ul className="mt-4 space-y-3 text-sm">
-                <li><a href="https://github.com/AnthusAI/Kanbus" className="text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">GitHub</a></li>
+                <li><a href="https://github.com/AnthusAI/Kanbus" className="text-muted hover:text-selected">GitHub</a></li>
               </ul>
             </div>
             <div className="col-span-2 md:col-span-1 md:text-right">
-              <div className="flex flex-col items-start md:items-end gap-2 text-sm text-slate-400 dark:text-slate-500">
+              <div className="flex flex-col items-start md:items-end gap-2 text-sm text-muted">
                 <div className="flex items-center gap-2">
                   <span>Free and open-source software</span>
                   <a
                     href="https://github.com/AnthusAI/Kanbus"
-                    className="text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    className="text-muted hover:text-foreground transition-colors"
                     aria-label="Kanbus on GitHub"
                   >
                     <svg
@@ -145,7 +142,7 @@ const Layout = ({ children }: LayoutProps) => {
                 <div>
                   <a
                     href="https://anth.us/ryan/"
-                    className="text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    className="text-muted hover:text-foreground transition-colors"
                   >
                     by Ryan Porter
                   </a>

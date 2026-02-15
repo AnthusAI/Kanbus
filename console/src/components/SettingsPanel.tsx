@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import gsap from "gsap";
 import { useAppearance } from "../hooks/useAppearance";
-import { AnimatedSelector } from "./ui/animated-selector";
+import { AnimatedSelector } from "@kanbus/ui";
 
 interface SettingsPanelProps {
   isOpen: boolean;

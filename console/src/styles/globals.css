@@ -1,4 +1,4 @@
-@import "./theme.css";
+@import "@kanbus/ui/styles/index.css";
 @import "./issue-colors.css";
 
 @tailwind base;
