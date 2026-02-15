@@ -27,7 +27,7 @@ project_directory: project
 project_key: kanbus
 YAML
 
-mkdir -p "$work_dir/assets/assets"
+mkdir -p "$work_dir/assets"
 cat > "$work_dir/assets/index.html" <<'HTML'
 <!doctype html>
 <html lang="en">
