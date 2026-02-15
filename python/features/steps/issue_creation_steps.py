@@ -56,6 +56,16 @@ def when_run_create_invalid_priority(context: object) -> None:
     run_cli(context, "kanbus create Bad Priority --priority 99")
 
 
+@when(
+    'I run "kanbus create Bad Parent --type epic --parent kanbus-epic01 --no-validate"'
+)
+def when_run_create_invalid_parent_no_validate(context: object) -> None:
+    run_cli(
+        context,
+        "kanbus create Bad Parent --type epic --parent kanbus-epic01 --no-validate",
+    )
+
+
 @when('I run "kanbus create Child Task --type {issue_type} --parent kanbus-parent"')
 def when_run_create_child_task_with_parent(context: object, issue_type: str) -> None:
     run_cli(

@@ -47,6 +47,16 @@ def when_run_update_invalid_status(context: object) -> None:
     run_cli(context, "kanbus update kanbus-aaa --status blocked")
 
 
+@when('I run "kanbus update kanbus-aaa --status does_not_exist"')
+def when_run_update_unknown_status(context: object) -> None:
+    run_cli(context, "kanbus update kanbus-aaa --status does_not_exist")
+
+
+@when('I run "kanbus update kanbus-aaa --status does_not_exist --no-validate"')
+def when_run_update_unknown_status_no_validate(context: object) -> None:
+    run_cli(context, "kanbus update kanbus-aaa --status does_not_exist --no-validate")
+
+
 @when('I run "kanbus update kanbus-aaa"')
 def when_run_update_no_changes(context: object) -> None:
     run_cli(context, "kanbus update kanbus-aaa")
