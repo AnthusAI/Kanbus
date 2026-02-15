@@ -4,6 +4,7 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::path::Path as StdPath;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::Body;
@@ -18,8 +19,9 @@ use axum::Json;
 use axum::Router;
 use futures_util::stream;
 use futures_util::Stream;
+use futures_util::StreamExt;
+use tokio::sync::Mutex;
 use tokio_stream::wrappers::IntervalStream;
-use tokio_stream::StreamExt;
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
 
@@ -134,13 +136,26 @@ async fn get_events(
     AxumPath((account, project)): AxumPath<(String, String)>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let store = store_for(&state, &account, &project);
-    let initial_store = store.clone();
-    let initial =
-        stream::once(async move { Ok(Event::default().data(snapshot_payload(&initial_store))) });
+    let initial_payload = snapshot_payload(&store);
+    let last_payload = Arc::new(Mutex::new(initial_payload.clone()));
+    let initial = stream::once(async move { Ok(Event::default().data(initial_payload)) });
     let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
     let updates_store = store.clone();
-    let updates =
-        interval.map(move |_| Ok(Event::default().data(snapshot_payload(&updates_store))));
+    let updates_last = Arc::clone(&last_payload);
+    let updates = interval.filter_map(move |_| {
+        let store = updates_store.clone();
+        let last_payload = Arc::clone(&updates_last);
+        async move {
+            let payload = snapshot_payload(&store);
+            let mut guard = last_payload.lock().await;
+            if *guard == payload {
+                None
+            } else {
+                *guard = payload.clone();
+                Some(Ok(Event::default().data(payload)))
+            }
+        }
+    });
     let stream = initial.chain(updates);
 
     Sse::new(stream).keep_alive(

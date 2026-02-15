@@ -566,6 +566,9 @@ export default function App() {
       const ids = collectDescendants(issues, routeContext.parentIssue.id);
       return issues.filter((issue) => ids.has(issue.id));
     }
+    if (route.parentId) {
+      return [];
+    }
     if (activeViewMode === "initiatives") {
       return issues.filter((issue) => issue.type === "initiative");
     }
