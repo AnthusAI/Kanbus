@@ -1,11 +1,9 @@
 import type { IssuesSnapshot } from "../types/issues";
 
-const API_BASE = "/api";
-
-export async function fetchSnapshot(): Promise<IssuesSnapshot> {
+export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
   const [configResponse, issuesResponse] = await Promise.all([
-    fetch(`${API_BASE}/config`),
-    fetch(`${API_BASE}/issues`)
+    fetch(`${apiBase}/config`),
+    fetch(`${apiBase}/issues`)
   ]);
 
   if (!configResponse.ok) {
@@ -27,10 +25,11 @@ export async function fetchSnapshot(): Promise<IssuesSnapshot> {
 }
 
 export function subscribeToSnapshots(
+  apiBase: string,
   onSnapshot: (snapshot: IssuesSnapshot) => void,
   onError: (error: Event) => void
 ): () => void {
-  const source = new EventSource(`${API_BASE}/events`);
+  const source = new EventSource(`${apiBase}/events`);
 
   source.onmessage = (event) => {
     try {

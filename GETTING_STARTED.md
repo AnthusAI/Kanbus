@@ -89,6 +89,36 @@ kanbus search "project structure"
 kanbus close kanbus-a1b2c3 --comment "Initial structure is complete."
 ```
 
+## Console (Rust backend)
+
+Build the console assets once:
+
+```bash
+cd console
+npm install
+npm run build
+```
+
+Run the local backend:
+
+```bash
+cargo run --bin console_local --manifest-path rust/Cargo.toml
+```
+
+Open:
+
+```
+http://127.0.0.1:5174/<account>/<project>/
+```
+
+Optional environment variables:
+
+- `CONSOLE_PORT` (default `5174`)
+- `CONSOLE_ROOT` (sets both data root and assets root)
+- `CONSOLE_DATA_ROOT` (data root override)
+- `CONSOLE_ASSETS_ROOT` (assets root override)
+- `CONSOLE_TENANT_MODE=multi` (enable `/account/project` mapping under data root)
+
 ## Next Steps
 
 - Read the CLI reference: [CLI_REFERENCE.md](CLI_REFERENCE.md)
