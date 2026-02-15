@@ -147,6 +147,7 @@ fn cover_additional_paths() {
         labels: Vec::new(),
         description: Some("First description".to_string()),
         local: false,
+        validate: true,
     })
     .expect("create issue one");
     let issue_two = create_issue(&IssueCreationRequest {
@@ -159,6 +160,7 @@ fn cover_additional_paths() {
         labels: Vec::new(),
         description: None,
         local: false,
+        validate: true,
     })
     .expect("create issue two");
     let issue_three = create_issue(&IssueCreationRequest {
@@ -171,6 +173,7 @@ fn cover_additional_paths() {
         labels: Vec::new(),
         description: None,
         local: false,
+        validate: true,
     })
     .expect("create issue three");
 
@@ -317,6 +320,7 @@ fn cover_additional_paths() {
         labels: Vec::new(),
         description: None,
         local: false,
+        validate: true,
     });
     fs::remove_file(&config_path).expect("remove config");
     let _ = run_from_args_with_output(["kanbus", "list"], root_no_config);
@@ -373,6 +377,7 @@ fn cover_additional_paths() {
         labels: Vec::new(),
         description: None,
         local: false,
+        validate: true,
     })
     .expect("create update issue");
     let _ = update_issue(

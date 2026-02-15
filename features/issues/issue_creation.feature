@@ -40,6 +40,12 @@ Feature: Issue creation
     Then the command should fail with exit code 1
     And stderr should contain "unknown issue type"
 
+  Scenario: Create fails with invalid initial status
+    Given a Kanbus project with an invalid configuration containing unknown initial status
+    When I run "kanbus create Implement OAuth2 flow"
+    Then the command should fail with exit code 1
+    And stderr should contain "unknown status"
+
   Scenario: Create bypasses validation with --no-validate
     Given a Kanbus project with default configuration
     And an "epic" issue "kanbus-epic01" exists
