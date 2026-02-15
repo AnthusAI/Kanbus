@@ -74,6 +74,22 @@ Rust publish guardrails:
 - Steps: `cargo fmt --check`, `cargo clippy --locked -- -D warnings`, `cargo test --locked`, `cargo package --locked`, `cargo publish --locked`.
 - Requires repository secret `CARGO_REGISTRY_TOKEN`.
 
+## Prebuilt Binaries
+
+Release artifacts include:
+- `kanbusr`: CLI for issue management (create, list, update, close, comment, etc.)
+- `kanbus-console`: Web UI server for realtime kanban board visualization
+
+The console server provides a React-based UI with Server-Sent Events for live updates. Run it locally with:
+
+```bash
+CONSOLE_DATA_ROOT=/path/to/project kanbus-console
+```
+
+Then open http://127.0.0.1:5174 in your browser to view your kanban board.
+
+For multi-tenant deployments, set `CONSOLE_TENANT_MODE=multi` and access via `/:account/:project/` URLs.
+
 ## Platform status
 
 | Platform | Python install | Rust release build | Notes |
