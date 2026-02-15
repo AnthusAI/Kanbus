@@ -76,12 +76,36 @@ pub fn validate_status_value(
     issue_type: &str,
     status: &str,
 ) -> Result<(), KanbusError> {
-    let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
-    let mut valid_statuses: std::collections::BTreeSet<&str> =
-        workflow.keys().map(String::as_str).collect();
-    for allowed in workflow.values() {
-        for entry in allowed {
-            valid_statuses.insert(entry.as_str());
+    let mut valid_statuses: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+    if let Some(default_workflow) = configuration.workflows.get("default") {
+        for status in default_workflow.keys() {
+            valid_statuses.insert(status.as_str());
+        }
+        for allowed in default_workflow.values() {
+            for entry in allowed {
+                valid_statuses.insert(entry.as_str());
+            }
+        }
+    }
+    if let Some(type_workflow) = configuration.workflows.get(issue_type) {
+        for status in type_workflow.keys() {
+            valid_statuses.insert(status.as_str());
+        }
+        for allowed in type_workflow.values() {
+            for entry in allowed {
+                valid_statuses.insert(entry.as_str());
+            }
+        }
+    }
+    if valid_statuses.is_empty() {
+        let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
+        for status in workflow.keys() {
+            valid_statuses.insert(status.as_str());
+        }
+        for allowed in workflow.values() {
+            for entry in allowed {
+                valid_statuses.insert(entry.as_str());
+            }
         }
     }
     if !valid_statuses.contains(status) {
