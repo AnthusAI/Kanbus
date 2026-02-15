@@ -35,7 +35,11 @@ async function main() {
   const projectDir = path.join(tempDir, "project");
   await cp(fixtureSource, projectDir, { recursive: true });
   const configurationPath = path.join(tempDir, ".kanbus.yml");
-  await writeFile(configurationPath, "project_directory: project\n", "utf-8");
+  await writeFile(
+    configurationPath,
+    "project_directory: project\nproject_key: kanbus\n",
+    "utf-8"
+  );
 
   const env = {
     ...process.env,
@@ -44,7 +48,10 @@ async function main() {
     VITE_PORT: process.env.VITE_PORT ?? "5173",
     CONSOLE_BASE_URL:
       process.env.CONSOLE_BASE_URL ??
-      `http://localhost:${process.env.VITE_PORT ?? "5173"}`,
+      `http://localhost:${process.env.VITE_PORT ?? "5173"}/acme/widgets/`,
+    CONSOLE_API_BASE:
+      process.env.CONSOLE_API_BASE ??
+      `http://localhost:${process.env.CONSOLE_PORT ?? "5174"}/acme/widgets/api`,
     KANBUS_PYTHON: process.env.KANBUS_PYTHON ?? "python3",
     KANBUS_PYTHONPATH: process.env.KANBUS_PYTHONPATH ?? pythonPath
   };

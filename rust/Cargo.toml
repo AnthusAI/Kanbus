@@ -23,6 +23,15 @@ chrono = { version = "0.4", features = ["serde", "clock"] }
 rand = "0.8"
 uuid = { version = "1.6", features = ["v4"] }
 owo-colors = "4.1"
+lambda_http = "0.9"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+bytes = "1.11"
+http-body = "1.0"
+http-body-util = "0.1"
+tokio-stream = "0.1"
+futures-util = "0.3"
+axum = { version = "0.7", features = ["tokio", "http1"] }
+mime_guess = "2.0"
 
 [dev-dependencies]
 cucumber = "0.21"

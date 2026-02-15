@@ -10,7 +10,7 @@ export interface SelectorOption {
 
 interface AnimatedSelectorProps {
   options: SelectorOption[];
-  value: string;
+  value: string | null;
   onChange: (value: string) => void;
   className?: string;
   name: string;
@@ -40,8 +40,11 @@ export function AnimatedSelector({
   const setHighlight = (animate: boolean) => {
     const container = containerRef.current;
     const highlight = highlightRef.current;
-    const target = buttonRefs.current[value];
+    const target = value ? buttonRefs.current[value] : null;
     if (!container || !highlight || !target) {
+      if (highlight) {
+        gsap.set(highlight, { opacity: 0 });
+      }
       return;
     }
 
