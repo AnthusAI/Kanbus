@@ -197,6 +197,13 @@ mod tests {
     }
 
     #[test]
+    fn root_returns_store_root() {
+        let temp = TempDir::new().expect("temp dir");
+        let store = FileStore::new(temp.path());
+        assert_eq!(store.root(), temp.path());
+    }
+
+    #[test]
     fn finds_issue_matches_with_short_id() {
         let issues = vec![
             make_issue("kanbus-abc123", "epic", None),
@@ -215,6 +222,23 @@ mod tests {
     }
 
     #[test]
+    fn short_id_matches_rejects_invalid_formats() {
+        assert!(!short_id_matches("kanbus", "kanbus", "kanbus-abc123"));
+        assert!(!short_id_matches("other-abc", "kanbus", "kanbus-abc123"));
+        assert!(!short_id_matches("kanbus-", "kanbus", "kanbus-abc123"));
+        assert!(!short_id_matches(
+            "kanbus-abcdefg",
+            "kanbus",
+            "kanbus-abcdefg123"
+        ));
+    }
+
+    #[test]
+    fn short_id_matches_requires_full_id_prefix_match() {
+        assert!(!short_id_matches("kanbus-abc", "kanbus", "other-abc123"));
+    }
+
+    #[test]
     fn builds_snapshot_from_project_files() {
         let temp = TempDir::new().expect("temp dir");
         write_config(temp.path(), "");
@@ -227,6 +251,18 @@ mod tests {
         assert_eq!(snapshot.issues[0].identifier, "kanbus-1");
         assert_eq!(snapshot.issues[1].identifier, "kanbus-2");
         assert!(snapshot.updated_at.contains('T'));
+    }
+
+    #[test]
+    fn build_snapshot_payload_serializes() {
+        let temp = TempDir::new().expect("temp dir");
+        write_config(temp.path(), "");
+        write_issue(temp.path(), make_issue("kanbus-1", "epic", None));
+
+        let store = FileStore::new(temp.path());
+        let payload = store.build_snapshot_payload().expect("payload");
+        assert!(payload.contains("\"issues\""));
+        assert!(payload.contains("kanbus-1"));
     }
 
     #[test]
