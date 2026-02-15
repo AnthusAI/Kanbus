@@ -22,6 +22,11 @@ Feature: Console route navigation
     Then no view tab should be selected
     And the detail panel should show issue "Add structured logging"
 
+  Scenario: Parent-all route scopes to descendants
+    Given the console is open
+    When I open the console route "/issues/kanbus-epic-1/all"
+    Then no view tab should be selected
+
   Scenario: Short id route resolves issue
     Given the console is open
     When I open the console route "/issues/kanbus-epic"

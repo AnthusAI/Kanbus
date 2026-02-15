@@ -69,6 +69,7 @@ async fn main() {
         .route("/:account/:project/initiatives/", get(get_index))
         .route("/:account/:project/epics/", get(get_index))
         .route("/:account/:project/issues/", get(get_index))
+        .route("/:account/:project/issues/:parent/all", get(get_index))
         .route("/:account/:project/issues/:id", get(get_index))
         .route("/:account/:project/issues/:parent/:id", get(get_index))
         .route("/:account/:project/*path", get(get_asset))

@@ -151,6 +151,9 @@ fn is_console_route(path: &str) -> bool {
     }
     if let Some(rest) = path.strip_prefix("issues/") {
         let segments: Vec<&str> = rest.split('/').collect();
+        if segments.len() == 2 && segments[1] == "all" {
+            return true;
+        }
         return matches!(segments.len(), 1 | 2);
     }
     false

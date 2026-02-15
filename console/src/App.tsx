@@ -128,6 +128,17 @@ function parseRoute(pathname: string): RouteContext {
         error: null
       };
     }
+    if (rest.length === 3 && rest[2] === "all") {
+      return {
+        account,
+        project,
+        basePath,
+        viewMode: null,
+        issueId: null,
+        parentId: rest[1],
+        error: null
+      };
+    }
     if (rest.length === 3) {
       return {
         account,
