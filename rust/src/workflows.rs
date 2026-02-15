@@ -97,17 +97,6 @@ pub fn validate_status_value(
             }
         }
     }
-    if valid_statuses.is_empty() {
-        let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
-        for status in workflow.keys() {
-            valid_statuses.insert(status.as_str());
-        }
-        for allowed in workflow.values() {
-            for entry in allowed {
-                valid_statuses.insert(entry.as_str());
-            }
-        }
-    }
     if !valid_statuses.contains(status) {
         return Err(KanbusError::InvalidTransition("unknown status".to_string()));
     }

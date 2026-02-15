@@ -51,6 +51,7 @@ fn when_create_issue_directly(world: &mut KanbusWorld) {
         labels: Vec::new(),
         description: None,
         local: false,
+        validate: true,
     };
     match create_issue(&request) {
         Ok(_) => {

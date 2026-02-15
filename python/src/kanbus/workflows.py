@@ -85,9 +85,6 @@ def validate_status_value(
         valid_statuses.update(
             _collect_workflow_statuses(configuration.workflows[issue_type])
         )
-    if not valid_statuses:
-        workflow = get_workflow_for_issue_type(configuration, issue_type)
-        valid_statuses = _collect_workflow_statuses(workflow)
     if status not in valid_statuses:
         raise InvalidTransitionError("unknown status")
 
