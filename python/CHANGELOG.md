@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.5.0 (2026-02-15)
+
+### Chores
+
+- Sync issue ledger
+  ([`8616c7e`](https://github.com/AnthusAI/Kanbus/commit/8616c7e414136c238e7be1246a109fb8fdbc0f07))
+
+- Sync PyPI README with repo README
+  ([`0ec6eca`](https://github.com/AnthusAI/Kanbus/commit/0ec6eca90de73232d45cee3c7707c643ce4ae74d))
+
+### Features
+
+- Share ui package and align site with console
+  ([`22f0fe3`](https://github.com/AnthusAI/Kanbus/commit/22f0fe367a8a1535b490f342d7f8460d2a61a289))
+
+
 ## v0.4.0 (2026-02-12)
 
 ### Features
