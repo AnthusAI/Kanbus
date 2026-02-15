@@ -297,6 +297,20 @@ def given_invalid_config_missing_default_priority(context: object) -> None:
 
 
 @given(
+    "a Kanbus project with an invalid configuration containing unknown initial status"
+)
+def given_invalid_config_unknown_initial_status(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["initial_status"] = "ghost"
+    (repository / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given(
     "a Kanbus repository with a .kanbus.yml file containing a bright white status color"
 )
 def given_repo_with_bright_white_status_color(context: object) -> None:
