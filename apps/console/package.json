@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite --port ${VITE_PORT:-5173} --strictPort",
-    "dev:server": "CONSOLE_PROJECT_ROOT=${CONSOLE_PROJECT_ROOT:-../project} KANBUS_PYTHONPATH=${KANBUS_PYTHONPATH:-python/src} KANBUS_PYTHON=${KANBUS_PYTHON:-python3} tsx watch server/index.ts",
+    "dev:server": "CONSOLE_PROJECT_ROOT=${CONSOLE_PROJECT_ROOT:-../../project} KANBUS_PYTHONPATH=${KANBUS_PYTHONPATH:-../../python/src} KANBUS_PYTHON=${KANBUS_PYTHON:-python3} tsx watch server/index.ts",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -18,7 +18,7 @@
     "@radix-ui/colors": "^3.0.0",
     "@radix-ui/react-scroll-area": "^1.1.2",
     "@radix-ui/react-tabs": "^1.1.2",
-    "@kanbus/ui": "file:../packages/ui",
+    "@kanbus/ui": "file:../../packages/ui",
     "chokidar": "^3.6.0",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",

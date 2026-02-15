@@ -8,7 +8,7 @@ const consoleRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   ".."
 );
-const repoRoot = path.resolve(consoleRoot, "..");
+const repoRoot = path.resolve(consoleRoot, "../..");
 const pythonPath = path.join(repoRoot, "python", "src");
 const fixtureSource = path.resolve(consoleRoot, "tests", "fixtures", "project");
 

@@ -4,13 +4,13 @@ A Vite + React + Node console for viewing Kanbus issues as a realtime kanban boa
 
 ## Requirements
 
-- Node 18+
+- Node 20+
 - npm
 
 ## Development
 
 ```bash
-cd console
+cd apps/console
 npm install
 npm run dev
 ```
@@ -42,7 +42,7 @@ The server watches the entire `project/` directory. Any change triggers a deboun
 Console UI scenarios live in `features/console/` and run via Cucumber.js with Playwright:
 
 ```bash
-cd console
+cd apps/console
 npm install
 npm run test:ui
 ```

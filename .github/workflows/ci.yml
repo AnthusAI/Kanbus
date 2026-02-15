@@ -126,17 +126,17 @@ jobs:
 
       - name: Install console dependencies
         run: |
-          cd console
+          cd apps/console
           npm install
 
       - name: Install Playwright browsers
         run: |
-          cd console
+          cd apps/console
           npx playwright install --with-deps
 
       - name: Run console UI specs
         run: |
-          cd console
+          cd apps/console
           npm run test:ui
 
   performance:
@@ -163,9 +163,33 @@ jobs:
       - name: Run benchmark regression check
         run: python tools/check_benchmarks.py
 
+  binary-smoke:
+    runs-on: ubuntu-latest
+    needs: [rust]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binaries
+        run: |
+          cd rust
+          cargo build --release --bin kanbusr --bin console_local
+
+      - name: Prepare binaries for Docker test
+        run: |
+          mkdir -p dist
+          cp rust/target/release/kanbusr dist/kanbusr
+          cp rust/target/release/console_local dist/kanbus-console
+
+      - name: Run Docker smoke test
+        run: tools/test_prebuilt_binaries_docker.sh dist/kanbusr dist/kanbus-console
+
   beads-interop:
     runs-on: ubuntu-latest
-    needs: [python, python-install, rust, console-ui, performance]
+    needs: [python, python-install, rust, console-ui, performance, binary-smoke]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

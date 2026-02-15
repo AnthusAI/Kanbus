@@ -5,8 +5,8 @@ const config: Config = {
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx}",
-    "../packages/ui/src/**/*.{ts,tsx}",
-    "../packages/ui/dist/**/*.{js,jsx,ts,tsx}"
+    "../../packages/ui/src/**/*.{ts,tsx}",
+    "../../packages/ui/dist/**/*.{js,jsx,ts,tsx}"
   ],
   theme: {
     extend: {

@@ -78,7 +78,7 @@ The console UI is served by the Rust local server and expects tenant-aware URLs.
 Build the console assets once:
 
 ```bash
-cd console
+cd apps/console
 npm install
 npm run build
 ```
@@ -95,7 +95,7 @@ Open:
 http://127.0.0.1:5174/<account>/<project>/
 ```
 
-By default, the server treats the repo root as the data root and serves assets from `console/dist`. Optional env vars:
+By default, the server treats the repo root as the data root and serves assets from `apps/console/dist`. Optional env vars:
 
 - `CONSOLE_PORT` (default `5174`)
 - `CONSOLE_ROOT` (sets both data root and assets root)

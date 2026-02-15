@@ -124,6 +124,75 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  console-server-binaries:
+    needs: publish
+    if: ${{ needs.publish.outputs.release_tag != '' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: console_local
+            archive: tar.gz
+          - os: macos-14
+            target: aarch64-apple-darwin
+            binary: console_local
+            archive: tar.gz
+          - os: macos-14
+            target: x86_64-apple-darwin
+            binary: console_local
+            archive: tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: console_local.exe
+            archive: zip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build console server
+        run: |
+          cd rust
+          cargo build --release --target ${{ matrix.target }} --bin console_local
+
+      - name: Package console server (tar.gz)
+        if: ${{ matrix.archive == 'tar.gz' }}
+        run: |
+          mkdir -p dist
+          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kanbus-console
+          tar -czf dist/kanbus-console-${{ matrix.target }}.tar.gz -C dist kanbus-console
+
+      - name: Package console server (zip)
+        if: ${{ matrix.archive == 'zip' && matrix.os != 'windows-latest' }}
+        run: |
+          mkdir -p dist
+          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kanbus-console.exe
+          cd dist
+          zip kanbus-console-${{ matrix.target }}.zip kanbus-console.exe
+
+      - name: Package console server (zip, windows)
+        if: ${{ matrix.archive == 'zip' && matrix.os == 'windows-latest' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/kanbus-console.exe"
+          Compress-Archive -Path "dist/kanbus-console.exe" -DestinationPath "dist/kanbus-console-${{ matrix.target }}.zip" -Force
+
+      - name: Upload console server assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.publish.outputs.release_tag }}
+          files: |
+            dist/kanbus-console-${{ matrix.target }}.${{ matrix.archive }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   rust-crate:
     needs: publish
     if: ${{ needs.publish.outputs.release_tag != '' }}

@@ -425,7 +425,7 @@ pub(crate) fn discover_project_directories(
             projects.push(nested_project);
         }
         // Avoid recursing into every subdirectory; doing so pulls in fixture
-        // projects (e.g., console/tests/fixtures/project) that are not real
+        // projects (e.g., apps/console/tests/fixtures/project) that are not real
         // Kanbus workspaces and can break commands with incomplete data.
         // Additional projects must be declared explicitly via configuration.
     }

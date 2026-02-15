@@ -22,7 +22,7 @@ use tokio_stream::wrappers::IntervalStream;
 use kanbus::console_backend::{find_issue_matches, FileStore};
 
 const EFS_ROOT: &str = "/mnt/data";
-const DEFAULT_ASSETS_ROOT: &str = "/opt/console/dist";
+const DEFAULT_ASSETS_ROOT: &str = "/opt/apps/console/dist";
 
 type BoxedStream = Pin<Box<dyn Stream<Item = Result<Frame<Bytes>, Infallible>> + Send>>;
 type StreamBodyType = StreamBody<BoxedStream>;

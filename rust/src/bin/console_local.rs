@@ -51,8 +51,12 @@ async fn main() {
     let assets_root = std::env::var("CONSOLE_ASSETS_ROOT")
         .ok()
         .map(PathBuf::from)
-        .or_else(|| root_override.clone().map(|root| root.join("console/dist")))
-        .unwrap_or_else(|| repo_root.join("console/dist"));
+        .or_else(|| {
+            root_override
+                .clone()
+                .map(|root| root.join("apps/console/dist"))
+        })
+        .unwrap_or_else(|| repo_root.join("apps/console/dist"));
 
     let multi_tenant = std::env::var("CONSOLE_TENANT_MODE")
         .map(|value| value == "multi")

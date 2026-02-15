@@ -26,6 +26,15 @@ Kanbus provides two **completely equivalent** implementations: Python and Rust. 
 
 Python installs `kanbus`. Rust installs `kanbusr` with the same subcommands. You can switch between them at any time.
 
+## Prebuilt binaries
+
+GitHub Releases include prebuilt binaries for the Kanbus Rust CLI and the Rust console server:
+
+- `kanbusr` (CLI)
+- `kanbus-console` (console server)
+
+Download the archive for your platform (for example `kanbusr-<target>.tar.gz` and `kanbus-console-<target>.tar.gz`), unzip it, and place the binary on your PATH.
+
 ## Step 1: Initialize a project
 
 Create a new repository or enter an existing one, then initialize Kanbus.
@@ -94,7 +103,7 @@ kanbus close kanbus-a1b2c3 --comment "Initial structure is complete."
 Build the console assets once:
 
 ```bash
-cd console
+cd apps/console
 npm install
 npm run build
 ```
@@ -119,9 +128,46 @@ Optional environment variables:
 - `CONSOLE_ASSETS_ROOT` (assets root override)
 - `CONSOLE_TENANT_MODE=multi` (enable `/account/project` mapping under data root)
 
+## Install from source
+
+Prerequisites for a fresh clone:
+
+- Git
+- Rust toolchain (stable)
+- Node.js 20+ with npm
+
+Clone and build the Rust CLI:
+
+```bash
+git clone https://github.com/AnthusAI/Kanbus.git
+cd Kanbus
+
+cargo build --manifest-path rust/Cargo.toml
+./rust/target/debug/kanbusr --version
+```
+
+Build the console UI assets:
+
+```bash
+cd apps/console
+npm install
+npm run build
+```
+
+Run the console server:
+
+```bash
+cargo run --bin console_local --manifest-path rust/Cargo.toml
+```
+
+Then open:
+
+```
+http://127.0.0.1:5174/<account>/<project>/
+```
+
 ## Next Steps
 
 - Read the CLI reference: [CLI_REFERENCE.md](CLI_REFERENCE.md)
 - Configure workflows and types: [CONFIGURATION.md](CONFIGURATION.md)
 - Learn the wiki system: [WIKI_GUIDE.md](WIKI_GUIDE.md)
-- Troubleshoot common issues: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
