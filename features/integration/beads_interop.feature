@@ -12,6 +12,14 @@ Feature: Beads interoperability end-to-end
     And stdout should contain "E epic"
     And stdout should contain "T task"
 
+  Scenario: Delete in Beads and see Kanbus list update
+    When I run "kanbus --beads delete bdx-task"
+    Then the command should succeed
+    And beads issues.jsonl should not contain "bdx-task"
+    When I run "kanbus --beads list"
+    Then the command should succeed
+    And stdout should not contain "T task"
+
   Scenario: Create in Kanbus and see in Beads
     When I run "kanbus --beads create Interop child via Kanbus --parent bdx-epic"
     Then the command should succeed
