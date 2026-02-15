@@ -257,8 +257,6 @@ def run_beads_list(
             "list",
             "--json",
             "--all",
-            "--limit",
-            "0",
         ],
         cwd=repo_root,
         env=env,
