@@ -168,10 +168,7 @@ async fn get_issue(
     Json(matches[0]).into_response()
 }
 
-async fn get_issue_root(
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-) -> Response {
+async fn get_issue_root(State(state): State<AppState>, AxumPath(id): AxumPath<String>) -> Response {
     let store = match store_for_root(&state) {
         Ok(store) => store,
         Err(response) => return response,
