@@ -1,6 +1,8 @@
 //! Lambda handler for the console backend.
 
 use std::convert::Infallible;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -195,22 +197,22 @@ fn asset_response(path: &str) -> ResponseType {
 }
 
 fn sse_stream(store: FileStore) -> BoxedStream {
-    let initial_payload = snapshot_payload(&store);
-    let last_payload = Arc::new(Mutex::new(initial_payload.clone()));
+    let (initial_payload, initial_fingerprint) = snapshot_payload(&store);
+    let last_fingerprint = Arc::new(Mutex::new(initial_fingerprint));
     let initial = stream::once(async move { Ok(Frame::data(Bytes::from(initial_payload))) });
     let updates_store = store.clone();
     let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
-    let updates_last = Arc::clone(&last_payload);
+    let updates_last = Arc::clone(&last_fingerprint);
     let updates = interval.filter_map(move |_| {
         let store = updates_store.clone();
-        let last_payload = Arc::clone(&updates_last);
+        let last_fingerprint = Arc::clone(&updates_last);
         async move {
-            let payload = snapshot_payload(&store);
-            let mut guard = last_payload.lock().await;
-            if *guard == payload {
+            let (payload, fingerprint) = snapshot_payload(&store);
+            let mut guard = last_fingerprint.lock().await;
+            if *guard == fingerprint {
                 None
             } else {
-                *guard = payload.clone();
+                *guard = fingerprint;
                 Some(Ok(Frame::data(Bytes::from(payload))))
             }
         }
@@ -218,19 +220,42 @@ fn sse_stream(store: FileStore) -> BoxedStream {
     Box::pin(initial.chain(updates))
 }
 
-fn snapshot_payload(store: &FileStore) -> String {
-    let payload = match store.build_snapshot() {
-        Ok(snapshot) => serde_json::to_string(&snapshot).unwrap_or_else(|error| {
-            serde_json::json!({ "error": error.to_string(), "updated_at": Utc::now().to_rfc3339() })
-                .to_string()
-        }),
-        Err(error) => serde_json::json!({
-            "error": error.to_string(),
-            "updated_at": Utc::now().to_rfc3339(),
-        })
-        .to_string(),
+fn snapshot_payload(store: &FileStore) -> (String, u64) {
+    let (payload, fingerprint) = match store.build_snapshot() {
+        Ok(snapshot) => {
+            let fingerprint = snapshot_fingerprint(&snapshot);
+            let payload = serde_json::to_string(&snapshot).unwrap_or_else(|error| {
+                serde_json::json!({ "error": error.to_string(), "updated_at": Utc::now().to_rfc3339() })
+                    .to_string()
+            });
+            (payload, fingerprint)
+        }
+        Err(error) => {
+            let payload = serde_json::json!({
+                "error": error.to_string(),
+                "updated_at": Utc::now().to_rfc3339(),
+            })
+            .to_string();
+            (payload.clone(), hash_payload(&payload))
+        }
     };
-    format!("data: {payload}\n\n")
+    (format!("data: {payload}\n\n"), fingerprint)
+}
+
+fn snapshot_fingerprint(snapshot: &kanbus::console_backend::ConsoleSnapshot) -> u64 {
+    let payload = serde_json::to_vec(&( &snapshot.config, &snapshot.issues))
+        .unwrap_or_default();
+    hash_bytes(&payload)
+}
+
+fn hash_payload(payload: &str) -> u64 {
+    hash_bytes(payload.as_bytes())
+}
+
+fn hash_bytes(bytes: &[u8]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    hasher.finish()
 }
 
 fn body_from_text(text: impl Into<String>) -> StreamBodyType {

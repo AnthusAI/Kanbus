@@ -579,7 +579,7 @@ export default function App() {
       return issues.filter((issue) => issueLevelTypes.includes(issue.type));
     }
     return issues;
-  }, [activeViewMode, issues, issueLevelTypes, routeContext.parentIssue]);
+  }, [activeViewMode, issues, issueLevelTypes, routeContext.parentIssue, route.parentId]);
 
   const subTasks = useMemo(() => {
     if (!selectedTask) {
