@@ -14,6 +14,10 @@ export default defineConfig({
       ]
     },
     proxy: {
+      "/api": {
+        target: `http://localhost:${consolePort}`,
+        changeOrigin: true
+      },
       "^/[^/]+/[^/]+/api": {
         target: `http://localhost:${consolePort}`,
         changeOrigin: true

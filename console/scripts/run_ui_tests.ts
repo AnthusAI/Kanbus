@@ -48,10 +48,10 @@ async function main() {
     VITE_PORT: process.env.VITE_PORT ?? "5173",
     CONSOLE_BASE_URL:
       process.env.CONSOLE_BASE_URL ??
-      `http://localhost:${process.env.VITE_PORT ?? "5173"}/acme/widgets/`,
+      `http://localhost:${process.env.VITE_PORT ?? "5173"}/`,
     CONSOLE_API_BASE:
       process.env.CONSOLE_API_BASE ??
-      `http://localhost:${process.env.CONSOLE_PORT ?? "5174"}/acme/widgets/api`,
+      `http://localhost:${process.env.CONSOLE_PORT ?? "5174"}/api`,
     KANBUS_PYTHON: process.env.KANBUS_PYTHON ?? "python3",
     KANBUS_PYTHONPATH: process.env.KANBUS_PYTHONPATH ?? pythonPath
   };

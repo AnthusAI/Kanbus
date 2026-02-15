@@ -33,3 +33,8 @@ Feature: Console route navigation
     When I open the console route "/issues/kanbus-epic"
     Then the "Epics" tab should be selected
     And the detail panel should show issue "Observability overhaul"
+
+  Scenario: Prefixed epics route still works
+    Given the console is open
+    When I open the console route "/acme/widgets/epics/"
+    Then the "Epics" tab should be selected

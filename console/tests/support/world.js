@@ -4,7 +4,7 @@ import { rm } from "fs/promises";
 
 const vitePort = process.env.VITE_PORT ?? "5173";
 const BASE_URL =
-  process.env.CONSOLE_BASE_URL ?? `http://localhost:${vitePort}/acme/widgets/`;
+  process.env.CONSOLE_BASE_URL ?? `http://localhost:${vitePort}/`;
 
 let browser;
 

@@ -20,6 +20,7 @@ use axum::routing::get;
 use axum::Json;
 use axum::Router;
 use futures_util::stream;
+use futures_util::stream::BoxStream;
 use futures_util::Stream;
 use futures_util::StreamExt;
 use tokio::sync::Mutex;
@@ -65,6 +66,17 @@ async fn main() {
 
     let app = Router::new()
         .route("/assets/*path", get(get_public_asset))
+        .route("/api/config", get(get_config_root))
+        .route("/api/issues", get(get_issues_root))
+        .route("/api/issues/:id", get(get_issue_root))
+        .route("/api/events", get(get_events_root))
+        .route("/", get(get_index_root))
+        .route("/initiatives/", get(get_index_root))
+        .route("/epics/", get(get_index_root))
+        .route("/issues/", get(get_index_root))
+        .route("/issues/:parent/all", get(get_index_root))
+        .route("/issues/:id", get(get_index_root))
+        .route("/issues/:parent/:id", get(get_index_root))
         .route("/:account/:project/api/config", get(get_config))
         .route("/:account/:project/api/issues", get(get_issues))
         .route("/:account/:project/api/issues/:id", get(get_issue))
@@ -77,6 +89,7 @@ async fn main() {
         .route("/:account/:project/issues/:id", get(get_index))
         .route("/:account/:project/issues/:parent/:id", get(get_index))
         .route("/:account/:project/*path", get(get_asset))
+        .fallback(get(get_asset_root))
         .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
@@ -101,6 +114,17 @@ async fn get_config(
     }
 }
 
+async fn get_config_root(State(state): State<AppState>) -> Response {
+    let store = match store_for_root(&state) {
+        Ok(store) => store,
+        Err(response) => return response,
+    };
+    match store.build_snapshot() {
+        Ok(snapshot) => Json(snapshot.config).into_response(),
+        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
 async fn get_issues(
     State(state): State<AppState>,
     AxumPath((account, project)): AxumPath<(String, String)>,
@@ -112,11 +136,46 @@ async fn get_issues(
     }
 }
 
+async fn get_issues_root(State(state): State<AppState>) -> Response {
+    let store = match store_for_root(&state) {
+        Ok(store) => store,
+        Err(response) => return response,
+    };
+    match store.build_snapshot() {
+        Ok(snapshot) => Json(snapshot.issues).into_response(),
+        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
 async fn get_issue(
     State(state): State<AppState>,
     AxumPath((account, project, id)): AxumPath<(String, String, String)>,
 ) -> Response {
     let store = store_for(&state, &account, &project);
+    let snapshot = match store.build_snapshot() {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
+    if matches.is_empty() {
+        return error_response("issue not found", StatusCode::NOT_FOUND);
+    }
+    if matches.len() > 1 {
+        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
+    }
+    Json(matches[0]).into_response()
+}
+
+async fn get_issue_root(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> Response {
+    let store = match store_for_root(&state) {
+        Ok(store) => store,
+        Err(response) => return response,
+    };
     let snapshot = match store.build_snapshot() {
         Ok(snapshot) => snapshot,
         Err(error) => {
@@ -167,6 +226,54 @@ async fn get_events(
     )
 }
 
+async fn get_events_root(
+    State(state): State<AppState>,
+) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
+    let store = match store_for_root(&state) {
+        Ok(store) => store,
+        Err(_) => {
+            let payload = serde_json::json!({
+                "error": "multi-tenant mode requires /:account/:project",
+                "updated_at": chrono::Utc::now().to_rfc3339(),
+            })
+            .to_string();
+            let stream = stream::once(async move { Ok(Event::default().data(payload)) }).boxed();
+            return Sse::new(stream).keep_alive(
+                KeepAlive::new()
+                    .interval(Duration::from_secs(15))
+                    .text(": keep-alive"),
+            );
+        }
+    };
+    let (initial_payload, initial_fingerprint) = snapshot_payload(&store);
+    let last_fingerprint = Arc::new(Mutex::new(initial_fingerprint));
+    let initial = stream::once(async move { Ok(Event::default().data(initial_payload)) });
+    let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
+    let updates_store = store.clone();
+    let updates_last = Arc::clone(&last_fingerprint);
+    let updates = interval.filter_map(move |_| {
+        let store = updates_store.clone();
+        let last_fingerprint = Arc::clone(&updates_last);
+        async move {
+            let (payload, fingerprint) = snapshot_payload(&store);
+            let mut guard = last_fingerprint.lock().await;
+            if *guard == fingerprint {
+                None
+            } else {
+                *guard = fingerprint;
+                Some(Ok(Event::default().data(payload)))
+            }
+        }
+    });
+    let stream = initial.chain(updates).boxed();
+
+    Sse::new(stream).keep_alive(
+        KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text(": keep-alive"),
+    )
+}
+
 fn store_for(state: &AppState, account: &str, project: &str) -> FileStore {
     let root = if state.multi_tenant {
         FileStore::resolve_tenant_root(&state.base_root, account, project)
@@ -174,6 +281,16 @@ fn store_for(state: &AppState, account: &str, project: &str) -> FileStore {
         state.base_root.clone()
     };
     FileStore::new(root)
+}
+
+fn store_for_root(state: &AppState) -> Result<FileStore, Response> {
+    if state.multi_tenant {
+        return Err(error_response(
+            "multi-tenant mode requires /:account/:project",
+            StatusCode::BAD_REQUEST,
+        ));
+    }
+    Ok(FileStore::new(state.base_root.clone()))
 }
 
 fn error_response(message: impl Into<String>, status: StatusCode) -> Response {
@@ -234,9 +351,20 @@ async fn get_index(
     serve_asset(&state, "index.html")
 }
 
+async fn get_index_root(State(state): State<AppState>) -> Response {
+    serve_asset(&state, "index.html")
+}
+
 async fn get_asset(
     State(state): State<AppState>,
     AxumPath((_account, _project, path)): AxumPath<(String, String, String)>,
+) -> Response {
+    serve_asset(&state, &path)
+}
+
+async fn get_asset_root(
+    State(state): State<AppState>,
+    AxumPath(path): AxumPath<String>,
 ) -> Response {
     serve_asset(&state, &path)
 }

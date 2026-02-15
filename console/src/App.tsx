@@ -76,6 +76,81 @@ function parseRoute(pathname: string): RouteContext {
   if (segments[segments.length - 1] === "index.html") {
     segments.pop();
   }
+  const viewModes: ViewMode[] = ["initiatives", "epics", "issues"];
+  const isLocal =
+    segments.length === 0 || (segments[0] && viewModes.includes(segments[0] as ViewMode));
+  if (isLocal) {
+    const rest = segments;
+    if (rest.length === 0) {
+      return {
+        account: null,
+        project: null,
+        basePath: "",
+        viewMode: loadStoredViewMode(),
+        issueId: null,
+        parentId: null,
+        error: null
+      };
+    }
+    const head = rest[0];
+    if (head === "initiatives" || head === "epics" || head === "issues") {
+      if (rest.length === 1) {
+        return {
+          account: null,
+          project: null,
+          basePath: "",
+          viewMode: head,
+          issueId: null,
+          parentId: null,
+          error: null
+        };
+      }
+    }
+    if (head === "issues") {
+      if (rest.length === 2) {
+        return {
+          account: null,
+          project: null,
+          basePath: "",
+          viewMode: null,
+          issueId: rest[1],
+          parentId: null,
+          error: null
+        };
+      }
+      if (rest.length === 3 && rest[2] === "all") {
+        return {
+          account: null,
+          project: null,
+          basePath: "",
+          viewMode: null,
+          issueId: null,
+          parentId: rest[1],
+          error: null
+        };
+      }
+      if (rest.length === 3) {
+        return {
+          account: null,
+          project: null,
+          basePath: "",
+          viewMode: null,
+          issueId: rest[2],
+          parentId: rest[1],
+          error: null
+        };
+      }
+    }
+    return {
+      account: null,
+      project: null,
+      basePath: "",
+      viewMode: null,
+      issueId: null,
+      parentId: null,
+      error: "Unsupported console route"
+    };
+  }
   if (segments.length < 2) {
     return {
       account: null,
@@ -305,7 +380,7 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
-    if (!route.basePath) {
+    if (route.basePath == null) {
       setError("URL must include /:account/:project");
       setLoading(false);
       return () => {};
@@ -392,7 +467,7 @@ export default function App() {
     }
     const updatedTask = issues.find((issue) => issue.id === selectedTask.id);
     if (!updatedTask) {
-      if (route.basePath) {
+      if (route.basePath != null) {
         const nextMode = viewMode ?? loadStoredViewMode();
         navigate(`${route.basePath}/${nextMode}/`, setRoute);
       } else {
@@ -435,7 +510,7 @@ export default function App() {
   }, [config?.types]);
 
   const routeContext = useMemo(() => {
-    if (!route.basePath) {
+    if (route.basePath == null) {
       return {
         viewMode: null,
         selectedIssue: null,
@@ -591,7 +666,7 @@ export default function App() {
   }, [issues, selectedTask]);
 
   const handleSelectIssue = (issue: Issue) => {
-    if (!route.basePath) {
+    if (route.basePath == null) {
       return;
     }
     if (route.parentId) {
@@ -619,7 +694,7 @@ export default function App() {
             name="view"
             value={activeViewMode}
             onChange={(value) => {
-              if (!route.basePath) {
+              if (route.basePath == null) {
                 return;
               }
               const next = value as ViewMode;
@@ -781,7 +856,7 @@ export default function App() {
               priorityLookup={priorityLookup}
               config={config}
               onClose={() => {
-                if (!route.basePath) {
+                if (route.basePath == null) {
                   setSelectedTask(null);
                   return;
                 }

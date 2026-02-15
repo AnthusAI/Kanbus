@@ -8,7 +8,7 @@ const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
 const projectIssuesRoot = projectRoot ? path.join(projectRoot, "issues") : null;
 const consolePort = process.env.CONSOLE_PORT ?? "5174";
 const consoleBaseUrl =
-  process.env.CONSOLE_BASE_URL ?? `http://localhost:${consolePort}/acme/widgets/`;
+  process.env.CONSOLE_BASE_URL ?? `http://localhost:${consolePort}/`;
 const consoleApiBase =
   process.env.CONSOLE_API_BASE ?? `${consoleBaseUrl.replace(/\/+$/, "")}/api`;
 

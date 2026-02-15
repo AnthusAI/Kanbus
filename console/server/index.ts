@@ -154,6 +154,7 @@ apiRouter.get("/events", async (req, res) => {
 });
 
 app.use("/:account/:project/api", apiRouter);
+app.use("/api", apiRouter);
 
 function broadcastSnapshot(snapshot: IssuesSnapshot) {
   const payload = `data: ${JSON.stringify(snapshot)}\n\n`;
