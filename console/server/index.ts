@@ -91,7 +91,9 @@ async function getSnapshotForRequest(
   return getSnapshot();
 }
 
-app.get("/api/config", async (req, res) => {
+const apiRouter = express.Router();
+
+apiRouter.get("/config", async (req, res) => {
   try {
     const snapshot = await getSnapshotForRequest(req.query.refresh);
     res.json(snapshot.config);
@@ -100,7 +102,7 @@ app.get("/api/config", async (req, res) => {
   }
 });
 
-app.get("/api/issues", async (_req, res) => {
+apiRouter.get("/issues", async (_req, res) => {
   try {
     const snapshot = await getSnapshotForRequest(_req.query.refresh);
     res.json(snapshot.issues);
@@ -109,7 +111,7 @@ app.get("/api/issues", async (_req, res) => {
   }
 });
 
-app.get("/api/issues/:id", async (req, res) => {
+apiRouter.get("/issues/:id", async (req, res) => {
   try {
     const snapshot = await getSnapshotForRequest(req.query.refresh);
     const issue = snapshot.issues.find((item) => item.id === req.params.id);
@@ -125,7 +127,7 @@ app.get("/api/issues/:id", async (req, res) => {
 
 const sseClients = new Set<express.Response>();
 
-app.get("/api/events", async (req, res) => {
+apiRouter.get("/events", async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
@@ -150,6 +152,8 @@ app.get("/api/events", async (req, res) => {
     sseClients.delete(res);
   });
 });
+
+app.use("/:account/:project/api", apiRouter);
 
 function broadcastSnapshot(snapshot: IssuesSnapshot) {
   const payload = `data: ${JSON.stringify(snapshot)}\n\n`;

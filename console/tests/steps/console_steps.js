@@ -7,8 +7,10 @@ import yaml from "js-yaml";
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
 const projectIssuesRoot = projectRoot ? path.join(projectRoot, "issues") : null;
 const consolePort = process.env.CONSOLE_PORT ?? "5174";
+const consoleBaseUrl =
+  process.env.CONSOLE_BASE_URL ?? `http://localhost:${consolePort}/acme/widgets/`;
 const consoleApiBase =
-  process.env.CONSOLE_API_BASE ?? `http://localhost:${consolePort}/api`;
+  process.env.CONSOLE_API_BASE ?? `${consoleBaseUrl.replace(/\/+$/, "")}/api`;
 
 function issueCardLocator(page, title) {
   return page.locator(".issue-card", { hasText: title });
@@ -82,8 +84,16 @@ When("the console is reloaded", async function () {
   await this.page.reload({ waitUntil: "domcontentloaded" });
 });
 
+When("I open the console route {string}", async function (routePath) {
+  const target = routePath.startsWith("http")
+    ? routePath
+    : `${consoleBaseUrl.replace(/\/+$/, "")}/${routePath.replace(/^\/+/, "")}`;
+  await this.page.goto(target, { waitUntil: "domcontentloaded" });
+});
+
 When("I switch to the {string} tab", async function (tabName) {
-  await this.page.getByRole("tab", { name: tabName }).click();
+  const resolved = tabName === "Tasks" ? "Issues" : tabName;
+  await this.page.getByRole("tab", { name: resolved }).click();
 });
 
 When("I open the task {string}", async function (title) {
@@ -228,10 +238,22 @@ Then("I should not see the issue {string}", async function (title) {
 });
 
 Then("the {string} tab should be selected", async function (tabName) {
-  await expect(this.page.getByRole("tab", { name: tabName })).toHaveAttribute(
+  const resolved = tabName === "Tasks" ? "Issues" : tabName;
+  await expect(this.page.getByRole("tab", { name: resolved })).toHaveAttribute(
     "aria-selected",
     "true"
   );
+});
+
+Then("no view tab should be selected", async function () {
+  const selectedTabs = this.page.locator(
+    '[data-selector="view"][role="tab"][aria-selected="true"]'
+  );
+  await expect(selectedTabs).toHaveCount(0);
+});
+
+Then("the detail panel should show issue {string}", async function (title) {
+  await expect(this.page.locator(".detail-card", { hasText: title })).toBeVisible();
 });
 
 When("I open settings", async function () {
