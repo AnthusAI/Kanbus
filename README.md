@@ -89,7 +89,13 @@ Run the local backend:
 cargo run --bin console_local --manifest-path rust/Cargo.toml
 ```
 
-Open:
+Open (local mode):
+
+```
+http://127.0.0.1:5174/
+```
+
+Or for multi-tenant mode (set `CONSOLE_TENANT_MODE=multi`):
 
 ```
 http://127.0.0.1:5174/<account>/<project>/
