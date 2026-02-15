@@ -27,6 +27,7 @@ use crate::workflows::{
 ///
 /// # Errors
 /// Returns `KanbusError` if the update fails.
+#[allow(clippy::too_many_arguments)]
 pub fn update_issue(
     root: &Path,
     identifier: &str,
