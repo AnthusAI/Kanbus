@@ -29,3 +29,34 @@ Warm-start median response times (ms): Go 5277.6; Python — Beads JSONL 538.7; 
 Cold/Warm medians (stacked bars, cold over warm): Go 197.6/5277.6; Python — Beads 566.1/538.7; Rust — Beads 11.9/9.9; Python — JSON 648.3/653.5; Rust — JSON 92.4/54.6. Warm runs keep the Kanbus daemon resident; cold runs disable it and clear caches. Go/Beads warm mode jumps because its SQLite daemon import dominates the second pass.
 
 Takeaway: direct JSON reads keep response time low in steady state without a secondary database. The SQLite sidecar adds variance and operational complexity while providing little benefit for the listing path.
+
+## ID Generation Strategy
+
+Kanbus uses flat hash-based IDs (e.g., `kanbus-a1b2c3`) with explicit parent pointers, rather than hierarchical IDs encoded in the identifier itself (e.g., `kanbus-0lb.1`, `kanbus-0lb.2`).
+
+### Why Hierarchical IDs Cause Collisions
+
+Beads-style hierarchical IDs embed parent-child relationships directly in the ID format:
+- Parent: `tskl-0lb`
+- Child 1: `tskl-0lb.1`
+- Child 2: `tskl-0lb.2`
+
+This approach breaks down when multiple agents create children concurrently:
+
+1. Agent A reads parent `tskl-0lb`, sees it has 2 children, creates `tskl-0lb.3`
+2. Agent B reads parent `tskl-0lb` (same state), sees it has 2 children, creates `tskl-0lb.3`
+3. Both agents commit their changes
+4. Git merge succeeds (different files), but both issues have ID `tskl-0lb.3`
+
+The collision occurs because the ID generation depends on reading the current count of children, which becomes stale in concurrent workflows.
+
+### The Kanbus Approach
+
+Kanbus generates IDs using SHA256 hashes of the title plus a random nonce, producing globally unique identifiers without coordination:
+- Parent: `kanbus-a1b2c3`
+- Child 1: `kanbus-d4e5f6` (with `parent: kanbus-a1b2c3` field)
+- Child 2: `kanbus-g7h8i9` (with `parent: kanbus-a1b2c3` field)
+
+Multiple agents can create children of the same parent simultaneously without collision risk. The hierarchy is maintained through explicit parent pointers in the issue data, not encoded in the ID format.
+
+This design principle applies throughout Kanbus: hierarchy should be rendered from the graph structure, not encoded in identifiers. IDs are opaque handles; relationships are first-class data.

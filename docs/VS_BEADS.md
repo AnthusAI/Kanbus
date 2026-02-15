@@ -87,3 +87,26 @@ Kanbus leverages the existing Git model for scoping:
 *   **Monorepo Support:** Run `kanbus list` at the root to see everything. Run it in a subfolder to see only that folder's tasks.
 *   **Local Tasks:** Want private tasks that aren't shared? Just put them in a folder and add it to `.gitignore`. Kanbus will still index them for you locally, but they won't be committed.
 *   **Simple Mental Model:** You don't need to learn a new permission system. You just use `.gitignore` like you do for everything else.
+
+## 6. Per-Project Keys with Shared Datastore
+
+Beads assigns each project a fixed project key based on repository structure, which can cause ID collisions when multiple projects share a central datastore or when migrating between repositories.
+
+**The Kanbus Solution:**
+Kanbus uses configurable `project_key` per repository (set in `.kanbus.yml`). When multiple projects share a central datastore, each project maintains its own namespace, preventing ID collisions. For example:
+- Repository A uses `project_key: frontend` → IDs like `frontend-a1b2c3`
+- Repository B uses `project_key: backend` → IDs like `backend-d4e5f6`
+
+Both can write to the same `project/` directory without collision risk, enabling centralized tracking across multiple codebases while keeping issue identifiers globally unique.
+
+## 7. Colorized CLI Output
+
+Beads always emits its own formatting in list/show commands, making it difficult to parse output programmatically or control when colors appear.
+
+**The Kanbus Solution:**
+Kanbus provides:
+- **Human-Friendly Mode (default):** Colorized output with status colors, priority indicators, and type badges
+- **Porcelain Mode (`--porcelain`):** Plain text output with consistent field ordering, suitable for scripting and parsing
+- **Color Control:** Respects `NO_COLOR` environment variable and TTY detection
+
+This allows both pleasant terminal UX and reliable machine consumption of the same commands.
