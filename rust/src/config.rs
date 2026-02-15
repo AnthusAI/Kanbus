@@ -95,6 +95,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
     ProjectConfiguration {
         project_directory: "project".to_string(),
         external_projects: Vec::new(),
+        ignore_paths: Vec::new(),
         project_key: "kanbus".to_string(),
         project_management_template: None,
         hierarchy: vec![

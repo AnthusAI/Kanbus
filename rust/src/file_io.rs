@@ -198,6 +198,7 @@ pub fn load_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
     discover_project_directories(root, &mut projects)?;
     let mut dotfile_projects = discover_kanbus_projects(root)?;
     projects.append(&mut dotfile_projects);
+
     let mut normalized = Vec::new();
     for path in projects {
         match canonicalize_path(&path) {
@@ -207,6 +208,23 @@ pub fn load_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
     }
     normalized.sort();
     normalized.dedup();
+
+    let config_path = match get_configuration_path(root) {
+        Ok(path) => path,
+        Err(_) => return filter_and_validate_projects(normalized),
+    };
+
+    if let Ok(configuration) = load_project_configuration(&config_path) {
+        let base = config_path.parent().unwrap_or_else(|| Path::new(""));
+        normalized.retain(|project_path| {
+            !is_path_ignored(project_path, base, &configuration.ignore_paths)
+        });
+    }
+
+    filter_and_validate_projects(normalized)
+}
+
+fn filter_and_validate_projects(normalized: Vec<PathBuf>) -> Result<PathBuf, KanbusError> {
     if normalized.is_empty() {
         return Err(KanbusError::IssueOperation(
             "project not initialized".to_string(),
@@ -366,7 +384,9 @@ fn resolve_project_directories(
 ) -> Result<Vec<PathBuf>, KanbusError> {
     let mut projects = Vec::new();
     let primary = base.join(&configuration.project_directory);
-    projects.push(primary);
+    if !is_path_ignored(&primary, base, &configuration.ignore_paths) {
+        projects.push(primary);
+    }
     for extra in &configuration.external_projects {
         let candidate = Path::new(extra);
         let resolved = if candidate.is_absolute() {
@@ -380,9 +400,25 @@ fn resolve_project_directories(
                 resolved.display()
             )));
         }
-        projects.push(resolved);
+        if !is_path_ignored(&resolved, base, &configuration.ignore_paths) {
+            projects.push(resolved);
+        }
     }
     Ok(projects)
+}
+
+fn is_path_ignored(path: &Path, base: &Path, ignore_paths: &[String]) -> bool {
+    for ignore_pattern in ignore_paths {
+        let ignore_path = base.join(ignore_pattern);
+        if let Ok(ignore_canonical) = ignore_path.canonicalize() {
+            if let Ok(path_canonical) = path.canonicalize() {
+                if path_canonical == ignore_canonical {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 fn find_git_root(root: &Path) -> Option<PathBuf> {

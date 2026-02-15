@@ -50,6 +50,8 @@ pub struct ProjectConfiguration {
     pub project_directory: String,
     #[serde(default)]
     pub external_projects: Vec<String>,
+    #[serde(default)]
+    pub ignore_paths: Vec<String>,
     pub project_key: String,
     #[serde(default)]
     pub project_management_template: Option<String>,

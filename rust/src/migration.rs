@@ -549,6 +549,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
     ProjectConfiguration {
         project_directory: "project".to_string(),
         external_projects: Vec::new(),
+        ignore_paths: Vec::new(),
         project_key: "BD".to_string(),
         project_management_template: None,
         hierarchy: vec![
