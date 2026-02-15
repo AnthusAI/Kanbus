@@ -382,10 +382,7 @@ fn convert_dependencies(
                 };
             match validation_result {
                 Ok(()) => {}
-                Err(KanbusError::InvalidHierarchy(message)) => {
-                    eprintln!(
-                        "Suggestion: {message}. Remove the parent from '{identifier}' or update the hierarchy in project/config.yaml to allow this relationship."
-                    );
+                Err(KanbusError::InvalidHierarchy(_message)) => {
                     parent = None;
                 }
                 Err(error) => return Err(error),
