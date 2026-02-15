@@ -409,7 +409,7 @@ def main(argv: list[str]) -> int:
     )
     parser.add_argument(
         "--beads-branch",
-        default=None,
+        default="v0.50.3",
         help="Optional Beads branch or tag to clone.",
     )
     parser.add_argument(
