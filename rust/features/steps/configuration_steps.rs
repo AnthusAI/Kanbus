@@ -427,6 +427,17 @@ fn given_invalid_config_missing_default_priority(world: &mut KanbusWorld) {
     });
 }
 
+#[given("a Kanbus project with an invalid configuration containing unknown initial status")]
+fn given_invalid_config_unknown_initial_status(world: &mut KanbusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        mapping.insert(
+            Value::String("initial_status".to_string()),
+            Value::String("ghost".to_string()),
+        );
+    });
+}
+
 #[given("a Kanbus project with an invalid configuration containing wrong field types")]
 fn given_invalid_config_wrong_field_types(world: &mut KanbusWorld) {
     initialize_project(world);

@@ -185,6 +185,7 @@ fn cover_additional_paths() {
         Some("in_progress"),
         Some("dev@example.com"),
         true,
+        true,
     );
     let _ = update_issue(
         root,
@@ -194,6 +195,7 @@ fn cover_additional_paths() {
         None,
         None,
         false,
+        true,
     );
     let _ = update_issue(
         root,
@@ -203,6 +205,7 @@ fn cover_additional_paths() {
         Some("open"),
         None,
         false,
+        true,
     );
     let _ = update_issue(
         root,
@@ -212,6 +215,7 @@ fn cover_additional_paths() {
         None,
         Some("dev@example.com"),
         false,
+        true,
     );
 
     let _ = add_dependency(
@@ -241,6 +245,7 @@ fn cover_additional_paths() {
         None,
         None,
         false,
+        true,
     );
 
     let _ = list_issues(root, None, None, None, None, None, None, true, false);
@@ -388,6 +393,7 @@ fn cover_additional_paths() {
         Some("open"),
         None,
         false,
+        true,
     );
 
     let temp_dir = TempDir::new().expect("tempdir");

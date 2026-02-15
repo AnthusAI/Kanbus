@@ -120,6 +120,19 @@ fn when_run_update_invalid_status(world: &mut KanbusWorld) {
     run_cli(world, "kanbus update kanbus-aaa --status blocked");
 }
 
+#[when("I run \"kanbus update kanbus-aaa --status does_not_exist\"")]
+fn when_run_update_unknown_status(world: &mut KanbusWorld) {
+    run_cli(world, "kanbus update kanbus-aaa --status does_not_exist");
+}
+
+#[when("I run \"kanbus update kanbus-aaa --status does_not_exist --no-validate\"")]
+fn when_run_update_unknown_status_no_validate(world: &mut KanbusWorld) {
+    run_cli(
+        world,
+        "kanbus update kanbus-aaa --status does_not_exist --no-validate",
+    );
+}
+
 #[when("I run \"kanbus update kanbus-aaa\"")]
 fn when_run_update_no_changes(world: &mut KanbusWorld) {
     run_cli(world, "kanbus update kanbus-aaa");

@@ -204,6 +204,14 @@ fn when_run_create_invalid_type(world: &mut KanbusWorld) {
     run_cli(world, "kanbus create Bad Issue --type nonexistent");
 }
 
+#[when("I run \"kanbus create Bad Parent --type epic --parent kanbus-epic01 --no-validate\"")]
+fn when_run_create_invalid_parent_no_validate(world: &mut KanbusWorld) {
+    run_cli(
+        world,
+        "kanbus create Bad Parent --type epic --parent kanbus-epic01 --no-validate",
+    );
+}
+
 #[when("I run \"kanbus create Orphan --parent kanbus-nonexistent\"")]
 fn when_run_create_missing_parent(world: &mut KanbusWorld) {
     run_cli(world, "kanbus create Orphan --parent kanbus-nonexistent");
