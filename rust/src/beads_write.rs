@@ -131,31 +131,76 @@ pub fn update_beads_issue(
     }
 
     let mut records = load_beads_records(&issues_path)?;
-    let mut updated = false;
+    let mut exact_match_index = None;
+    let mut partial_match_indices = Vec::new();
+
+    for (index, record) in records.iter().enumerate() {
+        if let Some(record_id) = record.get("id").and_then(|id| id.as_str()) {
+            if record_id == identifier {
+                exact_match_index = Some(index);
+                break;
+            } else if issue_id_matches_beads(identifier, record_id) {
+                partial_match_indices.push((index, record_id.to_string()));
+            }
+        }
+    }
+
+    let match_index = if let Some(index) = exact_match_index {
+        index
+    } else {
+        match partial_match_indices.len() {
+            0 => return Err(KanbusError::IssueOperation("not found".to_string())),
+            1 => partial_match_indices[0].0,
+            _ => {
+                let ids: Vec<String> = partial_match_indices.iter().map(|(_, id)| id.clone()).collect();
+                return Err(KanbusError::IssueOperation(format!(
+                    "ambiguous identifier, matches: {}",
+                    ids.join(", ")
+                )));
+            }
+        }
+    };
+
     let updated_at = Utc::now().to_rfc3339();
-    for record in records.iter_mut() {
-        if record.get("id").and_then(|id| id.as_str()) != Some(identifier) {
-            continue;
-        }
-        if let Some(new_status) = status {
-            record
-                .as_object_mut()
-                .expect("beads record")
-                .insert("status".to_string(), json!(new_status));
-        }
+    let record = &mut records[match_index];
+
+    if let Some(new_status) = status {
         record
             .as_object_mut()
             .expect("beads record")
-            .insert("updated_at".to_string(), json!(updated_at));
-        updated = true;
-        break;
+            .insert("status".to_string(), json!(new_status));
     }
-    if !updated {
-        return Err(KanbusError::IssueOperation("not found".to_string()));
-    }
+    record
+        .as_object_mut()
+        .expect("beads record")
+        .insert("updated_at".to_string(), json!(updated_at));
 
     write_beads_records(&issues_path, &records)?;
     load_beads_issue_by_id(root, identifier)
+}
+
+/// Check if an abbreviated identifier matches a full identifier for beads.
+///
+/// # Arguments
+/// * `abbreviated` - Abbreviated ID (e.g., "tskl-abcdef", "custom-uuid00").
+/// * `full_id` - Full ID (e.g., "tskl-abcdef2", "custom-uuid-0000001").
+///
+/// # Returns
+/// True if abbreviated ID matches the full ID.
+fn issue_id_matches_beads(abbreviated: &str, full_id: &str) -> bool {
+    use crate::ids::format_issue_key;
+
+    let abbreviated_formatted = format_issue_key(full_id, false);
+
+    if abbreviated == abbreviated_formatted {
+        return true;
+    }
+
+    if abbreviated.len() >= full_id.len() {
+        return false;
+    }
+
+    full_id.starts_with(abbreviated)
 }
 
 fn load_beads_records(path: &Path) -> Result<Vec<Value>, KanbusError> {

@@ -53,6 +53,26 @@ const IndexPage = () => {
                 the project files directly.
               </CardContent>
             </Card>
+            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
+              <CardHeader className="p-0 mb-3">
+                <h3 className="text-xl font-bold text-foreground">Collision-Free IDs</h3>
+              </CardHeader>
+              <CardContent className="p-0 text-muted leading-relaxed">
+                Kanbus assigns hash-based unique IDs to avoid collisions during concurrent edits.
+                Unlike hierarchical numbering schemes, hash IDs work safely when multiple agents
+                create child issues in parallel.
+              </CardContent>
+            </Card>
+            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
+              <CardHeader className="p-0 mb-3">
+                <h3 className="text-xl font-bold text-foreground">Shared Datastore Support</h3>
+              </CardHeader>
+              <CardContent className="p-0 text-muted leading-relaxed">
+                Multiple projects can point to a shared data store while keeping project_key per issue
+                to prevent collisions. Track work across codebases with centralized visibility and
+                per-project namespacing.
+              </CardContent>
+            </Card>
           </div>
         </Section>
 
