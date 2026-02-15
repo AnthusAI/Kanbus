@@ -219,12 +219,20 @@ def build_beads_cli(beads_repo: Path, output_dir: Path) -> Path:
     :raises RuntimeError: If the build fails or binary is missing.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
+    suppress_beads_test_helpers(beads_repo)
     binary = output_dir / "bd"
     result = run_command(["go", "build", "-o", str(binary), "./cmd/bd"], cwd=beads_repo)
     ensure_success(result, "bd build")
     if not binary.exists():
         raise RuntimeError("bd binary not found after build")
     return binary
+
+
+def suppress_beads_test_helpers(beads_repo: Path) -> None:
+    """Disable Beads test-only helpers that break `go build` in CI."""
+    helper = beads_repo / "cmd" / "bd" / "test_wait_helper.go"
+    if helper.exists():
+        helper.rename(helper.with_suffix(".go.disabled"))
 
 
 def run_beads_list(
