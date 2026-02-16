@@ -1,0 +1,20 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm install
+        # Build the UI package first
+        - cd packages/ui && npm install && npm run build && cd ../..
+    build:
+      commands:
+        - cd apps/kanb.us && npm run build
+  artifacts:
+    baseDirectory: apps/kanb.us/public
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - packages/ui/node_modules/**/*
+      - apps/kanb.us/node_modules/**/*
