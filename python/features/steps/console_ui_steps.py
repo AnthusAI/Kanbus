@@ -337,9 +337,7 @@ def when_open_console_route(context: object, route: str) -> None:
     elif "/epics/" in route or route.endswith("/epics"):
         state.selected_tab = "Epics"
     # Handle general issues route
-    elif "/issues/" in route and not any(
-        x in route for x in ["/kanbus-", "/acme/"]
-    ):
+    elif "/issues/" in route and not any(x in route for x in ["/kanbus-", "/acme/"]):
         state.selected_tab = "Issues"
     # Handle prefixed routes like /acme/widgets/epics/
     elif "/acme/" in route and "/epics/" in route:

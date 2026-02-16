@@ -99,4 +99,6 @@ def then_stdout_not_lists_issue(context: object, identifier: str) -> None:
     if matches:
         print(f"Expected issue '{identifier}' to NOT appear in list output, but it did")
         print(f"ACTUAL STDOUT:\n{stdout}")
-    assert not matches, f"issue {identifier} found in list output but should not be there"
+    assert (
+        not matches
+    ), f"issue {identifier} found in list output but should not be there"

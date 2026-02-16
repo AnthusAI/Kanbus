@@ -439,6 +439,7 @@ priorities:
 def given_kanbus_project_key_not_set(context: object) -> None:
     """Ensure KANBUS_PROJECT_KEY environment variable is not set."""
     import os
+
     if "KANBUS_PROJECT_KEY" in os.environ:
         del os.environ["KANBUS_PROJECT_KEY"]
 
@@ -457,7 +458,9 @@ def given_no_kanbus_yml(context: object) -> None:
         dotkanbus_yml.unlink()
 
 
-@given('a Kanbus project with a file "kanbus.yml" containing an unknown top-level field')
+@given(
+    'a Kanbus project with a file "kanbus.yml" containing an unknown top-level field'
+)
 def given_kanbus_yml_unknown_field(context: object) -> None:
     """Create kanbus.yml with unknown field."""
     initialize_default_project(context)
@@ -481,7 +484,9 @@ hierarchy: [custom, levels]
     context.validation_not_implemented = True
 
 
-@given('a Kanbus project with a file "kanbus.yml" where issue type "bug" has no workflow binding')
+@given(
+    'a Kanbus project with a file "kanbus.yml" where issue type "bug" has no workflow binding'
+)
 def given_kanbus_yml_missing_workflow(context: object) -> None:
     """Create kanbus.yml with issue type lacking workflow."""
     initialize_default_project(context)
@@ -552,10 +557,6 @@ def when_load_config(context: object) -> None:
     repository = Path(context.working_directory)
     config_path = repository / "kanbus.yml"
 
-    if not config_path.exists():
-        # Check for .kanbus.yml as fallback
-        config_path = repository / ".kanbus.yml"
-
     # Check if this test requires validation that's not yet implemented
     if getattr(context, "validation_not_implemented", False):
         # Simulate validation failure for tests requiring unimplemented validation
@@ -563,8 +564,11 @@ def when_load_config(context: object) -> None:
         context.result = SimpleNamespace(
             exit_code=1,
             stdout="",
-            stderr="hierarchy is fixed" if "hierarchy" in config_path.read_text()
-                   else "missing workflow binding for issue type"
+            stderr=(
+                "hierarchy is fixed"
+                if config_path.exists() and "hierarchy" in config_path.read_text()
+                else "missing workflow binding for issue type"
+            ),
         )
         return
 
@@ -597,7 +601,9 @@ def when_update_issue_to_status(context: object, identifier: str, status: str) -
 def when_save_through_kanbus(context: object) -> None:
     """Save issue through Kanbus, normalizing priority."""
     # Simulate normalization
-    if hasattr(context, "priority_aliases") and hasattr(context, "imported_issue_priority"):
+    if hasattr(context, "priority_aliases") and hasattr(
+        context, "imported_issue_priority"
+    ):
         priority = context.imported_issue_priority
         if priority in context.priority_aliases:
             context.stored_priority = context.priority_aliases[priority]
@@ -661,7 +667,5 @@ def then_attempt_priority_update(context: object, priority: str) -> None:
         if priority not in context.canonical_priorities:
             # Set error result
             context.result = SimpleNamespace(
-                exit_code=1,
-                stdout="",
-                stderr="invalid priority"
+                exit_code=1, stdout="", stderr="invalid priority"
             )

@@ -703,7 +703,10 @@ def stats() -> None:
     click.echo("\n".join(lines))
 
 
-@cli.command("dep", context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False})
+@cli.command(
+    "dep",
+    context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
 @click.argument("args", nargs=-1, required=True)
 @click.pass_context
 def dep(context: click.Context, args: tuple[str, ...]) -> None:

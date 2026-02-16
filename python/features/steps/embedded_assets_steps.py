@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import os
-import subprocess
-import time
 from pathlib import Path
 
-import requests
 from behave import given, then, when
 
 
@@ -78,8 +75,9 @@ def then_server_starts_successfully(context: object) -> None:
 @then('the startup message shows "(embedded assets)"')
 def then_startup_shows_embedded_assets(context: object) -> None:
     """Verify the startup message indicates embedded assets."""
-    assert "(embedded assets)" in context.startup_message, \
-        "Startup message does not show embedded assets"
+    assert (
+        "(embedded assets)" in context.startup_message
+    ), "Startup message does not show embedded assets"
 
 
 @then("I can access http://127.0.0.1:5174/")
@@ -133,8 +131,9 @@ def then_embedded_not_used(context: object) -> None:
 @then("assets are served from apps/console/dist")
 def then_assets_from_dist(context: object) -> None:
     """Verify assets are served from apps/console/dist."""
-    assert os.environ.get("CONSOLE_ASSETS_ROOT") == "apps/console/dist", \
-        "CONSOLE_ASSETS_ROOT not set to apps/console/dist"
+    assert (
+        os.environ.get("CONSOLE_ASSETS_ROOT") == "apps/console/dist"
+    ), "CONSOLE_ASSETS_ROOT not set to apps/console/dist"
 
 
 @then("the binary does not contain embedded assets")
