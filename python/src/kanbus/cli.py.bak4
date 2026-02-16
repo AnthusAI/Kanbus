@@ -705,21 +705,21 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
     Usage: kanbus dep <identifier> <blocked-by|relates-to> <target>
            kanbus dep <identifier> remove <blocked-by|relates-to> <target>
     """
-    if len(args) < 2:
+    if len(args) < 3:
         raise click.ClickException("usage: kanbus dep <identifier> <type> <target> OR kanbus dep <identifier> remove <type> <target>")
 
     identifier = args[0]
 
     # Check if this is a remove operation
-    if len(args) > 1 and args[1] == "remove":
-        if len(args) < 4:
-            raise click.ClickException("dependency target is required")
+    if args[1] == "remove":
+        if len(args) != 4:
+            raise click.ClickException("usage: kanbus dep <identifier> remove <type> <target>")
         dep_type = args[2]
         target = args[3]
         is_remove = True
     else:
-        if len(args) < 3:
-            raise click.ClickException("dependency target is required")
+        if len(args) != 3:
+            raise click.ClickException("usage: kanbus dep <identifier> <type> <target>")
         dep_type = args[1]
         target = args[2]
         is_remove = False
@@ -762,6 +762,89 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
                 raise click.ClickException(str(error)) from error
 
 
+# @dep.command("remove")
+# @click.argument("identifier")
+# @click.argument("dep_type", required=False)
+# @click.argument("target", required=False)
+# @click.option("--blocked-by")
+# @click.option("--relates-to")
+# @click.pass_context
+# def dep_remove(context: click.Context, identifier: str, dep_type: str | None, target: str | None, blocked_by: str | None, relates_to: str | None) -> None:
+#     """Remove a dependency from an issue.
+# 
+#     Usage: kanbus dep remove <identifier> <blocked-by|relates-to> <target>
+#            kanbus dep remove <identifier> --blocked-by <target>
+# 
+#     :param identifier: Issue identifier.
+#     :type identifier: str
+#     :param dep_type: Dependency type (blocked-by or relates-to).
+#     :type dep_type: str | None
+#     :param target: Target issue identifier.
+#     :type target: str | None
+#     :param blocked_by: Blocked-by dependency target.
+#     :type blocked_by: str | None
+#     :param relates_to: Relates-to dependency target.
+#     :type relates_to: str | None
+#     :raises click.ClickException: If dependency removal fails.
+#     """
+#     # Support both positional and option-based syntax
+#     if dep_type and target:
+#         target_id = target
+#         dependency_type = dep_type
+#     else:
+#         target_id = blocked_by or relates_to
+#         dependency_type = "blocked-by" if blocked_by else "relates-to"
+# 
+#     if target_id is None:
+#         raise click.ClickException("dependency target is required")
+# 
+#     root = Path.cwd()
+#     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+# 
+#     # Check if beads_compatibility is enabled in config
+#     if not beads_mode:
+#         try:
+#             config = load_project_configuration(get_configuration_path(root))
+#             if config.beads_compatibility:
+#                 beads_mode = True
+#         except (ConfigurationError, ProjectMarkerError):
+#             pass
+# 
+#     if beads_mode:
+#         try:
+#             from kanbus.beads_write import remove_beads_dependency
+#             remove_beads_dependency(root, identifier, target_id, dependency_type)
+#         except BeadsWriteError as error:
+#             raise click.ClickException(str(error)) from error
+#     else:
+#         try:
+#             remove_dependency(root, identifier, target_id, dependency_type)
+#         except DependencyError as error:
+#             raise click.ClickException(str(error)) from error
+# 
+
+# @dep.command("tree")
+# @click.argument("identifier")
+# @click.option("--depth", type=int)
+# @click.option("--format", "output_format", default="text")
+# def dep_tree(identifier: str, depth: int | None, output_format: str) -> None:
+#     """Display dependency tree for an issue.
+# 
+#     :param identifier: Issue identifier.
+#     :type identifier: str
+#     :param depth: Optional depth limit.
+#     :type depth: int | None
+#     :param output_format: Output format (text, json, dot).
+#     :type output_format: str
+#     :raises click.ClickException: If tree generation fails.
+#     """
+#     root = Path.cwd()
+#     try:
+#         tree = build_dependency_tree(root, identifier, depth)
+#         output = render_dependency_tree(tree, output_format)
+#     except DependencyTreeError as error:
+#         raise click.ClickException(str(error)) from error
+#     click.echo(output)
 
 
 @cli.command("ready")

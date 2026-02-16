@@ -38,7 +38,7 @@ Feature: Issue dependencies
     And issues "kanbus-a" and "kanbus-b" exist
     And issue "kanbus-a" depends on "kanbus-b" with type "blocked-by"
     And a non-issue file exists in the issues directory
-    When I run "kanbus dep kanbus-b blocked-by kanbus-a"
+    When I run "kanbus dep add kanbus-b --blocked-by kanbus-a"
     Then the command should fail with exit code 1
     And stderr should contain "cycle detected"
 
@@ -77,14 +77,14 @@ Feature: Issue dependencies
   Scenario: Dependency add requires a target
     Given a Kanbus project with default configuration
     And issues "kanbus-child" and "kanbus-parent" exist
-    When I run "kanbus dep kanbus-child blocked-by"
+    When I run "kanbus dep add kanbus-child"
     Then the command should fail with exit code 1
     And stderr should contain "dependency target is required"
 
   Scenario: Dependency remove requires a target
     Given a Kanbus project with default configuration
     And issues "kanbus-child" and "kanbus-parent" exist
-    When I run "kanbus dep kanbus-child remove blocked-by"
+    When I run "kanbus dep remove kanbus-child"
     Then the command should fail with exit code 1
     And stderr should contain "dependency target is required"
 
@@ -98,13 +98,13 @@ Feature: Issue dependencies
   Scenario: Add dependency fails for missing issue
     Given a Kanbus project with default configuration
     And an issue "kanbus-parent" exists
-    When I run "kanbus dep kanbus-missing blocked-by kanbus-parent"
+    When I run "kanbus dep add kanbus-missing --blocked-by kanbus-parent"
     Then the command should fail with exit code 1
     And stderr should contain "not found"
 
   Scenario: Remove dependency fails for missing issue
     Given a Kanbus project with default configuration
-    When I run "kanbus dep kanbus-missing remove blocked-by kanbus-parent"
+    When I run "kanbus dep remove kanbus-missing --blocked-by kanbus-parent"
     Then the command should fail with exit code 1
     And stderr should contain "not found"
 
@@ -112,7 +112,7 @@ Feature: Issue dependencies
     Given a Kanbus project with default configuration
     And issues "kanbus-left" and "kanbus-right" exist
     And issue "kanbus-left" depends on "kanbus-right" with type "blocked-by"
-    When I run "kanbus dep kanbus-left blocked-by kanbus-right"
+    When I run "kanbus dep add kanbus-left --blocked-by kanbus-right"
     Then the command should succeed
     And issue "kanbus-left" should have 1 dependency
 
@@ -157,7 +157,7 @@ Feature: Issue dependencies
     And issue "kanbus-a" depends on "kanbus-b" with type "blocked-by"
     And issue "kanbus-b" depends on "kanbus-d" with type "blocked-by"
     And issue "kanbus-c" depends on "kanbus-d" with type "blocked-by"
-    When I run "kanbus dep kanbus-a blocked-by kanbus-c"
+    When I run "kanbus dep add kanbus-a --blocked-by kanbus-c"
     Then the command should succeed
 
   Scenario: Ready filtering rejects local-only conflicts
