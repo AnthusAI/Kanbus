@@ -31,15 +31,6 @@ project_directory: project
 project_key: kanbus
 YAML
 
-mkdir -p "$work_dir/assets"
-cat > "$work_dir/assets/index.html" <<'HTML'
-<!doctype html>
-<html lang="en">
-  <head><meta charset="utf-8"><title>Kanbus Console</title></head>
-  <body>Kanbus Console</body>
-</html>
-HTML
-
 chmod +x "$kanbusr_bin" "$console_bin"
 
 docker run --rm \
@@ -52,14 +43,32 @@ docker run --rm \
     apt-get install -y curl >/dev/null
     ls -la /dist
     /dist/kanbusr --version
-    CONSOLE_DATA_ROOT=/data CONSOLE_ASSETS_ROOT=/data/assets CONSOLE_PORT=5174 /dist/kanbus-console >/tmp/console.log 2>&1 &
+
+    # Test embedded assets (NO CONSOLE_ASSETS_ROOT)
+    CONSOLE_DATA_ROOT=/data CONSOLE_PORT=5174 /dist/kanbus-console >/tmp/console.log 2>&1 &
     server_pid=$!
+
     for _ in $(seq 1 30); do
       if curl -sf http://127.0.0.1:5174/api/config >/dev/null; then
         break
       fi
       sleep 0.5
     done
+
+    # Verify API works
     curl -sf http://127.0.0.1:5174/api/issues >/dev/null
+
+    # Verify frontend loads
+    curl -sf http://127.0.0.1:5174/ | grep -q "<!doctype html"
+
+    # Verify JS assets load
+    asset_path=$(curl -sf http://127.0.0.1:5174/ | grep -oP "assets/index-[^\"]+\.js" | head -1)
+    if [ -n "$asset_path" ]; then
+      curl -sf "http://127.0.0.1:5174/$asset_path" >/dev/null
+    fi
+
+    # Verify startup message shows embedded assets
+    grep -q "embedded assets" /tmp/console.log
+
     kill "$server_pid"
   '

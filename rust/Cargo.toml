@@ -32,6 +32,7 @@ tokio-stream = "0.1"
 futures-util = "0.3"
 axum = { version = "0.7", features = ["tokio", "http1"] }
 mime_guess = "2.0"
+rust-embed = { version = "8.5", optional = true }
 
 [dev-dependencies]
 cucumber = "0.21"
@@ -41,6 +42,11 @@ regex = "1.10.4"
 shell-words = "1.1.0"
 futures = "0.3"
 chrono-tz = "0.8"
+reqwest = { version = "0.12", features = ["blocking"] }
+
+[features]
+default = []
+embed-assets = ["rust-embed"]
 
 [[test]]
 name = "cucumber"

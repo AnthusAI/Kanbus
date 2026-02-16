@@ -3,6 +3,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
+use std::io::{self, IsTerminal, Write};
 use std::net::SocketAddr;
 use std::path::Path as StdPath;
 use std::path::PathBuf;
@@ -28,6 +29,14 @@ use tokio_stream::wrappers::IntervalStream;
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
 
+#[cfg(feature = "embed-assets")]
+use rust_embed::RustEmbed;
+
+#[cfg(feature = "embed-assets")]
+#[derive(RustEmbed)]
+#[folder = "../apps/console/dist"]
+struct EmbeddedAssets;
+
 #[derive(Clone)]
 struct AppState {
     base_root: PathBuf,
@@ -37,7 +46,7 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
-    let port = std::env::var("CONSOLE_PORT")
+    let desired_port = std::env::var("CONSOLE_PORT")
         .ok()
         .and_then(|value| value.parse::<u16>().ok())
         .unwrap_or(5174);
@@ -96,15 +105,69 @@ async fn main() {
         .fallback(get(get_asset_root))
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    println!("Console backend listening on http://{addr}");
+    let (listener, port) = acquire_listener(desired_port).await;
 
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind failed");
+    #[cfg(feature = "embed-assets")]
+    println!("Console backend listening on http://127.0.0.1:{port} (embedded assets)");
+    #[cfg(not(feature = "embed-assets"))]
+    println!("Console backend listening on http://127.0.0.1:{port}");
+
     axum::serve(listener, app.into_make_service())
         .await
         .expect("server failure");
+}
+
+async fn acquire_listener(desired_port: u16) -> (tokio::net::TcpListener, u16) {
+    let initial_addr = SocketAddr::from(([127, 0, 0, 1], desired_port));
+    match tokio::net::TcpListener::bind(initial_addr).await {
+        Ok(listener) => (listener, desired_port),
+        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+            let fallback_port = desired_port.saturating_add(1);
+            if fallback_port > u16::MAX - 1 {
+                exit_with_port_error(desired_port, "No valid fallback port is available.");
+            }
+            let consented = if io::stdin().is_terminal() && io::stdout().is_terminal() {
+                prompt_for_port_switch(desired_port, fallback_port)
+            } else {
+                eprintln!(
+                    "Console port {desired_port} is in use. Switching automatically to {fallback_port}."
+                );
+                true
+            };
+            if !consented {
+                exit_with_port_error(
+                    desired_port,
+                    "Port is in use. Set CONSOLE_PORT to a free port and retry.",
+                );
+            }
+            let fallback_addr = SocketAddr::from(([127, 0, 0, 1], fallback_port));
+            match tokio::net::TcpListener::bind(fallback_addr).await {
+                Ok(listener) => (listener, fallback_port),
+                Err(fallback_error) => exit_with_port_error(
+                    desired_port,
+                    &format!(
+                        "Port {desired_port} is in use and fallback port {fallback_port} failed: {fallback_error}"
+                    ),
+                ),
+            }
+        }
+        Err(error) => exit_with_port_error(desired_port, &format!("Failed to bind: {error}")),
+    }
+}
+
+fn prompt_for_port_switch(current: u16, fallback: u16) -> bool {
+    print!("Console port {current} is already in use. Bump to {fallback}? [y/N] ");
+    let _ = io::stdout().flush();
+    let mut buffer = String::new();
+    if io::stdin().read_line(&mut buffer).is_err() {
+        return false;
+    }
+    buffer.trim().to_lowercase().starts_with('y')
+}
+
+fn exit_with_port_error(port: u16, message: &str) -> ! {
+    eprintln!("{message} (requested port: {port})");
+    std::process::exit(1);
 }
 
 async fn get_config(
@@ -390,6 +453,31 @@ async fn get_public_asset(
 }
 
 fn serve_asset(state: &AppState, asset_path: &str) -> Response {
+    // Try embedded assets first (if feature enabled)
+    #[cfg(feature = "embed-assets")]
+    {
+        if let Some(embedded_file) = EmbeddedAssets::get(asset_path) {
+            let content_type = mime_guess::from_path(asset_path)
+                .first_or_octet_stream()
+                .to_string();
+            return Response::builder()
+                .status(StatusCode::OK)
+                .header(CONTENT_TYPE, content_type)
+                .body(Body::from(embedded_file.data.into_owned()))
+                .unwrap_or_else(|_| {
+                    error_response(
+                        "embedded asset response failed",
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                });
+        }
+    }
+
+    // Fallback to filesystem (development or override)
+    serve_asset_from_filesystem(state, asset_path)
+}
+
+fn serve_asset_from_filesystem(state: &AppState, asset_path: &str) -> Response {
     let asset_root = match state.assets_root.canonicalize() {
         Ok(root) => root,
         Err(error) => {
