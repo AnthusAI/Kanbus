@@ -1,4 +1,3 @@
-#![cfg_attr(tarpaulin, skip)]
 //! CLI command definitions.
 
 use std::ffi::OsString;

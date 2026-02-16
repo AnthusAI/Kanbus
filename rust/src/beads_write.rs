@@ -1,4 +1,3 @@
-#![cfg_attr(tarpaulin, skip)]
 //! Beads compatibility write helpers.
 
 use chrono::Utc;

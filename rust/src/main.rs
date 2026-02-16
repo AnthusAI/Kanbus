@@ -1,4 +1,3 @@
-#![cfg_attr(tarpaulin, skip)]
 use kanbus::cli::run_from_env;
 
 fn main() {

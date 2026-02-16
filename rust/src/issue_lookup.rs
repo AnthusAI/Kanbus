@@ -1,4 +1,3 @@
-#![cfg_attr(tarpaulin, skip)]
 //! Issue lookup helpers for project directories.
 
 use std::fs;

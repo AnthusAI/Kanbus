@@ -1,4 +1,3 @@
-#![cfg_attr(tarpaulin, skip)]
 //! Beads to Kanbus migration helpers.
 
 use std::collections::{BTreeMap, HashMap, HashSet};

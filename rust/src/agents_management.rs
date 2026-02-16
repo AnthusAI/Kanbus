@@ -1,4 +1,3 @@
-#![cfg_attr(tarpaulin, skip)]
 //! Helpers for managing AGENTS.md Kanbus instructions.
 
 use std::collections::{BTreeMap, BTreeSet};

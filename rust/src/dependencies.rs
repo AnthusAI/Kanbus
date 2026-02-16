@@ -1,4 +1,3 @@
-#![cfg_attr(tarpaulin, skip)]
 //! Dependency management utilities.
 
 use std::collections::{HashMap, HashSet};
