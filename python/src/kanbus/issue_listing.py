@@ -56,9 +56,6 @@ def list_issues(
             issues = load_beads_issues(root)
         except MigrationError as error:
             raise IssueListingError(str(error)) from error
-        # Beads filters out closed issues by default when no status filter is specified
-        if status is None:
-            issues = [issue for issue in issues if issue.status != "closed"]
         return _apply_query(issues, status, issue_type, assignee, label, sort, search)
     try:
         project_dirs = discover_project_directories(root)
