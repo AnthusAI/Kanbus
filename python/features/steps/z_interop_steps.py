@@ -175,7 +175,7 @@ def given_beads_issue_with_parent(context: object, child: str, parent_id: str) -
 
 @given('a kanbus issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)"')
 def given_kanbus_issue_with_parent(context: object, child: str, parent_id: str) -> None:
-    """Create a Kanbus issue with a parent relationship."""
+    """Create a Beads issue with a parent relationship for interoperability testing."""
     issues_path = context.working_directory / ".beads" / "issues.jsonl"
     issue_record = {
         "id": child,

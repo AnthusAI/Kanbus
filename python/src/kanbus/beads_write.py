@@ -465,10 +465,14 @@ def add_beads_dependency(
     if source_record and target_record:
         # Check if target is a child of identifier
         if target_record.get("parent") == identifier:
-            raise BeadsWriteError("circular dependency: cannot depend on your own child")
+            raise BeadsWriteError(
+                "circular dependency: cannot depend on your own child"
+            )
         # Check if identifier is a child of target
         if source_record.get("parent") == target:
-            raise BeadsWriteError("circular dependency: cannot depend on your own parent")
+            raise BeadsWriteError(
+                "circular dependency: cannot depend on your own parent"
+            )
 
     # Add dependency to the issue
     for record in records:
