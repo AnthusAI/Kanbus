@@ -350,8 +350,12 @@ def delete_beads_issue(root: Path, identifier: str) -> None:
         dependencies = record.get("dependencies", [])
         if dependencies:
             new_deps = [
-                dep for dep in dependencies
-                if not (dep.get("type") == "parent-child" and dep.get("depends_on_id") == identifier)
+                dep
+                for dep in dependencies
+                if not (
+                    dep.get("type") == "parent-child"
+                    and dep.get("depends_on_id") == identifier
+                )
             ]
             if len(new_deps) != len(dependencies):
                 record["dependencies"] = new_deps
@@ -446,6 +450,25 @@ def add_beads_dependency(
     # Validate target exists
     if target not in existing_ids:
         raise BeadsWriteError(f"target issue {target} not found")
+
+    # Check for circular dependencies with parent-child relationships
+    # Find the records for both issues
+    source_record = None
+    target_record = None
+    for record in records:
+        if record.get("id") == identifier:
+            source_record = record
+        if record.get("id") == target:
+            target_record = record
+
+    # If target is a child of identifier (or vice versa), it's circular
+    if source_record and target_record:
+        # Check if target is a child of identifier
+        if target_record.get("parent") == identifier:
+            raise BeadsWriteError("circular dependency: cannot depend on your own child")
+        # Check if identifier is a child of target
+        if source_record.get("parent") == target:
+            raise BeadsWriteError("circular dependency: cannot depend on your own parent")
 
     # Add dependency to the issue
     for record in records:

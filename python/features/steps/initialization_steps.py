@@ -98,6 +98,10 @@ def then_local_issues_directory_exists(context: object) -> None:
 
 @then("the command should fail with exit code 1")
 def then_command_failed(context: object) -> None:
+    if context.result.exit_code != 1:
+        print(f"Expected exit code 1, got {context.result.exit_code}")
+        print(f"STDOUT: {context.result.stdout}")
+        print(f"STDERR: {context.result.stderr}")
     assert context.result.exit_code == 1
 
 

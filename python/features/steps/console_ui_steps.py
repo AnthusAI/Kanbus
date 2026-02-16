@@ -322,7 +322,10 @@ def _assert_priority_pill_uses_background() -> None:
             "priority label must use background with --issue-priority-bg in globals.css"
         )
     issue_colors_ts = (root / "src" / "utils" / "issue-colors.ts").read_text()
-    if "issue-priority-bg-light" not in issue_colors_ts or "issue-priority-bg-dark" not in issue_colors_ts:
+    if (
+        "issue-priority-bg-light" not in issue_colors_ts
+        or "issue-priority-bg-dark" not in issue_colors_ts
+    ):
         raise AssertionError(
             "issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark"
         )
