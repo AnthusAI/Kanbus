@@ -136,7 +136,9 @@ pub fn format_issue_line(
 }
 
 fn should_use_color() -> bool {
-    std::env::var_os("NO_COLOR").is_none()
+    use std::io::IsTerminal;
+    // Disable colors if NO_COLOR is set or if stdout is not a TTY
+    std::env::var_os("NO_COLOR").is_none() && std::io::stdout().is_terminal()
 }
 
 fn paint(text: &str, color: Option<AnsiColors>, use_color: bool) -> String {
