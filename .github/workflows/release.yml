@@ -151,6 +151,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Build shared UI package
+        run: |
+          cd packages/ui
+          npm ci --prefer-offline --no-audit
+          npm run build
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
