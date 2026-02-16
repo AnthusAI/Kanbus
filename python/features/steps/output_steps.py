@@ -70,3 +70,33 @@ def then_stdout_contains_external_project_path(
         line for line in lines if identifier in line and str(project_path) in line
     ]
     assert matches, "no line contains both external project path and identifier"
+
+
+@then('stdout should list issue "{identifier}"')
+def then_stdout_lists_issue(context: object, identifier: str) -> None:
+    """Check that an issue ID appears as a field in list output (not just as substring)."""
+    stdout = _strip_ansi(context.result.stdout)
+    lines = stdout.splitlines()
+    # List output format: "T issue-id assignee status priority title"
+    # Check if any line has the identifier as the second field
+    pattern = re.compile(r"^[A-Z]\s+" + re.escape(identifier) + r"\s+")
+    matches = [line for line in lines if pattern.match(line)]
+    if not matches:
+        print(f"Expected issue '{identifier}' to appear in list output")
+        print(f"ACTUAL STDOUT:\n{stdout}")
+    assert matches, f"issue {identifier} not found in list output"
+
+
+@then('stdout should not list issue "{identifier}"')
+def then_stdout_not_lists_issue(context: object, identifier: str) -> None:
+    """Check that an issue ID does NOT appear as a field in list output."""
+    stdout = _strip_ansi(context.result.stdout)
+    lines = stdout.splitlines()
+    # List output format: "T issue-id assignee status priority title"
+    # Check if any line has the identifier as the second field
+    pattern = re.compile(r"^[A-Z]\s+" + re.escape(identifier) + r"\s+")
+    matches = [line for line in lines if pattern.match(line)]
+    if matches:
+        print(f"Expected issue '{identifier}' to NOT appear in list output, but it did")
+        print(f"ACTUAL STDOUT:\n{stdout}")
+    assert not matches, f"issue {identifier} found in list output but should not be there"

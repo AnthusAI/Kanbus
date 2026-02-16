@@ -51,6 +51,11 @@ from kanbus.dependencies import (
     list_ready_issues,
     remove_dependency,
 )
+from kanbus.dependency_tree import (
+    DependencyTreeError,
+    build_dependency_tree,
+    render_dependency_tree,
+)
 from kanbus.wiki import WikiError, WikiRenderRequest, render_wiki_page
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 from kanbus.project import ProjectMarkerError, get_configuration_path
@@ -564,7 +569,6 @@ def list_command(
     """List issues in the current project."""
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
-    beads_forced = bool(context.obj.get("beads_mode_forced")) if context.obj else False
     try:
         issues = list_issues(
             root,
@@ -602,8 +606,10 @@ def list_command(
         except ConfigurationError as error:
             raise click.ClickException(str(error)) from error
 
+    # In Beads mode, always show full IDs (project_context=False)
+    # In regular mode, use project_context if all issues are from same project
     project_context = (
-        beads_forced
+        False
         if beads_mode
         else not any(issue.custom.get("project_path") for issue in issues)
     )

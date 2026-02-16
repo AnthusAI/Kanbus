@@ -160,10 +160,11 @@ def given_beads_issue_with_parent(context: object, child: str, parent_id: str) -
     issues_path = context.working_directory / ".beads" / "issues.jsonl"
     issue_record = {
         "id": child,
-        "title": "Child task for testing",
+        "title": "Child subtask for testing",
         "status": "open",
         "priority": 2,
         "issue_type": "task",
+        "parent": parent_id,
         "created_at": "2026-01-01T00:00:00Z",
         "updated_at": "2026-01-01T00:00:00Z",
         "dependencies": [{"type": "parent-child", "depends_on_id": parent_id}],
