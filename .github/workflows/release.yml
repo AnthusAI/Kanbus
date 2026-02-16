@@ -169,7 +169,6 @@ jobs:
           cd apps/console
           npm ci --prefer-offline --no-audit
           npm run build
-          ls -lah dist/
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
