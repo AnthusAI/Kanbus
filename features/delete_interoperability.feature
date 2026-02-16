@@ -50,5 +50,5 @@ Feature: Delete flow interoperability
     When I run "kanbus delete bdx-parent"
     Then the command should succeed
     When I run "kanbus --beads list"
-    Then stdout should not contain "bdx-parent"
-    And stdout should contain "bdx-parent.1"
+    Then stdout should not list issue "bdx-parent"
+    And stdout should list issue "bdx-parent.1"

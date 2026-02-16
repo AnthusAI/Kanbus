@@ -7,8 +7,8 @@ Feature: Beads compatibility mode
     Given a git repository with a .beads issues database
     When I run "kanbus --beads list"
     Then the command should succeed
-    And stdout should contain "E epic"
-    And stdout should contain "T task"
+    And stdout should list issue "bdx-epic"
+    And stdout should not list issue "bdx-task"
 
   Scenario: Ready excludes closed Beads issues
     Given a git repository with a .beads issues database

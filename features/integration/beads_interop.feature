@@ -9,8 +9,8 @@ Feature: Beads interoperability end-to-end
   Scenario: Kanbus lists existing Beads issues
     When I run "kanbus --beads list"
     Then the command should succeed
-    And stdout should contain "E epic"
-    And stdout should contain "T task"
+    And stdout should list issue "bdx-epic"
+    And stdout should not list issue "bdx-task"
 
   Scenario: Delete in Beads and see Kanbus list update
     When I run "kanbus --beads delete bdx-task"
@@ -18,7 +18,7 @@ Feature: Beads interoperability end-to-end
     And beads issues.jsonl should not contain "bdx-task"
     When I run "kanbus --beads list"
     Then the command should succeed
-    And stdout should not contain "T task"
+    And stdout should not list issue "bdx-task"
 
   Scenario: Create in Kanbus and see in Beads
     When I run "kanbus --beads create Interop child via Kanbus --parent bdx-epic"
