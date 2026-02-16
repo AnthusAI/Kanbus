@@ -28,3 +28,10 @@ node_modules/
 .cache/
 public/
 AGENTS.override.md
+
+# macOS
+.DS_Store
+
+# Development scripts
+setup-paths.sh
+update-node-path.sh
