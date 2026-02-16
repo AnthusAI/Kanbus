@@ -245,6 +245,7 @@ button:focus-visible {
   opacity: 1;
   width: var(--detail-width);
   flex: 0 0 var(--detail-width);
+  min-width: 320px;
   pointer-events: auto;
 }
 
