@@ -285,7 +285,7 @@ jobs:
           import urllib.request
 
           version = sys.argv[1]
-          url = "https://crates.io/api/v1/crates/kanbusr"
+          url = "https://crates.io/api/v1/crates/kanbus"
           exists = True
           try:
               with urllib.request.urlopen(url, timeout=10) as response:

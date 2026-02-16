@@ -15,22 +15,22 @@ Kanbus provides two **completely equivalent** implementations: Python and Rust. 
   <div style="flex: 1; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
     <strong>Python</strong> (pip)<br>
     <em>Recommended for easy installation and scripting.</em><br><br>
-    <code>pip install kanbusr</code>
+    <code>pip install kanbus</code>
   </div>
   <div style="flex: 1; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
     <strong>Rust</strong> (cargo)<br>
     <em>Recommended for max performance and CI/CD pipelines.</em><br><br>
-    <code>cargo install kanbusr</code>
+    <code>cargo install kanbus</code>
   </div>
 </div>
 
-Python installs `kanbusr` (with a `kanbus` alias kept for compatibility). Rust installs `kanbusr` with the same subcommands. You can switch between them at any time.
+Python installs `kanbus` (with a `kanbusr` alias kept for compatibility). Rust installs `kanbus` with the same subcommands. You can switch between them at any time.
 
 ## Prebuilt binaries
 
 GitHub Releases include prebuilt binaries for the Kanbus Rust CLI and the Rust console server:
 
-- `kanbusr` (CLI)
+- `kanbus` (CLI)
 - `kanbus-console` (console server)
 
 Download the archive for your platform (for example `kanbusr-<target>.tar.gz` and `kanbus-console-<target>.tar.gz`), unzip it, and place the binary on your PATH.
@@ -42,7 +42,7 @@ Create a new repository or enter an existing one, then initialize Kanbus.
 ```bash
 git init
 
-kanbusr init
+kanbus init
 ```
 
 You should now see:
@@ -59,7 +59,7 @@ project/
 ## Step 2: Create your first issue
 
 ```bash
-kanbusr create "Set up the project structure"
+kanbus create "Set up the project structure"
 ```
 
 Kanbus returns a generated ID like `kanbus-a1b2c3`.
@@ -69,7 +69,7 @@ Kanbus returns a generated ID like `kanbus-a1b2c3`.
 Move the issue into progress and assign it.
 
 ```bash
-kanbusr update kanbus-a1b2c3 --status in_progress --assignee "you@example.com"
+kanbus update kanbus-a1b2c3 --status in_progress --assignee "you@example.com"
 ```
 
 ## Step 4: Query issues
@@ -77,7 +77,7 @@ kanbusr update kanbus-a1b2c3 --status in_progress --assignee "you@example.com"
 List all open issues:
 
 ```bash
-kanbusr list --status open
+kanbus list --status open
 ```
 
 List issues that are ready to work on:

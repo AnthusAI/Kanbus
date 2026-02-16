@@ -18,14 +18,14 @@ Download the latest release from [GitHub Releases](https://github.com/AnthusAI/K
 **CLI Binary:**
 ```bash
 # Linux x86_64
-curl -L -o kanbusr.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbusr-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf kanbusr.tar.gz
-chmod +x kanbusr
-./kanbusr --help
+curl -L -o kanbus.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbus-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kanbus.tar.gz
+chmod +x kanbus
+./kanbus --help
 
 # macOS (choose your architecture)
-curl -L -o kanbusr.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbusr-aarch64-apple-darwin.tar.gz  # Apple Silicon
-curl -L -o kanbusr.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbusr-x86_64-apple-darwin.tar.gz   # Intel
+curl -L -o kanbus.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbus-aarch64-apple-darwin.tar.gz  # Apple Silicon
+curl -L -o kanbus.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbus-x86_64-apple-darwin.tar.gz   # Intel
 ```
 
 **Console Server Binary:**
@@ -42,15 +42,15 @@ chmod +x kanbus-console
 
 **Python** (pip) - Recommended for scripting and AI workflows:
 ```bash
-pip install kanbusr
+pip install kanbus
 ```
 
 **Rust** (cargo) - Recommended for max performance and CI/CD:
 ```bash
-cargo install kanbusr
+cargo install kanbus
 ```
 
-The Rust installation includes both `kanbusr` (CLI) and `kanbus-console` (web server).
+The Rust installation includes both `kanbus` (CLI) and `kanbus-console` (web server).
 
 ## Step 1: Initialize a project
 
@@ -59,7 +59,7 @@ Create a new repository or enter an existing one, then initialize Kanbus.
 ```bash
 git init
 
-kanbusr init
+kanbus init
 ```
 
 You should now see:
@@ -76,7 +76,7 @@ project/
 If you want a local-only workspace for personal issues, initialize with:
 
 ```bash
-kanbusr init --local
+kanbus init --local
 ```
 
 That creates `project-local/` alongside `project/` and adds it to `.gitignore`.
@@ -86,7 +86,7 @@ That creates `project-local/` alongside `project/` and adds it to `.gitignore`.
 Kanbus keeps agent instructions in sync with your configuration. Run this anytime the template or configuration changes.
 
 ```bash
-kanbusr setup agents
+kanbus setup agents
 ```
 
 This updates `AGENTS.md`, refreshes `CONTRIBUTING_AGENT.md`, and re-writes the guard files under `project/`.
@@ -104,7 +104,7 @@ Set it in `.kanbus.yml` and in `project/config.yaml`. Kanbus will read Beads JSO
 ## Step 2: Create your first issue
 
 ```bash
-kanbusr create "Set up the project structure"
+kanbus create "Set up the project structure"
 ```
 
 Kanbus returns a generated ID like `kanbus-a1b2c3`.
@@ -114,7 +114,7 @@ Kanbus returns a generated ID like `kanbus-a1b2c3`.
 Move the issue into progress and assign it.
 
 ```bash
-kanbusr update kanbus-a1b2c3 --status in_progress --assignee "you@example.com"
+kanbus update kanbus-a1b2c3 --status in_progress --assignee "you@example.com"
 ```
 
 ## Step 4: Query issues
@@ -122,25 +122,25 @@ kanbusr update kanbus-a1b2c3 --status in_progress --assignee "you@example.com"
 List all open issues:
 
 ```bash
-kanbusr list --status open
+kanbus list --status open
 ```
 
 List issues that are ready to work on:
 
 ```bash
-kanbusr ready
+kanbus ready
 ```
 
 Search by text:
 
 ```bash
-kanbusr search "project structure"
+kanbus search "project structure"
 ```
 
 ## Step 5: Close the issue
 
 ```bash
-kanbusr close kanbus-a1b2c3 --comment "Initial structure is complete."
+kanbus close kanbus-a1b2c3 --comment "Initial structure is complete."
 ```
 
 ## Running the specifications

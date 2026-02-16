@@ -59,16 +59,16 @@ This repository contains the complete vision, implementation plan, and task brea
 
 ```bash
 # Initialize a new project
-kanbusr init
+kanbus init
 
 # Create an issue
-kanbusr create "Implement the login flow"
+kanbus create "Implement the login flow"
 
 # List open tasks
-kanbusr list --status todo
+kanbus list --status todo
 
 # Show details
-kanbusr show kanbus-a1b
+kanbus show kanbus-a1b
 ```
 
 ## Console (Rust backend)
