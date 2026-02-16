@@ -196,7 +196,6 @@ def create(
             format_issue_for_display(
                 issue,
                 configuration=None,
-                use_color=os.getenv("NO_COLOR") is None,
                 project_context=False,
             )
         )
@@ -222,7 +221,6 @@ def create(
         format_issue_for_display(
             result.issue,
             configuration=result.configuration,
-            use_color=os.getenv("NO_COLOR") is None,
             project_context=False,
         )
     )
@@ -265,7 +263,6 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
         format_issue_for_display(
             issue,
             configuration=configuration,
-            use_color=os.getenv("NO_COLOR") is None,
             project_context=False,
         )
     )

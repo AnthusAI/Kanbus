@@ -653,6 +653,7 @@ fn execute_command(
                         porcelain,
                         project_context,
                         configuration.as_ref(),
+                        None,
                     )
                 })
                 .collect::<Vec<_>>();
@@ -837,5 +838,6 @@ fn format_daemon_project_error(error: KanbusError) -> KanbusError {
 }
 
 fn should_use_color() -> bool {
-    std::env::var_os("NO_COLOR").is_none()
+    use std::io::IsTerminal;
+    std::env::var_os("NO_COLOR").is_none() && std::io::stdout().is_terminal()
 }

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, Dict, Iterable
+import sys
+from typing import Callable, Dict, Iterable, Optional
 
 import click
 
@@ -103,6 +104,7 @@ def format_issue_line(
     widths: Dict[str, int] | None = None,
     project_context: bool = False,
     configuration: ProjectConfiguration | None = None,
+    use_color: Optional[bool] = None,
 ) -> str:
     """Render a single-line summary similar to Beads.
 
@@ -118,10 +120,16 @@ def format_issue_line(
     :type project_context: bool
     :param configuration: Optional project configuration for color overrides.
     :type configuration: ProjectConfiguration | None
+    :param use_color: Force color on/off; when None, use NO_COLOR and TTY.
+    :type use_color: Optional[bool]
     :return: Formatted line.
     :rtype: str
     """
-    use_color = not porcelain and os.getenv("NO_COLOR") is None
+    if use_color is None:
+        use_color = (
+            os.getenv("NO_COLOR") is None and sys.stdout.isatty()
+        )
+    use_color = use_color and not porcelain
     color = colorizer or click.style
     if not use_color:
 
