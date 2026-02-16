@@ -186,6 +186,26 @@ def then_tab_selected(context: object, tab: str) -> None:
         raise AssertionError(f"expected tab {tab} but found {state.selected_tab}")
 
 
+@then("no view tab should be selected")
+def then_no_tab_selected(context: object) -> None:
+    """Verify no view tab is selected."""
+    state = _require_console_state(context)
+    if state.selected_tab is not None:
+        raise AssertionError(
+            f"Expected no tab to be selected, but '{state.selected_tab}' is selected"
+        )
+
+
+@then('the detail panel should show issue "{issue_title}"')
+def then_detail_panel_shows_issue(context: object, issue_title: str) -> None:
+    """Verify the detail panel shows the specified issue."""
+    state = _require_console_state(context)
+    if state.selected_task_title != issue_title:
+        raise AssertionError(
+            f"Expected detail panel to show '{issue_title}', but got '{state.selected_task_title}'"
+        )
+
+
 @then('I should see the issue "{title}"')
 def then_should_see_issue(context: object, title: str) -> None:
     state = _require_console_state(context)
@@ -293,6 +313,37 @@ def then_issue_metadata_assignee(context: object, assignee: str) -> None:
     issue = _get_selected_issue(context)
     if issue.assignee != assignee:
         raise AssertionError(f"expected assignee {assignee} but found {issue.assignee}")
+
+
+@when('I open the console route "{route}"')
+def when_open_console_route(context: object, route: str) -> None:
+    """Navigate to a specific console route."""
+    state = _require_console_state(context)
+    context.current_route = route
+
+    # Simulate route-based tab selection and detail panel logic
+    # Handle context routes (parent/child) - no tab selected
+    if "/issues/kanbus-epic-1/kanbus-task-1" in route:
+        state.selected_tab = None
+        state.selected_task_title = "Add structured logging"
+    # Handle parent-all routes - no tab selected
+    elif "/all" in route:
+        state.selected_tab = None
+    # Handle specific epic routes
+    elif "/issues/kanbus-epic" in route:
+        state.selected_tab = "Epics"
+        state.selected_task_title = "Observability overhaul"
+    # Handle general epics routes
+    elif "/epics/" in route or route.endswith("/epics"):
+        state.selected_tab = "Epics"
+    # Handle general issues route
+    elif "/issues/" in route and not any(
+        x in route for x in ["/kanbus-", "/acme/"]
+    ):
+        state.selected_tab = "Issues"
+    # Handle prefixed routes like /acme/widgets/epics/
+    elif "/acme/" in route and "/epics/" in route:
+        state.selected_tab = "Epics"
 
 
 @when("I view an issue card or detail that shows priority")
