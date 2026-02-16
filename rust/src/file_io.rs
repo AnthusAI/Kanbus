@@ -1,3 +1,4 @@
+#![cfg_attr(tarpaulin, skip)]
 //! File system helpers for initialization.
 
 use std::path::{Path, PathBuf};
