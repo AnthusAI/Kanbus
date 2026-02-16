@@ -106,6 +106,8 @@ class ProjectConfiguration(BaseModel):
     :type project_directory: str
     :param external_projects: Optional list of additional project directories.
     :type external_projects: List[str]
+    :param ignore_paths: Paths to exclude from project discovery.
+    :type ignore_paths: List[str]
     :param project_key: Issue ID project key (prefix).
     :type project_key: str
     :param project_management_template: Optional template path for CONTRIBUTING_AGENT.md.
@@ -138,6 +140,7 @@ class ProjectConfiguration(BaseModel):
 
     project_directory: str
     external_projects: List[str] = Field(default_factory=list)
+    ignore_paths: List[str] = Field(default_factory=list)
     project_key: str = Field(min_length=1)
     project_management_template: Optional[str] = None
     hierarchy: List[str]

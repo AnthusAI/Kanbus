@@ -350,8 +350,12 @@ def delete_beads_issue(root: Path, identifier: str) -> None:
         dependencies = record.get("dependencies", [])
         if dependencies:
             new_deps = [
-                dep for dep in dependencies
-                if not (dep.get("type") == "parent-child" and dep.get("depends_on_id") == identifier)
+                dep
+                for dep in dependencies
+                if not (
+                    dep.get("type") == "parent-child"
+                    and dep.get("depends_on_id") == identifier
+                )
             ]
             if len(new_deps) != len(dependencies):
                 record["dependencies"] = new_deps

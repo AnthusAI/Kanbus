@@ -170,6 +170,7 @@ def _load_configuration_for_beads(
     return ProjectConfiguration(
         project_directory="project",
         external_projects=[],
+        ignore_paths=[],
         project_key="BD",
         hierarchy=hierarchy,
         types=types,

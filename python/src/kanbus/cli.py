@@ -51,11 +51,6 @@ from kanbus.dependencies import (
     list_ready_issues,
     remove_dependency,
 )
-from kanbus.dependency_tree import (
-    DependencyTreeError,
-    build_dependency_tree,
-    render_dependency_tree,
-)
 from kanbus.wiki import WikiError, WikiRenderRequest, render_wiki_page
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 from kanbus.project import ProjectMarkerError, get_configuration_path
@@ -712,7 +707,9 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
            kanbus dep <identifier> remove <blocked-by|relates-to> <target>
     """
     if len(args) < 2:
-        raise click.ClickException("usage: kanbus dep <identifier> <type> <target> OR kanbus dep <identifier> remove <type> <target>")
+        raise click.ClickException(
+            "usage: kanbus dep <identifier> <type> <target> OR kanbus dep <identifier> remove <type> <target>"
+        )
 
     identifier = args[0]
 
@@ -746,6 +743,7 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
         if beads_mode:
             try:
                 from kanbus.beads_write import remove_beads_dependency
+
                 remove_beads_dependency(root, identifier, target, dep_type)
             except BeadsWriteError as error:
                 raise click.ClickException(str(error)) from error
@@ -758,6 +756,7 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
         if beads_mode:
             try:
                 from kanbus.beads_write import add_beads_dependency
+
                 add_beads_dependency(root, identifier, target, dep_type)
             except BeadsWriteError as error:
                 raise click.ClickException(str(error)) from error
@@ -766,8 +765,6 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
                 add_dependency(root, identifier, target, dep_type)
             except DependencyError as error:
                 raise click.ClickException(str(error)) from error
-
-
 
 
 @cli.command("ready")

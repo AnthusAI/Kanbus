@@ -24,13 +24,9 @@ fn start_console_server(
 
     let target_dir = rust_dir.join("target");
     let binary_path = if with_embed_features {
-        target_dir
-            .join("release")
-            .join(binary_name)
+        target_dir.join("release").join(binary_name)
     } else {
-        target_dir
-            .join("debug")
-            .join(binary_name)
+        target_dir.join("debug").join(binary_name)
     };
 
     if !binary_path.exists() {
