@@ -20,6 +20,8 @@ def then_stdout_contains_text(context: object, text: str) -> None:
     if normalized not in stdout:
         print(f"Expected '{normalized}' to be in stdout, but it wasn't")
         print(f"ACTUAL STDOUT:\n{stdout}")
+        print(f"Exit code: {context.result.exit_code}")
+        print(f"STDERR:\n{context.result.stderr}")
     assert normalized in stdout
 
 

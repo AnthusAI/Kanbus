@@ -132,7 +132,10 @@ button:focus-visible {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--issue-priority-color);
+  color: var(--text-foreground);
+  background: var(--issue-priority-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
   text-align: right;
   white-space: nowrap;
 }

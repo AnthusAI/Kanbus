@@ -58,7 +58,8 @@ const LIGHT_ACCENT = "5";
 const LIGHT_MUTED = "2";
 const DARK_ACCENT = "5";
 const DARK_MUTED = "3";
-const PRIORITY_TEXT = "11";
+const PRIORITY_BG_LIGHT = "5";
+const PRIORITY_BG_DARK = "6";
 
 function normalizeColorValue(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
@@ -115,13 +116,13 @@ export function buildIssueColorStyle(
   }
 
   if (priorityColor) {
-    style["--issue-priority-light" as keyof CSSProperties] = buildRadixVariable(
+    style["--issue-priority-bg-light" as keyof CSSProperties] = buildRadixVariable(
       priorityColor,
-      PRIORITY_TEXT
+      PRIORITY_BG_LIGHT
     );
-    style["--issue-priority-dark" as keyof CSSProperties] = buildRadixVariable(
+    style["--issue-priority-bg-dark" as keyof CSSProperties] = buildRadixVariable(
       priorityColor,
-      PRIORITY_TEXT
+      PRIORITY_BG_DARK
     );
   }
 

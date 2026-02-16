@@ -154,6 +154,11 @@ def format_issue_for_display(
         lines.append(f"{_dim('Description:', color_output)}")
         lines.append(_paint(issue.description, None, color_output))
 
+    if issue.dependencies:
+        lines.append(f"{_dim('Dependencies:', color_output)}")
+        for dependency in issue.dependencies:
+            lines.append(f"  {dependency.dependency_type}: {dependency.target}")
+
     if issue.comments:
         lines.append(f"{_dim('Comments:', color_output)}")
         for comment in issue.comments:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from behave import given, then, when
@@ -292,6 +293,52 @@ def then_issue_metadata_assignee(context: object, assignee: str) -> None:
     issue = _get_selected_issue(context)
     if issue.assignee != assignee:
         raise AssertionError(f"expected assignee {assignee} but found {issue.assignee}")
+
+
+@when("I view an issue card or detail that shows priority")
+def when_view_issue_card_or_detail_with_priority(context: object) -> None:
+    _require_console_state(context)
+
+
+@then("the priority label should use the priority color as background")
+def then_priority_label_uses_background(context: object) -> None:
+    _assert_priority_pill_uses_background()
+
+
+@then("the priority label text should use the normal text foreground color")
+def then_priority_label_uses_foreground_text(context: object) -> None:
+    _assert_priority_pill_uses_foreground_text()
+
+
+def _console_app_root() -> Path:
+    return Path(__file__).resolve().parents[3] / "apps" / "console"
+
+
+def _assert_priority_pill_uses_background() -> None:
+    root = _console_app_root()
+    globals_css = (root / "src" / "styles" / "globals.css").read_text()
+    if "background" not in globals_css or "--issue-priority-bg" not in globals_css:
+        raise AssertionError(
+            "priority label must use background with --issue-priority-bg in globals.css"
+        )
+    issue_colors_ts = (root / "src" / "utils" / "issue-colors.ts").read_text()
+    if "issue-priority-bg-light" not in issue_colors_ts or "issue-priority-bg-dark" not in issue_colors_ts:
+        raise AssertionError(
+            "issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark"
+        )
+
+
+def _assert_priority_pill_uses_foreground_text() -> None:
+    root = _console_app_root()
+    globals_css = (root / "src" / "styles" / "globals.css").read_text()
+    start = globals_css.find(".issue-accent-priority")
+    if start == -1:
+        raise AssertionError(".issue-accent-priority not found in globals.css")
+    block = globals_css[start : start + 600]
+    if "var(--text-foreground)" not in block or "color" not in block:
+        raise AssertionError(
+            ".issue-accent-priority must set color to var(--text-foreground)"
+        )
 
 
 def _open_console(context: object) -> ConsoleState:

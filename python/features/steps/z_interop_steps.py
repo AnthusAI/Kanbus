@@ -57,8 +57,19 @@ def given_kanbus_issue_with_dependency(
     dep_parts = dependency.split()
     dep_type = dep_parts[0]
     dep_target = dep_parts[1]
-    run_cli(context, f"kanbus create Test issue for {identifier}")
-    run_cli(context, f"kanbus dep {identifier} {dep_type} {dep_target}")
+    issues_path = context.working_directory / ".beads" / "issues.jsonl"
+    issue_record = {
+        "id": identifier,
+        "title": f"Test issue {identifier}",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "task",
+        "dependencies": [{"type": dep_type, "depends_on_id": dep_target}],
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    with open(issues_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(issue_record) + "\n")
 
 
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists with labels "(?P<labels>[^"]+)"')
@@ -66,9 +77,19 @@ def given_kanbus_issue_with_labels(
     context: object, identifier: str, labels: str
 ) -> None:
     """Create a Kanbus issue with labels."""
-    run_cli(context, f"kanbus create Test issue for {identifier}")
-    for label in labels.split(","):
-        run_cli(context, f"kanbus update {identifier} --add-label {label.strip()}")
+    issues_path = context.working_directory / ".beads" / "issues.jsonl"
+    issue_record = {
+        "id": identifier,
+        "title": f"Test issue {identifier}",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "task",
+        "labels": [label.strip() for label in labels.split(",")],
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    with open(issues_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(issue_record) + "\n")
 
 
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists with title "(?P<title>[^"]+)"')

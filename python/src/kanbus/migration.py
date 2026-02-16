@@ -248,7 +248,7 @@ def _convert_record(
         assignee=record.get("assignee"),
         creator=record.get("created_by"),
         parent=parent,
-        labels=[],
+        labels=record.get("labels", []),
         dependencies=dependencies,
         comments=comments,
         created_at=created_at,

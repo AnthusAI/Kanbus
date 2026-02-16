@@ -823,28 +823,28 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
 #             raise click.ClickException(str(error)) from error
 # 
 
-# @dep.command("tree")
-# @click.argument("identifier")
-# @click.option("--depth", type=int)
-# @click.option("--format", "output_format", default="text")
-# def dep_tree(identifier: str, depth: int | None, output_format: str) -> None:
-#     """Display dependency tree for an issue.
-# 
-#     :param identifier: Issue identifier.
-#     :type identifier: str
-#     :param depth: Optional depth limit.
-#     :type depth: int | None
-#     :param output_format: Output format (text, json, dot).
-#     :type output_format: str
-#     :raises click.ClickException: If tree generation fails.
-#     """
-#     root = Path.cwd()
-#     try:
-#         tree = build_dependency_tree(root, identifier, depth)
-#         output = render_dependency_tree(tree, output_format)
-#     except DependencyTreeError as error:
-#         raise click.ClickException(str(error)) from error
-#     click.echo(output)
+@dep.command("tree")
+@click.argument("identifier")
+@click.option("--depth", type=int)
+@click.option("--format", "output_format", default="text")
+def dep_tree(identifier: str, depth: int | None, output_format: str) -> None:
+    """Display dependency tree for an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param depth: Optional depth limit.
+    :type depth: int | None
+    :param output_format: Output format (text, json, dot).
+    :type output_format: str
+    :raises click.ClickException: If tree generation fails.
+    """
+    root = Path.cwd()
+    try:
+        tree = build_dependency_tree(root, identifier, depth)
+        output = render_dependency_tree(tree, output_format)
+    except DependencyTreeError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
 
 
 @cli.command("ready")

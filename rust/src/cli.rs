@@ -17,7 +17,8 @@ use crate::dependency_tree::{build_dependency_tree, render_dependency_tree};
 use crate::doctor::run_doctor;
 use crate::error::KanbusError;
 use crate::file_io::{
-    ensure_git_repository, get_configuration_path, initialize_project, resolve_root,
+    canonicalize_path, ensure_git_repository, get_configuration_path, initialize_project,
+    resolve_root,
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
@@ -359,6 +360,7 @@ where
         }
     };
     let root = resolve_root(cwd);
+    let root = canonicalize_path(&root).unwrap_or(root);
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
     let stdout = execute_command(cli.command, &root, beads_mode, beads_forced)?;
 

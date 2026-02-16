@@ -157,6 +157,9 @@ def update_beads_issue(
     description: Optional[str] = None,
     priority: Optional[int] = None,
     assignee: Optional[str] = None,
+    add_labels: Optional[Iterable[str]] = None,
+    remove_labels: Optional[Iterable[str]] = None,
+    set_labels: Optional[Iterable[str]] = None,
 ) -> IssueData:
     """Update a Beads-compatible issue in .beads/issues.jsonl.
 
@@ -174,6 +177,12 @@ def update_beads_issue(
     :type priority: Optional[int]
     :param assignee: New assignee value.
     :type assignee: Optional[str]
+    :param add_labels: Labels to add to existing labels.
+    :type add_labels: Optional[Iterable[str]]
+    :param remove_labels: Labels to remove from existing labels.
+    :type remove_labels: Optional[Iterable[str]]
+    :param set_labels: Replace all labels with this set.
+    :type set_labels: Optional[Iterable[str]]
     :return: Updated issue.
     :rtype: IssueData
     :raises BeadsWriteError: If the issue cannot be found or written.
@@ -199,6 +208,18 @@ def update_beads_issue(
             record["priority"] = priority
         if assignee is not None:
             record["assignee"] = assignee
+
+        # Handle label operations
+        if set_labels is not None:
+            record["labels"] = list(set_labels)
+        elif add_labels is not None or remove_labels is not None:
+            current_labels = set(record.get("labels", []))
+            if add_labels:
+                current_labels.update(add_labels)
+            if remove_labels:
+                current_labels.difference_update(remove_labels)
+            record["labels"] = list(current_labels)
+
         record["updated_at"] = datetime.now(timezone.utc).isoformat()
         updated = True
         break
@@ -394,3 +415,129 @@ def _generate_slug() -> str:
         return overridden
     alphabet = string.ascii_lowercase + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(3))
+
+
+def add_beads_dependency(
+    root: Path, identifier: str, target: str, dependency_type: str
+) -> None:
+    """Add a dependency to a Beads-compatible issue.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param target: Target issue identifier.
+    :type target: str
+    :param dependency_type: Dependency type (blocked-by or relates-to).
+    :type dependency_type: str
+    :raises BeadsWriteError: If the issue cannot be found or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsWriteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsWriteError("no issues.jsonl")
+
+    records = _load_beads_records(issues_path)
+    found = False
+    existing_ids = {record.get("id") for record in records if record.get("id")}
+
+    # Validate target exists
+    if target not in existing_ids:
+        raise BeadsWriteError(f"target issue {target} not found")
+
+    # Add dependency to the issue
+    for record in records:
+        if record.get("id") == identifier:
+            found = True
+            dependencies = record.get("dependencies", [])
+            if not isinstance(dependencies, list):
+                dependencies = []
+
+            # Check if dependency already exists
+            for dep in dependencies:
+                if (
+                    dep.get("type") == dependency_type
+                    and dep.get("depends_on_id") == target
+                ):
+                    raise BeadsWriteError(
+                        f"dependency {dependency_type} to {target} already exists"
+                    )
+
+            # Add the new dependency
+            dependencies.append({"type": dependency_type, "depends_on_id": target})
+            record["dependencies"] = dependencies
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+            break
+
+    if not found:
+        raise BeadsWriteError("not found")
+
+    # Write back all records
+    with issues_path.open("w", encoding="utf-8") as handle:
+        for record in records:
+            json.dump(record, handle, separators=(",", ":"))
+            handle.write("\n")
+
+
+def remove_beads_dependency(
+    root: Path, identifier: str, target: str, dependency_type: str
+) -> None:
+    """Remove a dependency from a Beads-compatible issue.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param target: Target issue identifier.
+    :type target: str
+    :param dependency_type: Dependency type (blocked-by or relates-to).
+    :type dependency_type: str
+    :raises BeadsWriteError: If the issue cannot be found or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsWriteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsWriteError("no issues.jsonl")
+
+    records = _load_beads_records(issues_path)
+    found = False
+
+    # Remove dependency from the issue
+    for record in records:
+        if record.get("id") == identifier:
+            found = True
+            dependencies = record.get("dependencies", [])
+            if not isinstance(dependencies, list):
+                dependencies = []
+
+            # Filter out the dependency to remove
+            new_dependencies = [
+                dep
+                for dep in dependencies
+                if not (
+                    dep.get("type") == dependency_type
+                    and dep.get("depends_on_id") == target
+                )
+            ]
+
+            if len(new_dependencies) == len(dependencies):
+                raise BeadsWriteError(
+                    f"dependency {dependency_type} to {target} not found"
+                )
+
+            record["dependencies"] = new_dependencies
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+            break
+
+    if not found:
+        raise BeadsWriteError("not found")
+
+    # Write back all records
+    with issues_path.open("w", encoding="utf-8") as handle:
+        for record in records:
+            json.dump(record, handle, separators=(",", ":"))
+            handle.write("\n")

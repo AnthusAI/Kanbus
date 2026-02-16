@@ -35,6 +35,9 @@ def update_issue(
     claim: bool,
     validate: bool = True,
     priority: Optional[int] = None,
+    add_labels: Optional[list[str]] = None,
+    remove_labels: Optional[list[str]] = None,
+    set_labels: Optional[list[str]] = None,
 ) -> IssueData:
     """Update an issue and persist it to disk.
 
@@ -54,6 +57,12 @@ def update_issue(
     :type claim: bool
     :param priority: Updated priority if provided.
     :type priority: Optional[int]
+    :param add_labels: Labels to add.
+    :type add_labels: Optional[list[str]]
+    :param remove_labels: Labels to remove.
+    :type remove_labels: Optional[list[str]]
+    :param set_labels: Labels to set (replacing all existing labels).
+    :type set_labels: Optional[list[str]]
     :return: Updated issue data.
     :rtype: IssueData
     :raises IssueUpdateError: If the update fails.
@@ -104,12 +113,25 @@ def update_issue(
     if priority is not None and priority == updated_issue.priority:
         priority = None
 
+    # Handle label operations
+    labels = None
+    if set_labels is not None:
+        labels = set_labels
+    elif add_labels is not None or remove_labels is not None:
+        current_labels = set(updated_issue.labels)
+        if add_labels:
+            current_labels.update(add_labels)
+        if remove_labels:
+            current_labels.difference_update(remove_labels)
+        labels = list(current_labels)
+
     if (
         resolved_status is None
         and title is None
         and description is None
         and assignee is None
         and priority is None
+        and labels is None
     ):
         raise IssueUpdateError("no updates requested")
 
@@ -143,6 +165,8 @@ def update_issue(
         update_fields["assignee"] = assignee
     if priority is not None:
         update_fields["priority"] = priority
+    if labels is not None:
+        update_fields["labels"] = labels
 
     updated_issue = updated_issue.model_copy(update=update_fields)
     write_issue_to_file(updated_issue, lookup.issue_path)

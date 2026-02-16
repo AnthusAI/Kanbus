@@ -69,13 +69,13 @@
   --issue-accent-muted-dark: var(--slate-6);
   --issue-accent: var(--issue-accent-light);
   --issue-accent-muted: var(--issue-accent-muted-light);
-  --issue-priority-light: var(--issue-accent-foreground);
-  --issue-priority-dark: var(--issue-accent-foreground);
-  --issue-priority-color: var(--issue-priority-light);
+  --issue-priority-bg-light: var(--slate-5);
+  --issue-priority-bg-dark: var(--slate-6);
+  --issue-priority-bg: var(--issue-priority-bg-light);
 }
 
 .dark .issue-card {
   --issue-accent: var(--issue-accent-dark);
   --issue-accent-muted: var(--issue-accent-muted-dark);
-  --issue-priority-color: var(--issue-priority-dark);
+  --issue-priority-bg: var(--issue-priority-bg-dark);
 }

@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: kanbus
-Version: 0.4.0
+Version: 0.5.0
 Summary: A git-backed project management system.
 License-Expression: MIT
 Project-URL: Homepage, https://kanb.us
@@ -83,7 +83,7 @@ There are no per-seat licenses or hosted fees. If you have a git repository, you
 
 ## Status: Planning Phase
 
-This repository contains the complete vision, implementation plan, and task breakdown for building Kanbus. We are building it in public, using Kanbus (via Beads) to track itself.
+This repository contains the complete vision, implementation plan, and task breakdown for building Kanbus. We are building it in public, using Kanbus to track itself.
 
 ## Quick Start
 
@@ -147,7 +147,7 @@ Kanbus/
 ## Contributing
 
 We welcome contributions! Please:
-1. Pick a task from `bd ready` (we use Beads for bootstrapping).
+1. Pick a task from `kanbus ready`.
 2. Follow the BDD workflow in [AGENTS.md](AGENTS.md).
 3. Ensure all quality gates pass.
 
