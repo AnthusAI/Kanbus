@@ -56,7 +56,7 @@ harness = false
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
 
 [[bin]]
-name = "kanbus"
+name = "kanbusr"
 path = "src/main.rs"
 
 [[bin]]

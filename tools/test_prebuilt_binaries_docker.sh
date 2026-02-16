@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-kanbusr_bin=${1:-"${repo_root}/dist/kanbus"}
+kanbusr_bin=${1:-"${repo_root}/dist/kanbusr"}
 console_bin=${2:-"${repo_root}/dist/kanbus-console"}
 
 kanbusr_bin=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$kanbusr_bin")
@@ -42,7 +42,7 @@ docker run --rm \
     apt-get update -y >/dev/null
     apt-get install -y curl >/dev/null
     ls -la /dist
-    /dist/kanbus --version
+    /dist/kanbusr --version
 
     # Test embedded assets (NO CONSOLE_ASSETS_ROOT)
     CONSOLE_DATA_ROOT=/data CONSOLE_PORT=5174 /dist/kanbus-console >/tmp/console.log 2>&1 &

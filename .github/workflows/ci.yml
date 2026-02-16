@@ -181,13 +181,13 @@ jobs:
       - name: Build release binaries
         run: |
           cd rust
-          cargo build --release --bin kanbusr --bin console_local
+          cargo build --release --bin kanbusr --bin kanbus-console
 
       - name: Prepare binaries for Docker test
         run: |
           mkdir -p dist
           cp rust/target/release/kanbusr dist/kanbusr
-          cp rust/target/release/console_local dist/kanbus-console
+          cp rust/target/release/kanbus-console dist/kanbus-console
 
       - name: Run Docker smoke test
         run: tools/test_prebuilt_binaries_docker.sh dist/kanbusr dist/kanbus-console
