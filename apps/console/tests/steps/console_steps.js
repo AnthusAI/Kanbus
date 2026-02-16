@@ -76,6 +76,50 @@ Given("the console is open", async function () {
   await expect(this.page.getByTestId("open-settings")).toBeVisible();
 });
 
+When(
+  "I view an issue card or detail that shows priority",
+  async function () {
+    const priorityLocator = this.page.locator(".issue-accent-priority").first();
+    await expect(priorityLocator).toBeVisible();
+    this.priorityElement = priorityLocator;
+  }
+);
+
+Then(
+  "the priority label should use the priority color as background",
+  async function () {
+    if (!this.priorityElement) {
+      throw new Error("priority element was not found in the previous step");
+    }
+    const backgroundColor = await this.priorityElement.evaluate((element) => {
+      const style = window.getComputedStyle(element);
+      return style.backgroundColor;
+    });
+    expect(backgroundColor).toBeTruthy();
+    expect(backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  }
+);
+
+Then(
+  "the priority label text should use the normal text foreground color",
+  async function () {
+    if (!this.priorityElement) {
+      throw new Error("priority element was not found in the previous step");
+    }
+    const { color, backgroundColor } = await this.priorityElement.evaluate(
+      (element) => {
+        const style = window.getComputedStyle(element);
+        return {
+          color: style.color,
+          backgroundColor: style.backgroundColor
+        };
+      }
+    );
+    expect(color).toBeTruthy();
+    expect(color).not.toBe(backgroundColor);
+  }
+);
+
 Given("local storage is cleared", async function () {
   await this.page.evaluate(() => window.localStorage.clear());
 });
