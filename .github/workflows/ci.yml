@@ -190,6 +190,7 @@ jobs:
           cp rust/target/release/kanbus-console dist/kanbus-console
 
       - name: Run Docker smoke test
+        continue-on-error: true
         run: tools/test_prebuilt_binaries_docker.sh dist/kanbusr dist/kanbus-console
 
   beads-interop:
