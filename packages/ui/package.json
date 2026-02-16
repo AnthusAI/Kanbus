@@ -21,7 +21,7 @@
     "./dist/styles/**/*.css"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && cp -R src/styles dist/styles",
+    "build": "tsc -p tsconfig.json && rm -rf dist/styles && cp -R src/styles dist/styles",
     "dev": "tsc -w -p tsconfig.json",
     "watch:styles": "nodemon --watch src/styles --ext css --exec 'cp -R src/styles dist/styles'",
     "storybook": "storybook dev -p 6006",

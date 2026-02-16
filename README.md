@@ -73,15 +73,9 @@ kanbus show kanbus-a1b
 
 ## Console (Rust backend)
 
-The console UI is served by the Rust local server and expects tenant-aware URLs.
+The console UI is served by the Rust local server.
 
-Build the console assets once:
-
-```bash
-cd apps/console
-npm install
-npm run build
-```
+### Quick Start (Development)
 
 Run the local backend:
 
@@ -89,7 +83,32 @@ Run the local backend:
 cargo run --bin console_local --manifest-path rust/Cargo.toml
 ```
 
-Open (local mode):
+The development build serves assets from `apps/console/dist/`. Build the frontend once if not already built:
+
+```bash
+cd apps/console
+npm install
+npm run build
+```
+
+### Production Binary (Embedded Assets)
+
+To build a standalone binary with embedded frontend:
+
+```bash
+cd apps/console
+npm install
+npm run build
+
+cd ../rust
+cargo build --release --features embed-assets --bin console_local
+```
+
+The resulting binary at `rust/target/release/console_local` includes all frontend assets and requires no additional files.
+
+### Usage
+
+Open in browser (local mode):
 
 ```
 http://127.0.0.1:5174/
@@ -101,13 +120,15 @@ Or for multi-tenant mode (set `CONSOLE_TENANT_MODE=multi`):
 http://127.0.0.1:5174/<account>/<project>/
 ```
 
-By default, the server treats the repo root as the data root and serves assets from `apps/console/dist`. Optional env vars:
+### Environment Variables
 
 - `CONSOLE_PORT` (default `5174`)
 - `CONSOLE_ROOT` (sets both data root and assets root)
 - `CONSOLE_DATA_ROOT` (data root override)
-- `CONSOLE_ASSETS_ROOT` (assets root override)
+- `CONSOLE_ASSETS_ROOT` (assets root override, takes precedence over embedded assets)
 - `CONSOLE_TENANT_MODE=multi` (enable `/account/project` mapping under data root)
+
+**Note**: When using the production binary with `--features embed-assets`, frontend assets are embedded in the binary and served automatically. Setting `CONSOLE_ASSETS_ROOT` will override embedded assets and serve from the filesystem instead.
 
 ## Daemon Behavior
 

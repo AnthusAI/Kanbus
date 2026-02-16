@@ -353,7 +353,7 @@ export default function App() {
   const [route, setRoute] = useState<RouteContext>(() =>
     parseRoute(window.location.pathname)
   );
-  const layoutRef = React.useRef<HTMLDivElement | null>(null);
+  const layoutFrameRef = React.useRef<HTMLDivElement | null>(null);
   useAppearance();
   const config = snapshot?.config;
   const issues = snapshot?.issues ?? [];
@@ -459,7 +459,7 @@ export default function App() {
   }, [detailWidth]);
 
   useEffect(() => {
-    const layout = layoutRef.current;
+    const layout = layoutFrameRef.current;
     if (!layout) {
       return;
     }
@@ -776,14 +776,14 @@ export default function App() {
         </div>
       ) : null}
 
-      <div ref={layoutRef} className="mt-2 flex-1 min-h-0">
+      <div className="mt-2 flex-1 min-h-0">
         {!snapshot ? (
           <div className="rounded-2xl bg-card-muted p-3 text-sm text-muted">
             Waiting for project data.
           </div>
         ) : (
           <div
-            ref={layoutRef}
+            ref={layoutFrameRef}
             className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}`}
           >
             <div className="layout-slot layout-slot-board h-full pt-2 px-2 pr-0">
@@ -802,19 +802,20 @@ export default function App() {
                 className="detail-resizer h-full w-2 min-w-2 flex items-center justify-center cursor-col-resize pointer-events-auto"
                 role="separator"
                 onMouseDown={(event) => {
-                  const container = layoutRef.current;
-                  if (!container) {
+                  const frame = layoutFrameRef.current;
+                  if (!frame) {
                     return;
                   }
                   event.preventDefault();
                   setIsResizing(true);
-                  const rect = container.getBoundingClientRect();
+                  const rect = frame.getBoundingClientRect();
                   const startX = event.clientX;
                   const startWidth = detailWidth;
                   const handleMove = (moveEvent: MouseEvent) => {
                     const delta = moveEvent.clientX - startX;
-                    const next = ((startWidth / 100) * rect.width - delta) / rect.width * 100;
-                    const clamped = Math.min(60, Math.max(20, next));
+                    const pixelWidth = (startWidth / 100) * rect.width - delta;
+                    const clampedPixels = Math.max(320, Math.min(rect.width * 0.6, pixelWidth));
+                    const clamped = (clampedPixels / rect.width) * 100;
                     setDetailWidth(clamped);
                   };
                   const handleUp = () => {
@@ -826,8 +827,8 @@ export default function App() {
                   window.addEventListener("mouseup", handleUp);
                 }}
                 onTouchStart={(event) => {
-                  const container = layoutRef.current;
-                  if (!container) {
+                  const frame = layoutFrameRef.current;
+                  if (!frame) {
                     return;
                   }
                   const touch = event.touches[0];
@@ -835,7 +836,7 @@ export default function App() {
                     return;
                   }
                   setIsResizing(true);
-                  const rect = container.getBoundingClientRect();
+                  const rect = frame.getBoundingClientRect();
                   const startX = touch.clientX;
                   const startWidth = detailWidth;
                   const handleMove = (moveEvent: TouchEvent) => {
@@ -844,8 +845,9 @@ export default function App() {
                       return;
                     }
                     const delta = moveTouch.clientX - startX;
-                    const next = ((startWidth / 100) * rect.width - delta) / rect.width * 100;
-                    const clamped = Math.min(60, Math.max(20, next));
+                    const pixelWidth = (startWidth / 100) * rect.width - delta;
+                    const clampedPixels = Math.max(320, Math.min(rect.width * 0.6, pixelWidth));
+                    const clamped = (clampedPixels / rect.width) * 100;
                     setDetailWidth(clamped);
                   };
                   const handleUp = () => {

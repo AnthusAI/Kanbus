@@ -126,9 +126,7 @@ def format_issue_line(
     :rtype: str
     """
     if use_color is None:
-        use_color = (
-            os.getenv("NO_COLOR") is None and sys.stdout.isatty()
-        )
+        use_color = os.getenv("NO_COLOR") is None and sys.stdout.isatty()
     use_color = use_color and not porcelain
     color = colorizer or click.style
     if not use_color:

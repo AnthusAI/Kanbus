@@ -151,6 +151,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/console/package-lock.json
+
+      - name: Build frontend assets
+        run: |
+          cd apps/console
+          npm ci --prefer-offline --no-audit
+          npm run build
+          ls -lah dist/
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -159,7 +173,7 @@ jobs:
       - name: Build console server
         run: |
           cd rust
-          cargo build --release --target ${{ matrix.target }} --bin console_local
+          cargo build --release --target ${{ matrix.target }} --bin console_local --features embed-assets
 
       - name: Package console server (tar.gz)
         if: ${{ matrix.archive == 'tar.gz' }}
