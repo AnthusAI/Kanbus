@@ -391,6 +391,16 @@ def delete(identifier: str) -> None:
     """
     root = Path.cwd()
     beads_mode = bool(click.get_current_context().obj.get("beads_mode"))
+
+    # Check if beads_compatibility is enabled in config
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            pass
+
     if beads_mode:
         try:
             delete_beads_issue(root, identifier)

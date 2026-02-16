@@ -186,7 +186,13 @@ def then_beads_jsonl_contains_status(
 def then_beads_jsonl_not_contains(context: object, identifier: str) -> None:
     issues_path = _issues_path(context)
     contents = issues_path.read_text(encoding="utf-8")
-    assert identifier not in contents
+    # Check that the identifier doesn't exist as an issue ID in the JSON
+    for line in contents.splitlines():
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        if record.get("id") == identifier:
+            raise AssertionError(f"Issue {identifier} still exists in issues.jsonl")
 
 
 @given('the beads slug generator always returns "{slug}"')

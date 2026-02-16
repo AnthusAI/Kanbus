@@ -298,6 +298,8 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
 def delete_beads_issue(root: Path, identifier: str) -> None:
     """Delete a Beads-compatible issue from .beads/issues.jsonl.
 
+    Child issues with the deleted issue as parent will have their parent field cleared.
+
     :param root: Repository root path.
     :type root: Path
     :param identifier: Issue identifier to delete.
@@ -315,6 +317,24 @@ def delete_beads_issue(root: Path, identifier: str) -> None:
     remaining = [record for record in records if record.get("id") != identifier]
     if len(remaining) == len(records):
         raise BeadsDeleteError("not found")
+
+    # Clear parent field and parent-child dependencies from child issues
+    for record in remaining:
+        # Clear direct parent field if it exists
+        if record.get("parent") == identifier:
+            record["parent"] = None
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+        # Remove parent-child dependencies pointing to the deleted issue
+        dependencies = record.get("dependencies", [])
+        if dependencies:
+            new_deps = [
+                dep for dep in dependencies
+                if not (dep.get("type") == "parent-child" and dep.get("depends_on_id") == identifier)
+            ]
+            if len(new_deps) != len(dependencies):
+                record["dependencies"] = new_deps
+                record["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     with issues_path.open("w", encoding="utf-8") as handle:
         for record in remaining:

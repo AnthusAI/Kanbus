@@ -142,7 +142,7 @@ def given_beads_issue_with_parent(
     issues_path = context.working_directory / ".beads" / "issues.jsonl"
     issue_record = {
         "id": child,
-        "title": f"Child issue {child}",
+        "title": f"Child task for testing",
         "status": "open",
         "priority": 2,
         "issue_type": "task",
