@@ -224,6 +224,57 @@ def update_beads_issue(
     )
 
 
+def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> None:
+    """Add a comment to a Beads issue in .beads/issues.jsonl.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param author: Comment author.
+    :type author: str
+    :param text: Comment text.
+    :type text: str
+    :raises BeadsWriteError: If the issue cannot be found or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsWriteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsWriteError("no issues.jsonl")
+
+    records = _load_beads_records(issues_path)
+    found = False
+    for record in records:
+        if record.get("id") == identifier:
+            found = True
+            # Add comment to comments array
+            if "comments" not in record:
+                record["comments"] = []
+            comment_id = len(record["comments"]) + 1
+            comment = {
+                "id": comment_id,
+                "issue_id": identifier,
+                "author": author,
+                "text": text,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            record["comments"].append(comment)
+            # Update updated_at timestamp
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+            break
+
+    if not found:
+        raise BeadsWriteError("not found")
+
+    # Write back all records
+    with issues_path.open("w", encoding="utf-8") as handle:
+        for record in records:
+            json.dump(record, handle, separators=(",", ":"))
+            handle.write("\n")
+
+
 def delete_beads_issue(root: Path, identifier: str) -> None:
     """Delete a Beads-compatible issue from .beads/issues.jsonl.
 
