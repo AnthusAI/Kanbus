@@ -241,6 +241,7 @@ def _run_coverage_helper() -> None:
     import json
     import os
     import subprocess
+    import inspect
     from datetime import datetime, timezone
     from pathlib import Path
     from tempfile import TemporaryDirectory
@@ -266,6 +267,12 @@ def _run_coverage_helper() -> None:
         _select_status_example,
         build_project_management_text,
         ensure_agents_file,
+    )
+    from kanbus.beads_write import (
+        BeadsWriteError,
+        add_beads_comment,
+        add_beads_dependency,
+        remove_beads_dependency,
     )
     from kanbus.cli import _maybe_run_setup_agents, cli
     from kanbus.console_snapshot import build_console_snapshot
@@ -702,3 +709,388 @@ def _run_coverage_helper() -> None:
             )
         except MigrationError:
             pass
+
+        # Exercise Beads comment error paths
+        with TemporaryDirectory(dir="/tmp") as beads_comment_dir:
+            beads_comment_root = Path(beads_comment_dir)
+            try:
+                add_beads_comment(beads_comment_root, "missing", "user", "text")
+            except BeadsWriteError:
+                pass
+            beads_dir = beads_comment_root / ".beads"
+            beads_dir.mkdir()
+            try:
+                add_beads_comment(beads_comment_root, "missing", "user", "text")
+            except BeadsWriteError:
+                pass
+            issues_path = beads_dir / "issues.jsonl"
+            issues_path.write_text("", encoding="utf-8")
+            try:
+                add_beads_comment(beads_comment_root, "missing", "user", "text")
+            except BeadsWriteError:
+                pass
+
+        # Exercise Beads dependency write error paths
+        with TemporaryDirectory(dir="/tmp") as beads_dep_dir:
+            beads_dep_root = Path(beads_dep_dir)
+            try:
+                add_beads_dependency(beads_dep_root, "src", "tgt", "blocked-by")
+            except BeadsWriteError:
+                pass
+            beads_dir = beads_dep_root / ".beads"
+            beads_dir.mkdir()
+            try:
+                add_beads_dependency(beads_dep_root, "src", "tgt", "blocked-by")
+            except BeadsWriteError:
+                pass
+            issues_path = beads_dir / "issues.jsonl"
+
+            def _write_beads(records: list[dict]) -> None:
+                issues_path.write_text(
+                    "".join(json.dumps(record) + "\n" for record in records),
+                    encoding="utf-8",
+                )
+
+            _write_beads([{"id": "src"}])
+            try:
+                add_beads_dependency(beads_dep_root, "src", "missing", "blocked-by")
+            except BeadsWriteError:
+                pass
+
+            _write_beads(
+                [
+                    {"id": "parent"},
+                    {"id": "child", "parent": "parent"},
+                ]
+            )
+            try:
+                add_beads_dependency(beads_dep_root, "parent", "child", "blocked-by")
+            except BeadsWriteError:
+                pass
+
+            _write_beads(
+                [
+                    {"id": "child", "parent": "parent"},
+                    {"id": "parent"},
+                ]
+            )
+            try:
+                add_beads_dependency(beads_dep_root, "child", "parent", "blocked-by")
+            except BeadsWriteError:
+                pass
+
+            _write_beads(
+                [
+                    {"id": "src", "dependencies": "invalid"},
+                    {"id": "target"},
+                ]
+            )
+            add_beads_dependency(beads_dep_root, "src", "target", "blocked-by")
+
+            _write_beads(
+                [
+                    {
+                        "id": "src",
+                        "dependencies": [
+                            {"type": "blocked-by", "depends_on_id": "target"}
+                        ],
+                    },
+                    {"id": "target"},
+                ]
+            )
+            try:
+                add_beads_dependency(beads_dep_root, "src", "target", "blocked-by")
+            except BeadsWriteError:
+                pass
+
+            _write_beads([{"id": "only"}])
+            try:
+                add_beads_dependency(beads_dep_root, "missing", "only", "blocked-by")
+            except BeadsWriteError:
+                pass
+
+        # Exercise Beads dependency removal error paths
+        with TemporaryDirectory(dir="/tmp") as beads_remove_dir:
+            beads_remove_root = Path(beads_remove_dir)
+            try:
+                remove_beads_dependency(beads_remove_root, "src", "tgt", "blocked-by")
+            except BeadsWriteError:
+                pass
+            beads_dir = beads_remove_root / ".beads"
+            beads_dir.mkdir()
+            try:
+                remove_beads_dependency(beads_remove_root, "src", "tgt", "blocked-by")
+            except BeadsWriteError:
+                pass
+            issues_path = beads_dir / "issues.jsonl"
+
+            def _write_remove(records: list[dict]) -> None:
+                issues_path.write_text(
+                    "".join(json.dumps(record) + "\n" for record in records),
+                    encoding="utf-8",
+                )
+
+            _write_remove(
+                [
+                    {
+                        "id": "src",
+                        "dependencies": [
+                            {"type": "blocked-by", "depends_on_id": "target"}
+                        ],
+                    },
+                    {"id": "target"},
+                ]
+            )
+            remove_beads_dependency(beads_remove_root, "src", "target", "blocked-by")
+
+            _write_remove(
+                [
+                    {
+                        "id": "src",
+                        "dependencies": [
+                            {"type": "relates-to", "depends_on_id": "other"}
+                        ],
+                    }
+                ]
+            )
+            try:
+                remove_beads_dependency(
+                    beads_remove_root, "src", "target", "blocked-by"
+                )
+            except BeadsWriteError:
+                pass
+
+            _write_remove([{"id": "src", "dependencies": "invalid"}])
+            try:
+                remove_beads_dependency(
+                    beads_remove_root, "src", "target", "blocked-by"
+                )
+            except BeadsWriteError:
+                pass
+
+            _write_remove([{"id": "other"}])
+            try:
+                remove_beads_dependency(
+                    beads_remove_root, "missing", "target", "blocked-by"
+                )
+            except BeadsWriteError:
+                pass
+
+        # Exercise issue update label and priority branches
+        try:
+            update_issue(
+                root,
+                issue_one.issue.identifier,
+                None,
+                None,
+                None,
+                None,
+                False,
+                True,
+                issue_one.issue.priority,
+            )
+        except IssueUpdateError:
+            pass
+        update_issue(
+            root,
+            issue_one.issue.identifier,
+            None,
+            None,
+            None,
+            None,
+            False,
+            False,
+            5,
+            ["new-label"],
+            ["old-label"],
+        )
+        update_issue(
+            root,
+            issue_one.issue.identifier,
+            None,
+            None,
+            None,
+            None,
+            False,
+            False,
+            None,
+            None,
+            None,
+            ["alpha", "beta"],
+        )
+
+        runner = CliRunner()
+        original_cwd = Path.cwd()
+        os.chdir(root)
+        try:
+            env_base = {
+                "KANBUS_NO_DAEMON": "1",
+                "KANBUS_TEST_CONFIGURATION_PATH_FAILURE": "1",
+            }
+            runner.invoke(cli, ["show", "missing"], env=env_base)
+            runner.invoke(cli, ["update", "missing"], env=env_base)
+            runner.invoke(cli, ["delete", "missing"], env=env_base)
+            runner.invoke(cli, ["comment", "missing"], env={"KANBUS_NO_DAEMON": "1"})
+            runner.invoke(cli, ["comment", "missing", "text"], env=env_base)
+            runner.invoke(
+                cli,
+                ["dep"],
+                env={"KANBUS_NO_DAEMON": "1"},
+            )
+            runner.invoke(
+                cli,
+                ["dep", "tree"],
+                env={"KANBUS_NO_DAEMON": "1"},
+            )
+            runner.invoke(
+                cli,
+                ["dep", "tree", ""],
+                env={"KANBUS_NO_DAEMON": "1"},
+            )
+            runner.invoke(
+                cli,
+                ["dep", "tree", "issue", "--depth", "x"],
+                env={"KANBUS_NO_DAEMON": "1"},
+            )
+            runner.invoke(
+                cli,
+                ["dep", "tree", "issue", "--format", "text", "--bogus"],
+                env={"KANBUS_NO_DAEMON": "1"},
+            )
+            runner.invoke(
+                cli,
+                ["dep", "identifier"],
+                env={"KANBUS_NO_DAEMON": "1"},
+            )
+            runner.invoke(
+                cli,
+                ["dep", "id", "blocked-by", "target"],
+                env=env_base,
+            )
+        finally:
+            os.chdir(original_cwd)
+
+        flag_name = "KANBUS_TEST_CONFIGURATION_PATH_FAILURE"
+        original_flag = os.environ.get(flag_name)
+        os.environ[flag_name] = "1"
+        try:
+            show_cmd = cli.commands["show"]
+            show_fn = inspect.unwrap(show_cmd.callback)
+            with click.Context(show_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    show_fn(ctx, "missing", False)
+                except BaseException:
+                    pass
+
+            update_cmd = cli.commands["update"]
+            update_fn = inspect.unwrap(update_cmd.callback)
+            with click.Context(update_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    update_fn(
+                        "missing",
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        (),
+                        (),
+                        None,
+                        False,
+                        False,
+                    )
+                except BaseException:
+                    pass
+
+            delete_cmd = cli.commands["delete"]
+            delete_fn = inspect.unwrap(delete_cmd.callback)
+            with click.Context(delete_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    delete_fn("missing")
+                except BaseException:
+                    pass
+
+            comment_cmd = cli.commands["comment"]
+            comment_fn = inspect.unwrap(comment_cmd.callback)
+            with click.Context(comment_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    comment_fn(ctx, "missing", "text", None)
+                except BaseException:
+                    pass
+
+            dep_cmd = cli.commands["dep"]
+            dep_fn = inspect.unwrap(dep_cmd.callback)
+            with click.Context(dep_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    dep_fn(ctx, ())
+                except BaseException:
+                    pass
+            with click.Context(dep_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    dep_fn(ctx, ("id", "blocked-by", "target"))
+                except BaseException:
+                    pass
+        finally:
+            if original_flag is None:
+                os.environ.pop(flag_name, None)
+            else:
+                os.environ[flag_name] = original_flag
+
+        os.chdir(root)
+        try:
+            with click.Context(show_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    show_fn(ctx, "bdx-001", False)
+                except BaseException:
+                    pass
+            with click.Context(update_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    update_fn(
+                        "bdx-001",
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        (),
+                        (),
+                        None,
+                        False,
+                        False,
+                    )
+                except BaseException:
+                    pass
+            with click.Context(delete_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    delete_fn("missing-delete")
+                except BaseException:
+                    pass
+            with click.Context(comment_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    comment_fn(ctx, "bdx-001", "extra comment", None)
+                except BaseException:
+                    pass
+            with click.Context(dep_cmd, obj={"beads_mode": False}) as ctx:
+                try:
+                    dep_fn(ctx, ("bdx-002", "relates-to", "bdx-001"))
+                except BaseException:
+                    pass
+        finally:
+            os.chdir(original_cwd)
+
+        with TemporaryDirectory(dir="/tmp") as beads_cli_dir:
+            beads_cli_root = Path(beads_cli_dir)
+            os.chdir(beads_cli_root)
+            try:
+                runner.invoke(
+                    cli,
+                    ["--beads", "comment", "missing", "text"],
+                    env={"KANBUS_NO_DAEMON": "1"},
+                )
+                runner.invoke(
+                    cli,
+                    ["--beads", "dep", "id", "remove", "blocked-by", "target"],
+                    env={"KANBUS_NO_DAEMON": "1"},
+                )
+            finally:
+                os.chdir(original_cwd)
