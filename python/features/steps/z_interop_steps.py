@@ -8,7 +8,7 @@ from pathlib import Path
 
 from behave import given, then, when, use_step_matcher
 
-from features.steps.shared import run_cli
+from features.steps.shared import run_cli, run_cli_with_input
 
 # Use parse matcher for complex command patterns
 use_step_matcher("re")
@@ -16,8 +16,20 @@ use_step_matcher("re")
 
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists')
 def given_kanbus_issue_exists(context: object, identifier: str) -> None:
-    """Create a basic Kanbus issue for testing."""
-    run_cli(context, f"kanbus create Test issue for {identifier}")
+    """Create a basic Kanbus/Beads issue for testing with specific ID."""
+    # For beads compatibility testing, create the issue in beads format with exact ID
+    issues_path = context.working_directory / ".beads" / "issues.jsonl"
+    issue_record = {
+        "id": identifier,
+        "title": f"Test issue {identifier}",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "task",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    with open(issues_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(issue_record) + "\n")
 
 
 @given('a beads issue "(?P<identifier>[^"]+)" exists')
@@ -111,7 +123,23 @@ def given_beads_issue_with_parent(
         f.write(json.dumps(issue_record) + "\n")
 
 
+@given('a kanbus issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)"')
+def given_kanbus_issue_with_parent(
+    context: object, child: str, parent_id: str
+) -> None:
+    """Create a Kanbus issue with a parent relationship."""
+    run_cli(context, f"kanbus create Child issue {child} --parent {parent_id}")
+
+
 # Use a generic pattern for all command variants
+@when('I run "(?P<command>[^"]+)" with stdin "(?P<stdin_text>[^"]+)"')
+def when_run_command_with_stdin(context: object, command: str, stdin_text: str) -> None:
+    """Generic step to run any kanbus command with stdin input."""
+    # Decode escaped newlines
+    stdin_content = stdin_text.replace("\\n", "\n")
+    run_cli_with_input(context, command, stdin_content)
+
+
 @when('I run "(?P<command>[^"]+)"')
 def when_run_command(context: object, command: str) -> None:
     """Generic step to run any kanbus command."""
