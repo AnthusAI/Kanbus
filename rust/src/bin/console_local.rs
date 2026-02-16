@@ -42,6 +42,7 @@ struct AppState {
     base_root: PathBuf,
     assets_root: PathBuf,
     multi_tenant: bool,
+    assets_root_explicit: bool,
 }
 
 #[tokio::main]
@@ -57,6 +58,8 @@ async fn main() {
         .map(PathBuf::from)
         .or_else(|| root_override.clone())
         .unwrap_or_else(|| repo_root.clone());
+
+    let assets_root_explicit = std::env::var("CONSOLE_ASSETS_ROOT").is_ok();
     let assets_root = std::env::var("CONSOLE_ASSETS_ROOT")
         .ok()
         .map(PathBuf::from)
@@ -75,6 +78,7 @@ async fn main() {
         base_root: data_root,
         assets_root,
         multi_tenant,
+        assets_root_explicit,
     };
 
     let app = Router::new()
@@ -453,7 +457,12 @@ async fn get_public_asset(
 }
 
 fn serve_asset(state: &AppState, asset_path: &str) -> Response {
-    // Try embedded assets first (if feature enabled)
+    // If CONSOLE_ASSETS_ROOT was explicitly set, use filesystem only
+    if state.assets_root_explicit {
+        return serve_asset_from_filesystem(state, asset_path);
+    }
+
+    // Try embedded assets first (if feature enabled and no explicit override)
     #[cfg(feature = "embed-assets")]
     {
         if let Some(embedded_file) = EmbeddedAssets::get(asset_path) {
@@ -473,7 +482,7 @@ fn serve_asset(state: &AppState, asset_path: &str) -> Response {
         }
     }
 
-    // Fallback to filesystem (development or override)
+    // Fallback to filesystem (development or asset not found in embedded)
     serve_asset_from_filesystem(state, asset_path)
 }
 
