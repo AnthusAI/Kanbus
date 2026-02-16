@@ -44,12 +44,17 @@ pub fn compute_widths(issues: &[IssueData], project_context: bool) -> Widths {
 }
 
 /// Render a single-line summary similar to Beads.
+///
+/// When `use_color_override` is `None`, color is determined by NO_COLOR and
+/// stdout TTY (interactive). When `Some(true)` or `Some(false)`, that value
+/// is used instead (for tests or callers that know the context).
 pub fn format_issue_line(
     issue: &IssueData,
     widths: Option<&Widths>,
     porcelain: bool,
     project_context: bool,
     configuration: Option<&ProjectConfiguration>,
+    use_color_override: Option<bool>,
 ) -> String {
     let parent_value = issue.parent.clone().unwrap_or_else(|| "-".to_string());
     let formatted_identifier = format_issue_key(&issue.identifier, project_context);
@@ -78,7 +83,7 @@ pub fn format_issue_line(
     let computed_widths = widths
         .copied()
         .unwrap_or_else(|| compute_widths(std::slice::from_ref(issue), project_context));
-    let use_color = should_use_color();
+    let use_color = use_color_override.unwrap_or_else(should_use_color);
     let prefix = issue
         .custom
         .get("project_path")

@@ -73,6 +73,7 @@ def when_format_list_lines_for_color_coverage(context: object) -> None:
             widths=widths,
             project_context=False,
             configuration=configuration,
+            use_color=True,
         )
         for issue in issues
     ]
@@ -94,6 +95,7 @@ def when_format_list_line_for_issue(context: object, identifier: str) -> None:
         widths=widths,
         project_context=False,
         configuration=configuration,
+        use_color=True,
     )
 
 

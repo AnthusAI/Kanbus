@@ -124,8 +124,16 @@ fn when_format_list_lines_for_color_coverage(world: &mut KanbusWorld) {
             false,
             false,
             configuration.as_ref(),
+            Some(true),
         ));
-        lines.push(format_issue_line(issue, Some(&widths), false, false, None));
+        lines.push(format_issue_line(
+            issue,
+            Some(&widths),
+            false,
+            false,
+            None,
+            Some(true),
+        ));
     }
     world.formatted_output = Some(lines.join("\n"));
 
@@ -156,7 +164,14 @@ fn when_format_list_line_for_issue(world: &mut KanbusWorld, identifier: String) 
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
     let widths = compute_widths(std::slice::from_ref(&issue), false);
-    let line = format_issue_line(&issue, Some(&widths), false, false, configuration.as_ref());
+    let line = format_issue_line(
+        &issue,
+        Some(&widths),
+        false,
+        false,
+        configuration.as_ref(),
+        Some(true),
+    );
     world.formatted_output = Some(line);
 
     match original_no_color {
@@ -186,7 +201,14 @@ fn when_format_list_line_for_issue_no_color(world: &mut KanbusWorld, identifier:
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
     let widths = compute_widths(std::slice::from_ref(&issue), false);
-    let line = format_issue_line(&issue, Some(&widths), false, false, configuration.as_ref());
+    let line = format_issue_line(
+        &issue,
+        Some(&widths),
+        false,
+        false,
+        configuration.as_ref(),
+        None,
+    );
     world.formatted_output = Some(line);
 
     match original_no_color {
