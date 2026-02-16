@@ -100,7 +100,25 @@ kanbus close kanbus-a1b2c3 --comment "Initial structure is complete."
 
 ## Console (Rust backend)
 
-Build the console assets once:
+### Development Mode (Recommended)
+
+For development with automatic rebuilds on file changes:
+
+```bash
+./dev.sh
+```
+
+This single command starts:
+- Frontend watcher (automatically rebuilds React/Vite on changes)
+- Rust backend with auto-restart (restarts on Rust source changes)
+
+The console will be available at `http://127.0.0.1:5174/`
+
+Press `Ctrl+C` to stop all services.
+
+### Production Build
+
+For a one-time build of the console:
 
 ```bash
 cd apps/console
@@ -108,25 +126,25 @@ npm install
 npm run build
 ```
 
-Run the local backend:
+Then run the backend:
 
 ```bash
 cargo run --bin console_local --manifest-path rust/Cargo.toml
 ```
 
-Open (local mode):
+### Console URLs
 
+Local mode (default):
 ```
 http://127.0.0.1:5174/
 ```
 
-Or for multi-tenant mode (set `CONSOLE_TENANT_MODE=multi`):
-
+Multi-tenant mode (set `CONSOLE_TENANT_MODE=multi`):
 ```
 http://127.0.0.1:5174/<account>/<project>/
 ```
 
-Optional environment variables:
+### Environment Variables
 
 - `CONSOLE_PORT` (default `5174`)
 - `CONSOLE_ROOT` (sets both data root and assets root)
@@ -142,35 +160,33 @@ Prerequisites for a fresh clone:
 - Rust toolchain (stable)
 - Node.js 20+ with npm
 
-Clone and build the Rust CLI:
+Clone the repository:
 
 ```bash
 git clone https://github.com/AnthusAI/Kanbus.git
 cd Kanbus
+```
 
+Install dependencies:
+
+```bash
 cargo build --manifest-path rust/Cargo.toml
-./rust/target/debug/kanbusr --version
+cd apps/console && npm install && cd ../..
 ```
 
-Build the console UI assets:
+Run in development mode (with auto-rebuild on file changes):
 
 ```bash
-cd apps/console
-npm install
-npm run build
-```
-
-Run the console server:
-
-```bash
-cargo run --bin console_local --manifest-path rust/Cargo.toml
+./dev.sh
 ```
 
 Then open:
 
 ```
-http://127.0.0.1:5174/<account>/<project>/
+http://127.0.0.1:5174/
 ```
+
+(Or `http://127.0.0.1:5174/<account>/<project>/` if using multi-tenant mode with `CONSOLE_TENANT_MODE=multi`)
 
 ## Next Steps
 

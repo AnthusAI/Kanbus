@@ -3,6 +3,7 @@ import { Menu, X } from "lucide-react";
 
 const navigation = [
   { label: "Philosophy", href: "/philosophy" },
+  { label: "Features", href: "/features" },
   { label: "Architecture", href: "/architecture" },
   { label: "Getting Started", href: "/getting-started" },
   { label: "Documentation", href: "/docs" },
@@ -105,6 +106,7 @@ const Layout = ({ children }: LayoutProps) => {
               <h4 className="text-sm font-semibold text-foreground">Explore</h4>
               <ul className="mt-4 space-y-3 text-sm">
                 <li><a href="/philosophy" className="text-muted hover:text-selected">Philosophy</a></li>
+                <li><a href="/features" className="text-muted hover:text-selected">Features</a></li>
                 <li><a href="/architecture" className="text-muted hover:text-selected">Architecture</a></li>
                 <li><a href="/getting-started" className="text-muted hover:text-selected">Getting Started</a></li>
                 <li><a href="/docs" className="text-muted hover:text-selected">Documentation</a></li>

@@ -6,6 +6,7 @@ import {
   CheckSquare,
   ListChecks,
   Rocket,
+  Square,
   Tag,
   Wrench,
   CornerDownRight
@@ -100,6 +101,18 @@ export function TaskDetailPanel({
     });
   }, [task?.id]);
 
+  // Update displayTask when task data changes (not just ID).
+  // This handles real-time updates via SSE for the same task.
+  useEffect(() => {
+    if (!task || !displayTask) {
+      return;
+    }
+    // Same task ID but different data = update without animation
+    if (task.id === displayTask.id && task !== displayTask) {
+      setDisplayTask(task);
+    }
+  }, [task]);
+
   const detailTask = displayTask;
   const priorityName = detailTask
     ? priorityLookup[detailTask.priority] ?? "medium"
@@ -111,11 +124,13 @@ export function TaskDetailPanel({
   const showUpdated = Boolean(
     updatedAt && (!createdAt || updatedAt !== createdAt)
   );
+  const taskIcon =
+    detailTask?.status === "closed" ? CheckSquare : Square;
   const DetailTypeIcon =
     {
       initiative: Rocket,
       epic: ListChecks,
-      task: CheckSquare,
+      task: taskIcon,
       "sub-task": CornerDownRight,
       bug: Bug,
       story: BookOpen,

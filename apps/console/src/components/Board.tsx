@@ -13,7 +13,7 @@ interface BoardProps {
   transitionKey: string;
 }
 
-export function Board({
+function BoardComponent({
   columns,
   issues,
   priorityLookup,
@@ -43,3 +43,5 @@ export function Board({
     </div>
   );
 }
+
+export const Board = React.memo(BoardComponent);

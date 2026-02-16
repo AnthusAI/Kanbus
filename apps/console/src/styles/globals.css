@@ -238,7 +238,7 @@ button:focus-visible {
   transition: width 0.45s ease, flex-basis 0.45s ease, opacity 0.45s ease;
   pointer-events: none;
   position: relative;
-  z-index: 2;
+  z-index: 50;
 }
 
 .detail-column-open {

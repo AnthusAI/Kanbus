@@ -5,6 +5,7 @@ import {
   CheckSquare,
   ListChecks,
   Rocket,
+  Square,
   Tag,
   Wrench,
   CornerDownRight
@@ -21,7 +22,7 @@ interface IssueCardProps {
   isSelected?: boolean;
 }
 
-export function IssueCard({
+function IssueCardComponent({
   issue,
   priorityName,
   config,
@@ -34,11 +35,12 @@ export function IssueCard({
     }
   };
 
+  const taskIcon = issue.status === "closed" ? CheckSquare : Square;
   const IssueTypeIcon =
     {
       initiative: Rocket,
       epic: ListChecks,
-      task: CheckSquare,
+      task: taskIcon,
       "sub-task": CornerDownRight,
       bug: Bug,
       story: BookOpen,
@@ -82,3 +84,5 @@ export function IssueCard({
     </div>
   );
 }
+
+export const IssueCard = React.memo(IssueCardComponent);

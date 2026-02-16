@@ -11,7 +11,7 @@ interface BoardColumnProps {
   selectedIssueId?: string | null;
 }
 
-export function BoardColumn({
+function BoardColumnComponent({
   title,
   issues,
   priorityLookup,
@@ -42,3 +42,5 @@ export function BoardColumn({
     </div>
   );
 }
+
+export const BoardColumn = React.memo(BoardColumnComponent);

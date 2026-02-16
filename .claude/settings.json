@@ -12,10 +12,6 @@
       "Bash(bd ready:*)",
       "Bash(bd status:*)",
       "Bash(bd graph:*)"
-    ],
-    "deny": [
-      "Read(./project/**)",
-      "Edit(./project/**)"
     ]
   }
 }

@@ -543,7 +543,11 @@ fn execute_command(
             Ok(Some(format!("Updated {}", formatted_identifier)))
         }
         Commands::Close { identifier } => {
-            close_issue(root, &identifier)?;
+            if beads_mode {
+                update_beads_issue(root, &identifier, Some("closed"))?;
+            } else {
+                close_issue(root, &identifier)?;
+            }
             let formatted_identifier = format_issue_key(&identifier, false);
             Ok(Some(format!("Closed {}", formatted_identifier)))
         }

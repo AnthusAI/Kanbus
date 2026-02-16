@@ -37,10 +37,20 @@ workflows:
     - open
 initial_status: open
 priorities:
-  0: critical
-  1: high
-  2: medium
-  3: low
-  4: trivial
+  0:
+    name: critical
+    color: red
+  1:
+    name: high
+    color: bright_red
+  2:
+    name: medium
+    color: yellow
+  3:
+    name: low
+    color: blue
+  4:
+    name: trivial
+    color: white
 default_priority: 2
 beads_compatibility: true
