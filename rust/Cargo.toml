@@ -2,7 +2,7 @@
 name = "kanbus"
 version = "0.1.0"
 edition = "2021"
-description = "Kanbus command-line interface for managing issues with the Beads-backed tracker."
+description = "High-performance CLI and web console for the Kanbus issue tracker. Includes kanbus (CLI) and kanbus-console (web UI server)."
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/AnthusAI/Kanbus"
@@ -56,5 +56,9 @@ harness = false
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
 
 [[bin]]
-name = "kanbusr"
+name = "kanbus"
 path = "src/main.rs"
+
+[[bin]]
+name = "kanbus-console"
+path = "src/bin/console_local.rs"

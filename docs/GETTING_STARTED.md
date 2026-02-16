@@ -9,22 +9,48 @@ This guide is a 10-minute walkthrough to initialize a Kanbus project, create and
 
 ## Installation
 
-Kanbus provides two **completely equivalent** implementations. They pass the same 100% specification test suite, use the same file formats, and provide the same CLI commands. You can mix and match them within a team without issues.
+Kanbus provides two **completely equivalent** CLI implementations plus a web console. All CLIs pass the same 100% specification test suite, use the same file formats, and provide the same commands. You can mix and match them within a team without issues.
 
-<div style="display: flex; gap: 20px;">
-  <div style="flex: 1; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
-    <strong>Python</strong> (pip)<br>
-    <em>Recommended for easy installation, scripting, and integrating with AI workflows.</em><br><br>
-    <code>pip install kanbus</code>
-  </div>
-  <div style="flex: 1; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
-    <strong>Rust</strong> (cargo)<br>
-    <em>Recommended for max performance, large repositories, and CI/CD pipelines.</em><br><br>
-    <code>cargo install kanbus</code>
-  </div>
-</div>
+### Option 1: Download Prebuilt Binaries (Recommended)
 
-Python installs `kanbus`. Rust installs `kanbusr` with the same subcommands. You can switch between them at any time.
+Download the latest release from [GitHub Releases](https://github.com/AnthusAI/Kanbus/releases):
+
+**CLI Binary:**
+```bash
+# Linux x86_64
+curl -L -o kanbus.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kanbus.tar.gz
+chmod +x kanbus
+./kanbus --help
+
+# macOS (choose your architecture)
+curl -L -o kanbus.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-aarch64-apple-darwin.tar.gz  # Apple Silicon
+curl -L -o kanbus.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-x86_64-apple-darwin.tar.gz   # Intel
+```
+
+**Console Server Binary:**
+```bash
+# Linux x86_64
+curl -L -o kanbus-console.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-console-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kanbus-console.tar.gz
+chmod +x kanbus-console
+./kanbus-console
+# Opens web UI at http://127.0.0.1:5174/
+```
+
+### Option 2: Install from Package Managers
+
+**Python** (pip) - Recommended for scripting and AI workflows:
+```bash
+pip install kanbus
+```
+
+**Rust** (cargo) - Recommended for max performance and CI/CD:
+```bash
+cargo install kanbus
+```
+
+The Rust installation includes both `kanbus` (CLI) and `kanbus-console` (web server).
 
 ## Step 1: Initialize a project
 

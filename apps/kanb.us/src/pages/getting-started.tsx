@@ -13,24 +13,37 @@ const GettingStartedPage = () => {
 
       <div className="space-y-12">
         <Section
-          title="Download the kanbusr binary"
-          subtitle="Grab the prebuilt Rust CLI for your platform."
+          title="Download prebuilt binaries"
+          subtitle="Get the Rust CLI and console server for your platform."
         >
           <Card className="p-8 bg-card">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
               <p>
-                Download the latest release from GitHub Releases. Replace the
-                version and target with the artifact that matches your platform.
+                Download the latest release from GitHub Releases. Two binaries are available:
               </p>
-              <CodeBlock label="Example (Linux x86_64)">
-{`curl -L -o kanbusr.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbusr-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf kanbusr.tar.gz
-chmod +x kanbusr
-./kanbusr --help`}
+              <ul className="list-disc list-inside space-y-2">
+                <li><code>kanbus</code> - High-performance CLI for managing issues</li>
+                <li><code>kanbus-console</code> - Web UI server with embedded frontend assets</li>
+              </ul>
+              <CodeBlock label="Download CLI (Linux x86_64)">
+{`curl -L -o kanbus.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kanbus.tar.gz
+chmod +x kanbus
+./kanbus --help`}
+              </CodeBlock>
+              <CodeBlock label="Download Console Server (Linux x86_64)">
+{`curl -L -o kanbus-console.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-console-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kanbus-console.tar.gz
+chmod +x kanbus-console
+./kanbus-console
+# Opens web UI at http://127.0.0.1:5174/`}
               </CodeBlock>
               <p>
-                The binary name is <code>kanbusr</code>.
+                Optional: Create shortcuts <code>kbs</code> and <code>kbsc</code> by running the installer:
               </p>
+              <CodeBlock label="Shortcuts (optional)">
+{`curl -sSL https://raw.githubusercontent.com/AnthusAI/Kanbus/main/rust/install-aliases.sh | bash`}
+              </CodeBlock>
             </CardContent>
           </Card>
         </Section>

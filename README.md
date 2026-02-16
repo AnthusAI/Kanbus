@@ -75,12 +75,27 @@ kanbus show kanbus-a1b
 
 The console UI is served by the Rust local server.
 
-### Quick Start (Development)
+### Quick Start (Prebuilt Binary)
 
-Run the local backend:
+Download the prebuilt binary from [GitHub Releases](https://github.com/AnthusAI/Kanbus/releases):
 
 ```bash
-cargo run --bin console_local --manifest-path rust/Cargo.toml
+# Linux x86_64
+curl -L -o kanbus-console.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-console-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kanbus-console.tar.gz
+chmod +x kanbus-console
+./kanbus-console
+# Opens web UI at http://127.0.0.1:5174/
+```
+
+The binary includes all frontend assets—no configuration or additional files required.
+
+### Development Mode
+
+Run the local backend with filesystem assets:
+
+```bash
+cargo run --bin kanbus-console --manifest-path rust/Cargo.toml
 ```
 
 The development build serves assets from `apps/console/dist/`. Build the frontend once if not already built:
@@ -91,7 +106,7 @@ npm install
 npm run build
 ```
 
-### Production Binary (Embedded Assets)
+### Production Binary (Build from Source)
 
 To build a standalone binary with embedded frontend:
 
@@ -101,10 +116,10 @@ npm install
 npm run build
 
 cd ../rust
-cargo build --release --features embed-assets --bin console_local
+cargo build --release --features embed-assets --bin kanbus-console
 ```
 
-The resulting binary at `rust/target/release/console_local` includes all frontend assets and requires no additional files.
+The resulting binary at `rust/target/release/kanbus-console` includes all frontend assets and requires no additional files.
 
 ### Usage
 

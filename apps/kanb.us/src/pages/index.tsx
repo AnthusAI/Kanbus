@@ -106,13 +106,13 @@ const IndexPage = () => {
         </Section>
 
         <Section
-          title="Dual Implementation"
-          subtitle="One behavior specification driving two complete implementations."
+          title="Dual Implementation + Web Console"
+          subtitle="One behavior specification driving two complete CLIs, plus a web UI server."
         >
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid gap-8 md:grid-cols-3">
             <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
               <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">Python</h3>
+                <h3 className="text-xl font-bold text-foreground">Python CLI</h3>
               </CardHeader>
               <CardContent className="p-0 text-muted leading-relaxed">
                 Easy to install via pip. Perfect for scripting, local workflows, and integrating with AI tools.
@@ -120,11 +120,20 @@ const IndexPage = () => {
             </Card>
             <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
               <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">Rust</h3>
+                <h3 className="text-xl font-bold text-foreground">Rust CLI</h3>
               </CardHeader>
               <CardContent className="p-0 text-muted leading-relaxed">
                 High-performance binary for CI/CD pipelines and large repositories. 100% behavior parity with
                 the Python version.
+              </CardContent>
+            </Card>
+            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
+              <CardHeader className="p-0 mb-3">
+                <h3 className="text-xl font-bold text-foreground">Web Console</h3>
+              </CardHeader>
+              <CardContent className="p-0 text-muted leading-relaxed">
+                Single-binary web UI server with embedded React frontend. Download and run—no configuration,
+                no separate assets, no npm required.
               </CardContent>
             </Card>
           </div>
