@@ -702,7 +702,7 @@ def stats() -> None:
     click.echo("\n".join(lines))
 
 
-@cli.command("dep")
+@cli.command("dep", context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False})
 @click.argument("args", nargs=-1, required=True)
 @click.pass_context
 def dep(context: click.Context, args: tuple[str, ...]) -> None:
@@ -710,9 +710,52 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
 
     Usage: kanbus dep <identifier> <blocked-by|relates-to> <target>
            kanbus dep <identifier> remove <blocked-by|relates-to> <target>
+           kanbus dep tree <identifier> [--depth N] [--format FORMAT]
     """
+    if len(args) < 1:
+        raise click.ClickException("usage: kanbus dep <identifier> <type> <target>")
+
+    # Check if this is a tree command - handle it separately since it needs options
+    if args[0] == "tree":
+        # Redirect to separate tree implementation
+        if len(args) < 2:
+            raise click.ClickException("tree requires an identifier")
+
+        # For tree, we need to parse options differently
+        # Just pass through to the tree handler with a simple parse
+        tree_args = list(args[1:])
+        tree_identifier = tree_args[0] if tree_args else None
+        if not tree_identifier:
+            raise click.ClickException("tree requires an identifier")
+
+        # Simple option parsing
+        depth = None
+        output_format = "text"
+        i = 1
+        while i < len(tree_args):
+            if tree_args[i] == "--depth" and i + 1 < len(tree_args):
+                try:
+                    depth = int(tree_args[i + 1])
+                except ValueError:
+                    raise click.ClickException("depth must be a number")
+                i += 2
+            elif tree_args[i] == "--format" and i + 1 < len(tree_args):
+                output_format = tree_args[i + 1]
+                i += 2
+            else:
+                i += 1
+
+        root = Path.cwd()
+        try:
+            tree = build_dependency_tree(root, tree_identifier, depth)
+            output = render_dependency_tree(tree, output_format)
+        except DependencyTreeError as error:
+            raise click.ClickException(str(error)) from error
+        click.echo(output)
+        return
+
     if len(args) < 2:
-        raise click.ClickException("usage: kanbus dep <identifier> <type> <target> OR kanbus dep <identifier> remove <type> <target>")
+        raise click.ClickException("usage: kanbus dep <identifier> <type> <target>")
 
     identifier = args[0]
 
