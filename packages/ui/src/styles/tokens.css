@@ -6,6 +6,8 @@
 @import "@radix-ui/colors/sand-dark.css";
 @import "@radix-ui/colors/sky.css";
 @import "@radix-ui/colors/sky-dark.css";
+@import "@radix-ui/colors/red.css";
+@import "@radix-ui/colors/red-dark.css";
 
 :root {
   --font-sans: "Inter", "SF Pro Text", "Helvetica Neue", "Arial", sans-serif;
@@ -24,6 +26,9 @@
   --text-selected: var(--sky-11);
   --border: var(--gray-6);
   --shadow-card: none;
+
+  --danger-bg: var(--red-3);
+  --danger-text: var(--red-11);
 
   --radius-sm: 10px;
   --radius-md: 14px;
@@ -44,6 +49,9 @@
     --text-selected: #7dd3fc;
     --border: #262c36;
     --shadow-card: none;
+
+    --danger-bg: var(--red-4);
+    --danger-text: var(--red-11);
   }
 }
 

@@ -10,6 +10,7 @@ import {
 import { AppShell } from "./components/AppShell";
 import { Board } from "./components/Board";
 import { TaskDetailPanel } from "./components/TaskDetailPanel";
+import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { AnimatedSelector } from "@kanbus/ui";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { fetchSnapshot, subscribeToSnapshots } from "./api/client";
@@ -338,6 +339,7 @@ function SettingsIcon() {
 export default function App() {
   const [snapshot, setSnapshot] = useState<IssuesSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorTime, setErrorTime] = useState<number | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode | null>(() =>
@@ -395,7 +397,9 @@ export default function App() {
       })
       .catch((err) => {
         if (isMounted) {
-          setError(err instanceof Error ? err.message : "Failed to load data");
+          const errorMessage = err instanceof Error ? err.message : "Failed to load data";
+          setError(errorMessage);
+          setErrorTime(Date.now());
         }
       })
       .finally(() => {
@@ -409,9 +413,11 @@ export default function App() {
       (data) => {
         setSnapshot(data);
         setError(null);
+        setErrorTime(null);
       },
       () => {
         setError("SSE connection issue. Attempting to reconnect.");
+        setErrorTime(Date.now());
       }
     );
 
@@ -462,10 +468,13 @@ export default function App() {
   }, [detailWidth]);
 
   useEffect(() => {
-    if (!selectedTask) {
+    if (!selectedTask || !snapshot) {
       return;
     }
-    const updatedTask = issues.find((issue) => issue.id === selectedTask.id);
+    // Look up in all issues from snapshot, not just filtered issues
+    // This allows the detail panel to show updated data even if the task
+    // is filtered out (e.g., closed task when "show closed" is toggled off)
+    const updatedTask = snapshot.issues.find((issue) => issue.id === selectedTask.id);
     if (!updatedTask) {
       if (route.basePath != null) {
         const nextMode = viewMode ?? loadStoredViewMode();
@@ -478,7 +487,7 @@ export default function App() {
     if (updatedTask !== selectedTask) {
       setSelectedTask(updatedTask);
     }
-  }, [issues, route.basePath, selectedTask, viewMode]);
+  }, [snapshot, route.basePath, selectedTask, viewMode]);
 
   const priorityLookup = useMemo(() => {
     if (!config) {
@@ -757,7 +766,11 @@ export default function App() {
         </div>
       </div>
 
-      {error || columnError || routeError ? (
+      {error && errorTime ? (
+        <div className="mt-2">
+          <ErrorStatusDisplay errorTime={errorTime} />
+        </div>
+      ) : error || columnError || routeError ? (
         <div className="mt-2 rounded-xl bg-card-muted p-3 text-sm text-muted">
           {error ?? routeError ?? columnError}
         </div>
