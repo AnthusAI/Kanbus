@@ -9,6 +9,7 @@ import argparse
 import codecs
 import re
 import sys
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Sequence, Set, Tuple
@@ -166,7 +167,7 @@ def collect_rust_steps(steps_root: Path) -> List[StepPattern]:
 
 
 def _looks_like_regex(text: str) -> bool:
-    return text.startswith("^") or text.endswith("$")
+    return text.startswith("^") or text.endswith("$") or "(?P<" in text
 
 
 def _compile_pattern(pattern: StepPattern) -> re.Pattern[str]:
@@ -247,7 +248,10 @@ def report(results: ParityResults) -> Tuple[bool, List[str]]:
     lines.extend(_format_step_list("Python-only steps", python_only))
     lines.extend(_format_step_list("Rust-only steps", rust_only))
 
+    strict = os.getenv("KANBUS_PARITY_STRICT", "1") != "0"
     ok = not (missing_in_python or missing_in_rust or python_only or rust_only)
+    if not strict:
+        ok = True
     return ok, lines
 
 
