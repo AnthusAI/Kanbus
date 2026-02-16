@@ -22,14 +22,14 @@ const GettingStartedPage = () => {
                 Download the latest release from GitHub Releases. Two binaries are available:
               </p>
               <ul className="list-disc list-inside space-y-2">
-                <li><code>kanbus</code> - High-performance CLI for managing issues</li>
+                <li><code>kanbusr</code> - High-performance CLI for managing issues</li>
                 <li><code>kanbus-console</code> - Web UI server with embedded frontend assets</li>
               </ul>
               <CodeBlock label="Download CLI (Linux x86_64)">
-{`curl -L -o kanbus.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf kanbus.tar.gz
-chmod +x kanbus
-./kanbus --help`}
+{`curl -L -o kanbusr.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbusr-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kanbusr.tar.gz
+chmod +x kanbusr
+./kanbusr --help`}
               </CodeBlock>
               <CodeBlock label="Download Console Server (Linux x86_64)">
 {`curl -L -o kanbus-console.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-console-x86_64-unknown-linux-gnu.tar.gz
@@ -56,11 +56,11 @@ chmod +x kanbus-console
           <Card className="p-8 bg-card">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
               <p>
-                Install Kanbus from PyPI and use the <code>kanbus</code> command.
+                Install Kanbus from PyPI and use the <code>kanbusr</code> command (a <code>kanbus</code> alias is also installed).
               </p>
               <CodeBlock label="Python">
-{`python -m pip install kanbus
-kanbus --help`}
+{`python -m pip install kanbusr
+kanbusr --help`}
               </CodeBlock>
             </CardContent>
           </Card>
@@ -105,7 +105,7 @@ cargo build --release
               <CodeBlock label="Python CLI">
 {`cd python
 python -m pip install -e .
-kanbus --help`}
+kanbusr --help`}
               </CodeBlock>
             </CardContent>
           </Card>
@@ -118,14 +118,14 @@ kanbus --help`}
           <Card className="p-8 bg-card">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
               <p>
-                Run <code>kanbus init</code> once in the repository root. It creates
+                Run <code>kanbusr init</code> once in the repository root. It creates
                 the <code>project/</code> directory and the repo-level
                 <code>.kanbus.yml</code> file.
               </p>
               <CodeBlock label="Initialize">
 {`cd your-repo
 git init
-kanbus init`}
+kanbusr init`}
               </CodeBlock>
             </CardContent>
           </Card>
@@ -145,8 +145,8 @@ kanbus init`}
                 assignee or time zone.
               </p>
               <CodeBlock label="Validate">
-{`kanbus list
-kanbus ready`}
+{`kanbusr list
+kanbusr ready`}
               </CodeBlock>
             </CardContent>
           </Card>

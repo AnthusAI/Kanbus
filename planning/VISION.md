@@ -33,7 +33,7 @@ Kanbus simplifies radically:
 1. **Files are the database.** There is no separate storage layer. The JSON files in `project/issues/` are the source of truth. We index them into memory on demand.
 2. **Human-readable by default.** The `project/` directory is visible (not hidden), uses pretty-printed JSON, and can be browsed in any file explorer or text editor.
 3. **Minimal required schema, open extensibility.** A small set of canonical fields that every issue has, plus a `custom` map where any project can store whatever it needs.
-4. **Two implementations, one spec.** Python for easy installation in Python environments (`pip install kanbus`). Rust for maximum performance (`cargo install kanbus`). Both pass the same shared behavior test suite and read/write the same files.
+4. **Two implementations, one spec.** Python for easy installation in Python environments (`pip install kanbusr`). Rust for maximum performance (`cargo install kanbusr`). Both pass the same shared behavior test suite and read/write the same files.
 5. **The spec is the artifact.** Neither implementation is primary. The shared behavior specifications are the source of truth. Both implementations are first-class.
 
 ---

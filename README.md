@@ -59,16 +59,16 @@ This repository contains the complete vision, implementation plan, and task brea
 
 ```bash
 # Initialize a new project
-kanbus init
+kanbusr init
 
 # Create an issue
-kanbus create "Implement the login flow"
+kanbusr create "Implement the login flow"
 
 # List open tasks
-kanbus list --status todo
+kanbusr list --status todo
 
 # Show details
-kanbus show kanbus-a1b
+kanbusr show kanbus-a1b
 ```
 
 ## Console (Rust backend)
@@ -81,7 +81,7 @@ Download the prebuilt binary from [GitHub Releases](https://github.com/AnthusAI/
 
 ```bash
 # Linux x86_64
-curl -L -o kanbus-console.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-console-x86_64-unknown-linux-gnu.tar.gz
+curl -L -o kanbus-console.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbus-console-x86_64-unknown-linux-gnu.tar.gz
 tar -xzf kanbus-console.tar.gz
 chmod +x kanbus-console
 ./kanbus-console

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Kanbus Symlink Installer
 # Creates short symlinks (kbs, kbsc) for kanbus binaries
-# Run this after: cargo install kanbus
+# Run this after: cargo install kanbusr
 
 set -euo pipefail
 
@@ -9,7 +9,7 @@ echo "Kanbus Shortcut Installer"
 echo "========================="
 echo ""
 echo "This will create the following shortcuts in ~/.cargo/bin/:"
-echo "  kbs  -> kanbus"
+echo "  kbs  -> kanbusr"
 echo "  kbsc -> kanbus-console"
 echo ""
 
@@ -23,9 +23,9 @@ if [[ ! -d "$CARGO_BIN" ]]; then
 fi
 
 # Check if binaries exist
-if [[ ! -f "$CARGO_BIN/kanbus" ]]; then
-  echo "Error: kanbus binary not found at $CARGO_BIN/kanbus"
-  echo "Please run: cargo install kanbus"
+if [[ ! -f "$CARGO_BIN/kanbusr" ]]; then
+  echo "Error: kanbusr binary not found at $CARGO_BIN/kanbusr"
+  echo "Please run: cargo install kanbusr"
   exit 1
 fi
 
@@ -66,8 +66,8 @@ fi
 
 # Create symlinks
 if [[ "$KBS_EXISTS" == "false" ]]; then
-  ln -sf kanbus "$CARGO_BIN/kbs"
-  echo "✓ Created $CARGO_BIN/kbs -> kanbus"
+  ln -sf kanbusr "$CARGO_BIN/kbs"
+  echo "✓ Created $CARGO_BIN/kbs -> kanbusr"
 fi
 
 if [[ "$KBSC_EXISTS" == "false" && -f "$CARGO_BIN/kanbus-console" ]]; then

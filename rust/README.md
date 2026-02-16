@@ -5,11 +5,11 @@ Kanbus is a high-performance command-line interface and console server for the K
 ## Install
 
 ```bash
-cargo install kanbus
+cargo install kanbusr
 ```
 
 This installs two binaries:
-- `kanbus` - The CLI for creating, listing, and managing issues
+- `kanbusr` - The CLI for creating, listing, and managing issues
 - `kanbus-console` - The web UI server with embedded frontend assets
 
 ## Shortcuts (Optional)
@@ -22,7 +22,7 @@ curl -sSL https://raw.githubusercontent.com/AnthusAI/Kanbus/main/rust/install-al
 
 # Or manually create symlinks in ~/.cargo/bin/:
 cd ~/.cargo/bin
-ln -s kanbus kbs
+ln -s kanbusr kbs
 ln -s kanbus-console kbsc
 ```
 
@@ -32,10 +32,10 @@ These shortcuts work in all shells and scripts.
 
 **CLI:**
 ```bash
-kanbus --help          # or: kbs --help
-kanbus init
-kanbus create "Fix the login flow"
-kanbus list
+kanbusr --help          # or: kbs --help
+kanbusr init
+kanbusr create "Fix the login flow"
+kanbusr list
 ```
 
 **Console Server:**
