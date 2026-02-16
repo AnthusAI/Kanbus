@@ -34,6 +34,7 @@ def update_issue(
     assignee: Optional[str],
     claim: bool,
     validate: bool = True,
+    priority: Optional[int] = None,
 ) -> IssueData:
     """Update an issue and persist it to disk.
 
@@ -51,6 +52,8 @@ def update_issue(
     :type assignee: Optional[str]
     :param claim: Whether to claim the issue.
     :type claim: bool
+    :param priority: Updated priority if provided.
+    :type priority: Optional[int]
     :return: Updated issue data.
     :rtype: IssueData
     :raises IssueUpdateError: If the update fails.
@@ -98,11 +101,15 @@ def update_issue(
     if resolved_status is not None and resolved_status == updated_issue.status:
         resolved_status = None
 
+    if priority is not None and priority == updated_issue.priority:
+        priority = None
+
     if (
         resolved_status is None
         and title is None
         and description is None
         and assignee is None
+        and priority is None
     ):
         raise IssueUpdateError("no updates requested")
 
@@ -134,6 +141,8 @@ def update_issue(
         update_fields["description"] = description
     if assignee is not None:
         update_fields["assignee"] = assignee
+    if priority is not None:
+        update_fields["priority"] = priority
 
     updated_issue = updated_issue.model_copy(update=update_fields)
     write_issue_to_file(updated_issue, lookup.issue_path)

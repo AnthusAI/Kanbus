@@ -153,6 +153,10 @@ def update_beads_issue(
     root: Path,
     identifier: str,
     status: Optional[str] = None,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    priority: Optional[int] = None,
+    assignee: Optional[str] = None,
 ) -> IssueData:
     """Update a Beads-compatible issue in .beads/issues.jsonl.
 
@@ -162,6 +166,14 @@ def update_beads_issue(
     :type identifier: str
     :param status: New status value.
     :type status: Optional[str]
+    :param title: New title value.
+    :type title: Optional[str]
+    :param description: New description value.
+    :type description: Optional[str]
+    :param priority: New priority value.
+    :type priority: Optional[int]
+    :param assignee: New assignee value.
+    :type assignee: Optional[str]
     :return: Updated issue.
     :rtype: IssueData
     :raises BeadsWriteError: If the issue cannot be found or written.
@@ -179,6 +191,14 @@ def update_beads_issue(
             continue
         if status is not None:
             record["status"] = status
+        if title is not None:
+            record["title"] = title
+        if description is not None:
+            record["description"] = description
+        if priority is not None:
+            record["priority"] = priority
+        if assignee is not None:
+            record["assignee"] = assignee
         record["updated_at"] = datetime.now(timezone.utc).isoformat()
         updated = True
         break

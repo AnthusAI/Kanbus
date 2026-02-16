@@ -51,7 +51,7 @@ npm run test:ui
 
 - Initiatives: only `initiative` issues
 - Epics: only `epic` issues
-- Tasks: `task` plus configured non-hierarchical types (for example `bug`, `story`, `chore`)
+- Tasks: catch-all for all types except initiative, epic, and sub-task (task, bug, story, chore, event, and any other non-hierarchical types)
 - Sub-tasks appear only after clicking a task-level issue
 
 ## Settings

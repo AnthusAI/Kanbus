@@ -76,7 +76,18 @@ def given_kanbus_issue_with_title(
     context: object, identifier: str, title: str
 ) -> None:
     """Create a Kanbus issue with specific title."""
-    run_cli(context, f'kanbus create "{title}"')
+    issues_path = context.working_directory / ".beads" / "issues.jsonl"
+    issue_record = {
+        "id": identifier,
+        "title": title,
+        "status": "open",
+        "priority": 2,
+        "issue_type": "task",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    with open(issues_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(issue_record) + "\n")
 
 
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists with status "(?P<status>[^"]+)"')
@@ -84,8 +95,18 @@ def given_kanbus_issue_with_status(
     context: object, identifier: str, status: str
 ) -> None:
     """Create a Kanbus issue with specific status."""
-    run_cli(context, f"kanbus create Test issue for {identifier}")
-    run_cli(context, f"kanbus update {identifier} --status {status}")
+    issues_path = context.working_directory / ".beads" / "issues.jsonl"
+    issue_record = {
+        "id": identifier,
+        "title": f"Test issue {identifier}",
+        "status": status,
+        "priority": 2,
+        "issue_type": "task",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    with open(issues_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(issue_record) + "\n")
 
 
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists with priority (?P<priority>\\d+)')
@@ -93,8 +114,18 @@ def given_kanbus_issue_with_priority(
     context: object, identifier: str, priority: str
 ) -> None:
     """Create a Kanbus issue with specific priority."""
-    run_cli(context, f"kanbus create Test issue for {identifier}")
-    run_cli(context, f"kanbus update {identifier} --priority {priority}")
+    issues_path = context.working_directory / ".beads" / "issues.jsonl"
+    issue_record = {
+        "id": identifier,
+        "title": f"Test issue {identifier}",
+        "status": "open",
+        "priority": int(priority),
+        "issue_type": "task",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    with open(issues_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(issue_record) + "\n")
 
 
 @given('a kanbus-only issue "(?P<identifier>[^"]+)" exists')

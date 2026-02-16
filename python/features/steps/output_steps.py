@@ -17,6 +17,9 @@ def _strip_ansi(text: str) -> str:
 def then_stdout_contains_text(context: object, text: str) -> None:
     normalized = text.replace('\\"', '"')
     stdout = _strip_ansi(context.result.stdout)
+    if normalized not in stdout:
+        print(f"Expected '{normalized}' to be in stdout, but it wasn't")
+        print(f"ACTUAL STDOUT:\n{stdout}")
     assert normalized in stdout
 
 
@@ -24,6 +27,9 @@ def then_stdout_contains_text(context: object, text: str) -> None:
 def then_stdout_not_contains_text(context: object, text: str) -> None:
     normalized = text.replace('\\"', '"')
     stdout = _strip_ansi(context.result.stdout)
+    if normalized in stdout:
+        print(f"Expected '{normalized}' to NOT be in stdout, but it was")
+        print(f"ACTUAL STDOUT:\n{stdout}")
     assert normalized not in stdout
 
 

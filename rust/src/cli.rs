@@ -385,12 +385,20 @@ fn resolve_beads_mode(root: &Path, beads_flag: bool) -> Result<(bool, bool), Kan
     Ok((configuration.beads_compatibility, false))
 }
 
+fn beads_root(root: &Path) -> std::path::PathBuf {
+    get_configuration_path(root)
+        .ok()
+        .and_then(|p| p.parent().map(std::path::PathBuf::from))
+        .unwrap_or_else(|| root.to_path_buf())
+}
+
 fn execute_command(
     command: Commands,
     root: &Path,
     beads_mode: bool,
     beads_forced: bool,
 ) -> Result<Option<String>, KanbusError> {
+    let root_for_beads = beads_root(root);
     match command {
         Commands::Init { local } => {
             ensure_git_repository(root)?;
@@ -429,7 +437,7 @@ fn execute_command(
                     ));
                 }
                 let issue = create_beads_issue(
-                    root,
+                    &root_for_beads,
                     &title_text,
                     issue_type.as_deref(),
                     priority,
@@ -475,7 +483,7 @@ fn execute_command(
         }
         Commands::Show { identifier, json } => {
             let (issue, configuration) = if beads_mode {
-                (load_beads_issue_by_id(root, &identifier)?, None)
+                (load_beads_issue_by_id(&root_for_beads, &identifier)?, None)
             } else {
                 let lookup = load_issue_from_project(root, &identifier)?;
                 let configuration = load_project_configuration(&get_configuration_path(
@@ -518,7 +526,7 @@ fn execute_command(
                 None
             };
             if beads_mode {
-                update_beads_issue(root, &identifier, status.as_deref())?;
+                update_beads_issue(&root_for_beads, &identifier, status.as_deref())?;
             } else {
                 update_issue(
                     root,
@@ -544,7 +552,7 @@ fn execute_command(
         }
         Commands::Close { identifier } => {
             if beads_mode {
-                update_beads_issue(root, &identifier, Some("closed"))?;
+                update_beads_issue(&root_for_beads, &identifier, Some("closed"))?;
             } else {
                 close_issue(root, &identifier)?;
             }
@@ -553,7 +561,7 @@ fn execute_command(
         }
         Commands::Delete { identifier } => {
             if beads_mode {
-                delete_beads_issue(root, &identifier)?;
+                delete_beads_issue(&root_for_beads, &identifier)?;
             } else {
                 delete_issue(root, &identifier)?;
             }
@@ -590,7 +598,7 @@ fn execute_command(
                         "beads mode does not support local filtering".to_string(),
                     ));
                 }
-                let issues = load_beads_issues(root)?;
+                let issues = load_beads_issues(&root_for_beads)?;
                 let filtered = filter_issues(
                     issues,
                     status.as_deref(),
@@ -729,7 +737,7 @@ fn execute_command(
                         "beads mode does not support local filtering".to_string(),
                     ));
                 }
-                load_beads_issues(root)?
+                load_beads_issues(&root_for_beads)?
                     .into_iter()
                     .filter(|issue| issue.status != "closed" && !is_issue_blocked(issue))
                     .collect()
@@ -743,7 +751,7 @@ fn execute_command(
             Ok(Some(lines.join("\n")))
         }
         Commands::Migrate => {
-            let result = migrate_from_beads(root)?;
+            let result = migrate_from_beads(&root_for_beads)?;
             Ok(Some(format!("migrated {} issues", result.issue_count)))
         }
         Commands::Doctor => {

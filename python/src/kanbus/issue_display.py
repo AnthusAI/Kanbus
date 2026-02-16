@@ -153,4 +153,11 @@ def format_issue_for_display(
     if issue.description:
         lines.append(f"{_dim('Description:', color_output)}")
         lines.append(_paint(issue.description, None, color_output))
+
+    if issue.comments:
+        lines.append(f"{_dim('Comments:', color_output)}")
+        for comment in issue.comments:
+            author = comment.author or "unknown"
+            lines.append(f"  {_dim(f'{author}:', color_output)} {comment.text}")
+
     return "\n".join(lines)

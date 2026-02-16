@@ -123,6 +123,10 @@ def when_create_issue_directly(context: object) -> None:
 
 @then("the command should succeed")
 def then_command_succeeds(context: object) -> None:
+    if context.result.exit_code != 0:
+        print(f"Command failed with exit code {context.result.exit_code}")
+        print(f"STDOUT: {context.result.stdout}")
+        print(f"STDERR: {context.result.stderr}")
     assert context.result.exit_code == 0
 
 

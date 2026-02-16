@@ -240,6 +240,16 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
     """
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+
+    # Check if beads_compatibility is enabled in config
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            pass
+
     if beads_mode:
         try:
             issue = load_beads_issue(root, identifier)
@@ -273,6 +283,8 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
 @click.option("--title")
 @click.option("--description")
 @click.option("--status")
+@click.option("--priority", type=int)
+@click.option("--assignee")
 @click.option("--claim", is_flag=True, default=False)
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
 def update(
@@ -280,6 +292,8 @@ def update(
     title: str | None,
     description: str | None,
     status: str | None,
+    priority: int | None,
+    assignee: str | None,
     claim: bool,
     no_validate: bool,
 ) -> None:
@@ -293,6 +307,10 @@ def update(
     :type description: str | None
     :param status: Updated status.
     :type status: str | None
+    :param priority: Updated priority.
+    :type priority: int | None
+    :param assignee: Updated assignee.
+    :type assignee: str | None
     :param claim: Whether to claim the issue.
     :type claim: bool
     """
@@ -301,9 +319,26 @@ def update(
     if click.get_current_context().obj:
         beads_mode = bool(click.get_current_context().obj.get("beads_mode"))
 
+    # Check if beads_compatibility is enabled in config
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            pass
+
     if beads_mode:
         try:
-            update_beads_issue(root, identifier, status=status)
+            update_beads_issue(
+                root,
+                identifier,
+                status=status,
+                title=title.strip() if title else None,
+                description=description.strip() if description else None,
+                priority=priority,
+                assignee=assignee,
+            )
         except BeadsWriteError as error:
             raise click.ClickException(str(error)) from error
         formatted_identifier = format_issue_key(identifier, project_context=False)
@@ -311,16 +346,17 @@ def update(
         return
 
     try:
-        assignee = get_current_user() if claim else None
+        final_assignee = assignee or (get_current_user() if claim else None)
         update_issue(
             root=root,
             identifier=identifier,
             title=title.strip() if title else None,
             description=description.strip() if description else None,
             status=status,
-            assignee=assignee,
+            assignee=final_assignee,
             claim=claim,
             validate=not no_validate,
+            priority=priority,
         )
         formatted_identifier = format_issue_key(identifier, project_context=False)
         click.echo(f"Updated {formatted_identifier}")
@@ -418,6 +454,15 @@ def comment(context: click.Context, identifier: str, text: Optional[str], body_f
     """
     root = Path.cwd()
     beads_mode = context.obj.get("beads_mode", False)
+
+    # Check if beads_compatibility is enabled in config
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            pass
 
     # Handle body-file input
     comment_text = text or ""

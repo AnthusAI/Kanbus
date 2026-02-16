@@ -513,11 +513,6 @@ export default function App() {
       ? "default workflow is required to render columns"
       : null;
 
-  const issueLevelTypes = useMemo(() => {
-    const configuredTypes = config?.types ?? [];
-    return ["task", ...configuredTypes];
-  }, [config?.types]);
-
   const routeContext = useMemo(() => {
     if (route.basePath == null) {
       return {
@@ -660,10 +655,15 @@ export default function App() {
       return issues.filter((issue) => issue.type === "epic");
     }
     if (activeViewMode === "issues") {
-      return issues.filter((issue) => issueLevelTypes.includes(issue.type));
+      return issues.filter(
+        (issue) =>
+          issue.type !== "initiative" &&
+          issue.type !== "epic" &&
+          issue.type !== "sub-task"
+      );
     }
     return issues;
-  }, [activeViewMode, issues, issueLevelTypes, routeContext.parentIssue, route.parentId]);
+  }, [activeViewMode, issues, routeContext.parentIssue, route.parentId]);
 
   const subTasks = useMemo(() => {
     if (!selectedTask) {
