@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 import click
 
@@ -404,7 +404,12 @@ def localize(identifier: str) -> None:
 @click.argument("text", required=False)
 @click.option("--body-file", type=click.File("r"), default=None)
 @click.pass_context
-def comment(context: click.Context, identifier: str, text: Optional[str], body_file: Optional[click.File]) -> None:
+def comment(
+    context: click.Context,
+    identifier: str,
+    text: Optional[str],
+    body_file: Optional[click.File],
+) -> None:
     """Add a comment to an issue.
 
     :param context: Click context.
@@ -430,6 +435,7 @@ def comment(context: click.Context, identifier: str, text: Optional[str], body_f
     try:
         if beads_mode:
             from kanbus.beads_write import add_beads_comment, BeadsWriteError
+
             try:
                 add_beads_comment(
                     root=root,

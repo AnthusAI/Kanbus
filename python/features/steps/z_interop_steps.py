@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import json
-import re
-from pathlib import Path
+
 
 from behave import given, then, when, use_step_matcher
 
@@ -49,7 +48,9 @@ def given_beads_issue_exists(context: object, identifier: str) -> None:
         f.write(json.dumps(issue_record) + "\n")
 
 
-@given('a kanbus issue "(?P<identifier>[^"]+)" exists with dependency "(?P<dependency>[^"]+)"')
+@given(
+    'a kanbus issue "(?P<identifier>[^"]+)" exists with dependency "(?P<dependency>[^"]+)"'
+)
 def given_kanbus_issue_with_dependency(
     context: object, identifier: str, dependency: str
 ) -> None:
@@ -72,9 +73,7 @@ def given_kanbus_issue_with_labels(
 
 
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists with title "(?P<title>[^"]+)"')
-def given_kanbus_issue_with_title(
-    context: object, identifier: str, title: str
-) -> None:
+def given_kanbus_issue_with_title(context: object, identifier: str, title: str) -> None:
     """Create a Kanbus issue with specific title."""
     run_cli(context, f'kanbus create "{title}"')
 
@@ -104,9 +103,7 @@ def given_kanbus_only_issue_exists(context: object, identifier: str) -> None:
 
 
 @given('a beads issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)"')
-def given_beads_issue_with_parent(
-    context: object, child: str, parent_id: str
-) -> None:
+def given_beads_issue_with_parent(context: object, child: str, parent_id: str) -> None:
     """Create a Beads issue with a parent relationship."""
     issues_path = context.working_directory / ".beads" / "issues.jsonl"
     issue_record = {
@@ -124,9 +121,7 @@ def given_beads_issue_with_parent(
 
 
 @given('a kanbus issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)"')
-def given_kanbus_issue_with_parent(
-    context: object, child: str, parent_id: str
-) -> None:
+def given_kanbus_issue_with_parent(context: object, child: str, parent_id: str) -> None:
     """Create a Kanbus issue with a parent relationship."""
     run_cli(context, f"kanbus create Child issue {child} --parent {parent_id}")
 
@@ -162,7 +157,7 @@ def then_beads_jsonl_contains(context: object, identifier: str) -> None:
     assert identifier in contents, f"Did not find {identifier} in beads issues.jsonl"
 
 
-@then('stdout should contain parent reference')
+@then("stdout should contain parent reference")
 def then_stdout_contains_parent_reference(context: object) -> None:
     """Verify stdout contains a parent reference."""
     result = getattr(context, "result", None)
@@ -172,7 +167,9 @@ def then_stdout_contains_parent_reference(context: object) -> None:
     ), "No parent reference found in stdout"
 
 
-@then('the comments should appear in order: "(?P<comment1>[^"]+)", "(?P<comment2>[^"]+)", "(?P<comment3>[^"]+)"')
+@then(
+    'the comments should appear in order: "(?P<comment1>[^"]+)", "(?P<comment2>[^"]+)", "(?P<comment3>[^"]+)"'
+)
 def then_comments_in_order(
     context: object, comment1: str, comment2: str, comment3: str
 ) -> None:
