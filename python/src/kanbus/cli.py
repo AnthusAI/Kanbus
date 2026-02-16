@@ -401,23 +401,51 @@ def localize(identifier: str) -> None:
 
 @cli.command("comment")
 @click.argument("identifier")
-@click.argument("text")
-def comment(identifier: str, text: str) -> None:
+@click.argument("text", required=False)
+@click.option("--body-file", type=click.File("r"), default=None)
+@click.pass_context
+def comment(context: click.Context, identifier: str, text: Optional[str], body_file: Optional[click.File]) -> None:
     """Add a comment to an issue.
 
+    :param context: Click context.
+    :type context: click.Context
     :param identifier: Issue identifier.
     :type identifier: str
-    :param text: Comment text.
-    :type text: str
+    :param text: Comment text (or use --body-file for multi-line).
+    :type text: Optional[str]
+    :param body_file: File to read comment text from (use '-' for stdin).
+    :type body_file: Optional[click.File]
     """
     root = Path.cwd()
+    beads_mode = context.obj.get("beads_mode", False)
+
+    # Handle body-file input
+    comment_text = text or ""
+    if body_file is not None:
+        comment_text = body_file.read()
+
+    if not comment_text:
+        raise click.ClickException("Comment text required")
+
     try:
-        add_comment(
-            root=root,
-            identifier=identifier,
-            author=get_current_user(),
-            text=text,
-        )
+        if beads_mode:
+            from kanbus.beads_write import add_beads_comment, BeadsWriteError
+            try:
+                add_beads_comment(
+                    root=root,
+                    identifier=identifier,
+                    author=get_current_user(),
+                    text=comment_text,
+                )
+            except BeadsWriteError as error:
+                raise click.ClickException(str(error)) from error
+        else:
+            add_comment(
+                root=root,
+                identifier=identifier,
+                author=get_current_user(),
+                text=comment_text,
+            )
     except IssueCommentError as error:
         raise click.ClickException(str(error)) from error
 
