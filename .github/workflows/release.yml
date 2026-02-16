@@ -245,17 +245,25 @@ jobs:
           tag_version="${tag_version#v}"
           python - <<'PY' "$tag_version"
           import pathlib, re, sys
+
+          desired = sys.argv[1]
           path = pathlib.Path("Cargo.toml")
           text = path.read_text()
-          version = sys.argv[1]
-          def replace_version(contents: str, version: str) -> str:
-              pattern = r'(?m)^version\s*=\s*"[^"]*"'
-              return re.sub(pattern, f'version = "{version}"', contents, count=1)
-          new_text = replace_version(text, version)
-          if new_text == text:
-              print("version field not updated; check Cargo.toml format")
+
+          pattern = r'(?m)^version\s*=\s*"([^"]*)"'
+          match = re.search(pattern, text)
+          if not match:
+              print("version field not found; check Cargo.toml format")
               sys.exit(1)
+
+          current = match.group(1)
+          if current == desired:
+              print(f"version already {current}; nothing to do")
+              sys.exit(0)
+
+          new_text = re.sub(pattern, f'version = \"{desired}\"', text, count=1)
           path.write_text(new_text)
+          print(f\"version updated {current} -> {desired}\")
           PY
 
       - name: Update Cargo.lock
