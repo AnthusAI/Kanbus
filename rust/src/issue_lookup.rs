@@ -96,10 +96,7 @@ fn find_matching_issues(
             continue;
         }
 
-        let file_stem = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
         if issue_matches(identifier, file_stem) {
             matches.push((file_stem.to_string(), path));

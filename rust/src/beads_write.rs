@@ -152,7 +152,10 @@ pub fn update_beads_issue(
             0 => return Err(KanbusError::IssueOperation("not found".to_string())),
             1 => partial_match_indices[0].0,
             _ => {
-                let ids: Vec<String> = partial_match_indices.iter().map(|(_, id)| id.clone()).collect();
+                let ids: Vec<String> = partial_match_indices
+                    .iter()
+                    .map(|(_, id)| id.clone())
+                    .collect();
                 return Err(KanbusError::IssueOperation(format!(
                     "ambiguous identifier, matches: {}",
                     ids.join(", ")

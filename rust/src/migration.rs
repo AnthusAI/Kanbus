@@ -93,7 +93,10 @@ pub fn load_beads_issue_by_id(root: &Path, identifier: &str) -> Result<IssueData
         0 => Err(KanbusError::IssueOperation("not found".to_string())),
         1 => Ok(partial_matches.into_iter().next().unwrap()),
         _ => {
-            let ids: Vec<String> = partial_matches.iter().map(|i| i.identifier.clone()).collect();
+            let ids: Vec<String> = partial_matches
+                .iter()
+                .map(|i| i.identifier.clone())
+                .collect();
             Err(KanbusError::IssueOperation(format!(
                 "ambiguous identifier, matches: {}",
                 ids.join(", ")
