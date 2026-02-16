@@ -4,10 +4,11 @@ import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import chokidar from "chokidar";
+import { resolvePortOrExit } from "../scripts/resolvePort";
 import type { IssuesSnapshot } from "../src/types/issues";
 
 const app = express();
-const port = Number(process.env.CONSOLE_PORT ?? 5174);
+const desiredPort = Number(process.env.CONSOLE_PORT ?? 5174);
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT
   ? path.resolve(process.env.CONSOLE_PROJECT_ROOT)
   : null;
@@ -197,6 +198,16 @@ watcher.on("all", () => {
   }, 250);
 });
 
-app.listen(port, () => {
-  console.log(`Kanbus console server running on ${port}`);
-});
+async function startServer(): Promise<void> {
+  const port = await resolvePortOrExit({
+    desiredPort,
+    serviceName: "Kanbus console server",
+    envVariable: "CONSOLE_PORT"
+  });
+
+  app.listen(port, () => {
+    console.log(`Kanbus console server running on ${port}`);
+  });
+}
+
+void startServer();
