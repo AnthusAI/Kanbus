@@ -263,7 +263,7 @@ jobs:
 
           new_text = re.sub(pattern, f'version = \"{desired}\"', text, count=1)
           path.write_text(new_text)
-          print(f\"version updated {current} -> {desired}\")
+          print(f"version updated {current} -> {desired}")
           PY
 
       - name: Update Cargo.lock
