@@ -118,6 +118,8 @@ pub fn update_beads_issue(
     root: &Path,
     identifier: &str,
     status: Option<&str>,
+    title: Option<&str>,
+    description: Option<&str>,
 ) -> Result<IssueData, KanbusError> {
     let beads_dir = root.join(".beads");
     if !beads_dir.exists() {
@@ -167,11 +169,32 @@ pub fn update_beads_issue(
     let updated_at = Utc::now().to_rfc3339();
     let record = &mut records[match_index];
 
+    let mut updated = false;
     if let Some(new_status) = status {
         record
             .as_object_mut()
             .expect("beads record")
             .insert("status".to_string(), json!(new_status));
+        updated = true;
+    }
+    if let Some(new_title) = title {
+        record
+            .as_object_mut()
+            .expect("beads record")
+            .insert("title".to_string(), json!(new_title));
+        updated = true;
+    }
+    if let Some(new_description) = description {
+        record
+            .as_object_mut()
+            .expect("beads record")
+            .insert("description".to_string(), json!(new_description));
+        updated = true;
+    }
+    if !updated {
+        return Err(KanbusError::IssueOperation(
+            "no updates requested".to_string(),
+        ));
     }
     record
         .as_object_mut()

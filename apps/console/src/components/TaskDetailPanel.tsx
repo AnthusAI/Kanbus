@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import DOMPurify from "dompurify";
+import { marked } from "marked";
 import {
   X,
   Bug,
@@ -19,6 +21,20 @@ import { buildIssueColorStyle } from "../utils/issue-colors";
 import { formatTimestamp } from "../utils/format-timestamp";
 import { formatIssueId } from "../utils/format-issue-id";
 import { IconButton } from "./IconButton";
+
+const markdownRenderer = new marked.Renderer();
+markdownRenderer.link = (href, title, text) => {
+  const safeTitle = title ? ` title="${title}"` : "";
+  return `<a href="${href}"${safeTitle} target="_blank" rel="noopener noreferrer">${text}</a>`;
+};
+
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+  mangle: false,
+  headerIds: false,
+  renderer: markdownRenderer
+});
 
 interface TaskDetailPanelProps {
   task: Issue | null;
@@ -144,6 +160,13 @@ export function TaskDetailPanel({
     }[detailTask?.type ?? ""] ?? Tag;
   const issueStyle =
     detailTask && config ? buildIssueColorStyle(config, detailTask) : undefined;
+  const descriptionHtml = useMemo(() => {
+    if (!detailTask?.description) {
+      return "";
+    }
+    const rawHtml = marked.parse(detailTask.description);
+    return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
+  }, [detailTask?.description]);
   const formattedCreated = createdAt
     ? formatTimestamp(createdAt, config?.time_zone)
     : null;
@@ -211,7 +234,10 @@ export function TaskDetailPanel({
                   {detailTask.title}
                 </h2>
                 {detailTask.description ? (
-                  <p className="text-sm text-selected">{detailTask.description}</p>
+                  <div
+                    className="issue-description-markdown text-sm text-selected mb-4"
+                    dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                  />
                 ) : null}
               </div>
               {(formattedCreated || formattedUpdated || formattedClosed || detailTask.assignee) ? (

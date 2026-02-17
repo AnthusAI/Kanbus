@@ -7,7 +7,7 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 
 export function IconButton({ icon: Icon, label, className = "", ...buttonProps }: IconButtonProps) {
   const baseClasses =
-    "flex items-center justify-center rounded-full bg-[var(--column)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8";
+    "flex items-center justify-center rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8";
 
   return (
     <button
@@ -21,4 +21,3 @@ export function IconButton({ icon: Icon, label, className = "", ...buttonProps }
     </button>
   );
 }
-

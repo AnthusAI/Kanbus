@@ -31,7 +31,7 @@ export function AnimatedSelector({
   name,
   motionDurationMs = 240,
   motionEase = "power3.out",
-  highlightOffsetY = -2
+  highlightOffsetY = 0
 }: AnimatedSelectorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
@@ -53,7 +53,7 @@ export function AnimatedSelector({
     const left = targetRect.left - containerRect.left;
     const top = targetRect.top - containerRect.top + highlightOffsetY;
     const width = targetRect.width;
-    const height = 24;
+    const height = 22;
 
     const currentMotion = motionMode();
     const shouldAnimate = animate && currentMotion !== "off";
@@ -122,7 +122,7 @@ export function AnimatedSelector({
     <div
       ref={containerRef}
       className={cn(
-        "relative isolate inline-flex items-center gap-3 rounded-full bg-[var(--column)] p-2 max-w-full h-8",
+        "relative isolate inline-flex items-center gap-1 rounded-full bg-[var(--column)] p-1 max-w-full h-7",
         "md:max-w-none",
         className
       )}
@@ -149,8 +149,8 @@ export function AnimatedSelector({
             data-selector={name}
             data-option={option.id}
             className={cn(
-              "relative z-10 flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] whitespace-nowrap h-7",
-              "md:px-3",
+              "relative z-10 flex items-center gap-1 rounded-full px-1.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] whitespace-nowrap h-7",
+              "md:px-2",
               selected ? "text-foreground" : "text-muted",
               "max-md:px-1 max-md:gap-1 max-md:[&_span.selector-label]:hidden"
             )}

@@ -537,22 +537,30 @@ fn execute_command(
             } else {
                 None
             };
+            let title_value = if title_text.is_empty() {
+                None
+            } else {
+                Some(title_text.as_str())
+            };
+            let description_value = if description_text.is_empty() {
+                None
+            } else {
+                Some(description_text.as_str())
+            };
             if beads_mode {
-                update_beads_issue(&root_for_beads, &identifier, status.as_deref())?;
+                update_beads_issue(
+                    &root_for_beads,
+                    &identifier,
+                    status.as_deref(),
+                    title_value,
+                    description_value,
+                )?;
             } else {
                 update_issue(
                     root,
                     &identifier,
-                    if title_text.is_empty() {
-                        None
-                    } else {
-                        Some(title_text.as_str())
-                    },
-                    if description_text.is_empty() {
-                        None
-                    } else {
-                        Some(description_text.as_str())
-                    },
+                    title_value,
+                    description_value,
                     status.as_deref(),
                     assignee_value.as_deref(),
                     claim,
@@ -564,7 +572,7 @@ fn execute_command(
         }
         Commands::Close { identifier } => {
             if beads_mode {
-                update_beads_issue(&root_for_beads, &identifier, Some("closed"))?;
+                update_beads_issue(&root_for_beads, &identifier, Some("closed"), None, None)?;
             } else {
                 close_issue(root, &identifier)?;
             }

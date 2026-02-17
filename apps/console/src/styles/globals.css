@@ -283,6 +283,75 @@ html[data-motion="reduced"] .detail-column {
   display: grid;
 }
 
+.issue-description-markdown {
+  display: grid;
+  gap: 0.5rem;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.issue-description-markdown h1,
+.issue-description-markdown h2,
+.issue-description-markdown h3,
+.issue-description-markdown h4 {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.issue-description-markdown h1 {
+  font-size: 1.1rem;
+}
+
+.issue-description-markdown h2 {
+  font-size: 1rem;
+}
+
+.issue-description-markdown h3,
+.issue-description-markdown h4 {
+  font-size: 0.95rem;
+}
+
+.issue-description-markdown ul,
+.issue-description-markdown ol {
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.issue-description-markdown code {
+  background: var(--card-muted);
+  border-radius: 6px;
+  padding: 0.1rem 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.85em;
+}
+
+.issue-description-markdown pre {
+  background: var(--card-muted);
+  border-radius: 10px;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.issue-description-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.issue-description-markdown a {
+  color: var(--text-selected);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.issue-description-markdown blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+  color: var(--text-muted);
+}
+
 .detail-accent-bar {
   position: relative;
   z-index: 1;

@@ -760,7 +760,7 @@ export default function App() {
             ]}
           />
           <button
-            className="rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8 flex items-center justify-center gap-2 max-md:px-2 max-md:gap-1 max-md:[&_span.label-text]:hidden"
+            className="rounded-full bg-[var(--column)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted h-7 flex items-center justify-center gap-2 max-md:px-2 max-md:gap-1 max-md:[&_span.label-text]:hidden"
             onClick={() => setShowClosed((prev) => !prev)}
             type="button"
             data-testid="toggle-closed"
@@ -773,7 +773,7 @@ export default function App() {
             </span>
           </button>
           <button
-            className="flex items-center gap-2 rounded-full bg-[var(--column)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
+            className="flex items-center gap-2 rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
             onClick={() => setSettingsOpen(true)}
             type="button"
             data-testid="open-settings"
