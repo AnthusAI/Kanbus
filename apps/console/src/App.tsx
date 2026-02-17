@@ -816,7 +816,7 @@ export default function App() {
             </div>
             {selectedTask ? (
               <div
-                className="detail-resizer h-full w-2 min-w-2 flex items-center justify-center cursor-col-resize pointer-events-auto"
+                className="detail-resizer h-full w-2 min-w-2 lg:w-3 lg:min-w-3 xl:w-4 xl:min-w-4 flex items-center justify-center cursor-col-resize pointer-events-auto"
                 role="separator"
                 onMouseDown={(event) => {
                   const frame = layoutFrameRef.current;
