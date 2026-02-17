@@ -213,7 +213,7 @@ async fn when_start_console_server(world: &mut KanbusWorld) {
     };
 
     match start_console_server(world, binary_name, with_embed) {
-        Ok(child) => {
+        Ok(_child) => {
             // Store child process handle (we'd need to add this to KanbusWorld)
             // For now, just check if it starts
             world.daemon_spawned = true;
