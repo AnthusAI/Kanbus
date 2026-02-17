@@ -14,6 +14,7 @@ import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { AnimatedSelector } from "@kanbus/ui";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { fetchSnapshot, subscribeToSnapshots } from "./api/client";
+import { installConsoleTelemetry } from "./utils/console-telemetry";
 import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
 
@@ -350,6 +351,7 @@ export default function App() {
   const [showClosed, setShowClosed] = useState(() => loadStoredShowClosed());
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
+  const [detailMaximized, setDetailMaximized] = useState(false);
   const [route, setRoute] = useState<RouteContext>(() =>
     parseRoute(window.location.pathname)
   );
@@ -388,6 +390,7 @@ export default function App() {
       return () => {};
     }
     const apiBase = `${route.basePath}/api`;
+    installConsoleTelemetry(apiBase);
     fetchSnapshot(apiBase)
       .then((data) => {
         if (isMounted) {
@@ -459,13 +462,27 @@ export default function App() {
   }, [detailWidth]);
 
   useEffect(() => {
+    if (!detailMaximized) {
+      return;
+    }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setDetailMaximized(false);
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [detailMaximized]);
+
+  useEffect(() => {
     const layout = layoutFrameRef.current;
     if (!layout) {
       return;
     }
-    layout.style.setProperty("--detail-width", `${detailWidth}%`);
-    layout.style.setProperty("--board-width", `${100 - detailWidth}%`);
-  }, [detailWidth]);
+    const widthValue = detailMaximized ? 100 : detailWidth;
+    layout.style.setProperty("--detail-width", `${widthValue}%`);
+    layout.style.setProperty("--board-width", `${100 - widthValue}%`);
+  }, [detailWidth, detailMaximized]);
 
   useEffect(() => {
     if (!selectedTask || !snapshot) {
@@ -786,7 +803,7 @@ export default function App() {
             ref={layoutFrameRef}
             className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}`}
           >
-            <div className="layout-slot layout-slot-board h-full pt-2 px-2 pr-0">
+            <div className="layout-slot layout-slot-board h-full pt-2 px-0">
               <Board
                 columns={columns}
                 issues={filteredIssues}
@@ -809,12 +826,17 @@ export default function App() {
                   event.preventDefault();
                   setIsResizing(true);
                   const rect = frame.getBoundingClientRect();
+                  const effectiveWidth = detailMaximized ? 100 : detailWidth;
+                  if (detailMaximized) {
+                    setDetailWidth(100);
+                    setDetailMaximized(false);
+                  }
                   const startX = event.clientX;
-                  const startWidth = detailWidth;
+                  const startWidth = effectiveWidth;
                   const handleMove = (moveEvent: MouseEvent) => {
                     const delta = moveEvent.clientX - startX;
                     const pixelWidth = (startWidth / 100) * rect.width - delta;
-                    const clampedPixels = Math.max(320, Math.min(rect.width * 0.6, pixelWidth));
+                    const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
                     const clamped = (clampedPixels / rect.width) * 100;
                     setDetailWidth(clamped);
                   };
@@ -837,8 +859,13 @@ export default function App() {
                   }
                   setIsResizing(true);
                   const rect = frame.getBoundingClientRect();
+                  const effectiveWidth = detailMaximized ? 100 : detailWidth;
+                  if (detailMaximized) {
+                    setDetailWidth(100);
+                    setDetailMaximized(false);
+                  }
                   const startX = touch.clientX;
-                  const startWidth = detailWidth;
+                  const startWidth = effectiveWidth;
                   const handleMove = (moveEvent: TouchEvent) => {
                     const moveTouch = moveEvent.touches[0];
                     if (!moveTouch) {
@@ -846,7 +873,7 @@ export default function App() {
                     }
                     const delta = moveTouch.clientX - startX;
                     const pixelWidth = (startWidth / 100) * rect.width - delta;
-                    const clampedPixels = Math.max(320, Math.min(rect.width * 0.6, pixelWidth));
+                    const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
                     const clamped = (clampedPixels / rect.width) * 100;
                     setDetailWidth(clamped);
                   };
@@ -866,11 +893,12 @@ export default function App() {
               task={selectedTask}
               subTasks={subTasks}
               isOpen={Boolean(selectedTask)}
-              widthPercent={detailWidth}
+              widthPercent={detailMaximized ? 100 : detailWidth}
               columns={columns}
               priorityLookup={priorityLookup}
               config={config}
               onClose={() => {
+                setDetailMaximized(false);
                 if (route.basePath == null) {
                   setSelectedTask(null);
                   return;
@@ -878,6 +906,8 @@ export default function App() {
                 const nextMode = activeViewMode ?? loadStoredViewMode();
                 navigate(`${route.basePath}/${nextMode}/`, setRoute);
               }}
+              onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
+              isMaximized={detailMaximized}
             />
           </div>
         )}
