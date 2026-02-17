@@ -729,7 +729,7 @@ export default function App() {
     }
     const timer = window.setTimeout(() => {
       setLoadingVisible(false);
-    }, 500);
+    }, 350);
     return () => window.clearTimeout(timer);
   }, [showLoadingIndicator]);
 
