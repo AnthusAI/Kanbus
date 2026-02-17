@@ -2,6 +2,26 @@
 
 <!-- version list -->
 
+## v0.6.4 (2026-02-17)
+
+### Bug Fixes
+
+- Align loading pill fallback timing
+  ([`9531770`](https://github.com/AnthusAI/Kanbus/commit/953177044ad7ca337ad27e21f221b62ad74e9e6d))
+
+- Animation UX polishing
+  ([`ff7d739`](https://github.com/AnthusAI/Kanbus/commit/ff7d73947173186e9ca4e64ff9faf0ad5191c858))
+
+- Keep loading pill in empty/error states
+  ([`85de2ac`](https://github.com/AnthusAI/Kanbus/commit/85de2acd0ebf21c97046b6f3c56b8af650981a36))
+
+- Loading pill fade-out
+  ([`bb07e63`](https://github.com/AnthusAI/Kanbus/commit/bb07e63ed808ce5751abbdcddf9d9a12fb2e351e))
+
+- Loading pill unmount fallback
+  ([`cb6fa02`](https://github.com/AnthusAI/Kanbus/commit/cb6fa026f32a9d088f2ef8051e55d6ec46046e41))
+
+
 ## v0.6.3 (2026-02-17)
 
 ### Bug Fixes
