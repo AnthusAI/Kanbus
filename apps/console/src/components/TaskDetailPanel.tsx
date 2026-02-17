@@ -165,7 +165,10 @@ export function TaskDetailPanel({
       return "";
     }
     const rawHtml = marked.parse(detailTask.description);
-    return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
+    return DOMPurify.sanitize(rawHtml, {
+      USE_PROFILES: { html: true },
+      ADD_ATTR: ["target", "rel"]
+    });
   }, [detailTask?.description]);
   const formattedCreated = createdAt
     ? formatTimestamp(createdAt, config?.time_zone)
