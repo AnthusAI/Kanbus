@@ -9,7 +9,7 @@ This guide is a 10-minute walkthrough to initialize a Kanbus project, create and
 
 ## Installation
 
-Kanbus provides two **completely equivalent** CLI implementations plus a web console. All CLIs pass the same 100% specification test suite, use the same file formats, and provide the same commands. You can mix and match them within a team without issues.
+Kanbus provides two **completely equivalent** CLI implementations plus a web console. Both CLIs run the same behavior specs with full coverage, share the same interoperability tests (including Beads), and use the same file formats and commands. Pick Python if you want the lightest setup, or Rust if you are willing to install it for significantly faster execution.
 
 ### Option 1: Download Prebuilt Binaries (Recommended)
 

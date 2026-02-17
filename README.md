@@ -164,7 +164,7 @@ kanbus daemon-stop
 
 ## Python vs Rust
 
-We provide two implementations driven by the same behavior specification:
+Kanbus ships two CLI implementations with identical features. Both run the same behavior specs with full coverage and share interoperability tests (including Beads), so workflows and outputs match exactly. The difference is setup and speed: Python is the lightest install path, while Rust requires a Rust toolchain but runs substantially faster.
 
 **Choose Python if:**
 - You want easy `pip install` with no compilation
