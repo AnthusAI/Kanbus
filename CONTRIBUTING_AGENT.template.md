@@ -25,6 +25,9 @@ Every change must be:
 
 If it is not recorded, it did not happen.
 
+Use Markdown in issue descriptions and comments whenever it helps make the intent clearer.
+When relationships, flows, or state transitions are easier to grasp visually, add a Mermaid diagram.
+
 Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
 
 ## Running Kanbus (Do This Exactly)
