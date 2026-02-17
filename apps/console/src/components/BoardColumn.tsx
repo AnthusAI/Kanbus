@@ -25,7 +25,7 @@ function BoardColumnComponent({
         <span>{title.replace(/_/g, " ")}</span>
         <span className="pr-3">{issues.length}</span>
       </div>
-      <div className="kb-column-scroll mt-1 flex-1 min-h-0 overflow-y-auto pr-0">
+      <div className="kb-column-scroll mt-1 flex-1 min-h-0 overflow-y-auto">
         <div className="grid gap-2">
           {issues.map((issue) => (
             <IssueCard

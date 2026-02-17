@@ -85,6 +85,39 @@ export function AnimatedSelector({
     setHighlight(true);
   }, [value]);
 
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    let frame = 0;
+    const schedule = () => {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+      frame = requestAnimationFrame(() => {
+        setHighlight(false);
+      });
+    };
+    const observer = new ResizeObserver(() => {
+      schedule();
+    });
+    observer.observe(container);
+    Object.values(buttonRefs.current).forEach((button) => {
+      if (button) {
+        observer.observe(button);
+      }
+    });
+    window.addEventListener("resize", schedule);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", schedule);
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [options]);
+
   return (
     <div
       ref={containerRef}
