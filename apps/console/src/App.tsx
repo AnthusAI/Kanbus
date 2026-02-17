@@ -442,7 +442,7 @@ export default function App() {
     }
     const timer = window.setTimeout(() => {
       setIssuesReady(true);
-    }, 12000);
+    }, 1500);
     return () => window.clearTimeout(timer);
   }, [snapshot]);
 
@@ -538,6 +538,9 @@ export default function App() {
     }
     return allColumns.filter((column) => column !== "closed");
   }, [config, showClosed]);
+  const fallbackViewMode = route.parentId ? null : "issues";
+  const resolvedViewMode =
+    routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
   const columnError =
     config && columns.length === 0
       ? "default workflow is required to render columns"
@@ -645,10 +648,6 @@ export default function App() {
       error: route.error
     };
   }, [route, snapshot, viewMode]);
-
-  const fallbackViewMode = route.parentId ? null : "issues";
-  const resolvedViewMode =
-    routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
 
   useEffect(() => {
     setRouteError(routeContext.error);
