@@ -3,6 +3,7 @@ frontend:
   phases:
     preBuild:
       commands:
+        - bash tools/run_amplify_ci.sh
         # Build the shared UI package first
         - cd packages/ui && npm ci --prefer-offline --no-audit && npm run build && cd ../..
         # Install site dependencies
