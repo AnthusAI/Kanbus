@@ -352,6 +352,7 @@ export default function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
   const [detailMaximized, setDetailMaximized] = useState(false);
+  const [issuesReady, setIssuesReady] = useState(false);
   const [route, setRoute] = useState<RouteContext>(() =>
     parseRoute(window.location.pathname)
   );
@@ -429,6 +430,21 @@ export default function App() {
       unsubscribe();
     };
   }, [route.basePath]);
+
+  useEffect(() => {
+    if (!snapshot) {
+      setIssuesReady(false);
+      return;
+    }
+    if (snapshot.issues.length > 0) {
+      setIssuesReady(true);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setIssuesReady(true);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [snapshot]);
 
   useEffect(() => {
     if (!viewMode) {
@@ -790,6 +806,10 @@ export default function App() {
       ) : error || columnError || routeError ? (
         <div className="mt-2 rounded-xl bg-card-muted p-3 text-sm text-muted">
           {error ?? routeError ?? columnError}
+        </div>
+      ) : snapshot && !issuesReady ? (
+        <div className="mt-2 rounded-2xl bg-card-muted p-3 text-sm text-muted">
+          Loading issues.
         </div>
       ) : null}
 
