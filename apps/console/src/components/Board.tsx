@@ -25,7 +25,10 @@ function BoardComponent({
   const scope = useBoardTransitions(transitionKey);
 
   return (
-    <div ref={scope} className="kb-grid gap-2">
+    <div
+      ref={scope}
+      className="kb-grid gap-2 min-[321px]:px-1 sm:px-2 md:p-3"
+    >
       {columns.map((column) => {
         const columnIssues = issues.filter((issue) => issue.status === column);
         return (
