@@ -522,9 +522,9 @@ export default function App() {
     }
     return allColumns.filter((column) => column !== "closed");
   }, [config, showClosed]);
-  const activeViewMode = route.parentId
-    ? null
-    : route.viewMode ?? viewMode ?? null;
+  const fallbackViewMode = route.parentId ? null : "issues";
+  const resolvedViewMode =
+    routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
   const columnError =
     config && columns.length === 0
       ? "default workflow is required to render columns"
@@ -665,13 +665,13 @@ export default function App() {
     if (route.parentId) {
       return [];
     }
-    if (activeViewMode === "initiatives") {
+    if (resolvedViewMode === "initiatives") {
       return issues.filter((issue) => issue.type === "initiative");
     }
-    if (activeViewMode === "epics") {
+    if (resolvedViewMode === "epics") {
       return issues.filter((issue) => issue.type === "epic");
     }
-    if (activeViewMode === "issues") {
+    if (resolvedViewMode === "issues") {
       return issues.filter(
         (issue) =>
           issue.type !== "initiative" &&
@@ -680,7 +680,7 @@ export default function App() {
       );
     }
     return issues;
-  }, [activeViewMode, issues, routeContext.parentIssue, route.parentId]);
+  }, [issues, resolvedViewMode, routeContext.parentIssue, route.parentId]);
 
   const subTasks = useMemo(() => {
     if (!selectedTask) {
@@ -710,7 +710,7 @@ export default function App() {
       ? "transition-opacity duration-150"
       : "transition-opacity duration-300";
 
-  const transitionKey = `${activeViewMode ?? "none"}-${showClosed}-${snapshot?.updated_at ?? ""}`;
+  const transitionKey = `${resolvedViewMode ?? "none"}-${showClosed}-${snapshot?.updated_at ?? ""}`;
 
   return (
     <AppShell>
@@ -718,7 +718,7 @@ export default function App() {
         <div className="flex items-center gap-2 ml-auto">
           <AnimatedSelector
             name="view"
-            value={activeViewMode}
+            value={resolvedViewMode}
             onChange={(value) => {
               if (route.basePath == null) {
                 return;
@@ -903,7 +903,7 @@ export default function App() {
                   setSelectedTask(null);
                   return;
                 }
-                const nextMode = activeViewMode ?? loadStoredViewMode();
+                const nextMode = resolvedViewMode ?? loadStoredViewMode();
                 navigate(`${route.basePath}/${nextMode}/`, setRoute);
               }}
               onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
