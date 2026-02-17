@@ -101,10 +101,7 @@ async fn main() {
         .route("/api/issues", get(get_issues_root))
         .route("/api/issues/:id", get(get_issue_root))
         .route("/api/events", get(get_events_root))
-        .route(
-            "/api/telemetry/console",
-            post(post_console_telemetry_root),
-        )
+        .route("/api/telemetry/console", post(post_console_telemetry_root))
         .route(
             "/api/telemetry/console/events",
             get(get_console_telemetry_events_root),
@@ -147,13 +144,21 @@ async fn main() {
     {
         // Verify assets directory exists before starting server
         if !state.assets_root.exists() {
-            eprintln!("\nWARNING: Console assets directory not found at {:?}", state.assets_root);
+            eprintln!(
+                "\nWARNING: Console assets directory not found at {:?}",
+                state.assets_root
+            );
             eprintln!("The console UI will not work until you:");
             eprintln!("1. Build the UI: cd apps/console && npm install && npm run build");
             eprintln!("2. Set CONSOLE_ASSETS_ROOT to the correct dist directory");
-            eprintln!("3. Or reinstall with: cargo install kanbus --bin kbsc --features embed-assets\n");
+            eprintln!(
+                "3. Or reinstall with: cargo install kanbus --bin kbsc --features embed-assets\n"
+            );
         }
-        println!("Console backend listening on http://127.0.0.1:{port} (filesystem assets at {:?})", state.assets_root);
+        println!(
+            "Console backend listening on http://127.0.0.1:{port} (filesystem assets at {:?})",
+            state.assets_root
+        );
     }
 
     axum::serve(listener, app.into_make_service())
@@ -440,12 +445,12 @@ async fn get_console_telemetry_events(
     get_console_telemetry_events_root(State(state)).await
 }
 
-fn build_telemetry_payload(
-    payload: JsonValue,
-    tenant: Option<(String, String)>,
-) -> String {
+fn build_telemetry_payload(payload: JsonValue, tenant: Option<(String, String)>) -> String {
     let mut map = serde_json::Map::new();
-    map.insert("received_at".to_string(), JsonValue::String(chrono::Utc::now().to_rfc3339()));
+    map.insert(
+        "received_at".to_string(),
+        JsonValue::String(chrono::Utc::now().to_rfc3339()),
+    );
     if let Some((account, project)) = tenant {
         map.insert("account".to_string(), JsonValue::String(account));
         map.insert("project".to_string(), JsonValue::String(project));

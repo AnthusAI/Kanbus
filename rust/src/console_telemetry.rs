@@ -48,13 +48,18 @@ pub fn stream_console_telemetry(
         let payload = line.trim_start_matches("data: ").trim();
         let formatted = format_telemetry_line(payload);
         writeln!(writer, "{formatted}").map_err(|error| KanbusError::Io(error.to_string()))?;
-        writer.flush().map_err(|error| KanbusError::Io(error.to_string()))?;
+        writer
+            .flush()
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
 
     Ok(())
 }
 
-fn resolve_output_path(root: &Path, output_override: Option<String>) -> Result<PathBuf, KanbusError> {
+fn resolve_output_path(
+    root: &Path,
+    output_override: Option<String>,
+) -> Result<PathBuf, KanbusError> {
     let path = if let Some(output) = output_override {
         PathBuf::from(output)
     } else {
@@ -97,7 +102,9 @@ fn format_telemetry_line(payload: &str) -> String {
             let level = event.level.unwrap_or_else(|| "log".to_string());
             let message = event.message.or_else(|| flatten_args(event.args));
             let source = event.url.unwrap_or_else(|| "unknown-source".to_string());
-            let session = event.session_id.unwrap_or_else(|| "unknown-session".to_string());
+            let session = event
+                .session_id
+                .unwrap_or_else(|| "unknown-session".to_string());
             let body = message.unwrap_or_else(|| payload.to_string());
             format!("[{timestamp}] [{level}] [{session}] {body} ({source})")
         }
