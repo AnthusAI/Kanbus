@@ -301,27 +301,38 @@ button:focus-visible {
   width: 0;
   flex: 0 0 0;
   opacity: 0;
-  transform: translateX(0);
-  transition: width 0.45s ease, flex-basis 0.45s ease, opacity 0.45s ease;
+  transform: translateX(100%);
+  transition: transform 0.35s ease, opacity 0.35s ease;
   pointer-events: none;
   position: relative;
   z-index: 50;
 }
 
-.detail-column-open {
-  opacity: 1;
+.detail-column-visible {
   width: var(--detail-width);
   flex: 0 0 var(--detail-width);
   min-width: 320px;
-  pointer-events: auto;
   max-width: 100%;
 }
 
 .detail-column-open {
-  width: var(--detail-width);
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.detail-column-closing {
+  opacity: 0;
+  transform: translateX(100%);
+  pointer-events: none;
 }
 
 @media (max-width: 768px) {
+  .detail-column-visible {
+    width: 100%;
+    flex: 0 0 100%;
+  }
+
   .detail-column-open {
     width: 100%;
     flex: 0 0 100%;
@@ -332,12 +343,61 @@ button:focus-visible {
   scrollbar-width: thin;
 }
 
+.detail-page-stack {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.detail-page {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.35s ease;
+}
+
+.detail-page.outgoing {
+  transform: translateX(0);
+  pointer-events: none;
+}
+
+.detail-page.incoming[data-dir="push"] {
+  transform: translateX(100%);
+}
+
+.detail-page.incoming[data-dir="pop"] {
+  transform: translateX(-100%);
+}
+
+.detail-page.incoming {
+  pointer-events: auto;
+}
+
+.detail-page.animating.incoming {
+  transform: translateX(0);
+}
+
+.detail-page.animating.outgoing[data-dir="push"] {
+  transform: translateX(-100%);
+}
+
+.detail-page.animating.outgoing[data-dir="pop"] {
+  transform: translateX(100%);
+}
+
 html[data-motion="off"] .detail-column {
   transition: none;
   transform: none;
 }
 
 html[data-motion="reduced"] .detail-column {
+  transition-duration: 0.2s;
+}
+
+html[data-motion="reduced"] .detail-page {
   transition-duration: 0.2s;
 }
 
@@ -524,6 +584,7 @@ html[data-motion="reduced"] .detail-column {
   align-items: stretch;
   position: relative;
   height: 100%;
+  overflow: hidden;
 }
 
 .layout-slot {
