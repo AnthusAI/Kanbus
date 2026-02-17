@@ -434,7 +434,7 @@ def main(argv: list[str]) -> int:
     rust_binary = (
         Path(args.rust_binary)
         if args.rust_binary
-        else repo_root / "rust" / "target" / "release" / "kanbusr"
+        else repo_root / "rust" / "target" / "release" / "kbs"
     )
 
     if not rust_binary.exists():

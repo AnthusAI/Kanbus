@@ -75,8 +75,8 @@ def verify_binary(binary: Path) -> None:
         repo_dir = Path(temp_dir) / "repo"
         repo_dir.mkdir(parents=True)
         ensure_success(run_command(["git", "init"], cwd=repo_dir), "git init")
-        ensure_success(run_command([str(binary), "init"], cwd=repo_dir), "kanbusr init")
-        ensure_success(run_command([str(binary), "doctor"], cwd=repo_dir), "kanbusr doctor")
+        ensure_success(run_command([str(binary), "init"], cwd=repo_dir), "kbs init")
+        ensure_success(run_command([str(binary), "doctor"], cwd=repo_dir), "kbs doctor")
 
 
 def main(argv: list[str]) -> int:
@@ -92,7 +92,7 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     repo_root = Path(__file__).resolve().parents[1]
-    binary = Path(args.binary) if args.binary else repo_root / "rust" / "target" / "release" / "kanbusr"
+    binary = Path(args.binary) if args.binary else repo_root / "rust" / "target" / "release" / "kbs"
     if args.binary is None and sys.platform.startswith("win"):
         binary = binary.with_suffix(".exe")
     try:

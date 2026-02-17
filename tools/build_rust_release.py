@@ -78,7 +78,7 @@ def build_release(repo_root: Path, target: str | None) -> Path:
     target_dir = rust_dir / "target"
     if target:
         target_dir = target_dir / target
-    binary = target_dir / "release" / "kanbusr"
+    binary = target_dir / "release" / "kbs"
     if sys.platform.startswith("win"):
         binary = binary.with_suffix(".exe")
     if not binary.exists():

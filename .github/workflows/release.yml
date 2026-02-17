@@ -64,19 +64,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            binary: kanbusr
+            binary: kbs
             archive: tar.gz
           - os: macos-14
             target: aarch64-apple-darwin
-            binary: kanbusr
+            binary: kbs
             archive: tar.gz
           - os: macos-14
             target: x86_64-apple-darwin
-            binary: kanbusr
+            binary: kbs
             archive: tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: kanbusr.exe
+            binary: kbs.exe
             archive: zip
     steps:
       - name: Checkout
@@ -90,37 +90,37 @@ jobs:
       - name: Build binary
         run: |
           cd rust
-          cargo build --release --target ${{ matrix.target }} --bin kanbusr
+          cargo build --release --target ${{ matrix.target }} --bin kbs
 
       - name: Package binary (tar.gz)
         if: ${{ matrix.archive == 'tar.gz' }}
         run: |
           mkdir -p dist
-          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kanbusr
-          tar -czf dist/kanbusr-${{ matrix.target }}.tar.gz -C dist kanbusr
+          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kbs
+          tar -czf dist/kbs-${{ matrix.target }}.tar.gz -C dist kbs
 
       - name: Package binary (zip)
         if: ${{ matrix.archive == 'zip' && matrix.os != 'windows-latest' }}
         run: |
           mkdir -p dist
-          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kanbusr.exe
+          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kbs.exe
           cd dist
-          zip kanbusr-${{ matrix.target }}.zip kanbusr.exe
+          zip kbs-${{ matrix.target }}.zip kbs.exe
 
       - name: Package binary (zip, windows)
         if: ${{ matrix.archive == 'zip' && matrix.os == 'windows-latest' }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/kanbusr.exe"
-          Compress-Archive -Path "dist/kanbusr.exe" -DestinationPath "dist/kanbusr-${{ matrix.target }}.zip" -Force
+          Copy-Item "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/kbs.exe"
+          Compress-Archive -Path "dist/kbs.exe" -DestinationPath "dist/kbs-${{ matrix.target }}.zip" -Force
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.publish.outputs.release_tag }}
           files: |
-            dist/kanbusr-${{ matrix.target }}.${{ matrix.archive }}
+            dist/kbs-${{ matrix.target }}.${{ matrix.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -133,19 +133,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            binary: kanbus-console
+            binary: kbsc
             archive: tar.gz
           - os: macos-14
             target: aarch64-apple-darwin
-            binary: kanbus-console
+            binary: kbsc
             archive: tar.gz
           - os: macos-14
             target: x86_64-apple-darwin
-            binary: kanbus-console
+            binary: kbsc
             archive: tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: kanbus-console.exe
+            binary: kbsc.exe
             archive: zip
     steps:
       - name: Checkout
@@ -178,37 +178,37 @@ jobs:
       - name: Build console server
         run: |
           cd rust
-          cargo build --release --target ${{ matrix.target }} --bin kanbus-console --features embed-assets
+          cargo build --release --target ${{ matrix.target }} --bin kbsc --features embed-assets
 
       - name: Package console server (tar.gz)
         if: ${{ matrix.archive == 'tar.gz' }}
         run: |
           mkdir -p dist
-          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kanbus-console
-          tar -czf dist/kanbus-console-${{ matrix.target }}.tar.gz -C dist kanbus-console
+          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kbsc
+          tar -czf dist/kbsc-${{ matrix.target }}.tar.gz -C dist kbsc
 
       - name: Package console server (zip)
         if: ${{ matrix.archive == 'zip' && matrix.os != 'windows-latest' }}
         run: |
           mkdir -p dist
-          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kanbus-console.exe
+          cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} dist/kbsc.exe
           cd dist
-          zip kanbus-console-${{ matrix.target }}.zip kanbus-console.exe
+          zip kbsc-${{ matrix.target }}.zip kbsc.exe
 
       - name: Package console server (zip, windows)
         if: ${{ matrix.archive == 'zip' && matrix.os == 'windows-latest' }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/kanbus-console.exe"
-          Compress-Archive -Path "dist/kanbus-console.exe" -DestinationPath "dist/kanbus-console-${{ matrix.target }}.zip" -Force
+          Copy-Item "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/kbsc.exe"
+          Compress-Archive -Path "dist/kbsc.exe" -DestinationPath "dist/kbsc-${{ matrix.target }}.zip" -Force
 
       - name: Upload console server assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.publish.outputs.release_tag }}
           files: |
-            dist/kanbus-console-${{ matrix.target }}.${{ matrix.archive }}
+            dist/kbsc-${{ matrix.target }}.${{ matrix.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
