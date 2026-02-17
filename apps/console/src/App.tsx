@@ -714,23 +714,24 @@ export default function App() {
       : "transition-opacity duration-300";
 
   const transitionKey = `${resolvedViewMode ?? "none"}-${showClosed}-${snapshot?.updated_at ?? ""}`;
-  const showLoadingIndicator = loading;
+  const showLoadingIndicator =
+    loading || !snapshot || deferredIssues.length === 0;
 
   useEffect(() => {
-    if (loading) {
+    if (showLoadingIndicator) {
       setLoadingVisible(true);
     }
-  }, [loading]);
+  }, [showLoadingIndicator]);
 
   useEffect(() => {
-    if (loading) {
+    if (showLoadingIndicator) {
       return;
     }
     const timer = window.setTimeout(() => {
       setLoadingVisible(false);
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [loading]);
+  }, [showLoadingIndicator]);
 
   return (
     <AppShell>
@@ -748,7 +749,7 @@ export default function App() {
                 if (event.propertyName !== "opacity") {
                   return;
                 }
-                if (!loading) {
+                if (!showLoadingIndicator) {
                   setLoadingVisible(false);
                 }
               }}
