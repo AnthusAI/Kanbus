@@ -19,6 +19,7 @@ import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
 
 type ViewMode = "initiatives" | "epics" | "issues";
+type NavAction = "push" | "pop" | "none";
 type RouteContext = {
   account: string | null;
   project: string | null;
@@ -299,8 +300,15 @@ function collectDescendants(issues: Issue[], parentId: string): Set<string> {
   return ids;
 }
 
-function navigate(path: string, setRoute: (route: RouteContext) => void) {
+function navigate(
+  path: string,
+  setRoute: (route: RouteContext) => void,
+  navActionRef?: React.MutableRefObject<NavAction>
+) {
   window.history.pushState({}, "", path);
+  if (navActionRef) {
+    navActionRef.current = "push";
+  }
   setRoute(parseRoute(path));
 }
 
@@ -356,7 +364,11 @@ export default function App() {
   const [route, setRoute] = useState<RouteContext>(() =>
     parseRoute(window.location.pathname)
   );
+  const [detailClosing, setDetailClosing] = useState(false);
+  const [detailNavDirection, setDetailNavDirection] = useState<NavAction>("none");
   const layoutFrameRef = React.useRef<HTMLDivElement | null>(null);
+  const navActionRef = React.useRef<NavAction>("none");
+  const wasDetailOpenRef = React.useRef(false);
   useAppearance();
   const config = snapshot?.config;
   const issues = snapshot?.issues ?? [];
@@ -364,6 +376,7 @@ export default function App() {
 
   useEffect(() => {
     const handlePop = () => {
+      navActionRef.current = "pop";
       setRoute(parseRoute(window.location.pathname));
     };
     window.addEventListener("popstate", handlePop);
@@ -475,6 +488,19 @@ export default function App() {
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [detailMaximized]);
+
+  const isDetailOpen = Boolean(selectedTask);
+  const isDetailVisible = isDetailOpen || detailClosing;
+
+  useEffect(() => {
+    const wasOpen = wasDetailOpenRef.current;
+    if (isDetailOpen) {
+      setDetailClosing(false);
+    } else if (wasOpen) {
+      setDetailClosing(true);
+    }
+    wasDetailOpenRef.current = isDetailOpen;
+  }, [isDetailOpen]);
 
   useEffect(() => {
     const layout = layoutFrameRef.current;
@@ -685,24 +711,19 @@ export default function App() {
     return deferredIssues;
   }, [deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId]);
 
-  const subTasks = useMemo(() => {
-    if (!selectedTask) {
-      return [];
-    }
-    return issues.filter(
-      (issue) => issue.type === "sub-task" && issue.parent === selectedTask.id
-    );
-  }, [issues, selectedTask]);
-
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
       return;
     }
     if (route.parentId) {
-      navigate(`${route.basePath}/issues/${route.parentId}/${issue.id}`, setRoute);
+      navigate(
+        `${route.basePath}/issues/${route.parentId}/${issue.id}`,
+        setRoute,
+        navActionRef
+      );
       return;
     }
-    navigate(`${route.basePath}/issues/${issue.id}`, setRoute);
+    navigate(`${route.basePath}/issues/${issue.id}`, setRoute, navActionRef);
   };
 
   const motionMode = typeof document !== "undefined" ? document.documentElement.dataset.motion : "full";
@@ -716,6 +737,11 @@ export default function App() {
   const transitionKey = `${resolvedViewMode ?? "none"}-${showClosed}-${snapshot?.updated_at ?? ""}`;
   const showLoadingIndicator =
     loading || !snapshot || deferredIssues.length === 0;
+
+  useEffect(() => {
+    setDetailNavDirection(navActionRef.current);
+    navActionRef.current = "none";
+  }, [route]);
 
   useEffect(() => {
     if (showLoadingIndicator) {
@@ -766,7 +792,7 @@ export default function App() {
                 return;
               }
               const next = value as ViewMode;
-              navigate(`${route.basePath}/${next}/`, setRoute);
+              navigate(`${route.basePath}/${next}/`, setRoute, navActionRef);
             }}
             options={[
               {
@@ -851,7 +877,7 @@ export default function App() {
               transitionKey={transitionKey}
             />
           </div>
-            {selectedTask ? (
+            {isDetailVisible ? (
               <div
                 className="detail-resizer h-full w-2 min-w-2 lg:w-3 lg:min-w-3 xl:w-4 xl:min-w-4 flex items-center justify-center cursor-col-resize pointer-events-auto"
                 role="separator"
@@ -928,23 +954,28 @@ export default function App() {
             ) : null}
             <TaskDetailPanel
               task={selectedTask}
-              subTasks={subTasks}
-              isOpen={Boolean(selectedTask)}
+              allIssues={issues}
+              isOpen={isDetailOpen}
+              isVisible={isDetailVisible}
+              navDirection={detailNavDirection}
               widthPercent={detailMaximized ? 100 : detailWidth}
               columns={columns}
               priorityLookup={priorityLookup}
               config={config}
               onClose={() => {
+                setDetailClosing(true);
                 setDetailMaximized(false);
                 if (route.basePath == null) {
                   setSelectedTask(null);
                   return;
                 }
+                setSelectedTask(null);
                 const nextMode = resolvedViewMode ?? loadStoredViewMode();
-                navigate(`${route.basePath}/${nextMode}/`, setRoute);
+                navigate(`${route.basePath}/${nextMode}/`, setRoute, navActionRef);
               }}
               onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
               isMaximized={detailMaximized}
+              onAfterClose={() => setDetailClosing(false)}
             />
           </div>
       </div>
