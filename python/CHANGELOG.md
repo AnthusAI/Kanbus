@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.6.2 (2026-02-17)
+
+### Bug Fixes
+
+- Amplify build paths
+  ([`c4e9dfa`](https://github.com/AnthusAI/Kanbus/commit/c4e9dfa0e4d8c26226b79cb8ed2755ae392f10cd))
+
+- Release workflow python syntax
+  ([`eab60d1`](https://github.com/AnthusAI/Kanbus/commit/eab60d12b33320d0ef53a5c15f5c661525d0a711))
+
+
 ## v0.6.1 (2026-02-17)
 
 ### Bug Fixes
