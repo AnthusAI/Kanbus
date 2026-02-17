@@ -14,6 +14,7 @@ type TelemetryState = {
   endpoint: string | null;
   sessionId: string;
   globalListenersInstalled: boolean;
+  consoleWrapped: boolean;
 };
 
 const stateKey = "__kanbusConsoleTelemetryState";
@@ -30,7 +31,8 @@ function getTelemetryState(): TelemetryState {
     installed: false,
     endpoint: null,
     sessionId,
-    globalListenersInstalled: false
+    globalListenersInstalled: false,
+    consoleWrapped: false
   };
   (window as typeof window & Record<string, unknown>)[stateKey] = nextState;
   return nextState;
@@ -94,16 +96,19 @@ export function installConsoleTelemetry(apiBase: string): void {
   state.installed = true;
   state.endpoint = endpoint;
 
-  const levels: TelemetryLevel[] = ["log", "info", "warn", "error", "debug"];
-  for (const level of levels) {
-    const original = console[level].bind(console);
-    console[level] = (...args: unknown[]) => {
-      original(...args);
-      const current = getTelemetryState();
-      if (current.endpoint) {
-        sendTelemetry(current.endpoint, buildPayload(level, args));
-      }
-    };
+  if (!state.consoleWrapped) {
+    state.consoleWrapped = true;
+    const levels: TelemetryLevel[] = ["log", "info", "warn", "error", "debug"];
+    for (const level of levels) {
+      const original = console[level].bind(console);
+      console[level] = (...args: unknown[]) => {
+        original(...args);
+        const current = getTelemetryState();
+        if (current.endpoint) {
+          sendTelemetry(current.endpoint, buildPayload(level, args));
+        }
+      };
+    }
   }
 
   if (!state.globalListenersInstalled) {
