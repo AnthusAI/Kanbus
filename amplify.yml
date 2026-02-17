@@ -3,9 +3,10 @@ frontend:
   phases:
     preBuild:
       commands:
-        - npm install
-        # Build the UI package first
-        - cd packages/ui && npm install && npm run build && cd ../..
+        # Build the shared UI package first
+        - cd packages/ui && npm ci --prefer-offline --no-audit && npm run build && cd ../..
+        # Install site dependencies
+        - cd apps/kanb.us && npm ci --prefer-offline --no-audit && cd ../..
     build:
       commands:
         - cd apps/kanb.us && npm run build
