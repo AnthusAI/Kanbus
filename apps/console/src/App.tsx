@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   CheckCheck,
   Filter,
@@ -346,13 +346,13 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode | null>(() =>
     loadStoredViewMode()
   );
+  const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showClosed, setShowClosed] = useState(() => loadStoredShowClosed());
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
   const [detailMaximized, setDetailMaximized] = useState(false);
-  const [issuesReady, setIssuesReady] = useState(false);
   const [route, setRoute] = useState<RouteContext>(() =>
     parseRoute(window.location.pathname)
   );
@@ -360,6 +360,7 @@ export default function App() {
   useAppearance();
   const config = snapshot?.config;
   const issues = snapshot?.issues ?? [];
+  const deferredIssues = useDeferredValue(issues);
 
   useEffect(() => {
     const handlePop = () => {
@@ -430,21 +431,6 @@ export default function App() {
       unsubscribe();
     };
   }, [route.basePath]);
-
-  useEffect(() => {
-    if (!snapshot) {
-      setIssuesReady(false);
-      return;
-    }
-    if (snapshot.issues.length > 0) {
-      setIssuesReady(true);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setIssuesReady(true);
-    }, 1500);
-    return () => window.clearTimeout(timer);
-  }, [snapshot]);
 
   useEffect(() => {
     if (!viewMode) {
@@ -538,9 +524,6 @@ export default function App() {
     }
     return allColumns.filter((column) => column !== "closed");
   }, [config, showClosed]);
-  const fallbackViewMode = route.parentId ? null : "issues";
-  const resolvedViewMode =
-    routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
   const columnError =
     config && columns.length === 0
       ? "default workflow is required to render columns"
@@ -649,6 +632,10 @@ export default function App() {
     };
   }, [route, snapshot, viewMode]);
 
+  const fallbackViewMode = route.parentId ? null : "issues";
+  const resolvedViewMode =
+    routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
+
   useEffect(() => {
     setRouteError(routeContext.error);
     setViewMode(routeContext.viewMode);
@@ -675,28 +662,28 @@ export default function App() {
 
   const filteredIssues = useMemo(() => {
     if (routeContext.parentIssue) {
-      const ids = collectDescendants(issues, routeContext.parentIssue.id);
-      return issues.filter((issue) => ids.has(issue.id));
+      const ids = collectDescendants(deferredIssues, routeContext.parentIssue.id);
+      return deferredIssues.filter((issue) => ids.has(issue.id));
     }
     if (route.parentId) {
       return [];
     }
     if (resolvedViewMode === "initiatives") {
-      return issues.filter((issue) => issue.type === "initiative");
+      return deferredIssues.filter((issue) => issue.type === "initiative");
     }
     if (resolvedViewMode === "epics") {
-      return issues.filter((issue) => issue.type === "epic");
+      return deferredIssues.filter((issue) => issue.type === "epic");
     }
     if (resolvedViewMode === "issues") {
-      return issues.filter(
+      return deferredIssues.filter(
         (issue) =>
           issue.type !== "initiative" &&
           issue.type !== "epic" &&
           issue.type !== "sub-task"
       );
     }
-    return issues;
-  }, [issues, resolvedViewMode, routeContext.parentIssue, route.parentId]);
+    return deferredIssues;
+  }, [deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId]);
 
   const subTasks = useMemo(() => {
     if (!selectedTask) {
@@ -727,11 +714,34 @@ export default function App() {
       : "transition-opacity duration-300";
 
   const transitionKey = `${resolvedViewMode ?? "none"}-${showClosed}-${snapshot?.updated_at ?? ""}`;
+  const showLoadingIndicator =
+    loading || !snapshot || deferredIssues.length === 0;
+
+  useEffect(() => {
+    if (showLoadingIndicator) {
+      setLoadingVisible(true);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setLoadingVisible(false);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [showLoadingIndicator]);
 
   return (
     <AppShell>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2 ml-auto">
+          {loadingVisible ? (
+            <span
+              className={`loading-pill loading-pill--compact ${
+                showLoadingIndicator ? "" : "loading-pill--hide"
+              }`}
+            >
+              <span className="loading-spinner" aria-hidden="true" />
+              Loading
+            </span>
+          ) : null}
           <AnimatedSelector
             name="view"
             value={resolvedViewMode}
@@ -807,33 +817,24 @@ export default function App() {
         <div className="mt-2 rounded-xl bg-card-muted p-3 text-sm text-muted">
           {error ?? routeError ?? columnError}
         </div>
-      ) : snapshot && !issuesReady ? (
-        <div className="mt-2 rounded-2xl bg-card-muted p-3 text-sm text-muted">
-          Loading issues.
-        </div>
       ) : null}
 
       <div className="mt-2 flex-1 min-h-0">
-        {!snapshot ? (
-          <div className="rounded-2xl bg-card-muted p-3 text-sm text-muted">
-            Waiting for project data.
+        <div
+          ref={layoutFrameRef}
+          className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}`}
+        >
+          <div className="layout-slot layout-slot-board h-full pt-2 px-0">
+            <Board
+              columns={columns}
+              issues={filteredIssues}
+              priorityLookup={priorityLookup}
+              config={config}
+              onSelectIssue={handleSelectIssue}
+              selectedIssueId={selectedTask?.id ?? null}
+              transitionKey={transitionKey}
+            />
           </div>
-        ) : (
-          <div
-            ref={layoutFrameRef}
-            className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}`}
-          >
-            <div className="layout-slot layout-slot-board h-full pt-2 px-0">
-              <Board
-                columns={columns}
-                issues={filteredIssues}
-                priorityLookup={priorityLookup}
-                config={config}
-                onSelectIssue={handleSelectIssue}
-                selectedIssueId={selectedTask?.id ?? null}
-                transitionKey={transitionKey}
-              />
-            </div>
             {selectedTask ? (
               <div
                 className="detail-resizer h-full w-2 min-w-2 lg:w-3 lg:min-w-3 xl:w-4 xl:min-w-4 flex items-center justify-center cursor-col-resize pointer-events-auto"
@@ -930,7 +931,6 @@ export default function App() {
               isMaximized={detailMaximized}
             />
           </div>
-        )}
       </div>
 
       <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />

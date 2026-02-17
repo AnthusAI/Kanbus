@@ -22,8 +22,8 @@ function BoardColumnComponent({
   return (
     <div className="kb-column flex flex-col h-full min-h-0">
       <div className="kb-column-header h-7 items-center flex justify-between px-3">
-        <span>{title.replace(/_/g, " ")}</span>
-        <span className="pr-3">{issues.length}</span>
+        <span className="column-animate-in">{title.replace(/_/g, " ")}</span>
+        <span className="pr-3 column-animate-in">{issues.length}</span>
       </div>
       <div className="kb-column-scroll mt-1 flex-1 min-h-0 overflow-y-auto">
         <div className="grid gap-2">
