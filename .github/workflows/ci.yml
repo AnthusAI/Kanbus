@@ -226,10 +226,10 @@ jobs:
       - name: Build Rust release binary
         run: |
           binary=$(python tools/build_rust_release.py)
-          echo "TASKULUS_RUST_BINARY=$binary" >> "$GITHUB_ENV"
+          echo "KANBUS_RUST_BINARY=$binary" >> "$GITHUB_ENV"
 
       - name: Run Beads interoperability suite
-        run: python tools/run_beads_interop_suite.py --rust-binary "$TASKULUS_RUST_BINARY"
+        run: python tools/run_beads_interop_suite.py --rust-binary "$KANBUS_RUST_BINARY"
 
   badges:
     needs: [python, rust]
