@@ -227,6 +227,7 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         project_directory: "project".to_string(),
         external_projects: Vec::new(),
         ignore_paths: Vec::new(),
+        console_port: None,
         project_key: "kanbus".to_string(),
         project_management_template: None,
         hierarchy: vec!["initiative".to_string(), "epic".to_string()],
