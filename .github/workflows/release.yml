@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Guard: release only for latest main
+      - name: "Guard: release only for latest main"
         id: guard
         run: |
           git fetch origin main --tags
