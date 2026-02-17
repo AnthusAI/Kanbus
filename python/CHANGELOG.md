@@ -2,6 +2,40 @@
 
 <!-- version list -->
 
+## v0.6.1 (2026-02-17)
+
+### Bug Fixes
+
+- Avoid duplicate console telemetry hooks
+  ([`795e14c`](https://github.com/AnthusAI/Kanbus/commit/795e14c69de34a7ac2c19a60c720992294277c15))
+
+- Avoid moving console state before asset checks
+  ([`afa2078`](https://github.com/AnthusAI/Kanbus/commit/afa20788319c54e7e56e01e79694097f2a7f81dc))
+
+- Console telemetry and sse logging
+  ([`b468e65`](https://github.com/AnthusAI/Kanbus/commit/b468e65f12bf618af45ebadcb1f3624b4c14508c))
+
+- Update release and ci for kbs kbsc
+  ([`1c5d2d6`](https://github.com/AnthusAI/Kanbus/commit/1c5d2d6ab2ffc57abfbf3c0557626729592e9695))
+
+- Update rust feature steps for console port
+  ([`a29f73e`](https://github.com/AnthusAI/Kanbus/commit/a29f73e5b65fc8018d6ce50140239b55bb76d581))
+
+### Chores
+
+- Add console port to configuration
+  ([`f0eeaf6`](https://github.com/AnthusAI/Kanbus/commit/f0eeaf66c22a23ebb9fd135a8c68e3615468d641))
+
+- Align docs and scripts with kbs and kbsc
+  ([`4ed1543`](https://github.com/AnthusAI/Kanbus/commit/4ed15438f5f2a8fd808c6575ed56fdbf47c14142))
+
+- Format rust telemetry code
+  ([`4ec8ce8`](https://github.com/AnthusAI/Kanbus/commit/4ec8ce861bd5f5b8f00e9fbb6dc233dfea6db0a5))
+
+- Remove beads artifacts
+  ([`eb06b3d`](https://github.com/AnthusAI/Kanbus/commit/eb06b3d7f3171d4f61860972519d20282b0a18bc))
+
+
 ## v0.6.0 (2026-02-16)
 
 ### Chores
