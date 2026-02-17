@@ -2,6 +2,36 @@
 
 <!-- version list -->
 
+## v0.6.3 (2026-02-17)
+
+### Bug Fixes
+
+- Align operational commands with kbs
+  ([`c158e28`](https://github.com/AnthusAI/Kanbus/commit/c158e28dada63203b0cebc7c43157a422c7d4718))
+
+- Gate release on latest main
+  ([`86426bf`](https://github.com/AnthusAI/Kanbus/commit/86426bf60c279c6e9795857624f3a13dec12e1af))
+
+- Quote release guard step name
+  ([`f6de26a`](https://github.com/AnthusAI/Kanbus/commit/f6de26a10c7d7b3b1d5eebc8c717ec944235daf2))
+
+### Chores
+
+- Gate amplify on full ci
+  ([`098c4a1`](https://github.com/AnthusAI/Kanbus/commit/098c4a1b7864feba8626377d05d0d5043f49fe1f))
+
+- Rename taskulus rust env var
+  ([`d016a4f`](https://github.com/AnthusAI/Kanbus/commit/d016a4f6be1c76c967c9f9676fd7a5ec33aeb01a))
+
+### Documentation
+
+- Position python and rust parity
+  ([`b74c841`](https://github.com/AnthusAI/Kanbus/commit/b74c841b6ad5a752d4552e55749d7c0c8c63f435))
+
+- Update getting started for kbs kbsc
+  ([`b448e22`](https://github.com/AnthusAI/Kanbus/commit/b448e22b259962a54b2405b07a0073eda1f4704d))
+
+
 ## v0.6.2 (2026-02-17)
 
 ### Bug Fixes
