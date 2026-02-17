@@ -13,6 +13,7 @@ type TelemetryState = {
   installed: boolean;
   endpoint: string | null;
   sessionId: string;
+  globalListenersInstalled: boolean;
 };
 
 const stateKey = "__kanbusConsoleTelemetryState";
@@ -28,7 +29,8 @@ function getTelemetryState(): TelemetryState {
   const nextState: TelemetryState = {
     installed: false,
     endpoint: null,
-    sessionId
+    sessionId,
+    globalListenersInstalled: false
   };
   (window as typeof window & Record<string, unknown>)[stateKey] = nextState;
   return nextState;
@@ -85,42 +87,53 @@ function buildPayload(level: TelemetryLevel, args: unknown[]): TelemetryPayload 
 
 export function installConsoleTelemetry(apiBase: string): void {
   const state = getTelemetryState();
-  if (state.installed && state.endpoint === `${apiBase}/telemetry/console`) {
+  const endpoint = `${apiBase}/telemetry/console`;
+  if (state.installed && state.endpoint === endpoint) {
     return;
   }
   state.installed = true;
-  state.endpoint = `${apiBase}/telemetry/console`;
+  state.endpoint = endpoint;
 
   const levels: TelemetryLevel[] = ["log", "info", "warn", "error", "debug"];
   for (const level of levels) {
     const original = console[level].bind(console);
     console[level] = (...args: unknown[]) => {
       original(...args);
-      sendTelemetry(state.endpoint as string, buildPayload(level, args));
+      const current = getTelemetryState();
+      if (current.endpoint) {
+        sendTelemetry(current.endpoint, buildPayload(level, args));
+      }
     };
   }
 
-  window.addEventListener("error", (event) => {
-    const payload = buildPayload("error", [
-      event.message,
-      {
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno
-      }
-    ]);
-    sendTelemetry(state.endpoint as string, payload);
-  });
-
-  window.addEventListener("unhandledrejection", (event) => {
-    const reason = event.reason instanceof Error
-      ? {
-          name: event.reason.name,
-          message: event.reason.message,
-          stack: event.reason.stack ?? null
+  if (!state.globalListenersInstalled) {
+    state.globalListenersInstalled = true;
+    window.addEventListener("error", (event) => {
+      const current = getTelemetryState();
+      if (!current.endpoint) return;
+      const payload = buildPayload("error", [
+        event.message,
+        {
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno
         }
-      : serializeConsoleArg(event.reason);
-    const payload = buildPayload("error", ["unhandledrejection", reason]);
-    sendTelemetry(state.endpoint as string, payload);
-  });
+      ]);
+      sendTelemetry(current.endpoint, payload);
+    });
+
+    window.addEventListener("unhandledrejection", (event) => {
+      const current = getTelemetryState();
+      if (!current.endpoint) return;
+      const reason = event.reason instanceof Error
+        ? {
+            name: event.reason.name,
+            message: event.reason.message,
+            stack: event.reason.stack ?? null
+          }
+        : serializeConsoleArg(event.reason);
+      const payload = buildPayload("error", ["unhandledrejection", reason]);
+      sendTelemetry(current.endpoint, payload);
+    });
+  }
 }
