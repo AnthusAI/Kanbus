@@ -158,8 +158,9 @@ KANBUS_NO_DAEMON=1 kanbus list
 Operational commands:
 
 ```bash
-kanbus daemon-status
-kanbus daemon-stop
+kbs daemon-status
+kbs daemon-stop
+# or: kanbus daemon-status / kanbus daemon-stop
 ```
 
 ## Python vs Rust
