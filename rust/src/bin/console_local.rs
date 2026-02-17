@@ -94,6 +94,7 @@ async fn main() {
         assets_root_explicit,
         telemetry_tx,
     };
+    let assets_root = state.assets_root.clone();
 
     let app = Router::new()
         .route("/assets/*path", get(get_public_asset))
@@ -143,10 +144,10 @@ async fn main() {
     #[cfg(not(feature = "embed-assets"))]
     {
         // Verify assets directory exists before starting server
-        if !state.assets_root.exists() {
+        if !assets_root.exists() {
             eprintln!(
                 "\nWARNING: Console assets directory not found at {:?}",
-                state.assets_root
+                assets_root
             );
             eprintln!("The console UI will not work until you:");
             eprintln!("1. Build the UI: cd apps/console && npm install && npm run build");
@@ -157,7 +158,7 @@ async fn main() {
         }
         println!(
             "Console backend listening on http://127.0.0.1:{port} (filesystem assets at {:?})",
-            state.assets_root
+            assets_root
         );
     }
 
