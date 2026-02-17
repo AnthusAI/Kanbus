@@ -1,0 +1,29 @@
+# Amazon Linux-based smoke test that installs the released crates.io package (kanbus)
+# and exercises a minimal project.
+#
+# Usage:
+#   docker build -f tools/install-test/Dockerfile.rust -t kanbus-crate-smoke .
+#   docker run --rm kanbus-crate-smoke
+
+FROM amazonlinux:2023
+
+ENV PATH="/root/.cargo/bin:${PATH}" \
+    RUSTUP_HOME=/root/.rustup \
+    CARGO_HOME=/root/.cargo \
+    CARGO_TERM_COLOR=always
+
+RUN yum update -y && \
+    yum install -y --allowerasing git gcc gcc-c++ make diffutils openssl-devel pkg-config curl tar python3.11 python3.11-pip && \
+    python3.11 -m pip install --no-cache-dir --upgrade --ignore-installed pip && \
+    python3.11 -m pip install --no-cache-dir kanbus && \
+    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+    /root/.cargo/bin/rustup install stable && \
+    /root/.cargo/bin/rustup default stable && \
+    /root/.cargo/bin/cargo install kanbus
+
+WORKDIR /workspace
+
+COPY tools/install-test/scripts/run-rust-smoke.sh /usr/local/bin/run-rust-smoke.sh
+RUN chmod +x /usr/local/bin/run-rust-smoke.sh
+
+ENTRYPOINT ["/usr/local/bin/run-rust-smoke.sh"]

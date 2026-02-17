@@ -45,12 +45,12 @@ chmod +x kanbus-console
 pip install kanbus
 ```
 
-**Rust** (cargo) - Recommended for max performance and CI/CD:
+**Rust** (cargo) - Recommended for max performance and CI/CD (installs `kbs` and `kbsc`):
 ```bash
 cargo install kanbus
 ```
 
-The Rust installation includes both `kanbus` (CLI) and `kanbus-console` (web server).
+The Rust installation includes `kbs` (CLI) and `kbsc` (web server).
 
 ## Step 1: Initialize a project
 

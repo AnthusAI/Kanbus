@@ -25,7 +25,7 @@ echo ""
 echo "Starting:"
 echo "  • UI styles watcher (packages/ui) → copies CSS changes to dist/"
 echo "  • Frontend watcher (apps/console) → rebuilds to dist/"
-echo "  • Rust backend (console_local) → auto-restarts on Rust changes"
+echo "  • Rust backend (kbsc console server) → auto-restarts on Rust changes"
 echo ""
 echo "The console will be available at: http://127.0.0.1:5174"
 echo ""
@@ -69,7 +69,7 @@ sleep 2s
 # Start Rust backend with cargo-watch from the rust directory
 echo "Starting Rust backend with auto-restart..."
 cd "$RUST_DIR" || exit 1
-cargo watch -x "run --bin console_local" &
+cargo watch -x "run --bin kbsc" &
 BACKEND_PID=$!
 echo "  Backend PID: $BACKEND_PID"
 

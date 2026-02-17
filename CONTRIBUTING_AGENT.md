@@ -27,11 +27,41 @@ If it is not recorded, it did not happen.
 
 Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
 
+## Running Kanbus (Do This Exactly)
+
+Run Kanbus from the repo root so it can find `.kanbus.yml` and `.beads/`.
+
+Preferred (Rust):
+
+```bash
+cargo run --manifest-path rust/Cargo.toml --bin kanbusr -- <command> [args...]
+# prefer installed alias: kbs <command> [args...]
+```
+
+Example:
+
+```bash
+cargo run --manifest-path rust/Cargo.toml --bin kanbusr -- create "My epic" --type epic --description "..."
+# or: kbs create "My epic" --type epic --description "..."
+```
+
+Fallback (Python):
+
+```bash
+python -m kanbus.cli <command> [args...]
+```
+
+If the Python module is missing, install it first:
+
+```bash
+python -m pip install -e python
+```
+
 ## The Order of Being
 
 All work is structured.
 
-Project key prefix: kanbus.
+Project key prefix: kbs.
 
 Hierarchy: initiative -> epic -> task -> sub-task.
 

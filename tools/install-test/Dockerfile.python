@@ -1,0 +1,23 @@
+# Amazon Linux-based smoke test that installs the released PyPI package (kanbus)
+# and exercises a minimal project.
+#
+# Usage:
+#   docker build -f tools/install-test/Dockerfile.python -t kanbus-pypi-smoke .
+#   docker run --rm kanbus-pypi-smoke
+
+FROM amazonlinux:2023
+
+ENV PYTHONUNBUFFERED=1 \
+    PATH="/usr/local/bin:${PATH}"
+
+RUN yum update -y && \
+    yum install -y python3.11 python3.11-pip git && \
+    python3.11 -m pip install --no-cache-dir --upgrade --ignore-installed pip && \
+    python3.11 -m pip install --no-cache-dir kanbus
+
+WORKDIR /workspace
+
+COPY tools/install-test/scripts/run-python-smoke.sh /usr/local/bin/run-python-smoke.sh
+RUN chmod +x /usr/local/bin/run-python-smoke.sh
+
+ENTRYPOINT ["/usr/local/bin/run-python-smoke.sh"]

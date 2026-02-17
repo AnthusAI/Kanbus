@@ -35,12 +35,14 @@ Preferred (Rust):
 
 ```bash
 cargo run --manifest-path rust/Cargo.toml --bin kanbusr -- <command> [args...]
+# prefer installed alias: kbs <command> [args...]
 ```
 
 Example:
 
 ```bash
 cargo run --manifest-path rust/Cargo.toml --bin kanbusr -- create "My epic" --type epic --description "..."
+# or: kbs create "My epic" --type epic --description "..."
 ```
 
 Fallback (Python):

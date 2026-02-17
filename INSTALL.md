@@ -77,13 +77,13 @@ Rust publish guardrails:
 ## Prebuilt Binaries
 
 Release artifacts include:
-- `kanbusr`: CLI for issue management (create, list, update, close, comment, etc.)
-- `kanbus-console`: Web UI server for realtime kanban board visualization
+- `kbs` (symlink to `kanbusr`): CLI for issue management (create, list, update, close, comment, etc.)
+- `kbsc` (symlink to `kanbus-console`): Web UI server for realtime kanban board visualization
 
 The console server provides a React-based UI with Server-Sent Events for live updates. Run it locally with:
 
 ```bash
-CONSOLE_DATA_ROOT=/path/to/project kanbus-console
+CONSOLE_DATA_ROOT=/path/to/project kbsc
 ```
 
 Then open http://127.0.0.1:5174 in your browser to view your kanban board.
