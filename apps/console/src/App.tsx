@@ -722,6 +722,16 @@ export default function App() {
     }
   }, [loading]);
 
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setLoadingVisible(false);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
   return (
     <AppShell>
       <div className="flex flex-wrap items-center justify-end gap-2">
