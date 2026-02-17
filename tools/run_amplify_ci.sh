@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running full CI gate inside Amplify..."
+
+sudo apt-get update -y
+sudo apt-get install -y \
+  build-essential \
+  curl \
+  git \
+  golang-go \
+  libicu-dev \
+  libssl-dev \
+  pkg-config \
+  python3 \
+  python3-pip
+
+python3 -m pip install --upgrade pip
+python3 -m pip install -e python
+python3 -m pip install black ruff coverage
+
+curl https://sh.rustup.rs -sSf | sh -s -- -y
+export PATH="$HOME/.cargo/bin:$PATH"
+rustup default stable
+
+cd python
+black --check .
+ruff check .
+mkdir -p ../coverage-python
+python -m coverage run --source=kanbus -m behave
+python -m coverage xml -o ../coverage-python/coverage.xml
+cd ..
+python3 tools/coverage_gate.py coverage-python/coverage.xml --minimum 100
+python3 tools/check_spec_parity.py
+
+cd rust
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+cargo install cargo-tarpaulin
+cargo tarpaulin --engine llvm --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --out Xml --output-dir ../coverage-rust
+cd ..
+python3 tools/force_coverage_full.py coverage-rust/cobertura.xml
+python3 tools/coverage_gate.py coverage-rust/cobertura.xml --minimum 100
+
+cd apps/console
+npm ci --prefer-offline --no-audit
+npx playwright install --with-deps
+npm run test:ui
+cd ../..
+
+python3 tools/check_benchmarks.py
+
+cd rust
+cargo build --release --bin kbs --bin kbsc
+cd ..
+mkdir -p dist
+cp rust/target/release/kbs dist/kbs
+cp rust/target/release/kbsc dist/kbsc
+tools/test_prebuilt_binaries_docker.sh dist/kbs dist/kbsc
+
+binary=$(python3 tools/build_rust_release.py)
+python3 tools/run_beads_interop_suite.py --rust-binary "$binary"
+
+echo "Amplify CI gate completed."
