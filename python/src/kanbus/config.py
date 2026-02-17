@@ -12,6 +12,7 @@ DEFAULT_TYPES: List[str] = ["bug", "story", "chore"]
 DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "project_directory": "project",
     "external_projects": [],
+    "console_port": None,
     "project_key": "kanbus",
     "hierarchy": DEFAULT_HIERARCHY,
     "types": DEFAULT_TYPES,

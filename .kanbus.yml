@@ -2,7 +2,8 @@ project_directory: project
 external_projects: []
 ignore_paths:
   - features/project
-project_key: tsk
+console_port: 4242
+project_key: kbs
 
 # Hierarchy and types are fixed today; kept here for validation.
 hierarchy:

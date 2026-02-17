@@ -141,6 +141,7 @@ class ProjectConfiguration(BaseModel):
     project_directory: str
     external_projects: List[str] = Field(default_factory=list)
     ignore_paths: List[str] = Field(default_factory=list)
+    console_port: Optional[int] = None
     project_key: str = Field(min_length=1)
     project_management_template: Optional[str] = None
     hierarchy: List[str]

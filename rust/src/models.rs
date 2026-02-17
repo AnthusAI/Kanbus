@@ -52,6 +52,8 @@ pub struct ProjectConfiguration {
     pub external_projects: Vec<String>,
     #[serde(default)]
     pub ignore_paths: Vec<String>,
+    #[serde(default)]
+    pub console_port: Option<u16>,
     pub project_key: String,
     #[serde(default)]
     pub project_management_template: Option<String>,
