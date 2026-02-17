@@ -714,19 +714,13 @@ export default function App() {
       : "transition-opacity duration-300";
 
   const transitionKey = `${resolvedViewMode ?? "none"}-${showClosed}-${snapshot?.updated_at ?? ""}`;
-  const showLoadingIndicator =
-    loading || !snapshot || deferredIssues.length === 0;
+  const showLoadingIndicator = loading;
 
   useEffect(() => {
-    if (showLoadingIndicator) {
+    if (loading) {
       setLoadingVisible(true);
-      return;
     }
-    const timer = window.setTimeout(() => {
-      setLoadingVisible(false);
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [showLoadingIndicator]);
+  }, [loading]);
 
   return (
     <AppShell>
@@ -737,6 +731,17 @@ export default function App() {
               className={`loading-pill loading-pill--compact ${
                 showLoadingIndicator ? "" : "loading-pill--hide"
               }`}
+              onTransitionEnd={(event) => {
+                if (event.target !== event.currentTarget) {
+                  return;
+                }
+                if (event.propertyName !== "opacity") {
+                  return;
+                }
+                if (!loading) {
+                  setLoadingVisible(false);
+                }
+              }}
             >
               <span className="loading-spinner" aria-hidden="true" />
               Loading
