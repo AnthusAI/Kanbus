@@ -10,6 +10,7 @@ use crate::agents_management::ensure_agents_file;
 use crate::beads_write::{create_beads_issue, delete_beads_issue, update_beads_issue};
 use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
+use crate::console_telemetry::stream_console_telemetry;
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
 use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
@@ -300,6 +301,15 @@ enum WikiCommands {
 enum ConsoleCommands {
     /// Emit a JSON snapshot for the console.
     Snapshot,
+    /// Stream browser console logs to a local file.
+    Log {
+        /// Output file path.
+        #[arg(long, value_name = "PATH")]
+        output: Option<String>,
+        /// Console telemetry URL override.
+        #[arg(long, value_name = "URL")]
+        url: Option<String>,
+    },
 }
 
 /// Output produced by a CLI command.
@@ -780,6 +790,10 @@ fn execute_command(
                 let payload = serde_json::to_string_pretty(&snapshot)
                     .map_err(|error| KanbusError::Io(error.to_string()))?;
                 Ok(Some(payload))
+            }
+            ConsoleCommands::Log { output, url } => {
+                stream_console_telemetry(root, output, url)?;
+                Ok(None)
             }
         },
         Commands::DaemonStatus => {

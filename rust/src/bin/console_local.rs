@@ -17,14 +17,17 @@ use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::response::Response;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
 use futures_util::stream;
 use futures_util::stream::BoxStream;
 use futures_util::Stream;
 use futures_util::StreamExt;
+use serde_json::Value as JsonValue;
+use tokio::sync::broadcast;
 use tokio::sync::Mutex;
+use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::wrappers::IntervalStream;
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
@@ -43,14 +46,11 @@ struct AppState {
     assets_root: PathBuf,
     multi_tenant: bool,
     assets_root_explicit: bool,
+    telemetry_tx: broadcast::Sender<String>,
 }
 
 #[tokio::main]
 async fn main() {
-    let desired_port = std::env::var("CONSOLE_PORT")
-        .ok()
-        .and_then(|value| value.parse::<u16>().ok())
-        .unwrap_or(5174);
     let repo_root = resolve_repo_root();
     let root_override = std::env::var("CONSOLE_ROOT").ok().map(PathBuf::from);
     let data_root = std::env::var("CONSOLE_DATA_ROOT")
@@ -58,6 +58,18 @@ async fn main() {
         .map(PathBuf::from)
         .or_else(|| root_override.clone())
         .unwrap_or_else(|| repo_root.clone());
+
+    // Try to load console_port from project config
+    let config_port = FileStore::new(&data_root)
+        .load_config()
+        .ok()
+        .and_then(|cfg| cfg.console_port);
+
+    let desired_port = std::env::var("CONSOLE_PORT")
+        .ok()
+        .and_then(|value| value.parse::<u16>().ok())
+        .or(config_port)
+        .unwrap_or(5174);
 
     let assets_root_explicit = std::env::var("CONSOLE_ASSETS_ROOT").is_ok();
     let assets_root = std::env::var("CONSOLE_ASSETS_ROOT")
@@ -74,11 +86,13 @@ async fn main() {
         .map(|value| value == "multi")
         .unwrap_or(false);
 
+    let (telemetry_tx, _) = broadcast::channel(256);
     let state = AppState {
         base_root: data_root,
         assets_root,
         multi_tenant,
         assets_root_explicit,
+        telemetry_tx,
     };
 
     let app = Router::new()
@@ -87,6 +101,14 @@ async fn main() {
         .route("/api/issues", get(get_issues_root))
         .route("/api/issues/:id", get(get_issue_root))
         .route("/api/events", get(get_events_root))
+        .route(
+            "/api/telemetry/console",
+            post(post_console_telemetry_root),
+        )
+        .route(
+            "/api/telemetry/console/events",
+            get(get_console_telemetry_events_root),
+        )
         .route("/", get(get_index_root))
         .route("/initiatives/", get(get_index_root))
         .route("/epics/", get(get_index_root))
@@ -98,6 +120,14 @@ async fn main() {
         .route("/:account/:project/api/issues", get(get_issues))
         .route("/:account/:project/api/issues/:id", get(get_issue))
         .route("/:account/:project/api/events", get(get_events))
+        .route(
+            "/:account/:project/api/telemetry/console",
+            post(post_console_telemetry),
+        )
+        .route(
+            "/:account/:project/api/telemetry/console/events",
+            get(get_console_telemetry_events),
+        )
         .route("/:account/:project/", get(get_index))
         .route("/:account/:project/initiatives/", get(get_index))
         .route("/:account/:project/epics/", get(get_index))
@@ -114,7 +144,17 @@ async fn main() {
     #[cfg(feature = "embed-assets")]
     println!("Console backend listening on http://127.0.0.1:{port} (embedded assets)");
     #[cfg(not(feature = "embed-assets"))]
-    println!("Console backend listening on http://127.0.0.1:{port}");
+    {
+        // Verify assets directory exists before starting server
+        if !state.assets_root.exists() {
+            eprintln!("\nWARNING: Console assets directory not found at {:?}", state.assets_root);
+            eprintln!("The console UI will not work until you:");
+            eprintln!("1. Build the UI: cd apps/console && npm install && npm run build");
+            eprintln!("2. Set CONSOLE_ASSETS_ROOT to the correct dist directory");
+            eprintln!("3. Or reinstall with: cargo install kanbus --bin kbsc --features embed-assets\n");
+        }
+        println!("Console backend listening on http://127.0.0.1:{port} (filesystem assets at {:?})", state.assets_root);
+    }
 
     axum::serve(listener, app.into_make_service())
         .await
@@ -357,6 +397,69 @@ async fn get_events_root(
     )
 }
 
+async fn post_console_telemetry_root(
+    State(state): State<AppState>,
+    Json(payload): Json<JsonValue>,
+) -> StatusCode {
+    let message = build_telemetry_payload(payload, None);
+    let _ = state.telemetry_tx.send(message);
+    StatusCode::NO_CONTENT
+}
+
+async fn post_console_telemetry(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+    Json(payload): Json<JsonValue>,
+) -> StatusCode {
+    let message = build_telemetry_payload(payload, Some((account, project)));
+    let _ = state.telemetry_tx.send(message);
+    StatusCode::NO_CONTENT
+}
+
+async fn get_console_telemetry_events_root(
+    State(state): State<AppState>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let receiver = state.telemetry_tx.subscribe();
+    let stream = BroadcastStream::new(receiver).filter_map(|payload| async move {
+        match payload {
+            Ok(data) => Some(Ok(Event::default().data(data))),
+            Err(_) => None,
+        }
+    });
+    Sse::new(stream).keep_alive(
+        KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text(": keep-alive"),
+    )
+}
+
+async fn get_console_telemetry_events(
+    State(state): State<AppState>,
+    AxumPath((_account, _project)): AxumPath<(String, String)>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    get_console_telemetry_events_root(State(state)).await
+}
+
+fn build_telemetry_payload(
+    payload: JsonValue,
+    tenant: Option<(String, String)>,
+) -> String {
+    let mut map = serde_json::Map::new();
+    map.insert("received_at".to_string(), JsonValue::String(chrono::Utc::now().to_rfc3339()));
+    if let Some((account, project)) = tenant {
+        map.insert("account".to_string(), JsonValue::String(account));
+        map.insert("project".to_string(), JsonValue::String(project));
+    }
+    if let JsonValue::Object(object) = payload {
+        for (key, value) in object {
+            map.insert(key, value);
+        }
+    } else {
+        map.insert("payload".to_string(), payload);
+    }
+    JsonValue::Object(map).to_string()
+}
+
 fn store_for(state: &AppState, account: &str, project: &str) -> FileStore {
     let root = if state.multi_tenant {
         FileStore::resolve_tenant_root(&state.base_root, account, project)
@@ -418,10 +521,13 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
 }
 
 fn resolve_repo_root() -> PathBuf {
+    // Always anchor to the workspace root (one level above the `rust/` crate).
+    // `CARGO_MANIFEST_DIR` points at `.../Kanbus/rust`, so walk up a parent to
+    // find the repo root regardless of where the binary is launched from.
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."))
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
 }
 
 async fn get_index(
@@ -490,7 +596,25 @@ fn serve_asset_from_filesystem(state: &AppState, asset_path: &str) -> Response {
     let asset_root = match state.assets_root.canonicalize() {
         Ok(root) => root,
         Err(error) => {
-            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
+            let help_message = if !state.assets_root_explicit {
+                format!(
+                    "Console assets directory not found at {:?}. \
+                    \n\nThis binary was built without embedded assets. To fix this:\
+                    \n1. Build the UI: cd apps/console && npm install && npm run build\
+                    \n2. Set CONSOLE_ASSETS_ROOT to the dist directory\
+                    \n3. Or install the console binary with embedded assets:\
+                    \n   cargo install kanbus --bin kbsc --features embed-assets\
+                    \n\nOriginal error: {}",
+                    state.assets_root, error
+                )
+            } else {
+                format!(
+                    "Console assets directory not found at {:?} (set via CONSOLE_ASSETS_ROOT). \
+                    Original error: {}",
+                    state.assets_root, error
+                )
+            };
+            return error_response(help_message, StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
     let requested = asset_root.join(asset_path);

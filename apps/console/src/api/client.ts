@@ -1,6 +1,7 @@
 import type { IssuesSnapshot } from "../types/issues";
 
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
+  const startedAt = Date.now();
   const [configResponse, issuesResponse] = await Promise.all([
     fetch(`${apiBase}/config`),
     fetch(`${apiBase}/issues`)
@@ -16,6 +17,11 @@ export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
 
   const config = (await configResponse.json()) as IssuesSnapshot["config"];
   const issues = (await issuesResponse.json()) as IssuesSnapshot["issues"];
+  const finishedAt = Date.now();
+  console.info("[snapshot] fetched", {
+    durationMs: finishedAt - startedAt,
+    finishedAt: new Date(finishedAt).toISOString()
+  });
 
   return {
     config,
@@ -30,6 +36,24 @@ export function subscribeToSnapshots(
   onError: (error: Event) => void
 ): () => void {
   const source = new EventSource(`${apiBase}/events`);
+  let openCount = 0;
+  let lastErrorAt: number | null = null;
+  let lastMessageAt: number | null = null;
+
+  console.info("[sse] connect", {
+    url: `${apiBase}/events`,
+    startedAt: new Date().toISOString()
+  });
+
+  source.onopen = () => {
+    const now = Date.now();
+    openCount += 1;
+    console.info("[sse] open", {
+      count: openCount,
+      openedAt: new Date(now).toISOString(),
+      sinceLastErrorMs: lastErrorAt ? now - lastErrorAt : null
+    });
+  };
 
   source.onmessage = (event) => {
     try {
@@ -41,6 +65,13 @@ export function subscribeToSnapshots(
         return;
       }
       if (snapshot.config && snapshot.issues) {
+        const now = Date.now();
+        lastMessageAt = now;
+        console.info("[sse] message", {
+          receivedAt: new Date(now).toISOString(),
+          snapshotUpdatedAt: snapshot.updated_at ?? null,
+          lastEventId: event.lastEventId || null
+        });
         onSnapshot(snapshot as IssuesSnapshot);
         return;
       }
@@ -51,6 +82,12 @@ export function subscribeToSnapshots(
   };
 
   source.onerror = (event) => {
+    const now = Date.now();
+    lastErrorAt = now;
+    console.warn("[sse] error", {
+      errorAt: new Date(now).toISOString(),
+      sinceLastMessageMs: lastMessageAt ? now - lastMessageAt : null
+    });
     onError(event);
   };
 

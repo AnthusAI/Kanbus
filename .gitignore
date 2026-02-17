@@ -19,6 +19,7 @@ coverage-python/
 python/coverage.xml
 rust/cobertura.xml
 examples/
+.kanbus/telemetry/
 
 # Docs
 site/

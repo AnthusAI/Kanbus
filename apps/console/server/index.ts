@@ -25,12 +25,23 @@ const pythonPath = process.env.KANBUS_PYTHONPATH
 app.use(
   cors({
     origin: "http://localhost:5173",
-    methods: ["GET"]
+    methods: ["GET", "POST"]
   })
 );
 
 let cachedSnapshot: IssuesSnapshot | null = null;
 let snapshotPromise: Promise<IssuesSnapshot> | null = null;
+
+function logConsoleEvent(
+  label: string,
+  details?: Record<string, unknown>
+): void {
+  const payload = {
+    at: new Date().toISOString(),
+    ...details
+  };
+  console.log(`[console] ${label}`, payload);
+}
 
 async function runSnapshot(): Promise<IssuesSnapshot> {
   const command = kanbusPython ?? "kanbus";
@@ -127,6 +138,7 @@ apiRouter.get("/issues/:id", async (req, res) => {
 });
 
 const sseClients = new Set<express.Response>();
+const telemetryClients = new Set<express.Response>();
 
 apiRouter.get("/events", async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
@@ -136,6 +148,7 @@ apiRouter.get("/events", async (req, res) => {
   res.write("retry: 1000\n\n");
 
   sseClients.add(res);
+  logConsoleEvent("sse-client-connected", { clients: sseClients.size });
 
   try {
     const snapshot = await getSnapshot();
@@ -151,8 +164,38 @@ apiRouter.get("/events", async (req, res) => {
 
   req.on("close", () => {
     sseClients.delete(res);
+    logConsoleEvent("sse-client-disconnected", { clients: sseClients.size });
   });
 });
+
+apiRouter.get("/telemetry/console/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+  res.write("retry: 1000\n\n");
+
+  telemetryClients.add(res);
+  logConsoleEvent("telemetry-client-connected", { clients: telemetryClients.size });
+
+  req.on("close", () => {
+    telemetryClients.delete(res);
+    logConsoleEvent("telemetry-client-disconnected", { clients: telemetryClients.size });
+  });
+});
+
+apiRouter.post(
+  "/telemetry/console",
+  express.json({ limit: "1mb" }),
+  (req, res) => {
+    const payload = {
+      ...req.body,
+      received_at: new Date().toISOString()
+    };
+    broadcastTelemetry(payload);
+    res.status(204).end();
+  }
+);
 
 app.use("/:account/:project/api", apiRouter);
 app.use("/api", apiRouter);
@@ -161,6 +204,13 @@ function broadcastSnapshot(snapshot: IssuesSnapshot) {
   const payload = `data: ${JSON.stringify(snapshot)}\n\n`;
   for (const client of sseClients) {
     client.write(payload);
+  }
+}
+
+function broadcastTelemetry(payload: Record<string, unknown>) {
+  const message = `data: ${JSON.stringify(payload)}\n\n`;
+  for (const client of telemetryClients) {
+    client.write(message);
   }
 }
 
@@ -176,15 +226,21 @@ const watcher = chokidar.watch([projectRoot, configPath, overridePath], {
   }
 });
 
-watcher.on("all", () => {
+watcher.on("all", (eventName, filePath) => {
+  logConsoleEvent("fs-change", { event: eventName, path: filePath });
   if (debounceTimer) {
     clearTimeout(debounceTimer);
   }
   debounceTimer = setTimeout(async () => {
     debounceTimer = null;
+    const refreshStartedAt = Date.now();
     try {
       const snapshot = await refreshSnapshot();
       broadcastSnapshot(snapshot);
+      logConsoleEvent("snapshot-broadcast", {
+        durationMs: Date.now() - refreshStartedAt,
+        clients: sseClients.size
+      });
     } catch (error) {
       const payload = {
         error: (error as Error).message,
@@ -194,6 +250,11 @@ watcher.on("all", () => {
       for (const client of sseClients) {
         client.write(message);
       }
+      logConsoleEvent("snapshot-error", {
+        durationMs: Date.now() - refreshStartedAt,
+        clients: sseClients.size,
+        error: (error as Error).message
+      });
     }
   }, 250);
 });

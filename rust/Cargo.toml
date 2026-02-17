@@ -28,11 +28,12 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 bytes = "1.11"
 http-body = "1.0"
 http-body-util = "0.1"
-tokio-stream = "0.1"
+tokio-stream = { version = "0.1", features = ["sync"] }
 futures-util = "0.3"
 axum = { version = "0.7", features = ["tokio", "http1"] }
 mime_guess = "2.0"
 rust-embed = { version = "8.5", optional = true }
+reqwest = { version = "0.12", features = ["blocking"] }
 
 [dev-dependencies]
 cucumber = "0.21"
@@ -42,7 +43,6 @@ regex = "1.10.4"
 shell-words = "1.1.0"
 futures = "0.3"
 chrono-tz = "0.8"
-reqwest = { version = "0.12", features = ["blocking"] }
 
 [features]
 default = []
@@ -56,11 +56,11 @@ harness = false
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
 
 [[bin]]
-name = "kanbusr"
+name = "kbs"
 path = "src/main.rs"
 
 [[bin]]
-name = "kanbus-console"
+name = "kbsc"
 path = "src/bin/console_local.rs"
 
 [lib]

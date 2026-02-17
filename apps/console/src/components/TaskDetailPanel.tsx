@@ -9,7 +9,8 @@ import {
   Square,
   Tag,
   Wrench,
-  CornerDownRight
+  CornerDownRight,
+  Maximize
 } from "lucide-react";
 import gsap from "gsap";
 import type { Issue, ProjectConfig } from "../types/issues";
@@ -17,6 +18,7 @@ import { Board } from "./Board";
 import { buildIssueColorStyle } from "../utils/issue-colors";
 import { formatTimestamp } from "../utils/format-timestamp";
 import { formatIssueId } from "../utils/format-issue-id";
+import { IconButton } from "./IconButton";
 
 interface TaskDetailPanelProps {
   task: Issue | null;
@@ -27,6 +29,8 @@ interface TaskDetailPanelProps {
   isOpen: boolean;
   widthPercent: number;
   onClose: () => void;
+  onToggleMaximize: () => void;
+  isMaximized: boolean;
 }
 
 export function TaskDetailPanel({
@@ -37,7 +41,9 @@ export function TaskDetailPanel({
   config,
   isOpen,
   widthPercent,
-  onClose
+  onClose,
+  onToggleMaximize,
+  isMaximized
 }: TaskDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -181,21 +187,25 @@ export function TaskDetailPanel({
               data-type={detailTask.type}
               data-priority={priorityName}
             >
-            <div className="grid gap-2">
+              <div className="grid gap-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
                   {detailTask.type} · {detailTask.status}
                 </div>
-                <button
-                  className="rounded-full bg-[var(--column)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted h-7 flex items-center gap-2 translate-x-3"
-                  onClick={onClose}
-                  type="button"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <X className="h-4 w-4" />
-                    <span>Close</span>
-                  </span>
-                </button>
+                <div className="flex items-center gap-2 translate-x-2">
+                  <IconButton
+                    icon={Maximize}
+                    label={isMaximized ? "Exit full width" : "Fill width"}
+                    onClick={onToggleMaximize}
+                    aria-pressed={isMaximized}
+                    className={isMaximized ? "bg-[var(--card-muted)]" : ""}
+                  />
+                  <IconButton
+                    icon={X}
+                    label="Close"
+                    onClick={onClose}
+                  />
+                </div>
               </div>
                 <h2 className="text-lg font-semibold text-selected">
                   {detailTask.title}

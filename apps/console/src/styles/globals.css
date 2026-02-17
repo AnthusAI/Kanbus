@@ -250,6 +250,7 @@ button:focus-visible {
   flex: 0 0 var(--detail-width);
   min-width: 320px;
   pointer-events: auto;
+  max-width: 100%;
 }
 
 .detail-column-open {
