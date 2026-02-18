@@ -61,10 +61,7 @@ fn normalize_prefix(prefix: &str) -> Result<String, KanbusError> {
     Ok(trimmed.to_ascii_lowercase())
 }
 
-fn find_comment_by_prefix(
-    issue: &IssueData,
-    prefix: &str,
-) -> Result<usize, KanbusError> {
+fn find_comment_by_prefix(issue: &IssueData, prefix: &str) -> Result<usize, KanbusError> {
     let normalized = normalize_prefix(prefix)?;
     let mut matches = Vec::new();
     for (index, comment) in issue.comments.iter().enumerate() {
@@ -133,10 +130,7 @@ pub fn add_comment(
 }
 
 /// Ensure comment IDs exist for an issue and persist any changes.
-pub fn ensure_issue_comment_ids(
-    root: &Path,
-    identifier: &str,
-) -> Result<IssueData, KanbusError> {
+pub fn ensure_issue_comment_ids(root: &Path, identifier: &str) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let (updated, changed) = ensure_comment_ids(&lookup.issue);
     if changed {

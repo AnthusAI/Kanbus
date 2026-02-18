@@ -98,29 +98,29 @@ export function buildIssueColorStyle(
 ): CSSProperties {
   const accentColor = resolveAccentColor(config, issue);
   const priorityColor = resolvePriorityColor(config, issue);
-  const style: CSSProperties = {};
+  const style: CSSProperties & Record<string, string> = {};
 
   if (accentColor) {
-    style["--issue-accent-light" as keyof CSSProperties] = buildRadixVariable(
+    style["--issue-accent-light"] = buildRadixVariable(
       accentColor,
       LIGHT_ACCENT
     );
-    style["--issue-accent-muted-light" as keyof CSSProperties] =
+    style["--issue-accent-muted-light"] =
       buildRadixVariable(accentColor, LIGHT_MUTED);
-    style["--issue-accent-dark" as keyof CSSProperties] = buildRadixVariable(
+    style["--issue-accent-dark"] = buildRadixVariable(
       accentColor,
       DARK_ACCENT
     );
-    style["--issue-accent-muted-dark" as keyof CSSProperties] =
+    style["--issue-accent-muted-dark"] =
       buildRadixVariable(accentColor, DARK_MUTED);
   }
 
   if (priorityColor) {
-    style["--issue-priority-bg-light" as keyof CSSProperties] = buildRadixVariable(
+    style["--issue-priority-bg-light"] = buildRadixVariable(
       priorityColor,
       PRIORITY_BG_LIGHT
     );
-    style["--issue-priority-bg-dark" as keyof CSSProperties] = buildRadixVariable(
+    style["--issue-priority-bg-dark"] = buildRadixVariable(
       priorityColor,
       PRIORITY_BG_DARK
     );

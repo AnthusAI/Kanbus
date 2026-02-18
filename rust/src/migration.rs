@@ -422,7 +422,12 @@ fn convert_comments(
                 .get("id")
                 .and_then(Value::as_str)
                 .map(|value| value.to_string())
-                .or_else(|| comment.get("id").and_then(Value::as_i64).map(|value| value.to_string()))
+                .or_else(|| {
+                    comment
+                        .get("id")
+                        .and_then(Value::as_i64)
+                        .map(|value| value.to_string())
+                })
                 .unwrap_or_else(|| (index + 1).to_string());
             results.push(IssueComment {
                 id: Some(beads_comment_uuid(issue_id, &comment_id)),

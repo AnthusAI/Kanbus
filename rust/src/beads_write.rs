@@ -189,9 +189,7 @@ pub fn add_beads_comment(
             continue;
         }
         found = true;
-        let comments_value = record
-            .get_mut("comments")
-            .and_then(Value::as_array_mut);
+        let comments_value = record.get_mut("comments").and_then(Value::as_array_mut);
         let comments = if let Some(existing) = comments_value {
             existing
         } else {

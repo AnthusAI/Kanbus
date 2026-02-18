@@ -164,7 +164,9 @@ async fn main() {
             eprintln!("\nNote: Console UI assets not found at {:?}", assets_root);
             eprintln!("The API will work, but the web UI won't load.");
             eprintln!("\nTo use the web UI, you can:");
-            eprintln!("1. Set CONSOLE_ASSETS_ROOT=/Users/ryan.porter/Projects/Kanbus/apps/console/dist");
+            eprintln!(
+                "1. Set CONSOLE_ASSETS_ROOT=/Users/ryan.porter/Projects/Kanbus/apps/console/dist"
+            );
             eprintln!("2. Or build with embedded assets: cargo build --bin kbsc --features embed-assets --release\n");
         }
         println!(
@@ -414,10 +416,7 @@ async fn get_events_root(
     )
 }
 
-async fn post_console_telemetry_root(
-    State(state): State<AppState>,
-    body: Bytes,
-) -> StatusCode {
+async fn post_console_telemetry_root(State(state): State<AppState>, body: Bytes) -> StatusCode {
     let message = build_telemetry_payload(parse_json_body(&body), None);
     let _ = state.telemetry_tx.send(message);
     write_telemetry_log(&state, &body);
@@ -549,7 +548,11 @@ async fn post_render_d2(body: Bytes) -> Response {
 
     // Create temp files for input and output with unique names
     let temp_dir = std::env::temp_dir();
-    let unique_id = format!("{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+    let unique_id = format!(
+        "{}-{}",
+        std::process::id(),
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+    );
     let input_path = temp_dir.join(format!("kanbus_d2_{}.d2", unique_id));
     let output_path = temp_dir.join(format!("kanbus_d2_{}.svg", unique_id));
 
@@ -693,11 +696,14 @@ fn open_telemetry_log(repo_root: &PathBuf) -> Option<Arc<StdMutex<std::fs::File>
     {
         Ok(file) => {
             let wrapped = Arc::new(StdMutex::new(file));
-            if let Err(error) = write_log_line(&wrapped, &format!(
-                "{{\"type\":\"startup\",\"at\":\"{}\",\"logPath\":\"{}\"}}",
-                chrono::Utc::now().to_rfc3339(),
-                log_path.display()
-            )) {
+            if let Err(error) = write_log_line(
+                &wrapped,
+                &format!(
+                    "{{\"type\":\"startup\",\"at\":\"{}\",\"logPath\":\"{}\"}}",
+                    chrono::Utc::now().to_rfc3339(),
+                    log_path.display()
+                ),
+            ) {
                 eprintln!("[console] failed to write startup log: {error}");
             }
             Some(wrapped)
@@ -733,7 +739,9 @@ fn write_telemetry_log(state: &AppState, body: &Bytes) {
 }
 
 fn write_log_line(handle: &Arc<StdMutex<std::fs::File>>, line: &str) -> io::Result<()> {
-    let mut guard = handle.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut guard = handle
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     writeln!(guard, "{line}")?;
     guard.flush()
 }
@@ -742,7 +750,8 @@ fn parse_json_body(body: &Bytes) -> JsonValue {
     if body.is_empty() {
         return JsonValue::Null;
     }
-    serde_json::from_slice(body).unwrap_or_else(|_| JsonValue::String(String::from_utf8_lossy(body).to_string()))
+    serde_json::from_slice(body)
+        .unwrap_or_else(|_| JsonValue::String(String::from_utf8_lossy(body).to_string()))
 }
 
 fn resolve_repo_root() -> PathBuf {

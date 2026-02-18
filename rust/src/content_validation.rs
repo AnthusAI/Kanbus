@@ -139,7 +139,10 @@ fn validate_external(block: &CodeBlock, tool: &str) -> Result<(), KanbusError> {
         // Provide helpful installation suggestion
         let (language, install_hint) = match tool {
             "mmdc" => ("mermaid", "npm install -g @mermaid-js/mermaid-cli"),
-            "plantuml" => ("plantuml", "brew install plantuml (macOS) or apt install plantuml (Linux)"),
+            "plantuml" => (
+                "plantuml",
+                "brew install plantuml (macOS) or apt install plantuml (Linux)",
+            ),
             "d2" => ("d2", "curl -fsSL https://d2lang.com/install.sh | sh -s --"),
             _ => ("", ""),
         };

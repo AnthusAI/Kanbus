@@ -29,6 +29,12 @@ type RouteContext = {
   parentId: string | null;
   error: string | null;
 };
+type IssueSelectionContext = {
+  viewMode: ViewMode | null;
+  selectedIssue: Issue | null;
+  parentIssue: Issue | null;
+  error: string | null;
+};
 
 const VIEW_MODE_STORAGE_KEY = "kanbus.console.viewMode";
 const SHOW_CLOSED_STORAGE_KEY = "kanbus.console.showClosed";
@@ -556,7 +562,7 @@ export default function App() {
       ? "default workflow is required to render columns"
       : null;
 
-  const routeContext = useMemo(() => {
+  const routeContext = useMemo<IssueSelectionContext>(() => {
     if (route.basePath == null) {
       return {
         viewMode: null,
@@ -638,7 +644,7 @@ export default function App() {
     }
     if (selectedIssue?.issue) {
       const type = selectedIssue.issue.type;
-      const derivedViewMode =
+      const derivedViewMode: ViewMode =
         type === "initiative"
           ? "initiatives"
           : type === "epic"
@@ -1001,6 +1007,7 @@ export default function App() {
               onAfterClose={() => setDetailClosing(false)}
               onFocus={handleFocus}
               focusedIssueId={focusedIssueId}
+              onNavigateToDescendant={handleSelectIssue}
             />
           </div>
       </div>
