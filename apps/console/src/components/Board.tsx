@@ -12,6 +12,8 @@ interface BoardProps {
   selectedIssueId?: string | null;
   transitionKey: string;
   detailOpen?: boolean;
+  collapsedColumns?: Set<string>;
+  onToggleCollapse?: (column: string) => void;
 }
 
 function BoardComponent({
@@ -22,7 +24,9 @@ function BoardComponent({
   onSelectIssue,
   selectedIssueId,
   transitionKey,
-  detailOpen
+  detailOpen,
+  collapsedColumns = new Set(),
+  onToggleCollapse
 }: BoardProps) {
   const scope = useBoardTransitions(transitionKey);
   const boardRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +82,8 @@ function BoardComponent({
             config={config}
             onSelectIssue={onSelectIssue}
             selectedIssueId={selectedIssueId}
+            collapsed={collapsedColumns.has(column)}
+            onToggleCollapse={() => onToggleCollapse?.(column)}
           />
         );
       })}

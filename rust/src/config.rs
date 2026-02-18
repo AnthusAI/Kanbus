@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::error::KanbusError;
-use crate::models::{PriorityDefinition, ProjectConfiguration};
+use crate::models::{PriorityDefinition, ProjectConfiguration, StatusDefinition};
 
 /// Return the default project configuration.
 pub fn default_project_configuration() -> ProjectConfiguration {
@@ -112,13 +112,33 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         default_priority: 2,
         assignee: None,
         time_zone: None,
-        status_colors: BTreeMap::from([
-            ("open".to_string(), "cyan".to_string()),
-            ("in_progress".to_string(), "blue".to_string()),
-            ("blocked".to_string(), "red".to_string()),
-            ("closed".to_string(), "green".to_string()),
-            ("deferred".to_string(), "yellow".to_string()),
-        ]),
+        statuses: vec![
+            StatusDefinition {
+                name: "open".to_string(),
+                color: Some("cyan".to_string()),
+                collapsed: false,
+            },
+            StatusDefinition {
+                name: "in_progress".to_string(),
+                color: Some("blue".to_string()),
+                collapsed: false,
+            },
+            StatusDefinition {
+                name: "blocked".to_string(),
+                color: Some("red".to_string()),
+                collapsed: true,
+            },
+            StatusDefinition {
+                name: "closed".to_string(),
+                color: Some("green".to_string()),
+                collapsed: true,
+            },
+            StatusDefinition {
+                name: "deferred".to_string(),
+                color: Some("yellow".to_string()),
+                collapsed: true,
+            },
+        ],
         type_colors: BTreeMap::from([
             ("initiative".to_string(), "bright_blue".to_string()),
             ("epic".to_string(), "magenta".to_string()),

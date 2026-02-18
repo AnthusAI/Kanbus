@@ -37,7 +37,6 @@ type IssueSelectionContext = {
 };
 
 const VIEW_MODE_STORAGE_KEY = "kanbus.console.viewMode";
-const SHOW_CLOSED_STORAGE_KEY = "kanbus.console.showClosed";
 const DETAIL_WIDTH_STORAGE_KEY = "kanbus.console.detailWidth";
 
 function loadStoredViewMode(): ViewMode {
@@ -52,20 +51,6 @@ function loadStoredViewMode(): ViewMode {
     return "issues";
   }
   return "epics";
-}
-
-function loadStoredShowClosed(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  const stored = window.localStorage.getItem(SHOW_CLOSED_STORAGE_KEY);
-  if (stored === "true") {
-    return true;
-  }
-  if (stored === "false") {
-    return false;
-  }
-  return false;
 }
 
 function loadStoredDetailWidth(): number {
@@ -329,8 +314,13 @@ function buildPriorityLookup(config: ProjectConfig): Record<number, string> {
 }
 
 function getStatusColumns(config: ProjectConfig): string[] {
-  const workflow = config.workflows.default;
-  return Object.keys(workflow || {});
+  return config.statuses.map((s) => s.name);
+}
+
+function getInitialCollapsedColumns(config: ProjectConfig): Set<string> {
+  return new Set(
+    config.statuses.filter((s) => s.collapsed).map((s) => s.name)
+  );
 }
 
 const VIEW_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -363,7 +353,7 @@ export default function App() {
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showClosed, setShowClosed] = useState(() => loadStoredShowClosed());
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
   const [detailMaximized, setDetailMaximized] = useState(false);
@@ -376,10 +366,19 @@ export default function App() {
   const layoutFrameRef = React.useRef<HTMLDivElement | null>(null);
   const navActionRef = React.useRef<NavAction>("none");
   const wasDetailOpenRef = React.useRef(false);
+  const collapsedColumnsInitialized = React.useRef(false);
   useAppearance();
   const config = snapshot?.config;
   const issues = snapshot?.issues ?? [];
   const deferredIssues = useDeferredValue(issues);
+
+  // Initialize collapsed columns from config (only once)
+  useEffect(() => {
+    if (config && !collapsedColumnsInitialized.current) {
+      setCollapsedColumns(getInitialCollapsedColumns(config));
+      collapsedColumnsInitialized.current = true;
+    }
+  }, [config]);
 
   useEffect(() => {
     const handlePop = () => {
@@ -476,10 +475,6 @@ export default function App() {
   }, [route.parentId, route.viewMode]);
 
   useEffect(() => {
-    window.localStorage.setItem(SHOW_CLOSED_STORAGE_KEY, String(showClosed));
-  }, [showClosed]);
-
-  useEffect(() => {
     window.localStorage.setItem(DETAIL_WIDTH_STORAGE_KEY, String(detailWidth));
   }, [detailWidth]);
 
@@ -551,12 +546,8 @@ export default function App() {
     if (!config) {
       return [];
     }
-    const allColumns = getStatusColumns(config);
-    if (showClosed) {
-      return allColumns;
-    }
-    return allColumns.filter((column) => column !== "closed");
-  }, [config, showClosed]);
+    return getStatusColumns(config);
+  }, [config]);
   const columnError =
     config && columns.length === 0
       ? "default workflow is required to render columns"
@@ -759,7 +750,7 @@ export default function App() {
       ? "transition-opacity duration-150"
       : "transition-opacity duration-300";
 
-  const transitionKey = `${resolvedViewMode ?? "none"}-${showClosed}-${snapshot?.updated_at ?? ""}`;
+  const transitionKey = `${resolvedViewMode ?? "none"}-${snapshot?.updated_at ?? ""}`;
   const showLoadingIndicator =
     loading || !snapshot;
 
@@ -851,21 +842,18 @@ export default function App() {
         <button
           className="flex-none toggle-button rounded-full bg-[var(--column)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted h-7 flex items-center justify-center gap-2"
           onClick={() => {
+            // Placeholder for future filter functionality
             if (focusedIssueId) {
               setFocusedIssueId(null);
-            } else {
-              setShowClosed((prev) => !prev);
             }
           }}
           type="button"
-          data-testid="toggle-closed"
+          data-testid="filter-button"
         >
           <span className="toggle-row flex items-center gap-2">
-            {focusedIssueId
-              ? <Filter className="h-4 w-4" />
-              : showClosed ? <FilterX className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+            <Filter className="h-4 w-4" />
             <span className={`${toggleMotionClass} whitespace-nowrap label-text toggle-label`}>
-              {focusedIssueId ? "Focused" : showClosed ? "All" : "Open"}
+              {focusedIssueId ? "Focused" : "Filter"}
             </span>
           </span>
         </button>
@@ -904,6 +892,18 @@ export default function App() {
               selectedIssueId={selectedTask?.id ?? null}
               transitionKey={transitionKey}
               detailOpen={isDetailOpen}
+              collapsedColumns={collapsedColumns}
+              onToggleCollapse={(column) => {
+                setCollapsedColumns((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(column)) {
+                    next.delete(column);
+                  } else {
+                    next.add(column);
+                  }
+                  return next;
+                });
+              }}
             />
           </div>
             {isDetailVisible ? (

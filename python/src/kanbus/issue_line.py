@@ -62,8 +62,11 @@ KNOWN_COLORS = {
 def _resolve_status_color(
     status: str, configuration: ProjectConfiguration | None
 ) -> str:
-    if configuration and status in configuration.status_colors:
-        return configuration.status_colors[status]
+    if configuration:
+        # Look up color from statuses list
+        for status_def in configuration.statuses:
+            if status_def.name == status and status_def.color:
+                return status_def.color
     return STATUS_COLORS.get(status, "white")
 
 

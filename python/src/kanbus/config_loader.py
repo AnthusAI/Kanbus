@@ -105,6 +105,34 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     if configuration.default_priority not in configuration.priorities:
         errors.append("default priority must be in priorities map")
 
+    # Validate statuses
+    if not configuration.statuses:
+        errors.append("statuses must not be empty")
+
+    # Check for duplicate status names
+    status_names = set()
+    for status in configuration.statuses:
+        if status.name in status_names:
+            errors.append("duplicate status name")
+            break
+        status_names.add(status.name)
+
+    # Build set of valid status names
+    valid_statuses = {s.name for s in configuration.statuses}
+
+    # Validate that initial_status exists in statuses
+    if configuration.initial_status not in valid_statuses:
+        errors.append(f"initial_status '{configuration.initial_status}' must exist in statuses")
+
+    # Validate that all workflow states exist in statuses
+    for workflow_name, workflow in configuration.workflows.items():
+        for from_status, transitions in workflow.items():
+            if from_status not in valid_statuses:
+                errors.append(f"workflow '{workflow_name}' references undefined status '{from_status}'")
+            for to_status in transitions:
+                if to_status not in valid_statuses:
+                    errors.append(f"workflow '{workflow_name}' references undefined status '{to_status}'")
+
     return errors
 
 

@@ -77,6 +77,13 @@ pub fn validate_status_value(
     status: &str,
 ) -> Result<(), KanbusError> {
     let mut valid_statuses: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+
+    // Add statuses from the statuses list (primary source of truth)
+    for status_def in &configuration.statuses {
+        valid_statuses.insert(status_def.name.as_str());
+    }
+
+    // Also check workflows for backward compatibility and additional validation
     if let Some(default_workflow) = configuration.workflows.get("default") {
         for status in default_workflow.keys() {
             valid_statuses.insert(status.as_str());

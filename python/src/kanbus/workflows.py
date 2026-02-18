@@ -77,6 +77,11 @@ def validate_status_value(
     configuration: ProjectConfiguration, issue_type: str, status: str
 ) -> None:
     valid_statuses: set[str] = set()
+
+    # Add statuses from the statuses list (primary source of truth)
+    valid_statuses.update(s.name for s in configuration.statuses)
+
+    # Also check workflows for backward compatibility and additional validation
     if "default" in configuration.workflows:
         valid_statuses.update(
             _collect_workflow_statuses(configuration.workflows["default"])

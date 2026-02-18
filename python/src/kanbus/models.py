@@ -93,6 +93,14 @@ class IssueData(BaseModel):
     custom: Dict[str, object] = Field(default_factory=dict)
 
 
+class StatusDefinition(BaseModel):
+    """Status definition with display metadata."""
+
+    name: str = Field(min_length=1)
+    color: Optional[str] = None
+    collapsed: bool = False
+
+
 class PriorityDefinition(BaseModel):
     """Priority definition containing label and optional color."""
 
@@ -153,6 +161,6 @@ class ProjectConfiguration(BaseModel):
     default_priority: int
     assignee: Optional[str] = Field(default=None, min_length=1)
     time_zone: Optional[str] = Field(default=None, min_length=1)
-    status_colors: Dict[str, str] = Field(default_factory=dict)
+    statuses: List[StatusDefinition] = Field(default_factory=list)
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False
