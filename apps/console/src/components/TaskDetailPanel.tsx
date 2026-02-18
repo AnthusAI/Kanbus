@@ -17,6 +17,8 @@ import { formatTimestamp } from "../utils/format-timestamp";
 import { formatIssueId } from "../utils/format-issue-id";
 import { IconButton } from "./IconButton";
 import { getTypeIcon } from "../utils/issue-icons";
+import { useFlashEffect } from "../hooks/useFlashEffect";
+import { useTypingEffect } from "../hooks/useTypingEffect";
 
 const markdownRenderer = new marked.Renderer();
 markdownRenderer.link = (token: { href: string; title?: string | null; text: string }) => {
@@ -158,6 +160,14 @@ export function TaskDetailPanel({
   const [pagePhase, setPagePhase] = useState<"idle" | "ready" | "animating">("idle");
   const [pageDirection, setPageDirection] = useState<"push" | "pop">("push");
   const [panelOpenActive, setPanelOpenActive] = useState(false);
+
+  // Flash effects for real-time updates
+  const statusFlashRef = useFlashEffect(task?.status, isOpen);
+  const titleFlashRef = useFlashEffect(task?.title, isOpen);
+  const descriptionFlashRef = useFlashEffect(task?.description, isOpen);
+
+  // Typing effect for new descriptions
+  const typedDescription = useTypingEffect(task?.description || "", isOpen && pagePhase !== "animating");
 
   useEffect(() => {
     if (!task) {
@@ -513,7 +523,10 @@ skinparam SequenceDividerFontColor white`
           >
             <div className="grid gap-2">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+                <div
+                  ref={statusFlashRef}
+                  className="text-xs font-semibold uppercase tracking-[0.3em] text-muted rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+                >
                   {taskToRender.type} · {taskToRender.status}
                 </div>
                 <div className="flex items-center gap-2 translate-x-2">
@@ -536,12 +549,16 @@ skinparam SequenceDividerFontColor white`
                   <IconButton icon={X} label="Close" onClick={onClose} />
                 </div>
               </div>
-              <h2 className="text-lg font-semibold text-selected">
+              <h2
+                ref={titleFlashRef}
+                className="text-lg font-semibold text-selected rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+              >
                 {taskToRender.title}
               </h2>
               {taskToRender.description ? (
                 <div
-                  className="issue-description-markdown text-sm text-selected mb-4"
+                  ref={descriptionFlashRef}
+                  className="issue-description-markdown text-sm text-selected mb-4 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
                   dangerouslySetInnerHTML={{ __html: descriptionHtml }}
                 />
               ) : null}

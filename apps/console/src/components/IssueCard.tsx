@@ -3,6 +3,7 @@ import type { Issue, ProjectConfig } from "../types/issues";
 import { buildIssueColorStyle } from "../utils/issue-colors";
 import { formatIssueId } from "../utils/format-issue-id";
 import { getTypeIcon } from "../utils/issue-icons";
+import { useFlashEffect } from "../hooks/useFlashEffect";
 
 interface IssueCardProps {
   issue: Issue;
@@ -21,6 +22,13 @@ export function IssueCard({
 }: IssueCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
 
+  // Flash effect when issue data changes (status, title, etc.)
+  const flashRef = useFlashEffect(JSON.stringify({
+    status: issue.status,
+    title: issue.title,
+    updated_at: issue.updated_at
+  }), true);
+
   const handleClick = () => {
     if (onSelect) {
       onSelect(issue);
@@ -32,7 +40,10 @@ export function IssueCard({
 
   return (
     <div
-      ref={cardRef}
+      ref={(el) => {
+        cardRef.current = el;
+        (flashRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+      }}
       className={`issue-card rounded-xl bg-card p-3 grid cursor-pointer overflow-hidden relative hover:bg-card-muted transition-shadow duration-300 ${isSelected ? " ring-inset ring-[6px] ring-[var(--text-muted)]" : ""}`}
       style={issueStyle}
       data-status={issue.status}
