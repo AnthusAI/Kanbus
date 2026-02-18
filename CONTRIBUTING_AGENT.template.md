@@ -221,28 +221,40 @@ Example:
 As a new user, I want a Hello World program, so that I can verify the toolchain works.
 
 3. Create an epic for the milestone and record the story
-Command:
-kanbus create "Hello World program" --type epic
+
+```bash
+kbs create "Hello World program" --type epic
+```
 
 Example output (capture the ID):
+```
 ID: kanbus-1a2b3c
+```
 
 Record the intent on the epic:
-kanbus comment kanbus-1a2b3c "As a new user, I want a Hello World program, so that I can verify the toolchain works."
+```bash
+kbs comment kanbus-1a2b3c "As a new user, I want a Hello World program, so that I can verify the toolchain works."
+```
 
 4. Create a story for the behavior and include Gherkin (before any code)
-Command:
-kanbus create "Prints Hello World to stdout" --type story --parent kanbus-1a2b3c
+
+```bash
+kbs create "Prints Hello World to stdout" --type story --parent kanbus-1a2b3c
+```
 
 Example output (capture the story ID):
+```
 ID: kanbus-4d5e6f
+```
 
 Attach the Gherkin acceptance criteria:
-kanbus comment kanbus-4d5e6f "Feature: Hello World
+```bash
+kbs comment kanbus-4d5e6f "Feature: Hello World
   Scenario: Run the program
     Given a configured environment
     When I run the program
     Then it prints \"Hello, world\" to stdout"
+```
 
 5. Run the Gherkin and confirm it fails (before any production code)
 Run the behavior tests in the repo and confirm the new scenario fails for the right reason.
