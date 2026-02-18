@@ -7,9 +7,13 @@ use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 
 use crate::agents_management::ensure_agents_file;
-use crate::beads_write::{create_beads_issue, delete_beads_issue, update_beads_issue};
+use crate::beads_write::{
+    add_beads_comment, create_beads_issue, delete_beads_comment, delete_beads_issue,
+    update_beads_comment, update_beads_issue,
+};
 use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
+use crate::content_validation::validate_code_blocks;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
@@ -23,7 +27,7 @@ use crate::file_io::{
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
-use crate::issue_comment::add_comment;
+use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
 use crate::issue_creation::{create_issue, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
 use crate::issue_display::format_issue_for_display;
@@ -133,11 +137,16 @@ enum Commands {
     },
     /// Add a comment to an issue.
     Comment {
+        #[command(subcommand)]
+        command: Option<CommentCommands>,
         /// Issue identifier.
-        identifier: String,
+        identifier: Option<String>,
         /// Comment text.
-        #[arg(required = true)]
+        #[arg(required = false)]
         text: Vec<String>,
+        /// Bypass validation checks.
+        #[arg(long = "no-validate")]
+        no_validate: bool,
     },
     /// List issues.
     List {
@@ -312,6 +321,27 @@ enum ConsoleCommands {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum CommentCommands {
+    /// Update a comment by id prefix.
+    Update {
+        /// Issue identifier.
+        identifier: String,
+        /// Comment id (full or prefix).
+        comment_id: String,
+        /// Updated comment text.
+        #[arg(required = true)]
+        text: Vec<String>,
+    },
+    /// Delete a comment by id prefix.
+    Delete {
+        /// Issue identifier.
+        identifier: String,
+        /// Comment id (full or prefix).
+        comment_id: String,
+    },
+}
+
 /// Output produced by a CLI command.
 #[derive(Debug, Default)]
 pub struct CommandOutput {
@@ -442,6 +472,9 @@ fn execute_command(
                 .as_ref()
                 .map(|values| values.join(" "))
                 .unwrap_or_default();
+            if !no_validate && !description_text.is_empty() {
+                validate_code_blocks(&description_text)?;
+            }
             if beads_mode {
                 if local {
                     return Err(KanbusError::IssueOperation(
@@ -501,7 +534,8 @@ fn execute_command(
                 let configuration = load_project_configuration(&get_configuration_path(
                     lookup.project_dir.as_path(),
                 )?)?;
-                (lookup.issue, Some(configuration))
+                let issue = ensure_issue_comment_ids(root, &identifier)?;
+                (issue, Some(configuration))
             };
             if json {
                 let payload =
@@ -547,6 +581,11 @@ fn execute_command(
             } else {
                 Some(description_text.as_str())
             };
+            if !no_validate {
+                if let Some(ref text) = description_value {
+                    validate_code_blocks(text)?;
+                }
+            }
             if beads_mode {
                 update_beads_issue(
                     &root_for_beads,
@@ -588,11 +627,67 @@ fn execute_command(
             let formatted_identifier = format_issue_key(&identifier, false);
             Ok(Some(format!("Deleted {}", formatted_identifier)))
         }
-        Commands::Comment { identifier, text } => {
-            let text_value = text.join(" ");
-            add_comment(root, &identifier, &get_current_user(), &text_value)?;
-            Ok(None)
-        }
+        Commands::Comment {
+            command,
+            identifier,
+            text,
+            no_validate,
+        } => match command {
+            Some(CommentCommands::Update {
+                identifier,
+                comment_id,
+                text,
+            }) => {
+                let text_value = text.join(" ");
+                if text_value.trim().is_empty() {
+                    return Err(KanbusError::IssueOperation(
+                        "comment text is required".to_string(),
+                    ));
+                }
+                if !no_validate {
+                    validate_code_blocks(&text_value)?;
+                }
+                if beads_mode {
+                    update_beads_comment(&root_for_beads, &identifier, &comment_id, &text_value)?;
+                } else {
+                    update_comment(root, &identifier, &comment_id, &text_value)?;
+                }
+                Ok(None)
+            }
+            Some(CommentCommands::Delete {
+                identifier,
+                comment_id,
+            }) => {
+                if beads_mode {
+                    delete_beads_comment(&root_for_beads, &identifier, &comment_id)?;
+                } else {
+                    delete_comment(root, &identifier, &comment_id)?;
+                }
+                Ok(None)
+            }
+            None => {
+                let Some(identifier) = identifier else {
+                    return Err(KanbusError::IssueOperation(
+                        "issue identifier is required".to_string(),
+                    ));
+                };
+                let text_value = text.join(" ");
+                if text_value.trim().is_empty() {
+                    return Err(KanbusError::IssueOperation(
+                        "comment text is required".to_string(),
+                    ));
+                }
+                if !no_validate {
+                    validate_code_blocks(&text_value)?;
+                }
+                if beads_mode {
+                    add_beads_comment(&root_for_beads, &identifier, &get_current_user(), &text_value)?;
+                } else {
+                    add_comment(root, &identifier, &get_current_user(), &text_value)?;
+                }
+                Ok(None)
+            }
+        },
         Commands::Promote { identifier } => {
             promote_issue(root, &identifier)?;
             Ok(None)

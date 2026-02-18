@@ -15,6 +15,7 @@ from kanbus.file_io import (
     ensure_git_repository,
     initialize_project,
 )
+from kanbus.content_validation import ContentValidationError, validate_code_blocks
 from kanbus.issue_creation import IssueCreationError, create_issue
 from kanbus.issue_close import IssueCloseError, close_issue
 from kanbus.issue_comment import IssueCommentError, add_comment
@@ -175,6 +176,12 @@ def create(
     if not title_text:
         raise click.ClickException("title is required")
 
+    if not no_validate and description_text:
+        try:
+            validate_code_blocks(description_text)
+        except ContentValidationError as error:
+            raise click.ClickException(str(error)) from error
+
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     if beads_mode:
@@ -334,6 +341,12 @@ def update(
         except (ConfigurationError, ProjectMarkerError):
             pass
 
+    if not no_validate and description:
+        try:
+            validate_code_blocks(description)
+        except ContentValidationError as error:
+            raise click.ClickException(str(error)) from error
+
     # Parse set_labels if provided
     parsed_set_labels = None
     if set_labels:
@@ -468,12 +481,14 @@ def localize(identifier: str) -> None:
 @click.argument("identifier")
 @click.argument("text", required=False)
 @click.option("--body-file", type=click.File("r"), default=None)
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
 @click.pass_context
 def comment(
     context: click.Context,
     identifier: str,
     text: Optional[str],
     body_file: Optional[click.File],
+    no_validate: bool = False,
 ) -> None:
     """Add a comment to an issue.
 
@@ -485,6 +500,8 @@ def comment(
     :type text: Optional[str]
     :param body_file: File to read comment text from (use '-' for stdin).
     :type body_file: Optional[click.File]
+    :param no_validate: Bypass validation checks.
+    :type no_validate: bool
     """
     root = Path.cwd()
     beads_mode = context.obj.get("beads_mode", False)
@@ -505,6 +522,12 @@ def comment(
 
     if not comment_text:
         raise click.ClickException("Comment text required")
+
+    if not no_validate:
+        try:
+            validate_code_blocks(comment_text)
+        except ContentValidationError as error:
+            raise click.ClickException(str(error)) from error
 
     try:
         if beads_mode:

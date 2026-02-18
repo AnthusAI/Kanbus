@@ -6,6 +6,7 @@ pub mod cache;
 pub mod cli;
 pub mod config;
 pub mod config_loader;
+pub mod content_validation;
 pub mod console_backend;
 pub mod console_snapshot;
 pub mod console_telemetry;
