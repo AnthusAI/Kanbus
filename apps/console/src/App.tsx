@@ -763,7 +763,10 @@ export default function App() {
         setFocusedIssueId(null);
         break;
       case "set_view_mode":
-        setViewMode(action.mode as ViewMode);
+        if (route.basePath != null) {
+          const nextMode = action.mode as ViewMode;
+          navigate(`${route.basePath}/${nextMode}/`, setRoute, navActionRef);
+        }
         break;
       case "set_search":
         setSearchQuery(action.query);

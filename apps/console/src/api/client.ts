@@ -137,11 +137,18 @@ export function subscribeToNotifications(
   source.onmessage = (event) => {
     try {
       const notification = JSON.parse(event.data) as NotificationEvent;
-      console.info("[notifications] received", {
+      const logData: Record<string, unknown> = {
         type: notification.type,
-        issueId: notification.issue_id,
         receivedAt: new Date().toISOString()
-      });
+      };
+
+      if (notification.type === "ui_control") {
+        logData.action = notification.action.action;
+      } else if ("issue_id" in notification) {
+        logData.issueId = notification.issue_id;
+      }
+
+      console.info("[notifications] received", logData);
       onNotification(notification);
     } catch (error) {
       console.error("[notifications] parse error", error);
