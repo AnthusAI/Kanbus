@@ -3,7 +3,9 @@
 use crate::error::KanbusError;
 use crate::notification_events::NotificationEvent;
 use sha2::{Digest, Sha256};
+#[cfg(unix)]
 use std::io::Write;
+#[cfg(unix)]
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 
@@ -42,6 +44,7 @@ pub fn publish_notification(root: &Path, event: NotificationEvent) -> Result<(),
 }
 
 /// Synchronously send notification via Unix domain socket.
+#[cfg(unix)]
 fn send_notification_sync(
     socket_path: &Path,
     event: &NotificationEvent,
@@ -67,6 +70,14 @@ fn send_notification_sync(
         .write_all(b"\n")
         .map_err(|e| KanbusError::IssueOperation(format!("Failed to write newline: {}", e)))?;
 
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn send_notification_sync(
+    _socket_path: &Path,
+    _event: &NotificationEvent,
+) -> Result<(), KanbusError> {
     Ok(())
 }
 
