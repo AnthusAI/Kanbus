@@ -193,6 +193,127 @@ Severity is not emotion. It is signal.
 {{ command }}
 {% endfor %}
 
+## Console UI Control: Real-Time Collaboration
+
+When the user is actively watching the Kanbus console UI (typically at http://localhost:4242), you can programmatically control the interface to guide their attention and coordinate work in real-time.
+
+### The Focus Command
+
+The `kbs console focus` command immediately highlights an issue on the board, opens it in the detail panel, and filters to show only that issue and its descendants. This happens with sub-100ms latency via Unix socket and SSE notifications.
+
+```bash
+kbs console focus <issue-id>
+```
+
+### When to Use Real-Time Control
+
+Use `kbs console focus` proactively to:
+- **Direct attention after creating important work**: Show new epics or critical tasks immediately
+- **Demonstrate updates**: Let the user see changes as they happen
+- **Coordinate during collaboration**: Show what you're working on in real-time
+- **Provide context**: Help the user understand issue relationships and structure
+
+### Example: Creating and Focusing on an Epic
+
+When you create a new epic with sub-tasks, immediately focus on it to show the user:
+
+```bash
+# Create the epic
+kbs create "Implement authentication system" --type epic --description "Add JWT-based authentication with login, logout, and token refresh"
+
+# The system returns: ID: tskl-auth
+
+# Create sub-tasks
+kbs create "Design authentication flow" --parent tskl-auth --type task
+kbs create "Implement JWT generation" --parent tskl-auth --type task
+kbs create "Add login endpoint" --parent tskl-auth --type task
+kbs create "Add logout endpoint" --parent tskl-auth --type task
+
+# NOW show the user the complete structure
+kbs console focus tskl-auth
+```
+
+The user immediately sees the epic with all 4 sub-tasks on their board, understanding the full scope of what you've planned.
+
+### Example: Tracking Progress in Real-Time
+
+As you work through tasks, keep the user informed by focusing on what you're doing:
+
+```bash
+# Start working on the first task
+kbs update tskl-auth.1 --status in_progress --assignee agent
+kbs console focus tskl-auth.1
+
+# User now sees you're working on "Design authentication flow"
+
+# Complete it and move to the next
+kbs close tskl-auth.1
+kbs update tskl-auth.2 --status in_progress
+kbs console focus tskl-auth.2
+
+# User sees the completion and your shift to JWT generation
+```
+
+### Example: Showing Complex Relationships
+
+When working with nested hierarchies, use focus to show structure:
+
+```bash
+# After creating a deep hierarchy
+kbs create "Frontend overhaul" --type epic
+# Returns: tskl-frontend
+
+kbs create "Redesign dashboard" --parent tskl-frontend --type story
+# Returns: tskl-frontend.1
+
+kbs create "Update header component" --parent tskl-frontend.1 --type task
+kbs create "Add metrics widgets" --parent tskl-frontend.1 --type task
+kbs create "Improve responsive layout" --parent tskl-frontend.1 --type task
+
+# Show the entire tree structure
+kbs console focus tskl-frontend
+
+# Now zoom in to show just the dashboard story and its tasks
+kbs console focus tskl-frontend.1
+```
+
+### Example: Debugging with Focus
+
+When investigating bugs, use focus to show the issue context:
+
+```bash
+# User reports a bug related to authentication
+kbs create "Login fails with expired tokens" --type bug --parent tskl-auth
+
+# Show them you're investigating by focusing on the bug in context
+kbs console focus tskl-auth
+# Now they see the bug alongside the original authentication epic
+
+# After fixing
+kbs close tskl-auth.5
+kbs console focus tskl-auth
+# Show the epic with the bug now closed
+```
+
+### Best Practices for Real-Time Control
+
+1. **Focus after creation**: Always focus on newly created epics so the user sees the structure
+2. **Focus when starting work**: When you update an issue to in_progress, focus on it
+3. **Focus on parents after completion**: When closing a task, focus on its parent to show progress
+4. **Don't over-focus**: Only focus when it genuinely helps the user understand what's happening
+5. **Narrate your focus**: Briefly explain why you're focusing, e.g., "Let me show you the structure I've created"
+
+### Future Commands (Planned in tskl-m59)
+
+Additional UI control commands are being implemented:
+- `kbs console unfocus` - Clear focus and return to full board view
+- `kbs console view <mode>` - Switch between initiatives/epics/issues views
+- `kbs console search <query>` - Set search filter
+- `kbs console maximize` - Maximize the detail panel
+- `kbs console close-detail` - Close the detail panel
+
+Check `kbs show tskl-m59` for current implementation status.
+
 ## Semantic Release Alignment
 
 Issue types map directly to release categories.
