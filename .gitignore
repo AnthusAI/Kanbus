@@ -36,3 +36,7 @@ AGENTS.override.md
 # Development scripts
 setup-paths.sh
 update-node-path.sh
+
+# Log files
+console.log
+*.egg-info/
