@@ -331,6 +331,44 @@ enum ConsoleCommands {
         /// View mode to switch to: initiatives, epics, or issues.
         mode: String,
     },
+    /// Set or clear the search query.
+    Search {
+        /// Search query text.
+        query: Option<String>,
+        /// Clear the search query.
+        #[arg(long)]
+        clear: bool,
+    },
+    /// Maximize the detail panel.
+    Maximize,
+    /// Restore the detail panel to normal size.
+    Restore,
+    /// Close the detail panel.
+    CloseDetail,
+    /// Toggle the settings panel.
+    ToggleSettings,
+    /// Update a specific setting value.
+    SetSetting {
+        /// Setting key.
+        key: String,
+        /// Setting value.
+        value: String,
+    },
+    /// Collapse a board column.
+    CollapseColumn {
+        /// Column name to collapse.
+        column: String,
+    },
+    /// Expand a board column.
+    ExpandColumn {
+        /// Column name to expand.
+        column: String,
+    },
+    /// Select and navigate to an issue.
+    Select {
+        /// Issue identifier to select.
+        identifier: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -978,6 +1016,149 @@ fn execute_command(
                 let _ = publish_notification(root, event);
 
                 println!("Switched to {} view", mode);
+                Ok(None)
+            }
+            ConsoleCommands::Search { query, clear } => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let search_query = if clear {
+                    String::new()
+                } else if let Some(q) = query {
+                    q.clone()
+                } else {
+                    return Err(KanbusError::IssueOperation(
+                        "Either provide a query or use --clear flag".to_string(),
+                    ));
+                };
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::SetSearch {
+                        query: search_query.clone(),
+                    },
+                };
+
+                let _ = publish_notification(root, event);
+
+                if clear || search_query.is_empty() {
+                    println!("Cleared search query");
+                } else {
+                    println!("Set search query to: {}", search_query);
+                }
+                Ok(None)
+            }
+            ConsoleCommands::Maximize => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::MaximizeDetail,
+                };
+
+                let _ = publish_notification(root, event);
+                println!("Maximized detail panel");
+                Ok(None)
+            }
+            ConsoleCommands::Restore => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::RestoreDetail,
+                };
+
+                let _ = publish_notification(root, event);
+                println!("Restored detail panel");
+                Ok(None)
+            }
+            ConsoleCommands::CloseDetail => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::CloseDetail,
+                };
+
+                let _ = publish_notification(root, event);
+                println!("Closed detail panel");
+                Ok(None)
+            }
+            ConsoleCommands::ToggleSettings => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::ToggleSettings,
+                };
+
+                let _ = publish_notification(root, event);
+                println!("Toggled settings panel");
+                Ok(None)
+            }
+            ConsoleCommands::SetSetting { key, value } => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::SetSetting {
+                        key: key.clone(),
+                        value: value.clone(),
+                    },
+                };
+
+                let _ = publish_notification(root, event);
+                println!("Set {} = {}", key, value);
+                Ok(None)
+            }
+            ConsoleCommands::CollapseColumn { column } => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::CollapseColumn {
+                        column_name: column.clone(),
+                    },
+                };
+
+                let _ = publish_notification(root, event);
+                println!("Collapsed column: {}", column);
+                Ok(None)
+            }
+            ConsoleCommands::ExpandColumn { column } => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::ExpandColumn {
+                        column_name: column.clone(),
+                    },
+                };
+
+                let _ = publish_notification(root, event);
+                println!("Expanded column: {}", column);
+                Ok(None)
+            }
+            ConsoleCommands::Select { identifier } => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                // Validate that the issue exists and get its ID
+                let issue_id = if beads_mode {
+                    let issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
+                    issue.identifier
+                } else {
+                    let result = load_issue_from_project(root, &identifier)?;
+                    result.issue.identifier
+                };
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::SelectIssue {
+                        issue_id: issue_id.clone(),
+                    },
+                };
+
+                let _ = publish_notification(root, event);
+                println!("Selected issue {}", issue_id);
                 Ok(None)
             }
         },
