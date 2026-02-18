@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import {
   Bug,
   BookOpen,
@@ -29,6 +29,14 @@ function IssueCardComponent({
   onSelect,
   isSelected
 }: IssueCardProps) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (cardRef.current) {
+      cardRef.current.classList.add("issue-animate-seed");
+    }
+  }, []);
+
   const handleClick = () => {
     if (onSelect) {
       onSelect(issue);
@@ -50,6 +58,7 @@ function IssueCardComponent({
 
   return (
     <div
+      ref={cardRef}
       className={`issue-card rounded-xl bg-card p-3 grid cursor-pointer overflow-hidden relative hover:bg-card-muted transition-shadow duration-300 ${isSelected ? " ring-inset ring-[6px] ring-[var(--text-muted)]" : ""}`}
       style={issueStyle}
       data-status={issue.status}
