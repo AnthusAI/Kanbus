@@ -5,7 +5,9 @@ import {
   FilterX,
   Lightbulb,
   ListChecks,
-  SquareCheckBig
+  Search,
+  SquareCheckBig,
+  X
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
 import { Board } from "./components/Board";
@@ -13,8 +15,10 @@ import { TaskDetailPanel } from "./components/TaskDetailPanel";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { AnimatedSelector } from "@kanbus/ui";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { SearchInput } from "./components/SearchInput";
 import { fetchSnapshot, subscribeToSnapshots } from "./api/client";
 import { installConsoleTelemetry } from "./utils/console-telemetry";
+import { matchesSearchQuery } from "./utils/issue-search";
 import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
 
@@ -358,6 +362,7 @@ export default function App() {
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
   const [detailMaximized, setDetailMaximized] = useState(false);
   const [focusedIssueId, setFocusedIssueId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [route, setRoute] = useState<RouteContext>(() =>
     parseRoute(window.location.pathname)
   );
@@ -690,42 +695,54 @@ export default function App() {
     setFocusedIssueId((prev) => prev === issueId ? null : issueId);
   };
 
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const handleSearchClear = () => {
+    setSearchQuery("");
+  };
+
   const filteredIssues = useMemo(() => {
+    // Use non-deferred issues when search is active for immediate feedback
+    const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
+    let result = sourceIssues;
+
     if (focusedIssueId) {
-      const ids = collectDescendants(deferredIssues, focusedIssueId);
-      let focused = deferredIssues.filter((issue) => ids.has(issue.id));
+      const ids = collectDescendants(sourceIssues, focusedIssueId);
+      result = sourceIssues.filter((issue) => ids.has(issue.id));
       if (resolvedViewMode === "initiatives") {
-        focused = focused.filter((i) => i.type === "initiative");
+        result = result.filter((i) => i.type === "initiative");
       } else if (resolvedViewMode === "epics") {
-        focused = focused.filter((i) => i.type === "epic");
+        result = result.filter((i) => i.type === "epic");
       } else if (resolvedViewMode === "issues") {
-        focused = focused.filter((i) => i.type !== "initiative" && i.type !== "epic" && i.type !== "sub-task");
+        result = result.filter((i) => i.type !== "initiative" && i.type !== "epic" && i.type !== "sub-task");
       }
-      return focused;
-    }
-    if (routeContext.parentIssue) {
-      const ids = collectDescendants(deferredIssues, routeContext.parentIssue.id);
-      return deferredIssues.filter((issue) => ids.has(issue.id));
-    }
-    if (route.parentId) {
-      return [];
-    }
-    if (resolvedViewMode === "initiatives") {
-      return deferredIssues.filter((issue) => issue.type === "initiative");
-    }
-    if (resolvedViewMode === "epics") {
-      return deferredIssues.filter((issue) => issue.type === "epic");
-    }
-    if (resolvedViewMode === "issues") {
-      return deferredIssues.filter(
+    } else if (routeContext.parentIssue) {
+      const ids = collectDescendants(sourceIssues, routeContext.parentIssue.id);
+      result = sourceIssues.filter((issue) => ids.has(issue.id));
+    } else if (route.parentId) {
+      result = [];
+    } else if (resolvedViewMode === "initiatives") {
+      result = sourceIssues.filter((issue) => issue.type === "initiative");
+    } else if (resolvedViewMode === "epics") {
+      result = sourceIssues.filter((issue) => issue.type === "epic");
+    } else if (resolvedViewMode === "issues") {
+      result = sourceIssues.filter(
         (issue) =>
           issue.type !== "initiative" &&
           issue.type !== "epic" &&
           issue.type !== "sub-task"
       );
     }
-    return deferredIssues;
-  }, [deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId]);
+
+    // Apply search filter last
+    if (searchQuery.trim()) {
+      result = result.filter((issue) => matchesSearchQuery(issue, searchQuery));
+    }
+
+    return result;
+  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery]);
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
@@ -773,7 +790,7 @@ export default function App() {
   return (
     <AppShell>
       <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0 flex justify-end overflow-hidden">
+        <div className="flex-1 min-w-0 flex justify-end overflow-hidden gap-2">
           {loadingVisible ? (
             <span
               className={`loading-pill loading-pill--compact ${
@@ -795,6 +812,12 @@ export default function App() {
               Loading
             </span>
           ) : null}
+          <SearchInput
+            value={searchQuery}
+            onChange={handleSearchChange}
+            onClear={handleSearchClear}
+            placeholder="Search issues..."
+          />
           <AnimatedSelector
             name="view"
             value={resolvedViewMode}
