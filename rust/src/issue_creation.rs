@@ -137,10 +137,13 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(request.root.as_path(), NotificationEvent::IssueCreated {
-        issue_id: issue.identifier.clone(),
-        issue_data: issue.clone(),
-    });
+    let _ = publish_notification(
+        request.root.as_path(),
+        NotificationEvent::IssueCreated {
+            issue_id: issue.identifier.clone(),
+            issue_data: issue.clone(),
+        },
+    );
 
     Ok(IssueCreationResult {
         issue,

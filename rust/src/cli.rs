@@ -1041,9 +1041,7 @@ fn execute_command(
                 }
 
                 let event = NotificationEvent::UiControl {
-                    action: UiControlAction::SetViewMode {
-                        mode: mode.clone(),
-                    },
+                    action: UiControlAction::SetViewMode { mode: mode.clone() },
                 };
 
                 // Best-effort notification - don't fail if console server is down

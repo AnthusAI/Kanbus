@@ -55,11 +55,14 @@ pub fn add_dependency(
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
-        issue_id: updated_issue.identifier.clone(),
-        fields_changed: vec!["dependencies".to_string()],
-        issue_data: updated_issue.clone(),
-    });
+    let _ = publish_notification(
+        root,
+        NotificationEvent::IssueUpdated {
+            issue_id: updated_issue.identifier.clone(),
+            fields_changed: vec!["dependencies".to_string()],
+            issue_data: updated_issue.clone(),
+        },
+    );
 
     Ok(updated_issue)
 }
@@ -106,11 +109,14 @@ pub fn remove_dependency(
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
-        issue_id: updated_issue.identifier.clone(),
-        fields_changed: vec!["dependencies".to_string()],
-        issue_data: updated_issue.clone(),
-    });
+    let _ = publish_notification(
+        root,
+        NotificationEvent::IssueUpdated {
+            issue_id: updated_issue.identifier.clone(),
+            fields_changed: vec!["dependencies".to_string()],
+            issue_data: updated_issue.clone(),
+        },
+    );
 
     Ok(updated_issue)
 }
