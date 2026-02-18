@@ -21,7 +21,7 @@ minijinja = "1.0"
 sha2 = "0.10"
 chrono = { version = "0.4", features = ["serde", "clock"] }
 rand = "0.8"
-uuid = { version = "1.6", features = ["v4"] }
+uuid = { version = "1.6", features = ["v4", "v5"] }
 owo-colors = "4.1"
 lambda_http = "0.9"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
