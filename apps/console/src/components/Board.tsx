@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { Issue, ProjectConfig } from "../types/issues";
 import { BoardColumn } from "./BoardColumn";
 import { useBoardTransitions } from "../hooks/useBoardTransitions";
@@ -11,6 +11,7 @@ interface BoardProps {
   onSelectIssue?: (issue: Issue) => void;
   selectedIssueId?: string | null;
   transitionKey: string;
+  detailOpen?: boolean;
 }
 
 function BoardComponent({
@@ -20,13 +21,50 @@ function BoardComponent({
   config,
   onSelectIssue,
   selectedIssueId,
-  transitionKey
+  transitionKey,
+  detailOpen
 }: BoardProps) {
   const scope = useBoardTransitions(transitionKey);
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const didInitialScroll = useRef(false);
+
+  const setBoardRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      scope.current = node;
+      boardRef.current = node;
+    },
+    [scope]
+  );
+
+  useLayoutEffect(() => {
+    if (didInitialScroll.current) {
+      return;
+    }
+    const node = boardRef.current;
+    if (!node) {
+      return;
+    }
+    const maxScrollLeft = node.scrollWidth - node.clientWidth;
+    if (maxScrollLeft <= 0) {
+      return;
+    }
+    node.scrollLeft = maxScrollLeft;
+    node.scrollTop = 0;
+    didInitialScroll.current = true;
+  }, [columns.length]);
+
+  useEffect(() => {
+    if (!detailOpen) return;
+    const node = boardRef.current;
+    if (!node) return;
+    const maxScrollLeft = node.scrollWidth - node.clientWidth;
+    if (maxScrollLeft <= 0) return;
+    node.scrollTo({ left: maxScrollLeft, behavior: "smooth" });
+  }, [detailOpen]);
 
   return (
     <div
-      ref={scope}
+      ref={setBoardRef}
       className="kb-grid gap-2 min-[321px]:px-1 sm:px-2 md:p-3"
     >
       {columns.map((column) => {

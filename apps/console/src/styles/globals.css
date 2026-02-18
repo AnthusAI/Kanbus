@@ -95,7 +95,7 @@ p {
 
 .issue-animate-seed {
   opacity: 0;
-  transform: scale(0.9);
+  transform: scale(0.75);
 }
 
 .issue-animate-in-up {
@@ -113,7 +113,7 @@ p {
 @keyframes issueAppearUp {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.75);
   }
   to {
     opacity: 1;
@@ -124,7 +124,7 @@ p {
 @keyframes issueAppearDown {
   from {
     opacity: 0;
-    transform: scale(1.2);
+    transform: scale(1.35);
   }
   to {
     opacity: 1;
@@ -226,6 +226,8 @@ button:focus-visible {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  transition: gap 0.42s ease;
+  will-change: gap;
 }
 
 .selector-swatches {
@@ -277,7 +279,13 @@ button:focus-visible {
 }
 
 .selector-label {
+  display: inline-block;
+  overflow: hidden;
   white-space: nowrap;
+  max-width: 16rem;
+  transition: max-width 0.42s ease, transform 0.42s ease;
+  transform: translateX(0);
+  will-change: max-width, transform;
 }
 
 .panel-backdrop {
@@ -290,6 +298,72 @@ button:focus-visible {
 
 .dark .selector-highlight {
   background: var(--background);
+}
+
+[role="tablist"] button[role="tab"] {
+  transition: padding 0.42s ease;
+}
+
+
+
+html[data-motion="off"] .selector-label,
+html[data-motion="off"] .selector-option {
+  transition: none;
+}
+
+html[data-motion="off"] [data-selector] button {
+  transition: none;
+}
+
+html[data-motion="reduced"] .selector-label,
+html[data-motion="reduced"] .selector-option {
+  transition-duration: 0.2s;
+}
+
+.toggle-label {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 6rem;
+  transform: translateX(0);
+  transition: max-width 0.42s ease, transform 0.42s ease;
+  will-change: max-width, transform;
+}
+
+.toggle-row {
+  transition: gap 0.42s ease;
+  will-change: gap;
+}
+
+.toggle-button {
+  transition: padding 0.42s ease;
+}
+
+@media (max-width: 768px) {
+  .toggle-label {
+    max-width: 0;
+    transform: translateX(-4px);
+  }
+
+  .toggle-row {
+    gap: 4px;
+  }
+
+  .toggle-button {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+}
+
+html[data-motion="off"] .toggle-label,
+html[data-motion="off"] .toggle-row,
+html[data-motion="off"] .toggle-button {
+  transition: none;
+}
+
+html[data-motion="reduced"] .toggle-label,
+html[data-motion="reduced"] .toggle-row,
+html[data-motion="reduced"] .toggle-button {
+  transition-duration: 0.2s;
 }
 
 .detail-column {
@@ -347,6 +421,8 @@ button:focus-visible {
   position: relative;
   height: 100%;
   overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .detail-page {
@@ -357,6 +433,8 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   transition: transform 0.35s ease;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .detail-page.outgoing {
@@ -365,11 +443,11 @@ button:focus-visible {
 }
 
 .detail-page.incoming[data-dir="push"] {
-  transform: translateX(100%);
+  transform: translate3d(100%, 0, 0);
 }
 
 .detail-page.incoming[data-dir="pop"] {
-  transform: translateX(-100%);
+  transform: translate3d(-100%, 0, 0);
 }
 
 .detail-page.incoming {
@@ -377,15 +455,15 @@ button:focus-visible {
 }
 
 .detail-page.animating.incoming {
-  transform: translateX(0);
+  transform: translate3d(0, 0, 0);
 }
 
 .detail-page.animating.outgoing[data-dir="push"] {
-  transform: translateX(-100%);
+  transform: translate3d(-100%, 0, 0);
 }
 
 .detail-page.animating.outgoing[data-dir="pop"] {
-  transform: translateX(100%);
+  transform: translate3d(100%, 0, 0);
 }
 
 html[data-motion="off"] .detail-column {
