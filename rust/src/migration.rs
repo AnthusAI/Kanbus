@@ -6,6 +6,7 @@ use std::path::Path;
 
 use chrono::{DateTime, TimeZone, Utc};
 use serde_json::Value;
+use uuid::Uuid;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
@@ -247,7 +248,10 @@ fn convert_record(
         &issue_type,
     )?;
 
-    let comments = convert_comments(record.get("comments").and_then(Value::as_array))?;
+    let comments = convert_comments(
+        &identifier,
+        record.get("comments").and_then(Value::as_array),
+    )?;
 
     let mut custom = BTreeMap::new();
     if let Some(owner) = record.get("owner").and_then(Value::as_str) {
@@ -396,17 +400,32 @@ fn convert_dependencies(
     Ok((parent, links))
 }
 
-fn convert_comments(comments: Option<&Vec<Value>>) -> Result<Vec<IssueComment>, KanbusError> {
+fn beads_comment_uuid(issue_id: &str, comment_id: &str) -> String {
+    let key = format!("kanbus-comment:{issue_id}:{comment_id}");
+    Uuid::new_v5(&Uuid::NAMESPACE_URL, key.as_bytes()).to_string()
+}
+
+fn convert_comments(
+    issue_id: &str,
+    comments: Option<&Vec<Value>>,
+) -> Result<Vec<IssueComment>, KanbusError> {
     let mut results = Vec::new();
     if let Some(comments) = comments {
-        for comment in comments {
+        for (index, comment) in comments.iter().enumerate() {
             let author = comment.get("author").and_then(Value::as_str).unwrap_or("");
             let text = comment.get("text").and_then(Value::as_str).unwrap_or("");
             if author.trim().is_empty() || text.trim().is_empty() {
                 return Err(KanbusError::IssueOperation("invalid comment".to_string()));
             }
             let created_at = parse_timestamp(comment.get("created_at"), "comment.created_at")?;
+            let comment_id = comment
+                .get("id")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string())
+                .or_else(|| comment.get("id").and_then(Value::as_i64).map(|value| value.to_string()))
+                .unwrap_or_else(|| (index + 1).to_string());
             results.push(IssueComment {
+                id: Some(beads_comment_uuid(issue_id, &comment_id)),
                 author: author.to_string(),
                 text: text.to_string(),
                 created_at,

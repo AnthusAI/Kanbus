@@ -29,6 +29,9 @@ Every change must be:
 
 If it is not recorded, it did not happen.
 
+Use Markdown in issue descriptions and comments whenever it helps make the intent clearer.
+When relationships, flows, or state transitions are easier to grasp visually, add a Mermaid diagram.
+
 While working, record a running log in Kanbus comments on the relevant epic/task: key decisions, problems encountered, attempted fixes, outcomes, and next steps. This log is mandatory so other agents can collaborate and audit the work.
 
 Chores that are purely about maintaining the project-management machinery (for example, updating CONTRIBUTING_AGENT.md or AGENTS.md) do not need their own project-management issues; attach them to the existing project-management epic/task to avoid infinite recursion.

@@ -163,6 +163,12 @@ def format_issue_for_display(
         lines.append(f"{_dim('Comments:', color_output)}")
         for comment in issue.comments:
             author = comment.author or "unknown"
-            lines.append(f"  {_dim(f'{author}:', color_output)} {comment.text}")
+            prefix = (comment.id or "")[:6]
+            if prefix:
+                lines.append(
+                    f"  [{prefix}] {_dim(f'{author}:', color_output)} {comment.text}"
+                )
+            else:
+                lines.append(f"  {_dim(f'{author}:', color_output)} {comment.text}")
 
     return "\n".join(lines)

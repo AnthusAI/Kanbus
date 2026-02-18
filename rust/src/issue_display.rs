@@ -161,5 +161,40 @@ pub fn format_issue_for_display(
         lines.push(dim("Description:", use_color));
         lines.push(paint(&issue.description, None, use_color));
     }
+    if !issue.dependencies.is_empty() {
+        lines.push(dim("Dependencies:", use_color));
+        for dependency in &issue.dependencies {
+            lines.push(format!(
+                "  {}: {}",
+                dependency.dependency_type, dependency.target
+            ));
+        }
+    }
+    if !issue.comments.is_empty() {
+        lines.push(dim("Comments:", use_color));
+        for comment in &issue.comments {
+            let author = if comment.author.is_empty() {
+                "unknown"
+            } else {
+                comment.author.as_str()
+            };
+            let prefix = comment
+                .id
+                .as_deref()
+                .unwrap_or("")
+                .chars()
+                .take(6)
+                .collect::<String>();
+            if prefix.is_empty() {
+                lines.push(format!("  {} {}", dim(&format!("{author}:"), use_color), comment.text));
+            } else {
+                lines.push(format!(
+                    "  [{prefix}] {} {}",
+                    dim(&format!("{author}:"), use_color),
+                    comment.text
+                ));
+            }
+        }
+    }
     lines.join("\n")
 }
