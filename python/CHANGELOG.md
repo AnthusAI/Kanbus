@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.8.1 (2026-02-18)
+
+### Bug Fixes
+
+- Pin native-tls to 0.2.16
+  ([`a5d4a78`](https://github.com/AnthusAI/Kanbus/commit/a5d4a78b27ef940d9e0de003d74389ebb6275447))
+
+### Continuous Integration
+
+- Raise tarpaulin timeout
+  ([`de18f26`](https://github.com/AnthusAI/Kanbus/commit/de18f268a850c2deb602bb1287a8d56e67ff7f34))
+
+
 ## v0.8.0 (2026-02-18)
 
 ### Bug Fixes
