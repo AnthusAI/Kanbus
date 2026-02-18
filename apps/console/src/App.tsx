@@ -477,6 +477,9 @@ export default function App() {
             // Trigger immediate snapshot refresh for CRUD operations
             fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
             break;
+          case "ui_control":
+            handleUiControlAction(event.action);
+            break;
         }
       },
       (error) => {
@@ -716,7 +719,9 @@ export default function App() {
 
   useEffect(() => {
     setRouteError(routeContext.error);
-    setViewMode(routeContext.viewMode);
+    if (routeContext.viewMode !== null) {
+      setViewMode(routeContext.viewMode);
+    }
     setDetailNavDirection(navActionRef.current);
     navActionRef.current = "none";
     setSelectedTask(routeContext.selectedIssue);
@@ -750,6 +755,59 @@ export default function App() {
 
   const handleSearchClear = () => {
     setSearchQuery("");
+  };
+
+  const handleUiControlAction = (action: NotificationEvent extends { type: "ui_control"; action: infer A } ? A : never) => {
+    switch (action.action) {
+      case "clear_focus":
+        setFocusedIssueId(null);
+        break;
+      case "set_view_mode":
+        setViewMode(action.mode as ViewMode);
+        break;
+      case "set_search":
+        setSearchQuery(action.query);
+        break;
+      case "maximize_detail":
+        setDetailMaximized(true);
+        break;
+      case "restore_detail":
+        setDetailMaximized(false);
+        break;
+      case "close_detail":
+        if (selectedTask) {
+          handleTaskClose();
+        }
+        break;
+      case "toggle_settings":
+        setSettingsOpen((prev) => !prev);
+        break;
+      case "set_setting":
+        // Settings are handled by SettingsPanel component
+        // This would require exposing a ref or callback to update settings
+        console.info("[ui_control] set_setting not yet implemented", action);
+        break;
+      case "collapse_column":
+        setCollapsedColumns((prev) => new Set([...prev, action.column_name]));
+        break;
+      case "expand_column":
+        setCollapsedColumns((prev) => {
+          const next = new Set(prev);
+          next.delete(action.column_name);
+          return next;
+        });
+        break;
+      case "select_issue":
+        if (snapshot) {
+          const projectKey = snapshot.config.project_key;
+          const resolved = resolveIssueByIdentifier(snapshot.issues, action.issue_id, projectKey);
+          if (resolved.issue) {
+            const issueUrl = `${route.basePath}/issues/${resolved.issue.id}`;
+            navigate(issueUrl, setRoute, navActionRef);
+          }
+        }
+        break;
+    }
   };
 
   const filteredIssues = useMemo(() => {

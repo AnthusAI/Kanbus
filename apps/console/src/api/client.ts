@@ -1,10 +1,24 @@
 import type { IssuesSnapshot, Issue } from "../types/issues";
 
+export type UiControlAction =
+  | { action: "clear_focus" }
+  | { action: "set_view_mode"; mode: string }
+  | { action: "set_search"; query: string }
+  | { action: "maximize_detail" }
+  | { action: "restore_detail" }
+  | { action: "close_detail" }
+  | { action: "toggle_settings" }
+  | { action: "set_setting"; key: string; value: string }
+  | { action: "collapse_column"; column_name: string }
+  | { action: "expand_column"; column_name: string }
+  | { action: "select_issue"; issue_id: string };
+
 export type NotificationEvent =
   | { type: "issue_created"; issue_id: string; issue_data: Issue }
   | { type: "issue_updated"; issue_id: string; fields_changed: string[]; issue_data: Issue }
   | { type: "issue_deleted"; issue_id: string }
-  | { type: "issue_focused"; issue_id: string; user?: string };
+  | { type: "issue_focused"; issue_id: string; user?: string }
+  | { type: "ui_control"; action: UiControlAction };
 
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
   const startedAt = Date.now();
