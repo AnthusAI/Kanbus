@@ -641,9 +641,7 @@ skinparam SequenceDividerFontColor white`
               All Descendants
             </div>
             {descendantIssues.length === 0 ? (
-              <div className="text-sm text-muted">
-                No other descendants beyond sub-tasks.
-              </div>
+              <div className="text-sm text-muted">No additional descendants.</div>
             ) : (
               <div className="grid gap-1">
                 {descendantIssues.map((issue) => (
