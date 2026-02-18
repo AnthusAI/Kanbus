@@ -32,6 +32,7 @@ class IssueComment(BaseModel):
     :type created_at: datetime
     """
 
+    id: Optional[str] = None
     author: str = Field(min_length=1)
     text: str = Field(min_length=1)
     created_at: datetime

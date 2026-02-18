@@ -15,6 +15,8 @@ pub struct DependencyLink {
 /// Comment on an issue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueComment {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub author: String,
     pub text: String,
     pub created_at: DateTime<Utc>,
