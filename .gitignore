@@ -40,3 +40,6 @@ update-node-path.sh
 # Log files
 console.log
 *.egg-info/
+
+# Test artifacts
+custom_assets/
