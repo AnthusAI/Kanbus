@@ -34,6 +34,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::wrappers::IntervalStream;
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
+use kanbus::notification_events::NotificationEvent;
 
 #[cfg(feature = "embed-assets")]
 use rust_embed::RustEmbed;
@@ -51,6 +52,7 @@ struct AppState {
     assets_root_explicit: bool,
     telemetry_tx: broadcast::Sender<String>,
     telemetry_log: Option<Arc<StdMutex<std::fs::File>>>,
+    notification_tx: broadcast::Sender<NotificationEvent>,
 }
 
 #[tokio::main]
@@ -100,6 +102,7 @@ async fn main() {
         .unwrap_or(false);
 
     let (telemetry_tx, _) = broadcast::channel(256);
+    let (notification_tx, _) = broadcast::channel::<NotificationEvent>(256);
     let telemetry_log = open_telemetry_log(&repo_root);
     let state = AppState {
         base_root: data_root,
@@ -108,6 +111,7 @@ async fn main() {
         assets_root_explicit,
         telemetry_tx,
         telemetry_log,
+        notification_tx,
     };
     let _assets_root = state.assets_root.clone();
 
@@ -117,6 +121,8 @@ async fn main() {
         .route("/api/issues", get(get_issues_root))
         .route("/api/issues/:id", get(get_issue_root))
         .route("/api/events", get(get_events_root))
+        .route("/api/events/realtime", get(get_realtime_events_root))
+        .route("/api/notifications", post(post_notification_root))
         .route("/api/render/d2", post(post_render_d2))
         .route("/api/telemetry/console", post(post_console_telemetry_root))
         .route(
@@ -134,6 +140,8 @@ async fn main() {
         .route("/:account/:project/api/issues", get(get_issues))
         .route("/:account/:project/api/issues/:id", get(get_issue))
         .route("/:account/:project/api/events", get(get_events))
+        .route("/:account/:project/api/events/realtime", get(get_realtime_events))
+        .route("/:account/:project/api/notifications", post(post_notification))
         .route(
             "/:account/:project/api/telemetry/console",
             post(post_console_telemetry),
@@ -150,9 +158,18 @@ async fn main() {
         .route("/:account/:project/issues/:id", get(get_index))
         .route("/:account/:project/issues/:parent/:id", get(get_index))
         .route("/:account/:project/*path", get(get_asset))
-        .fallback(get(get_asset_root))
-        .with_state(state);
+        .fallback(get(get_asset_root));
 
+    // Start Unix socket listener for notifications before moving state
+    let socket_path = get_notification_socket_path(&state.base_root);
+    let notification_tx_clone = state.notification_tx.clone();
+    tokio::spawn(async move {
+        if let Err(e) = listen_on_socket(socket_path, notification_tx_clone).await {
+            eprintln!("Unix socket listener error: {}", e);
+        }
+    });
+
+    let app = app.with_state(state);
     let (listener, port) = acquire_listener(desired_port).await;
 
     #[cfg(feature = "embed-assets")]
@@ -476,6 +493,55 @@ fn build_telemetry_payload(payload: JsonValue, tenant: Option<(String, String)>)
         map.insert("payload".to_string(), payload);
     }
     JsonValue::Object(map).to_string()
+}
+
+// Notification handlers for real-time issue updates
+
+async fn post_notification_root(
+    State(state): State<AppState>,
+    Json(event): Json<NotificationEvent>,
+) -> StatusCode {
+    // Broadcast the notification to all SSE subscribers
+    let _ = state.notification_tx.send(event);
+    StatusCode::OK
+}
+
+async fn get_realtime_events_root(
+    State(state): State<AppState>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let receiver = state.notification_tx.subscribe();
+    let stream = BroadcastStream::new(receiver).filter_map(|event| async move {
+        match event {
+            Ok(notification) => {
+                // Serialize the notification event to JSON
+                match serde_json::to_string(&notification) {
+                    Ok(data) => Some(Ok(Event::default().data(data))),
+                    Err(_) => None,
+                }
+            }
+            Err(_) => None,
+        }
+    });
+    Sse::new(stream).keep_alive(
+        KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text(": keep-alive"),
+    )
+}
+
+async fn post_notification(
+    State(state): State<AppState>,
+    AxumPath((_account, _project)): AxumPath<(String, String)>,
+    Json(event): Json<NotificationEvent>,
+) -> StatusCode {
+    post_notification_root(State(state), Json(event)).await
+}
+
+async fn get_realtime_events(
+    State(state): State<AppState>,
+    AxumPath((_account, _project)): AxumPath<(String, String)>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    get_realtime_events_root(State(state)).await
 }
 
 async fn post_render_d2(body: Bytes) -> Response {
@@ -891,4 +957,72 @@ fn serve_asset_from_filesystem(state: &AppState, asset_path: &str) -> Response {
         .unwrap_or_else(|_| {
             error_response("asset response failed", StatusCode::INTERNAL_SERVER_ERROR)
         })
+}
+
+/// Get the Unix domain socket path for notifications based on project root.
+///
+/// Uses the same hash-based approach as the CLI publisher to ensure they connect to the same socket.
+fn get_notification_socket_path(root: &StdPath) -> PathBuf {
+    use sha2::{Digest, Sha256};
+
+    let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let mut hasher = Sha256::new();
+    hasher.update(canonical.to_string_lossy().as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
+    let socket_name = format!("kanbus-{}.sock", &hash[..12]);
+
+    std::env::temp_dir().join(socket_name)
+}
+
+/// Listen on Unix domain socket for notification events from CLI commands.
+async fn listen_on_socket(
+    socket_path: PathBuf,
+    notification_tx: broadcast::Sender<NotificationEvent>,
+) -> io::Result<()> {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    use tokio::net::UnixListener;
+
+    // Remove stale socket file if it exists
+    if socket_path.exists() {
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    let listener = UnixListener::bind(&socket_path)?;
+    println!(
+        "Notification socket listening at {}",
+        socket_path.display()
+    );
+
+    loop {
+        match listener.accept().await {
+            Ok((stream, _addr)) => {
+                let tx = notification_tx.clone();
+                tokio::spawn(async move {
+                    let mut reader = BufReader::new(stream);
+                    let mut line = String::new();
+
+                    while let Ok(n) = reader.read_line(&mut line).await {
+                        if n == 0 {
+                            break; // EOF
+                        }
+
+                        // Try to parse the JSON event
+                        match serde_json::from_str::<NotificationEvent>(&line) {
+                            Ok(event) => {
+                                let _ = tx.send(event);
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to parse notification event: {}", e);
+                            }
+                        }
+
+                        line.clear();
+                    }
+                });
+            }
+            Err(e) => {
+                eprintln!("Failed to accept socket connection: {}", e);
+            }
+        }
+    }
 }

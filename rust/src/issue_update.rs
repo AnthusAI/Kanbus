@@ -120,6 +120,29 @@ pub fn update_issue(
     updated_issue.updated_at = current_time;
 
     write_issue_to_file(&updated_issue, &lookup.issue_path)?;
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let mut fields_changed = Vec::new();
+    if status.is_some() {
+        fields_changed.push("status".to_string());
+    }
+    if title.is_some() {
+        fields_changed.push("title".to_string());
+    }
+    if description.is_some() {
+        fields_changed.push("description".to_string());
+    }
+    if assignee.is_some() || claim {
+        fields_changed.push("assignee".to_string());
+    }
+    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
+        issue_id: updated_issue.identifier.clone(),
+        fields_changed,
+        issue_data: updated_issue.clone(),
+    });
+
     Ok(updated_issue)
 }
 
