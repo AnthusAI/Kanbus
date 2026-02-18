@@ -169,6 +169,31 @@ export function TaskDetailPanel({
   // Typing effect for new descriptions
   const typedDescription = useTypingEffect(task?.description || "", isOpen && pagePhase !== "animating");
 
+  // Track comment count to detect new comments
+  const previousCommentCountRef = useRef<number>(0);
+
+  // Auto-scroll to bottom when new comment is added to focused issue
+  useEffect(() => {
+    if (!task || !isOpen || !contentRef.current) return;
+
+    const currentCommentCount = task.comments?.length || 0;
+
+    // If comment count increased, scroll to bottom
+    if (currentCommentCount > previousCommentCountRef.current && previousCommentCountRef.current > 0) {
+      // Wait a brief moment for the comment to render, then scroll
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTo({
+            top: contentRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+    }
+
+    previousCommentCountRef.current = currentCommentCount;
+  }, [task?.comments?.length, task, isOpen]);
+
   useEffect(() => {
     if (!task) {
       setDisplayTask(null);

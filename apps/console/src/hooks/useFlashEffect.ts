@@ -10,14 +10,21 @@ import gsap from "gsap";
  */
 export function useFlashEffect<T>(value: T, enabled: boolean = true) {
   const elementRef = useRef<HTMLDivElement>(null);
-  const previousValueRef = useRef<T>(value);
+  const previousValueRef = useRef<T | undefined>(undefined);
+  const isFirstRenderRef = useRef(true);
 
   useEffect(() => {
     if (!enabled || !elementRef.current) return;
 
     // Skip flash on initial mount
-    if (previousValueRef.current === value) {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
       previousValueRef.current = value;
+      return;
+    }
+
+    // Skip if value hasn't changed
+    if (previousValueRef.current === value) {
       return;
     }
 

@@ -53,7 +53,6 @@ function BoardComponent({
       return;
     }
     node.scrollLeft = maxScrollLeft;
-    node.scrollTop = 0;
     didInitialScroll.current = true;
   }, [columns.length]);
 
