@@ -23,6 +23,7 @@ export interface ProjectConfig {
 }
 
 export interface IssueComment {
+  id?: string;
   author: string;
   text: string;
   created_at: string;

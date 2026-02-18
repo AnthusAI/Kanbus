@@ -62,7 +62,8 @@ function serializeConsoleArg(value: unknown): unknown {
 function sendTelemetry(endpoint: string, payload: TelemetryPayload): void {
   const body = JSON.stringify(payload);
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(endpoint, body);
+    const blob = new Blob([body], { type: "application/json" });
+    navigator.sendBeacon(endpoint, blob);
     return;
   }
   void fetch(endpoint, {

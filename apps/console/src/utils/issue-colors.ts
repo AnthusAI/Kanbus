@@ -44,8 +44,8 @@ const COLOR_ALIASES: Record<string, string> = {
   bright_red: "ruby",
   green: "green",
   bright_green: "grass",
-  yellow: "yellow",
-  bright_yellow: "amber",
+  yellow: "amber",
+  bright_yellow: "yellow",
   blue: "blue",
   bright_blue: "indigo",
   magenta: "purple",
@@ -56,10 +56,10 @@ const COLOR_ALIASES: Record<string, string> = {
 
 const LIGHT_ACCENT = "5";
 const LIGHT_MUTED = "2";
-const DARK_ACCENT = "5";
+const DARK_ACCENT = "8";
 const DARK_MUTED = "3";
 const PRIORITY_BG_LIGHT = "5";
-const PRIORITY_BG_DARK = "6";
+const PRIORITY_BG_DARK = "8";
 
 function normalizeColorValue(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
