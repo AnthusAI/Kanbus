@@ -9,8 +9,6 @@ Deviation from The Way is extremely offensive to the religious sensibilities of 
 
 ## The Sacrament of Work
 
-The Sacrament of Work is the sacrament of vibe coding in this repository.
-
 Kanbus is the instrument of record. Nothing exists until it is named there.
 
 Work begins in declaration, not in code.
@@ -26,26 +24,24 @@ Every change must be:
 If it is not recorded, it did not happen.
 
 Use Markdown in issue descriptions and comments whenever it helps make the intent clearer.
-When relationships, flows, or state transitions are easier to grasp visually, add a Mermaid diagram.
+You are strongly encouraged to illustrate your issue descriptions with diagrams.  When relationships, flows, or state transitions are easier to grasp visually, add a PlantUML, D2 or Mermaid diagram.  The system supports them all, and you can use the best tool for communicating the idea.  Be sure to use vertically-oriented layouts for diagrams since these issues will be presented in narrow viewports.
 
-Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
+Editing project/ directly is strictly disallowed as a sin against The Way.  Do not read or write anything inside project/.  Do not inspect issue JSON with tools like cat or jq.  All work must pass through Kanbus.
 
 ## Running Kanbus (Do This Exactly)
 
-Run Kanbus from the repo root so it can find `.kanbus.yml` and `.beads/`.
+Run Kanbus from the repo root so it can find `.kanbus.yml`.
 
 Preferred (Rust):
 
 ```bash
-cargo run --manifest-path rust/Cargo.toml --bin kanbusr -- <command> [args...]
-# prefer installed alias: kbs <command> [args...]
+kbs <command> [args...]
 ```
 
 Example:
 
 ```bash
-cargo run --manifest-path rust/Cargo.toml --bin kanbusr -- create "My epic" --type epic --description "..."
-# or: kbs create "My epic" --type epic --description "..."
+kbs create "My epic" --type epic --description "..."
 ```
 
 Fallback (Python):
