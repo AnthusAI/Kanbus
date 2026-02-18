@@ -1031,7 +1031,7 @@ fn execute_command(
                 use crate::notification_publisher::publish_notification;
 
                 // Validate mode
-                let valid_modes = vec!["initiatives", "epics", "issues"];
+                let valid_modes = ["initiatives", "epics", "issues"];
                 if !valid_modes.contains(&mode.as_str()) {
                     return Err(KanbusError::IssueOperation(format!(
                         "Invalid view mode '{}'. Valid modes: {}",
