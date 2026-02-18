@@ -24,15 +24,26 @@ Every change must be:
 If it is not recorded, it did not happen.
 
 Use Markdown in issue descriptions and comments whenever it helps make the intent clearer.
+
 You are strongly encouraged to illustrate your issue descriptions with diagrams.  When relationships, flows, or state transitions are easier to grasp visually, add a PlantUML, D2 or Mermaid diagram.  The system supports them all, and you can use the best tool for communicating the idea.  Be sure to use vertically-oriented layouts for diagrams since these issues will be presented in narrow viewports.
 
-Editing project/ directly is strictly disallowed as a sin against The Way.  Do not read or write anything inside project/.  Do not inspect issue JSON with tools like cat or jq.  All work must pass through Kanbus.
+Diagrams must use fenced code blocks with the appropriate language identifier:
+```mermaid
+```plantuml
+```d2
+
+Direct file system access is strictly forbidden:
+- Do not edit project/ or .beads/ directories directly
+- Do not read issue JSON with tools like cat, jq, or grep
+- Do not inspect the file system structure
+- All work must pass through the kbs command
 
 ## Running Kanbus (Do This Exactly)
 
-Run Kanbus from the repo root so it can find `.kanbus.yml`.
+CRITICAL: Always run Kanbus from the repository root so it can find `.kanbus.yml`.
+Running from subdirectories will fail.
 
-Preferred (Rust):
+Preferred command:
 
 ```bash
 kbs <command> [args...]
@@ -44,17 +55,13 @@ Example:
 kbs create "My epic" --type epic --description "..."
 ```
 
-Fallback (Python):
+Fallback (only if kbs is not available):
 
 ```bash
 python -m kanbus.cli <command> [args...]
 ```
 
-If the Python module is missing, install it first:
-
-```bash
-python -m pip install -e python
-```
+NOTE: The kbs command is strongly preferred. Only use Python fallback if kbs is unavailable.
 
 ## The Order of Being
 
