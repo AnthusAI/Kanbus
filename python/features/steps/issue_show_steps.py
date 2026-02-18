@@ -74,6 +74,13 @@ def when_format_issue_for_display(context: object) -> None:
     context.formatted_output = format_issue_for_display(issue)
 
 
+@when('I format issue "{identifier}" for display')
+def when_format_issue_for_display_generic(context: object, identifier: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    context.formatted_output = format_issue_for_display(issue)
+
+
 @when('I format issue "{identifier}" for display with color enabled')
 def when_format_issue_for_display_with_color(context: object, identifier: str) -> None:
     project_dir = load_project_directory(context)

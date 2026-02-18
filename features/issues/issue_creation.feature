@@ -44,7 +44,7 @@ Feature: Issue creation
     Given a Kanbus project with an invalid configuration containing unknown initial status
     When I run "kanbus create Implement OAuth2 flow"
     Then the command should fail with exit code 1
-    And stderr should contain "unknown status"
+    And stderr should contain "initial_status"
 
   Scenario: Create bypasses validation with --no-validate
     Given a Kanbus project with default configuration

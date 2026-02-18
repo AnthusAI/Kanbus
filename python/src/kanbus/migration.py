@@ -20,6 +20,7 @@ from kanbus.models import (
     IssueData,
     ProjectConfiguration,
     PriorityDefinition,
+    StatusDefinition,
 )
 from kanbus.project import discover_project_directories, get_configuration_path
 from kanbus.workflows import get_workflow_for_issue_type
@@ -149,6 +150,10 @@ def _load_configuration_for_beads(
         {record.get("status", "") for record in records if record.get("status")}
         | {"open", "in_progress", "blocked", "deferred", "closed"}
     )
+    status_definitions = [
+        StatusDefinition(name=status, color=None, collapsed=False)
+        for status in statuses
+    ]
     workflow_state = {status: statuses for status in statuses}
     workflows = {
         "default": workflow_state,
@@ -178,7 +183,7 @@ def _load_configuration_for_beads(
         initial_status="open",
         priorities=priorities,
         default_priority=2,
-        status_colors={},
+        statuses=status_definitions,
         type_colors={},
     )
 
