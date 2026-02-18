@@ -1,18 +1,8 @@
 import React, { useLayoutEffect, useRef } from "react";
-import {
-  Bug,
-  BookOpen,
-  CheckSquare,
-  ListChecks,
-  Rocket,
-  Square,
-  Tag,
-  Wrench,
-  CornerDownRight
-} from "lucide-react";
 import type { Issue, ProjectConfig } from "../types/issues";
 import { buildIssueColorStyle } from "../utils/issue-colors";
 import { formatIssueId } from "../utils/format-issue-id";
+import { getTypeIcon } from "../utils/issue-icons";
 
 interface IssueCardProps {
   issue: Issue;
@@ -43,17 +33,7 @@ function IssueCardComponent({
     }
   };
 
-  const taskIcon = issue.status === "closed" ? CheckSquare : Square;
-  const IssueTypeIcon =
-    {
-      initiative: Rocket,
-      epic: ListChecks,
-      task: taskIcon,
-      "sub-task": CornerDownRight,
-      bug: Bug,
-      story: BookOpen,
-      chore: Wrench
-    }[issue.type] ?? Tag;
+  const IssueTypeIcon = getTypeIcon(issue.type, issue.status);
   const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
 
   return (

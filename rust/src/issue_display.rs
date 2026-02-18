@@ -186,7 +186,11 @@ pub fn format_issue_for_display(
                 .take(6)
                 .collect::<String>();
             if prefix.is_empty() {
-                lines.push(format!("  {} {}", dim(&format!("{author}:"), use_color), comment.text));
+                lines.push(format!(
+                    "  {} {}",
+                    dim(&format!("{author}:"), use_color),
+                    comment.text
+                ));
             } else {
                 lines.push(format!(
                     "  [{prefix}] {} {}",

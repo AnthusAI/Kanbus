@@ -13,8 +13,8 @@ use crate::beads_write::{
 };
 use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
-use crate::content_validation::validate_code_blocks;
 use crate::console_telemetry::stream_console_telemetry;
+use crate::content_validation::validate_code_blocks;
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
 use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
@@ -681,7 +681,12 @@ fn execute_command(
                     validate_code_blocks(&text_value)?;
                 }
                 if beads_mode {
-                    add_beads_comment(&root_for_beads, &identifier, &get_current_user(), &text_value)?;
+                    add_beads_comment(
+                        &root_for_beads,
+                        &identifier,
+                        &get_current_user(),
+                        &text_value,
+                    )?;
                 } else {
                     add_comment(root, &identifier, &get_current_user(), &text_value)?;
                 }

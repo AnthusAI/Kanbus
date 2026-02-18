@@ -3,14 +3,6 @@ import DOMPurify from "dompurify";
 import { marked } from "marked";
 import {
   X,
-  Bug,
-  BookOpen,
-  CheckSquare,
-  ListChecks,
-  Rocket,
-  Square,
-  Tag,
-  Wrench,
   CornerDownRight,
   Focus,
   Maximize
@@ -24,6 +16,7 @@ import { buildIssueColorStyle } from "../utils/issue-colors";
 import { formatTimestamp } from "../utils/format-timestamp";
 import { formatIssueId } from "../utils/format-issue-id";
 import { IconButton } from "./IconButton";
+import { getTypeIcon } from "../utils/issue-icons";
 
 const markdownRenderer = new marked.Renderer();
 markdownRenderer.link = (token: { href: string; title?: string | null; text: string }) => {
@@ -50,8 +43,6 @@ markdownRenderer.code = (token: { text: string; lang?: string }) => {
 marked.setOptions({
   gfm: true,
   breaks: true,
-  mangle: false,
-  headerIds: false,
   renderer: markdownRenderer
 });
 
@@ -73,7 +64,73 @@ interface TaskDetailPanelProps {
   onAfterClose: () => void;
   onFocus: (issueId: string) => void;
   focusedIssueId: string | null;
+  onNavigateToDescendant?: (issue: Issue) => void;
 }
+
+interface DescendantLinkProps {
+  issue: Issue;
+  depth: number;
+  priorityName: string;
+  config?: ProjectConfig;
+  onClick: () => void;
+}
+
+const DescendantLink = React.memo(({
+  issue,
+  depth,
+  priorityName,
+  config,
+  onClick
+}: DescendantLinkProps) => {
+  const TypeIcon = getTypeIcon(issue.type, issue.status);
+  const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
+
+  const handleClick = () => {
+    onClick();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
+  return (
+    <div
+      className="descendant-link cursor-pointer rounded-lg hover:bg-card-muted transition-colors p-2"
+      style={issueStyle}
+      data-status={issue.status}
+      data-type={issue.type}
+      data-priority={priorityName}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`Navigate to ${formatIssueId(issue.id)}: ${issue.title}`}
+    >
+      <div className="flex items-center gap-2">
+        <div style={{ width: `${depth * 12}px` }} aria-hidden="true" />
+        {depth > 0 && <CornerDownRight className="w-3 h-3 text-muted" aria-hidden="true" />}
+        <TypeIcon className="issue-accent-icon w-4 h-4" aria-hidden="true" />
+        <span className="issue-accent-id text-xs font-medium">
+          {formatIssueId(issue.id)}
+        </span>
+        <span className="text-sm text-foreground flex-1 min-w-0 truncate">
+          {issue.title}
+        </span>
+        <span className="text-xs text-muted uppercase tracking-wider">
+          {issue.status}
+        </span>
+        <span className="text-xs issue-accent-priority px-2 py-0.5 rounded">
+          {priorityName}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+DescendantLink.displayName = "DescendantLink";
 
 export function TaskDetailPanel({
   task,
@@ -90,7 +147,8 @@ export function TaskDetailPanel({
   isMaximized,
   onAfterClose,
   onFocus,
-  focusedIssueId
+  focusedIssueId,
+  onNavigateToDescendant
 }: TaskDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -339,21 +397,11 @@ skinparam SequenceDividerFontColor white`
     const showUpdated = Boolean(
       updatedAt && (!createdAt || updatedAt !== createdAt)
     );
-    const taskIcon = taskToRender.status === "closed" ? CheckSquare : Square;
-    const DetailTypeIcon =
-      {
-        initiative: Rocket,
-        epic: ListChecks,
-        task: taskIcon,
-        "sub-task": CornerDownRight,
-        bug: Bug,
-        story: BookOpen,
-        chore: Wrench
-      }[taskToRender.type] ?? Tag;
+    const DetailTypeIcon = getTypeIcon(taskToRender.type, taskToRender.status);
     const issueStyle =
       config ? buildIssueColorStyle(config, taskToRender) : undefined;
     const rawHtml = taskToRender.description
-      ? marked.parse(taskToRender.description)
+      ? (marked.parse(taskToRender.description, { async: false }) as string)
       : "";
     const descriptionHtml = rawHtml
       ? DOMPurify.sanitize(rawHtml, {
@@ -376,34 +424,94 @@ skinparam SequenceDividerFontColor white`
     const hasChildren = allIssues.some((i) => i.parent === taskToRender.id);
     const isFocused = focusedIssueId === taskToRender.id;
 
+    // Collect ALL descendants recursively
+    const allDescendantIds = new Set<string>();
+    const queue = [taskToRender.id];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const children = allIssues.filter(i => i.parent === current);
+      children.forEach(child => {
+        allDescendantIds.add(child.id);
+        queue.push(child.id);
+      });
+    }
+
+    // Filter out direct sub-tasks (already shown in Board) and the task itself
+    const descendantIssues = allIssues
+      .filter(issue =>
+        allDescendantIds.has(issue.id) &&
+        !(issue.type === "sub-task" && issue.parent === taskToRender.id)
+      )
+      .sort((a, b) => {
+        // Sort by hierarchy depth, then by creation date
+        const getDepth = (id: string): number => {
+          let depth = 0;
+          let current: Issue | undefined = allIssues.find(i => i.id === id);
+          while (current?.parent) {
+            depth++;
+            current = allIssues.find(i => i.id === current!.parent);
+          }
+          return depth;
+        };
+        const depthDiff = getDepth(a.id) - getDepth(b.id);
+        if (depthDiff !== 0) return depthDiff;
+        return (a.created_at || "") < (b.created_at || "") ? -1 : 1;
+      });
+
+    // Calculate relative depth from the current task
+    const getIssueDepth = (issueId: string): number => {
+      let depth = 0;
+      let current: Issue | undefined = allIssues.find(i => i.id === issueId);
+      const visited = new Set<string>();
+
+      while (current?.parent && !visited.has(current.id)) {
+        visited.add(current.id);
+        depth++;
+        current = allIssues.find(i => i.id === current!.parent);
+      }
+
+      // Calculate depth of the root task
+      let rootDepth = 0;
+      let rootCurrent: Issue | undefined = taskToRender;
+      const rootVisited = new Set<string>();
+
+      while (rootCurrent?.parent && !rootVisited.has(rootCurrent.id)) {
+        rootVisited.add(rootCurrent.id);
+        rootDepth++;
+        rootCurrent = allIssues.find(i => i.id === rootCurrent!.parent);
+      }
+
+      return depth - rootDepth - 1;
+    };
+
     return (
       <div ref={withRef ? contentRef : null} className="flex flex-col h-full min-h-0">
+        <div
+          className="detail-accent-bar issue-card p-3 pb-0"
+          style={issueStyle}
+          data-status={taskToRender.status}
+          data-type={taskToRender.type}
+          data-priority={priorityName}
+        >
+          <div className="issue-accent-bar -m-3 mb-0 h-10 w-[calc(100%+1.5rem)] px-3 flex items-center pt-3 pb-3">
+            <div className="issue-accent-row gap-2 w-full flex items-center justify-between">
+              <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
+                <DetailTypeIcon className="issue-accent-icon" />
+                <span className="issue-accent-id">{formatIssueId(taskToRender.id)}</span>
+              </div>
+              <div className="issue-accent-priority">{priorityName}</div>
+            </div>
+          </div>
+        </div>
+        <div className="detail-scroll flex-1 min-h-0 overflow-y-auto">
           <div
-            className="detail-accent-bar issue-card p-3 pb-0"
+            className="detail-card issue-card p-3 grid gap-2"
             style={issueStyle}
             data-status={taskToRender.status}
             data-type={taskToRender.type}
             data-priority={priorityName}
           >
-            <div className="issue-accent-bar -m-3 mb-0 h-10 w-[calc(100%+1.5rem)] px-3 flex items-center pt-3 pb-3">
-              <div className="issue-accent-row gap-2 w-full flex items-center justify-between">
-                <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
-                  <DetailTypeIcon className="issue-accent-icon" />
-                  <span className="issue-accent-id">{formatIssueId(taskToRender.id)}</span>
-                </div>
-                <div className="issue-accent-priority">{priorityName}</div>
-              </div>
-            </div>
-          </div>
-          <div className="detail-scroll flex-1 min-h-0 overflow-y-auto">
-            <div
-              className="detail-card issue-card p-3 grid gap-2"
-              style={issueStyle}
-              data-status={taskToRender.status}
-              data-type={taskToRender.type}
-              data-priority={priorityName}
-            >
-              <div className="grid gap-2">
+            <div className="grid gap-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
                   {taskToRender.type} · {taskToRender.status}
@@ -425,70 +533,71 @@ skinparam SequenceDividerFontColor white`
                     aria-pressed={isMaximized}
                     className={isMaximized ? "bg-[var(--card-muted)]" : ""}
                   />
-                  <IconButton
-                    icon={X}
-                    label="Close"
-                    onClick={onClose}
-                  />
+                  <IconButton icon={X} label="Close" onClick={onClose} />
                 </div>
               </div>
-                <h2 className="text-lg font-semibold text-selected">
-                  {taskToRender.title}
-                </h2>
-                {taskToRender.description ? (
-                  <div
-                    className="issue-description-markdown text-sm text-selected mb-4"
-                    dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-                  />
-                ) : null}
-              </div>
-              {(formattedCreated || formattedUpdated || formattedClosed || taskToRender.assignee) ? (
-                <div className="flex flex-wrap items-start gap-2 text-xs text-muted">
-                  <div className="flex flex-col gap-1">
-                    {formattedCreated ? (
-                      <div className="flex flex-wrap gap-2">
-                        <span className="font-semibold uppercase tracking-[0.2em]">
-                          Created
-                        </span>
-                        <span data-testid="issue-created-at">{formattedCreated}</span>
-                      </div>
-                    ) : null}
-                    {formattedUpdated ? (
-                      <div className="flex flex-wrap gap-2">
-                        <span className="font-semibold uppercase tracking-[0.2em]">
-                          Updated
-                        </span>
-                        <span data-testid="issue-updated-at">{formattedUpdated}</span>
-                      </div>
-                    ) : null}
-                    {formattedClosed ? (
-                      <div className="flex flex-wrap gap-2">
-                        <span className="font-semibold uppercase tracking-[0.2em]">
-                          Closed
-                        </span>
-                        <span data-testid="issue-closed-at">{formattedClosed}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                  {taskToRender.assignee ? (
-                    <div className="ml-auto text-right" data-testid="issue-assignee">
-                      {taskToRender.assignee}
+              <h2 className="text-lg font-semibold text-selected">
+                {taskToRender.title}
+              </h2>
+              {taskToRender.description ? (
+                <div
+                  className="issue-description-markdown text-sm text-selected mb-4"
+                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                />
+              ) : null}
+            </div>
+            {formattedCreated ||
+            formattedUpdated ||
+            formattedClosed ||
+            taskToRender.assignee ? (
+              <div className="flex flex-wrap items-start gap-2 text-xs text-muted">
+                <div className="flex flex-col gap-1">
+                  {formattedCreated ? (
+                    <div className="flex flex-wrap gap-2">
+                      <span className="font-semibold uppercase tracking-[0.2em]">
+                        Created
+                      </span>
+                      <span data-testid="issue-created-at">{formattedCreated}</span>
+                    </div>
+                  ) : null}
+                  {formattedUpdated ? (
+                    <div className="flex flex-wrap gap-2">
+                      <span className="font-semibold uppercase tracking-[0.2em]">
+                        Updated
+                      </span>
+                      <span data-testid="issue-updated-at">{formattedUpdated}</span>
+                    </div>
+                  ) : null}
+                  {formattedClosed ? (
+                    <div className="flex flex-wrap gap-2">
+                      <span className="font-semibold uppercase tracking-[0.2em]">
+                        Closed
+                      </span>
+                      <span data-testid="issue-closed-at">{formattedClosed}</span>
                     </div>
                   ) : null}
                 </div>
-              ) : null}
-            </div>
-            <div className="detail-section p-3 grid gap-2">
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
-                  Comments
-                </div>
+                {taskToRender.assignee ? (
+                  <div className="ml-auto text-right" data-testid="issue-assignee">
+                    {taskToRender.assignee}
+                  </div>
+                ) : null}
               </div>
-              <div className="grid gap-2">
-                {comments.length === 0 ? (
-                  <div className="text-sm text-muted">No comments yet.</div>
-                ) : (
-                  comments.map((comment, index) => (
+            ) : null}
+          </div>
+          <div className="detail-section p-3 grid gap-2">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+                Comments
+              </div>
+            </div>
+            <div className="grid gap-2">
+              {comments.length === 0 ? (
+                <div className="text-sm text-muted">No comments yet.</div>
+              ) : (
+                comments.map((comment, index) => {
+                  const commentHtml = marked.parse(comment.text, { async: false }) as string;
+                  return (
                     <div key={`${comment.created_at}-${index}`} className="detail-comment grid gap-2">
                       <div className="text-xs font-semibold text-foreground">
                         {comment.author}
@@ -499,33 +608,60 @@ skinparam SequenceDividerFontColor white`
                       <div
                         className="issue-description-markdown text-sm text-foreground"
                         dangerouslySetInnerHTML={{
-                          __html: DOMPurify.sanitize(marked.parse(comment.text), {
+                          __html: DOMPurify.sanitize(commentHtml, {
                             USE_PROFILES: { html: true },
                             ADD_ATTR: ["target", "rel"]
                           })
                         }}
                       />
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="detail-section p-3 grid gap-2">
-              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
-                Sub-tasks
-              </div>
-              {subTasks.length === 0 ? (
-                <div className="text-sm text-muted">No sub-tasks yet for this item.</div>
-              ) : (
-                <Board
-                  columns={columns}
-                  issues={subTasks}
-                  priorityLookup={priorityLookup}
-                  config={config}
-                  transitionKey={`${taskToRender.id}-${subTasks.length}`}
-                />
+                  );
+                })
               )}
+            </div>
+          </div>
+          <div className="detail-section p-3 grid gap-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+              Sub-tasks
+            </div>
+            {subTasks.length === 0 ? (
+              <div className="text-sm text-muted">No sub-tasks yet for this item.</div>
+            ) : (
+              <Board
+                columns={columns}
+                issues={subTasks}
+                priorityLookup={priorityLookup}
+                config={config}
+                transitionKey={`${taskToRender.id}-${subTasks.length}`}
+              />
+            )}
+          </div>
+          <div className="detail-section p-3 grid gap-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+              All Descendants
+            </div>
+            {descendantIssues.length === 0 ? (
+              <div className="text-sm text-muted">
+                No other descendants beyond sub-tasks.
+              </div>
+            ) : (
+              <div className="grid gap-1">
+                {descendantIssues.map((issue) => (
+                  <DescendantLink
+                    key={issue.id}
+                    issue={issue}
+                    depth={getIssueDepth(issue.id)}
+                    priorityName={priorityLookup[issue.priority] ?? "medium"}
+                    config={config}
+                    onClick={() => {
+                      if (onNavigateToDescendant) {
+                        onNavigateToDescendant(issue);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

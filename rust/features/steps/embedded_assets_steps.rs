@@ -240,11 +240,7 @@ async fn when_start_console_server(world: &mut KanbusWorld) {
         .map(|s| s.contains("embedded"))
         .unwrap_or(false);
 
-    let binary_name = if cfg!(windows) {
-        "kbsc.exe"
-    } else {
-        "kbsc"
-    };
+    let binary_name = if cfg!(windows) { "kbsc.exe" } else { "kbsc" };
 
     match start_console_server(world, binary_name, with_embed) {
         Ok(_child) => {
@@ -361,8 +357,7 @@ async fn then_api_endpoint_responds(world: &mut KanbusWorld, endpoint: String) {
 
 #[then("assets are served from the filesystem path")]
 async fn then_assets_served_from_filesystem(_world: &mut KanbusWorld) {
-    let (_status, html) =
-        blocking_get("http://127.0.0.1:5174/").expect("Failed to fetch root");
+    let (_status, html) = blocking_get("http://127.0.0.1:5174/").expect("Failed to fetch root");
     assert!(
         html.contains("Custom Assets"),
         "Should serve custom assets from filesystem"
@@ -387,8 +382,7 @@ async fn then_assets_served_from_path(world: &mut KanbusWorld, path: String) {
     };
 
     // Verify server is serving from expected source
-    let (status, body) =
-        blocking_get("http://127.0.0.1:5174/").expect("Failed to fetch root");
+    let (status, body) = blocking_get("http://127.0.0.1:5174/").expect("Failed to fetch root");
     assert!(
         (200..300).contains(&status),
         "Should serve assets from {}",

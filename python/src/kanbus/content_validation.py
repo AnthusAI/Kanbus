@@ -144,7 +144,10 @@ def _validate_external(block: CodeBlock, tool: str) -> None:
         # Provide helpful installation suggestion
         install_hints = {
             "mmdc": ("mermaid", "npm install -g @mermaid-js/mermaid-cli"),
-            "plantuml": ("plantuml", "brew install plantuml (macOS) or apt install plantuml (Linux)"),
+            "plantuml": (
+                "plantuml",
+                "brew install plantuml (macOS) or apt install plantuml (Linux)",
+            ),
             "d2": ("d2", "curl -fsSL https://d2lang.com/install.sh | sh -s --"),
         }
         if tool in install_hints:
@@ -175,9 +178,7 @@ def _validate_external(block: CodeBlock, tool: str) -> None:
         else:
             return
 
-        result = subprocess.run(
-            args, capture_output=True, text=True, timeout=30
-        )
+        result = subprocess.run(args, capture_output=True, text=True, timeout=30)
 
         if result.returncode != 0:
             language_names = {"mmdc": "mermaid", "plantuml": "plantuml", "d2": "d2"}

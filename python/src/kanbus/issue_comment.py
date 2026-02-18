@@ -67,7 +67,9 @@ def _find_comment_index(issue: IssueData, prefix: str) -> int:
         raise IssueCommentError("comment not found")
     if len(matches) > 1:
         ids = ", ".join(
-            (issue.comments[index].id or "")[:6] for index in matches if issue.comments[index].id
+            (issue.comments[index].id or "")[:6]
+            for index in matches
+            if issue.comments[index].id
         )
         raise IssueCommentError(f"comment id prefix is ambiguous; matches: {ids}")
     return matches[0]
@@ -123,7 +125,9 @@ def ensure_issue_comment_ids(root: Path, identifier: str) -> IssueData:
     return updated
 
 
-def update_comment(root: Path, identifier: str, comment_id: str, text: str) -> IssueData:
+def update_comment(
+    root: Path, identifier: str, comment_id: str, text: str
+) -> IssueData:
     """Update a comment by id prefix."""
     try:
         lookup = load_issue_from_project(root, identifier)
