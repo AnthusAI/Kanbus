@@ -18,11 +18,11 @@ types:
 
 workflows:
   default:
+    backlog: [open, closed]
     open: [in_progress, closed, deferred]
     in_progress: [open, blocked, closed]
     blocked: [in_progress, closed]
     closed: [open]
-    deferred: [open, closed]
   epic:
     open: [in_progress, closed]
     in_progress: [open, closed]
@@ -30,11 +30,12 @@ workflows:
 
 # Status colors (per workflow states)
 status_colors:
+  backlog: yellow
+
   open: cyan
   in_progress: blue
   blocked: red
   closed: green
-  deferred: yellow
 
 initial_status: open
 priorities:
@@ -58,7 +59,7 @@ default_priority: 2
 type_colors:
   initiative: bright_blue
   epic: magenta
-  task: cyan
+  task: blue
   sub-task: bright_cyan
   bug: red
   story: yellow
