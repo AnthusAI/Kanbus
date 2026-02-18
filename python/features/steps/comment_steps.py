@@ -198,6 +198,16 @@ def when_attempt_delete_comment(
         context.last_error = error
 
 
+@when('I attempt to ensure comment ids for "{identifier}"')
+def when_attempt_ensure_comment_ids(context: object, identifier: str) -> None:
+    project_dir = load_project_directory(context)
+    try:
+        context.updated_issue = ensure_issue_comment_ids(project_dir, identifier)
+        context.last_error = None
+    except IssueCommentError as error:
+        context.last_error = error
+
+
 @then('issue "{identifier}" should have comment ids assigned')
 def then_issue_comment_ids_assigned(context: object, identifier: str) -> None:
     project_dir = load_project_directory(context)

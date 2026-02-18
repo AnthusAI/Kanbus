@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from behave import then, when
+from behave import given, then, when
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -119,6 +119,20 @@ def when_create_issue_directly(context: object) -> None:
         )
         return
     context.result = SimpleNamespace(exit_code=0, stdout="", stderr="", output="")
+
+
+@given("issue creation status validation fails")
+def given_issue_creation_status_validation_fails(context: object) -> None:
+    import kanbus.issue_creation as issue_creation
+    from kanbus.workflows import InvalidTransitionError
+
+    if not hasattr(context, "original_validate_status_value"):
+        context.original_validate_status_value = issue_creation.validate_status_value
+
+    def fake_validate_status_value(*args: object, **kwargs: object) -> None:
+        raise InvalidTransitionError("unknown status")
+
+    issue_creation.validate_status_value = fake_validate_status_value
 
 
 @then("the command should succeed")

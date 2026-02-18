@@ -76,6 +76,13 @@ Feature: Issue display
     Then the formatted output should contain text "dev@example.com:"
     And the formatted output should contain text "Legacy note"
 
+  Scenario: Format issue display includes comment ids
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-commented" exists
+    And issue "kanbus-commented" has a comment from "dev@example.com" with text "Note" and id "abc123def"
+    When I format issue "kanbus-commented" for display
+    Then the formatted output should contain text "[abc123]"
+
   Scenario Outline: Format issue display applies colors for status, priority, and type
     Given a Kanbus project with default configuration
     And an issue "<identifier>" exists with status "<status>", priority <priority>, type "<issue_type>", and assignee "<assignee>"

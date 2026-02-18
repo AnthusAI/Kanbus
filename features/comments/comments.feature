@@ -64,6 +64,16 @@ Feature: Issue comments
     When I attempt to update comment "zzz" on "kanbus-missing-prefix" to "Nope"
     Then the last comment operation should fail with "comment not found"
 
+  Scenario: Ensure comment ids on missing issue fails
+    Given a Kanbus project with default configuration
+    When I attempt to ensure comment ids for "kanbus-missing"
+    Then the last comment operation should fail with "not found"
+
+  Scenario: Update comment on missing issue fails
+    Given a Kanbus project with default configuration
+    When I attempt to update comment "abc" on "kanbus-missing" to "Nope"
+    Then the last comment operation should fail with "not found"
+
   Scenario: Delete comment on missing issue fails
     Given a Kanbus project with default configuration
     When I attempt to delete comment "abc" on "kanbus-missing"

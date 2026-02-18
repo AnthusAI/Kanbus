@@ -38,3 +38,21 @@ Feature: Configuration validation
     When the configuration is loaded
     Then the command should fail with exit code 1
     And stderr should contain "default priority must be in priorities map"
+
+  Scenario: Empty statuses are rejected
+    Given a Kanbus repository with a .kanbus.yml file containing empty statuses
+    When the configuration is loaded
+    Then the command should fail with exit code 1
+    And stderr should contain "statuses must not be empty"
+
+  Scenario: Duplicate status names are rejected
+    Given a Kanbus repository with a .kanbus.yml file containing duplicate status names
+    When the configuration is loaded
+    Then the command should fail with exit code 1
+    And stderr should contain "duplicate status name"
+
+  Scenario: Workflow statuses must exist in the status list
+    Given a Kanbus repository with a .kanbus.yml file containing workflow statuses not in the status list
+    When the configuration is loaded
+    Then the command should fail with exit code 1
+    And stderr should contain "references undefined status"
