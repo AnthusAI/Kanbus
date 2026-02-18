@@ -37,7 +37,7 @@ export function AnimatedSelector({
   const highlightRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const lastWidthRef = useRef<number | null>(null);
-  const resizeTweenRef = useRef<gsap.core.Tween | null>(null);
+  const resizeTweenRef = useRef<gsap.core.Timeline | gsap.core.Tween | null>(null);
 
   const applyCompactState = (compact: boolean, animate: boolean) => {
     const container = containerRef.current;
