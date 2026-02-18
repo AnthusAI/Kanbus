@@ -24,11 +24,25 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  transition: gap 0.42s ease;
+  will-change: gap;
 }
 
 .selector-label {
+  display: inline-block;
+  overflow: hidden;
   white-space: nowrap;
+  max-width: 16rem;
+  transition: max-width 0.42s ease, transform 0.42s ease;
+  transform: translateX(0);
+  will-change: max-width, transform;
 }
+
+[role="tablist"] button[role="tab"] {
+  transition: padding 0.42s ease;
+}
+
+
 
 .selector-highlight {
   background: var(--background);

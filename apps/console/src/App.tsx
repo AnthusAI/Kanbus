@@ -361,6 +361,7 @@ export default function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
   const [detailMaximized, setDetailMaximized] = useState(false);
+  const [focusedIssueId, setFocusedIssueId] = useState<string | null>(null);
   const [route, setRoute] = useState<RouteContext>(() =>
     parseRoute(window.location.pathname)
   );
@@ -665,6 +666,8 @@ export default function App() {
   useEffect(() => {
     setRouteError(routeContext.error);
     setViewMode(routeContext.viewMode);
+    setDetailNavDirection(navActionRef.current);
+    navActionRef.current = "none";
     setSelectedTask(routeContext.selectedIssue);
   }, [routeContext]);
 
@@ -686,7 +689,23 @@ export default function App() {
     }
   }, [route.issueId, snapshot]);
 
+  const handleFocus = (issueId: string) => {
+    setFocusedIssueId((prev) => prev === issueId ? null : issueId);
+  };
+
   const filteredIssues = useMemo(() => {
+    if (focusedIssueId) {
+      const ids = collectDescendants(deferredIssues, focusedIssueId);
+      let focused = deferredIssues.filter((issue) => ids.has(issue.id));
+      if (resolvedViewMode === "initiatives") {
+        focused = focused.filter((i) => i.type === "initiative");
+      } else if (resolvedViewMode === "epics") {
+        focused = focused.filter((i) => i.type === "epic");
+      } else if (resolvedViewMode === "issues") {
+        focused = focused.filter((i) => i.type !== "initiative" && i.type !== "epic" && i.type !== "sub-task");
+      }
+      return focused;
+    }
     if (routeContext.parentIssue) {
       const ids = collectDescendants(deferredIssues, routeContext.parentIssue.id);
       return deferredIssues.filter((issue) => ids.has(issue.id));
@@ -709,7 +728,7 @@ export default function App() {
       );
     }
     return deferredIssues;
-  }, [deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId]);
+  }, [deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId]);
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
@@ -736,12 +755,7 @@ export default function App() {
 
   const transitionKey = `${resolvedViewMode ?? "none"}-${showClosed}-${snapshot?.updated_at ?? ""}`;
   const showLoadingIndicator =
-    loading || !snapshot || deferredIssues.length === 0;
-
-  useEffect(() => {
-    setDetailNavDirection(navActionRef.current);
-    navActionRef.current = "none";
-  }, [route]);
+    loading || !snapshot;
 
   useEffect(() => {
     if (showLoadingIndicator) {
@@ -761,8 +775,8 @@ export default function App() {
 
   return (
     <AppShell>
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 flex justify-end overflow-hidden">
           {loadingVisible ? (
             <span
               className={`loading-pill loading-pill--compact ${
@@ -827,28 +841,36 @@ export default function App() {
               }
             ]}
           />
-          <button
-            className="rounded-full bg-[var(--column)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted h-7 flex items-center justify-center gap-2 max-md:px-2 max-md:gap-1 max-md:[&_span.label-text]:hidden"
-            onClick={() => setShowClosed((prev) => !prev)}
-            type="button"
-            data-testid="toggle-closed"
-          >
-            <span className="flex items-center gap-2 max-md:gap-1">
-              {showClosed ? <FilterX className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
-              <span className={`${toggleMotionClass} whitespace-nowrap label-text`}>
-                {showClosed ? "All" : "Open"}
-              </span>
-            </span>
-          </button>
-          <button
-            className="flex items-center gap-2 rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
-            onClick={() => setSettingsOpen(true)}
-            type="button"
-            data-testid="open-settings"
-          >
-            <SettingsIcon />
-          </button>
         </div>
+        <button
+          className="flex-none toggle-button rounded-full bg-[var(--column)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted h-7 flex items-center justify-center gap-2"
+          onClick={() => {
+            if (focusedIssueId) {
+              setFocusedIssueId(null);
+            } else {
+              setShowClosed((prev) => !prev);
+            }
+          }}
+          type="button"
+          data-testid="toggle-closed"
+        >
+          <span className="toggle-row flex items-center gap-2">
+            {focusedIssueId
+              ? <Filter className="h-4 w-4" />
+              : showClosed ? <FilterX className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+            <span className={`${toggleMotionClass} whitespace-nowrap label-text toggle-label`}>
+              {focusedIssueId ? "Focused" : showClosed ? "All" : "Open"}
+            </span>
+          </span>
+        </button>
+        <button
+          className="flex-none flex items-center gap-2 rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
+          onClick={() => setSettingsOpen(true)}
+          type="button"
+          data-testid="open-settings"
+        >
+          <SettingsIcon />
+        </button>
       </div>
 
       {error && errorTime ? (
@@ -875,6 +897,7 @@ export default function App() {
               onSelectIssue={handleSelectIssue}
               selectedIssueId={selectedTask?.id ?? null}
               transitionKey={transitionKey}
+              detailOpen={isDetailOpen}
             />
           </div>
             {isDetailVisible ? (
@@ -976,6 +999,8 @@ export default function App() {
               onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
               isMaximized={detailMaximized}
               onAfterClose={() => setDetailClosing(false)}
+              onFocus={handleFocus}
+              focusedIssueId={focusedIssueId}
             />
           </div>
       </div>
