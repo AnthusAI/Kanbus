@@ -122,16 +122,22 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
 
     # Validate that initial_status exists in statuses
     if configuration.initial_status not in valid_statuses:
-        errors.append(f"initial_status '{configuration.initial_status}' must exist in statuses")
+        errors.append(
+            f"initial_status '{configuration.initial_status}' must exist in statuses"
+        )
 
     # Validate that all workflow states exist in statuses
     for workflow_name, workflow in configuration.workflows.items():
         for from_status, transitions in workflow.items():
             if from_status not in valid_statuses:
-                errors.append(f"workflow '{workflow_name}' references undefined status '{from_status}'")
+                errors.append(
+                    f"workflow '{workflow_name}' references undefined status '{from_status}'"
+                )
             for to_status in transitions:
                 if to_status not in valid_statuses:
-                    errors.append(f"workflow '{workflow_name}' references undefined status '{to_status}'")
+                    errors.append(
+                        f"workflow '{workflow_name}' references undefined status '{to_status}'"
+                    )
 
     return errors
 
