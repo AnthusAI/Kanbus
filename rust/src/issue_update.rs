@@ -137,11 +137,14 @@ pub fn update_issue(
     if assignee.is_some() || claim {
         fields_changed.push("assignee".to_string());
     }
-    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
-        issue_id: updated_issue.identifier.clone(),
-        fields_changed,
-        issue_data: updated_issue.clone(),
-    });
+    let _ = publish_notification(
+        root,
+        NotificationEvent::IssueUpdated {
+            issue_id: updated_issue.identifier.clone(),
+            fields_changed,
+            issue_data: updated_issue.clone(),
+        },
+    );
 
     Ok(updated_issue)
 }

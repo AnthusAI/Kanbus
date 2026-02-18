@@ -127,11 +127,14 @@ pub fn add_comment(
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
-        issue_id: updated.identifier.clone(),
-        fields_changed: vec!["comments".to_string()],
-        issue_data: updated.clone(),
-    });
+    let _ = publish_notification(
+        root,
+        NotificationEvent::IssueUpdated {
+            issue_id: updated.identifier.clone(),
+            fields_changed: vec!["comments".to_string()],
+            issue_data: updated.clone(),
+        },
+    );
 
     Ok(IssueCommentResult {
         issue: updated,
@@ -172,11 +175,14 @@ pub fn update_comment(
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
-        issue_id: issue.identifier.clone(),
-        fields_changed: vec!["comments".to_string()],
-        issue_data: issue.clone(),
-    });
+    let _ = publish_notification(
+        root,
+        NotificationEvent::IssueUpdated {
+            issue_id: issue.identifier.clone(),
+            fields_changed: vec!["comments".to_string()],
+            issue_data: issue.clone(),
+        },
+    );
 
     Ok(issue)
 }
@@ -197,11 +203,14 @@ pub fn delete_comment(
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
-        issue_id: issue.identifier.clone(),
-        fields_changed: vec!["comments".to_string()],
-        issue_data: issue.clone(),
-    });
+    let _ = publish_notification(
+        root,
+        NotificationEvent::IssueUpdated {
+            issue_id: issue.identifier.clone(),
+            fields_changed: vec!["comments".to_string()],
+            issue_data: issue.clone(),
+        },
+    );
 
     Ok(issue)
 }
