@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import {
@@ -12,9 +12,12 @@ import {
   Tag,
   Wrench,
   CornerDownRight,
+  Focus,
   Maximize
 } from "lucide-react";
 import gsap from "gsap";
+import mermaid from "mermaid";
+import plantumlEncoder from "plantuml-encoder";
 import type { Issue, ProjectConfig } from "../types/issues";
 import { Board } from "./Board";
 import { buildIssueColorStyle } from "../utils/issue-colors";
@@ -23,9 +26,25 @@ import { formatIssueId } from "../utils/format-issue-id";
 import { IconButton } from "./IconButton";
 
 const markdownRenderer = new marked.Renderer();
-markdownRenderer.link = (href, title, text) => {
-  const safeTitle = title ? ` title="${title}"` : "";
-  return `<a href="${href}"${safeTitle} target="_blank" rel="noopener noreferrer">${text}</a>`;
+markdownRenderer.link = (token: { href: string; title?: string | null; text: string }) => {
+  const safeTitle = token.title ? ` title="${token.title}"` : "";
+  return `<a href="${token.href}"${safeTitle} target="_blank" rel="noopener noreferrer">${token.text}</a>`;
+};
+markdownRenderer.code = (token: { text: string; lang?: string }) => {
+  if (token.lang === "mermaid") {
+    return `<div class="mermaid">${token.text}</div>`;
+  }
+  if (token.lang === "plantuml") {
+    // Encode PlantUML source - theme will be added dynamically on render
+    const encoded = encodeURIComponent(token.text);
+    return `<div class="plantuml-diagram" data-plantuml-source="${encoded}"></div>`;
+  }
+  if (token.lang === "d2") {
+    // Encode D2 source for client-side rendering via our API
+    const encoded = encodeURIComponent(token.text);
+    return `<div class="d2-diagram" data-d2-source="${encoded}"></div>`;
+  }
+  return `<pre><code class="language-${token.lang || ""}">${token.text}</code></pre>`;
 };
 
 marked.setOptions({
@@ -35,6 +54,8 @@ marked.setOptions({
   headerIds: false,
   renderer: markdownRenderer
 });
+
+// Mermaid will be re-initialized with the current theme when rendering
 
 interface TaskDetailPanelProps {
   task: Issue | null;
@@ -50,6 +71,8 @@ interface TaskDetailPanelProps {
   onToggleMaximize: () => void;
   isMaximized: boolean;
   onAfterClose: () => void;
+  onFocus: (issueId: string) => void;
+  focusedIssueId: string | null;
 }
 
 export function TaskDetailPanel({
@@ -65,7 +88,9 @@ export function TaskDetailPanel({
   onClose,
   onToggleMaximize,
   isMaximized,
-  onAfterClose
+  onAfterClose,
+  onFocus,
+  focusedIssueId
 }: TaskDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -105,14 +130,21 @@ export function TaskDetailPanel({
     setPagePhase("ready");
   }, [task, displayTask, navDirection]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (pagePhase !== "ready") {
       return;
     }
-    const frame = window.requestAnimationFrame(() => {
-      setPagePhase("animating");
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        setPagePhase("animating");
+      });
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+    };
   }, [pagePhase]);
 
   useEffect(() => {
@@ -121,10 +153,17 @@ export function TaskDetailPanel({
       return;
     }
     setPanelOpenActive(false);
-    const frame = window.requestAnimationFrame(() => {
-      setPanelOpenActive(true);
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        setPanelOpenActive(true);
+      });
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -151,6 +190,143 @@ export function TaskDetailPanel({
       }
     );
   }, [displayTask?.id]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const mermaidDivs = el.querySelectorAll(".mermaid:not([data-processed])");
+    if (mermaidDivs.length === 0) return;
+    const nodes = Array.from(mermaidDivs) as HTMLElement[];
+
+    // Detect current theme and initialize Mermaid with it
+    const isDark = document.documentElement.classList.contains("dark");
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: isDark ? "dark" : "default",
+      suppressErrorRendering: true
+    });
+
+    Promise.allSettled(
+      nodes.map(async (node) => {
+        const source = node.textContent ?? "";
+        try {
+          const { svg } = await mermaid.render(`mermaid-${Date.now()}-${Math.random().toString(36).slice(2)}`, source);
+          node.innerHTML = svg;
+          node.dataset.processed = "true";
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          node.innerHTML = `<pre style="color: var(--red-9, #e54d2e); white-space: pre-wrap; font-size: 12px; padding: 8px; border-radius: 6px; background: var(--card-muted, #1a1a1a);">Mermaid error:\n${message}</pre>`;
+          node.dataset.processed = "true";
+        }
+      })
+    );
+  }, [displayTask]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const d2Divs = el.querySelectorAll(".d2-diagram:not([data-processed])");
+    if (d2Divs.length === 0) return;
+    const nodes = Array.from(d2Divs) as HTMLElement[];
+
+    // Detect current theme (light or dark)
+    const isDark = document.documentElement.classList.contains("dark");
+    const theme = isDark ? "dark" : "light";
+
+    Promise.allSettled(
+      nodes.map(async (node) => {
+        const encoded = node.dataset.d2Source;
+        if (!encoded) return;
+        const source = decodeURIComponent(encoded);
+        try {
+          // Use our local D2 rendering endpoint with theme
+          const response = await fetch("/api/render/d2", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source, theme })
+          });
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `D2 render failed: ${response.statusText}`);
+          }
+          const data = await response.json();
+          if (data.svg) {
+            node.innerHTML = data.svg;
+            node.dataset.processed = "true";
+          } else {
+            throw new Error("No SVG returned from D2 API");
+          }
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          const isNotInstalled = message.includes("not installed");
+          node.innerHTML = `<pre style="color: ${isNotInstalled ? 'var(--amber-9, #ffb224)' : 'var(--red-9, #e54d2e)'}; white-space: pre-wrap; font-size: 12px; padding: 8px; border-radius: 6px; background: var(--card-muted, #1a1a1a);">${isNotInstalled ? 'D2 diagram (d2 CLI not installed):\n' + source + '\n\nInstall d2: curl -fsSL https://d2lang.com/install.sh | sh -s --' : 'D2 rendering error:\n' + message}</pre>`;
+          node.dataset.processed = "true";
+        }
+      })
+    );
+  }, [displayTask]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const plantumlDivs = el.querySelectorAll(".plantuml-diagram:not([data-processed])");
+    if (plantumlDivs.length === 0) return;
+    const nodes = Array.from(plantumlDivs) as HTMLElement[];
+
+    // Detect current theme (light or dark)
+    const isDark = document.documentElement.classList.contains("dark");
+
+    nodes.forEach((node) => {
+      const encoded = node.dataset.plantumlSource;
+      if (!encoded) return;
+      const source = decodeURIComponent(encoded);
+
+      // Add theme directive to PlantUML source
+      let themedSource = source;
+      if (isDark) {
+        // For dark mode, add comprehensive skinparam styling
+        if (!source.includes("skinparam")) {
+          themedSource = source.replace(
+            /@startuml/i,
+            `@startuml
+skinparam backgroundColor #1a1a1a
+skinparam DefaultTextColor white
+skinparam DefaultFontColor white
+skinparam ArrowColor white
+skinparam ArrowFontColor white
+skinparam ArrowMessageAlign center
+skinparam ActorBackgroundColor #2a2a2a
+skinparam ActorBorderColor white
+skinparam ActorFontColor white
+skinparam ParticipantBackgroundColor #2a2a2a
+skinparam ParticipantBorderColor white
+skinparam ParticipantFontColor white
+skinparam SequenceBoxBackgroundColor #2a2a2a
+skinparam SequenceBoxBorderColor white
+skinparam SequenceLifeLineBorderColor white
+skinparam SequenceGroupBackgroundColor #2a2a2a
+skinparam SequenceGroupBorderColor white
+skinparam SequenceGroupBodyBackgroundColor #1a1a1a
+skinparam SequenceGroupHeaderFontColor white
+skinparam NoteBorderColor white
+skinparam NoteBackgroundColor #2a2a2a
+skinparam NoteFontColor white
+skinparam SequenceDividerBackgroundColor #2a2a2a
+skinparam SequenceDividerBorderColor white
+skinparam SequenceDividerFontColor white`
+          );
+        }
+      }
+
+      // Encode the themed source
+      const finalEncoded = plantumlEncoder.encode(themedSource);
+      const img = document.createElement("img");
+      img.src = `https://www.plantuml.com/plantuml/svg/${finalEncoded}`;
+      img.alt = "PlantUML diagram";
+      node.appendChild(img);
+      node.dataset.processed = "true";
+    });
+  }, [displayTask]);
 
   const detailTask = displayTask;
 
@@ -197,6 +373,8 @@ export function TaskDetailPanel({
     const subTasks = allIssues.filter(
       (issue) => issue.type === "sub-task" && issue.parent === taskToRender.id
     );
+    const hasChildren = allIssues.some((i) => i.parent === taskToRender.id);
+    const isFocused = focusedIssueId === taskToRender.id;
 
     return (
       <div ref={withRef ? contentRef : null} className="flex flex-col h-full min-h-0">
@@ -231,6 +409,15 @@ export function TaskDetailPanel({
                   {taskToRender.type} · {taskToRender.status}
                 </div>
                 <div className="flex items-center gap-2 translate-x-2">
+                  {hasChildren && (
+                    <IconButton
+                      icon={Focus}
+                      label={isFocused ? "Remove focus" : "Focus on descendants"}
+                      onClick={() => onFocus(taskToRender.id)}
+                      aria-pressed={isFocused}
+                      className={isFocused ? "bg-[var(--card-muted)]" : ""}
+                    />
+                  )}
                   <IconButton
                     icon={Maximize}
                     label={isMaximized ? "Exit full width" : "Fill width"}
@@ -309,7 +496,15 @@ export function TaskDetailPanel({
                       <div className="text-xs text-muted">
                         {formatTimestamp(comment.created_at, config?.time_zone)}
                       </div>
-                      <div className="text-sm text-foreground">{comment.text}</div>
+                      <div
+                        className="issue-description-markdown text-sm text-foreground"
+                        dangerouslySetInnerHTML={{
+                          __html: DOMPurify.sanitize(marked.parse(comment.text), {
+                            USE_PROFILES: { html: true },
+                            ADD_ATTR: ["target", "rel"]
+                          })
+                        }}
+                      />
                     </div>
                   ))
                 )}
@@ -331,7 +526,6 @@ export function TaskDetailPanel({
                   transitionKey={`${taskToRender.id}-${subTasks.length}`}
                 />
               )}
-            </div>
           </div>
         </div>
       </div>
@@ -357,12 +551,14 @@ export function TaskDetailPanel({
             <div
               className={`detail-page outgoing ${pagePhase === "animating" ? "animating" : ""}`}
               data-dir={pageDirection}
+              key={`outgoing-${outgoingTask.id}`}
             >
               {renderDetailContent(outgoingTask, false)}
             </div>
             <div
               className={`detail-page incoming ${pagePhase === "animating" ? "animating" : ""}`}
               data-dir={pageDirection}
+              key={`incoming-${incomingTask.id}`}
               onTransitionEnd={(event) => {
                 if (event.target !== event.currentTarget) {
                   return;

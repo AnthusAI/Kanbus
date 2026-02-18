@@ -7,10 +7,13 @@ use std::io::{self, IsTerminal, Write};
 use std::net::SocketAddr;
 use std::path::Path as StdPath;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
 use std::time::Duration;
 
 use axum::body::Body;
+use axum::body::Bytes;
 use axum::extract::{Path as AxumPath, State};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::StatusCode;
@@ -47,6 +50,7 @@ struct AppState {
     multi_tenant: bool,
     assets_root_explicit: bool,
     telemetry_tx: broadcast::Sender<String>,
+    telemetry_log: Option<Arc<StdMutex<std::fs::File>>>,
 }
 
 #[tokio::main]
@@ -80,6 +84,15 @@ async fn main() {
                 .clone()
                 .map(|root| root.join("apps/console/dist"))
         })
+        .or_else(|| {
+            // Try Kanbus repo location as fallback
+            let kanbus_dist = repo_root.join("apps/console/dist");
+            if kanbus_dist.exists() {
+                Some(kanbus_dist)
+            } else {
+                None
+            }
+        })
         .unwrap_or_else(|| repo_root.join("apps/console/dist"));
 
     let multi_tenant = std::env::var("CONSOLE_TENANT_MODE")
@@ -87,14 +100,16 @@ async fn main() {
         .unwrap_or(false);
 
     let (telemetry_tx, _) = broadcast::channel(256);
+    let telemetry_log = open_telemetry_log(&repo_root);
     let state = AppState {
         base_root: data_root,
-        assets_root,
+        assets_root: assets_root.clone(),
         multi_tenant,
         assets_root_explicit,
         telemetry_tx,
+        telemetry_log,
     };
-    let assets_root = state.assets_root.clone();
+    let _assets_root = state.assets_root.clone();
 
     let app = Router::new()
         .route("/assets/*path", get(get_public_asset))
@@ -102,6 +117,7 @@ async fn main() {
         .route("/api/issues", get(get_issues_root))
         .route("/api/issues/:id", get(get_issue_root))
         .route("/api/events", get(get_events_root))
+        .route("/api/render/d2", post(post_render_d2))
         .route("/api/telemetry/console", post(post_console_telemetry_root))
         .route(
             "/api/telemetry/console/events",
@@ -145,16 +161,11 @@ async fn main() {
     {
         // Verify assets directory exists before starting server
         if !assets_root.exists() {
-            eprintln!(
-                "\nWARNING: Console assets directory not found at {:?}",
-                assets_root
-            );
-            eprintln!("The console UI will not work until you:");
-            eprintln!("1. Build the UI: cd apps/console && npm install && npm run build");
-            eprintln!("2. Set CONSOLE_ASSETS_ROOT to the correct dist directory");
-            eprintln!(
-                "3. Or reinstall with: cargo install kanbus --bin kbsc --features embed-assets\n"
-            );
+            eprintln!("\nNote: Console UI assets not found at {:?}", assets_root);
+            eprintln!("The API will work, but the web UI won't load.");
+            eprintln!("\nTo use the web UI, you can:");
+            eprintln!("1. Set CONSOLE_ASSETS_ROOT=/Users/ryan.porter/Projects/Kanbus/apps/console/dist");
+            eprintln!("2. Or build with embedded assets: cargo build --bin kbsc --features embed-assets --release\n");
         }
         println!(
             "Console backend listening on http://127.0.0.1:{port} (filesystem assets at {:?})",
@@ -405,20 +416,22 @@ async fn get_events_root(
 
 async fn post_console_telemetry_root(
     State(state): State<AppState>,
-    Json(payload): Json<JsonValue>,
+    body: Bytes,
 ) -> StatusCode {
-    let message = build_telemetry_payload(payload, None);
+    let message = build_telemetry_payload(parse_json_body(&body), None);
     let _ = state.telemetry_tx.send(message);
+    write_telemetry_log(&state, &body);
     StatusCode::NO_CONTENT
 }
 
 async fn post_console_telemetry(
     State(state): State<AppState>,
     AxumPath((account, project)): AxumPath<(String, String)>,
-    Json(payload): Json<JsonValue>,
+    body: Bytes,
 ) -> StatusCode {
-    let message = build_telemetry_payload(payload, Some((account, project)));
+    let message = build_telemetry_payload(parse_json_body(&body), Some((account, project)));
     let _ = state.telemetry_tx.send(message);
+    write_telemetry_log(&state, &body);
     StatusCode::NO_CONTENT
 }
 
@@ -464,6 +477,142 @@ fn build_telemetry_payload(payload: JsonValue, tenant: Option<(String, String)>)
         map.insert("payload".to_string(), payload);
     }
     JsonValue::Object(map).to_string()
+}
+
+async fn post_render_d2(body: Bytes) -> Response {
+    // Check if d2 is installed
+    let d2_available = Command::new("which")
+        .arg("d2")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+
+    if !d2_available {
+        return error_response(
+            "D2 CLI not installed. Install from https://d2lang.com",
+            StatusCode::SERVICE_UNAVAILABLE,
+        );
+    }
+
+    // Parse request body to get D2 source
+    let request: JsonValue = match serde_json::from_slice(&body) {
+        Ok(json) => json,
+        Err(_) => return error_response("Invalid JSON", StatusCode::BAD_REQUEST),
+    };
+
+    let source = match request.get("source").and_then(|s| s.as_str()) {
+        Some(s) => s,
+        None => return error_response("Missing 'source' field", StatusCode::BAD_REQUEST),
+    };
+
+    // Get theme from request, default to light theme
+    let theme = request
+        .get("theme")
+        .and_then(|t| t.as_str())
+        .unwrap_or("light");
+
+    eprintln!("D2 render request: theme={}", theme);
+
+    // Prepend neutral gray theme overrides to D2 source
+    let theme_overrides = if theme == "dark" {
+        "vars: {
+  d2-config: {
+    dark-theme-overrides: {
+      N1: \"#ffffff\"
+      N2: \"#cccccc\"
+      N3: \"#999999\"
+      N4: \"#666666\"
+      N5: \"#555555\"
+      N6: \"#333333\"
+      N7: \"#1a1a1a\"
+      B1: \"#ffffff\"
+      B2: \"#dddddd\"
+      B3: \"#bbbbbb\"
+      B4: \"#888888\"
+      B5: \"#666666\"
+      B6: \"#444444\"
+      AA2: \"#cccccc\"
+      AA4: \"#999999\"
+      AA5: \"#777777\"
+      AB4: \"#999999\"
+      AB5: \"#777777\"
+    }
+  }
+}
+
+"
+    } else {
+        ""
+    };
+
+    let full_source = format!("{}{}", theme_overrides, source);
+
+    // Create temp files for input and output with unique names
+    let temp_dir = std::env::temp_dir();
+    let unique_id = format!("{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+    let input_path = temp_dir.join(format!("kanbus_d2_{}.d2", unique_id));
+    let output_path = temp_dir.join(format!("kanbus_d2_{}.svg", unique_id));
+
+    // Write D2 source to temp file
+    if let Err(e) = std::fs::write(&input_path, &full_source) {
+        return error_response(
+            format!("Failed to write temp file: {}", e),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        );
+    }
+
+    // Run d2 to render SVG with neutral theme
+    let mut cmd = Command::new("d2");
+
+    if theme == "dark" {
+        // Dark mode: Use theme 0 with custom neutral gray palette overrides
+        cmd.arg("--dark-theme").arg("0");
+    } else {
+        // Light mode: Use theme 1 (Neutral Grey) - works perfectly as-is
+        cmd.arg("--theme").arg("1");
+    }
+
+    cmd.arg(input_path.to_str().unwrap_or(""));
+    cmd.arg(output_path.to_str().unwrap_or(""));
+    let output = cmd.output();
+
+    // Clean up input file
+    let _ = std::fs::remove_file(&input_path);
+
+    match output {
+        Ok(result) if result.status.success() => {
+            // Read the SVG output
+            match std::fs::read_to_string(&output_path) {
+                Ok(svg) => {
+                    let _ = std::fs::remove_file(&output_path);
+                    let response_json = serde_json::json!({ "svg": svg });
+                    Json(response_json).into_response()
+                }
+                Err(e) => {
+                    let _ = std::fs::remove_file(&output_path);
+                    error_response(
+                        format!("Failed to read SVG output: {}", e),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                }
+            }
+        }
+        Ok(result) => {
+            let _ = std::fs::remove_file(&output_path);
+            let stderr = String::from_utf8_lossy(&result.stderr);
+            error_response(
+                format!("D2 rendering failed: {}", stderr),
+                StatusCode::BAD_REQUEST,
+            )
+        }
+        Err(e) => {
+            let _ = std::fs::remove_file(&output_path);
+            error_response(
+                format!("Failed to execute d2: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        }
+    }
 }
 
 fn store_for(state: &AppState, account: &str, project: &str) -> FileStore {
@@ -526,10 +675,94 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
     hasher.finish()
 }
 
+fn open_telemetry_log(repo_root: &PathBuf) -> Option<Arc<StdMutex<std::fs::File>>> {
+    let log_path = std::env::var("CONSOLE_LOG_PATH")
+        .ok()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo_root.join("console.log"));
+    if let Some(parent) = log_path.parent() {
+        if let Err(error) = std::fs::create_dir_all(parent) {
+            eprintln!("[console] failed to create log dir: {error}");
+            return None;
+        }
+    }
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        Ok(file) => {
+            let wrapped = Arc::new(StdMutex::new(file));
+            if let Err(error) = write_log_line(&wrapped, &format!(
+                "{{\"type\":\"startup\",\"at\":\"{}\",\"logPath\":\"{}\"}}",
+                chrono::Utc::now().to_rfc3339(),
+                log_path.display()
+            )) {
+                eprintln!("[console] failed to write startup log: {error}");
+            }
+            Some(wrapped)
+        }
+        Err(error) => {
+            eprintln!("[console] failed to open log file: {error}");
+            None
+        }
+    }
+}
+
+fn write_telemetry_log(state: &AppState, body: &Bytes) {
+    let Some(handle) = &state.telemetry_log else {
+        return;
+    };
+    let line = String::from_utf8_lossy(body);
+    let sanitized = line.trim();
+    let payload = if sanitized.is_empty() {
+        format!(
+            "{{\"type\":\"telemetry\",\"at\":\"{}\",\"payload\":null}}",
+            chrono::Utc::now().to_rfc3339()
+        )
+    } else {
+        format!(
+            "{{\"type\":\"telemetry\",\"at\":\"{}\",\"payload\":{}}}",
+            chrono::Utc::now().to_rfc3339(),
+            sanitized
+        )
+    };
+    if let Err(error) = write_log_line(handle, &payload) {
+        eprintln!("[console] failed to write telemetry log: {error}");
+    }
+}
+
+fn write_log_line(handle: &Arc<StdMutex<std::fs::File>>, line: &str) -> io::Result<()> {
+    let mut guard = handle.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    writeln!(guard, "{line}")?;
+    guard.flush()
+}
+
+fn parse_json_body(body: &Bytes) -> JsonValue {
+    if body.is_empty() {
+        return JsonValue::Null;
+    }
+    serde_json::from_slice(body).unwrap_or_else(|_| JsonValue::String(String::from_utf8_lossy(body).to_string()))
+}
+
 fn resolve_repo_root() -> PathBuf {
-    // Always anchor to the workspace root (one level above the `rust/` crate).
-    // `CARGO_MANIFEST_DIR` points at `.../Kanbus/rust`, so walk up a parent to
-    // find the repo root regardless of where the binary is launched from.
+    // Start from current directory and walk up to find .kanbus.yml
+    // This allows kbsc to work both when run from a project root
+    // and when run via cargo from a subdirectory (like rust/)
+    let current = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+
+    let mut path = current.as_path();
+    loop {
+        if path.join(".kanbus.yml").exists() {
+            return path.to_path_buf();
+        }
+        match path.parent() {
+            Some(parent) => path = parent,
+            None => break,
+        }
+    }
+
+    // Fallback to compile-time root if .kanbus.yml not found
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .map(PathBuf::from)
