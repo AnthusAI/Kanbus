@@ -116,10 +116,13 @@ pub fn create_beads_issue(
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(root, NotificationEvent::IssueCreated {
-        issue_id: issue.identifier.clone(),
-        issue_data: issue.clone(),
-    });
+    let _ = publish_notification(
+        root,
+        NotificationEvent::IssueCreated {
+            issue_id: issue.identifier.clone(),
+            issue_data: issue.clone(),
+        },
+    );
 
     Ok(issue)
 }
@@ -431,11 +434,14 @@ pub fn update_beads_issue(
     if description.is_some() {
         fields_changed.push("description".to_string());
     }
-    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
-        issue_id: updated_issue.identifier.clone(),
-        fields_changed,
-        issue_data: updated_issue.clone(),
-    });
+    let _ = publish_notification(
+        root,
+        NotificationEvent::IssueUpdated {
+            issue_id: updated_issue.identifier.clone(),
+            fields_changed,
+            issue_data: updated_issue.clone(),
+        },
+    );
 
     Ok(updated_issue)
 }
@@ -518,9 +524,12 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(root, NotificationEvent::IssueDeleted {
-        issue_id: identifier.to_string(),
-    });
+    let _ = publish_notification(
+        root,
+        NotificationEvent::IssueDeleted {
+            issue_id: identifier.to_string(),
+        },
+    );
 
     Ok(())
 }

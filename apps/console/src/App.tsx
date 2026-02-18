@@ -714,8 +714,9 @@ export default function App() {
   }, [route, snapshot, viewMode]);
 
   const fallbackViewMode = route.parentId ? null : "issues";
-  const resolvedViewMode =
-    routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
+  const resolvedViewMode = route.parentId
+    ? null
+    : routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
 
   useEffect(() => {
     setRouteError(routeContext.error);
