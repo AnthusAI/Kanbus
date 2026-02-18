@@ -30,8 +30,8 @@ pub fn extract_code_blocks(text: &str) -> Vec<CodeBlock> {
     for (index, line) in text.lines().enumerate() {
         let trimmed = line.trim();
         if !in_block {
-            if trimmed.starts_with("```") {
-                let language = trimmed[3..].trim().to_string();
+            if let Some(stripped) = trimmed.strip_prefix("```") {
+                let language = stripped.trim().to_string();
                 in_block = true;
                 current_language = language;
                 current_content.clear();
