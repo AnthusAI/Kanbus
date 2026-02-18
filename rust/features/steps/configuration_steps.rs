@@ -144,18 +144,20 @@ fn given_repo_missing_default_priority(world: &mut KanbusWorld) {
 fn given_repo_bright_white_status_color(world: &mut KanbusWorld) {
     initialize_project(world);
     update_config_file(world, |mapping| {
-        let status_colors_key = Value::String("status_colors".to_string());
-        let mut colors = mapping
-            .get(&status_colors_key)
-            .cloned()
-            .unwrap_or_else(|| Value::Mapping(serde_yaml::Mapping::new()));
-        if let Some(color_map) = colors.as_mapping_mut() {
-            color_map.insert(
+        let statuses_key = Value::String("statuses".to_string());
+        let statuses = Value::Sequence(vec![Value::Mapping({
+            let mut status_map = serde_yaml::Mapping::new();
+            status_map.insert(
+                Value::String("name".to_string()),
                 Value::String("open".to_string()),
+            );
+            status_map.insert(
+                Value::String("color".to_string()),
                 Value::String("bright_white".to_string()),
             );
-        }
-        mapping.insert(status_colors_key, colors);
+            status_map
+        })]);
+        mapping.insert(statuses_key, statuses);
     });
 }
 
@@ -163,18 +165,20 @@ fn given_repo_bright_white_status_color(world: &mut KanbusWorld) {
 fn given_repo_invalid_status_color(world: &mut KanbusWorld) {
     initialize_project(world);
     update_config_file(world, |mapping| {
-        let status_colors_key = Value::String("status_colors".to_string());
-        let mut colors = mapping
-            .get(&status_colors_key)
-            .cloned()
-            .unwrap_or_else(|| Value::Mapping(serde_yaml::Mapping::new()));
-        if let Some(color_map) = colors.as_mapping_mut() {
-            color_map.insert(
+        let statuses_key = Value::String("statuses".to_string());
+        let statuses = Value::Sequence(vec![Value::Mapping({
+            let mut status_map = serde_yaml::Mapping::new();
+            status_map.insert(
+                Value::String("name".to_string()),
                 Value::String("open".to_string()),
+            );
+            status_map.insert(
+                Value::String("color".to_string()),
                 Value::String("invalid-color".to_string()),
             );
-        }
-        mapping.insert(status_colors_key, colors);
+            status_map
+        })]);
+        mapping.insert(statuses_key, statuses);
     });
 }
 

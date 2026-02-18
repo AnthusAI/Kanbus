@@ -1,5 +1,11 @@
 export type WorkflowDefinition = Record<string, string[]>;
 
+export interface StatusDefinition {
+  name: string;
+  color?: string | null;
+  collapsed?: boolean;
+}
+
 export interface PriorityDefinition {
   name: string;
   color?: string | null;
@@ -17,7 +23,7 @@ export interface ProjectConfig {
   default_priority: number;
   assignee?: string | null;
   time_zone?: string | null;
-  status_colors: Record<string, string>;
+  statuses: StatusDefinition[];
   type_colors: Record<string, string>;
   beads_compatibility: boolean;
 }

@@ -111,11 +111,12 @@ def format_issue_for_display(
     """
     color_output = _should_use_color() if use_color is None else use_color
 
-    status_colors = (
-        {**DEFAULT_STATUS_COLORS, **configuration.status_colors}
-        if configuration
-        else DEFAULT_STATUS_COLORS
-    )
+    # Build status_colors from statuses list
+    status_colors = DEFAULT_STATUS_COLORS.copy()
+    if configuration:
+        for status_def in configuration.statuses:
+            if status_def.color:
+                status_colors[status_def.name] = status_def.color
     priority_colors: Dict[int, str] = DEFAULT_PRIORITY_COLORS
     if configuration:
         priority_colors = priority_colors.copy()

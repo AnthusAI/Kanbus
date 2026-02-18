@@ -41,13 +41,13 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "default_priority": 2,
     "assignee": None,
     "time_zone": None,
-    "status_colors": {
-        "open": "cyan",
-        "in_progress": "blue",
-        "blocked": "red",
-        "closed": "green",
-        "deferred": "yellow",
-    },
+    "statuses": [
+        {"name": "open", "color": "cyan", "collapsed": False},
+        {"name": "in_progress", "color": "blue", "collapsed": False},
+        {"name": "blocked", "color": "red", "collapsed": True},
+        {"name": "closed", "color": "green", "collapsed": True},
+        {"name": "deferred", "color": "yellow", "collapsed": True},
+    ],
     "type_colors": {
         "initiative": "bright_blue",
         "epic": "magenta",

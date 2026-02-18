@@ -82,7 +82,8 @@ function buildRadixVariable(name: string, scale: string): string {
 
 function resolveAccentColor(config: ProjectConfig, issue: Issue): string | null {
   const typeColor = config.type_colors[issue.type];
-  const statusColor = config.status_colors[issue.status];
+  const statusDef = config.statuses.find((s) => s.name === issue.status);
+  const statusColor = statusDef?.color ?? null;
   const priorityColor = config.priorities[issue.priority]?.color ?? null;
   return resolveRadixColorName(typeColor ?? statusColor ?? priorityColor ?? null);
 }

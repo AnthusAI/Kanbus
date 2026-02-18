@@ -19,7 +19,7 @@ types:
 workflows:
   default:
     backlog: [open, closed]
-    open: [in_progress, closed, deferred]
+    open: [in_progress, closed, backlog]
     in_progress: [open, blocked, closed]
     blocked: [in_progress, closed]
     closed: [open]
@@ -28,14 +28,20 @@ workflows:
     in_progress: [open, closed]
     closed: [open]
 
-# Status colors (per workflow states)
-status_colors:
-  backlog: yellow
-
-  open: cyan
-  in_progress: blue
-  blocked: red
-  closed: green
+statuses:
+  - name: backlog
+    color: yellow
+    collapsed: true
+  - name: open
+    color: cyan
+  - name: in_progress
+    color: blue
+  - name: blocked
+    color: red
+    collapsed: true
+  - name: closed
+    color: green
+    collapsed: true
 
 initial_status: open
 priorities:

@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useRef } from "react";
 import type { Issue, ProjectConfig } from "../types/issues";
 import { buildIssueColorStyle } from "../utils/issue-colors";
 import { formatIssueId } from "../utils/format-issue-id";
@@ -12,7 +12,7 @@ interface IssueCardProps {
   isSelected?: boolean;
 }
 
-function IssueCardComponent({
+export function IssueCard({
   issue,
   priorityName,
   config,
@@ -20,12 +20,6 @@ function IssueCardComponent({
   isSelected
 }: IssueCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    if (cardRef.current) {
-      cardRef.current.classList.add("issue-animate-seed");
-    }
-  }, []);
 
   const handleClick = () => {
     if (onSelect) {
@@ -73,5 +67,3 @@ function IssueCardComponent({
     </div>
   );
 }
-
-export const IssueCard = React.memo(IssueCardComponent);

@@ -69,12 +69,21 @@ pub struct ProjectConfiguration {
     pub assignee: Option<String>,
     #[serde(default)]
     pub time_zone: Option<String>,
-    #[serde(default)]
-    pub status_colors: BTreeMap<String, String>,
+    pub statuses: Vec<StatusDefinition>,
     #[serde(default)]
     pub type_colors: BTreeMap<String, String>,
     #[serde(default)]
     pub beads_compatibility: bool,
+}
+
+/// Status definition with display metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StatusDefinition {
+    pub name: String,
+    #[serde(default)]
+    pub color: Option<String>,
+    #[serde(default)]
+    pub collapsed: bool,
 }
 
 /// Priority definition containing label and optional color.

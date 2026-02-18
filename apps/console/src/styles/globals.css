@@ -741,3 +741,27 @@ html[data-motion="reduced"] .detail-page {
     padding: 0 !important;
   }
 }
+
+/* Descendant links */
+.descendant-link {
+  border-left: 2px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.descendant-link:hover {
+  border-left-color: var(--issue-accent-light, var(--text-muted));
+}
+
+.descendant-link:focus-visible {
+  outline: 2px solid var(--issue-accent-light);
+  outline-offset: 2px;
+  border-left-color: var(--issue-accent-light);
+}
+
+.descendant-link[data-status="closed"] {
+  opacity: 0.65;
+}
+
+.descendant-link[data-status="closed"] .text-foreground {
+  text-decoration: line-through;
+}

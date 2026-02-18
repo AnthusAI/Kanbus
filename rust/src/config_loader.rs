@@ -86,6 +86,52 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
         errors.push("default priority must be in priorities map".to_string());
     }
 
+    // Validate statuses
+    if configuration.statuses.is_empty() {
+        errors.push("statuses must not be empty".to_string());
+    }
+
+    // Check for duplicate status names
+    let mut status_names = std::collections::HashSet::new();
+    for status in &configuration.statuses {
+        if !status_names.insert(&status.name) {
+            errors.push("duplicate status name".to_string());
+            break;
+        }
+    }
+
+    // Build set of valid status names
+    let valid_statuses: std::collections::HashSet<&String> =
+        configuration.statuses.iter().map(|s| &s.name).collect();
+
+    // Validate that initial_status exists in statuses
+    if !valid_statuses.contains(&configuration.initial_status) {
+        errors.push(format!(
+            "initial_status '{}' must exist in statuses",
+            configuration.initial_status
+        ));
+    }
+
+    // Validate that all workflow states exist in statuses
+    for (workflow_name, workflow) in &configuration.workflows {
+        for (from_status, transitions) in workflow {
+            if !valid_statuses.contains(from_status) {
+                errors.push(format!(
+                    "workflow '{}' references undefined status '{}'",
+                    workflow_name, from_status
+                ));
+            }
+            for to_status in transitions {
+                if !valid_statuses.contains(to_status) {
+                    errors.push(format!(
+                        "workflow '{}' references undefined status '{}'",
+                        workflow_name, to_status
+                    ));
+                }
+            }
+        }
+    }
+
     errors
 }
 

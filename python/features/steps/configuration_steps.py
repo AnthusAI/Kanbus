@@ -317,8 +317,7 @@ def given_repo_with_bright_white_status_color(context: object) -> None:
     initialize_default_project(context)
     repository = Path(context.working_directory)
     payload = copy.deepcopy(DEFAULT_CONFIGURATION)
-    payload.setdefault("status_colors", {})
-    payload["status_colors"]["open"] = "bright_white"
+    payload["statuses"] = [{"name": "open", "color": "bright_white"}]
     (repository / ".kanbus.yml").write_text(
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",
@@ -330,8 +329,7 @@ def given_repo_with_invalid_status_color(context: object) -> None:
     initialize_default_project(context)
     repository = Path(context.working_directory)
     payload = copy.deepcopy(DEFAULT_CONFIGURATION)
-    payload.setdefault("status_colors", {})
-    payload["status_colors"]["open"] = "invalid-color"
+    payload["statuses"] = [{"name": "open", "color": "invalid-color"}]
     (repository / ".kanbus.yml").write_text(
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",

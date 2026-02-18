@@ -177,10 +177,14 @@ fn parse_color(name: &str) -> Option<AnsiColors> {
 
 fn status_color(status: &str, configuration: Option<&ProjectConfiguration>) -> Option<AnsiColors> {
     if let Some(config) = configuration {
-        if let Some(color) = config.status_colors.get(status) {
-            return parse_color(color);
+        // Look up color from statuses list
+        if let Some(status_def) = config.statuses.iter().find(|s| s.name == status) {
+            if let Some(color) = &status_def.color {
+                return parse_color(color);
+            }
         }
     }
+    // Fallback to default colors
     parse_color(match status {
         "open" => "cyan",
         "in_progress" => "blue",
