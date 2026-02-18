@@ -140,8 +140,14 @@ async fn main() {
         .route("/:account/:project/api/issues", get(get_issues))
         .route("/:account/:project/api/issues/:id", get(get_issue))
         .route("/:account/:project/api/events", get(get_events))
-        .route("/:account/:project/api/events/realtime", get(get_realtime_events))
-        .route("/:account/:project/api/notifications", post(post_notification))
+        .route(
+            "/:account/:project/api/events/realtime",
+            get(get_realtime_events),
+        )
+        .route(
+            "/:account/:project/api/notifications",
+            post(post_notification),
+        )
         .route(
             "/:account/:project/api/telemetry/console",
             post(post_console_telemetry),
@@ -988,10 +994,7 @@ async fn listen_on_socket(
     }
 
     let listener = UnixListener::bind(&socket_path)?;
-    println!(
-        "Notification socket listening at {}",
-        socket_path.display()
-    );
+    println!("Notification socket listening at {}", socket_path.display());
 
     loop {
         match listener.accept().await {
