@@ -27,12 +27,12 @@ export function BoardColumn({
   if (collapsed) {
     return (
       <div
-        className="kb-column flex flex-col h-full min-h-0 cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+        className="kb-column flex flex-col items-start h-full min-h-0 cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
         style={{ minWidth: "48px", maxWidth: "48px" }}
         onClick={onToggleCollapse}
         title={`${title.replace(/_/g, " ")} (${issues.length}) - Click to expand`}
       >
-        <div className="h-7 flex items-center justify-center px-2">
+        <div className="h-7 flex items-center justify-center px-2 w-full">
           <span className="text-xs font-semibold">{issues.length}</span>
         </div>
         <div className="flex flex-col items-center mt-1 px-2">
