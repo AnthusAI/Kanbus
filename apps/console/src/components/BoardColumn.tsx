@@ -32,7 +32,7 @@ export function BoardColumn({
         onClick={onToggleCollapse}
         title={`${title.replace(/_/g, " ")} (${issues.length}) - Click to expand`}
       >
-        <div className="flex flex-col items-center justify-start pt-3 px-2">
+        <div className="flex flex-col items-center pt-3 px-2">
           <span className="text-xs font-semibold mb-2">{issues.length}</span>
           <span
             className="text-xs font-semibold uppercase tracking-wider"
