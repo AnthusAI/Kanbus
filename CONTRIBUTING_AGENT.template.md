@@ -33,7 +33,7 @@ Diagrams must use fenced code blocks with the appropriate language identifier:
 ```d2
 
 Direct file system access is strictly forbidden:
-- Do not edit project/ or .beads/ directories directly
+- Do not edit the project/ directory directly
 - Do not read issue JSON with tools like cat, jq, or grep
 - Do not inspect the file system structure
 - All work must pass through the kbs command
