@@ -181,6 +181,30 @@ Feature: Code block syntax validation
       """
     Then the command should succeed
 
+  Scenario: PlantUML validation succeeds when validator returns success
+    Given a Kanbus project with default configuration
+    And external validator "plantuml" is available and returns success
+    When I create an issue with description containing:
+      """
+      ```plantuml
+      @startuml
+      Alice -> Bob: Hi
+      @enduml
+      ```
+      """
+    Then the command should succeed
+
+  Scenario: D2 validation succeeds when validator returns success
+    Given a Kanbus project with default configuration
+    And external validator "d2" is available and returns success
+    When I create an issue with description containing:
+      """
+      ```d2
+      a -> b
+      ```
+      """
+    Then the command should succeed
+
   Scenario: Mermaid validation skipped on timeout
     Given a Kanbus project with default configuration
     And external validator "mmdc" times out

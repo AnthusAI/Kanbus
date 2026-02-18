@@ -3,7 +3,7 @@
   "title": "Fix crash on startup",
   "description": "Handle missing config",
   "type": "bug",
-  "status": "blocked",
+  "status": "open",
   "priority": 0,
   "assignee": "dev@example.com",
   "creator": "System",
