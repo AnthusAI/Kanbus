@@ -42,7 +42,10 @@ pub fn publish_notification(root: &Path, event: NotificationEvent) -> Result<(),
 }
 
 /// Synchronously send notification via Unix domain socket.
-fn send_notification_sync(socket_path: &Path, event: &NotificationEvent) -> Result<(), KanbusError> {
+fn send_notification_sync(
+    socket_path: &Path,
+    event: &NotificationEvent,
+) -> Result<(), KanbusError> {
     // Try to connect to the Unix socket
     let mut stream = UnixStream::connect(socket_path).map_err(|e| {
         KanbusError::IssueOperation(format!(

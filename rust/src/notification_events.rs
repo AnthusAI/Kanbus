@@ -20,9 +20,7 @@ pub enum NotificationEvent {
         issue_data: IssueData,
     },
     /// An issue was deleted.
-    IssueDeleted {
-        issue_id: String,
-    },
+    IssueDeleted { issue_id: String },
     /// An issue was focused (for UI highlighting).
     IssueFocused {
         issue_id: String,
@@ -30,9 +28,7 @@ pub enum NotificationEvent {
         user: Option<String>,
     },
     /// UI control command to manipulate console UI state.
-    UiControl {
-        action: UiControlAction,
-    },
+    UiControl { action: UiControlAction },
 }
 
 /// UI control actions that can be sent to the console frontend.
@@ -42,13 +38,9 @@ pub enum UiControlAction {
     /// Clear the current focus filter.
     ClearFocus,
     /// Switch to a different view mode.
-    SetViewMode {
-        mode: String,
-    },
+    SetViewMode { mode: String },
     /// Set the search query filter.
-    SetSearch {
-        query: String,
-    },
+    SetSearch { query: String },
     /// Maximize the detail panel.
     MaximizeDetail,
     /// Restore the detail panel to normal size.
@@ -58,22 +50,13 @@ pub enum UiControlAction {
     /// Toggle the settings panel.
     ToggleSettings,
     /// Update a specific setting value.
-    SetSetting {
-        key: String,
-        value: String,
-    },
+    SetSetting { key: String, value: String },
     /// Collapse a board column.
-    CollapseColumn {
-        column_name: String,
-    },
+    CollapseColumn { column_name: String },
     /// Expand a board column.
-    ExpandColumn {
-        column_name: String,
-    },
+    ExpandColumn { column_name: String },
     /// Select and navigate to an issue.
-    SelectIssue {
-        issue_id: String,
-    },
+    SelectIssue { issue_id: String },
 }
 
 impl NotificationEvent {
@@ -94,7 +77,11 @@ impl NotificationEvent {
             NotificationEvent::IssueCreated { issue_id, .. } => {
                 format!("Issue {} created", issue_id)
             }
-            NotificationEvent::IssueUpdated { issue_id, fields_changed, .. } => {
+            NotificationEvent::IssueUpdated {
+                issue_id,
+                fields_changed,
+                ..
+            } => {
                 if fields_changed.is_empty() {
                     format!("Issue {} updated", issue_id)
                 } else {
