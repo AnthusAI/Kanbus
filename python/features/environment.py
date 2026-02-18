@@ -111,6 +111,15 @@ def after_scenario(context: object, scenario: object) -> None:
         daemon_client.send_request = original_send_request
         context.original_send_request = None
 
+    original_validate_status_value = getattr(
+        context, "original_validate_status_value", None
+    )
+    if original_validate_status_value is not None:
+        import kanbus.issue_creation as issue_creation
+
+        issue_creation.validate_status_value = original_validate_status_value
+        context.original_validate_status_value = None
+
     original_daemon_socket = getattr(context, "original_daemon_socket", None)
     if original_daemon_socket is not None:
         import kanbus.daemon_client as daemon_client

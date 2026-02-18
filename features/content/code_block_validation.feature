@@ -193,6 +193,15 @@ Feature: Code block syntax validation
       """
     Then the code block validation should succeed
 
+  Scenario: Unknown external validator is ignored
+    Given a Kanbus project with default configuration
+    And external validator "unknown-tool" is available and returns success
+    When I validate external tool "unknown-tool" directly with content:
+      """
+      some content
+      """
+    Then the code block validation should succeed
+
   # --- Comment validation ---
 
   Scenario: Comment with invalid JSON code block fails

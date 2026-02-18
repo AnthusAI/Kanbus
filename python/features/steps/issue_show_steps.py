@@ -160,3 +160,21 @@ def given_issue_comment_no_id(
     )
     issue = issue.model_copy(update={"comments": [comment]})
     write_issue_file(project_dir, issue)
+
+
+@given(
+    'issue "{identifier}" has a comment from "{author}" with text "{text}" and id "{comment_id}"'
+)
+def given_issue_comment_with_id(
+    context: object, identifier: str, author: str, text: str, comment_id: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    comment = IssueComment(
+        id=comment_id,
+        author=author,
+        text=text,
+        created_at=datetime(2026, 2, 11, tzinfo=timezone.utc),
+    )
+    issue = issue.model_copy(update={"comments": [comment]})
+    write_issue_file(project_dir, issue)

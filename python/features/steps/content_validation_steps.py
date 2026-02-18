@@ -9,7 +9,12 @@ import subprocess
 from behave import given, then, when
 
 from features.steps.shared import run_cli
-from kanbus.content_validation import ContentValidationError, validate_code_blocks
+from kanbus.content_validation import (
+    CodeBlock,
+    ContentValidationError,
+    _validate_external,
+    validate_code_blocks,
+)
 
 
 @given('external validator "{tool}" is not available')
@@ -152,3 +157,13 @@ def then_code_block_validation_fails(context: object, message: str) -> None:
     error = getattr(context, "validation_error", None)
     assert error is not None
     assert message in str(error)
+
+
+@when('I validate external tool "{tool}" directly with content:')
+def when_validate_external_tool_directly(context: object, tool: str) -> None:
+    block = CodeBlock(language=tool, content=context.text.strip(), start_line=1)
+    try:
+        _validate_external(block, tool)
+        context.validation_error = None
+    except ContentValidationError as error:
+        context.validation_error = error

@@ -310,6 +310,47 @@ def given_invalid_config_unknown_initial_status(context: object) -> None:
     )
 
 
+@given("a Kanbus repository with a .kanbus.yml file containing empty statuses")
+def given_invalid_config_empty_statuses(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["statuses"] = []
+    (repository / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given("a Kanbus repository with a .kanbus.yml file containing duplicate status names")
+def given_invalid_config_duplicate_statuses(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["statuses"] = [
+        {"name": "open", "color": "cyan"},
+        {"name": "open", "color": "cyan"},
+    ]
+    (repository / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given(
+    "a Kanbus repository with a .kanbus.yml file containing workflow statuses not in the status list"
+)
+def given_invalid_config_workflow_statuses(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["statuses"] = [{"name": "open", "color": "cyan"}]
+    (repository / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 @given(
     "a Kanbus repository with a .kanbus.yml file containing a bright white status color"
 )
