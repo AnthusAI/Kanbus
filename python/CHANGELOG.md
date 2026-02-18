@@ -2,6 +2,64 @@
 
 <!-- version list -->
 
+## v0.8.0 (2026-02-18)
+
+### Bug Fixes
+
+- Align rust fmt and context routes
+  ([`fb41683`](https://github.com/AnthusAI/Kanbus/commit/fb41683de27d9d92f75df5c0466581f6b5a1204c))
+
+- Align rust notification formatting
+  ([`f4270c4`](https://github.com/AnthusAI/Kanbus/commit/f4270c4a396b62e29b38dfe5ac30cbb77f9444b8))
+
+- Avoid clippy useless vec
+  ([`4d38921`](https://github.com/AnthusAI/Kanbus/commit/4d389212f9ef185723a5e84b5e7c06b9671ad5ca))
+
+- Preserve view mode state across navigation (tskl-m59.11)
+  ([`830748b`](https://github.com/AnthusAI/Kanbus/commit/830748b08636cd3f675db9e3a9ef666987014961))
+
+- Remove auto-scroll to top when opening kanban board
+  ([`0c51d30`](https://github.com/AnthusAI/Kanbus/commit/0c51d3077ebf4765ed84542a7c16b935da8c44ab))
+
+### Chores
+
+- Rustfmt notification updates
+  ([`eac1f6d`](https://github.com/AnthusAI/Kanbus/commit/eac1f6db34808b104b0930a4ddd549e343467b7c))
+
+### Continuous Integration
+
+- Pin cargo-tarpaulin version
+  ([`39dc559`](https://github.com/AnthusAI/Kanbus/commit/39dc559fbeb25b30e4018c06bcd1667b69cbb8eb))
+
+- Use ptrace tarpaulin engine
+  ([`efbd3c2`](https://github.com/AnthusAI/Kanbus/commit/efbd3c2e37fb30c26fec8869ab858086969afac9))
+
+### Documentation
+
+- Add real-time UI control guidance for agents
+  ([`049ada2`](https://github.com/AnthusAI/Kanbus/commit/049ada2defed498d05cfe150e3bf09e38880c957))
+
+### Features
+
+- Add --focus flag to auto-focus newly created issues (tskl-e7j.1)
+  ([`9b8e7bc`](https://github.com/AnthusAI/Kanbus/commit/9b8e7bc9ccb84e5c884c7b2ad6e9fec06289c900))
+
+- Add unfocus and view mode CLI commands (tskl-m59.1, tskl-m59.2)
+  ([`85d1498`](https://github.com/AnthusAI/Kanbus/commit/85d1498ee36ee24f9c75330e176036839403da95))
+
+- Add visual feedback for real-time updates (tskl-e7j.7)
+  ([`5da225d`](https://github.com/AnthusAI/Kanbus/commit/5da225d595b5538685d1d93b82bc5723de224c81))
+
+- Complete programmatic UI control CLI commands (tskl-m59)
+  ([`390c948`](https://github.com/AnthusAI/Kanbus/commit/390c94885f077e08466e61f296445f60479f7d6b))
+
+- Implement global keyword search (tskl-dvi.1)
+  ([`c376045`](https://github.com/AnthusAI/Kanbus/commit/c376045b0b8388b4a990f34a9f7b2dfd025fa5cf))
+
+- Implement real-time issue focus and notification system (tskl-e7j)
+  ([`8abf325`](https://github.com/AnthusAI/Kanbus/commit/8abf3259e0b2e0869bb63238cbbee93a034625bd))
+
+
 ## v0.7.0 (2026-02-18)
 
 ### Bug Fixes
