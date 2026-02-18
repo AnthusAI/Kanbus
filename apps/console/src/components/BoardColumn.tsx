@@ -35,7 +35,7 @@ export function BoardColumn({
         <div className="h-7 flex items-center justify-center px-2 w-full">
           <span className="text-xs font-semibold">{issues.length}</span>
         </div>
-        <div className="flex flex-col items-center mt-1 px-2">
+        <div className="flex flex-col items-center mt-1 px-2 w-full">
           <span
             className="text-xs font-semibold uppercase tracking-wider"
             style={{
