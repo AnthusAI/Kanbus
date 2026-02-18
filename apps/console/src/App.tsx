@@ -817,6 +817,7 @@ export default function App() {
     // Use non-deferred issues when search is active for immediate feedback
     const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
     let result = sourceIssues;
+    const hasSearchQuery = searchQuery.trim().length > 0;
 
     if (focusedIssueId) {
       const ids = collectDescendants(sourceIssues, focusedIssueId);
@@ -828,6 +829,10 @@ export default function App() {
       result = sourceIssues.filter((issue) => ids.has(issue.id));
     } else if (route.parentId) {
       result = [];
+    } else if (hasSearchQuery) {
+      // Global search: search across ALL issues regardless of view mode
+      // This implements the Gherkin spec in tskl-dvi.1
+      result = sourceIssues;
     } else if (resolvedViewMode === "initiatives") {
       result = sourceIssues.filter((issue) => issue.type === "initiative");
     } else if (resolvedViewMode === "epics") {
@@ -841,8 +846,8 @@ export default function App() {
       );
     }
 
-    // Apply search filter last
-    if (searchQuery.trim()) {
+    // Apply search filter
+    if (hasSearchQuery) {
       result = result.filter((issue) => matchesSearchQuery(issue, searchQuery));
     }
 
