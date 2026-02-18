@@ -15,5 +15,14 @@ use crate::issue_lookup::load_issue_from_project;
 /// Returns `KanbusError` if deletion fails.
 pub fn delete_issue(root: &Path, identifier: &str) -> Result<(), KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
-    std::fs::remove_file(&lookup.issue_path).map_err(|error| KanbusError::Io(error.to_string()))
+    let issue_id = lookup.issue.identifier.clone();
+
+    std::fs::remove_file(&lookup.issue_path).map_err(|error| KanbusError::Io(error.to_string()))?;
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let _ = publish_notification(root, NotificationEvent::IssueDeleted { issue_id });
+
+    Ok(())
 }

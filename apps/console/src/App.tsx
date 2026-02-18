@@ -16,7 +16,12 @@ import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { AnimatedSelector } from "@kanbus/ui";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
-import { fetchSnapshot, subscribeToSnapshots } from "./api/client";
+import {
+  fetchSnapshot,
+  subscribeToSnapshots,
+  subscribeToNotifications,
+  type NotificationEvent,
+} from "./api/client";
 import { installConsoleTelemetry } from "./utils/console-telemetry";
 import { matchesSearchQuery } from "./utils/issue-search";
 import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
@@ -456,6 +461,50 @@ export default function App() {
     };
   }, [route.basePath]);
 
+  // Real-time notification subscription
+  useEffect(() => {
+    const apiBase = `${route.basePath}/api`;
+    const unsubscribe = subscribeToNotifications(
+      apiBase,
+      (event: NotificationEvent) => {
+        switch (event.type) {
+          case "issue_focused":
+            setFocusedIssueId(event.issue_id);
+            break;
+          case "issue_created":
+          case "issue_updated":
+          case "issue_deleted":
+            // Trigger immediate snapshot refresh for CRUD operations
+            fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+            break;
+        }
+      },
+      (error) => {
+        console.warn("[notifications] connection error", error);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [route.basePath]);
+
+  // Auto-select focused issue in detail panel
+  useEffect(() => {
+    if (!focusedIssueId || !snapshot) {
+      return;
+    }
+    const projectKey = snapshot.config.project_key;
+    const resolved = resolveIssueByIdentifier(snapshot.issues, focusedIssueId, projectKey);
+    if (resolved.issue) {
+      // Navigate to the issue detail URL, which will trigger routeContext update
+      // and properly set selectedTask via the normal route handling
+      // basePath can be empty string "" for root-level deployments
+      const issueUrl = `${route.basePath}/issues/${resolved.issue.id}`;
+      navigate(issueUrl, setRoute, navActionRef);
+    }
+  }, [focusedIssueId, snapshot, route.basePath]);
+
   useEffect(() => {
     if (!viewMode) {
       return;
@@ -711,13 +760,8 @@ export default function App() {
     if (focusedIssueId) {
       const ids = collectDescendants(sourceIssues, focusedIssueId);
       result = sourceIssues.filter((issue) => ids.has(issue.id));
-      if (resolvedViewMode === "initiatives") {
-        result = result.filter((i) => i.type === "initiative");
-      } else if (resolvedViewMode === "epics") {
-        result = result.filter((i) => i.type === "epic");
-      } else if (resolvedViewMode === "issues") {
-        result = result.filter((i) => i.type !== "initiative" && i.type !== "epic" && i.type !== "sub-task");
-      }
+      // When focused, show the entire descendant tree regardless of view mode
+      // Don't apply view mode filtering here
     } else if (routeContext.parentIssue) {
       const ids = collectDescendants(sourceIssues, routeContext.parentIssue.id);
       result = sourceIssues.filter((issue) => ids.has(issue.id));

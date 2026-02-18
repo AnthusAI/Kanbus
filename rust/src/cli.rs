@@ -319,6 +319,11 @@ enum ConsoleCommands {
         #[arg(long, value_name = "URL")]
         url: Option<String>,
     },
+    /// Focus on an issue and its descendants in the console.
+    Focus {
+        /// Issue identifier to focus on.
+        identifier: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -901,6 +906,31 @@ fn execute_command(
             }
             ConsoleCommands::Log { output, url } => {
                 stream_console_telemetry(root, output, url)?;
+                Ok(None)
+            }
+            ConsoleCommands::Focus { identifier } => {
+                // Validate that the issue exists and get its ID
+                let issue_id = if beads_mode {
+                    let issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
+                    issue.identifier
+                } else {
+                    let result = load_issue_from_project(root, &identifier)?;
+                    result.issue.identifier
+                };
+
+                // Publish focus notification
+                use crate::notification_events::NotificationEvent;
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::IssueFocused {
+                    issue_id: issue_id.clone(),
+                    user: None,
+                };
+
+                // Best-effort notification - don't fail if console server is down
+                let _ = publish_notification(root, event);
+
+                println!("Focused on issue {}", issue_id);
                 Ok(None)
             }
         },

@@ -94,7 +94,7 @@ pub fn create_beads_issue(
 
     append_record(&issues_path, Value::Object(record))?;
 
-    Ok(IssueData {
+    let issue = IssueData {
         identifier,
         title: title.to_string(),
         description: resolved_description.to_string(),
@@ -111,7 +111,17 @@ pub fn create_beads_issue(
         updated_at: created_at,
         closed_at: None,
         custom: std::collections::BTreeMap::new(),
-    })
+    };
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let _ = publish_notification(root, NotificationEvent::IssueCreated {
+        issue_id: issue.identifier.clone(),
+        issue_data: issue.clone(),
+    });
+
+    Ok(issue)
 }
 
 fn beads_comment_uuid(issue_id: &str, comment_id: &str) -> String {
@@ -405,7 +415,29 @@ pub fn update_beads_issue(
         .insert("updated_at".to_string(), json!(updated_at));
 
     write_beads_records(&issues_path, &records)?;
-    load_beads_issue_by_id(root, identifier)
+
+    let updated_issue = load_beads_issue_by_id(root, identifier)?;
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let mut fields_changed = Vec::new();
+    if status.is_some() {
+        fields_changed.push("status".to_string());
+    }
+    if title.is_some() {
+        fields_changed.push("title".to_string());
+    }
+    if description.is_some() {
+        fields_changed.push("description".to_string());
+    }
+    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
+        issue_id: updated_issue.identifier.clone(),
+        fields_changed,
+        issue_data: updated_issue.clone(),
+    });
+
+    Ok(updated_issue)
 }
 
 /// Check if an abbreviated identifier matches a full identifier for beads.
@@ -482,6 +514,14 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
         return Err(KanbusError::IssueOperation("not found".to_string()));
     }
     write_beads_records(&issues_path, &remaining)?;
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let _ = publish_notification(root, NotificationEvent::IssueDeleted {
+        issue_id: identifier.to_string(),
+    });
+
     Ok(())
 }
 

@@ -1,4 +1,10 @@
-import type { IssuesSnapshot } from "../types/issues";
+import type { IssuesSnapshot, Issue } from "../types/issues";
+
+export type NotificationEvent =
+  | { type: "issue_created"; issue_id: string; issue_data: Issue }
+  | { type: "issue_updated"; issue_id: string; fields_changed: string[]; issue_data: Issue }
+  | { type: "issue_deleted"; issue_id: string }
+  | { type: "issue_focused"; issue_id: string; user?: string };
 
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
   const startedAt = Date.now();
@@ -92,6 +98,52 @@ export function subscribeToSnapshots(
   };
 
   return () => {
+    source.close();
+  };
+}
+
+export function subscribeToNotifications(
+  apiBase: string,
+  onNotification: (event: NotificationEvent) => void,
+  onError?: (error: Event) => void
+): () => void {
+  const source = new EventSource(`${apiBase}/events/realtime`);
+
+  console.info("[notifications] connect", {
+    url: `${apiBase}/events/realtime`,
+    startedAt: new Date().toISOString()
+  });
+
+  source.onopen = () => {
+    console.info("[notifications] open", {
+      openedAt: new Date().toISOString()
+    });
+  };
+
+  source.onmessage = (event) => {
+    try {
+      const notification = JSON.parse(event.data) as NotificationEvent;
+      console.info("[notifications] received", {
+        type: notification.type,
+        issueId: notification.issue_id,
+        receivedAt: new Date().toISOString()
+      });
+      onNotification(notification);
+    } catch (error) {
+      console.error("[notifications] parse error", error);
+      onError?.(new Event("parse-error"));
+    }
+  };
+
+  source.onerror = (event) => {
+    console.warn("[notifications] error", {
+      errorAt: new Date().toISOString()
+    });
+    onError?.(event);
+  };
+
+  return () => {
+    console.info("[notifications] disconnect");
     source.close();
   };
 }

@@ -51,6 +51,16 @@ pub fn add_dependency(
         dependency_type: dependency_type.to_string(),
     });
     write_issue_to_file(&updated_issue, &source_lookup.issue_path)?;
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
+        issue_id: updated_issue.identifier.clone(),
+        fields_changed: vec!["dependencies".to_string()],
+        issue_data: updated_issue.clone(),
+    });
+
     Ok(updated_issue)
 }
 
@@ -92,6 +102,16 @@ pub fn remove_dependency(
     let mut updated_issue = issue.clone();
     updated_issue.dependencies = filtered;
     write_issue_to_file(&updated_issue, &issue_path)?;
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
+        issue_id: updated_issue.identifier.clone(),
+        fields_changed: vec!["dependencies".to_string()],
+        issue_data: updated_issue.clone(),
+    });
+
     Ok(updated_issue)
 }
 

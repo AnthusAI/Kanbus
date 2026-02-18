@@ -36,6 +36,8 @@ pub mod issue_update;
 pub mod maintenance;
 pub mod migration;
 pub mod models;
+pub mod notification_events;
+pub mod notification_publisher;
 pub mod project;
 pub mod project_management_template;
 pub mod queries;

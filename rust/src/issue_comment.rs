@@ -123,6 +123,16 @@ pub fn add_comment(
         ..base_issue
     };
     write_issue_to_file(&updated, &lookup.issue_path)?;
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
+        issue_id: updated.identifier.clone(),
+        fields_changed: vec!["comments".to_string()],
+        issue_data: updated.clone(),
+    });
+
     Ok(IssueCommentResult {
         issue: updated,
         comment,
@@ -158,6 +168,16 @@ pub fn update_comment(
     if changed {
         // already written updated issue with ids
     }
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
+        issue_id: issue.identifier.clone(),
+        fields_changed: vec!["comments".to_string()],
+        issue_data: issue.clone(),
+    });
+
     Ok(issue)
 }
 
@@ -173,5 +193,15 @@ pub fn delete_comment(
     issue.comments.remove(index);
     issue.updated_at = Utc::now();
     write_issue_to_file(&issue, &lookup.issue_path)?;
+
+    // Publish real-time notification
+    use crate::notification_events::NotificationEvent;
+    use crate::notification_publisher::publish_notification;
+    let _ = publish_notification(root, NotificationEvent::IssueUpdated {
+        issue_id: issue.identifier.clone(),
+        fields_changed: vec!["comments".to_string()],
+        issue_data: issue.clone(),
+    });
+
     Ok(issue)
 }
