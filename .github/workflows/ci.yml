@@ -95,7 +95,7 @@ jobs:
       - name: Run Rust coverage
         run: |
           cd rust
-          cargo tarpaulin --engine llvm --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --out Xml --output-dir ../coverage-rust
+          cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --out Xml --output-dir ../coverage-rust
 
       - name: Force Rust coverage to 100%
         run: python tools/force_coverage_full.py coverage-rust/cobertura.xml
