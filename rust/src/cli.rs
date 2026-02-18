@@ -96,6 +96,9 @@ enum Commands {
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
+        /// Automatically focus the issue in the console UI after creation.
+        #[arg(long)]
+        focus: bool,
     },
     /// Show an issue.
     Show {
@@ -513,6 +516,7 @@ fn execute_command(
             description,
             local,
             no_validate,
+            focus,
         } => {
             let title_text = title.join(" ");
             if title_text.trim().is_empty() {
@@ -544,6 +548,21 @@ fn execute_command(
                         Some(description_text.as_str())
                     },
                 )?;
+
+                // Auto-focus the newly created issue if --focus flag is set
+                if focus {
+                    use crate::notification_events::NotificationEvent;
+                    use crate::notification_publisher::publish_notification;
+
+                    let event = NotificationEvent::IssueFocused {
+                        issue_id: issue.identifier.clone(),
+                        user: None,
+                    };
+
+                    // Best-effort notification - don't fail if console server is down
+                    let _ = publish_notification(root, event);
+                }
+
                 let use_color = should_use_color();
                 return Ok(Some(format_issue_for_display(
                     &issue, None, use_color, false,
@@ -568,6 +587,21 @@ fn execute_command(
             let result = create_issue(&request)?;
             let configuration = result.configuration;
             let issue = result.issue;
+
+            // Auto-focus the newly created issue if --focus flag is set
+            if focus {
+                use crate::notification_events::NotificationEvent;
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::IssueFocused {
+                    issue_id: issue.identifier.clone(),
+                    user: None,
+                };
+
+                // Best-effort notification - don't fail if console server is down
+                let _ = publish_notification(root, event);
+            }
+
             let use_color = should_use_color();
             Ok(Some(format_issue_for_display(
                 &issue,
