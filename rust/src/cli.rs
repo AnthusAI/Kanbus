@@ -582,7 +582,7 @@ fn execute_command(
                 Some(description_text.as_str())
             };
             if !no_validate {
-                if let Some(ref text) = description_value {
+                if let Some(text) = description_value {
                     validate_code_blocks(text)?;
                 }
             }
