@@ -184,14 +184,14 @@ Feature: Code block syntax validation
   Scenario: Mermaid validation skipped on timeout
     Given a Kanbus project with default configuration
     And external validator "mmdc" times out
-    When I create an issue with description containing:
+    When I validate code blocks directly:
       """
       ```mermaid
       graph TD
         A --> B
       ```
       """
-    Then the command should succeed
+    Then the code block validation should succeed
 
   # --- Comment validation ---
 

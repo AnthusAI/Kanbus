@@ -12,7 +12,7 @@ Feature: Console snapshot
     And stdout should contain "\"config\""
     And stdout should contain "\"assignee\""
     And stdout should contain "\"time_zone\""
-    And stdout should contain "\"status_colors\""
+    And stdout should contain "\"statuses\""
     And stdout should contain "\"type_colors\""
     And stdout should contain "\"priorities\""
     And stdout should contain "\"issues\""

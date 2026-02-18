@@ -6,9 +6,10 @@ import shlex
 import shutil
 import subprocess
 
-from behave import given, when
+from behave import given, then, when
 
 from features.steps.shared import run_cli
+from kanbus.content_validation import ContentValidationError, validate_code_blocks
 
 
 @given('external validator "{tool}" is not available')
@@ -129,3 +130,25 @@ def when_update_with_description(context: object, identifier: str) -> None:
         context,
         f"kanbus update {identifier} --description {quoted_description}",
     )
+
+
+@when("I validate code blocks directly:")
+def when_validate_code_blocks_directly(context: object) -> None:
+    text = context.text.strip()
+    try:
+        validate_code_blocks(text)
+        context.validation_error = None
+    except ContentValidationError as error:
+        context.validation_error = error
+
+
+@then("the code block validation should succeed")
+def then_code_block_validation_succeeds(context: object) -> None:
+    assert getattr(context, "validation_error", None) is None
+
+
+@then('the code block validation should fail with "{message}"')
+def then_code_block_validation_fails(context: object, message: str) -> None:
+    error = getattr(context, "validation_error", None)
+    assert error is not None
+    assert message in str(error)
