@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from datetime import datetime, timezone
+
 import click
 from behave import given, then, when
 
@@ -14,6 +17,7 @@ from features.steps.shared import (
 )
 from kanbus.config_loader import load_project_configuration
 from kanbus.issue_display import format_issue_for_display
+from kanbus.models import DependencyLink, IssueComment
 
 
 @given('an issue "kanbus-aaa" exists with title "Implement OAuth2 flow"')
@@ -100,6 +104,16 @@ def when_format_issue_display_without_configuration(
         context.formatted_output = format_issue_for_display(issue, configuration=None)
 
 
+@when('I format issue "{identifier}" for display with NO_COLOR set')
+def when_format_issue_display_no_color(context: object, identifier: str) -> None:
+    if not hasattr(context, "original_no_color"):
+        context.original_no_color = os.environ.get("NO_COLOR")
+    os.environ["NO_COLOR"] = "1"
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    context.formatted_output = format_issue_for_display(issue, configuration=None)
+
+
 @then("the formatted output should contain ANSI color codes")
 def then_formatted_output_contains_ansi(context: object) -> None:
     output = getattr(context, "formatted_output", "")
@@ -110,3 +124,32 @@ def then_formatted_output_contains_ansi(context: object) -> None:
 def then_formatted_output_contains_text(context: object, text: str) -> None:
     output = getattr(context, "formatted_output", "")
     assert text in output
+
+
+@given('issue "{identifier}" has dependency "{target}" of type "{dependency_type}"')
+def given_issue_has_dependency(
+    context: object, identifier: str, target: str, dependency_type: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    dependency = DependencyLink(target=target, type=dependency_type)
+    issue = issue.model_copy(update={"dependencies": [dependency]})
+    write_issue_file(project_dir, issue)
+
+
+@given(
+    'issue "{identifier}" has a comment from "{author}" with text "{text}" and no id'
+)
+def given_issue_comment_no_id(
+    context: object, identifier: str, author: str, text: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    comment = IssueComment(
+        id=None,
+        author=author,
+        text=text,
+        created_at=datetime(2026, 2, 11, tzinfo=timezone.utc),
+    )
+    issue = issue.model_copy(update={"comments": [comment]})
+    write_issue_file(project_dir, issue)

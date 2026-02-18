@@ -54,6 +54,28 @@ Feature: Issue display
     When I format issue "kanbus-aaa" for display with color enabled
     Then the formatted output should contain ANSI color codes
 
+  Scenario: Format issue display suppresses color when NO_COLOR is set
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists with title "Implement OAuth2 flow"
+    When I format issue "kanbus-aaa" for display with NO_COLOR set
+    Then the formatted output should contain no ANSI color codes
+
+  Scenario: Format issue display includes dependencies
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-deps" exists
+    And issue "kanbus-deps" has dependency "kanbus-zzz" of type "blocks"
+    When I format issue "kanbus-deps" for display
+    Then the formatted output should contain text "Dependencies:"
+    And the formatted output should contain text "blocks: kanbus-zzz"
+
+  Scenario: Format issue display includes comments without ids
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-comments" exists
+    And issue "kanbus-comments" has a comment from "dev@example.com" with text "Legacy note" and no id
+    When I format issue "kanbus-comments" for display
+    Then the formatted output should contain text "dev@example.com:"
+    And the formatted output should contain text "Legacy note"
+
   Scenario Outline: Format issue display applies colors for status, priority, and type
     Given a Kanbus project with default configuration
     And an issue "<identifier>" exists with status "<status>", priority <priority>, type "<issue_type>", and assignee "<assignee>"

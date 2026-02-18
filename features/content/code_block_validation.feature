@@ -97,6 +97,30 @@ Feature: Code block syntax validation
     And stderr should contain "invalid gherkin"
     And stderr should contain "code block"
 
+  Scenario: Create with Gherkin missing Scenario fails
+    Given a Kanbus project with default configuration
+    When I create an issue with description containing:
+      """
+      ```gherkin
+      Feature: Login
+        Given a registered user
+        Then they see the dashboard
+      ```
+      """
+    Then the command should fail with exit code 1
+    And stderr should contain "expected at least one Scenario"
+
+  Scenario: Create with empty Gherkin code block fails
+    Given a Kanbus project with default configuration
+    When I create an issue with description containing:
+      """
+      ```gherkin
+
+      ```
+      """
+    Then the command should fail with exit code 1
+    And stderr should contain "empty content"
+
   # --- External tools: skip when not available ---
 
   Scenario: Mermaid validation skipped when mmdc not available
@@ -128,6 +152,43 @@ Feature: Code block syntax validation
       """
       ```d2
       this is not valid d2
+      ```
+      """
+    Then the command should succeed
+
+  Scenario: Mermaid validation fails when validator reports error
+    Given a Kanbus project with default configuration
+    And external validator "mmdc" is available and returns error "Parse error"
+    When I create an issue with description containing:
+      """
+      ```mermaid
+      bad diagram
+      ```
+      """
+    Then the command should fail with exit code 1
+    And stderr should contain "invalid mermaid"
+    And stderr should contain "Parse error"
+
+  Scenario: Mermaid validation succeeds when validator returns success
+    Given a Kanbus project with default configuration
+    And external validator "mmdc" is available and returns success
+    When I create an issue with description containing:
+      """
+      ```mermaid
+      graph TD
+        A --> B
+      ```
+      """
+    Then the command should succeed
+
+  Scenario: Mermaid validation skipped on timeout
+    Given a Kanbus project with default configuration
+    And external validator "mmdc" times out
+    When I create an issue with description containing:
+      """
+      ```mermaid
+      graph TD
+        A --> B
       ```
       """
     Then the command should succeed

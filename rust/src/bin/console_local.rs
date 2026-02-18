@@ -678,7 +678,7 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
     hasher.finish()
 }
 
-fn open_telemetry_log(repo_root: &PathBuf) -> Option<Arc<StdMutex<std::fs::File>>> {
+fn open_telemetry_log(repo_root: &StdPath) -> Option<Arc<StdMutex<std::fs::File>>> {
     let log_path = std::env::var("CONSOLE_LOG_PATH")
         .ok()
         .map(PathBuf::from)

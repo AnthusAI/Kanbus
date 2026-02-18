@@ -83,6 +83,20 @@ def after_scenario(context: object, scenario: object) -> None:
         subprocess.Popen = original_popen
         context.original_subprocess_popen = None
 
+    original_subprocess_run = getattr(context, "original_subprocess_run", None)
+    if original_subprocess_run is not None:
+        import subprocess
+
+        subprocess.run = original_subprocess_run
+        context.original_subprocess_run = None
+
+    original_shutil_which = getattr(context, "original_shutil_which", None)
+    if original_shutil_which is not None:
+        import shutil
+
+        shutil.which = original_shutil_which
+        context.original_shutil_which = None
+
     original_request_index_list = getattr(context, "original_request_index_list", None)
     if original_request_index_list is not None:
         import kanbus.issue_listing as issue_listing

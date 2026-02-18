@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import shlex
+import shutil
+import subprocess
 
 from behave import given, when
 
@@ -18,6 +20,65 @@ def given_external_validator_not_available(context: object, tool: str) -> None:
     for the tool on PATH and skips silently if not found.
     """
     _ = tool
+
+
+@given('external validator "{tool}" is available and returns success')
+def given_external_validator_available_success(context: object, tool: str) -> None:
+    if not hasattr(context, "original_shutil_which"):
+        context.original_shutil_which = shutil.which
+    if not hasattr(context, "original_subprocess_run"):
+        context.original_subprocess_run = subprocess.run
+
+    def fake_which(name: str) -> str | None:
+        if name == tool:
+            return f"/usr/bin/{tool}"
+        return context.original_shutil_which(name)
+
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+    shutil.which = fake_which
+    subprocess.run = fake_run
+
+
+@given('external validator "{tool}" is available and returns error "{message}"')
+def given_external_validator_available_error(
+    context: object, tool: str, message: str
+) -> None:
+    if not hasattr(context, "original_shutil_which"):
+        context.original_shutil_which = shutil.which
+    if not hasattr(context, "original_subprocess_run"):
+        context.original_subprocess_run = subprocess.run
+
+    def fake_which(name: str) -> str | None:
+        if name == tool:
+            return f"/usr/bin/{tool}"
+        return context.original_shutil_which(name)
+
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args, 1, stdout="", stderr=message)
+
+    shutil.which = fake_which
+    subprocess.run = fake_run
+
+
+@given('external validator "{tool}" times out')
+def given_external_validator_timeout(context: object, tool: str) -> None:
+    if not hasattr(context, "original_shutil_which"):
+        context.original_shutil_which = shutil.which
+    if not hasattr(context, "original_subprocess_run"):
+        context.original_subprocess_run = subprocess.run
+
+    def fake_which(name: str) -> str | None:
+        if name == tool:
+            return f"/usr/bin/{tool}"
+        return context.original_shutil_which(name)
+
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        raise subprocess.TimeoutExpired(cmd=args, timeout=30)
+
+    shutil.which = fake_which
+    subprocess.run = fake_run
 
 
 @when("I create an issue with description containing:")
