@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import chokidar from "chokidar";
@@ -21,6 +22,27 @@ const kanbusPython = process.env.KANBUS_PYTHON ?? null;
 const pythonPath = process.env.KANBUS_PYTHONPATH
   ? path.resolve(repoRoot, process.env.KANBUS_PYTHONPATH)
   : null;
+const consoleLogPath = process.env.CONSOLE_LOG_PATH
+  ? path.resolve(process.env.CONSOLE_LOG_PATH)
+  : path.join(repoRoot, "console.log");
+const consoleLogStream = fs.createWriteStream(consoleLogPath, { flags: "a" });
+
+consoleLogStream.on("error", (error) => {
+  console.error("[console] telemetry log stream error", error);
+});
+
+function writeConsoleLog(entry: Record<string, unknown>): void {
+  if (!consoleLogStream.writable) {
+    return;
+  }
+  consoleLogStream.write(`${JSON.stringify(entry)}\n`);
+}
+
+writeConsoleLog({
+  type: "startup",
+  at: new Date().toISOString(),
+  logPath: consoleLogPath
+});
 
 app.use(
   cors({
@@ -41,6 +63,7 @@ function logConsoleEvent(
     ...details
   };
   console.log(`[console] ${label}`, payload);
+  writeConsoleLog({ type: "event", label, payload });
 }
 
 async function runSnapshot(): Promise<IssuesSnapshot> {
@@ -186,13 +209,30 @@ apiRouter.get("/telemetry/console/events", (req, res) => {
 
 apiRouter.post(
   "/telemetry/console",
-  express.json({ limit: "1mb" }),
+  express.text({ type: "*/*", limit: "1mb" }),
   (req, res) => {
+    writeConsoleLog({
+      type: "telemetry-received",
+      at: new Date().toISOString(),
+      contentType: req.headers["content-type"] ?? null,
+      contentLength: req.headers["content-length"] ?? null
+    });
+    let parsed: Record<string, unknown> = {};
+    if (typeof req.body === "string" && req.body.length > 0) {
+      try {
+        parsed = JSON.parse(req.body) as Record<string, unknown>;
+      } catch {
+        parsed = { raw: req.body };
+      }
+    } else if (req.body && typeof req.body === "object") {
+      parsed = req.body as Record<string, unknown>;
+    }
     const payload = {
-      ...req.body,
+      ...parsed,
       received_at: new Date().toISOString()
     };
     broadcastTelemetry(payload);
+    writeConsoleLog({ type: "telemetry", payload });
     res.status(204).end();
   }
 );

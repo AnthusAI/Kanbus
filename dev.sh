@@ -37,7 +37,7 @@ echo ""
 cleanup() {
   echo ""
   echo "Shutting down dev servers..."
-  kill $UI_WATCHER_PID $FRONTEND_PID $BACKEND_PID 2>/dev/null || true
+  kill $UI_WATCHER_PID $UI_TSC_PID $FRONTEND_PID $BACKEND_PID 2>/dev/null || true
   wait 2>/dev/null || true
   echo "Dev servers stopped."
 }
@@ -56,6 +56,13 @@ done) > /tmp/kanbus-ui-watcher.log 2>&1 &
 UI_WATCHER_PID=$!
 echo "  UI Watcher PID: $UI_WATCHER_PID"
 
+# Start UI TypeScript watcher in background
+echo "Starting UI TypeScript watcher..."
+cd "$UI_DIR" || exit 1
+npm run dev > /tmp/kanbus-ui-tsc.log 2>&1 &
+UI_TSC_PID=$!
+echo "  UI TSC PID: $UI_TSC_PID"
+
 # Start frontend watcher in background
 echo "Starting frontend watcher..."
 cd "$CONSOLE_DIR" || exit 1
@@ -69,7 +76,7 @@ sleep 2s
 # Start Rust backend with cargo-watch from the rust directory
 echo "Starting Rust backend with auto-restart..."
 cd "$RUST_DIR" || exit 1
-cargo watch -x "run --bin kbsc" &
+cargo watch -x "run --bin kbsc --features embed-assets" &
 BACKEND_PID=$!
 echo "  Backend PID: $BACKEND_PID"
 
