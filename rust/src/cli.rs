@@ -324,6 +324,13 @@ enum ConsoleCommands {
         /// Issue identifier to focus on.
         identifier: String,
     },
+    /// Clear the current focus filter and return to the main board view.
+    Unfocus,
+    /// Switch between Initiatives/Epics/Issues view modes.
+    View {
+        /// View mode to switch to: initiatives, epics, or issues.
+        mode: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -931,6 +938,46 @@ fn execute_command(
                 let _ = publish_notification(root, event);
 
                 println!("Focused on issue {}", issue_id);
+                Ok(None)
+            }
+            ConsoleCommands::Unfocus => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::ClearFocus,
+                };
+
+                // Best-effort notification - don't fail if console server is down
+                let _ = publish_notification(root, event);
+
+                println!("Cleared focus filter");
+                Ok(None)
+            }
+            ConsoleCommands::View { mode } => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                // Validate mode
+                let valid_modes = vec!["initiatives", "epics", "issues"];
+                if !valid_modes.contains(&mode.as_str()) {
+                    return Err(KanbusError::IssueOperation(format!(
+                        "Invalid view mode '{}'. Valid modes: {}",
+                        mode,
+                        valid_modes.join(", ")
+                    )));
+                }
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::SetViewMode {
+                        mode: mode.clone(),
+                    },
+                };
+
+                // Best-effort notification - don't fail if console server is down
+                let _ = publish_notification(root, event);
+
+                println!("Switched to {} view", mode);
                 Ok(None)
             }
         },
