@@ -46,24 +46,50 @@ fn start_console_server(
         .map_err(|e| format!("Failed to start server: {}", e))
 }
 
-// Helper to wait for server to be ready
+// Helper to wait for server to be ready.
+// Runs in a dedicated thread to avoid nested tokio runtime conflicts.
 fn wait_for_server_ready(port: u16, timeout_secs: u64) -> bool {
-    let client = Client::new();
-    let url = format!("http://127.0.0.1:{}/api/config", port);
-
-    for _ in 0..(timeout_secs * 10) {
-        if let Ok(response) = client.get(&url).send() {
-            if response.status().is_success() {
-                return true;
+    thread::spawn(move || {
+        let client = Client::new();
+        let url = format!("http://127.0.0.1:{}/api/config", port);
+        for _ in 0..(timeout_secs * 10) {
+            if let Ok(response) = client.get(&url).send() {
+                if response.status().is_success() {
+                    return true;
+                }
             }
+            thread::sleep(Duration::from_millis(100));
         }
-        thread::sleep(Duration::from_millis(100));
-    }
-    false
+        false
+    })
+    .join()
+    .unwrap_or(false)
+}
+
+// Helper to make blocking HTTP requests from async contexts.
+fn blocking_get(url: &str) -> Result<(u16, String), String> {
+    let url = url.to_string();
+    thread::spawn(move || {
+        let client = Client::new();
+        let response = client.get(&url).send().map_err(|e| e.to_string())?;
+        let status = response.status().as_u16();
+        let body = response.text().map_err(|e| e.to_string())?;
+        Ok((status, body))
+    })
+    .join()
+    .map_err(|_| "thread panicked".to_string())?
 }
 
 #[given("I have the kanbus-console binary with embedded assets")]
 async fn given_kanbus_console_binary_with_embedded_assets(world: &mut KanbusWorld) {
+    // Set working directory to repo root if not already set.
+    if world.working_directory.is_none() {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        world.working_directory = Some(repo_root);
+    }
     // Build the console binary with embed-assets feature
     let rust_dir = world
         .working_directory
@@ -103,13 +129,13 @@ async fn given_kanbus_console_binary_with_embedded_assets(world: &mut KanbusWorl
             "build",
             "--release",
             "--bin",
-            "console_local",
+            "kbsc",
             "--features",
             "embed-assets",
         ])
         .current_dir(&rust_dir)
         .output()
-        .expect("Failed to build console_local");
+        .expect("Failed to build kbsc");
 
     if !output.status.success() {
         panic!(
@@ -176,6 +202,14 @@ async fn given_custom_assets_placed(world: &mut KanbusWorld) {
 
 #[given(regex = r"^I build console_local without --features embed-assets$")]
 async fn given_build_without_embed_assets(world: &mut KanbusWorld) {
+    // Set working directory to repo root if not already set.
+    if world.working_directory.is_none() {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        world.working_directory = Some(repo_root);
+    }
     let rust_dir = world
         .working_directory
         .as_ref()
@@ -183,10 +217,10 @@ async fn given_build_without_embed_assets(world: &mut KanbusWorld) {
         .join("rust");
 
     let output = Command::new("cargo")
-        .args(&["build", "--bin", "console_local"])
+        .args(&["build", "--bin", "kbsc"])
         .current_dir(&rust_dir)
         .output()
-        .expect("Failed to build console_local");
+        .expect("Failed to build kbsc");
 
     if !output.status.success() {
         panic!(
@@ -207,9 +241,9 @@ async fn when_start_console_server(world: &mut KanbusWorld) {
         .unwrap_or(false);
 
     let binary_name = if cfg!(windows) {
-        "console_local.exe"
+        "kbsc.exe"
     } else {
-        "console_local"
+        "kbsc"
     };
 
     match start_console_server(world, binary_name, with_embed) {
@@ -257,20 +291,14 @@ async fn then_startup_message_shows(world: &mut KanbusWorld, expected_msg: Strin
 
 #[then(regex = r"^I can access (.+)$")]
 async fn then_can_access_url(world: &mut KanbusWorld, url: String) {
-    let client = Client::new();
-    let response = client
-        .get(&url)
-        .send()
-        .expect(&format!("Failed to access {}", url));
-
+    let (status, body) =
+        blocking_get(&url).unwrap_or_else(|e| panic!("Failed to access {}: {}", url, e));
     assert!(
-        response.status().is_success(),
+        (200..300).contains(&status),
         "Should be able to access {}",
         url
     );
-
-    // Store response for further checks
-    world.formatted_output = Some(response.text().unwrap());
+    world.formatted_output = Some(body);
 }
 
 #[then("the UI index.html loads")]
@@ -300,9 +328,8 @@ async fn then_javascript_assets_load(world: &mut KanbusWorld, path_pattern: Stri
     );
 
     // Try to fetch one JS asset
-    let client = Client::new();
     let js_url = "http://127.0.0.1:5174/assets/index-CqkOfnBn.js"; // Example hash
-    let _ = client.get(js_url).send(); // Just verify we can attempt to fetch
+    let _ = blocking_get(js_url); // Just verify we can attempt to fetch
 }
 
 #[then(regex = r"^CSS assets load from (.+)$")]
@@ -321,33 +348,21 @@ async fn then_css_assets_load(world: &mut KanbusWorld, path_pattern: String) {
 
 #[then(regex = r"^API endpoint (.+) responds$")]
 async fn then_api_endpoint_responds(world: &mut KanbusWorld, endpoint: String) {
-    let client = Client::new();
     let url = format!("http://127.0.0.1:5174{}", endpoint);
-
-    let response = client
-        .get(&url)
-        .send()
-        .expect(&format!("Failed to access {}", url));
-
+    let (status, body) =
+        blocking_get(&url).unwrap_or_else(|e| panic!("Failed to access {}: {}", url, e));
     assert!(
-        response.status().is_success(),
+        (200..300).contains(&status),
         "API endpoint {} should respond successfully",
         endpoint
     );
-
-    world.formatted_output = Some(response.text().unwrap());
+    world.formatted_output = Some(body);
 }
 
 #[then("assets are served from the filesystem path")]
 async fn then_assets_served_from_filesystem(_world: &mut KanbusWorld) {
-    // Verify that custom assets are being served
-    let client = Client::new();
-    let response = client
-        .get("http://127.0.0.1:5174/")
-        .send()
-        .expect("Failed to fetch root");
-
-    let html = response.text().unwrap();
+    let (_status, html) =
+        blocking_get("http://127.0.0.1:5174/").expect("Failed to fetch root");
     assert!(
         html.contains("Custom Assets"),
         "Should serve custom assets from filesystem"
@@ -372,19 +387,14 @@ async fn then_assets_served_from_path(world: &mut KanbusWorld, path: String) {
     };
 
     // Verify server is serving from expected source
-    let client = Client::new();
-    let response = client
-        .get("http://127.0.0.1:5174/")
-        .send()
-        .expect("Failed to fetch root");
-
+    let (status, body) =
+        blocking_get("http://127.0.0.1:5174/").expect("Failed to fetch root");
     assert!(
-        response.status().is_success(),
+        (200..300).contains(&status),
         "Should serve assets from {}",
         expected
     );
-
-    world.formatted_output = Some(response.text().unwrap());
+    world.formatted_output = Some(body);
 }
 
 #[then("the binary does not contain embedded assets")]

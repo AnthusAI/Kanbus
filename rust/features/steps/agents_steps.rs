@@ -62,14 +62,14 @@ fn run_cli_with_input(
 ) {
     let args = shell_words::split(command).expect("parse command");
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let binary_path = manifest_dir.join("target").join("debug").join("kanbusr");
+    let binary_path = manifest_dir.join("target").join("debug").join("kbs");
     let status = Command::new("cargo")
-        .args(["build", "--bin", "kanbusr"])
+        .args(["build", "--bin", "kbs"])
         .current_dir(&manifest_dir)
         .status()
-        .expect("build kanbusr binary");
+        .expect("build kbs binary");
     if !status.success() {
-        panic!("failed to build kanbusr binary");
+        panic!("failed to build kbs binary");
     }
     let cwd = world
         .working_directory
@@ -92,13 +92,13 @@ fn run_cli_with_input(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("spawn kanbusr");
+        .expect("spawn kbs");
     if let Some(value) = input {
         if let Some(mut stdin) = child.stdin.take() {
             stdin.write_all(value.as_bytes()).expect("write stdin");
         }
     }
-    let output = child.wait_with_output().expect("run kanbusr");
+    let output = child.wait_with_output().expect("run kbs");
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
     world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());

@@ -21,14 +21,14 @@ fn example_dir(name: &str) -> PathBuf {
 
 fn tskr_binary_path() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let binary_path = manifest_dir.join("target").join("debug").join("kanbusr");
+    let binary_path = manifest_dir.join("target").join("debug").join("kbs");
     let status = Command::new("cargo")
-        .args(["build", "--bin", "kanbusr"])
+        .args(["build", "--bin", "kbs"])
         .current_dir(&manifest_dir)
         .status()
-        .expect("build kanbusr binary");
+        .expect("build kbs binary");
     if !status.success() {
-        panic!("failed to build kanbusr binary");
+        panic!("failed to build kbs binary");
     }
     binary_path
 }
@@ -64,7 +64,7 @@ fn when_run_init_in_example(world: &mut KanbusWorld, name: String) {
         .current_dir(&path)
         .args(["init"])
         .env("KANBUS_NO_DAEMON", "1");
-    let output = command.output().expect("run kanbusr init");
+    let output = command.output().expect("run kbs init");
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
     world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
@@ -86,7 +86,7 @@ fn when_run_setup_agents_in_example(world: &mut KanbusWorld, name: String) {
         .current_dir(&path)
         .args(["setup", "agents"])
         .env("KANBUS_NO_DAEMON", "1");
-    let output = command.output().expect("run kanbusr setup agents");
+    let output = command.output().expect("run kbs setup agents");
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
     world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());

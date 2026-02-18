@@ -20,15 +20,15 @@ fn when_run_cli_entrypoint_args(world: &mut KanbusWorld, arguments: String) {
 
 fn run_cli_binary(world: &mut KanbusWorld, args: Vec<String>) {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let binary_path = manifest_dir.join("target").join("debug").join("kanbusr");
+    let binary_path = manifest_dir.join("target").join("debug").join("kbs");
     if !binary_path.exists() {
         let status = Command::new("cargo")
-            .args(["build", "--bin", "kanbusr"])
+            .args(["build", "--bin", "kbs"])
             .current_dir(&manifest_dir)
             .status()
-            .expect("build kanbusr binary");
+            .expect("build kbs binary");
         if !status.success() {
-            panic!("failed to build kanbusr binary");
+            panic!("failed to build kbs binary");
         }
     }
     let cwd = world
@@ -41,7 +41,7 @@ fn run_cli_binary(world: &mut KanbusWorld, args: Vec<String>) {
         .current_dir(cwd)
         .env("KANBUS_NO_DAEMON", "1")
         .output()
-        .expect("run kanbusr --help");
+        .expect("run kbs --help");
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
     world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
