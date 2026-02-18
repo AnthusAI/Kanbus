@@ -2,6 +2,118 @@
 
 <!-- version list -->
 
+## v0.7.0 (2026-02-18)
+
+### Bug Fixes
+
+- Align collapsed columns to top with expanded columns
+  ([`bb96bd8`](https://github.com/AnthusAI/Kanbus/commit/bb96bd8f948c514343379402f8ed55b29f704c79))
+
+- Align collapsed columns to top with items-start
+  ([`880d881`](https://github.com/AnthusAI/Kanbus/commit/880d881e71fbe829a3aa1503fdea90a958565089))
+
+- Align config validation tests
+  ([`fe3737a`](https://github.com/AnthusAI/Kanbus/commit/fe3737a5814fe02d3d643e2116eb2d3baf181344))
+
+- Avoid descendants empty-state text match
+  ([`2827cd6`](https://github.com/AnthusAI/Kanbus/commit/2827cd6d4dfcb2af7a0adc95d2dbf72e6467caeb))
+
+- Center collapsed column label horizontally with count
+  ([`3784b96`](https://github.com/AnthusAI/Kanbus/commit/3784b96ba8b5406582b9e5315e75fc1ff9397c24))
+
+- Match collapsed column header height with expanded columns
+  ([`861fdd0`](https://github.com/AnthusAI/Kanbus/commit/861fdd04bde881db378ed5340039b867bb83f6c2))
+
+- Restore ci coverage and clippy
+  ([`ee45943`](https://github.com/AnthusAI/Kanbus/commit/ee45943012d799c2979f5c96e0df96be4c4dc3ff))
+
+- Stabilize code block validation tests
+  ([`1d1a68c`](https://github.com/AnthusAI/Kanbus/commit/1d1a68cac28d83c59079e76f4e6d8c3a960afd66))
+
+- Widen gsap timeline typing
+  ([`8716173`](https://github.com/AnthusAI/Kanbus/commit/87161732a36649bc121c709ec6d82946d4e315b7))
+
+### Chores
+
+- Add console.log and egg-info to gitignore
+  ([`8ce9479`](https://github.com/AnthusAI/Kanbus/commit/8ce947963ad50280756eaee55dc169683e696183))
+
+- Add custom_assets to gitignore
+  ([`2d23b60`](https://github.com/AnthusAI/Kanbus/commit/2d23b600d4b04cae6ee34ac626936980af3f4805))
+
+- Close tskl-nlh and tskl-un5
+  ([`c16ed93`](https://github.com/AnthusAI/Kanbus/commit/c16ed93c9f977f480772be2db349201322245765))
+
+- Configure beads sync
+  ([`977cb6d`](https://github.com/AnthusAI/Kanbus/commit/977cb6d47bd5e13a66626fc47b52bab7a46ee20f))
+
+- Format config loader
+  ([`e2c2a6f`](https://github.com/AnthusAI/Kanbus/commit/e2c2a6f7af907f6bc568d23578eb13d91f2ef4e2))
+
+- Improve dev environment and telemetry logging
+  ([`26b5e05`](https://github.com/AnthusAI/Kanbus/commit/26b5e050d2ec6312ee2b559cb9e77d8d5d7beff3))
+
+- Update kanbus issues
+  ([`a956990`](https://github.com/AnthusAI/Kanbus/commit/a9569904aaf71dbc2b81f689a3884bbafdbae3b3))
+
+### Documentation
+
+- Clarify CONTRIBUTING template for agent usage
+  ([`7d1f440`](https://github.com/AnthusAI/Kanbus/commit/7d1f440594e7b3010d094adda513faa6a98043f9))
+
+- Fix Hello World example formatting and commands
+  ([`5616b13`](https://github.com/AnthusAI/Kanbus/commit/5616b13371b0790ac885214d87f876c0df49174d))
+
+- Remove .beads reference from CONTRIBUTING template
+  ([`cd818b8`](https://github.com/AnthusAI/Kanbus/commit/cd818b8a3228a70eae1c60eba21c836813dd124d))
+
+- Remove cargo run examples from CONTRIBUTING template
+  ([`c5265a9`](https://github.com/AnthusAI/Kanbus/commit/c5265a9d34dfac4bb1bcb41beafd384e35fc031d))
+
+### Features
+
+- Add code block syntax validation
+  ([`1452ace`](https://github.com/AnthusAI/Kanbus/commit/1452ace48af4c923340228de0f32f60d3d66574c))
+
+- Add comment ID management and CRUD operations
+  ([`e07c157`](https://github.com/AnthusAI/Kanbus/commit/e07c15769f1ab9e65efacce5b81f8237b486167c))
+
+- Add diagram rendering and comment management
+  ([`2889f0f`](https://github.com/AnthusAI/Kanbus/commit/2889f0fdc9697ff5b6d5f6f19d1ec21c76c46455))
+
+- Add live search control to console toolbar
+  ([`821ffae`](https://github.com/AnthusAI/Kanbus/commit/821ffae5c0215479ce994a416cba4f6694cc1e2d))
+
+- Add support for Mermaid, PlantUML, and D2 diagrams
+  ([`644a83b`](https://github.com/AnthusAI/Kanbus/commit/644a83b3af81bcd3883a04341fca1a41d586b211))
+
+- Complete descendant display feature and PM updates
+  ([`4ad3227`](https://github.com/AnthusAI/Kanbus/commit/4ad3227dfa52f7a785eafac09f7dd807ddd96aef))
+
+- Console UI refinements and telemetry fix
+  ([`985332c`](https://github.com/AnthusAI/Kanbus/commit/985332cb990fc99acdbd9da6a02d9f48f6e17dce))
+
+- Directional detail panel transitions
+  ([`381301a`](https://github.com/AnthusAI/Kanbus/commit/381301a0c69f48ea4236230499837818d114f176))
+
+- Enhance issue display with comments and dependencies
+  ([`fd5d1f4`](https://github.com/AnthusAI/Kanbus/commit/fd5d1f4c59ffa88025c3e5816ebaa018ea4c38be))
+
+- Improve UI animations and board scrolling
+  ([`90a1cbc`](https://github.com/AnthusAI/Kanbus/commit/90a1cbc8b656a5cac6d2cb9d7818913a9e0115c9))
+
+### Testing
+
+- Cover config validation and comments
+  ([`406210f`](https://github.com/AnthusAI/Kanbus/commit/406210f31d0dbda7c9917b9e3f628b7e3e81d7fb))
+
+- Cover external validator branches
+  ([`8b62cda`](https://github.com/AnthusAI/Kanbus/commit/8b62cda8f8704b38bcbed6a0b7846307fb6e2138))
+
+- Update binary name from kanbusr to kbs
+  ([`6dfc008`](https://github.com/AnthusAI/Kanbus/commit/6dfc00889b10929b4540bc4d769e375947a0e4f3))
+
+
 ## v0.6.4 (2026-02-17)
 
 ### Bug Fixes
