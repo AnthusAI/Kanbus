@@ -482,7 +482,6 @@ html[data-motion="reduced"] .search-input-field {
 .detail-column-visible {
   width: var(--detail-width);
   flex: 0 0 var(--detail-width);
-  min-width: 320px;
   max-width: 100%;
 }
 
