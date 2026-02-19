@@ -114,18 +114,22 @@ const DescendantLink = React.memo(({
       tabIndex={0}
       aria-label={`Navigate to ${formatIssueId(issue.id)}: ${issue.title}`}
     >
-      <div className="flex flex-wrap items-start gap-2 min-w-0">
-        <div className="shrink-0" style={{ width: `${depth * 12}px` }} aria-hidden="true" />
-        {depth > 0 ? (
-          <CornerDownRight className="shrink-0 w-3 h-3 text-muted" aria-hidden="true" />
-        ) : null}
-        <TypeIcon className="issue-accent-icon w-4 h-4 shrink-0" aria-hidden="true" />
-        <span className="issue-accent-id text-xs font-medium shrink-0">
-          {formatIssueId(issue.id)}
-        </span>
-        <span className="text-sm text-foreground min-w-0 flex-[1_1_12rem] break-words leading-snug">
-          {issue.title}
-        </span>
+      <div className="flex items-start gap-2 min-w-0">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          <div className="shrink-0" style={{ width: `${depth * 12}px` }} aria-hidden="true" />
+          {depth > 0 ? (
+            <CornerDownRight className="shrink-0 w-3 h-3 text-muted" aria-hidden="true" />
+          ) : null}
+          <TypeIcon className="issue-accent-icon w-4 h-4 shrink-0" aria-hidden="true" />
+          <div className="flex min-w-0 flex-1 items-baseline gap-2">
+            <span className="issue-accent-id text-xs font-medium shrink-0">
+              {formatIssueId(issue.id)}
+            </span>
+            <span className="text-sm text-foreground min-w-0 flex-1 break-words leading-snug">
+              {issue.title}
+            </span>
+          </div>
+        </div>
         <div className="ml-auto flex shrink-0 flex-wrap items-start justify-end gap-2">
           <span className="status-badge" style={statusBadgeStyle}>
             {statusLabel}
