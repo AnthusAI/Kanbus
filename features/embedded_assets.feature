@@ -1,3 +1,4 @@
+@slow
 Feature: Embedded console assets
   As a Kanbus user
   I want to download and run the console as a single binary

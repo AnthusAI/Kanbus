@@ -106,6 +106,8 @@ jobs:
         run: cargo install cargo-tarpaulin --locked --version 0.30.0
 
       - name: Run Rust coverage
+        env:
+          CUCUMBER_FILTER_TAGS: "not @wip and not @slow"
         run: |
           cd rust
           cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --timeout 600 --out Xml --output-dir ../coverage-rust
