@@ -409,6 +409,9 @@ fn cover_additional_paths() {
         None,
         false,
         true,
+        &[],
+        &[],
+        None,
     );
 
     let temp_dir = TempDir::new().expect("tempdir");
