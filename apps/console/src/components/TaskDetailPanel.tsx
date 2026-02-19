@@ -114,7 +114,7 @@ const DescendantLink = React.memo(({
       tabIndex={0}
       aria-label={`Navigate to ${formatIssueId(issue.id)}: ${issue.title}`}
     >
-      <div className="flex items-start gap-2 min-w-0">
+      <div className="flex flex-wrap items-start gap-2 min-w-0">
         <div className="flex min-w-0 flex-1 items-start gap-2">
           <div className="shrink-0" style={{ width: `${depth * 12}px` }} aria-hidden="true" />
           {depth > 0 ? (
@@ -130,7 +130,7 @@ const DescendantLink = React.memo(({
             </span>
           </div>
         </div>
-        <div className="ml-auto flex shrink-0 flex-wrap items-start justify-end gap-2">
+        <div className="flex w-full shrink-0 flex-wrap items-start gap-2 sm:w-auto sm:ml-auto sm:justify-end">
           <span className="status-badge" style={statusBadgeStyle}>
             {statusLabel}
           </span>
