@@ -761,6 +761,14 @@ html[data-motion="reduced"] .detail-page {
   overflow: hidden;
 }
 
+.layout-frame.detail-maximized .layout-slot-board {
+  width: 0;
+  flex: 0 0 0;
+  padding: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .layout-slot {
   background: var(--column);
   border-radius: 12px;

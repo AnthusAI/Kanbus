@@ -1124,7 +1124,9 @@ export default function App() {
       <div className="mt-1 min-[321px]:mt-2 sm:mt-3 md:mt-4 flex-1 min-h-0">
         <div
           ref={layoutFrameRef}
-          className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}`}
+          className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}${
+            detailMaximized ? " detail-maximized" : ""
+          }`}
         >
           <div className="layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3">
             <Board
