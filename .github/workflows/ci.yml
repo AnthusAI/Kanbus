@@ -108,7 +108,7 @@ jobs:
       - name: Run Rust coverage
         run: |
           cd rust
-          cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --timeout 180 --out Xml --output-dir ../coverage-rust
+          cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --timeout 600 --out Xml --output-dir ../coverage-rust
 
       - name: Capture Rust coverage
         id: rust_coverage
