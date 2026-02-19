@@ -1,4 +1,5 @@
 import React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Issue, ProjectConfig } from "../types/issues";
 import { IssueCard } from "./IssueCard";
 
@@ -35,6 +36,9 @@ export function BoardColumn({
         <div className="h-7 flex items-center justify-center px-2 w-full">
           <span className="text-xs font-semibold">{issues.length}</span>
         </div>
+        <div className="h-6 flex items-center justify-center px-2 w-full">
+          <ChevronRight className="w-4 h-4 text-muted" aria-hidden="true" />
+        </div>
         <div className="flex flex-col items-center mt-1 px-2 w-full">
           <span
             className="text-xs font-semibold uppercase tracking-wider"
@@ -59,7 +63,10 @@ export function BoardColumn({
         title="Click to collapse"
       >
         <span className="column-animate-in">{title.replace(/_/g, " ")}</span>
-        <span className="pr-3 column-animate-in">{issues.length}</span>
+        <span className="column-animate-in inline-flex items-center gap-2">
+          <span className="pr-1">{issues.length}</span>
+          <ChevronLeft className="w-4 h-4 text-muted" aria-hidden="true" />
+        </span>
       </div>
       <div className="kb-column-scroll mt-1 flex-1 min-h-0 overflow-y-auto">
         <div className="grid gap-2" key={`${title}-issues`}>
