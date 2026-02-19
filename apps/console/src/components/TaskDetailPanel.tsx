@@ -122,19 +122,19 @@ const DescendantLink = React.memo(({
           ) : null}
           <TypeIcon className="issue-accent-icon w-4 h-4 shrink-0" aria-hidden="true" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <div className="flex min-w-0 items-baseline gap-2">
+            <div className="grid min-w-0 grid-cols-[auto,1fr] items-baseline gap-x-2 gap-y-1">
               <span className="issue-accent-id text-xs font-medium shrink-0">
                 {formatIssueId(issue.id)}
               </span>
               <span className="text-sm text-foreground min-w-0 flex-1 break-words leading-snug">
                 {issue.title}
               </span>
-            </div>
-            <div className="flex flex-wrap items-start gap-2 sm:hidden">
-              <span className="status-badge" style={statusBadgeStyle}>
-                {statusLabel}
-              </span>
-              <span className="issue-accent-priority">{priorityName}</span>
+              <div className="col-start-2 flex flex-wrap items-start gap-2 sm:hidden">
+                <span className="status-badge" style={statusBadgeStyle}>
+                  {statusLabel}
+                </span>
+                <span className="issue-accent-priority">{priorityName}</span>
+              </div>
             </div>
           </div>
         </div>
