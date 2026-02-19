@@ -2,6 +2,55 @@
 
 <!-- version list -->
 
+## v0.8.2 (2026-02-19)
+
+### Bug Fixes
+
+- Build @kanbus/ui before console assets in CI
+  ([`b3ee28e`](https://github.com/AnthusAI/Kanbus/commit/b3ee28e7efc14a161c2181d63614755dce17c1d0))
+
+- Disable unix socket notifications on windows
+  ([`42c1661`](https://github.com/AnthusAI/Kanbus/commit/42c1661e68566c1006478778d9449aacf8bcc8ee))
+
+- Extend tarpaulin timeout for rust coverage
+  ([`b625717`](https://github.com/AnthusAI/Kanbus/commit/b625717c4277660596a6ddef327e5527d50329a7))
+
+- Install console deps in rust CI
+  ([`f2c98f5`](https://github.com/AnthusAI/Kanbus/commit/f2c98f54f1ae1ad4911e10cf3fc131d6985a0625))
+
+- Make local listing failure injectable for tests
+  ([`0296f62`](https://github.com/AnthusAI/Kanbus/commit/0296f6232e4c203837268c32fb410fc56e45b8af))
+
+- Quiet clippy and format python
+  ([`8d9f220`](https://github.com/AnthusAI/Kanbus/commit/8d9f220da252e1fae472a2bb93a112994535d5b7))
+
+- Reuse prebuilt console dist in rust coverage
+  ([`2b7e9d4`](https://github.com/AnthusAI/Kanbus/commit/2b7e9d4e0c64a34ac3c7d77bd1c85da637b80892))
+
+- Skip slow embedded console feature in CI
+  ([`04a1035`](https://github.com/AnthusAI/Kanbus/commit/04a1035d52909c137c6f420e3aa79254e22e893d))
+
+- Switch rust coverage to cargo-llvm-cov
+  ([`bfca54c`](https://github.com/AnthusAI/Kanbus/commit/bfca54c6f33db323e3dfdcf13f50c92f7ced60d9))
+
+- Unblock release by skipping flaky id format scenario
+  ([`fd8f375`](https://github.com/AnthusAI/Kanbus/commit/fd8f375ae01883977922aef76cc622bb9d45ad18))
+
+- Update test helper call signature
+  ([`42690ca`](https://github.com/AnthusAI/Kanbus/commit/42690ca2b416534b1cbb07b9e7790d723982fed6))
+
+### Chores
+
+- Drop binary-smoke deps on console artifact
+  ([`25250f4`](https://github.com/AnthusAI/Kanbus/commit/25250f416a475a42afb1ee088b826d49f93b665b))
+
+- Run faster rust coverage (lib only)
+  ([`01b490a`](https://github.com/AnthusAI/Kanbus/commit/01b490a43419acb34563de8c32e6c4372a32bba6))
+
+- Simplify rust coverage to unit/integration only
+  ([`c549f8f`](https://github.com/AnthusAI/Kanbus/commit/c549f8f1b9880f53402f99a3cc94bb254b4e86fe))
+
+
 ## v0.8.1 (2026-02-18)
 
 ### Bug Fixes
