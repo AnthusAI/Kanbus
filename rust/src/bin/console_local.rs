@@ -66,10 +66,24 @@ async fn main() {
         .unwrap_or_else(|| repo_root.clone());
 
     // Try to load console_port from project config
-    let config_port = FileStore::new(&data_root)
-        .load_config()
-        .ok()
-        .and_then(|cfg| cfg.console_port);
+    let config_port = match FileStore::new(&data_root).load_config() {
+        Ok(cfg) => {
+            if let Some(port) = cfg.console_port {
+                eprintln!("Loaded console_port from config: {}", port);
+                Some(port)
+            } else {
+                eprintln!("No console_port specified in config, using default");
+                None
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "Warning: Failed to load project config: {}. Using default port.",
+                e
+            );
+            None
+        }
+    };
 
     let desired_port = std::env::var("CONSOLE_PORT")
         .ok()
@@ -186,11 +200,8 @@ async fn main() {
         if !assets_root.exists() {
             eprintln!("\nNote: Console UI assets not found at {:?}", assets_root);
             eprintln!("The API will work, but the web UI won't load.");
-            eprintln!("\nTo use the web UI, you can:");
-            eprintln!(
-                "1. Set CONSOLE_ASSETS_ROOT=/Users/ryan.porter/Projects/Kanbus/apps/console/dist"
-            );
-            eprintln!("2. Or build with embedded assets: cargo build --bin kbsc --features embed-assets --release\n");
+            eprintln!("\nTo use the web UI:");
+            eprintln!("Install the official release with embedded assets: cargo install kanbus --bin kbsc\n");
         }
         println!(
             "Console backend listening on http://127.0.0.1:{port} (filesystem assets at {:?})",
@@ -828,8 +839,6 @@ fn parse_json_body(body: &Bytes) -> JsonValue {
 
 fn resolve_repo_root() -> PathBuf {
     // Start from current directory and walk up to find .kanbus.yml
-    // This allows kbsc to work both when run from a project root
-    // and when run via cargo from a subdirectory (like rust/)
     let current = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     let mut path = current.as_path();
@@ -843,11 +852,11 @@ fn resolve_repo_root() -> PathBuf {
         }
     }
 
-    // Fallback to compile-time root if .kanbus.yml not found
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
+    // No .kanbus.yml found - fail with a helpful error message
+    eprintln!("Error: Could not find .kanbus.yml in current directory or any parent directory.");
+    eprintln!("Current directory: {}", current.display());
+    eprintln!("\nTo initialize a Kanbus project, run: kanbus init");
+    std::process::exit(1);
 }
 
 async fn get_index(
@@ -1012,7 +1021,18 @@ async fn listen_on_socket(
                         // Try to parse the JSON event
                         match serde_json::from_str::<NotificationEvent>(&line) {
                             Ok(event) => {
-                                let _ = tx.send(event);
+                                eprintln!(
+                                    "Socket received notification: {:?}",
+                                    event.description()
+                                );
+                                match tx.send(event) {
+                                    Ok(receiver_count) => {
+                                        eprintln!("Broadcast sent to {} receivers", receiver_count);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to broadcast notification: {:?}", e);
+                                    }
+                                }
                             }
                             Err(e) => {
                                 eprintln!("Failed to parse notification event: {}", e);

@@ -227,16 +227,6 @@ fn given_issue_with_full_metadata(
     write_issue_file(&project_dir, &issue);
 }
 
-#[when("I run \"kanbus --help\"")]
-fn when_run_help(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus --help");
-}
-
-#[when("I run \"kanbus --unknown\"")]
-fn when_run_unknown(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus --unknown");
-}
-
 #[when("I list issues directly after configuration path lookup fails")]
 fn when_list_issues_directly_after_configuration_failure(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("working directory");
@@ -267,11 +257,6 @@ fn when_list_issues_directly_after_configuration_failure(world: &mut KanbusWorld
     }
 }
 
-#[when("I run \"kanbus console snapshot\"")]
-fn when_run_console_snapshot(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus console snapshot");
-}
-
 #[given(expr = "issue {string} has title {string}")]
 fn given_issue_has_title(world: &mut KanbusWorld, identifier: String, title: String) {
     let project_dir = load_project_dir(world);
@@ -286,77 +271,6 @@ fn given_issue_has_description(world: &mut KanbusWorld, identifier: String, desc
     let mut issue = build_issue(&identifier);
     issue.description = description;
     write_issue_file(&project_dir, &issue);
-}
-
-#[when("I run \"kanbus list --status open\"")]
-fn when_run_list_status(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --status open");
-}
-
-#[when("I run \"kanbus list --type task\"")]
-fn when_run_list_type(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --type task");
-}
-
-#[when("I run \"kanbus list --assignee dev@example.com\"")]
-fn when_run_list_assignee(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --assignee dev@example.com");
-}
-
-#[when("I run \"kanbus list --label auth\"")]
-fn when_run_list_label(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --label auth");
-}
-
-#[when("I run \"kanbus list --sort priority\"")]
-fn when_run_list_sort(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --sort priority");
-}
-
-#[when("I run \"kanbus list --search login\"")]
-fn when_run_list_search(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --search login");
-}
-
-#[when("I run \"kanbus list --search Searchable\"")]
-fn when_run_list_search_comment(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --search Searchable");
-}
-
-#[when("I run \"kanbus list --search Dup\"")]
-fn when_run_list_search_dup(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --search Dup");
-}
-
-#[when("I run \"kanbus list --sort invalid\"")]
-fn when_run_list_invalid_sort(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --sort invalid");
-}
-
-#[when("I run \"kanbus list --no-local\"")]
-fn when_run_list_no_local(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --no-local");
-}
-
-#[when("I run \"kanbus list --local-only\"")]
-fn when_run_list_local_only(world: &mut KanbusWorld) {
-    if world.local_listing_error {
-        world.exit_code = Some(1);
-        world.stdout = Some(String::new());
-        world.stderr = Some("local listing failed".to_string());
-        return;
-    }
-    run_cli(world, "kanbus list --local-only");
-}
-
-#[when("I run \"kanbus list --local-only --no-local\"")]
-fn when_run_list_local_conflict(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --local-only --no-local");
-}
-
-#[when("I run \"kanbus list --porcelain\"")]
-fn when_run_list_porcelain(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus list --porcelain");
 }
 
 #[then(expr = "stdout should contain the line {string}")]

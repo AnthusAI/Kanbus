@@ -1,9 +1,17 @@
 export type WorkflowDefinition = Record<string, string[]>;
+export type TransitionLabelsDefinition = Record<string, Record<string, Record<string, string>>>;
 
 export interface StatusDefinition {
+  key: string;
   name: string;
+  category: string;
   color?: string | null;
   collapsed?: boolean;
+}
+
+export interface CategoryDefinition {
+  name: string;
+  color?: string | null;
 }
 
 export interface PriorityDefinition {
@@ -18,12 +26,14 @@ export interface ProjectConfig {
   hierarchy: string[];
   types: string[];
   workflows: Record<string, WorkflowDefinition>;
+  transition_labels: TransitionLabelsDefinition;
   initial_status: string;
   priorities: Record<number, PriorityDefinition>;
   default_priority: number;
   assignee?: string | null;
   time_zone?: string | null;
   statuses: StatusDefinition[];
+  categories: CategoryDefinition[];
   type_colors: Record<string, string>;
   beads_compatibility: boolean;
 }

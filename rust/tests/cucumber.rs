@@ -186,6 +186,9 @@ fn cover_additional_paths() {
         Some("dev@example.com"),
         true,
         true,
+        &[],
+        &[],
+        None,
     );
     let _ = update_issue(
         root,
@@ -196,6 +199,9 @@ fn cover_additional_paths() {
         None,
         false,
         true,
+        &[],
+        &[],
+        None,
     );
     let _ = update_issue(
         root,
@@ -206,6 +212,9 @@ fn cover_additional_paths() {
         None,
         false,
         true,
+        &[],
+        &[],
+        None,
     );
     let _ = update_issue(
         root,
@@ -216,6 +225,9 @@ fn cover_additional_paths() {
         Some("dev@example.com"),
         false,
         true,
+        &[],
+        &[],
+        None,
     );
 
     let _ = add_dependency(
@@ -246,6 +258,9 @@ fn cover_additional_paths() {
         None,
         false,
         true,
+        &[],
+        &[],
+        None,
     );
 
     let _ = list_issues(root, None, None, None, None, None, None, true, false);

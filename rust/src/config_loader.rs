@@ -79,6 +79,10 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
         errors.push("default workflow is required".to_string());
     }
 
+    if configuration.transition_labels.is_empty() {
+        errors.push("transition_labels must not be empty".to_string());
+    }
+
     if !configuration
         .priorities
         .contains_key(&configuration.default_priority)
@@ -86,23 +90,41 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
         errors.push("default priority must be in priorities map".to_string());
     }
 
+    if configuration.categories.is_empty() {
+        errors.push("categories must not be empty".to_string());
+    }
+    let mut category_names = std::collections::HashSet::new();
+    for category in &configuration.categories {
+        if !category_names.insert(&category.name) {
+            errors.push("duplicate category name".to_string());
+            break;
+        }
+    }
+
     // Validate statuses
     if configuration.statuses.is_empty() {
         errors.push("statuses must not be empty".to_string());
     }
 
-    // Check for duplicate status names
-    let mut status_names = std::collections::HashSet::new();
+    // Check for duplicate status keys
+    let mut status_keys = std::collections::HashSet::new();
     for status in &configuration.statuses {
-        if !status_names.insert(&status.name) {
-            errors.push("duplicate status name".to_string());
+        if !status_keys.insert(&status.key) {
+            errors.push("duplicate status key".to_string());
+            break;
+        }
+        if !category_names.is_empty() && !category_names.contains(&status.category) {
+            errors.push(format!(
+                "status '{}' references undefined category '{}'",
+                status.key, status.category
+            ));
             break;
         }
     }
 
-    // Build set of valid status names
+    // Build set of valid status keys
     let valid_statuses: std::collections::HashSet<&String> =
-        configuration.statuses.iter().map(|s| &s.name).collect();
+        configuration.statuses.iter().map(|s| &s.key).collect();
 
     // Validate that initial_status exists in statuses
     if !valid_statuses.contains(&configuration.initial_status) {
@@ -128,6 +150,50 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
                         workflow_name, to_status
                     ));
                 }
+            }
+        }
+    }
+
+    // Validate transition labels match workflows
+    for (workflow_name, workflow) in &configuration.workflows {
+        let Some(workflow_labels) = configuration.transition_labels.get(workflow_name) else {
+            errors.push(format!(
+                "transition_labels missing workflow '{}'",
+                workflow_name
+            ));
+            continue;
+        };
+        for (from_status, transitions) in workflow {
+            let Some(from_labels) = workflow_labels.get(from_status) else {
+                errors.push(format!(
+                    "transition_labels missing from-status '{}' in workflow '{}'",
+                    from_status, workflow_name
+                ));
+                continue;
+            };
+            for to_status in transitions {
+                if !from_labels.contains_key(to_status) {
+                    errors.push(format!(
+                        "transition_labels missing transition '{}' -> '{}' in workflow '{}'",
+                        from_status, to_status, workflow_name
+                    ));
+                }
+            }
+            for labeled_target in from_labels.keys() {
+                if !transitions.iter().any(|entry| entry == labeled_target) {
+                    errors.push(format!(
+                        "transition_labels references invalid transition '{}' -> '{}' in workflow '{}'",
+                        from_status, labeled_target, workflow_name
+                    ));
+                }
+            }
+        }
+        for labeled_from in workflow_labels.keys() {
+            if !workflow.contains_key(labeled_from) {
+                errors.push(format!(
+                    "transition_labels references invalid from-status '{}' in workflow '{}'",
+                    labeled_from, workflow_name
+                ));
             }
         }
     }

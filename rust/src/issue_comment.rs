@@ -20,7 +20,7 @@ fn generate_comment_id() -> String {
     Uuid::new_v4().to_string()
 }
 
-fn ensure_comment_ids(issue: &IssueData) -> (IssueData, bool) {
+pub fn ensure_comment_ids(issue: &IssueData) -> (IssueData, bool) {
     let mut changed = false;
     let comments = issue
         .comments

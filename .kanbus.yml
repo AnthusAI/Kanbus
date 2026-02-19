@@ -29,19 +29,60 @@ workflows:
     closed: [open]
 
 statuses:
-  - name: backlog
-    color: yellow
+  - key: backlog
+    name: Backlog
+    category: To do
     collapsed: true
-  - name: open
-    color: cyan
-  - name: in_progress
+  - key: open
+    name: Discovery
+    category: To do
+  - key: in_progress
+    name: In Progress
+    category: In progress
+  - key: blocked
+    name: Blocked
+    category: In progress
+    collapsed: true
+  - key: closed
+    name: Done
+    category: Done
+    collapsed: true
+
+categories:
+  - name: To do
+    color: grey
+  - name: In progress
     color: blue
-  - name: blocked
-    color: red
-    collapsed: true
-  - name: closed
+  - name: Done
     color: green
-    collapsed: true
+
+transition_labels:
+  default:
+    backlog:
+      open: Start discovery
+      closed: Drop
+    open:
+      in_progress: Start work
+      closed: Drop
+      backlog: Back to backlog
+    in_progress:
+      open: Pause
+      blocked: Block
+      closed: Complete
+    blocked:
+      in_progress: Unblock
+      closed: Drop
+    closed:
+      open: Reopen
+  epic:
+    open:
+      in_progress: Start
+      closed: Complete
+    in_progress:
+      open: Pause
+      closed: Complete
+    closed:
+      open: Reopen
 
 initial_status: open
 priorities:

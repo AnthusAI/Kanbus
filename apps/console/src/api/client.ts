@@ -11,7 +11,8 @@ export type UiControlAction =
   | { action: "set_setting"; key: string; value: string }
   | { action: "collapse_column"; column_name: string }
   | { action: "expand_column"; column_name: string }
-  | { action: "select_issue"; issue_id: string };
+  | { action: "select_issue"; issue_id: string }
+  | { action: "reload_page" };
 
 export type NotificationEvent =
   | { type: "issue_created"; issue_id: string; issue_data: Issue }
@@ -149,6 +150,10 @@ export function subscribeToNotifications(
       }
 
       console.info("[notifications] received", logData);
+      console.info("[notifications] full payload", {
+        notification,
+        hasIssueData: "issue_data" in notification && Boolean(notification.issue_data)
+      });
       onNotification(notification);
     } catch (error) {
       console.error("[notifications] parse error", error);

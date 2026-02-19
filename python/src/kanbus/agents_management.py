@@ -161,7 +161,7 @@ def _build_project_management_context(
 ) -> dict[str, object]:
     hierarchy = configuration.hierarchy
     types = configuration.types
-    workflows = _build_workflow_context(configuration.workflows)
+    workflows = _build_workflow_context(configuration)
     priorities = _build_priority_context(configuration.priorities)
     default_priority = configuration.priorities.get(configuration.default_priority)
     default_priority_name = (
@@ -211,15 +211,23 @@ def _build_parent_child_rules(hierarchy: List[str], types: List[str]) -> List[st
 
 
 def _build_workflow_context(
-    workflows: dict[str, dict[str, List[str]]],
+    configuration: ProjectConfiguration,
 ) -> List[dict[str, object]]:
     context: List[dict[str, object]] = []
-    for workflow_name in sorted(workflows):
-        workflow = workflows[workflow_name]
+    status_labels = {status.key: status.name for status in configuration.statuses}
+    for workflow_name in sorted(configuration.workflows):
+        workflow = configuration.workflows[workflow_name]
+        workflow_labels = configuration.transition_labels.get(workflow_name, {})
         statuses = []
         for status in sorted(workflow):
             transitions = workflow[status]
-            statuses.append({"name": status, "transitions": list(transitions)})
+            rendered: List[str] = []
+            from_labels = workflow_labels.get(status, {})
+            for target in transitions:
+                transition_label = from_labels.get(target, target)
+                target_label = status_labels.get(target, target)
+                rendered.append(f"{transition_label} ({target_label})")
+            statuses.append({"name": status, "transitions": rendered})
         context.append({"name": workflow_name, "statuses": statuses})
     return context
 

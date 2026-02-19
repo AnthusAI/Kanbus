@@ -33,11 +33,37 @@ fn get_socket_path(root: &Path) -> PathBuf {
 /// not block CRUD operations.
 pub fn publish_notification(root: &Path, event: NotificationEvent) -> Result<(), KanbusError> {
     let socket_path = get_socket_path(root);
+
+    // Debug: write to file
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/kanbus-cli-debug.log")
+    {
+        let _ = writeln!(
+            f,
+            "CLI: Sending notification to socket: {}",
+            socket_path.display()
+        );
+    }
+
     let result = send_notification_sync(&socket_path, &event);
 
     if let Err(e) = result {
         // Log error but don't fail - notification is best-effort
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .append(true)
+            .open("/tmp/kanbus-cli-debug.log")
+        {
+            let _ = writeln!(f, "CLI: Failed: {}", e);
+        }
         eprintln!("Warning: Failed to send notification: {}", e);
+    } else if let Ok(mut f) = std::fs::OpenOptions::new()
+        .append(true)
+        .open("/tmp/kanbus-cli-debug.log")
+    {
+        let _ = writeln!(f, "CLI: Notification sent successfully");
     }
 
     Ok(())

@@ -37,6 +37,9 @@ pub fn update_issue(
     assignee: Option<&str>,
     claim: bool,
     validate: bool,
+    add_labels: &[String],
+    remove_labels: &[String],
+    set_labels: Option<&str>,
 ) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let config_path = get_configuration_path(lookup.project_dir.as_path())?;
@@ -84,10 +87,40 @@ pub fn update_issue(
         resolved_status = None;
     }
 
+    let mut updated_labels: Option<Vec<String>> = None;
+    if set_labels.is_some() || !add_labels.is_empty() || !remove_labels.is_empty() {
+        let mut labels = if let Some(value) = set_labels {
+            value
+                .split(',')
+                .map(|label| label.trim().to_string())
+                .filter(|l| !l.is_empty())
+                .collect::<Vec<_>>()
+        } else {
+            updated_issue.labels.clone()
+        };
+        for label in add_labels {
+            let trimmed = label.trim();
+            if !trimmed.is_empty() && !labels.iter().any(|l| l.eq_ignore_ascii_case(trimmed)) {
+                labels.push(trimmed.to_string());
+            }
+        }
+        if !remove_labels.is_empty() {
+            labels.retain(|label| {
+                !remove_labels
+                    .iter()
+                    .any(|r| label.eq_ignore_ascii_case(r.trim()))
+            })
+        }
+        if labels != updated_issue.labels {
+            updated_labels = Some(labels);
+        }
+    }
+
     if resolved_status.is_none()
         && updated_title.is_none()
         && updated_description.is_none()
         && updated_assignee.is_none()
+        && updated_labels.is_none()
     {
         return Err(KanbusError::IssueOperation(
             "no updates requested".to_string(),
@@ -116,6 +149,9 @@ pub fn update_issue(
     }
     if let Some(new_assignee) = updated_assignee {
         updated_issue.assignee = Some(new_assignee);
+    }
+    if let Some(new_labels) = updated_labels {
+        updated_issue.labels = new_labels;
     }
     updated_issue.updated_at = current_time;
 

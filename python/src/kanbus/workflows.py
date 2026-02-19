@@ -76,22 +76,13 @@ def _collect_workflow_statuses(workflow: Dict[str, List[str]]) -> set[str]:
 def validate_status_value(
     configuration: ProjectConfiguration, issue_type: str, status: str
 ) -> None:
-    valid_statuses: set[str] = set()
-
-    # Add statuses from the statuses list (primary source of truth)
-    valid_statuses.update(s.name for s in configuration.statuses)
-
-    # Also check workflows for backward compatibility and additional validation
-    if "default" in configuration.workflows:
-        valid_statuses.update(
-            _collect_workflow_statuses(configuration.workflows["default"])
-        )
-    if issue_type in configuration.workflows:
-        valid_statuses.update(
-            _collect_workflow_statuses(configuration.workflows[issue_type])
-        )
+    valid_statuses = {s.key for s in configuration.statuses}
     if status not in valid_statuses:
         raise InvalidTransitionError("unknown status")
+
+    workflow = get_workflow_for_issue_type(configuration, issue_type)
+    if status not in _collect_workflow_statuses(workflow):
+        raise InvalidTransitionError("invalid transition")
 
 
 def apply_transition_side_effects(

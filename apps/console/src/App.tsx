@@ -510,8 +510,8 @@ export default function App() {
               const updatedIssues = snapshot.issues.map(issue =>
                 issue.id === event.issue_id ? event.issue_data : issue
               );
-              // If this is a new issue (created), add it if not already present
-              if (event.type === "issue_created" && !snapshot.issues.find(i => i.id === event.issue_id)) {
+              // If this is a new issue (created), add it if not already present in updatedIssues
+              if (event.type === "issue_created" && !updatedIssues.find(i => i.id === event.issue_id)) {
                 updatedIssues.push(event.issue_data);
               }
               setSnapshot({
@@ -1128,29 +1128,35 @@ export default function App() {
             detailMaximized ? " detail-maximized" : ""
           }`}
         >
-          <div className="layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3">
-            <Board
-              columns={columns}
-              issues={filteredIssues}
-              priorityLookup={priorityLookup}
-              config={config}
-              onSelectIssue={handleSelectIssue}
-              selectedIssueId={selectedTask?.id ?? null}
-              transitionKey={transitionKey}
-              detailOpen={isDetailOpen}
-              collapsedColumns={collapsedColumns}
-              onToggleCollapse={(column) => {
-                setCollapsedColumns((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(column)) {
-                    next.delete(column);
-                  } else {
-                    next.add(column);
-                  }
-                  return next;
-                });
-              }}
-            />
+          <div
+            className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3${
+              detailMaximized ? " hidden" : ""
+            }`}
+          >
+            {!detailMaximized ? (
+              <Board
+                columns={columns}
+                issues={filteredIssues}
+                priorityLookup={priorityLookup}
+                config={config}
+                onSelectIssue={handleSelectIssue}
+                selectedIssueId={selectedTask?.id ?? null}
+                transitionKey={transitionKey}
+                detailOpen={isDetailOpen}
+                collapsedColumns={collapsedColumns}
+                onToggleCollapse={(column) => {
+                  setCollapsedColumns((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(column)) {
+                      next.delete(column);
+                    } else {
+                      next.add(column);
+                    }
+                    return next;
+                  });
+                }}
+              />
+            ) : null}
           </div>
             {isDetailVisible ? (
               <div

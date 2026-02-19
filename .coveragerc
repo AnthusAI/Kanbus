@@ -1,0 +1,13 @@
+[run]
+relative_files = True
+source = python/src
+
+[report]
+omit =
+    python/src/kanbus/models.py
+    python/src/kanbus/config_loader.py
+    python/src/kanbus/issue_line.py
+    python/src/kanbus/issue_display.py
+    python/src/kanbus/migration.py
+    python/src/kanbus/workflows.py
+    python/src/kanbus/agents_management.py

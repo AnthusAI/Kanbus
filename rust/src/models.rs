@@ -4,6 +4,14 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// Category definition for grouping statuses.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryDefinition {
+    pub name: String,
+    #[serde(default)]
+    pub color: Option<String>,
+}
+
 /// Dependency link between issues.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DependencyLink {
@@ -62,6 +70,8 @@ pub struct ProjectConfiguration {
     pub hierarchy: Vec<String>,
     pub types: Vec<String>,
     pub workflows: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    #[serde(default)]
+    pub transition_labels: BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>>,
     pub initial_status: String,
     pub priorities: BTreeMap<u8, PriorityDefinition>,
     pub default_priority: u8,
@@ -71,6 +81,8 @@ pub struct ProjectConfiguration {
     pub time_zone: Option<String>,
     pub statuses: Vec<StatusDefinition>,
     #[serde(default)]
+    pub categories: Vec<CategoryDefinition>,
+    #[serde(default)]
     pub type_colors: BTreeMap<String, String>,
     #[serde(default)]
     pub beads_compatibility: bool,
@@ -79,7 +91,9 @@ pub struct ProjectConfiguration {
 /// Status definition with display metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatusDefinition {
+    pub key: String,
     pub name: String,
+    pub category: String,
     #[serde(default)]
     pub color: Option<String>,
     #[serde(default)]

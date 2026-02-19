@@ -19,20 +19,6 @@ fn example_dir(name: &str) -> PathBuf {
     repo_root().join("examples").join(slug)
 }
 
-fn tskr_binary_path() -> PathBuf {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let binary_path = manifest_dir.join("target").join("debug").join("kbs");
-    let status = Command::new("cargo")
-        .args(["build", "--bin", "kbs"])
-        .current_dir(&manifest_dir)
-        .status()
-        .expect("build kbs binary");
-    if !status.success() {
-        panic!("failed to build kbs binary");
-    }
-    binary_path
-}
-
 #[given(expr = "the {string} example project does not exist")]
 fn given_example_missing(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
@@ -55,41 +41,11 @@ fn when_create_example_project(_world: &mut KanbusWorld, name: String) {
     }
 }
 
-#[when(expr = "I run \"kanbus init\" in the {string} example project")]
-fn when_run_init_in_example(world: &mut KanbusWorld, name: String) {
-    let path = example_dir(&name);
-    let binary_path = tskr_binary_path();
-    let mut command = Command::new(binary_path);
-    command
-        .current_dir(&path)
-        .args(["init"])
-        .env("KANBUS_NO_DAEMON", "1");
-    let output = command.output().expect("run kbs init");
-    world.exit_code = Some(output.status.code().unwrap_or(1));
-    world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
-    world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
-}
-
 #[when(expr = "I add a README stub to the {string} example project")]
 fn when_add_readme_stub(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
     let readme = path.join("README.md");
     fs::write(readme, format!("{README_STUB}\n")).expect("write README");
-}
-
-#[when(expr = "I run \"kanbus setup agents\" in the {string} example project")]
-fn when_run_setup_agents_in_example(world: &mut KanbusWorld, name: String) {
-    let path = example_dir(&name);
-    let binary_path = tskr_binary_path();
-    let mut command = Command::new(binary_path);
-    command
-        .current_dir(&path)
-        .args(["setup", "agents"])
-        .env("KANBUS_NO_DAEMON", "1");
-    let output = command.output().expect("run kbs setup agents");
-    world.exit_code = Some(output.status.code().unwrap_or(1));
-    world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
-    world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
 }
 
 #[then(expr = "the {string} example project should contain a README stub")]

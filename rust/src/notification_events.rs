@@ -57,6 +57,8 @@ pub enum UiControlAction {
     ExpandColumn { column_name: String },
     /// Select and navigate to an issue.
     SelectIssue { issue_id: String },
+    /// Reload the entire page.
+    ReloadPage,
 }
 
 impl NotificationEvent {

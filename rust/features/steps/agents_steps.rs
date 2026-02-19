@@ -1,9 +1,8 @@
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
-use cucumber::{given, then, when};
+use cucumber::{given, then};
 use tempfile::TempDir;
 
 use kanbus::agents_management::{kanbus_section_text, project_management_text};
@@ -52,56 +51,6 @@ fn write_agents_fixture(world: &mut KanbusWorld, fixture_name: &str) {
     let repo_path = setup_repo(world);
     let content = fs::read_to_string(fixture_path(fixture_name)).expect("read fixture");
     fs::write(repo_path.join("AGENTS.md"), content).expect("write agents file");
-}
-
-fn run_cli_with_input(
-    world: &mut KanbusWorld,
-    command: &str,
-    input: Option<&str>,
-    non_interactive: bool,
-) {
-    let args = shell_words::split(command).expect("parse command");
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let binary_path = manifest_dir.join("target").join("debug").join("kbs");
-    let status = Command::new("cargo")
-        .args(["build", "--bin", "kbs"])
-        .current_dir(&manifest_dir)
-        .status()
-        .expect("build kbs binary");
-    if !status.success() {
-        panic!("failed to build kbs binary");
-    }
-    let cwd = world
-        .working_directory
-        .clone()
-        .unwrap_or_else(|| std::env::current_dir().expect("current dir"));
-
-    let mut command_process = Command::new(binary_path);
-    command_process
-        .args(args)
-        .current_dir(cwd)
-        .env("KANBUS_NO_DAEMON", "1");
-    if non_interactive {
-        command_process.stdin(Stdio::null());
-    } else if input.is_some() {
-        command_process.stdin(Stdio::piped());
-    } else {
-        command_process.stdin(Stdio::null());
-    }
-    let mut child = command_process
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("spawn kbs");
-    if let Some(value) = input {
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(value.as_bytes()).expect("write stdin");
-        }
-    }
-    let output = child.wait_with_output().expect("run kbs");
-    world.exit_code = Some(output.status.code().unwrap_or(1));
-    world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
-    world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
 }
 
 fn read_agents(world: &KanbusWorld) -> String {
@@ -155,27 +104,6 @@ fn given_repo_agents_without_kanbus(world: &mut KanbusWorld) {
 #[given("a Kanbus repository with AGENTS.md containing a Kanbus section")]
 fn given_repo_agents_with_kanbus(world: &mut KanbusWorld) {
     write_agents_fixture(world, "agents_with_kanbus.md");
-}
-
-#[when("I run \"kanbus setup agents\"")]
-fn when_run_setup_agents(world: &mut KanbusWorld) {
-    run_cli_with_input(world, "setup agents", None, false);
-}
-
-#[when("I run \"kanbus setup agents --force\"")]
-fn when_run_setup_agents_force(world: &mut KanbusWorld) {
-    run_cli_with_input(world, "setup agents --force", None, false);
-}
-
-#[when(expr = "I run \"kanbus setup agents\" and respond {string}")]
-fn when_run_setup_agents_with_response(world: &mut KanbusWorld, response: String) {
-    let input = format!("{response}\n");
-    run_cli_with_input(world, "setup agents", Some(&input), false);
-}
-
-#[when("I run \"kanbus setup agents\" non-interactively")]
-fn when_run_setup_agents_non_interactive(world: &mut KanbusWorld) {
-    run_cli_with_input(world, "setup agents", None, true);
 }
 
 #[then("AGENTS.md should exist")]

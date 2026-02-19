@@ -59,14 +59,30 @@ KNOWN_COLORS = {
 }
 
 
+def _normalize_cli_color(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if normalized in ("gray", "grey"):
+        normalized = "bright_black"
+    return normalized if normalized in KNOWN_COLORS else None
+
+
 def _resolve_status_color(
     status: str, configuration: ProjectConfiguration | None
 ) -> str:
     if configuration:
+        categories = {category.name: category.color for category in configuration.categories}
         # Look up color from statuses list
         for status_def in configuration.statuses:
-            if status_def.name == status and status_def.color:
-                return status_def.color
+            if status_def.key != status:
+                continue
+            status_color = _normalize_cli_color(status_def.color)
+            if status_color:
+                return status_color
+            category_color = _normalize_cli_color(categories.get(status_def.category or ""))
+            if category_color:
+                return category_color
     return STATUS_COLORS.get(status, "white")
 
 
@@ -89,7 +105,7 @@ def _resolve_type_color(
 
 
 def _normalize_color(color: str | None) -> str | None:
-    return color if color in KNOWN_COLORS else None
+    return _normalize_cli_color(color)
 
 
 def _safe_color(colorizer: Callable[[str, str], str], text: str, fg: str | None) -> str:

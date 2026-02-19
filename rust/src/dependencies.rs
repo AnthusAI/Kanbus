@@ -35,7 +35,21 @@ pub fn add_dependency(
 ) -> Result<IssueData, KanbusError> {
     validate_dependency_type(dependency_type)?;
     let source_lookup = load_issue_from_project(root, source_id)?;
-    load_issue_from_project(root, target_id)?;
+    let target_lookup = load_issue_from_project(root, target_id)?;
+
+    // Prevent blocked-by relationships that mirror parent-child edges (cycle-like).
+    if dependency_type == "blocked-by" {
+        if source_lookup.issue.parent.as_deref() == Some(target_id) {
+            return Err(KanbusError::IssueOperation(
+                "circular dependency: cannot block on parent".to_string(),
+            ));
+        }
+        if target_lookup.issue.parent.as_deref() == Some(source_id) {
+            return Err(KanbusError::IssueOperation(
+                "circular dependency: cannot block on child".to_string(),
+            ));
+        }
+    }
 
     if dependency_type == "blocked-by" {
         ensure_no_cycle(root, source_id, target_id)?;

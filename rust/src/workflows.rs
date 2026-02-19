@@ -67,43 +67,20 @@ pub fn validate_status_transition(
     Ok(())
 }
 
-/// Validate that a status value exists in the workflow.
+/// Validate that a status value exists in the global status definitions.
 ///
 /// # Errors
 /// Returns `KanbusError::InvalidTransition` if the status is unknown.
 pub fn validate_status_value(
     configuration: &ProjectConfiguration,
-    issue_type: &str,
+    _issue_type: &str,
     status: &str,
 ) -> Result<(), KanbusError> {
-    let mut valid_statuses: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
-
-    // Add statuses from the statuses list (primary source of truth)
-    for status_def in &configuration.statuses {
-        valid_statuses.insert(status_def.name.as_str());
-    }
-
-    // Also check workflows for backward compatibility and additional validation
-    if let Some(default_workflow) = configuration.workflows.get("default") {
-        for status in default_workflow.keys() {
-            valid_statuses.insert(status.as_str());
-        }
-        for allowed in default_workflow.values() {
-            for entry in allowed {
-                valid_statuses.insert(entry.as_str());
-            }
-        }
-    }
-    if let Some(type_workflow) = configuration.workflows.get(issue_type) {
-        for status in type_workflow.keys() {
-            valid_statuses.insert(status.as_str());
-        }
-        for allowed in type_workflow.values() {
-            for entry in allowed {
-                valid_statuses.insert(entry.as_str());
-            }
-        }
-    }
+    let valid_statuses: std::collections::BTreeSet<&str> = configuration
+        .statuses
+        .iter()
+        .map(|entry| entry.key.as_str())
+        .collect();
     if !valid_statuses.contains(status) {
         return Err(KanbusError::InvalidTransition("unknown status".to_string()));
     }

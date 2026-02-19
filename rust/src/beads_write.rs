@@ -329,6 +329,128 @@ pub fn delete_beads_comment(
     Ok(())
 }
 
+/// Add a dependency to a Beads issue.
+pub fn add_beads_dependency(
+    root: &Path,
+    identifier: &str,
+    target: &str,
+    dependency_type: &str,
+) -> Result<(), KanbusError> {
+    let beads_dir = root.join(".beads");
+    if !beads_dir.exists() {
+        return Err(KanbusError::IssueOperation(
+            "no .beads directory".to_string(),
+        ));
+    }
+    let issues_path = beads_dir.join("issues.jsonl");
+    if !issues_path.exists() {
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
+    }
+
+    let mut records = load_beads_records(&issues_path)?;
+    let target_id = resolve_beads_identifier(&records, target)?;
+    let source_index = resolve_beads_index(&records, identifier)?;
+    let target_index = resolve_beads_index(&records, &target_id)?;
+
+    if dependency_type == "blocked-by" {
+        // Blocked-by cannot mirror parent-child relationships.
+        let source_parent = records[source_index]
+            .get("parent")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let target_parent = records[target_index]
+            .get("parent")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+
+        if source_parent.as_deref() == Some(target_id.as_str()) {
+            return Err(KanbusError::IssueOperation(
+                "circular dependency: cannot block on parent".to_string(),
+            ));
+        }
+        if target_parent.as_deref() == Some(identifier) {
+            return Err(KanbusError::IssueOperation(
+                "circular dependency: cannot block on child".to_string(),
+            ));
+        }
+    }
+
+    let updated_at = Utc::now().to_rfc3339();
+    {
+        let record = records
+            .get_mut(source_index)
+            .and_then(Value::as_object_mut)
+            .ok_or_else(|| KanbusError::IssueOperation("not found".to_string()))?;
+        let deps_entry = record
+            .entry("dependencies".to_string())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        let deps = deps_entry
+            .as_array_mut()
+            .ok_or_else(|| KanbusError::IssueOperation("invalid dependency list".to_string()))?;
+        if deps.iter().any(|entry| {
+            entry.get("depends_on_id").and_then(Value::as_str) == Some(target_id.as_str())
+                && entry.get("type").and_then(Value::as_str) == Some(dependency_type)
+        }) {
+            return Ok(());
+        }
+        deps.push(json!({
+            "issue_id": identifier,
+            "depends_on_id": target_id,
+            "type": dependency_type,
+            "created_at": updated_at,
+            "created_by": get_current_user(),
+        }));
+        record.insert("updated_at".to_string(), json!(updated_at));
+    }
+
+    write_beads_records(&issues_path, &records)?;
+    Ok(())
+}
+
+/// Remove a dependency from a Beads issue.
+pub fn remove_beads_dependency(
+    root: &Path,
+    identifier: &str,
+    target: &str,
+    dependency_type: &str,
+) -> Result<(), KanbusError> {
+    let beads_dir = root.join(".beads");
+    if !beads_dir.exists() {
+        return Err(KanbusError::IssueOperation(
+            "no .beads directory".to_string(),
+        ));
+    }
+    let issues_path = beads_dir.join("issues.jsonl");
+    if !issues_path.exists() {
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
+    }
+
+    let mut records = load_beads_records(&issues_path)?;
+    let target_id = resolve_beads_identifier(&records, target)?;
+    let source_index = resolve_beads_index(&records, identifier)?;
+
+    if let Some(record) = records.get_mut(source_index) {
+        if let Some(list) = record.get_mut("dependencies").and_then(Value::as_array_mut) {
+            list.retain(|entry| {
+                !(entry.get("depends_on_id").and_then(Value::as_str) == Some(target_id.as_str())
+                    && entry.get("type").and_then(Value::as_str) == Some(dependency_type))
+            });
+            let updated_at = Utc::now().to_rfc3339();
+            // capture empty flag before releasing mutable borrow of list
+            let list_empty = list.is_empty();
+            if let Some(object) = record.as_object_mut() {
+                object.insert("updated_at".to_string(), json!(updated_at));
+                if list_empty {
+                    object.remove("dependencies");
+                }
+            }
+        }
+    }
+
+    write_beads_records(&issues_path, &records)?;
+    Ok(())
+}
+
 /// Update a Beads-compatible issue in .beads/issues.jsonl.
 pub fn update_beads_issue(
     root: &Path,
@@ -336,6 +458,9 @@ pub fn update_beads_issue(
     status: Option<&str>,
     title: Option<&str>,
     description: Option<&str>,
+    add_labels: &[String],
+    remove_labels: &[String],
+    set_labels: Option<&str>,
 ) -> Result<IssueData, KanbusError> {
     let beads_dir = root.join(".beads");
     if !beads_dir.exists() {
@@ -407,6 +532,46 @@ pub fn update_beads_issue(
             .insert("description".to_string(), json!(new_description));
         updated = true;
     }
+    // Labels
+    if set_labels.is_some() || !add_labels.is_empty() || !remove_labels.is_empty() {
+        let labels_value = record.get_mut("labels");
+        let mut labels: Vec<String> = labels_value
+            .and_then(Value::as_array_mut)
+            .map(|array| {
+                array
+                    .iter()
+                    .filter_map(|value| value.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        if let Some(value) = set_labels {
+            labels = value
+                .split(',')
+                .map(|label| label.trim().to_string())
+                .filter(|l| !l.is_empty())
+                .collect();
+        }
+        for label in add_labels {
+            let trimmed = label.trim();
+            if !trimmed.is_empty() && !labels.iter().any(|l| l.eq_ignore_ascii_case(trimmed)) {
+                labels.push(trimmed.to_string());
+            }
+        }
+        if !remove_labels.is_empty() {
+            labels.retain(|label| {
+                !remove_labels
+                    .iter()
+                    .any(|r| label.eq_ignore_ascii_case(r.trim()))
+            });
+        }
+        let labels_value = Value::Array(labels.iter().map(|l| Value::String(l.clone())).collect());
+        record
+            .as_object_mut()
+            .expect("beads record")
+            .insert("labels".to_string(), labels_value);
+        updated = true;
+    }
     if !updated {
         return Err(KanbusError::IssueOperation(
             "no updates requested".to_string(),
@@ -470,6 +635,71 @@ fn issue_id_matches_beads(abbreviated: &str, full_id: &str) -> bool {
     full_id.starts_with(abbreviated)
 }
 
+fn resolve_beads_index(records: &[Value], identifier: &str) -> Result<usize, KanbusError> {
+    let mut exact: Option<usize> = None;
+    let mut partial: Vec<usize> = Vec::new();
+    for (index, record) in records.iter().enumerate() {
+        if let Some(record_id) = record.get("id").and_then(Value::as_str) {
+            if record_id == identifier {
+                exact = Some(index);
+                break;
+            }
+            if issue_id_matches_beads(identifier, record_id) {
+                partial.push(index);
+            }
+        }
+    }
+    if let Some(index) = exact {
+        return Ok(index);
+    }
+    match partial.len() {
+        0 => Err(KanbusError::IssueOperation("not found".to_string())),
+        1 => Ok(partial[0]),
+        _ => {
+            let ids: Vec<String> = partial
+                .iter()
+                .filter_map(|idx| {
+                    records[*idx]
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .map(String::from)
+                })
+                .collect();
+            Err(KanbusError::IssueOperation(format!(
+                "ambiguous identifier, matches: {}",
+                ids.join(", ")
+            )))
+        }
+    }
+}
+
+fn resolve_beads_identifier(records: &[Value], identifier: &str) -> Result<String, KanbusError> {
+    let mut exact: Option<String> = None;
+    let mut partial: Vec<String> = Vec::new();
+    for record in records {
+        if let Some(record_id) = record.get("id").and_then(Value::as_str) {
+            if record_id == identifier {
+                exact = Some(record_id.to_string());
+                break;
+            }
+            if issue_id_matches_beads(identifier, record_id) {
+                partial.push(record_id.to_string());
+            }
+        }
+    }
+    if let Some(id) = exact {
+        return Ok(id);
+    }
+    match partial.len() {
+        0 => Err(KanbusError::IssueOperation("not found".to_string())),
+        1 => Ok(partial[0].clone()),
+        _ => Err(KanbusError::IssueOperation(format!(
+            "ambiguous identifier, matches: {}",
+            partial.join(", ")
+        ))),
+    }
+}
+
 fn load_beads_records(path: &Path) -> Result<Vec<Value>, KanbusError> {
     let contents = fs::read_to_string(path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let mut records = Vec::new();
@@ -510,16 +740,38 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
     if !issues_path.exists() {
         return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
-    let records = load_beads_records(&issues_path)?;
+    let mut records = load_beads_records(&issues_path)?;
     let original_count = records.len();
-    let remaining: Vec<Value> = records
-        .into_iter()
-        .filter(|record| record.get("id").and_then(|id| id.as_str()) != Some(identifier))
-        .collect();
-    if remaining.len() == original_count {
+    records.retain(|record| record.get("id").and_then(|id| id.as_str()) != Some(identifier));
+    if records.len() == original_count {
         return Err(KanbusError::IssueOperation("not found".to_string()));
     }
-    write_beads_records(&issues_path, &remaining)?;
+    for record in &mut records {
+        // Clear parent fields that reference the deleted issue
+        if let Some(parent_value) = record.get("parent").and_then(Value::as_str) {
+            if parent_value == identifier {
+                if let Some(object) = record.as_object_mut() {
+                    object.remove("parent");
+                }
+            }
+        }
+        if let Some(list) = record.get_mut("dependencies").and_then(Value::as_array_mut) {
+            list.retain(|entry| {
+                entry
+                    .get("depends_on_id")
+                    .and_then(Value::as_str)
+                    .map(|value| value != identifier)
+                    .unwrap_or(true)
+            });
+            // remove empty dependency arrays for cleanliness
+            if list.is_empty() {
+                if let Some(object) = record.as_object_mut() {
+                    object.remove("dependencies");
+                }
+            }
+        }
+    }
+    write_beads_records(&issues_path, &records)?;
 
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;

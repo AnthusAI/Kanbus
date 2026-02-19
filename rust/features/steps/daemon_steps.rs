@@ -248,120 +248,15 @@ fn given_daemon_stale_index(world: &mut KanbusWorld) {
     world.daemon_rebuilt_index = false;
 }
 
-#[when("I run \"kanbus list\"")]
-fn when_run_list(world: &mut KanbusWorld) {
-    if world.local_listing_error {
-        world.exit_code = Some(1);
-        world.stdout = Some(String::new());
-        world.stderr = Some("local listing failed".to_string());
-        return;
-    }
-    if world.daemon_list_error {
-        world.exit_code = Some(1);
-        world.stdout = Some(String::new());
-        world.stderr = Some("daemon error".to_string());
-        return;
-    }
-    if daemon_client::is_daemon_enabled() {
-        let socket_path = daemon_socket_path(world);
-        if socket_path.exists() && !world.daemon_connected {
-            std::fs::remove_file(&socket_path).expect("remove stale socket");
-            world.stale_socket_removed = true;
-        }
-        if !socket_path.exists() {
-            start_daemon(world);
-            world.daemon_spawned = true;
-        }
-        if !has_test_daemon_response() {
-            let request = RequestEnvelope {
-                protocol_version: PROTOCOL_VERSION.to_string(),
-                request_id: "req-list".to_string(),
-                action: "index.list".to_string(),
-                payload: BTreeMap::new(),
-            };
-            let response = handle_request_for_testing(&daemon_root(world), request);
-            set_test_daemon_response(Some(TestDaemonResponse::Envelope(response)));
-        }
-    }
-    let args = shell_words::split("kanbus list").expect("parse command");
-    let cwd = world.working_directory.as_ref().expect("cwd");
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-    if daemon_client::is_daemon_enabled() {
-        world.daemon_connected = true;
-        world.daemon_rebuilt_index = true;
-    }
-}
-
-#[when("I run \"kanbus daemon-status\"")]
-fn when_run_daemon_status(world: &mut KanbusWorld) {
-    if daemon_client::is_daemon_enabled() && !has_test_daemon_response() {
-        let request = RequestEnvelope {
-            protocol_version: PROTOCOL_VERSION.to_string(),
-            request_id: "req-status".to_string(),
-            action: "ping".to_string(),
-            payload: BTreeMap::new(),
-        };
-        let response = handle_request_for_testing(&daemon_root(world), request);
-        set_test_daemon_response(Some(TestDaemonResponse::Envelope(response)));
-    }
-    let args = shell_words::split("kanbus daemon-status").expect("parse command");
-    let cwd = world.working_directory.as_ref().expect("cwd");
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-}
-
-#[when("I run \"kanbus daemon-stop\"")]
-fn when_run_daemon_stop(world: &mut KanbusWorld) {
-    if daemon_client::is_daemon_enabled() && !has_test_daemon_response() {
-        let request = RequestEnvelope {
-            protocol_version: PROTOCOL_VERSION.to_string(),
-            request_id: "req-stop".to_string(),
-            action: "shutdown".to_string(),
-            payload: BTreeMap::new(),
-        };
-        let response = handle_request_for_testing(&daemon_root(world), request);
-        set_test_daemon_response(Some(TestDaemonResponse::Envelope(response)));
-    }
-    let args = shell_words::split("kanbus daemon-stop").expect("parse command");
-    let cwd = world.working_directory.as_ref().expect("cwd");
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-}
-
 #[then("a daemon should be started")]
 fn then_daemon_started(world: &mut KanbusWorld) {
-    assert!(world.daemon_spawned || world.daemon_connected);
+    if !(world.daemon_spawned || world.daemon_connected) {
+        let socket_path = daemon_socket_path(world);
+        assert!(
+            socket_path.exists(),
+            "daemon was not spawned and socket is missing"
+        );
+    }
 }
 
 #[then("a new daemon should be started")]

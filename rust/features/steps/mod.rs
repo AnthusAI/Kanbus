@@ -1,6 +1,7 @@
 pub mod agents_steps;
 pub mod beads_interop_steps;
 pub mod cli_steps;
+pub mod command_steps;
 pub mod comment_steps;
 pub mod compatibility_steps;
 pub mod configuration_steps;

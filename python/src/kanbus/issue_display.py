@@ -114,9 +114,16 @@ def format_issue_for_display(
     # Build status_colors from statuses list
     status_colors = DEFAULT_STATUS_COLORS.copy()
     if configuration:
+        category_colors = {
+            category.name: category.color for category in configuration.categories
+        }
         for status_def in configuration.statuses:
             if status_def.color:
-                status_colors[status_def.name] = status_def.color
+                status_colors[status_def.key] = status_def.color
+            elif status_def.category and status_def.category in category_colors:
+                color = category_colors[status_def.category]
+                if color:
+                    status_colors[status_def.key] = color
     priority_colors: Dict[int, str] = DEFAULT_PRIORITY_COLORS
     if configuration:
         priority_colors = priority_colors.copy()

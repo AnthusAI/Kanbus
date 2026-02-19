@@ -178,7 +178,7 @@ fn parse_color(name: &str) -> Option<AnsiColors> {
 fn status_color(status: &str, configuration: Option<&ProjectConfiguration>) -> Option<AnsiColors> {
     if let Some(config) = configuration {
         // Look up color from statuses list
-        if let Some(status_def) = config.statuses.iter().find(|s| s.name == status) {
+        if let Some(status_def) = config.statuses.iter().find(|s| s.key == status) {
             if let Some(color) = &status_def.color {
                 return parse_color(color);
             }

@@ -5,32 +5,10 @@ use std::process::Command;
 use cucumber::{given, then, when};
 use serde_json::Value;
 
-use kanbus::cli::run_from_args_with_output;
 use kanbus::file_io::load_project_directory;
 use kanbus::migration::migrate_from_beads;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
-
-fn run_cli(world: &mut KanbusWorld, command: &str) {
-    let args = shell_words::split(command).expect("parse command");
-    let cwd = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set");
-
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-}
 
 fn fixture_beads_dir() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -397,11 +375,6 @@ fn given_repo_with_invalid_beads_id(world: &mut KanbusWorld) {
     fs::write(beads_dir.join("issues.jsonl"), record.to_string()).expect("write issues");
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
-}
-
-#[when("I run \"kanbus migrate\"")]
-fn when_run_migrate(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus migrate");
 }
 
 #[when("I validate migration error cases")]

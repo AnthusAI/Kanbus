@@ -18,6 +18,13 @@ When the user is actively watching the Kanbus console UI (typically at http://lo
 kbs console focus <issue-id>
 ```
 
+**Reload the page** - Triggers an immediate page reload in the browser, useful after frontend changes:
+```bash
+kbs console reload
+```
+
+This enables self-iteration on frontend issues: after rebuilding the frontend (`cd apps/console && npm run build`), use `kbs console reload` to instantly test changes without manual browser refresh.
+
 ### When to Use UI Control
 
 Use `kbs console focus` proactively when:

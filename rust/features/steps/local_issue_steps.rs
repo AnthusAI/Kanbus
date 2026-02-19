@@ -2,34 +2,12 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{TimeZone, Utc};
-use cucumber::{given, then, when};
+use cucumber::{given, then};
 
-use kanbus::cli::run_from_args_with_output;
 use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
-
-fn run_cli(world: &mut KanbusWorld, command: &str) {
-    let args = shell_words::split(command).expect("parse command");
-    let cwd = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set");
-
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-}
 
 fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
@@ -74,46 +52,6 @@ fn build_issue(identifier: &str, title: &str) -> IssueData {
         closed_at: None,
         custom: std::collections::BTreeMap::new(),
     }
-}
-
-#[when("I run \"kanbus create --local Local task\"")]
-fn when_run_create_local(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus create --local Local task");
-}
-
-#[when("I run \"kanbus create --local local\"")]
-fn when_run_create_local_duplicate(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus create --local local");
-}
-
-#[when("I run \"kanbus promote kanbus-local01\"")]
-fn when_run_promote(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus promote kanbus-local01");
-}
-
-#[when("I run \"kanbus localize kanbus-shared01\"")]
-fn when_run_localize(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus localize kanbus-shared01");
-}
-
-#[when("I run \"kanbus promote kanbus-missing\"")]
-fn when_run_promote_missing(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus promote kanbus-missing");
-}
-
-#[when("I run \"kanbus promote kanbus-dupe01\"")]
-fn when_run_promote_dupe(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus promote kanbus-dupe01");
-}
-
-#[when("I run \"kanbus localize kanbus-missing\"")]
-fn when_run_localize_missing(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus localize kanbus-missing");
-}
-
-#[when("I run \"kanbus localize kanbus-dupe02\"")]
-fn when_run_localize_dupe(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus localize kanbus-dupe02");
 }
 
 #[given("a local issue \"kanbus-local01\" exists")]

@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
-use kanbus::cli::run_from_args_with_output;
 use kanbus::doctor::run_doctor;
 use kanbus::file_io::load_project_directory;
 use kanbus::maintenance::validate_project;
@@ -45,37 +44,6 @@ fn write_issue(project_dir: &PathBuf, issue: &IssueData) {
         .join(format!("{}.json", issue.identifier));
     let contents = serde_json::to_string_pretty(issue).expect("serialize issue");
     fs::write(issue_path, contents).expect("write issue");
-}
-
-fn run_cli(world: &mut KanbusWorld, command: &str) {
-    let args = shell_words::split(command).expect("parse command");
-    let cwd = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set");
-
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-}
-
-#[when("I run \"kanbus validate\"")]
-fn when_run_validate(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus validate");
-}
-
-#[when("I run \"kanbus stats\"")]
-fn when_run_stats(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus stats");
 }
 
 #[given("an issue file contains invalid JSON")]
@@ -167,11 +135,6 @@ fn given_duplicate_issue_identifiers(world: &mut KanbusWorld) {
     let duplicate_path = project_dir.join("issues").join("kanbus-dup-copy.json");
     let contents = serde_json::to_string_pretty(&issue).expect("serialize");
     fs::write(duplicate_path, contents).expect("write duplicate");
-}
-
-#[when("I run \"kanbus doctor\"")]
-fn when_run_doctor(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus doctor");
 }
 
 #[when("I validate the project directly")]

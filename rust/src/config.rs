@@ -4,7 +4,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::error::KanbusError;
-use crate::models::{PriorityDefinition, ProjectConfiguration, StatusDefinition};
+use crate::models::{
+    CategoryDefinition, PriorityDefinition, ProjectConfiguration, StatusDefinition,
+};
 
 /// Return the default project configuration.
 pub fn default_project_configuration() -> ProjectConfiguration {
@@ -53,6 +55,87 @@ pub fn default_project_configuration() -> ProjectConfiguration {
             ("closed".to_string(), vec!["open".to_string()]),
         ]),
     );
+
+    let transition_labels: BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>> =
+        BTreeMap::from([
+            (
+                "default".to_string(),
+                BTreeMap::from([
+                    (
+                        "open".to_string(),
+                        BTreeMap::from([
+                            ("in_progress".to_string(), "Start progress".to_string()),
+                            ("closed".to_string(), "Close".to_string()),
+                            ("deferred".to_string(), "Defer".to_string()),
+                        ]),
+                    ),
+                    (
+                        "in_progress".to_string(),
+                        BTreeMap::from([
+                            ("open".to_string(), "Stop progress".to_string()),
+                            ("blocked".to_string(), "Block".to_string()),
+                            ("closed".to_string(), "Complete".to_string()),
+                        ]),
+                    ),
+                    (
+                        "blocked".to_string(),
+                        BTreeMap::from([
+                            ("in_progress".to_string(), "Unblock".to_string()),
+                            ("closed".to_string(), "Close".to_string()),
+                        ]),
+                    ),
+                    (
+                        "closed".to_string(),
+                        BTreeMap::from([("open".to_string(), "Reopen".to_string())]),
+                    ),
+                    (
+                        "deferred".to_string(),
+                        BTreeMap::from([
+                            ("open".to_string(), "Resume".to_string()),
+                            ("closed".to_string(), "Close".to_string()),
+                        ]),
+                    ),
+                ]),
+            ),
+            (
+                "epic".to_string(),
+                BTreeMap::from([
+                    (
+                        "open".to_string(),
+                        BTreeMap::from([
+                            ("in_progress".to_string(), "Start".to_string()),
+                            ("closed".to_string(), "Complete".to_string()),
+                        ]),
+                    ),
+                    (
+                        "in_progress".to_string(),
+                        BTreeMap::from([
+                            ("open".to_string(), "Pause".to_string()),
+                            ("closed".to_string(), "Complete".to_string()),
+                        ]),
+                    ),
+                    (
+                        "closed".to_string(),
+                        BTreeMap::from([("open".to_string(), "Reopen".to_string())]),
+                    ),
+                ]),
+            ),
+        ]);
+
+    let categories = vec![
+        CategoryDefinition {
+            name: "To do".to_string(),
+            color: Some("grey".to_string()),
+        },
+        CategoryDefinition {
+            name: "In progress".to_string(),
+            color: Some("blue".to_string()),
+        },
+        CategoryDefinition {
+            name: "Done".to_string(),
+            color: Some("green".to_string()),
+        },
+    ];
 
     let priorities = BTreeMap::from([
         (
@@ -107,6 +190,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         ],
         types: vec!["bug".to_string(), "story".to_string(), "chore".to_string()],
         workflows,
+        transition_labels,
         initial_status: "open".to_string(),
         priorities,
         default_priority: 2,
@@ -114,31 +198,42 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         time_zone: None,
         statuses: vec![
             StatusDefinition {
-                name: "open".to_string(),
-                color: Some("cyan".to_string()),
+                key: "open".to_string(),
+                name: "Open".to_string(),
+                category: "To do".to_string(),
+                color: None,
                 collapsed: false,
             },
             StatusDefinition {
-                name: "in_progress".to_string(),
-                color: Some("blue".to_string()),
+                key: "in_progress".to_string(),
+                name: "In Progress".to_string(),
+                category: "In progress".to_string(),
+                color: None,
                 collapsed: false,
             },
             StatusDefinition {
-                name: "blocked".to_string(),
-                color: Some("red".to_string()),
+                key: "blocked".to_string(),
+                name: "Blocked".to_string(),
+                category: "In progress".to_string(),
+                color: None,
                 collapsed: true,
             },
             StatusDefinition {
-                name: "closed".to_string(),
-                color: Some("green".to_string()),
+                key: "closed".to_string(),
+                name: "Done".to_string(),
+                category: "Done".to_string(),
+                color: None,
                 collapsed: true,
             },
             StatusDefinition {
-                name: "deferred".to_string(),
-                color: Some("yellow".to_string()),
+                key: "deferred".to_string(),
+                name: "Deferred".to_string(),
+                category: "To do".to_string(),
+                color: None,
                 collapsed: true,
             },
         ],
+        categories,
         type_colors: BTreeMap::from([
             ("initiative".to_string(), "bright_blue".to_string()),
             ("epic".to_string(), "magenta".to_string()),

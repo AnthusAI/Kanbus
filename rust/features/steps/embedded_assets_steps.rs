@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::thread;
@@ -15,26 +16,42 @@ fn start_console_server(
     world: &KanbusWorld,
     binary_name: &str,
     with_embed_features: bool,
+    port: u16,
 ) -> Result<Child, String> {
     let rust_dir = world
         .working_directory
         .as_ref()
         .ok_or("working directory not set")?
         .join("rust");
+    let env_target = std::env::var("CARGO_TARGET_DIR").ok();
+    let target_dir = env_target
+        .as_ref()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| rust_dir.join("target"));
 
-    let target_dir = rust_dir.join("target");
-    let binary_path = if with_embed_features {
-        target_dir.join("release").join(binary_name)
+    // Prefer the configured target_dir, but fall back to the default rust/target layout.
+    let candidate_paths = if with_embed_features {
+        vec![
+            target_dir.join("release").join(binary_name),
+            rust_dir.join("target").join("release").join(binary_name),
+        ]
     } else {
-        target_dir.join("debug").join(binary_name)
+        vec![
+            target_dir.join("debug").join(binary_name),
+            rust_dir.join("target").join("debug").join(binary_name),
+        ]
     };
+    let binary_path = candidate_paths
+        .into_iter()
+        .find(|p| p.exists())
+        .ok_or_else(|| format!("Binary not found at {}", target_dir.display()))?;
 
     if !binary_path.exists() {
         return Err(format!("Binary not found at {}", binary_path.display()));
     }
 
     let mut cmd = Command::new(&binary_path);
-    cmd.env("CONSOLE_PORT", "5174")
+    cmd.env("CONSOLE_PORT", port.to_string())
         .env(
             "CONSOLE_DATA_ROOT",
             world.working_directory.as_ref().unwrap(),
@@ -46,11 +63,40 @@ fn start_console_server(
         .map_err(|e| format!("Failed to start server: {}", e))
 }
 
+fn allocate_console_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .expect("bind ephemeral port")
+        .local_addr()
+        .expect("read local addr")
+        .port()
+}
+
+fn resolve_console_url(world: &KanbusWorld, url: &str) -> String {
+    let port = world.console_port.unwrap_or(5174);
+    if let Some(rest) = url.strip_prefix("http://127.0.0.1:") {
+        if let Some(index) = rest.find('/') {
+            format!("http://127.0.0.1:{}{}", port, &rest[index..])
+        } else {
+            format!("http://127.0.0.1:{}", port)
+        }
+    } else {
+        url.to_string()
+    }
+}
+
+fn console_base_url(world: &KanbusWorld) -> String {
+    let port = world.console_port.unwrap_or(5174);
+    format!("http://127.0.0.1:{port}")
+}
+
 // Helper to wait for server to be ready.
 // Runs in a dedicated thread to avoid nested tokio runtime conflicts.
 fn wait_for_server_ready(port: u16, timeout_secs: u64) -> bool {
     thread::spawn(move || {
-        let client = Client::new();
+        let client = Client::builder()
+            .timeout(Duration::from_millis(500))
+            .build()
+            .expect("build http client");
         let url = format!("http://127.0.0.1:{}/api/config", port);
         for _ in 0..(timeout_secs * 10) {
             if let Ok(response) = client.get(&url).send() {
@@ -70,7 +116,10 @@ fn wait_for_server_ready(port: u16, timeout_secs: u64) -> bool {
 fn blocking_get(url: &str) -> Result<(u16, String), String> {
     let url = url.to_string();
     thread::spawn(move || {
-        let client = Client::new();
+        let client = Client::builder()
+            .timeout(Duration::from_millis(500))
+            .build()
+            .map_err(|e| e.to_string())?;
         let response = client.get(&url).send().map_err(|e| e.to_string())?;
         let status = response.status().as_u16();
         let body = response.text().map_err(|e| e.to_string())?;
@@ -215,10 +264,13 @@ async fn given_build_without_embed_assets(world: &mut KanbusWorld) {
         .as_ref()
         .expect("working directory not set")
         .join("rust");
+    let target_dir = std::env::var("CARGO_TARGET_DIR")
+        .unwrap_or_else(|_| rust_dir.join("target").to_string_lossy().to_string());
 
     let output = Command::new("cargo")
         .args(&["build", "--bin", "kbsc"])
         .current_dir(&rust_dir)
+        .env("CARGO_TARGET_DIR", &target_dir)
         .output()
         .expect("Failed to build kbsc");
 
@@ -241,15 +293,19 @@ async fn when_start_console_server(world: &mut KanbusWorld) {
         .unwrap_or(false);
 
     let binary_name = if cfg!(windows) { "kbsc.exe" } else { "kbsc" };
+    if world.console_port.is_none() {
+        world.console_port = Some(allocate_console_port());
+    }
+    let port = world.console_port.expect("console port not set");
 
-    match start_console_server(world, binary_name, with_embed) {
+    match start_console_server(world, binary_name, with_embed, port) {
         Ok(_child) => {
             // Store child process handle (we'd need to add this to KanbusWorld)
             // For now, just check if it starts
             world.daemon_spawned = true;
 
             // Wait for server to be ready
-            if !wait_for_server_ready(5174, 30) {
+            if !wait_for_server_ready(port, 30) {
                 panic!("Console server failed to become ready");
             }
         }
@@ -287,12 +343,13 @@ async fn then_startup_message_shows(world: &mut KanbusWorld, expected_msg: Strin
 
 #[then(regex = r"^I can access (.+)$")]
 async fn then_can_access_url(world: &mut KanbusWorld, url: String) {
+    let resolved = resolve_console_url(world, &url);
     let (status, body) =
-        blocking_get(&url).unwrap_or_else(|e| panic!("Failed to access {}: {}", url, e));
+        blocking_get(&resolved).unwrap_or_else(|e| panic!("Failed to access {}: {}", resolved, e));
     assert!(
         (200..300).contains(&status),
         "Should be able to access {}",
-        url
+        resolved
     );
     world.formatted_output = Some(body);
 }
@@ -324,8 +381,8 @@ async fn then_javascript_assets_load(world: &mut KanbusWorld, path_pattern: Stri
     );
 
     // Try to fetch one JS asset
-    let js_url = "http://127.0.0.1:5174/assets/index-CqkOfnBn.js"; // Example hash
-    let _ = blocking_get(js_url); // Just verify we can attempt to fetch
+    let js_url = format!("{}/assets/index-CqkOfnBn.js", console_base_url(world)); // Example hash
+    let _ = blocking_get(&js_url); // Just verify we can attempt to fetch
 }
 
 #[then(regex = r"^CSS assets load from (.+)$")]
@@ -344,7 +401,7 @@ async fn then_css_assets_load(world: &mut KanbusWorld, path_pattern: String) {
 
 #[then(regex = r"^API endpoint (.+) responds$")]
 async fn then_api_endpoint_responds(world: &mut KanbusWorld, endpoint: String) {
-    let url = format!("http://127.0.0.1:5174{}", endpoint);
+    let url = format!("{}{}", console_base_url(world), endpoint);
     let (status, body) =
         blocking_get(&url).unwrap_or_else(|e| panic!("Failed to access {}: {}", url, e));
     assert!(
@@ -356,8 +413,9 @@ async fn then_api_endpoint_responds(world: &mut KanbusWorld, endpoint: String) {
 }
 
 #[then("assets are served from the filesystem path")]
-async fn then_assets_served_from_filesystem(_world: &mut KanbusWorld) {
-    let (_status, html) = blocking_get("http://127.0.0.1:5174/").expect("Failed to fetch root");
+async fn then_assets_served_from_filesystem(world: &mut KanbusWorld) {
+    let (_status, html) =
+        blocking_get(&format!("{}/", console_base_url(world))).expect("Failed to fetch root");
     assert!(
         html.contains("Custom Assets"),
         "Should serve custom assets from filesystem"
@@ -370,7 +428,7 @@ async fn then_embedded_assets_not_used(_world: &mut KanbusWorld) {
     // If embedded assets were used, we'd see the real frontend, not "Custom Assets"
 }
 
-#[then(regex = r"^assets are served from (.+)$")]
+#[then(regex = r"^assets are served from (apps/console/dist|embedded binary data)$")]
 async fn then_assets_served_from_path(world: &mut KanbusWorld, path: String) {
     // For development build test
     let expected = if path.contains("apps/console/dist") {
@@ -382,7 +440,8 @@ async fn then_assets_served_from_path(world: &mut KanbusWorld, path: String) {
     };
 
     // Verify server is serving from expected source
-    let (status, body) = blocking_get("http://127.0.0.1:5174/").expect("Failed to fetch root");
+    let (status, body) =
+        blocking_get(&format!("{}/", console_base_url(world))).expect("Failed to fetch root");
     assert!(
         (200..300).contains(&status),
         "Should serve assets from {}",

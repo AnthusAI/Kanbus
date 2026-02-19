@@ -20,11 +20,15 @@ fn when_run_cli_entrypoint_args(world: &mut KanbusWorld, arguments: String) {
 
 fn run_cli_binary(world: &mut KanbusWorld, args: Vec<String>) {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let binary_path = manifest_dir.join("target").join("debug").join("kbs");
+    let target_dir = std::env::var("CARGO_TARGET_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| manifest_dir.join("target"));
+    let binary_path = target_dir.join("debug").join("kbs");
     if !binary_path.exists() {
         let status = Command::new("cargo")
             .args(["build", "--bin", "kbs"])
             .current_dir(&manifest_dir)
+            .env("CARGO_TARGET_DIR", &target_dir)
             .status()
             .expect("build kbs binary");
         if !status.success() {

@@ -124,11 +124,6 @@ fn given_raw_wiki_page_with_content(world: &mut KanbusWorld, filename: String, s
     fs::write(cwd.join(filename), content).expect("write wiki page");
 }
 
-#[when(expr = "I run \"kanbus wiki render {string}\"")]
-fn when_render_page(world: &mut KanbusWorld, page: String) {
-    run_cli(world, &format!("kanbus wiki render {page}"));
-}
-
 #[when(expr = "I render the wiki page {string} by absolute path")]
 fn when_render_absolute(world: &mut KanbusWorld, filename: String) {
     let project_dir = load_project_dir(world);

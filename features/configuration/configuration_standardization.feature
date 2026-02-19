@@ -15,7 +15,7 @@ Feature: Configuration standardization across Python and Rust
     Given no "kanbus.yml" file exists
     When I load the configuration
     Then the command should fail with exit code 1
-    And stderr should contain "kanbus.yml not found"
+    And stderr should contain "configuration file not found"
 
   Scenario: Unknown configuration field is rejected
     Given a Kanbus project with a file "kanbus.yml" containing an unknown top-level field

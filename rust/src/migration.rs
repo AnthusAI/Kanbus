@@ -17,7 +17,8 @@ use crate::file_io::{
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::issue_files::write_issue_to_file;
 use crate::models::{
-    DependencyLink, IssueComment, IssueData, PriorityDefinition, ProjectConfiguration,
+    CategoryDefinition, DependencyLink, IssueComment, IssueData, PriorityDefinition,
+    ProjectConfiguration, StatusDefinition,
 };
 use crate::workflows::get_workflow_for_issue_type;
 
@@ -603,6 +604,45 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
     workflows.insert("epic".to_string(), workflow_state.clone());
     workflows.insert("task".to_string(), workflow_state.clone());
 
+    let mut transition_labels: BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>> =
+        BTreeMap::new();
+    for (workflow_name, workflow) in &workflows {
+        let mut workflow_labels = BTreeMap::new();
+        for (from_status, transitions) in workflow {
+            let mut from_labels = BTreeMap::new();
+            for to_status in transitions {
+                from_labels.insert(to_status.clone(), to_status.clone());
+            }
+            workflow_labels.insert(from_status.clone(), from_labels);
+        }
+        transition_labels.insert(workflow_name.clone(), workflow_labels);
+    }
+
+    let categories = vec![
+        CategoryDefinition {
+            name: "To do".to_string(),
+            color: Some("grey".to_string()),
+        },
+        CategoryDefinition {
+            name: "In progress".to_string(),
+            color: Some("blue".to_string()),
+        },
+        CategoryDefinition {
+            name: "Done".to_string(),
+            color: Some("green".to_string()),
+        },
+    ];
+    let statuses = status_vec
+        .iter()
+        .map(|key| StatusDefinition {
+            key: key.clone(),
+            name: key.clone(),
+            category: "To do".to_string(),
+            color: None,
+            collapsed: false,
+        })
+        .collect();
+
     let mut priority_defs: BTreeMap<u8, PriorityDefinition> = BTreeMap::new();
     for value in priorities {
         priority_defs.insert(
@@ -628,12 +668,14 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         ],
         types: types.into_iter().collect(),
         workflows,
+        transition_labels,
         initial_status: "open".to_string(),
         priorities: priority_defs,
         default_priority: 2,
         assignee: None,
         time_zone: None,
-        statuses: Vec::new(),
+        statuses,
+        categories,
         type_colors: BTreeMap::new(),
         beads_compatibility: false,
     }

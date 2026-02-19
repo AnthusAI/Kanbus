@@ -762,11 +762,16 @@ html[data-motion="reduced"] .detail-page {
 }
 
 .layout-frame.detail-maximized .layout-slot-board {
-  width: 0;
-  flex: 0 0 0;
-  padding: 0;
-  overflow: hidden;
-  pointer-events: none;
+  display: none;
+}
+
+.layout-frame.detail-maximized .detail-resizer {
+  display: none;
+}
+
+.layout-frame.detail-maximized .detail-column {
+  width: 100%;
+  flex: 1 1 auto;
 }
 
 .layout-slot {

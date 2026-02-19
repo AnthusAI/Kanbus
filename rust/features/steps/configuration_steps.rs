@@ -145,19 +145,20 @@ fn given_repo_bright_white_status_color(world: &mut KanbusWorld) {
     initialize_project(world);
     update_config_file(world, |mapping| {
         let statuses_key = Value::String("statuses".to_string());
-        let statuses = Value::Sequence(vec![Value::Mapping({
-            let mut status_map = serde_yaml::Mapping::new();
-            status_map.insert(
-                Value::String("name".to_string()),
-                Value::String("open".to_string()),
-            );
-            status_map.insert(
-                Value::String("color".to_string()),
-                Value::String("bright_white".to_string()),
-            );
-            status_map
-        })]);
-        mapping.insert(statuses_key, statuses);
+        if let Some(Value::Sequence(statuses)) = mapping.get_mut(&statuses_key) {
+            for status in statuses {
+                if let Value::Mapping(status_map) = status {
+                    if status_map.get(&Value::String("name".to_string()))
+                        == Some(&Value::String("open".to_string()))
+                    {
+                        status_map.insert(
+                            Value::String("color".to_string()),
+                            Value::String("bright_white".to_string()),
+                        );
+                    }
+                }
+            }
+        }
     });
 }
 
@@ -166,19 +167,20 @@ fn given_repo_invalid_status_color(world: &mut KanbusWorld) {
     initialize_project(world);
     update_config_file(world, |mapping| {
         let statuses_key = Value::String("statuses".to_string());
-        let statuses = Value::Sequence(vec![Value::Mapping({
-            let mut status_map = serde_yaml::Mapping::new();
-            status_map.insert(
-                Value::String("name".to_string()),
-                Value::String("open".to_string()),
-            );
-            status_map.insert(
-                Value::String("color".to_string()),
-                Value::String("invalid-color".to_string()),
-            );
-            status_map
-        })]);
-        mapping.insert(statuses_key, statuses);
+        if let Some(Value::Sequence(statuses)) = mapping.get_mut(&statuses_key) {
+            for status in statuses {
+                if let Value::Mapping(status_map) = status {
+                    if status_map.get(&Value::String("name".to_string()))
+                        == Some(&Value::String("open".to_string()))
+                    {
+                        status_map.insert(
+                            Value::String("color".to_string()),
+                            Value::String("invalid-color".to_string()),
+                        );
+                    }
+                }
+            }
+        }
     });
 }
 
@@ -541,4 +543,63 @@ fn then_default_assignee_should_match(world: &mut KanbusWorld, assignee: String)
 fn then_time_zone_should_match(world: &mut KanbusWorld, time_zone: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
     assert_eq!(configuration.time_zone.as_deref(), Some(time_zone.as_str()));
+}
+
+// Additional steps for configuration standardization tests
+
+#[given(expr = "a Kanbus project with a file {string} containing a valid configuration")]
+fn given_project_with_valid_config_file(world: &mut KanbusWorld, filename: String) {
+    initialize_project(world);
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(filename);
+    write_default_configuration(&config_path).expect("write config");
+}
+
+#[given(expr = "the environment variable {word} is not set")]
+fn given_env_var_not_set(_world: &mut KanbusWorld, var_name: String) {
+    std::env::remove_var(&var_name);
+}
+
+#[given(expr = "no {string} file exists")]
+fn given_no_file_exists(world: &mut KanbusWorld, _filename: String) {
+    let temp_dir = TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo-no-config");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
+}
+
+#[given(expr = "a Kanbus project with a file {string} containing an unknown top-level field")]
+fn given_project_with_unknown_field(world: &mut KanbusWorld, _filename: String) {
+    initialize_project(world);
+    // kanbus init creates .kanbus.yml, we just add unknown field to it
+    update_config_file(world, |mapping| {
+        mapping.insert(
+            Value::String("unknown_field".to_string()),
+            Value::String("value".to_string()),
+        );
+    });
+}
+
+#[when("I load the configuration")]
+fn when_load_configuration(world: &mut KanbusWorld) {
+    when_configuration_loaded(world);
+}
+
+// Note: "the project key should be {string}" - removed duplicate, existing hardcoded one at line 479
+// Note: "the hierarchy should be {string}" - removed duplicate, using existing one instead
+
+#[then(expr = "the default priority should be {string}")]
+fn then_default_priority_matches_string(world: &mut KanbusWorld, expected: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    // Map priority number to name
+    let priority_name = configuration
+        .priorities
+        .get(&configuration.default_priority)
+        .map(|p| p.name.as_str())
+        .unwrap_or("unknown");
+    assert_eq!(priority_name, expected);
 }

@@ -15,6 +15,7 @@ from kanbus.file_io import ensure_git_repository, initialize_project
 from kanbus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
 from kanbus.issue_files import write_issue_to_file
 from kanbus.models import (
+    CategoryDefinition,
     DependencyLink,
     IssueComment,
     IssueData,
@@ -151,7 +152,13 @@ def _load_configuration_for_beads(
         | {"open", "in_progress", "blocked", "deferred", "closed"}
     )
     status_definitions = [
-        StatusDefinition(name=status, color=None, collapsed=False)
+        StatusDefinition(
+            key=status,
+            name=status,
+            category="To do",
+            color=None,
+            collapsed=False,
+        )
         for status in statuses
     ]
     workflow_state = {status: statuses for status in statuses}
@@ -180,10 +187,22 @@ def _load_configuration_for_beads(
         hierarchy=hierarchy,
         types=types,
         workflows=workflows,
+        transition_labels={
+            workflow_name: {
+                from_status: {to_status: to_status for to_status in transitions}
+                for from_status, transitions in workflow.items()
+            }
+            for workflow_name, workflow in workflows.items()
+        },
         initial_status="open",
         priorities=priorities,
         default_priority=2,
         statuses=status_definitions,
+        categories=[
+            CategoryDefinition(name="To do", color="grey"),
+            CategoryDefinition(name="In progress", color="blue"),
+            CategoryDefinition(name="Done", color="green"),
+        ],
         type_colors={},
     )
 

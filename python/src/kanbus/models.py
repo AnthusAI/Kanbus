@@ -8,6 +8,13 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class CategoryDefinition(BaseModel):
+    """Category definition for grouping statuses."""
+
+    name: str = Field(min_length=1)
+    color: Optional[str] = None
+
+
 class DependencyLink(BaseModel):
     """Dependency link between issues.
 
@@ -96,7 +103,9 @@ class IssueData(BaseModel):
 class StatusDefinition(BaseModel):
     """Status definition with display metadata."""
 
+    key: str = Field(min_length=1)
     name: str = Field(min_length=1)
+    category: str = Field(min_length=1)
     color: Optional[str] = None
     collapsed: bool = False
 
@@ -156,11 +165,13 @@ class ProjectConfiguration(BaseModel):
     hierarchy: List[str]
     types: List[str]
     workflows: Dict[str, Dict[str, List[str]]]
+    transition_labels: Dict[str, Dict[str, Dict[str, str]]] = Field(default_factory=dict)
     initial_status: str = Field(min_length=1)
     priorities: Dict[int, PriorityDefinition]
     default_priority: int
     assignee: Optional[str] = Field(default=None, min_length=1)
     time_zone: Optional[str] = Field(default=None, min_length=1)
     statuses: List[StatusDefinition] = Field(default_factory=list)
+    categories: List[CategoryDefinition] = Field(default_factory=list)
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False

@@ -105,20 +105,46 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     if configuration.default_priority not in configuration.priorities:
         errors.append("default priority must be in priorities map")
 
+    # Validate categories
+    if not configuration.categories:
+        errors.append("categories must not be empty")
+    else:
+        category_names = set()
+        for category in configuration.categories:
+            if category.name in category_names:
+                errors.append("duplicate category name")
+                break
+            category_names.add(category.name)
+
     # Validate statuses
     if not configuration.statuses:
         errors.append("statuses must not be empty")
+        return errors
 
-    # Check for duplicate status names
+    # Validate status categories
+    if configuration.categories:
+        category_names = {category.name for category in configuration.categories}
+        for status in configuration.statuses:
+            if status.category not in category_names:
+                errors.append(
+                    f"status '{status.key}' references undefined category '{status.category}'"
+                )
+
+    # Check for duplicate status keys
+    status_keys = set()
     status_names = set()
     for status in configuration.statuses:
+        if status.key in status_keys:
+            errors.append("duplicate status key")
+            break
+        status_keys.add(status.key)
         if status.name in status_names:
             errors.append("duplicate status name")
             break
         status_names.add(status.name)
 
-    # Build set of valid status names
-    valid_statuses = {s.name for s in configuration.statuses}
+    # Build set of valid status keys
+    valid_statuses = {s.key for s in configuration.statuses}
 
     # Validate that initial_status exists in statuses
     if configuration.initial_status not in valid_statuses:
@@ -138,6 +164,41 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
                     errors.append(
                         f"workflow '{workflow_name}' references undefined status '{to_status}'"
                     )
+
+    # Validate transition labels
+    if not configuration.transition_labels:
+        errors.append("transition_labels must not be empty")
+        return errors
+
+    for workflow_name, workflow in configuration.workflows.items():
+        workflow_labels = configuration.transition_labels.get(workflow_name)
+        if not workflow_labels:
+            errors.append(f"transition_labels missing workflow '{workflow_name}'")
+            continue
+        for from_status, transitions in workflow.items():
+            from_labels = workflow_labels.get(from_status)
+            if not from_labels:
+                errors.append(
+                    f"transition_labels missing from-status '{from_status}' in workflow '{workflow_name}'"
+                )
+                continue
+            for to_status in transitions:
+                label = from_labels.get(to_status)
+                if not label:
+                    errors.append(
+                        f"transition_labels missing transition '{from_status}' -> '{to_status}' in workflow '{workflow_name}'"
+                    )
+            for labeled_target in from_labels:
+                if labeled_target not in transitions:
+                    errors.append(
+                        f"transition_labels references invalid transition '{from_status}' -> '{labeled_target}' in workflow '{workflow_name}'"
+                    )
+
+        for labeled_from in workflow_labels:
+            if labeled_from not in workflow:
+                errors.append(
+                    f"transition_labels references invalid from-status '{labeled_from}' in workflow '{workflow_name}'"
+                )
 
     return errors
 

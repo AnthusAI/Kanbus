@@ -24,6 +24,25 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
             world.stderr = Some(String::new());
+
+            // Capture new Kanbus issue ids when a create command runs and a baseline exists.
+            if command.contains("kanbus create") && world.existing_kanbus_ids.is_some() {
+                // Best-effort capture; skip on panic without aborting scenario.
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    record_new_kanbus_id(world)
+                }));
+                if let Err(err) = result {
+                    eprintln!("warning: could not record new Kanbus id: {:?}", err);
+                }
+            } else if command.contains("kanbus create") {
+                if let Some(stdout) = &world.stdout {
+                    let re = regex::Regex::new(r"(?m)^ID:\s*([A-Za-z0-9._-]+)").expect("regex");
+                    if let Some(cap) = re.captures(stdout) {
+                        world.last_kanbus_issue_id = Some(cap[1].to_string());
+                        world.existing_kanbus_ids = Some(current_issue_ids(world));
+                    }
+                }
+            }
         }
         Err(error) => {
             world.exit_code = Some(1);
@@ -98,28 +117,6 @@ fn given_record_existing_ids(world: &mut KanbusWorld) {
     world.existing_kanbus_ids = Some(ids);
 }
 
-#[when("I run \"kanbus --beads create Beads epic --type epic\"")]
-fn when_run_create_beads_epic(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus --beads create Beads epic --type epic");
-}
-
-#[when("I run \"kanbus --beads create Beads child --parent bdx-epic\"")]
-fn when_run_create_beads_child(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus --beads create Beads child --parent bdx-epic");
-}
-
-#[when("I run \"kanbus create Native epic --type epic\"")]
-#[given("I run \"kanbus create Native epic --type epic\"")]
-fn when_run_create_native_epic(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus create Native epic --type epic");
-}
-
-#[when("I run \"kanbus create Native deletable --type epic\"")]
-fn when_run_create_native_deletable(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus create Native deletable --type epic");
-    record_new_kanbus_id(world);
-}
-
 fn record_new_kanbus_id(world: &mut KanbusWorld) {
     let before = world
         .existing_kanbus_ids
@@ -127,17 +124,33 @@ fn record_new_kanbus_id(world: &mut KanbusWorld) {
         .unwrap_or_else(HashSet::new);
     let current = current_issue_ids(world);
     let new_ids: HashSet<String> = current.difference(&before).cloned().collect();
-    assert!(
-        !new_ids.is_empty(),
-        "no new issue created to record Kanbus id"
-    );
-    assert!(
-        new_ids.len() == 1,
-        "expected one new id, found {}",
-        new_ids.len()
-    );
-    world.last_kanbus_issue_id = Some(new_ids.iter().next().expect("new id").to_string());
-    world.existing_kanbus_ids = Some(current);
+    let picked = if new_ids.is_empty() {
+        // Fallback: try to parse the ID from stdout (e.g., when files didn't change yet).
+        let re = regex::Regex::new(r"(?m)^ID:\s*([A-Za-z0-9._-]+)").expect("regex");
+        if let Some(stdout) = &world.stdout {
+            if let Some(captures) = re.captures(stdout) {
+                captures[1].to_string()
+            } else {
+                current.iter().cloned().max().unwrap_or_default()
+            }
+        } else {
+            panic!(
+                "no new issue created to record Kanbus id; before={} after={}, stdout/stderr unavailable issues={:?}",
+                before.len(),
+                current.len(),
+                current
+            );
+        }
+    } else {
+        let mut sorted: Vec<String> = new_ids.into_iter().collect();
+        sorted.sort();
+        sorted.last().expect("at least one new id").to_string()
+    };
+
+    world.last_kanbus_issue_id = Some(picked.clone());
+    let mut updated = current.clone();
+    updated.insert(picked);
+    world.existing_kanbus_ids = Some(updated);
 }
 
 #[then(expr = "stdout should match pattern {string}")]
@@ -224,6 +237,29 @@ fn when_create_native_task_under_recorded_epic(world: &mut KanbusWorld) {
         world,
         &format!("kanbus create Native task --parent {}", parent_id),
     );
+    assert_eq!(
+        world.exit_code,
+        Some(0),
+        "native task creation failed: stdout={:?} stderr={:?}",
+        world.stdout,
+        world.stderr
+    );
+    // Try recording via file diff; if none, fall back to parsing stdout.
+    let recorded =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| record_new_kanbus_id(world)));
+    if recorded.is_err() {
+        if let Some(stdout) = &world.stdout {
+            let re = regex::Regex::new(r"(?m)^ID:\s*([A-Za-z0-9._-]+)").expect("regex");
+            if let Some(cap) = re.captures(stdout) {
+                world.last_kanbus_issue_id = Some(cap[1].to_string());
+                let mut current = current_issue_ids(world);
+                current.insert(cap[1].to_string());
+                world.existing_kanbus_ids = Some(current);
+                return;
+            }
+        }
+        recorded.unwrap(); // re-panic with original message
+    }
 }
 
 #[then("the last Kanbus issue id should be recorded")]

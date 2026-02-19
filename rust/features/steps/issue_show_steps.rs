@@ -4,34 +4,12 @@ use std::path::PathBuf;
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
-use kanbus::cli::run_from_args_with_output;
 use kanbus::config_loader::load_project_configuration;
 use kanbus::file_io::load_project_directory;
 use kanbus::issue_display::format_issue_for_display;
 use kanbus::models::IssueData;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
-
-fn run_cli(world: &mut KanbusWorld, command: &str) {
-    let args = shell_words::split(command).expect("parse command");
-    let cwd = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set");
-
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-}
 
 fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
@@ -92,31 +70,6 @@ fn given_issue_status_type(world: &mut KanbusWorld) {
     payload["type"] = "task".into();
     let updated = serde_json::to_string_pretty(&payload).expect("serialize");
     fs::write(&issue_path, updated).expect("write issue");
-}
-
-#[when("I run \"kanbus show kanbus-aaa\"")]
-fn when_run_show(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus show kanbus-aaa");
-}
-
-#[when("I run \"kanbus show kanbus-desc\"")]
-fn when_run_show_desc(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus show kanbus-desc");
-}
-
-#[when("I run \"kanbus show kanbus-aaa --json\"")]
-fn when_run_show_json(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus show kanbus-aaa --json");
-}
-
-#[when("I run \"kanbus show kanbus-labels\"")]
-fn when_run_show_labels(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus show kanbus-labels");
-}
-
-#[when("I run \"kanbus show kanbus-missing\"")]
-fn when_run_show_missing(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus show kanbus-missing");
 }
 
 #[when("I format issue \"kanbus-labels\" for display")]

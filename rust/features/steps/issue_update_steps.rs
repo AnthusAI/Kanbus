@@ -2,34 +2,12 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{TimeZone, Utc};
-use cucumber::{given, then, when};
+use cucumber::{given, then};
 
-use kanbus::cli::run_from_args_with_output;
 use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
-
-fn run_cli(world: &mut KanbusWorld, command: &str) {
-    let args = shell_words::split(command).expect("parse command");
-    let cwd = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set");
-
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-}
 
 fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
@@ -100,78 +78,6 @@ fn given_issue_with_duplicate_title(world: &mut KanbusWorld) {
         custom: std::collections::BTreeMap::new(),
     };
     write_issue_file(&project_dir, &issue);
-}
-
-#[when("I run \"kanbus update kanbus-aaa --title \\\"New Title\\\" --description \\\"Updated description\\\"\"")]
-fn when_run_update_title(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus update kanbus-aaa --title \"New Title\" --description \"Updated description\"",
-    );
-}
-
-#[when("I run \"kanbus update kanbus-aaa --status in_progress\"")]
-fn when_run_update_status(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus update kanbus-aaa --status in_progress");
-}
-
-#[when("I run \"kanbus update kanbus-aaa --status blocked\"")]
-fn when_run_update_invalid_status(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus update kanbus-aaa --status blocked");
-}
-
-#[when("I run \"kanbus update kanbus-aaa --status does_not_exist\"")]
-fn when_run_update_unknown_status(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus update kanbus-aaa --status does_not_exist");
-}
-
-#[when("I run \"kanbus update kanbus-aaa --status does_not_exist --no-validate\"")]
-fn when_run_update_unknown_status_no_validate(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus update kanbus-aaa --status does_not_exist --no-validate",
-    );
-}
-
-#[when("I run \"kanbus update kanbus-aaa\"")]
-fn when_run_update_no_changes(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus update kanbus-aaa");
-}
-
-#[when(expr = "I run \"kanbus update kanbus-test01 --status {word}\"")]
-fn when_run_update_status_test01(world: &mut KanbusWorld, status: String) {
-    run_cli(
-        world,
-        &format!("kanbus update kanbus-test01 --status {status}"),
-    );
-}
-
-#[when("I run \"kanbus update kanbus-epic01 --status deferred\"")]
-fn when_run_update_status_epic01(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus update kanbus-epic01 --status deferred");
-}
-
-#[when("I run \"kanbus update kanbus-test01 --claim\"")]
-fn when_run_update_claim_test01(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus update kanbus-test01 --claim");
-}
-
-#[when("I run \"kanbus update kanbus-missing --title \\\"New Title\\\"\"")]
-fn when_run_update_missing(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus update kanbus-missing --title \"New Title\"");
-}
-
-#[when("I run \"kanbus update kanbus-aaa --title \\\"New Title\\\"\"")]
-fn when_run_update_title_only(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus update kanbus-aaa --title \"New Title\"");
-}
-
-#[when("I run \"kanbus update kanbus-aaa --title \\\"duplicate title\\\"\"")]
-fn when_run_update_duplicate_title(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus update kanbus-aaa --title \"duplicate title\"",
-    );
 }
 
 #[then("issue \"kanbus-aaa\" should have title \"New Title\"")]

@@ -4,33 +4,11 @@ use std::path::PathBuf;
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
-use kanbus::cli::run_from_args_with_output;
 use kanbus::dependencies::{add_dependency, list_ready_issues};
 use kanbus::file_io::load_project_directory;
 use kanbus::models::{DependencyLink, IssueData};
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
-
-fn run_cli(world: &mut KanbusWorld, command: &str) {
-    let args = shell_words::split(command).expect("parse command");
-    let cwd = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set");
-
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-}
 
 fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
@@ -91,84 +69,6 @@ fn given_issue_depends_on(
     write_issue_file(&project_dir, &issue);
 }
 
-#[when("I run \"kanbus dep add kanbus-child --blocked-by kanbus-parent\"")]
-fn when_run_dep_add_blocked(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus dep add kanbus-child --blocked-by kanbus-parent",
-    );
-}
-
-#[when("I run \"kanbus dep add kanbus-left --relates-to kanbus-right\"")]
-fn when_run_dep_add_relates(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus dep add kanbus-left --relates-to kanbus-right",
-    );
-}
-
-#[when("I run \"kanbus dep add kanbus-left --blocked-by kanbus-right\"")]
-fn when_run_dep_add_blocked_left(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus dep add kanbus-left --blocked-by kanbus-right",
-    );
-}
-
-#[when("I run \"kanbus dep remove kanbus-left --blocked-by kanbus-right\"")]
-fn when_run_dep_remove(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus dep remove kanbus-left --blocked-by kanbus-right",
-    );
-}
-
-#[when("I run \"kanbus dep remove kanbus-left --relates-to kanbus-right\"")]
-fn when_run_dep_remove_relates(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus dep remove kanbus-left --relates-to kanbus-right",
-    );
-}
-
-#[when("I run \"kanbus dep add kanbus-b --blocked-by kanbus-a\"")]
-fn when_run_dep_add_cycle(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep add kanbus-b --blocked-by kanbus-a");
-}
-
-#[when("I run \"kanbus dep add kanbus-a --blocked-by kanbus-c\"")]
-fn when_run_dep_add_shared_downstream(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep add kanbus-a --blocked-by kanbus-c");
-}
-
-#[when("I run \"kanbus dep add kanbus-missing --blocked-by kanbus-parent\"")]
-fn when_run_dep_add_missing_issue(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus dep add kanbus-missing --blocked-by kanbus-parent",
-    );
-}
-
-#[when("I run \"kanbus ready\"")]
-fn when_run_ready(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus ready");
-}
-
-#[when("I run \"kanbus ready --local-only --no-local\"")]
-fn when_run_ready_conflict(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus ready --local-only --no-local");
-}
-
-#[when("I run \"kanbus ready --local-only\"")]
-fn when_run_ready_local_only(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus ready --local-only");
-}
-
-#[when("I run \"kanbus ready --no-local\"")]
-fn when_run_ready_no_local(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus ready --no-local");
-}
-
 #[when("ready issues are listed for a single project")]
 fn when_ready_issues_listed_single_project(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("cwd");
@@ -181,24 +81,6 @@ fn when_ready_issues_listed_single_project(world: &mut KanbusWorld) {
 fn then_ready_list_contains(world: &mut KanbusWorld, identifier: String) {
     let ids = world.ready_issue_ids.as_ref().expect("ready ids not set");
     assert!(ids.contains(&identifier));
-}
-
-#[when("I run \"kanbus dep add kanbus-child\"")]
-fn when_run_dep_add_missing_target(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep add kanbus-child");
-}
-
-#[when("I run \"kanbus dep remove kanbus-child\"")]
-fn when_run_dep_remove_missing_target(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep remove kanbus-child");
-}
-
-#[when("I run \"kanbus dep remove kanbus-missing --blocked-by kanbus-parent\"")]
-fn when_run_dep_remove_missing_issue(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus dep remove kanbus-missing --blocked-by kanbus-parent",
-    );
 }
 
 #[when("I add an invalid dependency type")]
@@ -215,46 +97,6 @@ fn when_add_invalid_dependency(world: &mut KanbusWorld) {
         }
     }
     world.stdout = Some(String::new());
-}
-
-#[when("I run \"kanbus dep tree kanbus-child\"")]
-fn when_run_dep_tree_child(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep tree kanbus-child");
-}
-
-#[when("I run \"kanbus dep tree kanbus-c --depth 1\"")]
-fn when_run_dep_tree_depth(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep tree kanbus-c --depth 1");
-}
-
-#[when("I run \"kanbus dep tree kanbus-root\"")]
-fn when_run_dep_tree_root(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep tree kanbus-root");
-}
-
-#[when("I run \"kanbus dep tree kanbus-missing\"")]
-fn when_run_dep_tree_missing(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep tree kanbus-missing");
-}
-
-#[when("I run \"kanbus dep tree kanbus-a\"")]
-fn when_run_dep_tree_a(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep tree kanbus-a");
-}
-
-#[when("I run \"kanbus dep tree kanbus-child --format json\"")]
-fn when_run_dep_tree_json(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep tree kanbus-child --format json");
-}
-
-#[when("I run \"kanbus dep tree kanbus-child --format dot\"")]
-fn when_run_dep_tree_dot(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep tree kanbus-child --format dot");
-}
-
-#[when("I run \"kanbus dep tree kanbus-child --format invalid\"")]
-fn when_run_dep_tree_invalid(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus dep tree kanbus-child --format invalid");
 }
 
 #[given("a dependency tree with more than 25 nodes exists")]

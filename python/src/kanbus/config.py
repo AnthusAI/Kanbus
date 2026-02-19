@@ -41,13 +41,46 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "default_priority": 2,
     "assignee": None,
     "time_zone": None,
-    "statuses": [
-        {"name": "open", "color": "cyan", "collapsed": False},
-        {"name": "in_progress", "color": "blue", "collapsed": False},
-        {"name": "blocked", "color": "red", "collapsed": True},
-        {"name": "closed", "color": "green", "collapsed": True},
-        {"name": "deferred", "color": "yellow", "collapsed": True},
+    "categories": [
+        {"name": "To do", "color": "gray"},
+        {"name": "In progress", "color": "blue"},
+        {"name": "Done", "color": "green"},
     ],
+    "statuses": [
+        {"key": "open", "name": "Open", "category": "To do", "collapsed": False},
+        {
+            "key": "in_progress",
+            "name": "In Progress",
+            "category": "In progress",
+            "collapsed": False,
+        },
+        {
+            "key": "blocked",
+            "name": "Blocked",
+            "category": "In progress",
+            "collapsed": True,
+        },
+        {"key": "closed", "name": "Done", "category": "Done", "collapsed": True},
+        {"key": "deferred", "name": "Deferred", "category": "To do", "collapsed": True},
+    ],
+    "transition_labels": {
+        "default": {
+            "open": {
+                "in_progress": "Start progress",
+                "closed": "Close",
+                "deferred": "Defer",
+            },
+            "in_progress": {"open": "Stop progress", "blocked": "Block", "closed": "Complete"},
+            "blocked": {"in_progress": "Unblock", "closed": "Close"},
+            "closed": {"open": "Reopen"},
+            "deferred": {"open": "Resume", "closed": "Close"},
+        },
+        "epic": {
+            "open": {"in_progress": "Start", "closed": "Complete"},
+            "in_progress": {"open": "Pause", "closed": "Complete"},
+            "closed": {"open": "Reopen"},
+        },
+    },
     "type_colors": {
         "initiative": "bright_blue",
         "epic": "magenta",

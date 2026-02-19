@@ -5,11 +5,10 @@ use std::process::Command;
 use std::thread::JoinHandle;
 use std::time::SystemTime;
 
-use cucumber::{given, then, when, World};
+use cucumber::{given, then, World};
 use tempfile::TempDir;
 
 use crate::step_definitions::console_ui_steps::{ConsoleLocalStorage, ConsoleState};
-use kanbus::cli::run_from_args_with_output;
 use kanbus::daemon_client;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
@@ -77,6 +76,7 @@ pub struct KanbusWorld {
     pub console_state: Option<ConsoleState>,
     pub console_local_storage: ConsoleLocalStorage,
     pub console_time_zone: Option<String>,
+    pub console_port: Option<u16>,
 }
 
 impl Drop for KanbusWorld {
@@ -130,27 +130,6 @@ impl Drop for KanbusWorld {
     }
 }
 
-fn run_cli(world: &mut KanbusWorld, command: &str) {
-    let args = shell_words::split(command).expect("parse command");
-    let cwd = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set");
-
-    match run_from_args_with_output(args, cwd.as_path()) {
-        Ok(output) => {
-            world.exit_code = Some(0);
-            world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
-        }
-        Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
-        }
-    }
-}
-
 #[given("an empty git repository")]
 fn given_empty_git_repository(world: &mut KanbusWorld) {
     let temp_dir = TempDir::new().expect("tempdir");
@@ -201,16 +180,6 @@ fn given_git_metadata_directory(world: &mut KanbusWorld) {
         .expect("git init failed");
     world.working_directory = Some(repo_path.join(".git"));
     world.temp_dir = Some(temp_dir);
-}
-
-#[when("I run \"kanbus init\"")]
-fn when_run_tsk_init(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus init");
-}
-
-#[when("I run \"kanbus init --local\"")]
-fn when_run_tsk_init_local(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus init --local");
 }
 
 #[then("a \".kanbus.yml\" file should be created")]

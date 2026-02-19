@@ -328,8 +328,18 @@ def given_invalid_config_duplicate_statuses(context: object) -> None:
     repository = Path(context.working_directory)
     payload = copy.deepcopy(DEFAULT_CONFIGURATION)
     payload["statuses"] = [
-        {"name": "open", "color": "cyan"},
-        {"name": "open", "color": "cyan"},
+        {
+            "key": "open",
+            "name": "Open",
+            "category": "To do",
+            "collapsed": False,
+        },
+        {
+            "key": "open_duplicate",
+            "name": "Open",
+            "category": "To do",
+            "collapsed": False,
+        },
     ]
     (repository / ".kanbus.yml").write_text(
         yaml.safe_dump(payload, sort_keys=False),
@@ -344,7 +354,14 @@ def given_invalid_config_workflow_statuses(context: object) -> None:
     initialize_default_project(context)
     repository = Path(context.working_directory)
     payload = copy.deepcopy(DEFAULT_CONFIGURATION)
-    payload["statuses"] = [{"name": "open", "color": "cyan"}]
+    payload["statuses"] = [
+        {
+            "key": "open",
+            "name": "Open",
+            "category": "To do",
+            "collapsed": False,
+        }
+    ]
     (repository / ".kanbus.yml").write_text(
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",
@@ -617,7 +634,7 @@ def when_load_config(context: object) -> None:
 
     try:
         if not config_path.exists():
-            raise ConfigurationError("kanbus.yml not found")
+            raise ConfigurationError("configuration file not found")
         context.configuration = load_project_configuration(config_path)
         context.result = SimpleNamespace(exit_code=0, stdout="", stderr="")
     except ConfigurationError as error:

@@ -108,9 +108,19 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), KanbusE
 ///
 /// # Returns
 ///
-/// The root path used for initialization.
+/// The root path used for initialization. Walks up from cwd to find .kanbus.yml.
 pub fn resolve_root(cwd: &Path) -> PathBuf {
-    cwd.to_path_buf()
+    let mut current = cwd;
+    loop {
+        let config_path = current.join(".kanbus.yml");
+        if config_path.exists() {
+            return current.to_path_buf();
+        }
+        match current.parent() {
+            Some(parent) => current = parent,
+            None => return cwd.to_path_buf(), // Fallback to cwd if not found
+        }
+    }
 }
 
 fn write_project_guard_files(project_dir: &Path) -> Result<(), KanbusError> {

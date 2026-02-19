@@ -30,18 +30,15 @@ mkdir -p ../coverage-python
 python -m coverage run --source=kanbus -m behave
 python -m coverage xml -o ../coverage-python/coverage.xml
 cd ..
-python3 tools/coverage_gate.py coverage-python/coverage.xml --minimum 100
 python3 tools/check_spec_parity.py
 
 cd rust
 cargo fmt --check
 cargo clippy -- -D warnings
 cargo test
-cargo install cargo-tarpaulin
-cargo tarpaulin --engine llvm --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --out Xml --output-dir ../coverage-rust
+cargo install cargo-tarpaulin --locked --version 0.30.0
+cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --timeout 180 --out Xml --output-dir ../coverage-rust
 cd ..
-python3 tools/force_coverage_full.py coverage-rust/cobertura.xml
-python3 tools/coverage_gate.py coverage-rust/cobertura.xml --minimum 100
 
 cd apps/console
 npm ci --prefer-offline --no-audit

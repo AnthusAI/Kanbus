@@ -5,11 +5,12 @@ use std::path::Path;
 
 use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
+use std::collections::HashSet;
 
 use crate::agents_management::ensure_agents_file;
 use crate::beads_write::{
-    add_beads_comment, create_beads_issue, delete_beads_comment, delete_beads_issue,
-    update_beads_comment, update_beads_issue,
+    add_beads_comment, add_beads_dependency, create_beads_issue, delete_beads_comment,
+    delete_beads_issue, remove_beads_dependency, update_beads_comment, update_beads_issue,
 };
 use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
@@ -121,6 +122,15 @@ enum Commands {
         /// Updated status.
         #[arg(long)]
         status: Option<String>,
+        /// Add label(s).
+        #[arg(long = "add-label")]
+        add_labels: Vec<String>,
+        /// Remove label(s).
+        #[arg(long = "remove-label")]
+        remove_labels: Vec<String>,
+        /// Set labels (comma-separated).
+        #[arg(long = "set-labels")]
+        set_labels: Option<String>,
         /// Claim the issue.
         #[arg(long)]
         claim: bool,
@@ -147,6 +157,9 @@ enum Commands {
         /// Comment text.
         #[arg(required = false)]
         text: Vec<String>,
+        /// Read comment body from file ('-' for stdin).
+        #[arg(long = "body-file", value_name = "PATH")]
+        body_file: Option<String>,
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
@@ -196,9 +209,11 @@ enum Commands {
     /// Report project statistics.
     Stats,
     /// Manage issue dependencies.
+    #[command(name = "dep", trailing_var_arg = true, allow_hyphen_values = true)]
     Dep {
-        #[command(subcommand)]
-        command: DependencyCommands,
+        /// Raw arguments: <id> <type> <target> | <id> remove <type> <target> | tree <id> [--depth N] [--format FORMAT]
+        #[arg(num_args = 1..)]
+        args: Vec<String>,
     },
     /// List issues that are ready (not blocked).
     Ready {
@@ -246,48 +261,80 @@ fn is_help_request(kind: ErrorKind) -> bool {
     )
 }
 
+fn merge_issue_views(mut beads: IssueData, project: IssueData) -> IssueData {
+    // Dependencies: keep beads as source of truth and union in any extras from project.
+    let mut dependency_keys: HashSet<(String, String)> = beads
+        .dependencies
+        .iter()
+        .map(|link| (link.target.clone(), link.dependency_type.clone()))
+        .collect();
+    for link in project.dependencies {
+        let key = (link.target.clone(), link.dependency_type.clone());
+        if dependency_keys.insert(key) {
+            beads.dependencies.push(link);
+        }
+    }
+
+    // Parent: prefer beads, otherwise inherit project parent.
+    if beads.parent.is_none() {
+        beads.parent = project.parent;
+    }
+
+    // Comments: keep chronological order and de-duplicate by id (or author/text/timestamp fallback).
+    let mut comment_keys: HashSet<String> = HashSet::new();
+    for comment in &beads.comments {
+        let key = comment.id.clone().unwrap_or_else(|| {
+            format!("{}|{}|{}", comment.author, comment.text, comment.created_at)
+        });
+        comment_keys.insert(key);
+    }
+    for comment in project.comments {
+        let key = comment.id.clone().unwrap_or_else(|| {
+            format!("{}|{}|{}", comment.author, comment.text, comment.created_at)
+        });
+        if comment_keys.insert(key.clone()) {
+            beads.comments.push(comment);
+        }
+    }
+    beads
+        .comments
+        .sort_by(|a, b| a.created_at.cmp(&b.created_at));
+
+    // Fill in empty descriptive fields from the project copy when beads lacks them.
+    if beads.description.is_empty() && !project.description.is_empty() {
+        beads.description = project.description;
+    }
+    if beads.labels.is_empty() && !project.labels.is_empty() {
+        beads.labels = project.labels;
+    }
+    if beads.assignee.is_none() {
+        beads.assignee = project.assignee;
+    }
+    if beads.creator.is_none() {
+        beads.creator = project.creator;
+    }
+
+    // Custom fields: prefer beads, add any missing keys from project.
+    for (key, value) in project.custom {
+        beads.custom.entry(key).or_insert(value);
+    }
+
+    // Updated timestamp: reflect the newest change across both representations.
+    if project.updated_at > beads.updated_at {
+        beads.updated_at = project.updated_at;
+    }
+    if beads.closed_at.is_none() {
+        beads.closed_at = project.closed_at;
+    }
+
+    beads
+}
+
 #[cfg(tarpaulin)]
 fn cover_help_request() {
     let _ = is_help_request(ErrorKind::DisplayHelp);
     let _ = is_help_request(ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand);
     let _ = is_help_request(ErrorKind::DisplayVersion);
-}
-
-#[derive(Debug, Subcommand)]
-enum DependencyCommands {
-    /// Add a dependency to an issue.
-    Add {
-        /// Issue identifier.
-        identifier: String,
-        /// Blocked-by dependency target.
-        #[arg(long = "blocked-by")]
-        blocked_by: Option<String>,
-        /// Relates-to dependency target.
-        #[arg(long = "relates-to")]
-        relates_to: Option<String>,
-    },
-    /// Remove a dependency from an issue.
-    Remove {
-        /// Issue identifier.
-        identifier: String,
-        /// Blocked-by dependency target.
-        #[arg(long = "blocked-by")]
-        blocked_by: Option<String>,
-        /// Relates-to dependency target.
-        #[arg(long = "relates-to")]
-        relates_to: Option<String>,
-    },
-    /// Display dependency tree.
-    Tree {
-        /// Issue identifier.
-        identifier: String,
-        /// Optional depth limit.
-        #[arg(long)]
-        depth: Option<usize>,
-        /// Output format (text, json, dot).
-        #[arg(long, default_value = "text")]
-        format: String,
-    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -392,6 +439,12 @@ enum CommentCommands {
         identifier: String,
         /// Comment id (full or prefix).
         comment_id: String,
+    },
+    /// Ensure comment ids exist for legacy comments.
+    #[command(name = "ensure-ids")]
+    EnsureIds {
+        /// Issue identifier.
+        identifier: String,
     },
 }
 
@@ -612,13 +665,29 @@ fn execute_command(
         }
         Commands::Show { identifier, json } => {
             let (issue, configuration) = if beads_mode {
-                (load_beads_issue_by_id(&root_for_beads, &identifier)?, None)
+                let mut beads_issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
+                // Normalize comment ids for display consistency
+                let (normalized, _) = crate::issue_comment::ensure_comment_ids(&beads_issue);
+                beads_issue = normalized;
+
+                // Merge data from project copy if present to surface cross-mode changes
+                if let Ok(project_lookup) = load_issue_from_project(root, &identifier) {
+                    let project_issue = project_lookup.issue;
+                    beads_issue = merge_issue_views(beads_issue, project_issue);
+                }
+
+                (beads_issue, None)
             } else {
                 let lookup = load_issue_from_project(root, &identifier)?;
                 let configuration = load_project_configuration(&get_configuration_path(
                     lookup.project_dir.as_path(),
                 )?)?;
-                let issue = ensure_issue_comment_ids(root, &identifier)?;
+                let mut issue = ensure_issue_comment_ids(root, &identifier)?;
+                if configuration.beads_compatibility {
+                    if let Ok(beads_issue) = load_beads_issue_by_id(&root_for_beads, &identifier) {
+                        issue = merge_issue_views(beads_issue, issue);
+                    }
+                }
                 (issue, Some(configuration))
             };
             if json {
@@ -639,6 +708,9 @@ fn execute_command(
             title,
             description,
             status,
+            add_labels,
+            remove_labels,
+            set_labels,
             claim,
             no_validate,
         } => {
@@ -677,6 +749,9 @@ fn execute_command(
                     status.as_deref(),
                     title_value,
                     description_value,
+                    &add_labels,
+                    &remove_labels,
+                    set_labels.as_deref(),
                 )?;
             } else {
                 update_issue(
@@ -688,6 +763,9 @@ fn execute_command(
                     assignee_value.as_deref(),
                     claim,
                     !no_validate,
+                    &add_labels,
+                    &remove_labels,
+                    set_labels.as_deref(),
                 )?;
             }
             let formatted_identifier = format_issue_key(&identifier, false);
@@ -695,7 +773,16 @@ fn execute_command(
         }
         Commands::Close { identifier } => {
             if beads_mode {
-                update_beads_issue(&root_for_beads, &identifier, Some("closed"), None, None)?;
+                update_beads_issue(
+                    &root_for_beads,
+                    &identifier,
+                    Some("closed"),
+                    None,
+                    None,
+                    &[],
+                    &[],
+                    None,
+                )?;
             } else {
                 close_issue(root, &identifier)?;
             }
@@ -716,6 +803,7 @@ fn execute_command(
             identifier,
             text,
             no_validate,
+            body_file,
         } => match command {
             Some(CommentCommands::Update {
                 identifier,
@@ -749,13 +837,37 @@ fn execute_command(
                 }
                 Ok(None)
             }
+            Some(CommentCommands::EnsureIds { identifier }) => {
+                if beads_mode {
+                    return Err(KanbusError::IssueOperation(
+                        "beads mode does not support ensure-ids".to_string(),
+                    ));
+                }
+                ensure_issue_comment_ids(root, &identifier)?;
+                Ok(None)
+            }
             None => {
                 let Some(identifier) = identifier else {
                     return Err(KanbusError::IssueOperation(
                         "issue identifier is required".to_string(),
                     ));
                 };
-                let text_value = text.join(" ");
+                let text_value = if let Some(path) = body_file.as_deref() {
+                    if path == "-" {
+                        use std::io::{stdin, Read};
+                        let mut buffer = String::new();
+                        stdin().read_to_string(&mut buffer).map_err(|error| {
+                            KanbusError::Io(format!("failed to read stdin: {error}"))
+                        })?;
+                        buffer
+                    } else {
+                        std::fs::read_to_string(path).map_err(|error| {
+                            KanbusError::Io(format!("failed to read body file: {error}"))
+                        })?
+                    }
+                } else {
+                    text.join(" ")
+                };
                 if text_value.trim().is_empty() {
                     return Err(KanbusError::IssueOperation(
                         "comment text is required".to_string(),
@@ -811,6 +923,8 @@ fn execute_command(
                     label.as_deref(),
                 );
                 let mut searched = search_issues(filtered, search.as_deref());
+                // Beads fixtures include closed issues; align with Kanbus list default by hiding closed.
+                searched.retain(|issue| issue.status.to_ascii_lowercase() != "closed");
                 searched.sort_by(|a, b| {
                     a.priority
                         .cmp(&b.priority)
@@ -886,51 +1000,95 @@ fn execute_command(
             }
             Ok(Some(lines.join("\n")))
         }
-        Commands::Dep { command } => match command {
-            DependencyCommands::Add {
-                identifier,
-                blocked_by,
-                relates_to,
-            } => {
-                let (target_id, dependency_type) = match (blocked_by, relates_to) {
-                    (Some(value), _) => (value, "blocked-by"),
-                    (None, Some(value)) => (value, "relates-to"),
-                    (None, None) => {
-                        return Err(KanbusError::IssueOperation(
-                            "dependency target is required".to_string(),
-                        ));
-                    }
-                };
-                add_dependency(root, &identifier, &target_id, dependency_type)?;
-                Ok(None)
+        Commands::Dep { args } => {
+            if args.is_empty() {
+                return Err(KanbusError::IssueOperation(
+                    "usage: kanbus dep <identifier> <type> <target>".to_string(),
+                ));
             }
-            DependencyCommands::Remove {
-                identifier,
-                blocked_by,
-                relates_to,
-            } => {
-                let (target_id, dependency_type) = match (blocked_by, relates_to) {
-                    (Some(value), _) => (value, "blocked-by"),
-                    (None, Some(value)) => (value, "relates-to"),
-                    (None, None) => {
-                        return Err(KanbusError::IssueOperation(
-                            "dependency target is required".to_string(),
-                        ));
+
+            // Tree handling: kanbus dep tree <id> [--depth N] [--format FORMAT]
+            if args[0] == "tree" {
+                if args.len() < 2 {
+                    return Err(KanbusError::IssueOperation(
+                        "tree requires an identifier".to_string(),
+                    ));
+                }
+                let identifier = args[1].clone();
+                let mut depth: Option<usize> = None;
+                let mut format = "text".to_string();
+                let mut index = 2;
+                while index < args.len() {
+                    match args[index].as_str() {
+                        "--depth" if index + 1 < args.len() => {
+                            if let Ok(value) = args[index + 1].parse::<usize>() {
+                                depth = Some(value);
+                            } else {
+                                return Err(KanbusError::IssueOperation(
+                                    "depth must be a number".to_string(),
+                                ));
+                            }
+                            index += 2;
+                        }
+                        "--format" if index + 1 < args.len() => {
+                            format = args[index + 1].clone();
+                            index += 2;
+                        }
+                        _ => {
+                            index += 1;
+                        }
                     }
-                };
-                remove_dependency(root, &identifier, &target_id, dependency_type)?;
-                Ok(None)
-            }
-            DependencyCommands::Tree {
-                identifier,
-                depth,
-                format,
-            } => {
+                }
                 let tree = build_dependency_tree(root, &identifier, depth)?;
                 let output = render_dependency_tree(&tree, &format, None)?;
-                Ok(Some(output))
+                return Ok(Some(output));
             }
-        },
+
+            if args.len() < 2 {
+                return Err(KanbusError::IssueOperation(
+                    "usage: kanbus dep <identifier> <type> <target>".to_string(),
+                ));
+            }
+
+            let identifier = &args[0];
+            let mut is_remove = false;
+            let (dependency_type, target) = if args.get(1).map(String::as_str) == Some("remove") {
+                is_remove = true;
+                if args.len() < 4 {
+                    return Err(KanbusError::IssueOperation(
+                        "dependency target is required".to_string(),
+                    ));
+                }
+                (args[2].clone(), args[3].clone())
+            } else {
+                if args.len() < 3 {
+                    return Err(KanbusError::IssueOperation(
+                        "dependency target is required".to_string(),
+                    ));
+                }
+                (args[1].clone(), args[2].clone())
+            };
+
+            if beads_mode {
+                if is_remove {
+                    remove_beads_dependency(
+                        &root_for_beads,
+                        identifier,
+                        &target,
+                        &dependency_type,
+                    )?;
+                } else {
+                    add_beads_dependency(&root_for_beads, identifier, &target, &dependency_type)?;
+                }
+            } else {
+                if is_remove {
+                    remove_dependency(root, identifier, &target, &dependency_type)?;
+                } else {
+                    add_dependency(root, identifier, &target, &dependency_type)?;
+                }
+            }
+            Ok(None)
+        }
         Commands::Ready {
             no_local,
             local_only,
