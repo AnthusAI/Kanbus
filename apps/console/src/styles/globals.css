@@ -856,7 +856,6 @@ html[data-motion="reduced"] .detail-page {
 }
 
 .descendant-link[data-status="closed"] {
-  opacity: 0.65;
 }
 
 .descendant-link[data-status="closed"] .text-foreground {
