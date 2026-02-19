@@ -1121,7 +1121,7 @@ export default function App() {
         </div>
       ) : null}
 
-      <div className="mt-0 min-[321px]:mt-1 sm:mt-2 md:mt-3 flex-1 min-h-0">
+      <div className="mt-1 min-[321px]:mt-2 sm:mt-3 md:mt-4 flex-1 min-h-0">
         <div
           ref={layoutFrameRef}
           className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}`}
