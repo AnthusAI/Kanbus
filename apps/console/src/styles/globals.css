@@ -204,6 +204,25 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+.status-badge {
+  --status-badge-bg-light: var(--card-muted);
+  --status-badge-bg-dark: var(--card-muted);
+  --status-badge-bg: var(--status-badge-bg-light);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-foreground);
+  background: var(--status-badge-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.dark .status-badge {
+  --status-badge-bg: var(--status-badge-bg-dark);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

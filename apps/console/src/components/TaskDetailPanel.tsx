@@ -12,7 +12,7 @@ import mermaid from "mermaid";
 import plantumlEncoder from "plantuml-encoder";
 import type { Issue, ProjectConfig } from "../types/issues";
 import { Board } from "./Board";
-import { buildIssueColorStyle } from "../utils/issue-colors";
+import { buildIssueColorStyle, buildStatusBadgeStyle } from "../utils/issue-colors";
 import { formatTimestamp } from "../utils/format-timestamp";
 import { formatIssueId } from "../utils/format-issue-id";
 import { IconButton } from "./IconButton";
@@ -86,6 +86,9 @@ const DescendantLink = React.memo(({
 }: DescendantLinkProps) => {
   const TypeIcon = getTypeIcon(issue.type, issue.status);
   const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
+  const statusLabel =
+    config?.statuses.find((status) => status.key === issue.status)?.name ?? issue.status;
+  const statusBadgeStyle = config ? buildStatusBadgeStyle(config, issue.status) : undefined;
 
   const handleClick = () => {
     onClick();
@@ -100,7 +103,7 @@ const DescendantLink = React.memo(({
 
   return (
     <div
-      className="descendant-link cursor-pointer rounded-lg hover:bg-card-muted transition-colors p-2"
+      className="descendant-link issue-card w-full min-w-0 cursor-pointer rounded-lg hover:bg-card-muted transition-colors p-2"
       style={issueStyle}
       data-status={issue.status}
       data-type={issue.type}
@@ -111,22 +114,24 @@ const DescendantLink = React.memo(({
       tabIndex={0}
       aria-label={`Navigate to ${formatIssueId(issue.id)}: ${issue.title}`}
     >
-      <div className="flex items-center gap-2">
-        <div style={{ width: `${depth * 12}px` }} aria-hidden="true" />
-        {depth > 0 && <CornerDownRight className="w-3 h-3 text-muted" aria-hidden="true" />}
-        <TypeIcon className="issue-accent-icon w-4 h-4" aria-hidden="true" />
-        <span className="issue-accent-id text-xs font-medium">
+      <div className="flex flex-wrap items-center gap-2 min-w-0">
+        <div className="shrink-0" style={{ width: `${depth * 12}px` }} aria-hidden="true" />
+        {depth > 0 ? (
+          <CornerDownRight className="shrink-0 w-3 h-3 text-muted" aria-hidden="true" />
+        ) : null}
+        <TypeIcon className="issue-accent-icon w-4 h-4 shrink-0" aria-hidden="true" />
+        <span className="issue-accent-id text-xs font-medium shrink-0">
           {formatIssueId(issue.id)}
         </span>
-        <span className="text-sm text-foreground flex-1 min-w-0 truncate">
+        <span className="text-sm text-foreground min-w-0 flex-[1_1_12rem] break-words leading-snug">
           {issue.title}
         </span>
-        <span className="text-xs text-muted uppercase tracking-wider">
-          {issue.status}
-        </span>
-        <span className="text-xs issue-accent-priority px-2 py-0.5 rounded">
-          {priorityName}
-        </span>
+        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <span className="status-badge" style={statusBadgeStyle}>
+            {statusLabel}
+          </span>
+          <span className="issue-accent-priority">{priorityName}</span>
+        </div>
       </div>
     </div>
   );

@@ -38,6 +38,7 @@ const RADIX_COLORS = new Set([
 const COLOR_ALIASES: Record<string, string> = {
   black: "gray",
   bright_black: "slate",
+  grey: "gray",
   white: "gray",
   bright_white: "slate",
   red: "red",
@@ -60,6 +61,8 @@ const DARK_ACCENT = "8";
 const DARK_MUTED = "3";
 const PRIORITY_BG_LIGHT = "5";
 const PRIORITY_BG_DARK = "8";
+const STATUS_BG_LIGHT = "3";
+const STATUS_BG_DARK = "7";
 
 function normalizeColorValue(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
@@ -82,7 +85,7 @@ function buildRadixVariable(name: string, scale: string): string {
 
 function resolveAccentColor(config: ProjectConfig, issue: Issue): string | null {
   const typeColor = config.type_colors[issue.type];
-  const statusDef = config.statuses.find((s) => s.name === issue.status);
+  const statusDef = config.statuses.find((s) => s.key === issue.status);
   const statusColor = statusDef?.color ?? null;
   const priorityColor = config.priorities[issue.priority]?.color ?? null;
   return resolveRadixColorName(typeColor ?? statusColor ?? priorityColor ?? null);
@@ -91,6 +94,14 @@ function resolveAccentColor(config: ProjectConfig, issue: Issue): string | null 
 function resolvePriorityColor(config: ProjectConfig, issue: Issue): string | null {
   const priorityColor = config.priorities[issue.priority]?.color ?? null;
   return resolveRadixColorName(priorityColor);
+}
+
+function resolveStatusColor(config: ProjectConfig, statusKey: string): string | null {
+  const statusDef = config.statuses.find((s) => s.key === statusKey);
+  const categoryColor =
+    config.categories.find((c) => c.name === statusDef?.category)?.color ?? null;
+  const statusColor = statusDef?.color ?? null;
+  return resolveRadixColorName(statusColor ?? categoryColor ?? null);
 }
 
 export function buildIssueColorStyle(
@@ -125,6 +136,21 @@ export function buildIssueColorStyle(
       priorityColor,
       PRIORITY_BG_DARK
     );
+  }
+
+  return style;
+}
+
+export function buildStatusBadgeStyle(
+  config: ProjectConfig,
+  statusKey: string
+): CSSProperties {
+  const statusColor = resolveStatusColor(config, statusKey);
+  const style: CSSProperties & Record<string, string> = {};
+
+  if (statusColor) {
+    style["--status-badge-bg-light"] = buildRadixVariable(statusColor, STATUS_BG_LIGHT);
+    style["--status-badge-bg-dark"] = buildRadixVariable(statusColor, STATUS_BG_DARK);
   }
 
   return style;
