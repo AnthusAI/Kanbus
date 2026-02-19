@@ -833,10 +833,6 @@ html[data-motion="reduced"] .detail-page {
   .detail-resizer {
     display: none !important;
   }
-
-  .layout-slot-board {
-    padding: 0 !important;
-  }
 }
 
 /* Descendant links */

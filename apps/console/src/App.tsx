@@ -21,6 +21,7 @@ import {
   subscribeToSnapshots,
   subscribeToNotifications,
   type NotificationEvent,
+  type UiControlAction,
 } from "./api/client";
 import { installConsoleTelemetry } from "./utils/console-telemetry";
 import { matchesSearchQuery } from "./utils/issue-search";
@@ -323,12 +324,12 @@ function buildPriorityLookup(config: ProjectConfig): Record<number, string> {
 }
 
 function getStatusColumns(config: ProjectConfig): string[] {
-  return config.statuses.map((s) => s.name);
+  return config.statuses.map((s) => s.key);
 }
 
 function getInitialCollapsedColumns(config: ProjectConfig): Set<string> {
   return new Set(
-    config.statuses.filter((s) => s.collapsed).map((s) => s.name)
+    config.statuses.filter((s) => s.collapsed).map((s) => s.key)
   );
 }
 
@@ -338,6 +339,36 @@ const VIEW_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   issues: SquareCheckBig,
   "sub-tasks": CheckCheck
 };
+
+function computeViewModeCounts(issues: Issue[]): Record<ViewMode, number> {
+  return issues.reduce<Record<ViewMode, number>>(
+    (accumulator, issue) => {
+      if (issue.type === "initiative") {
+        accumulator.initiatives += 1;
+      } else if (issue.type === "epic") {
+        accumulator.epics += 1;
+      } else if (
+        issue.type !== "initiative"
+        && issue.type !== "epic"
+        && issue.type !== "sub-task"
+      ) {
+        accumulator.issues += 1;
+      }
+      return accumulator;
+    },
+    { initiatives: 0, epics: 0, issues: 0 }
+  );
+}
+
+function selectNonEmptyViewMode(counts: Record<ViewMode, number>): ViewMode {
+  if (counts.initiatives > 0) {
+    return "initiatives";
+  }
+  if (counts.epics > 0) {
+    return "epics";
+  }
+  return "issues";
+}
 
 function SettingsIcon() {
   return (
@@ -377,6 +408,7 @@ export default function App() {
   const navActionRef = React.useRef<NavAction>("none");
   const wasDetailOpenRef = React.useRef(false);
   const collapsedColumnsInitialized = React.useRef(false);
+  const viewModeAutoCorrected = React.useRef(false);
   useAppearance();
   const config = snapshot?.config;
   const issues = snapshot?.issues ?? [];
@@ -473,9 +505,41 @@ export default function App() {
             break;
           case "issue_created":
           case "issue_updated":
+            // Use the issue data from the notification payload directly
+            if (event.issue_data && snapshot) {
+              const updatedIssues = snapshot.issues.map(issue =>
+                issue.id === event.issue_id ? event.issue_data : issue
+              );
+              // If this is a new issue (created), add it if not already present
+              if (event.type === "issue_created" && !snapshot.issues.find(i => i.id === event.issue_id)) {
+                updatedIssues.push(event.issue_data);
+              }
+              setSnapshot({
+                ...snapshot,
+                issues: updatedIssues,
+                updated_at: new Date().toISOString()
+              });
+              console.info("[notifications] applied issue update immediately", {
+                type: event.type,
+                issueId: event.issue_id
+              });
+            } else {
+              // Fallback to fetching if no snapshot yet
+              fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+            }
+            break;
           case "issue_deleted":
-            // Trigger immediate snapshot refresh for CRUD operations
-            fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+            // Remove the deleted issue from snapshot
+            if (snapshot) {
+              setSnapshot({
+                ...snapshot,
+                issues: snapshot.issues.filter(issue => issue.id !== event.issue_id),
+                updated_at: new Date().toISOString()
+              });
+              console.info("[notifications] applied issue deletion immediately", { issueId: event.issue_id });
+            } else {
+              fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+            }
             break;
           case "ui_control":
             handleUiControlAction(event.action);
@@ -514,6 +578,36 @@ export default function App() {
     }
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    if (!snapshot) {
+      return;
+    }
+    if (viewModeAutoCorrected.current) {
+      return;
+    }
+    if (route.viewMode) {
+      return;
+    }
+    if (route.parentId || focusedIssueId || searchQuery.trim()) {
+      return;
+    }
+    if (!viewMode) {
+      return;
+    }
+
+    const counts = computeViewModeCounts(snapshot.issues);
+    const preferred = selectNonEmptyViewMode(counts);
+    if (counts[viewMode] === 0 && counts[preferred] > 0) {
+      viewModeAutoCorrected.current = true;
+      setViewMode(preferred);
+      if (route.basePath != null) {
+        navigate(`${route.basePath}/${preferred}/`, setRoute, navActionRef);
+      }
+    } else {
+      viewModeAutoCorrected.current = true;
+    }
+  }, [snapshot, focusedIssueId, route.basePath, route.parentId, route.viewMode, searchQuery, viewMode]);
 
   useEffect(() => {
     if (route.viewMode) {
@@ -758,7 +852,19 @@ export default function App() {
     setSearchQuery("");
   };
 
-  const handleUiControlAction = (action: NotificationEvent extends { type: "ui_control"; action: infer A } ? A : never) => {
+  const handleTaskClose = () => {
+    setDetailClosing(true);
+    setDetailMaximized(false);
+    if (route.basePath == null) {
+      setSelectedTask(null);
+      return;
+    }
+    setSelectedTask(null);
+    const nextMode = resolvedViewMode ?? loadStoredViewMode();
+    navigate(`${route.basePath}/${nextMode}/`, setRoute, navActionRef);
+  };
+
+  const handleUiControlAction = (action: UiControlAction) => {
     switch (action.action) {
       case "clear_focus":
         setFocusedIssueId(null);
@@ -810,6 +916,10 @@ export default function App() {
             navigate(issueUrl, setRoute, navActionRef);
           }
         }
+        break;
+      case "reload_page":
+        console.info("[ui_control] reloading page");
+        window.location.reload();
         break;
     }
   };
@@ -1016,7 +1126,7 @@ export default function App() {
           ref={layoutFrameRef}
           className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}`}
         >
-          <div className="layout-slot layout-slot-board h-full pt-2 px-0">
+          <div className="layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3">
             <Board
               columns={columns}
               issues={filteredIssues}
@@ -1125,17 +1235,7 @@ export default function App() {
               columns={columns}
               priorityLookup={priorityLookup}
               config={config}
-              onClose={() => {
-                setDetailClosing(true);
-                setDetailMaximized(false);
-                if (route.basePath == null) {
-                  setSelectedTask(null);
-                  return;
-                }
-                setSelectedTask(null);
-                const nextMode = resolvedViewMode ?? loadStoredViewMode();
-                navigate(`${route.basePath}/${nextMode}/`, setRoute, navActionRef);
-              }}
+              onClose={handleTaskClose}
               onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
               isMaximized={detailMaximized}
               onAfterClose={() => setDetailClosing(false)}
