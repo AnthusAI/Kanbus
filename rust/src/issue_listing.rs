@@ -110,6 +110,11 @@ fn list_issues_with_local(
     local_dir: Option<&Path>,
     local_only: bool,
 ) -> Result<Vec<IssueData>, KanbusError> {
+    if std::env::var("KANBUS_TEST_LOCAL_LISTING_ERROR").is_ok() {
+        return Err(KanbusError::IssueOperation(
+            "local listing failed".to_string(),
+        ));
+    }
     let shared_issues = list_issues_for_project(project_dir)?;
     let mut local_issues = Vec::new();
     if let Some(local_dir) = local_dir {
