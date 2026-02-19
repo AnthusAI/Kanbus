@@ -545,8 +545,8 @@ skinparam SequenceDividerFontColor white`
           data-type={taskToRender.type}
           data-priority={priorityName}
         >
-          <div className="issue-accent-bar -m-3 mb-0 h-10 w-[calc(100%+1.5rem)] px-3 flex items-center pt-3 pb-3">
-            <div className="issue-accent-row gap-2 w-full flex items-center justify-between">
+          <div className="issue-accent-bar -mx-3 mb-0 h-10 w-full px-3 flex items-center pt-3 pb-3">
+            <div className="issue-accent-row gap-2 w-full flex items-center justify-between min-w-0">
               <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
                 <DetailTypeIcon className="issue-accent-icon" />
                 <span className="issue-accent-id">{formatIssueId(taskToRender.id)}</span>
@@ -564,14 +564,14 @@ skinparam SequenceDividerFontColor white`
             data-priority={priorityName}
           >
             <div className="grid gap-2">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
                 <div
                   ref={statusFlashRef}
-                  className="text-xs font-semibold uppercase tracking-[0.3em] text-muted rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+                  className="text-xs font-semibold uppercase tracking-[0.3em] text-muted rounded px-2 py-1 -mx-2 -my-1 transition-colors min-w-0"
                 >
                   {taskToRender.type} · {taskToRender.status}
                 </div>
-                <div className="flex items-center gap-2 translate-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {hasChildren && (
                     <IconButton
                       icon={Focus}
