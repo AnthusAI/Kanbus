@@ -165,7 +165,9 @@ class ProjectConfiguration(BaseModel):
     hierarchy: List[str]
     types: List[str]
     workflows: Dict[str, Dict[str, List[str]]]
-    transition_labels: Dict[str, Dict[str, Dict[str, str]]] = Field(default_factory=dict)
+    transition_labels: Dict[str, Dict[str, Dict[str, str]]] = Field(
+        default_factory=dict
+    )
     initial_status: str = Field(min_length=1)
     priorities: Dict[int, PriorityDefinition]
     default_priority: int

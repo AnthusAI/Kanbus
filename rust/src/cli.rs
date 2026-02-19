@@ -924,7 +924,7 @@ fn execute_command(
                 );
                 let mut searched = search_issues(filtered, search.as_deref());
                 // Beads fixtures include closed issues; align with Kanbus list default by hiding closed.
-                searched.retain(|issue| issue.status.to_ascii_lowercase() != "closed");
+                searched.retain(|issue| !issue.status.eq_ignore_ascii_case("closed"));
                 searched.sort_by(|a, b| {
                     a.priority
                         .cmp(&b.priority)
@@ -1080,12 +1080,10 @@ fn execute_command(
                 } else {
                     add_beads_dependency(&root_for_beads, identifier, &target, &dependency_type)?;
                 }
+            } else if is_remove {
+                remove_dependency(root, identifier, &target, &dependency_type)?;
             } else {
-                if is_remove {
-                    remove_dependency(root, identifier, &target, &dependency_type)?;
-                } else {
-                    add_dependency(root, identifier, &target, &dependency_type)?;
-                }
+                add_dependency(root, identifier, &target, &dependency_type)?;
             }
             Ok(None)
         }

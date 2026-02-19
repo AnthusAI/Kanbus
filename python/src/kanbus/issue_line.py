@@ -72,7 +72,9 @@ def _resolve_status_color(
     status: str, configuration: ProjectConfiguration | None
 ) -> str:
     if configuration:
-        categories = {category.name: category.color for category in configuration.categories}
+        categories = {
+            category.name: category.color for category in configuration.categories
+        }
         # Look up color from statuses list
         for status_def in configuration.statuses:
             if status_def.key != status:
@@ -80,7 +82,9 @@ def _resolve_status_color(
             status_color = _normalize_cli_color(status_def.color)
             if status_color:
                 return status_color
-            category_color = _normalize_cli_color(categories.get(status_def.category or ""))
+            category_color = _normalize_cli_color(
+                categories.get(status_def.category or "")
+            )
             if category_color:
                 return category_color
     return STATUS_COLORS.get(status, "white")

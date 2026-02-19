@@ -70,7 +70,11 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
                 "closed": "Close",
                 "deferred": "Defer",
             },
-            "in_progress": {"open": "Stop progress", "blocked": "Block", "closed": "Complete"},
+            "in_progress": {
+                "open": "Stop progress",
+                "blocked": "Block",
+                "closed": "Complete",
+            },
             "blocked": {"in_progress": "Unblock", "closed": "Close"},
             "closed": {"open": "Reopen"},
             "deferred": {"open": "Resume", "closed": "Close"},

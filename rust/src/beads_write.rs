@@ -452,6 +452,7 @@ pub fn remove_beads_dependency(
 }
 
 /// Update a Beads-compatible issue in .beads/issues.jsonl.
+#[allow(clippy::too_many_arguments)]
 pub fn update_beads_issue(
     root: &Path,
     identifier: &str,
