@@ -90,6 +90,11 @@ jobs:
           npm ci
           npm run build
 
+      - name: Build console assets (reuse in coverage)
+        run: |
+          cd apps/console
+          npm run build
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -108,6 +113,7 @@ jobs:
       - name: Run Rust coverage
         env:
           CUCUMBER_FILTER_TAGS: "not @wip and not @slow"
+          KANBUS_PREBUILT_CONSOLE_DIST: "${{ github.workspace }}/apps/console/dist"
         run: |
           cd rust
           cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --timeout 600 --out Xml --output-dir ../coverage-rust

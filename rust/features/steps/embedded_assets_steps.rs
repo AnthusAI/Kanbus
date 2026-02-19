@@ -159,18 +159,29 @@ async fn given_kanbus_console_binary_with_embedded_assets(world: &mut KanbusWorl
         panic!("Console app not found at {}", console_dir.display());
     }
 
-    let output = Command::new("npm")
-        .args(&["run", "build"])
-        .current_dir(&console_dir)
-        .output()
-        .expect("Failed to build frontend");
+    // Allow reusing a prebuilt console dist to speed up CI.
+    // If KANBUS_PREBUILT_CONSOLE_DIST is set and looks valid, skip the build.
+    let prebuilt_dist = env::var("KANBUS_PREBUILT_CONSOLE_DIST")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| console_dir.join("dist"));
 
-    if !output.status.success() {
-        panic!(
-            "Frontend build failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+    if !(prebuilt_dist.join("index.html").exists()) {
+        let output = Command::new("npm")
+            .args(&["run", "build"])
+            .current_dir(&console_dir)
+            .output()
+            .expect("Failed to build frontend");
+
+        if !output.status.success() {
+            panic!(
+                "Frontend build failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
     }
+
+    // Ensure CONSOLE_ASSETS_ROOT points at the dist we will embed.
+    env::set_var("CONSOLE_ASSETS_ROOT", &prebuilt_dist);
 
     // Now build Rust binary with embed-assets feature
     let output = Command::new("cargo")
