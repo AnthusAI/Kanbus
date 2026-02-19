@@ -65,6 +65,7 @@ pub struct KanbusWorld {
     pub original_user_env: Option<Option<String>>,
     pub original_canonicalize_failure_env: Option<Option<String>>,
     pub original_configuration_path_failure_env: Option<Option<String>>,
+    pub original_local_listing_env: Option<Option<String>>,
     pub formatted_output: Option<String>,
     pub display_context: Option<String>,
     pub formatted_issue_key: Option<String>,
@@ -123,6 +124,12 @@ impl Drop for KanbusWorld {
             match original {
                 Some(value) => std::env::set_var("KANBUS_TEST_CONFIGURATION_PATH_FAILURE", value),
                 None => std::env::remove_var("KANBUS_TEST_CONFIGURATION_PATH_FAILURE"),
+            }
+        }
+        if let Some(original) = self.original_local_listing_env.take() {
+            match original {
+                Some(value) => std::env::set_var("KANBUS_TEST_LOCAL_LISTING_ERROR", value),
+                None => std::env::remove_var("KANBUS_TEST_LOCAL_LISTING_ERROR"),
             }
         }
         daemon_client::set_test_daemon_response(None);

@@ -287,6 +287,11 @@ fn given_daemon_list_fails(world: &mut KanbusWorld) {
 
 #[given("local listing will fail")]
 fn given_local_listing_fails(world: &mut KanbusWorld) {
+    if world.original_local_listing_env.is_none() {
+        world.original_local_listing_env =
+            Some(std::env::var("KANBUS_TEST_LOCAL_LISTING_ERROR").ok());
+    }
+    std::env::set_var("KANBUS_TEST_LOCAL_LISTING_ERROR", "1");
     world.local_listing_error = true;
 }
 
