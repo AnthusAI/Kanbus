@@ -84,6 +84,12 @@ jobs:
           cd apps/console
           npm ci
 
+      - name: Install and build shared UI package
+        run: |
+          cd packages/ui
+          npm ci
+          npm run build
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
