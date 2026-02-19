@@ -98,7 +98,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools-preview
 
       - name: Run Rust quality gates
         run: |
@@ -106,9 +106,8 @@ jobs:
           cargo fmt --check
           cargo clippy -- -D warnings
           cargo test
-
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin --locked --version 0.30.0
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked --version 0.6.11
 
       - name: Run Rust coverage
         env:
@@ -116,7 +115,8 @@ jobs:
           KANBUS_PREBUILT_CONSOLE_DIST: "${{ github.workspace }}/apps/console/dist"
         run: |
           cd rust
-          cargo tarpaulin --engine ptrace --lib --exclude-files "src/bin/*" --timeout 300 --out Xml --output-dir ../coverage-rust
+          cargo llvm-cov --no-report --all-features --tests --ignore-filename-regex "features/steps/.*"
+          cargo llvm-cov report --cobertura --output-path ../coverage-rust/cobertura.xml
 
       - name: Capture Rust coverage
         id: rust_coverage
