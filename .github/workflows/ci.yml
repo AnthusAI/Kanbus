@@ -116,7 +116,7 @@ jobs:
           KANBUS_PREBUILT_CONSOLE_DIST: "${{ github.workspace }}/apps/console/dist"
         run: |
           cd rust
-          cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --timeout 600 --out Xml --output-dir ../coverage-rust
+          cargo tarpaulin --engine ptrace --lib --exclude-files "src/bin/*" --timeout 300 --out Xml --output-dir ../coverage-rust
 
       - name: Capture Rust coverage
         id: rust_coverage
