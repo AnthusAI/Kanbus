@@ -110,12 +110,10 @@ jobs:
         run: cargo install cargo-llvm-cov --locked --version 0.6.11
 
       - name: Run Rust coverage
-        env:
-          CUCUMBER_FILTER_TAGS: "not @wip and not @slow"
-          KANBUS_PREBUILT_CONSOLE_DIST: "${{ github.workspace }}/apps/console/dist"
         run: |
           cd rust
-          cargo llvm-cov --no-report --all-features --tests --ignore-filename-regex "features/steps/.*"
+          mkdir -p ../coverage-rust
+          cargo llvm-cov --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"
           cargo llvm-cov report --cobertura --output-path ../coverage-rust/cobertura.xml
 
       - name: Capture Rust coverage
