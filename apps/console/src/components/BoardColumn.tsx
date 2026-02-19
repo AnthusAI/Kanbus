@@ -36,10 +36,7 @@ export function BoardColumn({
         <div className="h-7 flex items-center justify-center px-2 w-full">
           <span className="text-xs font-semibold">{issues.length}</span>
         </div>
-        <div className="h-6 flex items-center justify-center px-2 w-full">
-          <ChevronRight className="w-4 h-4 text-muted" aria-hidden="true" />
-        </div>
-        <div className="flex flex-col items-center mt-1 px-2 w-full">
+        <div className="flex flex-col items-center mt-1 px-2 w-full flex-1">
           <span
             className="text-xs font-semibold uppercase tracking-wider"
             style={{
@@ -50,6 +47,9 @@ export function BoardColumn({
           >
             {title.replace(/_/g, " ")}
           </span>
+        </div>
+        <div className="h-7 flex items-center justify-center px-2 w-full">
+          <ChevronRight className="w-4 h-4 text-muted" aria-hidden="true" />
         </div>
       </div>
     );
@@ -62,11 +62,11 @@ export function BoardColumn({
         onClick={onToggleCollapse}
         title="Click to collapse"
       >
-        <span className="column-animate-in">{title.replace(/_/g, " ")}</span>
-        <span className="column-animate-in inline-flex items-center gap-2">
-          <span className="pr-1">{issues.length}</span>
-          <ChevronLeft className="w-4 h-4 text-muted" aria-hidden="true" />
+        <span className="column-animate-in inline-flex items-center gap-2 min-w-0">
+          <ChevronLeft className="w-4 h-4 text-muted shrink-0" aria-hidden="true" />
+          <span className="min-w-0 truncate">{title.replace(/_/g, " ")}</span>
         </span>
+        <span className="column-animate-in pr-1">{issues.length}</span>
       </div>
       <div className="kb-column-scroll mt-1 flex-1 min-h-0 overflow-y-auto">
         <div className="grid gap-2" key={`${title}-issues`}>
