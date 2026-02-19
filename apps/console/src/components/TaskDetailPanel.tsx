@@ -545,7 +545,7 @@ skinparam SequenceDividerFontColor white`
           data-type={taskToRender.type}
           data-priority={priorityName}
         >
-          <div className="issue-accent-bar -mx-3 mb-0 h-10 w-full px-3 flex items-center pt-3 pb-3">
+          <div className="issue-accent-bar -m-3 mb-0 h-10 w-[calc(100%+1.5rem)] px-3 flex items-center pt-3 pb-3">
             <div className="issue-accent-row gap-2 w-full flex items-center justify-between min-w-0">
               <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
                 <DetailTypeIcon className="issue-accent-icon" />
@@ -567,11 +567,11 @@ skinparam SequenceDividerFontColor white`
               <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
                 <div
                   ref={statusFlashRef}
-                  className="text-xs font-semibold uppercase tracking-[0.3em] text-muted rounded px-2 py-1 -mx-2 -my-1 transition-colors min-w-0"
+                  className="text-xs font-semibold uppercase tracking-[0.3em] text-muted rounded px-2 py-1 -mx-2 -my-1 transition-colors min-w-0 max-[420px]:order-1"
                 >
                   {taskToRender.type} · {taskToRender.status}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 max-[420px]:order-2 max-[420px]:w-full max-[420px]:justify-start">
                   {hasChildren && (
                     <IconButton
                       icon={Focus}
