@@ -74,6 +74,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node (for embedded console assets build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install console dependencies
+        run: |
+          cd apps/console
+          npm ci
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
