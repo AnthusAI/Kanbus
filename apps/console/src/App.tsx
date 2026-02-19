@@ -583,9 +583,9 @@ export default function App() {
     if (!snapshot) {
       return;
     }
-    if (viewModeAutoCorrected.current) {
-      return;
-    }
+    // Reset auto-correction flag on new snapshot to allow re-evaluation
+    viewModeAutoCorrected.current = false;
+
     if (route.viewMode) {
       return;
     }
@@ -1121,7 +1121,7 @@ export default function App() {
         </div>
       ) : null}
 
-      <div className="mt-2 flex-1 min-h-0">
+      <div className="mt-0 min-[321px]:mt-1 sm:mt-2 md:mt-3 flex-1 min-h-0">
         <div
           ref={layoutFrameRef}
           className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}`}
