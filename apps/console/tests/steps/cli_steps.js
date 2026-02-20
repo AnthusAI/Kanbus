@@ -68,6 +68,14 @@ When("I run {string}", async function (command) {
         };
         lastStdout = `${status.focused_issue_id}\n${status.view_mode}\n${status.search_query}\n`;
       }
+    } else if (subcommand === "view" && parts[3]) {
+      state.view_mode = parts[3];
+      await saveState(state);
+      lastStdout = `${state.view_mode}\n`;
+    } else if (subcommand === "search" && parts[3]) {
+      state.search_query = parts.slice(3).join(" ");
+      await saveState(state);
+      lastStdout = `${state.search_query}\n`;
     } else if (subcommand === "focus" && parts[3]) {
       state.focused_issue_id = parts[3];
       await saveState(state);
