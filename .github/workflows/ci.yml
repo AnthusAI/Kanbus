@@ -82,6 +82,7 @@ jobs:
     env:
       RUST_BACKTRACE: 1
       CARGO_HTTP_TIMEOUT: 120
+      CARGO_NET_RETRY: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -120,15 +121,17 @@ jobs:
           timeout 1500s time cargo clippy --locked -- -D warnings
           timeout 1800s time cargo test --locked
       - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov --locked --version 0.6.11
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov@0.6.11
 
       - name: Run Rust coverage
         run: |
           cd rust
           mkdir -p ../coverage-rust
           set -x
-          timeout 2400s bash -lc 'time cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"'
-          timeout 900s bash -lc 'time cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobertura.xml'
+          timeout 1800s bash -lc 'time cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"'
+          timeout 600s bash -lc 'time cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobertura.xml'
 
       - name: Capture Rust coverage
         id: rust_coverage
