@@ -137,8 +137,13 @@ def given_project_with_config_file(context: object, filename: str) -> None:
     repository = Path(context.working_directory)
     config_path = repository / filename
     config_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    if filename == "kanbus.yml":
+        payload["project_key"] = "KAN"
+        payload["hierarchy"] = ["initiative", "epic", "issue", "subtask"]
+        payload["types"] = []
     config_path.write_text(
-        yaml.safe_dump(copy.deepcopy(DEFAULT_CONFIGURATION), sort_keys=False),
+        yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",
     )
 
@@ -295,6 +300,10 @@ def given_project_with_unknown_field(context: object, filename: str) -> None:
     config_path = repository / filename
     config_path.parent.mkdir(parents=True, exist_ok=True)
     payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    if filename == "kanbus.yml":
+        payload["project_key"] = "KAN"
+        payload["hierarchy"] = ["initiative", "epic", "issue", "subtask"]
+        payload["types"] = []
     payload["unknown_field"] = "value"
     config_path.write_text(
         yaml.safe_dump(payload, sort_keys=False),
@@ -601,6 +610,39 @@ def given_kanbus_yml_project_key(context: object, value: str) -> None:
         initialize_default_project(context)
     repository = Path(context.working_directory)
     (repository / "kanbus.yml").write_text(f"project_key: {value}\n", encoding="utf-8")
+
+
+@given('a Kanbus project with a file "kanbus.yml" attempting to override the hierarchy')
+def given_kanbus_yml_override_hierarchy(context: object) -> None:
+    """Create kanbus.yml that overrides the fixed hierarchy."""
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["project_key"] = "KAN"
+    payload["hierarchy"] = ["initiative", "epic", "task", "sub-task"]
+    payload["types"] = []
+    (repository / "kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given(
+    'a Kanbus project with a file "kanbus.yml" where issue type "bug" has no workflow binding'
+)
+def given_kanbus_yml_missing_workflow(context: object) -> None:
+    """Create kanbus.yml with a type that lacks a workflow definition."""
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["project_key"] = "KAN"
+    payload["hierarchy"] = ["initiative", "epic", "issue", "subtask"]
+    payload["types"] = ["bug"]
+    payload["workflows"] = {"default": payload["workflows"]["default"]}
+    (repository / "kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
 
 
 @when("I load the configuration")
