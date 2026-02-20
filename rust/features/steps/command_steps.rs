@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::thread;
 
 use cucumber::{given, when};
 
@@ -56,7 +57,12 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         set_test_daemon_response(Some(TestDaemonResponse::Envelope(response)));
     }
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    let cwd_path = cwd.to_path_buf();
+    let result = thread::spawn(move || run_from_args_with_output(args, &cwd_path))
+        .join()
+        .expect("cli thread panicked");
+
+    match result {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);

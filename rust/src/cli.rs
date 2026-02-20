@@ -398,6 +398,9 @@ enum ConsoleCommands {
     Focus {
         /// Issue identifier to focus on.
         identifier: String,
+        /// Optional comment ID to scroll to within the focused issue.
+        #[arg(long)]
+        comment: Option<String>,
     },
     /// Clear the current focus filter and return to the main board view.
     Unfocus,
@@ -443,6 +446,13 @@ enum ConsoleCommands {
     Select {
         /// Issue identifier to select.
         identifier: String,
+    },
+    /// Print a human-readable summary of the current console UI state.
+    Status,
+    /// Query a specific piece of console UI state.
+    Get {
+        /// State field to query: focus, view, or search.
+        field: String,
     },
 }
 
@@ -635,6 +645,7 @@ fn execute_command(
                     let event = NotificationEvent::IssueFocused {
                         issue_id: issue.identifier.clone(),
                         user: None,
+                        comment_id: None,
                     };
 
                     // Best-effort notification - don't fail if console server is down
@@ -674,6 +685,7 @@ fn execute_command(
                 let event = NotificationEvent::IssueFocused {
                     issue_id: issue.identifier.clone(),
                     user: None,
+                    comment_id: None,
                 };
 
                 // Best-effort notification - don't fail if console server is down
@@ -1001,7 +1013,7 @@ fn execute_command(
                 }
             };
             let project_context = if beads_mode {
-                beads_forced
+                false
             } else {
                 !issues
                     .iter()
@@ -1208,7 +1220,10 @@ fn execute_command(
                 stream_console_telemetry(root, output, url)?;
                 Ok(None)
             }
-            ConsoleCommands::Focus { identifier } => {
+            ConsoleCommands::Focus {
+                identifier,
+                comment,
+            } => {
                 // Validate that the issue exists and get its ID
                 let issue_id = if beads_mode {
                     let issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
@@ -1225,13 +1240,18 @@ fn execute_command(
                 let event = NotificationEvent::IssueFocused {
                     issue_id: issue_id.clone(),
                     user: None,
+                    comment_id: comment.clone(),
                 };
 
                 // Best-effort notification - don't fail if console server is down
                 let _ = publish_notification(root, event);
 
-                println!("Focused on issue {}", issue_id);
-                Ok(None)
+                let msg = if let Some(ref cid) = comment {
+                    format!("Focused on issue {} (comment {})", issue_id, cid)
+                } else {
+                    format!("Focused on issue {}", issue_id)
+                };
+                Ok(Some(msg))
             }
             ConsoleCommands::Unfocus => {
                 use crate::notification_events::{NotificationEvent, UiControlAction};
@@ -1244,8 +1264,7 @@ fn execute_command(
                 // Best-effort notification - don't fail if console server is down
                 let _ = publish_notification(root, event);
 
-                println!("Cleared focus filter");
-                Ok(None)
+                Ok(Some("Cleared focus filter".to_string()))
             }
             ConsoleCommands::View { mode } => {
                 use crate::notification_events::{NotificationEvent, UiControlAction};
@@ -1268,8 +1287,7 @@ fn execute_command(
                 // Best-effort notification - don't fail if console server is down
                 let _ = publish_notification(root, event);
 
-                println!("Switched to {} view", mode);
-                Ok(None)
+                Ok(Some(format!("Switched to {} view", mode)))
             }
             ConsoleCommands::Search { query, clear } => {
                 use crate::notification_events::{NotificationEvent, UiControlAction};
@@ -1293,12 +1311,12 @@ fn execute_command(
 
                 let _ = publish_notification(root, event);
 
-                if clear || search_query.is_empty() {
-                    println!("Cleared search query");
+                let msg = if clear || search_query.is_empty() {
+                    "Cleared search query".to_string()
                 } else {
-                    println!("Set search query to: {}", search_query);
-                }
-                Ok(None)
+                    format!("Set search query to: {}", search_query)
+                };
+                Ok(Some(msg))
             }
             ConsoleCommands::Maximize => {
                 use crate::notification_events::{NotificationEvent, UiControlAction};
@@ -1414,6 +1432,55 @@ fn execute_command(
                 println!("Selected issue {}", issue_id);
                 Ok(None)
             }
+            ConsoleCommands::Status => {
+                let root_clone = root.to_path_buf();
+                let result = std::thread::spawn(move || fetch_console_ui_state(&root_clone))
+                    .join()
+                    .map_err(|_| KanbusError::IssueOperation("fetch thread panicked".to_string()))?;
+                let output = match result {
+                    Ok(ui_state) => {
+                        let focused = ui_state.focused_issue_id.as_deref().unwrap_or("none");
+                        let view = ui_state.view_mode.as_deref().unwrap_or("none");
+                        let search = ui_state.search_query.as_deref().unwrap_or("none");
+                        format!("focus:  {focused}\nview:   {view}\nsearch: {search}")
+                    }
+                    Err(_) => "Console server is not running.".to_string(),
+                };
+                Ok(Some(output))
+            }
+            ConsoleCommands::Get { field } => {
+                let field = field.as_str();
+                if !matches!(field, "focus" | "view" | "search") {
+                    return Err(KanbusError::IssueOperation(format!(
+                        "Unknown field '{}'. Valid fields: focus, view, search",
+                        field
+                    )));
+                }
+                let root_clone = root.to_path_buf();
+                let result = std::thread::spawn(move || fetch_console_ui_state(&root_clone))
+                    .join()
+                    .map_err(|_| KanbusError::IssueOperation("fetch thread panicked".to_string()))?;
+                match result {
+                    Ok(ui_state) => {
+                        let value = match field {
+                            "focus" => ui_state
+                                .focused_issue_id
+                                .as_deref()
+                                .unwrap_or("none")
+                                .to_string(),
+                            "view" => ui_state.view_mode.as_deref().unwrap_or("none").to_string(),
+                            "search" => ui_state
+                                .search_query
+                                .as_deref()
+                                .unwrap_or("none")
+                                .to_string(),
+                            _ => unreachable!("field validated"),
+                        };
+                        Ok(Some(value))
+                    }
+                    Err(_) => Ok(Some("Console server is not running.".to_string())),
+                }
+            }
         },
         Commands::DaemonStatus => {
             let status = request_status(root).map_err(format_daemon_project_error)?;
@@ -1478,6 +1545,31 @@ fn format_daemon_project_error(error: KanbusError) -> KanbusError {
         }
         other => other,
     }
+}
+
+fn fetch_console_ui_state(
+    root: &Path,
+) -> Result<crate::console_ui_state::ConsoleUiState, KanbusError> {
+    use crate::console_ui_state::ConsoleUiState;
+    use reqwest::blocking::Client;
+
+    let config_path = get_configuration_path(root)?;
+    let config = load_project_configuration(&config_path)?;
+    let port = config.console_port.unwrap_or(5174);
+    let url = format!("http://127.0.0.1:{port}/api/ui-state");
+
+    let client = Client::new();
+    let response = client
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(3))
+        .send()
+        .map_err(|e| KanbusError::IssueOperation(e.to_string()))?;
+
+    let ui_state: ConsoleUiState = response
+        .json()
+        .map_err(|e| KanbusError::IssueOperation(e.to_string()))?;
+
+    Ok(ui_state)
 }
 
 fn should_use_color() -> bool {

@@ -11,6 +11,7 @@ use axum::Json;
 use axum::Router;
 use cucumber::{given, then};
 use serde_json::{json, Value};
+use serde_yaml::{Mapping, Value as YamlValue};
 use tokio::sync::oneshot;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -149,18 +150,67 @@ async fn given_fake_jira_server(world: &mut KanbusWorld, step: &cucumber::gherki
 fn given_jira_config(world: &mut KanbusWorld) {
     let port = world.fake_jira_port.expect("fake jira port not set");
     let config_path = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set")
-        .join(".kanbus.yml");
+        .configuration_path
+        .clone()
+        .unwrap_or_else(|| {
+            world
+                .working_directory
+                .as_ref()
+                .expect("working directory not set")
+                .join(".kanbus.yml")
+        });
     let existing = std::fs::read_to_string(&config_path).expect("read .kanbus.yml");
-    let jira_block = format!(
-        "\njira:\n  url: http://127.0.0.1:{port}\n  project_key: AQ\n  sync_direction: pull\n  type_mappings:\n    Task: task\n    Bug: bug\n    Workstream: epic\n"
-    );
-    std::fs::write(&config_path, existing + &jira_block).expect("write .kanbus.yml");
+    let mut config_value: YamlValue =
+        serde_yaml::from_str(&existing).expect("parse .kanbus.yml");
+    let jira_value = {
+        let mut jira = Mapping::new();
+        jira.insert(
+            YamlValue::String("url".to_string()),
+            YamlValue::String(format!("http://127.0.0.1:{port}")),
+        );
+        jira.insert(
+            YamlValue::String("project_key".to_string()),
+            YamlValue::String("AQ".to_string()),
+        );
+        jira.insert(
+            YamlValue::String("sync_direction".to_string()),
+            YamlValue::String("pull".to_string()),
+        );
+        let mut type_mappings = Mapping::new();
+        type_mappings.insert(
+            YamlValue::String("Task".to_string()),
+            YamlValue::String("task".to_string()),
+        );
+        type_mappings.insert(
+            YamlValue::String("Bug".to_string()),
+            YamlValue::String("bug".to_string()),
+        );
+        type_mappings.insert(
+            YamlValue::String("Workstream".to_string()),
+            YamlValue::String("epic".to_string()),
+        );
+        jira.insert(
+            YamlValue::String("type_mappings".to_string()),
+            YamlValue::Mapping(type_mappings),
+        );
+        YamlValue::Mapping(jira)
+    };
+    match &mut config_value {
+        YamlValue::Mapping(mapping) => {
+            mapping.insert(YamlValue::String("jira".to_string()), jira_value);
+        }
+        _ => {
+            let mut mapping = Mapping::new();
+            mapping.insert(YamlValue::String("jira".to_string()), jira_value);
+            config_value = YamlValue::Mapping(mapping);
+        }
+    }
+    let updated = serde_yaml::to_string(&config_value).expect("serialize .kanbus.yml");
+    std::fs::write(&config_path, updated).expect("write .kanbus.yml");
     std::env::set_var("JIRA_API_TOKEN", "test-token");
     std::env::set_var("JIRA_USER_EMAIL", "test@example.com");
     world.jira_env_set = true;
+    world.configuration_path = Some(config_path);
 }
 
 #[given(expr = "the environment variable {string} is unset")]
