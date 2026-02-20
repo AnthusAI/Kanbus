@@ -253,16 +253,16 @@ jobs:
           cache-dependency-path: |
             packages/ui/package-lock.json
             apps/console/package-lock.json
-        working-directory: .
+        working-directory: ..
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: ..
         run: |
           npm ci --prefer-offline --no-audit
           npm run build
 
       - name: Build console frontend assets
-        working-directory: apps/console
+        working-directory: ..
         run: |
           npm ci --prefer-offline --no-audit
           npm run build
