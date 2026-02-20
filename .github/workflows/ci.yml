@@ -76,6 +76,7 @@ jobs:
 
   rust:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       coverage_percent: ${{ steps.rust_coverage.outputs.percentage }}
       coverage_color: ${{ steps.rust_coverage.outputs.color }}
