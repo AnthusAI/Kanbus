@@ -255,13 +255,13 @@ jobs:
             apps/console/package-lock.json
 
       - name: Build shared UI package
-        working-directory: ..
+        working-directory: packages/ui
         run: |
           npm ci --prefer-offline --no-audit
           npm run build
 
       - name: Build console frontend assets
-        working-directory: ..
+        working-directory: apps/console
         run: |
           npm ci --prefer-offline --no-audit
           npm run build
