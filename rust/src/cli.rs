@@ -1436,7 +1436,9 @@ fn execute_command(
                 let root_clone = root.to_path_buf();
                 let result = std::thread::spawn(move || fetch_console_ui_state(&root_clone))
                     .join()
-                    .map_err(|_| KanbusError::IssueOperation("fetch thread panicked".to_string()))?;
+                    .map_err(|_| {
+                        KanbusError::IssueOperation("fetch thread panicked".to_string())
+                    })?;
                 let output = match result {
                     Ok(ui_state) => {
                         let focused = ui_state.focused_issue_id.as_deref().unwrap_or("none");
@@ -1459,7 +1461,9 @@ fn execute_command(
                 let root_clone = root.to_path_buf();
                 let result = std::thread::spawn(move || fetch_console_ui_state(&root_clone))
                     .join()
-                    .map_err(|_| KanbusError::IssueOperation("fetch thread panicked".to_string()))?;
+                    .map_err(|_| {
+                        KanbusError::IssueOperation("fetch thread panicked".to_string())
+                    })?;
                 match result {
                     Ok(ui_state) => {
                         let value = match field {

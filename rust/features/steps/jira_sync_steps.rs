@@ -149,19 +149,15 @@ async fn given_fake_jira_server(world: &mut KanbusWorld, step: &cucumber::gherki
 #[given("the Kanbus configuration includes Jira settings pointing at the fake server")]
 fn given_jira_config(world: &mut KanbusWorld) {
     let port = world.fake_jira_port.expect("fake jira port not set");
-    let config_path = world
-        .configuration_path
-        .clone()
-        .unwrap_or_else(|| {
-            world
-                .working_directory
-                .as_ref()
-                .expect("working directory not set")
-                .join(".kanbus.yml")
-        });
+    let config_path = world.configuration_path.clone().unwrap_or_else(|| {
+        world
+            .working_directory
+            .as_ref()
+            .expect("working directory not set")
+            .join(".kanbus.yml")
+    });
     let existing = std::fs::read_to_string(&config_path).expect("read .kanbus.yml");
-    let mut config_value: YamlValue =
-        serde_yaml::from_str(&existing).expect("parse .kanbus.yml");
+    let mut config_value: YamlValue = serde_yaml::from_str(&existing).expect("parse .kanbus.yml");
     let jira_value = {
         let mut jira = Mapping::new();
         jira.insert(
