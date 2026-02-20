@@ -206,3 +206,77 @@ pub fn format_issue_for_display(
     }
     lines.join("\n")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::default_project_configuration;
+    use chrono::{TimeZone, Utc};
+    use std::collections::BTreeMap;
+
+    fn sample_issue(identifier: &str) -> IssueData {
+        let now = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
+        IssueData {
+            identifier: identifier.to_string(),
+            title: "Title".to_string(),
+            description: "Desc".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: Some("dev@example.com".to_string()),
+            creator: None,
+            parent: Some("kanbus-parent".to_string()),
+            labels: vec!["one".to_string(), "two".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn formats_issue_with_details() {
+        let issue = sample_issue("kanbus-abc1234");
+        let output = format_issue_for_display(&issue, None, false, false);
+        let expected_id = format_issue_key(&issue.identifier, false);
+        assert!(output.contains(&format!("ID: {expected_id}")));
+        assert!(output.contains("Title: Title"));
+        assert!(output.contains("Type: task"));
+        assert!(output.contains("Status: open"));
+        assert!(output.contains("Priority: 2"));
+        assert!(output.contains("Assignee: dev@example.com"));
+        assert!(output.contains("Parent: kanbus-parent"));
+        assert!(output.contains("Labels: one, two"));
+        assert!(output.contains("Description:"));
+        assert!(output.contains("Desc"));
+    }
+
+    #[test]
+    fn formats_issue_with_comments() {
+        let mut issue = sample_issue("kanbus-abc1234");
+        let now = issue.created_at;
+        issue.comments.push(crate::models::IssueComment {
+            id: Some("abc123".to_string()),
+            author: "dev@example.com".to_string(),
+            text: "Hello".to_string(),
+            created_at: now,
+        });
+        let output = format_issue_for_display(&issue, None, false, false);
+        assert!(output.contains("Comments:"));
+        assert!(output.contains("[abc123] dev@example.com: Hello"));
+    }
+
+    #[test]
+    fn uses_configured_colors_when_present() {
+        let mut config = default_project_configuration();
+        if let Some(status) = config.statuses.iter_mut().find(|s| s.key == "open") {
+            status.color = Some("bright_white".to_string());
+        }
+        assert_eq!(
+            status_color("open", Some(&config)),
+            Some(AnsiColors::BrightWhite)
+        );
+    }
+}
