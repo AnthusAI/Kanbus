@@ -55,7 +55,7 @@ Given("a Kanbus project with default configuration", async function () {
   await fs.mkdir(projectDir, { recursive: true });
 });
 
-Given('an issue "{word}" exists with title "{string}"', async function (id, title) {
+Given('an issue "{string}" exists with title "{string}"', async function (id, title) {
   const root = projectRoot();
   const { projectDir } = await ensureProjectSkeleton(root);
   await writeIssue(projectDir, id, title);
@@ -66,7 +66,7 @@ Given("the console server is running", async function () {
   // Nothing to do here; this step exists for clarity.
 });
 
-Given('the console focused issue is "{word}"', async function (id) {
+Given('the console focused issue is "{string}"', async function (id) {
   const root = projectRoot();
   const { cacheDir } = await ensureProjectSkeleton(root);
   const statePath = path.join(cacheDir, "console_state.json");
@@ -76,5 +76,35 @@ Given('the console focused issue is "{word}"', async function (id) {
     view_mode: "issues",
     search_query: null
   };
+  await fs.writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
+});
+
+Given('the console view mode is "{string}"', async function (mode) {
+  const root = projectRoot();
+  const { cacheDir } = await ensureProjectSkeleton(root);
+  const statePath = path.join(cacheDir, "console_state.json");
+  let state = {};
+  try {
+    state = JSON.parse(await fs.readFile(statePath, "utf-8"));
+  } catch (err) {
+    if (!err || err.code !== "ENOENT") throw err;
+  }
+  state.view_mode = mode;
+  await fs.mkdir(path.dirname(statePath), { recursive: true });
+  await fs.writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
+});
+
+Given('the console search query is "{string}"', async function (query) {
+  const root = projectRoot();
+  const { cacheDir } = await ensureProjectSkeleton(root);
+  const statePath = path.join(cacheDir, "console_state.json");
+  let state = {};
+  try {
+    state = JSON.parse(await fs.readFile(statePath, "utf-8"));
+  } catch (err) {
+    if (!err || err.code !== "ENOENT") throw err;
+  }
+  state.search_query = query;
+  await fs.mkdir(path.dirname(statePath), { recursive: true });
   await fs.writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
 });
