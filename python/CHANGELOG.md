@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.9.3 (2026-02-20)
+
+### Bug Fixes
+
+- Embed console assets from crate directory
+  ([`dc1238b`](https://github.com/AnthusAI/Kanbus/commit/dc1238bae890dd99fd6fcf8ccbf570b7bef72e3e))
+
+### Chores
+
+- Make PyPI release a distinct workflow job
+  ([`586039a`](https://github.com/AnthusAI/Kanbus/commit/586039ac897cc6092a37f26cf6bd1b0e8a6a8b29))
+
+
 ## v0.9.2 (2026-02-20)
 
 ### Bug Fixes
