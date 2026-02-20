@@ -53,6 +53,16 @@ Given("a Kanbus project with default configuration", async function () {
   await fs.writeFile(configPath, config, "utf-8");
   // Ensure issues dir exists
   await fs.mkdir(projectDir, { recursive: true });
+  // Reset console state to a clean baseline (server running, no focus/view/search)
+  const statePath = path.join(root, "..", ".cache", "console_state.json");
+  const baselineState = {
+    server_running: true,
+    focused_issue_id: undefined,
+    focused_comment_id: null,
+    view_mode: "issues",
+    search_query: ""
+  };
+  await fs.writeFile(statePath, JSON.stringify(baselineState, null, 2), "utf-8");
 });
 
 Given("an issue {string} exists with title {string}", async function (id, title) {
