@@ -77,6 +77,49 @@ def ensure_success(result: CommandResult, label: str) -> None:
         raise RuntimeError("\n".join(parts))
 
 
+def _format_command_result(result: CommandResult) -> str:
+    lines = [
+        f"Command: {' '.join(result.command)}",
+    ]
+    if result.cwd is not None:
+        lines.append(f"Working directory: {result.cwd}")
+    lines.append(f"Exit code: {result.return_code}")
+    if result.stdout.strip():
+        lines.append("Stdout:")
+        lines.append(result.stdout.rstrip())
+    if result.stderr.strip():
+        lines.append("Stderr:")
+        lines.append(result.stderr.rstrip())
+    if not result.stdout.strip() and not result.stderr.strip():
+        lines.append("No stdout/stderr output captured.")
+    return "\n".join(lines)
+
+
+def preflight_diagnostics(repo_root: Path) -> str:
+    rust_dir = repo_root / "rust"
+    target_release = rust_dir / "target" / "release"
+    diagnostics: list[str] = ["Preflight diagnostics:"]
+
+    for label, command, cwd in [
+        ("cargo --version", ["cargo", "--version"], rust_dir),
+        ("rustc --version", ["rustc", "--version"], rust_dir),
+        ("rustup show", ["rustup", "show"], rust_dir),
+    ]:
+        result = run_command(command, cwd=cwd)
+        diagnostics.append(f"[{label}]")
+        diagnostics.append(_format_command_result(result))
+
+    if target_release.exists():
+        result = run_command(["ls", "-la", str(target_release)], cwd=repo_root)
+        diagnostics.append("[ls -la rust/target/release]")
+        diagnostics.append(_format_command_result(result))
+    else:
+        diagnostics.append("[ls -la rust/target/release]")
+        diagnostics.append(f"Path does not exist: {target_release}")
+
+    return "\n".join(diagnostics)
+
+
 def build_release(repo_root: Path, target: str | None) -> Path:
     """Build the release binary.
 
@@ -91,7 +134,12 @@ def build_release(repo_root: Path, target: str | None) -> Path:
     command = ["cargo", "build", "--release"]
     if target:
         command.extend(["--target", target])
-    ensure_success(run_command(command, cwd=rust_dir), "cargo build --release")
+    build_result = run_command(command, cwd=rust_dir)
+    if build_result.return_code != 0:
+        print(_format_command_result(build_result))
+        print(preflight_diagnostics(repo_root))
+        raise RuntimeError("cargo build --release failed")
+    ensure_success(build_result, "cargo build --release")
 
     target_dir = rust_dir / "target"
     if target:
