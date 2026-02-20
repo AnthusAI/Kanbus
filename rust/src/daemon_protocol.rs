@@ -95,3 +95,33 @@ fn parse_version(version: &str) -> Result<(u32, u32), KanbusError> {
         .map_err(|_| KanbusError::ProtocolError("invalid protocol version".to_string()))?;
     Ok((major, minor))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_protocol_accepts_matching_major() {
+        validate_protocol_compatibility("1.0", "1.2").unwrap();
+    }
+
+    #[test]
+    fn validate_protocol_rejects_newer_client_minor() {
+        let err = validate_protocol_compatibility("1.3", "1.2").unwrap_err();
+        assert!(err.to_string().contains("protocol version unsupported"));
+    }
+
+    #[test]
+    fn validate_protocol_rejects_major_mismatch() {
+        let err = validate_protocol_compatibility("2.0", "1.9").unwrap_err();
+        assert!(err.to_string().contains("protocol version mismatch"));
+    }
+
+    #[test]
+    fn parse_version_rejects_invalid() {
+        for version in ["", "1", "1.2.3", "a.b"] {
+            let err = parse_version(version).unwrap_err();
+            assert!(err.to_string().contains("invalid protocol version"));
+        }
+    }
+}

@@ -477,3 +477,53 @@ pub(crate) fn discover_project_directories(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn resolve_root_finds_config_upwards() {
+        let temp = tempdir().unwrap();
+        let root = temp.path();
+        let nested = root.join("nested").join("child");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(root.join(".kanbus.yml"), "project_directory: project\n").unwrap();
+        let resolved = resolve_root(&nested);
+        assert_eq!(resolved, root);
+    }
+
+    #[test]
+    fn ensure_gitignore_entry_adds_and_is_idempotent() {
+        let temp = tempdir().unwrap();
+        let root = temp.path();
+        ensure_gitignore_entry(root, "project-local/").unwrap();
+        ensure_gitignore_entry(root, "project-local/").unwrap();
+        let content = std::fs::read_to_string(root.join(".gitignore")).unwrap();
+        let lines: Vec<&str> = content.lines().collect();
+        assert_eq!(lines, vec!["project-local/"]);
+    }
+
+    #[test]
+    fn load_project_directory_finds_single_project() {
+        let temp = tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("project")).unwrap();
+        let project = load_project_directory(root).unwrap();
+        assert!(project.ends_with("project"));
+    }
+
+    #[test]
+    fn load_project_directory_errors_on_multiple_projects() {
+        let temp = tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("project")).unwrap();
+        std::fs::create_dir_all(root.join("alpha").join("project")).unwrap();
+        let err = load_project_directory(root).unwrap_err();
+        assert!(
+            err.to_string().contains("multiple projects found"),
+            "unexpected error: {err}"
+        );
+    }
+}

@@ -88,3 +88,80 @@ pub fn search_issues(issues: Vec<IssueData>, term: Option<&str>) -> Vec<IssueDat
 
     matches
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+
+    fn sample_issue(identifier: &str, title: &str) -> IssueData {
+        IssueData {
+            identifier: identifier.to_string(),
+            title: title.to_string(),
+            description: "Desc".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["alpha".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn filter_issues_by_fields() {
+        let mut issue = sample_issue("kanbus-abc", "Alpha");
+        issue.assignee = Some("ryan".to_string());
+        issue.labels.push("beta".to_string());
+        let issue_two = sample_issue("kanbus-def", "Beta");
+        let filtered = filter_issues(
+            vec![issue, issue_two],
+            Some("open"),
+            Some("task"),
+            Some("ryan"),
+            Some("beta"),
+        );
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].identifier, "kanbus-abc");
+    }
+
+    #[test]
+    fn sort_issues_by_priority() {
+        let mut low = sample_issue("kanbus-low", "Low");
+        low.priority = 3;
+        let mut high = sample_issue("kanbus-high", "High");
+        high.priority = 1;
+        let sorted = sort_issues(vec![low, high], Some("priority")).unwrap();
+        assert_eq!(sorted[0].identifier, "kanbus-high");
+    }
+
+    #[test]
+    fn sort_issues_rejects_invalid_key() {
+        let err =
+            sort_issues(vec![sample_issue("kanbus-abc", "Alpha")], Some("unknown")).unwrap_err();
+        assert!(err.to_string().contains("invalid sort key"));
+    }
+
+    #[test]
+    fn search_issues_matches_title_description_or_comments() {
+        let mut issue = sample_issue("kanbus-abc", "Alpha");
+        issue.description = "Needs Review".to_string();
+        let mut issue_two = sample_issue("kanbus-def", "Other");
+        issue_two.comments.push(crate::models::IssueComment {
+            id: None,
+            author: "author".to_string(),
+            text: "Please review".to_string(),
+            created_at: Utc::now(),
+        });
+        let matches = search_issues(vec![issue, issue_two], Some("review"));
+        assert_eq!(matches.len(), 2);
+    }
+}
