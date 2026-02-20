@@ -42,7 +42,7 @@ When("the console server is restarted", async function () {
   return;
 });
 
-When('I run "{string}"', async function (command) {
+When("I run {string}", async function (command) {
   lastStdout = "";
   lastStderr = "";
   lastExitCode = 0;
@@ -88,7 +88,7 @@ Then("the command should succeed", function () {
   }
 });
 
-Then('stdout should contain "{string}"', function (expected) {
+Then("stdout should contain {string}", function (expected) {
   if (!lastStdout.includes(expected)) {
     throw new Error(`stdout did not contain "${expected}". stdout: ${lastStdout}`);
   }

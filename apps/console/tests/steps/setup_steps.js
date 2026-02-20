@@ -55,7 +55,7 @@ Given("a Kanbus project with default configuration", async function () {
   await fs.mkdir(projectDir, { recursive: true });
 });
 
-Given('an issue "{string}" exists with title "{string}"', async function (id, title) {
+Given("an issue {string} exists with title {string}", async function (id, title) {
   const root = projectRoot();
   const { projectDir } = await ensureProjectSkeleton(root);
   await writeIssue(projectDir, id, title);
@@ -66,7 +66,7 @@ Given("the console server is running", async function () {
   // Nothing to do here; this step exists for clarity.
 });
 
-Given('the console focused issue is "{string}"', async function (id) {
+Given("the console focused issue is {string}", async function (id) {
   const root = projectRoot();
   const { cacheDir } = await ensureProjectSkeleton(root);
   const statePath = path.join(cacheDir, "console_state.json");
@@ -79,7 +79,7 @@ Given('the console focused issue is "{string}"', async function (id) {
   await fs.writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
 });
 
-Given('the console view mode is "{string}"', async function (mode) {
+Given("the console view mode is {string}", async function (mode) {
   const root = projectRoot();
   const { cacheDir } = await ensureProjectSkeleton(root);
   const statePath = path.join(cacheDir, "console_state.json");
@@ -94,7 +94,7 @@ Given('the console view mode is "{string}"', async function (mode) {
   await fs.writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
 });
 
-Given('the console search query is "{string}"', async function (query) {
+Given("the console search query is {string}", async function (query) {
   const root = projectRoot();
   const { cacheDir } = await ensureProjectSkeleton(root);
   const statePath = path.join(cacheDir, "console_state.json");
