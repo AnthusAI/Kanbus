@@ -79,6 +79,9 @@ jobs:
     outputs:
       coverage_percent: ${{ steps.rust_coverage.outputs.percentage }}
       coverage_color: ${{ steps.rust_coverage.outputs.color }}
+    env:
+      CARGO_TERM_PROGRESS_WHEN: always
+      RUST_BACKTRACE: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -112,9 +115,10 @@ jobs:
       - name: Run Rust quality gates
         run: |
           cd rust
-          cargo fmt --check
-          cargo clippy -- -D warnings
-          cargo test
+          set -x
+          time cargo fmt --check
+          timeout 1500s time cargo clippy -- -D warnings
+          timeout 1800s time cargo test
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --locked --version 0.6.11
 
@@ -122,8 +126,9 @@ jobs:
         run: |
           cd rust
           mkdir -p ../coverage-rust
-          cargo llvm-cov --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"
-          cargo llvm-cov report --cobertura --output-path ../coverage-rust/cobertura.xml
+          set -x
+          timeout 2400s time cargo llvm-cov --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"
+          timeout 900s time cargo llvm-cov report --cobertura --output-path ../coverage-rust/cobertura.xml
 
       - name: Capture Rust coverage
         id: rust_coverage
