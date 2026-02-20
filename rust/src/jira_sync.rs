@@ -117,7 +117,7 @@ pub fn pull_from_jira(
 
         let short_key = &kanbus_id[..kanbus_id
             .len()
-            .min(kanbus_id.find('-').map_or(kanbus_id.len(), |i| i + 7))];
+            .min(kanbus_id.find('-').map_or(6, |i| i + 7))];
         println!(
             "{action}  {jira_key:<12}  {short_key:<14}  \"{}\"",
             issue.title

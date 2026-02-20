@@ -168,8 +168,9 @@ fn given_jira_config(world: &mut KanbusWorld) {
 
 #[given(expr = "the environment variable {string} is unset")]
 fn given_env_var_unset(world: &mut KanbusWorld, name: String) {
+    let original = std::env::var(&name).ok();
     std::env::remove_var(&name);
-    world.jira_unset_env_vars.push(name);
+    world.jira_unset_env_vars.push((name, original));
 }
 
 

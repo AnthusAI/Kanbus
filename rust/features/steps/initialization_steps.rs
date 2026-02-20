@@ -82,7 +82,7 @@ pub struct KanbusWorld {
     pub fake_jira_shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
     pub fake_jira_issues: Vec<serde_json::Value>,
     pub jira_env_set: bool,
-    pub jira_unset_env_vars: Vec<String>,
+    pub jira_unset_env_vars: Vec<(String, Option<String>)>,
 }
 
 impl Drop for KanbusWorld {
@@ -146,8 +146,11 @@ impl Drop for KanbusWorld {
             std::env::remove_var("JIRA_API_TOKEN");
             std::env::remove_var("JIRA_USER_EMAIL");
         }
-        for name in self.jira_unset_env_vars.drain(..) {
-            std::env::remove_var(&name);
+        for (name, original) in self.jira_unset_env_vars.drain(..) {
+            match original {
+                Some(val) => std::env::set_var(&name, val),
+                None => std::env::remove_var(&name),
+            }
         }
     }
 }
