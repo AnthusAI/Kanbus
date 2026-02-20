@@ -253,7 +253,6 @@ jobs:
           cache-dependency-path: |
             packages/ui/package-lock.json
             apps/console/package-lock.json
-        working-directory: ..
 
       - name: Build shared UI package
         working-directory: ..
