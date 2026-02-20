@@ -48,12 +48,19 @@ docker run --rm \
     CONSOLE_DATA_ROOT=/data CONSOLE_PORT=5174 /dist/kbsc >/tmp/console.log 2>&1 &
     server_pid=$!
 
+    ready=""
     for _ in $(seq 1 30); do
       if curl -sf http://127.0.0.1:5174/api/config >/dev/null; then
+        ready="yes"
         break
       fi
       sleep 0.5
     done
+
+    if [ -z "$ready" ]; then
+      echo "console did not start within timeout" >&2
+      exit 7
+    fi
 
     # Verify API works
     curl -sf http://127.0.0.1:5174/api/issues >/dev/null
