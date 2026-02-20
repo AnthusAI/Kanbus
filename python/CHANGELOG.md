@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.9.4 (2026-02-20)
+
+### Bug Fixes
+
+- Verify PyPI upload in release job
+  ([`7669c49`](https://github.com/AnthusAI/Kanbus/commit/7669c496f0b727603cef3ea96badc9afd22b2bf2))
+
+### Chores
+
+- Add manual PyPI release dispatch
+  ([`c341430`](https://github.com/AnthusAI/Kanbus/commit/c34143040795cc158b6894cb6179fc67b7da8efd))
+
+
 ## v0.9.3 (2026-02-20)
 
 ### Bug Fixes
