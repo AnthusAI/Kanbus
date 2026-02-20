@@ -37,6 +37,7 @@ use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_transfer::{localize_issue, promote_issue};
 use crate::issue_update::update_issue;
+use crate::jira_sync::pull_from_jira;
 use crate::maintenance::{collect_project_stats, validate_project};
 use crate::migration::{load_beads_issue_by_id, load_beads_issues, migrate_from_beads};
 use crate::models::IssueData;
@@ -122,6 +123,12 @@ enum Commands {
         /// Updated status.
         #[arg(long)]
         status: Option<String>,
+        /// Updated priority.
+        #[arg(long)]
+        priority: Option<u8>,
+        /// Updated assignee.
+        #[arg(long)]
+        assignee: Option<String>,
         /// Add label(s).
         #[arg(long = "add-label")]
         add_labels: Vec<String>,
@@ -226,6 +233,11 @@ enum Commands {
         /// Show only local issues.
         #[arg(long = "local-only")]
         local_only: bool,
+    },
+    /// Jira synchronization commands.
+    Jira {
+        #[command(subcommand)]
+        command: JiraCommands,
     },
     /// Migrate Beads issues into Kanbus.
     Migrate,
@@ -347,6 +359,16 @@ enum SetupCommands {
         /// Overwrite existing Kanbus section without prompting.
         #[arg(long)]
         force: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum JiraCommands {
+    /// Pull issues from Jira into Kanbus.
+    Pull {
+        /// Show what would be done without writing any files.
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
@@ -711,6 +733,8 @@ fn execute_command(
             title,
             description,
             status,
+            priority,
+            assignee,
             add_labels,
             remove_labels,
             set_labels,
@@ -729,7 +753,7 @@ fn execute_command(
             let assignee_value = if claim {
                 Some(get_current_user())
             } else {
-                None
+                assignee.clone()
             };
             let title_value = if title_text.is_empty() {
                 None
@@ -756,8 +780,10 @@ fn execute_command(
                     &root_for_beads,
                     &identifier,
                     status.as_deref(),
+                    priority,
                     title_value,
                     description_value,
+                    assignee_value.as_deref(),
                     &add_labels,
                     &remove_labels,
                     set_labels.as_deref(),
@@ -770,6 +796,7 @@ fn execute_command(
                     description_value,
                     status.as_deref(),
                     assignee_value.as_deref(),
+                    priority,
                     claim,
                     !no_validate,
                     &add_labels,
@@ -787,6 +814,8 @@ fn execute_command(
                     &root_for_beads,
                     &identifier,
                     Some("closed"),
+                    None,
+                    None,
                     None,
                     None,
                     &[],
@@ -933,8 +962,11 @@ fn execute_command(
                     label.as_deref(),
                 );
                 let mut searched = search_issues(filtered, search.as_deref());
-                // Beads fixtures include closed issues; align with Kanbus list default by hiding closed.
-                searched.retain(|issue| !issue.status.eq_ignore_ascii_case("closed"));
+                // Beads fixtures include closed issues; align with Kanbus list default by hiding
+                // closed unless an explicit status filter is provided.
+                if status.is_none() {
+                    searched.retain(|issue| !issue.status.eq_ignore_ascii_case("closed"));
+                }
                 searched.sort_by(|a, b| {
                     a.priority
                         .cmp(&b.priority)
@@ -1120,6 +1152,29 @@ fn execute_command(
             }
             Ok(Some(lines.join("\n")))
         }
+        Commands::Jira { command } => match command {
+            JiraCommands::Pull { dry_run } => {
+                let config_path = get_configuration_path(root)?;
+                let jira_configuration = load_project_configuration(&config_path)?;
+                let jira_config = jira_configuration.jira.as_ref().ok_or_else(|| {
+                    KanbusError::Configuration("no jira configuration in .kanbus.yml".to_string())
+                })?;
+                if !["pull", "both"].contains(&jira_config.sync_direction.as_str()) {
+                    return Err(KanbusError::Configuration(
+                        "sync_direction must be 'pull' or 'both' to use jira pull".to_string(),
+                    ));
+                }
+                if dry_run {
+                    println!("Dry run — no files will be written.\n");
+                }
+                let result =
+                    pull_from_jira(root, jira_config, &jira_configuration.project_key, dry_run)?;
+                Ok(Some(format!(
+                    "pulled {} new, updated {} existing",
+                    result.pulled, result.updated
+                )))
+            }
+        },
         Commands::Migrate => {
             let result = migrate_from_beads(&root_for_beads)?;
             Ok(Some(format!("migrated {} issues", result.issue_count)))

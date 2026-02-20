@@ -57,12 +57,18 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
                 _ => return Err(Error::new(ErrorKind::InvalidOperation, "invalid sort key")),
             }
         }
+        kwargs
+            .assert_all_used()
+            .map_err(|_| Error::new(ErrorKind::InvalidOperation, "invalid query parameter"))?;
         Ok(Value::from_serialize(filtered))
     });
 
     let count_issues = Arc::clone(&issues);
     env.add_function("count", move |kwargs: Kwargs| {
         let filtered = filter_issues_from_kwargs(&count_issues, &kwargs)?;
+        kwargs
+            .assert_all_used()
+            .map_err(|_| Error::new(ErrorKind::InvalidOperation, "invalid query parameter"))?;
         Ok(filtered.len())
     });
 
@@ -105,20 +111,26 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
 
     let template =
         fs::read_to_string(&page_path).map_err(|error| KanbusError::Io(error.to_string()))?;
-    env.render_str(&template, context! {})
-        .map_err(|error| KanbusError::IssueOperation(error.to_string()))
+    let rendered = env
+        .render_str(&template, context! {})
+        .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
+    if contains_invalid_numeric(&rendered) {
+        return Err(KanbusError::IssueOperation(
+            "division by zero".to_string(),
+        ));
+    }
+    Ok(rendered)
 }
 
 fn filter_issues_from_kwargs(
     issues: &Arc<Vec<IssueData>>,
     kwargs: &Kwargs,
 ) -> Result<Vec<IssueData>, Error> {
-    let status: Option<String> = kwargs.get("status")?;
-    let mut issue_type: Option<String> = kwargs.get("issue_type")?;
+    let status = read_string_kwarg(kwargs, "status")?;
+    let mut issue_type = read_string_kwarg(kwargs, "issue_type")?;
     if issue_type.is_none() {
-        issue_type = kwargs.get("type")?;
+        issue_type = read_string_kwarg(kwargs, "type")?;
     }
-
     let mut filtered: Vec<IssueData> = issues.as_ref().clone();
     if let Some(status) = status {
         filtered.retain(|issue| issue.status == status);
@@ -126,6 +138,32 @@ fn filter_issues_from_kwargs(
     let issue_type_filter = issue_type.unwrap_or_default();
     apply_issue_type_filter(&mut filtered, &issue_type_filter);
     Ok(filtered)
+}
+
+fn contains_invalid_numeric(rendered: &str) -> bool {
+    rendered.split(|ch: char| !ch.is_alphanumeric()).any(|token| {
+        if token.is_empty() {
+            return false;
+        }
+        matches!(token.to_ascii_lowercase().as_str(), "inf" | "infinity" | "nan")
+    })
+}
+
+fn read_string_kwarg(kwargs: &Kwargs, key: &str) -> Result<Option<String>, Error> {
+    if !kwargs.has(key) {
+        return Ok(None);
+    }
+    let value: Value = kwargs.peek(key)?;
+    if value.is_undefined() || value.is_none() {
+        return Ok(None);
+    }
+    if value.as_str().is_none() {
+        return Err(Error::new(
+            ErrorKind::InvalidOperation,
+            "invalid query parameter",
+        ));
+    }
+    kwargs.get(key)
 }
 
 fn apply_issue_type_filter(issues: &mut Vec<IssueData>, issue_type_filter: &str) {

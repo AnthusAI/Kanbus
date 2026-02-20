@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Write};
 #[cfg(unix)]
-use std::os::unix::net::UnixListener;
-#[cfg(unix)]
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::thread;
@@ -546,29 +544,8 @@ fn then_daemon_cli_stops(world: &mut KanbusWorld) {
 fn given_daemon_empty_response(world: &mut KanbusWorld) {
     std::env::set_var("KANBUS_NO_DAEMON", "0");
     set_test_daemon_spawn_disabled(true);
-    set_test_daemon_response(None);
+    set_test_daemon_response(Some(TestDaemonResponse::Empty));
     world.daemon_fake_server = true;
-    #[cfg(unix)]
-    {
-        let socket_path = daemon_socket_path(world);
-        if let Some(parent) = socket_path.parent() {
-            std::fs::create_dir_all(parent).expect("create socket dir");
-        }
-        if socket_path.exists() {
-            std::fs::remove_file(&socket_path).expect("remove socket");
-        }
-        let listener = UnixListener::bind(&socket_path).expect("bind daemon socket");
-        let handle = thread::spawn(move || {
-            if let Ok((mut stream, _addr)) = listener.accept() {
-                let _ = stream.write_all(b"\n");
-            }
-        });
-        world.daemon_thread = Some(handle);
-    }
-    #[cfg(not(unix))]
-    {
-        set_test_daemon_response(Some(TestDaemonResponse::Empty));
-    }
 }
 
 #[given("a daemon socket returns a valid response")]
