@@ -87,7 +87,7 @@ async fn main() {
     KanbusWorld::cucumber::<PathBuf>()
         .with_parser(RecursiveFeatureParser::default())
         .max_concurrent_scenarios(1)
-        .filter_run(features_dir, |feature, _, scenario| {
+        .filter_run_and_exit(features_dir, |feature, _, scenario| {
             let scenario_has_wip = scenario.tags.iter().any(|tag| tag == "wip");
             let feature_has_wip = feature.tags.iter().any(|tag| tag == "wip");
             let scenario_has_console = scenario.tags.iter().any(|tag| tag == "console");
