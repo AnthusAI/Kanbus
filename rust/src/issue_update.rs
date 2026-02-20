@@ -304,16 +304,18 @@ mod tests {
 
         let first = sample_issue("kanbus-abc", "Same");
         let second = sample_issue("kanbus-def", "Same");
-        write_issue_to_file(&first, &issue_path_for_identifier(&issues_dir, &first.identifier))
-            .unwrap();
+        write_issue_to_file(
+            &first,
+            &issue_path_for_identifier(&issues_dir, &first.identifier),
+        )
+        .unwrap();
         write_issue_to_file(
             &second,
             &issue_path_for_identifier(&issues_dir, &second.identifier),
         )
         .unwrap();
 
-        let duplicate =
-            find_duplicate_title(&issues_dir, "Same", &first.identifier).unwrap();
+        let duplicate = find_duplicate_title(&issues_dir, "Same", &first.identifier).unwrap();
         assert_eq!(duplicate, Some(second.identifier));
     }
 
@@ -323,11 +325,13 @@ mod tests {
         let issues_dir = temp.path().join("issues");
         std::fs::create_dir_all(&issues_dir).unwrap();
         let issue = sample_issue("kanbus-abc", "Title");
-        write_issue_to_file(&issue, &issue_path_for_identifier(&issues_dir, &issue.identifier))
-            .unwrap();
+        write_issue_to_file(
+            &issue,
+            &issue_path_for_identifier(&issues_dir, &issue.identifier),
+        )
+        .unwrap();
 
-        let duplicate =
-            find_duplicate_title(&issues_dir, "Other", &issue.identifier).unwrap();
+        let duplicate = find_duplicate_title(&issues_dir, "Other", &issue.identifier).unwrap();
         assert_eq!(duplicate, None);
     }
 }

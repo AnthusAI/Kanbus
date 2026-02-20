@@ -83,6 +83,20 @@ pub struct KanbusWorld {
     pub fake_jira_issues: Vec<serde_json::Value>,
     pub jira_env_set: bool,
     pub jira_unset_env_vars: Vec<(String, Option<String>)>,
+    pub validation_error: Option<String>,
+    pub external_tool_dir: Option<TempDir>,
+    pub original_path: Option<Option<String>>,
+    pub canonical_priorities: Option<Vec<String>>,
+    pub priority_aliases: Option<BTreeMap<String, String>>,
+    pub imported_issue_priority: Option<String>,
+    pub stored_priority: Option<String>,
+    pub loaded_project_key: Option<String>,
+    pub kanbus_version: Option<String>,
+    pub kanbusr_version: Option<String>,
+    pub kanbusr_has_all: Option<bool>,
+    pub sample_issue: Option<kanbus::models::IssueData>,
+    pub dependency_error: Option<String>,
+    pub original_invalid_status_env: Option<Option<String>>,
 }
 
 impl Drop for KanbusWorld {
@@ -137,6 +151,20 @@ impl Drop for KanbusWorld {
                 None => std::env::remove_var("KANBUS_TEST_LOCAL_LISTING_ERROR"),
             }
         }
+        if let Some(original) = self.original_path.take() {
+            match original {
+                Some(value) => std::env::set_var("PATH", value),
+                None => std::env::remove_var("PATH"),
+            }
+        }
+        if let Some(original) = self.original_invalid_status_env.take() {
+            match original {
+                Some(value) => std::env::set_var("KANBUS_TEST_INVALID_STATUS", value),
+                None => std::env::remove_var("KANBUS_TEST_INVALID_STATUS"),
+            }
+        }
+        std::env::remove_var("KANBUS_TEST_EXTERNAL_TOOL_MISSING");
+        std::env::remove_var("KANBUS_TEST_EXTERNAL_TIMEOUT_MS");
         daemon_client::set_test_daemon_response(None);
         daemon_client::set_test_daemon_spawn_disabled(false);
         if let Some(tx) = self.fake_jira_shutdown_tx.take() {

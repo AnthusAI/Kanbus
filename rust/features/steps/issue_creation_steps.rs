@@ -35,6 +35,14 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
     }
 }
 
+#[given("issue creation status validation fails")]
+fn given_issue_creation_status_validation_fails(world: &mut KanbusWorld) {
+    if world.original_invalid_status_env.is_none() {
+        world.original_invalid_status_env = Some(std::env::var("KANBUS_TEST_INVALID_STATUS").ok());
+    }
+    std::env::set_var("KANBUS_TEST_INVALID_STATUS", "1");
+}
+
 #[when("I create an issue directly with title \"Implement OAuth2 flow\"")]
 fn when_create_issue_directly(world: &mut KanbusWorld) {
     let root = world
@@ -327,12 +335,12 @@ fn then_created_issue_assignee(world: &mut KanbusWorld) {
     assert_eq!(payload["assignee"], "dev@example.com");
 }
 
-#[then("the created issue should have parent \"kanbus-epic01\"")]
-fn then_created_issue_parent(world: &mut KanbusWorld) {
+#[then(expr = "the created issue should have parent {string}")]
+fn then_created_issue_parent(world: &mut KanbusWorld, parent: String) {
     let identifier = capture_issue_identifier(world);
     let project_dir = load_project_dir(world);
     let payload = load_issue_json(&project_dir, &identifier);
-    assert_eq!(payload["parent"], "kanbus-epic01");
+    assert_eq!(payload["parent"], parent);
 }
 
 #[then("the created issue should have labels \"auth, urgent\"")]

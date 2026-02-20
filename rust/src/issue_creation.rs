@@ -291,8 +291,11 @@ mod tests {
         std::fs::create_dir_all(&issues_dir).unwrap();
 
         let issue = sample_issue("kanbus-abc", "Same");
-        write_issue_to_file(&issue, &issue_path_for_identifier(&issues_dir, &issue.identifier))
-            .unwrap();
+        write_issue_to_file(
+            &issue,
+            &issue_path_for_identifier(&issues_dir, &issue.identifier),
+        )
+        .unwrap();
 
         let duplicate = find_duplicate_title(&issues_dir, "Same").unwrap();
         assert_eq!(duplicate, Some(issue.identifier));
@@ -307,8 +310,11 @@ mod tests {
         std::fs::create_dir_all(&issues_dir).unwrap();
 
         let issue = sample_issue("kanbus-abcdef", "Title");
-        write_issue_to_file(&issue, &issue_path_for_identifier(&issues_dir, &issue.identifier))
-            .unwrap();
+        write_issue_to_file(
+            &issue,
+            &issue_path_for_identifier(&issues_dir, &issue.identifier),
+        )
+        .unwrap();
 
         let exact = resolve_issue_identifier(&issues_dir, "kanbus", "kanbus-abcdef").unwrap();
         assert_eq!(exact, "kanbus-abcdef");
@@ -346,7 +352,11 @@ mod tests {
         assert!(short_id_matches("kanbus-abc", "kanbus", "kanbus-abcdef"));
         assert!(!short_id_matches("other-abc", "kanbus", "kanbus-abcdef"));
         assert!(!short_id_matches("kanbus-", "kanbus", "kanbus-abcdef"));
-        assert!(!short_id_matches("kanbus-abcdefg", "kanbus", "kanbus-abcdef"));
+        assert!(!short_id_matches(
+            "kanbus-abcdefg",
+            "kanbus",
+            "kanbus-abcdef"
+        ));
         assert!(!short_id_matches("kanbus-abc", "kanbus", "other-abcdef"));
     }
 }

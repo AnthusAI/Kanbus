@@ -14,6 +14,21 @@ fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     load_project_directory(cwd).expect("project dir")
 }
 
+fn load_issue_json(project_dir: &PathBuf, identifier: &str) -> serde_json::Value {
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(&issue_path).expect("read issue");
+    serde_json::from_str(&contents).expect("parse issue")
+}
+
+#[then(expr = "issue {string} should have parent {string}")]
+fn then_issue_should_have_parent(world: &mut KanbusWorld, identifier: String, parent: String) {
+    let project_dir = load_project_dir(world);
+    let payload = load_issue_json(&project_dir, &identifier);
+    assert_eq!(payload["parent"], parent);
+}
+
 fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
     let issue_path = project_dir
         .join("issues")

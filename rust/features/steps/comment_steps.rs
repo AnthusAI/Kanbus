@@ -82,6 +82,40 @@ fn then_comments_order(world: &mut KanbusWorld) {
     );
 }
 
+#[then(expr = "issue {string} has a comment from {string} with text {string} and id {string}")]
+fn then_issue_has_comment_with_id(
+    world: &mut KanbusWorld,
+    identifier: String,
+    author: String,
+    text: String,
+    comment_id: String,
+) {
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, &identifier);
+    let found = issue.comments.iter().any(|comment| {
+        comment.author == author
+            && comment.text == text
+            && comment.id.as_deref() == Some(comment_id.as_str())
+    });
+    assert!(found, "expected comment not found");
+}
+
+#[then(expr = "issue {string} has a comment from {string} with text {string} and no id")]
+fn then_issue_has_comment_without_id(
+    world: &mut KanbusWorld,
+    identifier: String,
+    author: String,
+    text: String,
+) {
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, &identifier);
+    let found = issue
+        .comments
+        .iter()
+        .any(|comment| comment.author == author && comment.text == text && comment.id.is_none());
+    assert!(found, "expected comment not found");
+}
+
 // Additional Given steps for comment manipulation tests
 
 #[given(expr = "an issue {string} exists with a comment missing an id")]

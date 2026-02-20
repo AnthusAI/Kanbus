@@ -213,7 +213,7 @@ async fn given_console_assets_root_not_set(_world: &mut KanbusWorld) {
     env::remove_var("CONSOLE_ASSETS_ROOT");
 }
 
-#[given(regex = r"^I set CONSOLE_ASSETS_ROOT to (.+)$")]
+#[given(regex = r#"^I set CONSOLE_ASSETS_ROOT to (.+)$"#)]
 async fn given_console_assets_root_set(world: &mut KanbusWorld, path: String) {
     let custom_path = if path == "a custom directory" {
         world
@@ -260,7 +260,7 @@ async fn given_custom_assets_placed(world: &mut KanbusWorld) {
     .expect("Failed to write custom JS");
 }
 
-#[given(regex = r"^I build console_local without --features embed-assets$")]
+#[given(regex = r#"^I build console_local without --features embed-assets$"#)]
 async fn given_build_without_embed_assets(world: &mut KanbusWorld) {
     // Set working directory to repo root if not already set.
     if world.working_directory.is_none() {
@@ -352,7 +352,7 @@ async fn then_startup_message_shows(world: &mut KanbusWorld, expected_msg: Strin
     }
 }
 
-#[then(regex = r"^I can access (.+)$")]
+#[then(regex = r#"^I can access (.+)$"#)]
 async fn then_can_access_url(world: &mut KanbusWorld, url: String) {
     let resolved = resolve_console_url(world, &url);
     let (status, body) =
@@ -378,7 +378,7 @@ async fn then_ui_index_html_loads(world: &mut KanbusWorld) {
     );
 }
 
-#[then(regex = r"^JavaScript assets load from (.+)$")]
+#[then(regex = r#"^JavaScript assets load from (.+)$"#)]
 async fn then_javascript_assets_load(world: &mut KanbusWorld, path_pattern: String) {
     let html = world
         .formatted_output
@@ -396,7 +396,7 @@ async fn then_javascript_assets_load(world: &mut KanbusWorld, path_pattern: Stri
     let _ = blocking_get(&js_url); // Just verify we can attempt to fetch
 }
 
-#[then(regex = r"^CSS assets load from (.+)$")]
+#[then(regex = r#"^CSS assets load from (.+)$"#)]
 async fn then_css_assets_load(world: &mut KanbusWorld, path_pattern: String) {
     let html = world
         .formatted_output
@@ -410,7 +410,7 @@ async fn then_css_assets_load(world: &mut KanbusWorld, path_pattern: String) {
     );
 }
 
-#[then(regex = r"^API endpoint (.+) responds$")]
+#[then(regex = r#"^API endpoint (.+) responds$"#)]
 async fn then_api_endpoint_responds(world: &mut KanbusWorld, endpoint: String) {
     let url = format!("{}{}", console_base_url(world), endpoint);
     let (status, body) =
@@ -439,7 +439,7 @@ async fn then_embedded_assets_not_used(_world: &mut KanbusWorld) {
     // If embedded assets were used, we'd see the real frontend, not "Custom Assets"
 }
 
-#[then(regex = r"^assets are served from (apps/console/dist|embedded binary data)$")]
+#[then(regex = r#"^assets are served from (apps/console/dist|embedded binary data)$"#)]
 async fn then_assets_served_from_path(world: &mut KanbusWorld, path: String) {
     // For development build test
     let expected = if path.contains("apps/console/dist") {

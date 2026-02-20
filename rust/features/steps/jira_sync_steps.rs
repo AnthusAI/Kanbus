@@ -53,7 +53,7 @@ fn build_jira_issue(
     json!({"key": key, "fields": fields})
 }
 
-#[given("a fake Jira server is running with issues")]
+#[given("a fake Jira server is running with issues:")]
 async fn given_fake_jira_server(world: &mut KanbusWorld, step: &cucumber::gherkin::Step) {
     let issues: Vec<Value> = step
         .table
