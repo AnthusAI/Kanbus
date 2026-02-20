@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.9.5 (2026-02-20)
+
+### Bug Fixes
+
+- Skip PyPI publish when no release artifacts
+  ([`6da9967`](https://github.com/AnthusAI/Kanbus/commit/6da9967c9bef7d8f3d277dbf531df7825a0bcd1c))
+
+
 ## v0.9.4 (2026-02-20)
 
 ### Bug Fixes
