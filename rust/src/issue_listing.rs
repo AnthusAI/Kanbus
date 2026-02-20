@@ -69,23 +69,13 @@ pub fn list_issues(
         return apply_query(issues, status, issue_type, assignee, label, sort, search);
     }
     if is_daemon_enabled() {
-        match request_index_list(root) {
-            Ok(payloads) => {
-                let issues: Vec<IssueData> = payloads
-                    .into_iter()
-                    .map(serde_json::from_value::<IssueData>)
-                    .map(|result| result.map_err(|error| KanbusError::Io(error.to_string())))
-                    .collect::<Result<Vec<IssueData>, KanbusError>>()?;
-                return apply_query(issues, status, issue_type, assignee, label, sort, search);
-            }
-            Err(error) => {
-                if should_fallback_to_local(&error) {
-                    let issues = list_issues_local(root)?;
-                    return apply_query(issues, status, issue_type, assignee, label, sort, search);
-                }
-                return Err(error);
-            }
-        }
+        let payloads = request_index_list(root)?;
+        let issues: Vec<IssueData> = payloads
+            .into_iter()
+            .map(serde_json::from_value::<IssueData>)
+            .map(|result| result.map_err(|error| KanbusError::Io(error.to_string())))
+            .collect::<Result<Vec<IssueData>, KanbusError>>()?;
+        return apply_query(issues, status, issue_type, assignee, label, sort, search);
     }
     let issues = list_issues_local(root)?;
     apply_query(issues, status, issue_type, assignee, label, sort, search)
@@ -96,13 +86,6 @@ fn list_issues_local(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     list_issues_for_project(&project_dir)
 }
 
-fn should_fallback_to_local(error: &KanbusError) -> bool {
-    match error {
-        KanbusError::Io(_) => true,
-        KanbusError::IssueOperation(message) => message.starts_with("daemon"),
-        _ => false,
-    }
-}
 
 fn list_issues_for_project(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let issues_dir = project_dir.join("issues");
