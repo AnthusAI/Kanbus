@@ -17,6 +17,7 @@ pub mod id_format_steps;
 pub mod id_generation_steps;
 pub mod index_steps;
 pub mod initialization_steps;
+pub mod jira_sync_steps;
 pub mod issue_close_delete_steps;
 pub mod issue_creation_steps;
 pub mod issue_key_steps;

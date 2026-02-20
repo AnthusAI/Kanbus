@@ -183,7 +183,7 @@ jobs:
 
   binary-smoke:
     runs-on: ubuntu-latest
-    needs: [rust]
+    needs: [rust, console-ui]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -191,10 +191,16 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Download console UI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: console-dist
+          path: apps/console/dist
+
       - name: Build release binaries
         run: |
           cd rust
-          cargo build --release --bin kbs --bin kbsc
+          cargo build --release --bin kbs --bin kbsc --features embed-assets
 
       - name: Prepare binaries for Docker test
         run: |

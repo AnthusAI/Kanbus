@@ -117,6 +117,18 @@ class PriorityDefinition(BaseModel):
     color: Optional[str] = None
 
 
+class JiraConfiguration(BaseModel):
+    """Jira synchronization configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    url: str
+    project_key: str
+    sync_direction: str = "pull"
+    type_mappings: Dict[str, str] = Field(default_factory=dict)
+    field_mappings: Dict[str, str] = Field(default_factory=dict)
+
+
 class ProjectConfiguration(BaseModel):
     """Project configuration loaded from .kanbus.yml.
 
@@ -152,6 +164,8 @@ class ProjectConfiguration(BaseModel):
     :type type_colors: Dict[str, str]
     :param beads_compatibility: Default Beads compatibility mode.
     :type beads_compatibility: bool
+    :param jira: Optional Jira synchronization configuration.
+    :type jira: Optional[JiraConfiguration]
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -177,3 +191,4 @@ class ProjectConfiguration(BaseModel):
     categories: List[CategoryDefinition] = Field(default_factory=list)
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False
+    jira: Optional[JiraConfiguration] = None

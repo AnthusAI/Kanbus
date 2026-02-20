@@ -78,6 +78,11 @@ pub struct KanbusWorld {
     pub console_local_storage: ConsoleLocalStorage,
     pub console_time_zone: Option<String>,
     pub console_port: Option<u16>,
+    pub fake_jira_port: Option<u16>,
+    pub fake_jira_shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    pub fake_jira_issues: Vec<serde_json::Value>,
+    pub jira_env_set: bool,
+    pub jira_unset_env_vars: Vec<String>,
 }
 
 impl Drop for KanbusWorld {
@@ -134,6 +139,16 @@ impl Drop for KanbusWorld {
         }
         daemon_client::set_test_daemon_response(None);
         daemon_client::set_test_daemon_spawn_disabled(false);
+        if let Some(tx) = self.fake_jira_shutdown_tx.take() {
+            let _ = tx.send(());
+        }
+        if self.jira_env_set {
+            std::env::remove_var("JIRA_API_TOKEN");
+            std::env::remove_var("JIRA_USER_EMAIL");
+        }
+        for name in self.jira_unset_env_vars.drain(..) {
+            std::env::remove_var(&name);
+        }
     }
 }
 

@@ -112,7 +112,7 @@ type_colors:
   chore: green
   event: bright_blue
 
-beads_compatibility: false
+beads_compatibility: true
 
 # Jira synchronization (optional). Secrets go in .env, not here.
 jira:

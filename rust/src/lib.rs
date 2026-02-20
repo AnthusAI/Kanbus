@@ -33,6 +33,7 @@ pub mod issue_listing;
 pub mod issue_lookup;
 pub mod issue_transfer;
 pub mod issue_update;
+pub mod jira_sync;
 pub mod maintenance;
 pub mod migration;
 pub mod models;

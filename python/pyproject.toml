@@ -15,6 +15,7 @@ dependencies = [
     "pydantic",
     "pyyaml",
     "pydantic-settings",
+    "requests",
     "behave",
     "coverage",
     "ruff",

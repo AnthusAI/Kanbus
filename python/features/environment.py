@@ -52,6 +52,15 @@ def after_scenario(context: object, scenario: object) -> None:
         server.shutdown()
         server.server_close()
         context.daemon_server = None
+    fake_jira_server = getattr(context, "fake_jira_server", None)
+    if fake_jira_server is not None:
+        fake_jira_server.shutdown()
+        context.fake_jira_server = None
+    for name, original_value in getattr(context, "_unset_env_vars", []):
+        import os
+        if original_value is not None:
+            os.environ[name] = original_value
+    context._unset_env_vars = []
     thread = getattr(context, "daemon_thread", None)
     if thread is not None:
         thread.join(timeout=1.0)

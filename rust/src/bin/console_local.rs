@@ -181,13 +181,22 @@ async fn main() {
         .fallback(get(get_asset_root));
 
     // Start Unix socket listener for notifications before moving state
-    let socket_path = get_notification_socket_path(&state.base_root);
-    let notification_tx_clone = state.notification_tx.clone();
-    tokio::spawn(async move {
-        if let Err(e) = listen_on_socket(socket_path, notification_tx_clone).await {
-            eprintln!("Unix socket listener error: {}", e);
-        }
-    });
+    #[cfg(unix)]
+    {
+        let socket_path = get_notification_socket_path(&state.base_root);
+        let notification_tx_clone = state.notification_tx.clone();
+        tokio::spawn(async move {
+            if let Err(e) = listen_on_socket(socket_path, notification_tx_clone).await {
+                eprintln!("Unix socket listener error: {}", e);
+            }
+        });
+    }
+    #[cfg(not(unix))]
+    {
+        eprintln!(
+            "Unix domain sockets are unavailable on this platform; disabling console notifications."
+        );
+    }
 
     let app = app.with_state(state);
     let (listener, port) = acquire_listener(desired_port).await;
@@ -990,6 +999,7 @@ fn get_notification_socket_path(root: &StdPath) -> PathBuf {
 }
 
 /// Listen on Unix domain socket for notification events from CLI commands.
+#[cfg(unix)]
 async fn listen_on_socket(
     socket_path: PathBuf,
     notification_tx: broadcast::Sender<NotificationEvent>,
@@ -1048,4 +1058,15 @@ async fn listen_on_socket(
             }
         }
     }
+}
+
+#[cfg(not(unix))]
+async fn listen_on_socket(
+    _socket_path: PathBuf,
+    _notification_tx: broadcast::Sender<NotificationEvent>,
+) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "unix domain sockets unsupported on this platform",
+    ))
 }

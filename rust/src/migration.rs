@@ -308,7 +308,16 @@ fn convert_record(
             .and_then(Value::as_str)
             .map(str::to_string),
         parent,
-        labels: Vec::new(),
+        labels: record
+            .get("labels")
+            .and_then(Value::as_array)
+            .map(|labels| {
+                labels
+                    .iter()
+                    .filter_map(|value| value.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default(),
         dependencies,
         comments,
         created_at,
@@ -678,6 +687,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         categories,
         type_colors: BTreeMap::new(),
         beads_compatibility: false,
+        jira: None,
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];

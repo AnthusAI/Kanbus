@@ -53,6 +53,23 @@ pub struct IssueData {
     pub custom: BTreeMap<String, serde_json::Value>,
 }
 
+/// Jira synchronization configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JiraConfiguration {
+    pub url: String,
+    pub project_key: String,
+    #[serde(default = "default_jira_sync_direction")]
+    pub sync_direction: String,
+    #[serde(default)]
+    pub type_mappings: BTreeMap<String, String>,
+    #[serde(default)]
+    pub field_mappings: BTreeMap<String, String>,
+}
+
+fn default_jira_sync_direction() -> String {
+    "pull".to_string()
+}
+
 /// Project configuration loaded from .kanbus.yml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -86,6 +103,8 @@ pub struct ProjectConfiguration {
     pub type_colors: BTreeMap<String, String>,
     #[serde(default)]
     pub beads_compatibility: bool,
+    #[serde(default)]
+    pub jira: Option<JiraConfiguration>,
 }
 
 /// Status definition with display metadata.
