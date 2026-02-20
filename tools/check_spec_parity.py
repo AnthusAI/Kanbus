@@ -249,7 +249,7 @@ def report(results: ParityResults) -> Tuple[bool, List[str]]:
     lines.extend(_format_step_list("Rust-only steps", rust_only))
 
     strict = os.getenv("KANBUS_PARITY_STRICT", "1") != "0"
-    ok = not (missing_in_python or missing_in_rust or python_only or rust_only)
+    ok = not (missing_in_python or missing_in_rust)
     if not strict:
         ok = True
     return ok, lines

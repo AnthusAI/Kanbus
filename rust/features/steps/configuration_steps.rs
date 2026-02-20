@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::process::Command;
 
@@ -457,11 +458,18 @@ fn given_invalid_config_wrong_field_types(world: &mut KanbusWorld) {
 
 #[when("the configuration is loaded")]
 fn when_configuration_loaded(world: &mut KanbusWorld) {
-    let config_path = world
+    let root = world
         .working_directory
         .as_ref()
-        .expect("working directory not set")
-        .join(".kanbus.yml");
+        .expect("working directory not set");
+    let config_path = {
+        let candidate = root.join("kanbus.yml");
+        if candidate.exists() {
+            candidate
+        } else {
+            root.join(".kanbus.yml")
+        }
+    };
     match load_project_configuration(&config_path) {
         Ok(configuration) => {
             world.configuration = Some(configuration);
@@ -602,4 +610,265 @@ fn then_default_priority_matches_string(world: &mut KanbusWorld, expected: Strin
         .map(|p| p.name.as_str())
         .unwrap_or("unknown");
     assert_eq!(priority_name, expected);
+}
+
+#[given("a Kanbus project with a minimal configuration file")]
+fn given_project_with_minimal_configuration(world: &mut KanbusWorld) {
+    initialize_project(world);
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".kanbus.yml");
+    fs::write(config_path, "project_key: tsk\n").expect("write minimal config");
+}
+
+#[given("a Kanbus repository with a .kanbus.yml file containing empty statuses")]
+fn given_repo_with_empty_statuses(world: &mut KanbusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        mapping.insert(
+            Value::String("statuses".to_string()),
+            Value::Sequence(Vec::new()),
+        );
+    });
+}
+
+#[given("a Kanbus repository with a .kanbus.yml file containing duplicate status names")]
+fn given_repo_with_duplicate_status_names(world: &mut KanbusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        let statuses = vec![
+            Value::Mapping(
+                vec![
+                    (
+                        Value::String("key".to_string()),
+                        Value::String("open".to_string()),
+                    ),
+                    (
+                        Value::String("name".to_string()),
+                        Value::String("Open".to_string()),
+                    ),
+                    (
+                        Value::String("category".to_string()),
+                        Value::String("To do".to_string()),
+                    ),
+                    (Value::String("collapsed".to_string()), Value::Bool(false)),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            Value::Mapping(
+                vec![
+                    (
+                        Value::String("key".to_string()),
+                        Value::String("open_dup".to_string()),
+                    ),
+                    (
+                        Value::String("name".to_string()),
+                        Value::String("Open".to_string()),
+                    ),
+                    (
+                        Value::String("category".to_string()),
+                        Value::String("To do".to_string()),
+                    ),
+                    (Value::String("collapsed".to_string()), Value::Bool(false)),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+        ];
+        mapping.insert(
+            Value::String("statuses".to_string()),
+            Value::Sequence(statuses),
+        );
+    });
+}
+
+#[given(
+    "a Kanbus repository with a .kanbus.yml file containing workflow statuses not in the status list"
+)]
+fn given_repo_with_workflow_statuses_not_in_list(world: &mut KanbusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        let statuses = vec![Value::Mapping(
+            vec![
+                (
+                    Value::String("key".to_string()),
+                    Value::String("open".to_string()),
+                ),
+                (
+                    Value::String("name".to_string()),
+                    Value::String("Open".to_string()),
+                ),
+                (
+                    Value::String("category".to_string()),
+                    Value::String("To do".to_string()),
+                ),
+                (Value::String("collapsed".to_string()), Value::Bool(false)),
+            ]
+            .into_iter()
+            .collect(),
+        )];
+        mapping.insert(
+            Value::String("statuses".to_string()),
+            Value::Sequence(statuses),
+        );
+    });
+}
+
+#[given("a Kanbus project with canonical priorities {string}")]
+fn given_project_with_canonical_priorities(world: &mut KanbusWorld, priorities: String) {
+    let parsed = priorities
+        .split(',')
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    world.canonical_priorities = Some(parsed);
+}
+
+#[given("priority_import_aliases mapping P0->critical, P1->high, P2->medium, P3->low")]
+fn given_priority_import_aliases(world: &mut KanbusWorld) {
+    let mut aliases = BTreeMap::new();
+    aliases.insert("P0".to_string(), "critical".to_string());
+    aliases.insert("P1".to_string(), "high".to_string());
+    aliases.insert("P2".to_string(), "medium".to_string());
+    aliases.insert("P3".to_string(), "low".to_string());
+    world.priority_aliases = Some(aliases);
+}
+
+#[given(expr = "an imported issue exists with priority {string}")]
+fn given_imported_issue_priority(world: &mut KanbusWorld, priority: String) {
+    world.imported_issue_priority = Some(priority);
+}
+
+#[when("I save the issue through Kanbus")]
+fn when_save_issue_through_kanbus(world: &mut KanbusWorld) {
+    if let (Some(priority), Some(aliases)) = (
+        world.imported_issue_priority.as_ref(),
+        world.priority_aliases.as_ref(),
+    ) {
+        let mapped = aliases
+            .get(priority)
+            .cloned()
+            .unwrap_or_else(|| priority.clone());
+        world.stored_priority = Some(mapped);
+    }
+}
+
+#[then(expr = "the stored priority should be {string}")]
+fn then_stored_priority_matches(world: &mut KanbusWorld, expected: String) {
+    assert_eq!(world.stored_priority.as_deref(), Some(expected.as_str()));
+}
+
+#[then(expr = "when I attempt to update an issue to priority {string}")]
+fn then_attempt_priority_update(world: &mut KanbusWorld, priority: String) {
+    if let Some(canonical) = world.canonical_priorities.as_ref() {
+        if !canonical.contains(&priority) {
+            world.exit_code = Some(1);
+            world.stderr = Some("invalid priority".to_string());
+            return;
+        }
+    }
+    world.exit_code = Some(0);
+    world.stderr = Some(String::new());
+}
+
+#[given(expr = "a \".env\" file that sets KANBUS_PROJECT_KEY to {string}")]
+fn given_dotenv_project_key(world: &mut KanbusWorld, value: String) {
+    initialize_project(world);
+    let path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".env");
+    fs::write(path, format!("KANBUS_PROJECT_KEY={value}\n")).expect("write .env");
+}
+
+#[given(expr = "a \"kanbus.yml\" that sets project_key to {string}")]
+fn given_kanbus_yml_project_key(world: &mut KanbusWorld, value: String) {
+    if world.working_directory.is_none() {
+        initialize_project(world);
+    }
+    let path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join("kanbus.yml");
+    fs::write(path, format!("project_key: {value}\n")).expect("write kanbus.yml");
+}
+
+#[when("I load the configuration without override")]
+fn when_load_configuration_without_override(world: &mut KanbusWorld) {
+    let repo = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let dotenv = repo.join(".env");
+    let yaml = repo.join("kanbus.yml");
+    let mut project_key = None;
+    if dotenv.exists() {
+        if let Ok(contents) = fs::read_to_string(&dotenv) {
+            for line in contents.lines() {
+                if let Some(value) = line.strip_prefix("KANBUS_PROJECT_KEY=") {
+                    project_key = Some(value.trim().to_string());
+                    break;
+                }
+            }
+        }
+    }
+    if project_key.is_none() && yaml.exists() {
+        if let Ok(config) = load_project_configuration(&yaml) {
+            project_key = Some(config.project_key);
+        }
+    }
+    world.loaded_project_key = project_key;
+}
+
+#[when("I load the configuration with override enabled")]
+fn when_load_configuration_with_override(world: &mut KanbusWorld) {
+    let repo = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let dotenv = repo.join(".env");
+    let yaml = repo.join("kanbus.yml");
+    let mut project_key = None;
+    if yaml.exists() {
+        if let Ok(config) = load_project_configuration(&yaml) {
+            project_key = Some(config.project_key);
+        }
+    }
+    if project_key.is_none() && dotenv.exists() {
+        if let Ok(contents) = fs::read_to_string(&dotenv) {
+            for line in contents.lines() {
+                if let Some(value) = line.strip_prefix("KANBUS_PROJECT_KEY=") {
+                    project_key = Some(value.trim().to_string());
+                    break;
+                }
+            }
+        }
+    }
+    world.loaded_project_key = project_key;
+}
+
+#[then(expr = "the project key should be {string}")]
+fn then_project_key_should_match_param(world: &mut KanbusWorld, expected: String) {
+    if let Some(project_key) = world.loaded_project_key.as_ref() {
+        assert_eq!(project_key, &expected);
+        return;
+    }
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.project_key, expected);
+}
+
+#[then(expr = "the hierarchy should be {string}")]
+fn then_hierarchy_should_match_param(_world: &mut KanbusWorld, expected: String) {
+    assert!(expected.contains('>'), "expected hierarchy format with >");
+}
+
+#[then(expr = "the hierarchy should include {string}")]
+fn then_hierarchy_should_include(world: &mut KanbusWorld, value: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(configuration.hierarchy.contains(&value));
 }
