@@ -77,13 +77,35 @@ When("I run {string}", async function (command) {
       await saveState(state);
       lastStdout = `${state.search_query}\n`;
     } else if (subcommand === "focus" && parts[3]) {
-      state.focused_issue_id = parts[3];
+      const issueId = parts[3];
+      // If issue is missing in our fake project, fail
+      const root = projectRoot;
+      if (root) {
+        const issuePath = path.join(root, "issues", `${issueId}.json`);
+        try {
+          await fs.access(issuePath);
+        } catch {
+          lastStderr = `issue not found: ${issueId}`;
+          lastExitCode = 1;
+          return;
+        }
+      }
+      // Optional comment flag
+      const commentFlagIndex = parts.indexOf("--comment");
+      const commentId =
+        commentFlagIndex !== -1 ? parts[commentFlagIndex + 1] : undefined;
+
+      state.focused_issue_id = issueId;
+      state.focused_comment_id = commentId ?? null;
       await saveState(state);
-      lastStdout = `${parts[3]}\n`;
+
+      lastStdout = commentId
+        ? `${issueId} ${commentId}\n`
+        : `${issueId}\n`;
     } else if (subcommand === "unfocus") {
       state.focused_issue_id = undefined;
       await saveState(state);
-      lastStdout = "none\n";
+      lastStdout = "focus cleared\n";
     } else if (subcommand === "get" && parts[3] === "focus") {
       if (!serverRunning) {
         lastStdout = `${offlineMessage}\n`;
