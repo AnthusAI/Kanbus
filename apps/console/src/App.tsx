@@ -37,6 +37,9 @@ type RouteContext = {
   viewMode: ViewMode | null;
   issueId: string | null;
   parentId: string | null;
+  search: string | null;
+  focused: string | null;
+  comment: string | null;
   error: string | null;
 };
 type IssueSelectionContext = {
@@ -75,7 +78,20 @@ function loadStoredDetailWidth(): number {
   return 33;
 }
 
-function parseRoute(pathname: string): RouteContext {
+function parseQueryParams(search: string): { search: string | null; focused: string | null; comment: string | null } {
+  const params = new URLSearchParams(search);
+  const searchParam = params.get("search");
+  const focusedParam = params.get("focused");
+  const commentParam = params.get("comment");
+  return {
+    search: searchParam && searchParam.length > 0 ? searchParam : null,
+    focused: focusedParam && focusedParam.length > 0 ? focusedParam : null,
+    comment: commentParam && commentParam.length > 0 ? commentParam : null,
+  };
+}
+
+function parseRoute(pathname: string, queryString?: string): RouteContext {
+  const qp = parseQueryParams(queryString ?? window.location.search);
   const segments = pathname.split("/").filter(Boolean);
   if (segments[segments.length - 1] === "index.html") {
     segments.pop();
@@ -93,6 +109,7 @@ function parseRoute(pathname: string): RouteContext {
         viewMode: loadStoredViewMode(),
         issueId: null,
         parentId: null,
+        ...qp,
         error: null
       };
     }
@@ -106,6 +123,7 @@ function parseRoute(pathname: string): RouteContext {
           viewMode: head,
           issueId: null,
           parentId: null,
+          ...qp,
           error: null
         };
       }
@@ -119,6 +137,7 @@ function parseRoute(pathname: string): RouteContext {
           viewMode: null,
           issueId: rest[1],
           parentId: null,
+          ...qp,
           error: null
         };
       }
@@ -130,6 +149,7 @@ function parseRoute(pathname: string): RouteContext {
           viewMode: null,
           issueId: null,
           parentId: rest[1],
+          ...qp,
           error: null
         };
       }
@@ -141,6 +161,7 @@ function parseRoute(pathname: string): RouteContext {
           viewMode: null,
           issueId: rest[2],
           parentId: rest[1],
+          ...qp,
           error: null
         };
       }
@@ -152,6 +173,9 @@ function parseRoute(pathname: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      search: null,
+      focused: null,
+      comment: null,
       error: "Unsupported console route"
     };
   }
@@ -163,6 +187,9 @@ function parseRoute(pathname: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      search: null,
+      focused: null,
+      comment: null,
       error: "URL must include /:account/:project"
     };
   }
@@ -178,6 +205,7 @@ function parseRoute(pathname: string): RouteContext {
       viewMode: loadStoredViewMode(),
       issueId: null,
       parentId: null,
+      ...qp,
       error: null
     };
   }
@@ -191,6 +219,7 @@ function parseRoute(pathname: string): RouteContext {
         viewMode: head,
         issueId: null,
         parentId: null,
+        ...qp,
         error: null
       };
     }
@@ -204,6 +233,7 @@ function parseRoute(pathname: string): RouteContext {
         viewMode: null,
         issueId: rest[1],
         parentId: null,
+        ...qp,
         error: null
       };
     }
@@ -215,6 +245,7 @@ function parseRoute(pathname: string): RouteContext {
         viewMode: null,
         issueId: null,
         parentId: rest[1],
+        ...qp,
         error: null
       };
     }
@@ -226,6 +257,7 @@ function parseRoute(pathname: string): RouteContext {
         viewMode: null,
         issueId: rest[2],
         parentId: rest[1],
+        ...qp,
         error: null
       };
     }
@@ -237,6 +269,9 @@ function parseRoute(pathname: string): RouteContext {
     viewMode: null,
     issueId: null,
     parentId: null,
+    search: null,
+    focused: null,
+    comment: null,
     error: "Unsupported console route"
   };
 }
@@ -301,16 +336,35 @@ function collectDescendants(issues: Issue[], parentId: string): Set<string> {
   return ids;
 }
 
+function buildUrl(
+  path: string,
+  params: { search?: string | null; focused?: string | null; comment?: string | null } = {}
+): string {
+  const qp = new URLSearchParams();
+  if (params.focused) {
+    qp.set("focused", params.focused);
+  }
+  if (params.search) {
+    qp.set("search", params.search);
+  }
+  if (params.comment) {
+    qp.set("comment", params.comment);
+  }
+  const qs = qp.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
 function navigate(
   path: string,
   setRoute: (route: RouteContext) => void,
   navActionRef?: React.MutableRefObject<NavAction>
 ) {
-  window.history.pushState({}, "", path);
+  const url = new URL(path, window.location.href);
+  window.history.pushState({}, "", url.pathname + url.search);
   if (navActionRef) {
     navActionRef.current = "push";
   }
-  setRoute(parseRoute(path));
+  setRoute(parseRoute(url.pathname, url.search));
 }
 
 function buildPriorityLookup(config: ProjectConfig): Record<number, string> {
@@ -397,11 +451,21 @@ export default function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
   const [detailMaximized, setDetailMaximized] = useState(false);
-  const [focusedIssueId, setFocusedIssueId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const [route, setRoute] = useState<RouteContext>(() =>
-    parseRoute(window.location.pathname)
+    parseRoute(window.location.pathname, window.location.search)
   );
+  const [focusedIssueId, setFocusedIssueId] = useState<string | null>(() => {
+    const initial = parseRoute(window.location.pathname, window.location.search);
+    return initial.focused ?? null;
+  });
+  const [focusedCommentId, setFocusedCommentId] = useState<string | null>(() => {
+    const initial = parseRoute(window.location.pathname, window.location.search);
+    return initial.comment ?? null;
+  });
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    const initial = parseRoute(window.location.pathname, window.location.search);
+    return initial.search ?? "";
+  });
   const [detailClosing, setDetailClosing] = useState(false);
   const [detailNavDirection, setDetailNavDirection] = useState<NavAction>("none");
   const layoutFrameRef = React.useRef<HTMLDivElement | null>(null);
@@ -425,19 +489,21 @@ export default function App() {
   useEffect(() => {
     const handlePop = () => {
       navActionRef.current = "pop";
-      setRoute(parseRoute(window.location.pathname));
+      setRoute(parseRoute(window.location.pathname, window.location.search));
     };
     window.addEventListener("popstate", handlePop);
     return () => window.removeEventListener("popstate", handlePop);
   }, []);
 
   useEffect(() => {
-    const parsed = parseRoute(window.location.pathname);
+    const parsed = parseRoute(window.location.pathname, window.location.search);
     if (
       parsed.basePath !== route.basePath
       || parsed.issueId !== route.issueId
       || parsed.parentId !== route.parentId
       || parsed.viewMode !== route.viewMode
+      || parsed.search !== route.search
+      || parsed.focused !== route.focused
       || parsed.error !== route.error
     ) {
       setRoute(parsed);
@@ -502,6 +568,7 @@ export default function App() {
         switch (event.type) {
           case "issue_focused":
             setFocusedIssueId(event.issue_id);
+            setFocusedCommentId(event.comment_id ?? null);
             break;
           case "issue_created":
           case "issue_updated":
@@ -556,7 +623,7 @@ export default function App() {
     };
   }, [route.basePath]);
 
-  // Auto-select focused issue in detail panel
+  // Auto-select focused issue in detail panel and encode focus in URL
   useEffect(() => {
     if (!focusedIssueId || !snapshot) {
       return;
@@ -564,13 +631,32 @@ export default function App() {
     const projectKey = snapshot.config.project_key;
     const resolved = resolveIssueByIdentifier(snapshot.issues, focusedIssueId, projectKey);
     if (resolved.issue) {
-      // Navigate to the issue detail URL, which will trigger routeContext update
-      // and properly set selectedTask via the normal route handling
-      // basePath can be empty string "" for root-level deployments
-      const issueUrl = `${route.basePath}/issues/${resolved.issue.id}`;
+      const issueUrl = buildUrl(
+        `${route.basePath}/issues/${resolved.issue.id}`,
+        { focused: resolved.issue.id, search: searchQuery || null, comment: focusedCommentId }
+      );
       navigate(issueUrl, setRoute, navActionRef);
     }
-  }, [focusedIssueId, snapshot, route.basePath]);
+  }, [focusedIssueId, focusedCommentId, snapshot, route.basePath]);
+
+  // Sync searchQuery, focusedIssueId, and focusedCommentId from URL on browser back/forward navigation
+  useEffect(() => {
+    if (route.search !== null && route.search !== searchQuery) {
+      setSearchQuery(route.search);
+    } else if (route.search === null && searchQuery) {
+      setSearchQuery("");
+    }
+    if (route.focused !== null && route.focused !== focusedIssueId) {
+      setFocusedIssueId(route.focused);
+    } else if (route.focused === null && focusedIssueId) {
+      setFocusedIssueId(null);
+    }
+    if (route.comment !== null && route.comment !== focusedCommentId) {
+      setFocusedCommentId(route.comment);
+    } else if (route.comment === null && focusedCommentId) {
+      setFocusedCommentId(null);
+    }
+  }, [route.search, route.focused, route.comment]);
 
   useEffect(() => {
     if (!viewMode) {
@@ -842,14 +928,27 @@ export default function App() {
 
   const handleFocus = (issueId: string) => {
     setFocusedIssueId((prev) => prev === issueId ? null : issueId);
+    // URL update for focus is handled by the focusedIssueId useEffect above
   };
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
+    if (route.basePath != null) {
+      const url = buildUrl(window.location.pathname, { search: query || null, focused: focusedIssueId });
+      const parsed = new URL(url, window.location.href);
+      window.history.replaceState({}, "", parsed.pathname + parsed.search);
+      setRoute(parseRoute(parsed.pathname, parsed.search));
+    }
   };
 
   const handleSearchClear = () => {
     setSearchQuery("");
+    if (route.basePath != null) {
+      const url = buildUrl(window.location.pathname, { focused: focusedIssueId });
+      const parsed = new URL(url, window.location.href);
+      window.history.replaceState({}, "", parsed.pathname + parsed.search);
+      setRoute(parseRoute(parsed.pathname, parsed.search));
+    }
   };
 
   const handleTaskClose = () => {
@@ -868,6 +967,12 @@ export default function App() {
     switch (action.action) {
       case "clear_focus":
         setFocusedIssueId(null);
+        if (route.basePath != null) {
+          const url = buildUrl(window.location.pathname, { search: searchQuery || null });
+          const parsed = new URL(url, window.location.href);
+          window.history.replaceState({}, "", parsed.pathname + parsed.search);
+          setRoute(parseRoute(parsed.pathname, parsed.search));
+        }
         break;
       case "set_view_mode":
         if (route.basePath != null) {
@@ -877,6 +982,12 @@ export default function App() {
         break;
       case "set_search":
         setSearchQuery(action.query);
+        if (route.basePath != null) {
+          const url = buildUrl(window.location.pathname, { search: action.query || null, focused: focusedIssueId });
+          const parsed = new URL(url, window.location.href);
+          window.history.replaceState({}, "", parsed.pathname + parsed.search);
+          setRoute(parseRoute(parsed.pathname, parsed.search));
+        }
         break;
       case "maximize_detail":
         setDetailMaximized(true);
@@ -1086,9 +1197,14 @@ export default function App() {
         <button
           className="flex-none toggle-button rounded-full bg-[var(--column)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted h-7 flex items-center justify-center gap-2"
           onClick={() => {
-            // Placeholder for future filter functionality
             if (focusedIssueId) {
               setFocusedIssueId(null);
+              if (route.basePath != null) {
+                const url = buildUrl(window.location.pathname, { search: searchQuery || null });
+                const parsed = new URL(url, window.location.href);
+                window.history.replaceState({}, "", parsed.pathname + parsed.search);
+                setRoute(parseRoute(parsed.pathname, parsed.search));
+              }
             }
           }}
           type="button"
@@ -1121,7 +1237,7 @@ export default function App() {
         </div>
       ) : null}
 
-      <div className="mt-1 min-[321px]:mt-2 sm:mt-3 md:mt-4 flex-1 min-h-0">
+      <div className="mt-1 sm:mt-2 flex-1 min-h-0">
         <div
           ref={layoutFrameRef}
           className={`layout-frame h-full min-h-0${isResizing ? " is-resizing" : ""}${
@@ -1249,6 +1365,7 @@ export default function App() {
               onAfterClose={() => setDetailClosing(false)}
               onFocus={handleFocus}
               focusedIssueId={focusedIssueId}
+              focusedCommentId={focusedCommentId}
               onNavigateToDescendant={handleSelectIssue}
             />
           </div>
