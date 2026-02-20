@@ -47,7 +47,24 @@ use crate::wiki::{render_wiki_page, WikiRenderRequest};
 
 /// Kanbus CLI arguments.
 #[derive(Debug, Parser)]
-#[command(name = "kanbus", version)]
+#[command(
+    name = "kbs",
+    version,
+    after_help = "Examples:
+  kbs list                                     list all issues
+  kbs issues                                   alias for: kbs list
+  kbs epics / kbs tasks / kbs bugs             list by type
+  kbs create \"Fix login bug\" --type bug        create an issue
+  kbs create \"Release v1\" --type epic --parent <id>
+  kbs show <id>                                show issue details
+  kbs update <id> --status in_progress         update status
+  kbs comment <id> \"Progress note\"             add a comment
+  kbs close <id>                               close an issue
+
+Issue types:  initiative > epic > story / task / bug > sub-task
+Statuses:     open  in_progress  blocked  done  closed
+Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial"
+)]
 pub struct Cli {
     /// Enable Beads compatibility mode (read .beads/issues.jsonl).
     #[arg(long)]
@@ -70,6 +87,15 @@ enum Commands {
         command: SetupCommands,
     },
     /// Create a new issue.
+    ///
+    /// Issue types follow a hierarchy: initiative > epic > story / task / bug > sub-task.
+    /// Use --parent to attach an issue to a parent.
+    ///
+    /// Examples:
+    ///   kbs create "Plan the roadmap" --type initiative
+    ///   kbs create "Release v1" --type epic --parent <initiative-id>
+    ///   kbs create "Implement login" --type task --parent <epic-id>
+    ///   kbs create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
     Create {
         /// Issue title.
         #[arg(num_args = 0.., value_name = "TITLE")]
@@ -175,6 +201,13 @@ enum Commands {
         no_validate: bool,
     },
     /// List issues.
+    ///
+    /// Examples:
+    ///   kbs list                                    all issues
+    ///   kbs list --type epic                        only epics
+    ///   kbs list --status open                      only open issues
+    ///   kbs list --type task --status in_progress
+    ///   kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
     List {
         /// Status filter.
         #[arg(long)]
@@ -1507,7 +1540,53 @@ fn execute_command(
 ///
 /// Returns `KanbusError` if execution fails.
 pub fn run_from_env() -> Result<(), KanbusError> {
-    run_from_args(std::env::args_os(), Path::new("."))
+    let args = rewrite_alias_args(std::env::args_os());
+    run_from_args(args, Path::new("."))
+}
+
+fn rewrite_alias_args<I>(args: I) -> Vec<OsString>
+where
+    I: IntoIterator<Item = OsString>,
+{
+    let mut iter = args.into_iter();
+    let mut result: Vec<OsString> = iter.by_ref().take(1).collect();
+    if let Some(first) = iter.next() {
+        match first.to_str().unwrap_or("") {
+            "issues" => {
+                result.push("list".into());
+                result.extend(iter);
+            }
+            "epics" => {
+                result.push("list".into());
+                result.push("--type".into());
+                result.push("epic".into());
+                result.extend(iter);
+            }
+            "tasks" => {
+                result.push("list".into());
+                result.push("--type".into());
+                result.push("task".into());
+                result.extend(iter);
+            }
+            "stories" => {
+                result.push("list".into());
+                result.push("--type".into());
+                result.push("story".into());
+                result.extend(iter);
+            }
+            "bugs" => {
+                result.push("list".into());
+                result.push("--type".into());
+                result.push("bug".into());
+                result.extend(iter);
+            }
+            _ => {
+                result.push(first);
+                result.extend(iter);
+            }
+        }
+    }
+    result
 }
 
 fn sort_timestamp(issue: &IssueData) -> f64 {
