@@ -142,14 +142,26 @@ impl Drop for KanbusWorld {
         if let Some(tx) = self.fake_jira_shutdown_tx.take() {
             let _ = tx.send(());
         }
-        if self.jira_env_set {
-            std::env::remove_var("JIRA_API_TOKEN");
-            std::env::remove_var("JIRA_USER_EMAIL");
-        }
+        // Restore explicitly-unset vars first so their recorded original values win.
+        let explicitly_unset: std::collections::HashSet<String> = self
+            .jira_unset_env_vars
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect();
         for (name, original) in self.jira_unset_env_vars.drain(..) {
             match original {
                 Some(val) => std::env::set_var(&name, val),
                 None => std::env::remove_var(&name),
+            }
+        }
+        // Remove vars set by given_jira_config, but only if the test didn't
+        // explicitly manage them (those are already handled correctly above).
+        if self.jira_env_set {
+            if !explicitly_unset.contains("JIRA_API_TOKEN") {
+                std::env::remove_var("JIRA_API_TOKEN");
+            }
+            if !explicitly_unset.contains("JIRA_USER_EMAIL") {
+                std::env::remove_var("JIRA_USER_EMAIL");
             }
         }
     }
