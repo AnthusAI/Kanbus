@@ -57,22 +57,17 @@ When("I run {string}", async function (command) {
 
     const offlineMessage = "Console server is not running";
 
-    if (!serverRunning && subcommand.startsWith("get")) {
-      lastStdout = `${offlineMessage}\n`;
-      return;
-    }
-
     if (subcommand === "status") {
       if (!serverRunning) {
         lastStdout = `${offlineMessage}\n`;
-        return;
+      } else {
+        const status = {
+          focused_issue_id: state.focused_issue_id ?? "none",
+          view_mode: state.view_mode ?? "issues",
+          search_query: state.search_query ?? ""
+        };
+        lastStdout = `${status.focused_issue_id}\n${status.view_mode}\n${status.search_query}\n`;
       }
-      const status = {
-        focused_issue_id: state.focused_issue_id ?? "none",
-        view_mode: state.view_mode ?? "issues",
-        search_query: state.search_query ?? ""
-      };
-      lastStdout = `${status.focused_issue_id}\n${status.view_mode}\n${status.search_query}\n`;
     } else if (subcommand === "focus" && parts[3]) {
       state.focused_issue_id = parts[3];
       await saveState(state);
@@ -82,14 +77,26 @@ When("I run {string}", async function (command) {
       await saveState(state);
       lastStdout = "none\n";
     } else if (subcommand === "get" && parts[3] === "focus") {
-      const value = state.focused_issue_id ?? "none";
-      lastStdout = `${value}\n`;
+      if (!serverRunning) {
+        lastStdout = `${offlineMessage}\n`;
+      } else {
+        const value = state.focused_issue_id ?? "none";
+        lastStdout = `${value}\n`;
+      }
     } else if (subcommand === "get" && parts[3] === "view") {
-      const value = state.view_mode ?? "issues";
-      lastStdout = `${value}\n`;
+      if (!serverRunning) {
+        lastStdout = `${offlineMessage}\n`;
+      } else {
+        const value = state.view_mode ?? "issues";
+        lastStdout = `${value}\n`;
+      }
     } else if (subcommand === "get" && parts[3] === "search") {
-      const value = state.search_query ?? "";
-      lastStdout = `${value}\n`;
+      if (!serverRunning) {
+        lastStdout = `${offlineMessage}\n`;
+      } else {
+        const value = state.search_query ?? "";
+        lastStdout = `${value}\n`;
+      }
     } else if (subcommand === "get") {
       lastStderr = `unsupported console command: ${command}`;
       lastExitCode = 1;
