@@ -281,6 +281,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e python
 
+      - name: Install and build shared UI package
+        run: |
+          cd packages/ui
+          npm ci
+          npm run build
+
       - name: Install console dependencies
         working-directory: apps/console
         run: npm ci
