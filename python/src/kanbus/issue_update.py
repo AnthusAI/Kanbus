@@ -133,17 +133,6 @@ def update_issue(
             current_labels.difference_update(remove_labels)
         labels = list(current_labels)
 
-    if (
-        resolved_status is None
-        and title is None
-        and description is None
-        and assignee is None
-        and priority is None
-        and labels is None
-        and parent is None
-    ):
-        raise IssueUpdateError("no updates requested")
-
     updated_parent: Optional[str] = None
     if parent is not None:
         issues_dir = project_dir / "issues"
@@ -165,6 +154,17 @@ def update_issue(
                 except InvalidHierarchyError as error:
                     raise IssueUpdateError(str(error)) from error
             updated_parent = resolved_parent
+
+    if (
+        resolved_status is None
+        and title is None
+        and description is None
+        and assignee is None
+        and priority is None
+        and labels is None
+        and updated_parent is None
+    ):
+        raise IssueUpdateError("no updates requested")
 
     if resolved_status is not None:
         if validate:

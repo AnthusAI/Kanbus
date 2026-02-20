@@ -7,6 +7,22 @@ How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules,
 Performance: Prefer kanbusr (Rust) when available; kanbus (Python) is equivalent but slower.
 Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Kanbus.
 
+## System-wide kbs/kbsc install (agent PATH)
+
+The agent environment only sees `/usr/local/bin` by default. To ensure `kbs` and `kbsc` are always available without PATH hacks, use the repo helper:
+
+```bash
+tools/install-system.sh
+```
+
+To avoid reinstalling after every build, use a one-time system-wide symlink:
+
+```bash
+tools/install-system.sh --mode symlink
+```
+
+This may require sudo once to create the links in `/usr/local/bin`. After that, rebuild with `cargo build --release` and the symlinks will pick up the new binaries automatically.
+
 ## Console UI Control
 
 When the user is actively watching the Kanbus console UI (typically at http://localhost:4242), you can programmatically control the interface to guide their attention. These commands use real-time socket+SSE notifications with sub-100ms latency.
@@ -317,5 +333,4 @@ Before any PR can merge:
 7. **Run parity checker** to verify both implementations are in sync
 8. **Run all quality gates**
 9. **Submit PR only when all gates pass**
-
 

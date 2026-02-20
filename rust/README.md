@@ -44,6 +44,21 @@ kanbus-console         # or: kbsc
 # Opens web UI at http://127.0.0.1:5174/
 ```
 
+## System-wide install (agent-friendly PATH)
+
+Use the repo helper to install or symlink binaries into a system PATH like
+`/usr/local/bin` or `/opt/homebrew/bin`:
+
+```bash
+tools/install-system.sh
+```
+
+To avoid re-installing after every build, use symlinks:
+
+```bash
+tools/install-system.sh --mode symlink
+```
+
 For full guidance, see the Kanbus documentation:
 
 - Homepage: https://kanb.us
