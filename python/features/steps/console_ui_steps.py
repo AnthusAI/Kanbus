@@ -16,7 +16,6 @@ from zoneinfo import ZoneInfo
 
 from behave import given, then, when
 
-
 # ---------------------------------------------------------------------------
 # kbsc server lifecycle helpers
 # ---------------------------------------------------------------------------
