@@ -28,7 +28,7 @@ export function BoardColumn({
   if (collapsed) {
     return (
       <div
-        className="kb-column flex flex-col items-start h-full min-h-0 cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+        className="kb-column flex flex-col items-center h-full min-h-0 cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
         style={{ minWidth: "48px", maxWidth: "48px" }}
         onClick={onToggleCollapse}
         title={`${title.replace(/_/g, " ")} (${issues.length}) - Click to expand`}
@@ -36,7 +36,7 @@ export function BoardColumn({
         <div className="h-7 flex items-center justify-center px-2 w-full">
           <span className="text-xs font-semibold">{issues.length}</span>
         </div>
-        <div className="flex flex-col items-center mt-1 px-2 w-full flex-1">
+        <div className="flex flex-col items-center px-2">
           <span
             className="text-xs font-semibold uppercase tracking-wider"
             style={{
@@ -62,9 +62,9 @@ export function BoardColumn({
         onClick={onToggleCollapse}
         title="Click to collapse"
       >
-        <span className="column-animate-in inline-flex items-center gap-2 min-w-0">
-          <ChevronLeft className="w-4 h-4 text-muted shrink-0" aria-hidden="true" />
+        <span className="column-animate-in inline-flex items-center gap-0 min-w-0">
           <span className="min-w-0 truncate">{title.replace(/_/g, " ")}</span>
+          <ChevronLeft className="w-4 h-4 text-muted shrink-0" aria-hidden="true" />
         </span>
         <span className="column-animate-in pr-1">{issues.length}</span>
       </div>
