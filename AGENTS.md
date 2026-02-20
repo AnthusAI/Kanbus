@@ -323,14 +323,19 @@ Before any PR can merge:
 
 **Problem:** `cargo tarpaulin` with `--engine ptrace` fails on macOS (unsupported). `--engine llvm` can fail with `Parsing failed` unless you use the rustup LLVM tools.
 
-**Known-good local command (macOS):**
+**Known-good local command (macOS, requires cargo-tarpaulin 0.31.1):**
+```bash
+cargo install cargo-tarpaulin --locked --version 0.31.1
+```
 ```bash
 PATH="$HOME/.cargo/bin:$PATH" \
+RUSTUP_TOOLCHAIN=stable \
+RUSTC="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc" \
 LLVM_PROFDATA="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-profdata" \
 LLVM_COV="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-cov" \
-cargo tarpaulin --engine llvm --lib --test cucumber \
+cargo tarpaulin --engine llvm --lib --test cucumber --implicit-test-threads \
   --exclude-files "src/bin/*" --exclude-files "features/steps/*" \
-  --out Xml --output-dir ../coverage-rust -- --test-threads 1
+  --out Xml --output-dir ../coverage-rust
 ```
 
 **If you still see `Parsing failed`** on macOS, run the Linux ptrace path instead (CI or a Linux host):
