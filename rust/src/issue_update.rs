@@ -7,6 +7,7 @@ use std::path::Path;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
+use crate::issue_creation::resolve_issue_identifier;
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::IssueData;
@@ -40,6 +41,7 @@ pub fn update_issue(
     add_labels: &[String],
     remove_labels: &[String],
     set_labels: Option<&str>,
+    parent: Option<&str>,
 ) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let config_path = get_configuration_path(lookup.project_dir.as_path())?;
@@ -116,11 +118,34 @@ pub fn update_issue(
         }
     }
 
+    let mut updated_parent: Option<String> = None;
+    if let Some(parent_candidate) = parent {
+        let issues_dir = lookup.project_dir.join("issues");
+        let resolved_parent =
+            resolve_issue_identifier(&issues_dir, &configuration.project_key, parent_candidate)?;
+        if updated_issue.parent.as_deref() != Some(resolved_parent.as_str()) {
+            if validate {
+                let parent_path = issues_dir.join(format!("{resolved_parent}.json"));
+                if !parent_path.exists() {
+                    return Err(KanbusError::IssueOperation("not found".to_string()));
+                }
+                let parent_issue = read_issue_from_file(&parent_path)?;
+                crate::hierarchy::validate_parent_child_relationship(
+                    &configuration,
+                    &parent_issue.issue_type,
+                    &updated_issue.issue_type,
+                )?;
+            }
+            updated_parent = Some(resolved_parent);
+        }
+    }
+
     if resolved_status.is_none()
         && updated_title.is_none()
         && updated_description.is_none()
         && updated_assignee.is_none()
         && updated_labels.is_none()
+        && updated_parent.is_none()
     {
         return Err(KanbusError::IssueOperation(
             "no updates requested".to_string(),
@@ -153,6 +178,9 @@ pub fn update_issue(
     if let Some(new_labels) = updated_labels {
         updated_issue.labels = new_labels;
     }
+    if let Some(new_parent) = updated_parent {
+        updated_issue.parent = Some(new_parent);
+    }
     updated_issue.updated_at = current_time;
 
     write_issue_to_file(&updated_issue, &lookup.issue_path)?;
@@ -172,6 +200,9 @@ pub fn update_issue(
     }
     if assignee.is_some() || claim {
         fields_changed.push("assignee".to_string());
+    }
+    if parent.is_some() {
+        fields_changed.push("parent".to_string());
     }
     let _ = publish_notification(
         root,

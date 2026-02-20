@@ -251,12 +251,17 @@ def then_created_issue_assignee(context: object) -> None:
     assert issue.assignee == "dev@example.com"
 
 
-@then('the created issue should have parent "kanbus-epic01"')
-def then_created_issue_parent(context: object) -> None:
+@when('I run "kanbus create Child short parent --parent kanbus-abcdef"')
+def when_run_create_short_parent(context: object) -> None:
+    run_cli(context, "kanbus create Child short parent --parent kanbus-abcdef")
+
+
+@then('the created issue should have parent "{parent_identifier}"')
+def then_created_issue_parent(context: object, parent_identifier: str) -> None:
     identifier = capture_issue_identifier(context)
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
-    assert issue.parent == "kanbus-epic01"
+    assert issue.parent == parent_identifier
 
 
 @then('the created issue should have labels "auth, urgent"')

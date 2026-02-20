@@ -131,6 +131,9 @@ enum Commands {
         /// Set labels (comma-separated).
         #[arg(long = "set-labels")]
         set_labels: Option<String>,
+        /// Updated parent issue identifier.
+        #[arg(long)]
+        parent: Option<String>,
         /// Claim the issue.
         #[arg(long)]
         claim: bool,
@@ -711,6 +714,7 @@ fn execute_command(
             add_labels,
             remove_labels,
             set_labels,
+            parent,
             claim,
             no_validate,
         } => {
@@ -743,6 +747,11 @@ fn execute_command(
                 }
             }
             if beads_mode {
+                if parent.is_some() {
+                    return Err(KanbusError::IssueOperation(
+                        "parent update not supported in beads mode".to_string(),
+                    ));
+                }
                 update_beads_issue(
                     &root_for_beads,
                     &identifier,
@@ -766,6 +775,7 @@ fn execute_command(
                     &add_labels,
                     &remove_labels,
                     set_labels.as_deref(),
+                    parent.as_deref(),
                 )?;
             }
             let formatted_identifier = format_issue_key(&identifier, false);

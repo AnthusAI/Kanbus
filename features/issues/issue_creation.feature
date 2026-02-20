@@ -34,6 +34,21 @@ Feature: Issue creation
     And the created issue should have labels "auth, urgent"
     And the created issue should have description "Bug in login"
 
+  Scenario: Create resolves short parent id
+    Given a Kanbus project with default configuration
+    And an "epic" issue "kanbus-abcdef123456" exists
+    When I run "kanbus create Child short parent --parent kanbus-abcdef"
+    Then the command should succeed
+    And the created issue should have parent "kanbus-abcdef123456"
+
+  Scenario: Create fails with ambiguous short parent id
+    Given a Kanbus project with default configuration
+    And an "epic" issue "kanbus-abcdef123456" exists
+    And an "epic" issue "kanbus-abcdef999999" exists
+    When I run "kanbus create Child short parent --parent kanbus-abcdef"
+    Then the command should fail with exit code 1
+    And stderr should contain "ambiguous short id"
+
   Scenario: Create an issue with invalid type
     Given a Kanbus project with default configuration
     When I run "kanbus create Bad Issue --type nonexistent"

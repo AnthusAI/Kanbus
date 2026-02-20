@@ -92,6 +92,11 @@ def when_run_update_duplicate_title(context: object) -> None:
     run_cli(context, 'kanbus update kanbus-aaa --title "duplicate title"')
 
 
+@when('I run "kanbus update kanbus-child01 --parent kanbus-abcdef"')
+def when_run_update_parent_short(context: object) -> None:
+    run_cli(context, "kanbus update kanbus-child01 --parent kanbus-abcdef")
+
+
 @then('issue "kanbus-aaa" should have title "New Title"')
 def then_issue_has_title(context: object) -> None:
     project_dir = load_project_directory(context)
@@ -111,3 +116,12 @@ def then_issue_has_updated_at(context: object) -> None:
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, "kanbus-aaa")
     assert issue.updated_at is not None
+
+
+@then('issue "{identifier}" should have parent "{parent_identifier}"')
+def then_issue_has_parent(
+    context: object, identifier: str, parent_identifier: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.parent == parent_identifier

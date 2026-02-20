@@ -17,6 +17,7 @@ from kanbus.issue_files import (
     read_issue_from_file,
     write_issue_to_file,
 )
+from kanbus.issue_lookup import IssueLookupError, resolve_issue_identifier
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.project import (
     ProjectMarkerError,
@@ -95,6 +96,15 @@ def create_issue(
     resolved_priority = (
         priority if priority is not None else configuration.default_priority
     )
+    resolved_parent = parent
+    if parent is not None:
+        try:
+            resolved_parent = resolve_issue_identifier(
+                issues_dir, configuration.project_key, parent
+            )
+        except IssueLookupError as error:
+            raise IssueCreationError(str(error)) from error
+
     if validate:
         valid_types = configuration.hierarchy + configuration.types
         if resolved_type not in valid_types:
@@ -103,8 +113,8 @@ def create_issue(
         if resolved_priority not in configuration.priorities:
             raise IssueCreationError("invalid priority")
 
-        if parent is not None:
-            parent_path = issues_dir / f"{parent}.json"
+        if resolved_parent is not None:
+            parent_path = issues_dir / f"{resolved_parent}.json"
             if not parent_path.exists():
                 raise IssueCreationError("not found")
             parent_issue = read_issue_from_file(parent_path)
@@ -154,7 +164,7 @@ def create_issue(
         priority=resolved_priority,
         assignee=resolved_assignee,
         creator=None,
-        parent=parent,
+        parent=resolved_parent,
         labels=list(labels),
         dependencies=[],
         comments=[],

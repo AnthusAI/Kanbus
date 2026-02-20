@@ -10,7 +10,12 @@ from pydantic import ValidationError
 
 from kanbus.config_loader import load_project_configuration
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
-from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+from kanbus.issue_lookup import (
+    IssueLookupError,
+    load_issue_from_project,
+    resolve_issue_identifier,
+)
+from kanbus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
 from kanbus.models import IssueData
 from kanbus.project import get_configuration_path
 from kanbus.workflows import (
@@ -38,6 +43,7 @@ def update_issue(
     add_labels: Optional[list[str]] = None,
     remove_labels: Optional[list[str]] = None,
     set_labels: Optional[list[str]] = None,
+    parent: Optional[str] = None,
 ) -> IssueData:
     """Update an issue and persist it to disk.
 
@@ -63,6 +69,8 @@ def update_issue(
     :type remove_labels: Optional[list[str]]
     :param set_labels: Labels to set (replacing all existing labels).
     :type set_labels: Optional[list[str]]
+    :param parent: Updated parent identifier.
+    :type parent: Optional[str]
     :return: Updated issue data.
     :rtype: IssueData
     :raises IssueUpdateError: If the update fails.
@@ -132,8 +140,31 @@ def update_issue(
         and assignee is None
         and priority is None
         and labels is None
+        and parent is None
     ):
         raise IssueUpdateError("no updates requested")
+
+    updated_parent: Optional[str] = None
+    if parent is not None:
+        issues_dir = project_dir / "issues"
+        try:
+            resolved_parent = resolve_issue_identifier(
+                issues_dir, configuration.project_key, parent
+            )
+        except IssueLookupError as error:
+            raise IssueUpdateError(str(error)) from error
+        if updated_issue.parent != resolved_parent:
+            if validate:
+                parent_issue = read_issue_from_file(issues_dir / f"{resolved_parent}.json")
+                try:
+                    validate_parent_child_relationship(
+                        configuration,
+                        parent_issue.issue_type,
+                        updated_issue.issue_type,
+                    )
+                except InvalidHierarchyError as error:
+                    raise IssueUpdateError(str(error)) from error
+            updated_parent = resolved_parent
 
     if resolved_status is not None:
         if validate:
@@ -167,6 +198,8 @@ def update_issue(
         update_fields["priority"] = priority
     if labels is not None:
         update_fields["labels"] = labels
+    if updated_parent is not None:
+        update_fields["parent"] = updated_parent
 
     updated_issue = updated_issue.model_copy(update=update_fields)
     write_issue_to_file(updated_issue, lookup.issue_path)

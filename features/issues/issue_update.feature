@@ -10,6 +10,23 @@ Feature: Issue update
     And issue "kanbus-aaa" should have description "Updated description"
     And issue "kanbus-aaa" should have an updated_at timestamp
 
+  Scenario: Update resolves short parent id
+    Given a Kanbus project with default configuration
+    And an "epic" issue "kanbus-abcdef123456" exists
+    And an issue "kanbus-child01" exists
+    When I run "kanbus update kanbus-child01 --parent kanbus-abcdef"
+    Then the command should succeed
+    And issue "kanbus-child01" should have parent "kanbus-abcdef123456"
+
+  Scenario: Update fails with ambiguous short parent id
+    Given a Kanbus project with default configuration
+    And an "epic" issue "kanbus-abcdef123456" exists
+    And an "epic" issue "kanbus-abcdef999999" exists
+    And an issue "kanbus-child01" exists
+    When I run "kanbus update kanbus-child01 --parent kanbus-abcdef"
+    Then the command should fail with exit code 1
+    And stderr should contain "ambiguous short id"
+
   Scenario: Update issue status with a valid transition
     Given a Kanbus project with default configuration
     And an issue "kanbus-aaa" exists with status "open"

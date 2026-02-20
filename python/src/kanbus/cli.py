@@ -292,6 +292,7 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
 @click.option("--status")
 @click.option("--priority", type=int)
 @click.option("--assignee")
+@click.option("--parent")
 @click.option("--add-label", "add_labels", multiple=True)
 @click.option("--remove-label", "remove_labels", multiple=True)
 @click.option("--set-labels", "set_labels")
@@ -304,6 +305,7 @@ def update(
     status: str | None,
     priority: int | None,
     assignee: str | None,
+    parent: str | None,
     add_labels: tuple[str, ...],
     remove_labels: tuple[str, ...],
     set_labels: str | None,
@@ -324,6 +326,8 @@ def update(
     :type priority: int | None
     :param assignee: Updated assignee.
     :type assignee: str | None
+    :param parent: Updated parent identifier.
+    :type parent: str | None
     :param claim: Whether to claim the issue.
     :type claim: bool
     """
@@ -353,6 +357,8 @@ def update(
         parsed_set_labels = [label.strip() for label in set_labels.split(",")]
 
     if beads_mode:
+        if parent is not None:
+            raise click.ClickException("parent update not supported in beads mode")
         try:
             update_beads_issue(
                 root,
@@ -388,6 +394,7 @@ def update(
             add_labels=list(add_labels) if add_labels else None,
             remove_labels=list(remove_labels) if remove_labels else None,
             set_labels=parsed_set_labels,
+            parent=parent,
         )
     except IssueUpdateError as error:
         raise click.ClickException(str(error)) from error

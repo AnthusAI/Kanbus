@@ -189,6 +189,7 @@ fn cover_additional_paths() {
         &[],
         &[],
         None,
+        None,
     );
     let _ = update_issue(
         root,
@@ -201,6 +202,7 @@ fn cover_additional_paths() {
         true,
         &[],
         &[],
+        None,
         None,
     );
     let _ = update_issue(
@@ -215,6 +217,7 @@ fn cover_additional_paths() {
         &[],
         &[],
         None,
+        None,
     );
     let _ = update_issue(
         root,
@@ -227,6 +230,7 @@ fn cover_additional_paths() {
         true,
         &[],
         &[],
+        None,
         None,
     );
 

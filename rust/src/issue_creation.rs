@@ -62,13 +62,20 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
 
     let resolved_type = request.issue_type.as_deref().unwrap_or("task");
     let resolved_priority = request.priority.unwrap_or(configuration.default_priority);
+    // Resolve parent: accept full id or unique short id (projectkey-<prefix>).
+    let mut resolved_parent = request.parent.clone();
+    if let Some(parent_identifier) = resolved_parent.clone() {
+        let full_id =
+            resolve_issue_identifier(&issues_dir, &configuration.project_key, &parent_identifier)?;
+        resolved_parent = Some(full_id);
+    }
     if request.validate {
         validate_issue_type(&configuration, resolved_type)?;
         if !configuration.priorities.contains_key(&resolved_priority) {
             return Err(KanbusError::IssueOperation("invalid priority".to_string()));
         }
 
-        if let Some(parent_identifier) = request.parent.as_deref() {
+        if let Some(parent_identifier) = resolved_parent.as_deref() {
             let parent_path = issue_path_for_identifier(&issues_dir, parent_identifier);
             if !parent_path.exists() {
                 return Err(KanbusError::IssueOperation("not found".to_string()));
@@ -121,7 +128,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         priority: resolved_priority as i32,
         assignee: resolved_assignee,
         creator: None,
-        parent: request.parent.clone(),
+        parent: resolved_parent.clone(),
         labels: request.labels.clone(),
         dependencies: Vec::<DependencyLink>::new(),
         comments: Vec::new(),
@@ -184,4 +191,57 @@ fn find_duplicate_title(issues_dir: &Path, title: &str) -> Result<Option<String>
         }
     }
     Ok(None)
+}
+
+/// Resolve an issue identifier from a user-provided value.
+///
+/// Accepts a full id or a unique short id (`{project_key}-{prefix}` up to 6 chars).
+pub fn resolve_issue_identifier(
+    issues_dir: &Path,
+    project_key: &str,
+    candidate: &str,
+) -> Result<String, KanbusError> {
+    // First, try exact match on filename.
+    let exact_path = issue_path_for_identifier(issues_dir, candidate);
+    if exact_path.exists() {
+        return Ok(candidate.to_string());
+    }
+
+    // Otherwise, attempt a unique short-id match.
+    let identifiers = list_issue_identifiers(issues_dir)?;
+    let mut matches: Vec<String> = identifiers
+        .into_iter()
+        .filter(|full_id| short_id_matches(candidate, project_key, full_id))
+        .collect();
+
+    match matches.len() {
+        1 => Ok(matches.pop().expect("single match")),
+        0 => Err(KanbusError::IssueOperation("not found".to_string())),
+        _ => Err(KanbusError::IssueOperation(
+            "ambiguous short id".to_string(),
+        )),
+    }
+}
+
+/// Determine whether a short identifier matches a full identifier.
+pub fn short_id_matches(candidate: &str, project_key: &str, full_id: &str) -> bool {
+    if !candidate.starts_with(project_key) {
+        return false;
+    }
+    let mut parts = candidate.splitn(2, '-');
+    let prefix_key = parts.next().unwrap_or("");
+    let prefix = parts.next().unwrap_or("");
+    if prefix_key != project_key {
+        return false;
+    }
+    if prefix.is_empty() || prefix.len() > 6 {
+        return false;
+    }
+    let mut full_parts = full_id.splitn(2, '-');
+    let full_key = full_parts.next().unwrap_or("");
+    let full_suffix = full_parts.next().unwrap_or("");
+    if full_key != project_key {
+        return false;
+    }
+    full_suffix.starts_with(prefix)
 }
