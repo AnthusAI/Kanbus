@@ -18,6 +18,7 @@ class CommandResult:
     return_code: int
     stdout: str
     stderr: str
+    cwd: Path | None
 
 
 def run_command(command: list[str], cwd: Path | None = None) -> CommandResult:
@@ -42,6 +43,7 @@ def run_command(command: list[str], cwd: Path | None = None) -> CommandResult:
         return_code=result.returncode,
         stdout=result.stdout or "",
         stderr=result.stderr or "",
+        cwd=cwd,
     )
 
 
@@ -55,8 +57,24 @@ def ensure_success(result: CommandResult, label: str) -> None:
     :raises RuntimeError: If the command failed.
     """
     if result.return_code != 0:
-        details = (result.stderr or result.stdout).strip()
-        raise RuntimeError(f"{label} failed: {details}")
+        stdout = result.stdout.strip()
+        stderr = result.stderr.strip()
+        parts = [
+            f"{label} failed.",
+            f"Command: {' '.join(result.command)}",
+        ]
+        if result.cwd is not None:
+            parts.append(f"Working directory: {result.cwd}")
+        parts.append(f"Exit code: {result.return_code}")
+        if stdout:
+            parts.append("Stdout:")
+            parts.append(stdout)
+        if stderr:
+            parts.append("Stderr:")
+            parts.append(stderr)
+        if not stdout and not stderr:
+            parts.append("No stdout/stderr output captured.")
+        raise RuntimeError("\n".join(parts))
 
 
 def build_release(repo_root: Path, target: str | None) -> Path:
