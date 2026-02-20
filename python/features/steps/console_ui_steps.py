@@ -63,7 +63,7 @@ def _build_kbsc_if_needed(binary: Path) -> None:
         return
     repo_root = Path(__file__).resolve().parents[3]
     result = subprocess.run(
-        ["cargo", "build", "--bin", "kbsc"],
+        ["cargo", "build", "--bin", "kbsc", "--no-default-features"],
         cwd=repo_root / "rust",
         check=False,
     )
