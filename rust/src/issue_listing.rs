@@ -50,6 +50,7 @@ pub fn list_issues(
     }
     normalized.sort();
     normalized.dedup();
+    normalized.retain(|path| path.join("issues").is_dir());
     let projects = normalized;
     if projects.is_empty() {
         return Err(KanbusError::IssueOperation(
@@ -68,13 +69,23 @@ pub fn list_issues(
         return apply_query(issues, status, issue_type, assignee, label, sort, search);
     }
     if is_daemon_enabled() {
-        let payloads = request_index_list(root)?;
-        let issues: Vec<IssueData> = payloads
-            .into_iter()
-            .map(serde_json::from_value::<IssueData>)
-            .map(|result| result.map_err(|error| KanbusError::Io(error.to_string())))
-            .collect::<Result<Vec<IssueData>, KanbusError>>()?;
-        return apply_query(issues, status, issue_type, assignee, label, sort, search);
+        match request_index_list(root) {
+            Ok(payloads) => {
+                let issues: Vec<IssueData> = payloads
+                    .into_iter()
+                    .map(serde_json::from_value::<IssueData>)
+                    .map(|result| result.map_err(|error| KanbusError::Io(error.to_string())))
+                    .collect::<Result<Vec<IssueData>, KanbusError>>()?;
+                return apply_query(issues, status, issue_type, assignee, label, sort, search);
+            }
+            Err(error) => {
+                if should_fallback_to_local(&error) {
+                    let issues = list_issues_local(root)?;
+                    return apply_query(issues, status, issue_type, assignee, label, sort, search);
+                }
+                return Err(error);
+            }
+        }
     }
     let issues = list_issues_local(root)?;
     apply_query(issues, status, issue_type, assignee, label, sort, search)
@@ -83,6 +94,14 @@ pub fn list_issues(
 fn list_issues_local(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let project_dir = load_project_directory(root)?;
     list_issues_for_project(&project_dir)
+}
+
+fn should_fallback_to_local(error: &KanbusError) -> bool {
+    match error {
+        KanbusError::Io(_) => true,
+        KanbusError::IssueOperation(message) => message.starts_with("daemon"),
+        _ => false,
+    }
 }
 
 fn list_issues_for_project(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
@@ -137,6 +156,10 @@ fn list_issues_across_projects(
 ) -> Result<Vec<IssueData>, KanbusError> {
     let mut issues = Vec::new();
     for project_dir in projects {
+        let issues_dir = project_dir.join("issues");
+        if !issues_dir.is_dir() {
+            continue;
+        }
         let local_dir = if include_local || local_only {
             find_project_local_directory(project_dir)
         } else {
