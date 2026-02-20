@@ -579,7 +579,7 @@ fn execute_command(
     command: Commands,
     root: &Path,
     beads_mode: bool,
-    beads_forced: bool,
+    _beads_forced: bool,
 ) -> Result<Option<String>, KanbusError> {
     let root_for_beads = beads_root(root);
     match command {
