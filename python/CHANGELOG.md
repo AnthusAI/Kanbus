@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.10.0 (2026-02-20)
+
+### Bug Fixes
+
+- Update Cargo.lock after native-tls vendored change; add CLI aliases and enriched help
+  ([`4ceb7f3`](https://github.com/AnthusAI/Kanbus/commit/4ceb7f33b439555ce3268be5b6b38b48a9ccd020))
+
+- Vendor OpenSSL to eliminate system libssl-dev dependency for cargo install
+  ([`37835b7`](https://github.com/AnthusAI/Kanbus/commit/37835b7e1b59f5860f95535c077488d6f2b99fae))
+
+### Features
+
+- Add intuitive CLI aliases and enriched help for AI agents (Python + docs)
+  ([`e386083`](https://github.com/AnthusAI/Kanbus/commit/e38608379677f9d456a2b0b29b29901483f1dbf8))
+
+
 ## v0.9.5 (2026-02-20)
 
 ### Bug Fixes
