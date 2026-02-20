@@ -66,6 +66,21 @@ Given("the console server is running", async function () {
   // Nothing to do here; this step exists for clarity.
 });
 
+Given("no issue is focused in the console", async function () {
+  const root = projectRoot();
+  const { cacheDir } = await ensureProjectSkeleton(root);
+  const statePath = path.join(cacheDir, "console_state.json");
+  let state = {};
+  try {
+    state = JSON.parse(await fs.readFile(statePath, "utf-8"));
+  } catch (err) {
+    if (!err || err.code !== "ENOENT") throw err;
+  }
+  state.focused_issue_id = undefined;
+  await fs.mkdir(path.dirname(statePath), { recursive: true });
+  await fs.writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
+});
+
 Given("the console focused issue is {string}", async function (id) {
   const root = projectRoot();
   const { cacheDir } = await ensureProjectSkeleton(root);
