@@ -270,8 +270,7 @@ def then_issue_has_type(context: object, jira_key: str, issue_type: str) -> None
 
 
 @then(
-    'the issue with jira_key "{child_key}" should have a parent matching'
-    ' the issue with jira_key "{parent_key}"'
+    'the issue with jira_key "{child_key}" should have a parent matching the issue with jira_key "{parent_key}"'
 )
 def then_issue_parent_matches(context: object, child_key: str, parent_key: str) -> None:
     """Assert the child issue's parent field matches the parent issue's Kanbus ID.

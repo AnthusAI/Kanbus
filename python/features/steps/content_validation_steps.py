@@ -167,3 +167,18 @@ def when_validate_external_tool_directly(context: object, tool: str) -> None:
         context.validation_error = None
     except ContentValidationError as error:
         context.validation_error = error
+
+
+@given("a registered user")
+def given_registered_user(context: object) -> None:
+    _ = context
+
+
+@when("they log in")
+def when_they_log_in(context: object) -> None:
+    _ = context
+
+
+@then("they see the dashboard")
+def then_they_see_dashboard(context: object) -> None:
+    _ = context
