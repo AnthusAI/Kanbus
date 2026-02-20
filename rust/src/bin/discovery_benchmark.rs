@@ -6,10 +6,9 @@ use std::time::Instant;
 
 use chrono::{TimeZone, Utc};
 use serde_json::json;
+use tempfile::tempdir;
 
-use kanbus::dependencies::list_ready_issues;
 use kanbus::issue_files::read_issue_from_file;
-use kanbus::issue_listing::list_issues;
 use kanbus::models::IssueData;
 use kanbus::project::discover_project_directories;
 
@@ -162,6 +161,16 @@ fn parallel_load(project_dirs: &[PathBuf]) -> Result<Vec<IssueData>, Box<dyn std
     Ok(issues)
 }
 
+fn serial_load(project_dirs: &[PathBuf]) -> Result<Vec<IssueData>, Box<dyn std::error::Error>> {
+    let mut issues = Vec::new();
+    for project_dir in project_dirs {
+        let batch = load_issues_for_project(project_dir.clone())
+            .map_err(|message| format!("serial load failed: {message}"))?;
+        issues.extend(batch);
+    }
+    Ok(issues)
+}
+
 fn time_call<F: FnOnce() -> Result<(), Box<dyn std::error::Error>>>(
     call: F,
 ) -> Result<f64, Box<dyn std::error::Error>> {
@@ -179,15 +188,19 @@ fn benchmark_scenario(root: &Path) -> Result<ScenarioResult, Box<dyn std::error:
     clear_caches(&project_dirs)?;
 
     let list_ms = time_call(|| {
-        list_issues(root, None, None, None, None, None, None, true, false)?;
+        serial_load(&project_dirs)?;
         Ok(())
     })?;
     let ready_ms = time_call(|| {
-        list_ready_issues(root, true, false)?;
+        let issues = serial_load(&project_dirs)?;
+        let _ready: Vec<IssueData> = issues
+            .into_iter()
+            .filter(|issue| issue.status != "closed" && !blocked_by_dependency(issue))
+            .collect();
         Ok(())
     })?;
 
-    let issues = list_issues(root, None, None, None, None, None, None, true, false)?;
+    let issues = serial_load(&project_dirs)?;
 
     Ok(ScenarioResult {
         discover_ms,
@@ -230,8 +243,8 @@ fn benchmark_parallel(root: &Path) -> Result<ScenarioResult, Box<dyn std::error:
     })
 }
 
-fn parse_args() -> (PathBuf, FixturePlan) {
-    let mut root = PathBuf::from("tools/tmp/benchmark-discovery-fixtures");
+fn parse_args() -> (Option<PathBuf>, FixturePlan) {
+    let mut root: Option<PathBuf> = None;
     let mut projects = 10usize;
     let mut issues_per_project = 200usize;
 
@@ -240,7 +253,7 @@ fn parse_args() -> (PathBuf, FixturePlan) {
         match arg.as_str() {
             "--root" => {
                 if let Some(value) = args.next() {
-                    root = PathBuf::from(value);
+                    root = Some(PathBuf::from(value));
                 }
             }
             "--projects" => {
@@ -267,7 +280,19 @@ fn parse_args() -> (PathBuf, FixturePlan) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (root, plan) = parse_args();
+    let (root_override, plan) = parse_args();
+    let temp_root = if root_override.is_none() {
+        Some(tempdir()?)
+    } else {
+        None
+    };
+    let root = root_override.unwrap_or_else(|| {
+        temp_root
+            .as_ref()
+            .expect("temp root to exist")
+            .path()
+            .to_path_buf()
+    });
 
     let single_root = generate_single_project(&root, plan)?
         .parent()

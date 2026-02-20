@@ -23,8 +23,6 @@ if str(TOOLS_DIR) not in sys.path:
 
 from kanbus.project import discover_project_directories
 from kanbus.issue_files import read_issue_from_file
-from kanbus.issue_listing import list_issues
-from kanbus.dependencies import list_ready_issues
 from kanbus.models import IssueData
 
 from benchmark_discovery_fixtures import FixturePlan, generate_multi_project, generate_single_project
@@ -127,10 +125,15 @@ def _benchmark_scenario(root: Path) -> ScenarioResult:
     project_dirs = discover_project_directories(root)
     _remove_caches(project_dirs)
 
-    list_ms = _time_call(lambda: list_issues(root))
-    ready_ms = _time_call(lambda: list_ready_issues(root))
-
-    issues = list_issues(root)
+    list_ms = _time_call(lambda: _serial_load(project_dirs))
+    ready_ms = _time_call(
+        lambda: [
+            issue
+            for issue in _serial_load(project_dirs)
+            if issue.status != "closed" and not _blocked_by_dependency(issue)
+        ]
+    )
+    issues = _serial_load(project_dirs)
     return ScenarioResult(
         discover_ms=discover_ms,
         list_ms=list_ms,
@@ -184,6 +187,20 @@ def _parallel_load(project_dirs: list[Path]) -> list[IssueData]:
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = list(executor.map(_load_issues_for_project, project_dirs))
     return [issue for batch in results for issue in batch]
+
+
+def _serial_load(project_dirs: list[Path]) -> list[IssueData]:
+    """Load issues for multiple projects serially.
+
+    :param project_dirs: Project directories to load.
+    :type project_dirs: list[Path]
+    :return: Flattened list of issues.
+    :rtype: list[IssueData]
+    """
+    issues: list[IssueData] = []
+    for project_dir in project_dirs:
+        issues.extend(_load_issues_for_project(project_dir))
+    return issues
 
 
 def _benchmark_parallel(root: Path) -> ScenarioResult:

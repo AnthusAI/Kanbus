@@ -157,6 +157,17 @@ jobs:
           cd apps/console
           npm run test:ui
 
+      - name: Build console assets for downstream jobs
+        run: |
+          cd apps/console
+          npm run build
+
+      - name: Upload console assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-dist
+          path: apps/console/dist
+
   performance:
     runs-on: ubuntu-latest
     steps:

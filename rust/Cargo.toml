@@ -35,11 +35,11 @@ mime_guess = "2.0"
 rust-embed = { version = "8.5", optional = true }
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 native-tls = "=0.2.16"
+tempfile = "3.10.1"
 
 [dev-dependencies]
 cucumber = "0.21"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-tempfile = "3.10.1"
 regex = "1.10.4"
 shell-words = "1.1.0"
 futures = "0.3"
