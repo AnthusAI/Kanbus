@@ -296,7 +296,10 @@ jobs:
           # Matches console-ui job; ensures kbsc sees embedded assets under apps/console/dist
           NODE_ENV: production
         working-directory: apps/console
-        run: npm run build
+        run: |
+          # Ensure shared UI package is built and resolvable
+          (cd ../../packages/ui && npm run build)
+          npm run build
 
       - name: Build Rust release binary
         run: |
