@@ -236,6 +236,17 @@ def given_project_without_configuration_file(context: object) -> None:
     context.working_directory = repository
 
 
+@given("a Kanbus project with a minimal configuration file")
+def given_project_with_minimal_configuration(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = {"project_key": "tsk"}
+    (repository / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 @given("a Kanbus project with an unreadable configuration file")
 def given_project_with_unreadable_configuration_file(context: object) -> None:
     initialize_default_project(context)
@@ -452,6 +463,11 @@ def then_default_priority_should_match(context: object) -> None:
 @then('the project directory should be "{value}"')
 def then_project_directory_should_match(context: object, value: str) -> None:
     assert context.configuration.project_directory == value
+
+
+@then('the hierarchy should include "{value}"')
+def then_hierarchy_should_include(context: object, value: str) -> None:
+    assert value in context.configuration.hierarchy
 
 
 @then("the project directory should match the configured absolute path")
