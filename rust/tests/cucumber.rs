@@ -265,6 +265,7 @@ fn cover_additional_paths() {
         &[],
         &[],
         None,
+        None,
     );
 
     let _ = list_issues(root, None, None, None, None, None, None, true, false);
@@ -415,6 +416,7 @@ fn cover_additional_paths() {
         true,
         &[],
         &[],
+        None,
         None,
     );
 
