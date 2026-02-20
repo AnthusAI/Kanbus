@@ -245,6 +245,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            packages/ui/package-lock.json
+            apps/console/package-lock.json
+        working-directory: .
+
+      - name: Build shared UI package
+        working-directory: packages/ui
+        run: |
+          npm ci --prefer-offline --no-audit
+          npm run build
+
+      - name: Build console frontend assets
+        working-directory: apps/console
+        run: |
+          npm ci --prefer-offline --no-audit
+          npm run build
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
