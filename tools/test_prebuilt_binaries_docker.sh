@@ -36,6 +36,7 @@ chmod +x "$kanbusr_bin" "$console_bin"
 docker run --rm \
   -v "$work_dir":/data \
   -v "$dist_dir":/dist \
+  -w /data \
   ubuntu:24.04 \
   bash -lc '
     set -euo pipefail
