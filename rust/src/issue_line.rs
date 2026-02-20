@@ -283,9 +283,7 @@ mod tests {
         let issue = sample_issue("kanbus-abc1234");
         let line = format_issue_line(&issue, None, true, false, None, Some(false));
         let expected_id = format_issue_key(&issue.identifier, false);
-        assert!(line.contains(&format!(
-            "T | {expected_id} | - | open | P2 | Title"
-        )));
+        assert!(line.contains(&format!("T | {expected_id} | - | open | P2 | Title")));
     }
 
     #[test]
