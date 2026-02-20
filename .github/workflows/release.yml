@@ -87,6 +87,34 @@ jobs:
           ls -la dist
           twine upload dist/*
 
+      - name: Verify PyPI release
+        working-directory: python
+        if: ${{ steps.guard.outputs.skip != 'true' }}
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          import tomllib
+
+          with open("pyproject.toml", "rb") as handle:
+              version = tomllib.load(handle)["project"]["version"]
+
+          url = "https://pypi.org/pypi/kanbus/json"
+          deadline = time.time() + 120
+          while True:
+              with urllib.request.urlopen(url, timeout=10) as response:
+                  payload = json.load(response)
+              releases = payload.get("releases", {})
+              if version in releases:
+                  print(f"PyPI now shows kanbus {version}.")
+                  break
+              if time.time() >= deadline:
+                  raise SystemExit(f"PyPI did not show kanbus {version} within 120s.")
+              print(f"Waiting for PyPI to show kanbus {version}...")
+              time.sleep(10)
+          PY
+
       - name: Capture release tag
         id: release_tag
         if: ${{ steps.guard.outputs.skip != 'true' }}
