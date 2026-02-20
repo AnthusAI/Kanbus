@@ -2,6 +2,66 @@
 
 <!-- version list -->
 
+## v0.9.0 (2026-02-20)
+
+### Bug Fixes
+
+- Always install to /usr/local/bin for agent PATH compatibility
+  ([`3b27923`](https://github.com/AnthusAI/Kanbus/commit/3b27923a8e638a5b20a980fb927128835f8ab286))
+
+- Apply black and ruff formatting to Python files
+  ([`b86df81`](https://github.com/AnthusAI/Kanbus/commit/b86df81f882b9ac0d08d1323d92764828638d347))
+
+- Build kbsc without embed-assets for Python integration tests
+  ([`0c01429`](https://github.com/AnthusAI/Kanbus/commit/0c014299c213a00ed95de5cec39993b83cbcc402))
+
+- Correct short_key truncation and env var restore in jira tests
+  ([`12e3a86`](https://github.com/AnthusAI/Kanbus/commit/12e3a86930adb95271baeb94ecd0b012d2353acf))
+
+- Reformat console_ui_steps.py with current black version
+  ([`79b258c`](https://github.com/AnthusAI/Kanbus/commit/79b258c33fec3e5082d4de23a5c7bd43ec72debf))
+
+- Restore jira env vars in correct order in test cleanup
+  ([`4d2413e`](https://github.com/AnthusAI/Kanbus/commit/4d2413e4b80c4cd74282d93293fb574d477962d3))
+
+### Chores
+
+- Rerun CI clean
+  ([`2a1e7f5`](https://github.com/AnthusAI/Kanbus/commit/2a1e7f50b6b788647d5782fe06684e0ad00c0eeb))
+
+- Rerun CI clean 2
+  ([`eb57d4d`](https://github.com/AnthusAI/Kanbus/commit/eb57d4d09eab205790033725f0437353c81978f5))
+
+- Rerun CI clean 3
+  ([`b18570a`](https://github.com/AnthusAI/Kanbus/commit/b18570abe7ad19477eb4c15db413741915d1cba3))
+
+- Rerun CI clean 4
+  ([`2ab1e41`](https://github.com/AnthusAI/Kanbus/commit/2ab1e41a142acf1ca36c63fae5b88d403385943b))
+
+- Rerun CI clean 5
+  ([`46e6fe3`](https://github.com/AnthusAI/Kanbus/commit/46e6fe342d254fc7ea645569f6b6e83cc962c1fb))
+
+- Rerun CI clean 6 (let rust finish)
+  ([`1844ff6`](https://github.com/AnthusAI/Kanbus/commit/1844ff6ce203d23209b56fe8e399d31ee59eb56e))
+
+- Rerun CI clean 7 (no cancel)
+  ([`4cc1c80`](https://github.com/AnthusAI/Kanbus/commit/4cc1c8052762417405501259e04b4e006e326813))
+
+- Trigger CI
+  ([`ef30fb1`](https://github.com/AnthusAI/Kanbus/commit/ef30fb1366ac26050f15ff81767a364ce45a4285))
+
+### Features
+
+- Add console UI state commands with @console BDD integration tests
+  ([`084a302`](https://github.com/AnthusAI/Kanbus/commit/084a30260b45423fde25c47eac0b3bfc51dd31cd))
+
+- Add kanbus jira pull command with BDD specs
+  ([`131c344`](https://github.com/AnthusAI/Kanbus/commit/131c3446dd6088735a9ddd4f9cf4db219b1f78c9))
+
+- **website**: Add Jira Sync page and nav entry
+  ([`87b6df2`](https://github.com/AnthusAI/Kanbus/commit/87b6df2e75e27388e72e51eca25d0bd6f7599ae1))
+
+
 ## v0.8.2 (2026-02-19)
 
 ### Bug Fixes
