@@ -7,7 +7,7 @@ from pathlib import Path
 
 from behave import given, then, when
 
-from features.steps.shared import ensure_git_repository, run_cli
+from features.steps.shared import ensure_git_repository, run_cli, run_cli_with_input
 from kanbus.agents_management import (
     build_project_management_text,
     KANBUS_SECTION_TEXT,
@@ -100,6 +100,11 @@ def given_repo_agents_with_kanbus(context: object) -> None:
 @when('I run "kanbus setup agents"')
 def when_run_setup_agents(context: object) -> None:
     run_cli(context, "kanbus setup agents")
+
+
+@when('I run "kanbus setup agents" and respond "{response}"')
+def when_run_setup_agents_with_response(context: object, response: str) -> None:
+    run_cli_with_input(context, "kanbus setup agents", f"{response}\n")
 
 
 @when('I run "kanbus setup agents --force"')

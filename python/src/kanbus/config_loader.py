@@ -29,6 +29,7 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
         raise ConfigurationError("configuration file not found")
 
     data = _load_configuration_data(path)
+    _validate_canonical_config_overrides(path, data)
     override = _load_override_configuration(path.parent / ".kanbus.override.yml")
     merged = {**DEFAULT_CONFIGURATION, **data, **override}
 
@@ -43,7 +44,32 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     if errors:
         raise ConfigurationError("; ".join(errors))
 
+    if path.name == "kanbus.yml":
+        workflow_errors = _validate_type_workflow_bindings(configuration)
+        if workflow_errors:
+            raise ConfigurationError("; ".join(workflow_errors))
+
     return configuration
+
+
+def _validate_canonical_config_overrides(path: Path, data: dict) -> None:
+    if path.name != "kanbus.yml":
+        return
+    if "hierarchy" in data:
+        canonical = ["initiative", "epic", "issue", "subtask"]
+        if data["hierarchy"] != canonical:
+            raise ConfigurationError("hierarchy is fixed")
+
+
+def _validate_type_workflow_bindings(
+    configuration: ProjectConfiguration,
+) -> List[str]:
+    errors: List[str] = []
+    workflows = configuration.workflows
+    for issue_type in configuration.types:
+        if issue_type not in workflows:
+            errors.append(f"missing workflow binding for issue type '{issue_type}'")
+    return errors
 
 
 def _load_configuration_data(path: Path) -> dict:
