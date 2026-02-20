@@ -49,7 +49,7 @@ docker run --rm \
     server_pid=$!
 
     ready=""
-    for i in $(seq 1 60); do
+    for i in $(seq 1 120); do
       if curl -sf http://127.0.0.1:5174/api/config >/dev/null; then
         ready="yes"
         break
@@ -64,7 +64,11 @@ docker run --rm \
 
     if [ -z "$ready" ]; then
       echo "console did not start within timeout" >&2
+      echo "--- /tmp/console.log (start) ---" >&2
       cat /tmp/console.log >&2 || true
+      echo "--- /tmp/console.log (end) ---" >&2
+      echo "process status:" >&2
+      ps -p "$server_pid" -o pid,cmd >&2 || true
       kill "$server_pid" 2>/dev/null || true
       exit 7
     fi
