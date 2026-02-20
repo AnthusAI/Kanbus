@@ -84,7 +84,21 @@ def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool,
 @click.option("--beads", "beads_mode", is_flag=True, default=False)
 @click.pass_context
 def cli(context: click.Context, beads_mode: bool) -> None:
-    """Kanbus command line interface."""
+    """Kanbus issue tracker CLI.
+
+    \b
+    Quick start:
+      kbs list                           list all issues
+      kbs create "Fix bug" --type bug    create an issue
+      kbs update <id> --status done      update an issue
+      kbs comment <id> "Note"            add a comment
+      kbs close <id>                     close an issue
+
+    \b
+    Issue types:  initiative > epic > story / task / bug > sub-task
+    Statuses:     open  in_progress  blocked  done  closed
+    Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial
+    """
     resolved, forced = _resolve_beads_mode(context, beads_mode)
     context.obj = {"beads_mode": resolved, "beads_mode_forced": forced}
 
@@ -155,6 +169,13 @@ def create(
     no_validate: bool,
 ) -> None:
     """Create a new issue in the current project.
+
+    \b
+    Examples:
+      kbs create "Plan the roadmap" --type initiative
+      kbs create "Release v1" --type epic --parent <initiative-id>
+      kbs create "Implement login" --type task --parent <epic-id>
+      kbs create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
 
     :param title: Issue title words.
     :type title: tuple[str, ...]
@@ -598,7 +619,16 @@ def list_command(
     limit: int,
     porcelain: bool,
 ) -> None:
-    """List issues in the current project."""
+    """List issues in the current project.
+
+    \b
+    Examples:
+      kbs list
+      kbs list --type epic
+      kbs list --status open
+      kbs list --type task --status in_progress
+      kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
+    """
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     try:
@@ -1107,6 +1137,41 @@ def jira_pull(context: click.Context, dry_run: bool) -> None:
         raise click.ClickException(str(error)) from error
 
     click.echo(f"pulled {result.pulled} new, updated {result.updated} existing")
+
+
+@cli.command("issues", hidden=True)
+@click.pass_context
+def issues_alias(context: click.Context) -> None:
+    """Alias for: kbs list"""
+    context.invoke(list_command)
+
+
+@cli.command("epics", hidden=True)
+@click.pass_context
+def epics_alias(context: click.Context) -> None:
+    """Alias for: kbs list --type epic"""
+    context.invoke(list_command, issue_type="epic")
+
+
+@cli.command("tasks", hidden=True)
+@click.pass_context
+def tasks_alias(context: click.Context) -> None:
+    """Alias for: kbs list --type task"""
+    context.invoke(list_command, issue_type="task")
+
+
+@cli.command("stories", hidden=True)
+@click.pass_context
+def stories_alias(context: click.Context) -> None:
+    """Alias for: kbs list --type story"""
+    context.invoke(list_command, issue_type="story")
+
+
+@cli.command("bugs", hidden=True)
+@click.pass_context
+def bugs_alias(context: click.Context) -> None:
+    """Alias for: kbs list --type bug"""
+    context.invoke(list_command, issue_type="bug")
 
 
 if __name__ == "__main__":
