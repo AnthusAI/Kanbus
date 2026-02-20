@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.9.1 (2026-02-20)
+
+### Bug Fixes
+
+- Align python version sources to v0.9.0
+  ([`345eb3f`](https://github.com/AnthusAI/Kanbus/commit/345eb3fe7e5488b266b2d4867e9cd883f4204d49))
+
+
 ## v0.9.0 (2026-02-20)
 
 ### Bug Fixes
