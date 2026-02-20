@@ -83,6 +83,7 @@ jobs:
       RUST_BACKTRACE: 1
       CARGO_HTTP_TIMEOUT: 120
       CARGO_NET_RETRY: 5
+      CARGO_HTTP_MULTIPLEXING: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -130,8 +131,12 @@ jobs:
           cd rust
           mkdir -p ../coverage-rust
           set -x
-          timeout 1800s bash -lc 'time cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"'
-          timeout 600s bash -lc 'time cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobertura.xml'
+          heartbeat() { while sleep 60; do echo "[heartbeat] rust coverage running $(date -u)"; done; }
+          heartbeat &
+          hb_pid=$!
+          timeout 1800s bash -lc 'time stdbuf -oL cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"'
+          timeout 600s bash -lc 'time stdbuf -oL cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobertura.xml'
+          kill $hb_pid || true
 
       - name: Capture Rust coverage
         id: rust_coverage
