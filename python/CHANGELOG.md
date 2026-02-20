@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.10.1 (2026-02-20)
+
+### Bug Fixes
+
+- Add rust_only dispatch input to publish Rust crate for existing tag
+  ([`049c389`](https://github.com/AnthusAI/Kanbus/commit/049c3891096e94e02226ba91fa454372bf28ee8a))
+
+- Remove stale-SHA guard that skipped automated releases
+  ([`bdd7ba1`](https://github.com/AnthusAI/Kanbus/commit/bdd7ba1c5ad382951b850d8e8fb9a7eb8580df3c))
+
+
 ## v0.10.0 (2026-02-20)
 
 ### Bug Fixes
