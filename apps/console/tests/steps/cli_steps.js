@@ -53,7 +53,20 @@ When("I run {string}", async function (command) {
     const parts = command.split(/\s+/);
     const subcommand = parts[2];
 
+    const serverRunning = state.server_running !== false;
+
+    const offlineMessage = "Console server is not running";
+
+    if (!serverRunning && subcommand.startsWith("get")) {
+      lastStdout = `${offlineMessage}\n`;
+      return;
+    }
+
     if (subcommand === "status") {
+      if (!serverRunning) {
+        lastStdout = `${offlineMessage}\n`;
+        return;
+      }
       const status = {
         focused_issue_id: state.focused_issue_id ?? "none",
         view_mode: state.view_mode ?? "issues",
@@ -77,6 +90,12 @@ When("I run {string}", async function (command) {
     } else if (subcommand === "get" && parts[3] === "search") {
       const value = state.search_query ?? "";
       lastStdout = `${value}\n`;
+    } else if (subcommand === "get") {
+      lastStderr = `unsupported console command: ${command}`;
+      lastExitCode = 1;
+    } else if (subcommand === "status") {
+      lastStderr = `unsupported console command: ${command}`;
+      lastExitCode = 1;
     } else {
       lastStderr = `unsupported console command: ${command}`;
       lastExitCode = 1;
@@ -93,6 +112,12 @@ Then("the command should succeed", function () {
     throw new Error(
       `expected exit code 0, got ${lastExitCode}. stderr: ${lastStderr}`
     );
+  }
+});
+
+Then("the command should fail", function () {
+  if (lastExitCode === 0) {
+    throw new Error("expected command to fail, but it succeeded");
   }
 });
 

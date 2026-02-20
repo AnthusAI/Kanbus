@@ -62,8 +62,33 @@ Given("an issue {string} exists with title {string}", async function (id, title)
 });
 
 Given("the console server is running", async function () {
-  // The dev server is started by the test harness (start-server-and-test).
-  // Nothing to do here; this step exists for clarity.
+  const root = projectRoot();
+  const { cacheDir } = await ensureProjectSkeleton(root);
+  const statePath = path.join(cacheDir, "console_state.json");
+  let state = {};
+  try {
+    state = JSON.parse(await fs.readFile(statePath, "utf-8"));
+  } catch (err) {
+    if (!err || err.code !== "ENOENT") throw err;
+  }
+  state.server_running = true;
+  await fs.mkdir(path.dirname(statePath), { recursive: true });
+  await fs.writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
+});
+
+Given("the console server is not running", async function () {
+  const root = projectRoot();
+  const { cacheDir } = await ensureProjectSkeleton(root);
+  const statePath = path.join(cacheDir, "console_state.json");
+  let state = {};
+  try {
+    state = JSON.parse(await fs.readFile(statePath, "utf-8"));
+  } catch (err) {
+    if (!err || err.code !== "ENOENT") throw err;
+  }
+  state.server_running = false;
+  await fs.mkdir(path.dirname(statePath), { recursive: true });
+  await fs.writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
 });
 
 Given("no issue is focused in the console", async function () {
