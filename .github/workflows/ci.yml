@@ -253,6 +253,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node (for embedded console assets build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -275,6 +280,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e python
+
+      - name: Install console dependencies
+        run: npm ci --workspace apps/console
+
+      - name: Build console assets
+        env:
+          # Matches console-ui job; ensures kbsc sees embedded assets under apps/console/dist
+          NODE_ENV: production
+        run: npm run build --workspace apps/console
 
       - name: Build Rust release binary
         run: |
