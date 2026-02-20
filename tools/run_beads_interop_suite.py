@@ -40,14 +40,23 @@ def run_command(
     :return: Command result with stdout/stderr and return code.
     :rtype: CommandResult
     """
-    result = subprocess.run(
-        command,
-        cwd=cwd,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        return CommandResult(
+            command=command,
+            cwd=cwd,
+            return_code=127,
+            stdout="",
+            stderr=str(error),
+        )
     return CommandResult(
         command=command,
         cwd=cwd,
