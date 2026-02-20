@@ -123,19 +123,40 @@ remove_shadowing_copies() {
   done
 }
 
+install_to_dir() {
+  local dir="$1"
+  local cmd_prefix=""
+  [[ -w "${dir}" ]] || cmd_prefix="sudo"
+  for name in "${bin_names[@]}"; do
+    if [[ "$mode" == "symlink" ]]; then
+      ${cmd_prefix} ln -sf "${crate_dir}/target/release/${name}" "${dir}/${name}"
+      echo "Symlinked ${dir}/${name} -> ${crate_dir}/target/release/${name}"
+    else
+      ${cmd_prefix} cp -f "${crate_dir}/target/release/${name}" "${dir}/${name}"
+      echo "Installed ${dir}/${name}"
+    fi
+  done
+}
+
 if [[ "$mode" == "install" ]]; then
   cmd=(cargo install --path "${crate_dir}" --root "${prefix}" --force)
   cmd+=("${bin_args[@]}")
   ${sudo_cmd} "${cmd[@]}"
+  # Also install to /usr/local/bin so agent PATH (/usr/local/bin only) always works.
+  if [[ "${link_dir}" != "/usr/local/bin" && -d "/usr/local/bin" ]]; then
+    install_to_dir "/usr/local/bin"
+  fi
   remove_shadowing_copies
   exit 0
 fi
 
 cargo build --manifest-path "${crate_dir}/Cargo.toml" --release "${bin_args[@]}"
 
-for name in "${bin_names[@]}"; do
-  ${sudo_cmd} ln -sf "${crate_dir}/target/release/${name}" "${link_dir}/${name}"
-  echo "Symlinked ${link_dir}/${name} -> ${crate_dir}/target/release/${name}"
-done
+install_to_dir "${link_dir}"
+
+# Also install to /usr/local/bin so agent PATH (/usr/local/bin only) always works.
+if [[ "${link_dir}" != "/usr/local/bin" && -d "/usr/local/bin" ]]; then
+  install_to_dir "/usr/local/bin"
+fi
 
 remove_shadowing_copies
