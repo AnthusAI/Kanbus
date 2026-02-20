@@ -717,7 +717,7 @@ fn given_repo_with_workflow_statuses_not_in_list(world: &mut KanbusWorld) {
     });
 }
 
-#[given("a Kanbus project with canonical priorities {string}")]
+#[given(expr = "a Kanbus project with canonical priorities {string}")]
 fn given_project_with_canonical_priorities(world: &mut KanbusWorld, priorities: String) {
     let parsed = priorities
         .split(',')
