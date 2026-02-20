@@ -20,17 +20,13 @@ from kanbus.issue_display import format_issue_for_display
 from kanbus.models import DependencyLink, IssueComment
 
 
-@given('an issue "kanbus-aaa" exists with title "Implement OAuth2 flow"')
-def given_issue_exists_with_title(context: object) -> None:
-    project_dir = load_project_directory(context)
-    issue = build_issue("kanbus-aaa", "Implement OAuth2 flow", "task", "open", None, [])
-    write_issue_file(project_dir, issue)
 
-
-@given('an issue "kanbus-desc" exists with title "Describe me"')
-def given_issue_desc_exists(context: object) -> None:
+@given('an issue "{identifier}" exists with title "{title}"')
+def given_issue_exists_with_title_generic(
+    context: object, identifier: str, title: str
+) -> None:
     project_dir = load_project_directory(context)
-    issue = build_issue("kanbus-desc", "Describe me", "task", "open", None, [])
+    issue = build_issue(identifier, title, "task", "open", None, [])
     write_issue_file(project_dir, issue)
 
 

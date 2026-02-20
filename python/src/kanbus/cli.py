@@ -59,6 +59,8 @@ from kanbus.dependency_tree import (
 )
 from kanbus.wiki import WikiError, WikiRenderRequest, render_wiki_page
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from kanbus.console_ui_state import fetch_console_ui_state
+from kanbus.notification_publisher import publish_notification
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
@@ -701,6 +703,128 @@ def console_snapshot() -> None:
         raise click.ClickException(str(error)) from error
     payload = json.dumps(snapshot, indent=2, sort_keys=False)
     click.echo(payload)
+
+
+@console.command("focus")
+@click.argument("identifier")
+@click.option("--comment", default=None, help="Comment ID to scroll to.")
+def console_focus(identifier: str, comment: Optional[str]) -> None:
+    """Focus on an issue and its descendants in the console."""
+    from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+
+    root = Path.cwd()
+    try:
+        result = load_issue_from_project(root, identifier)
+        issue_id = result.issue.identifier
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+    event: dict = {
+        "type": "issue_focused",
+        "issue_id": issue_id,
+    }
+    if comment:
+        event["comment_id"] = comment
+    publish_notification(root, event)
+    if comment:
+        click.echo(f"Focused on issue {issue_id} (comment {comment})")
+    else:
+        click.echo(f"Focused on issue {issue_id}")
+
+
+@console.command("unfocus")
+def console_unfocus() -> None:
+    """Clear the current focus filter in the console."""
+    root = Path.cwd()
+    publish_notification(root, {"type": "ui_control", "action": {"action": "clear_focus"}})
+    click.echo("Cleared focus filter")
+
+
+@console.command("view")
+@click.argument("mode", type=click.Choice(["initiatives", "epics", "issues"]))
+def console_view(mode: str) -> None:
+    """Switch the console to a different view mode."""
+    root = Path.cwd()
+    publish_notification(
+        root,
+        {"type": "ui_control", "action": {"action": "set_view_mode", "mode": mode}},
+    )
+    click.echo(f"Switched to {mode} view")
+
+
+@console.command("search")
+@click.argument("query", required=False, default=None)
+@click.option("--clear", is_flag=True, help="Clear the active search query.")
+def console_search(query: Optional[str], clear: bool) -> None:
+    """Set or clear the search query in the console."""
+    root = Path.cwd()
+    if clear:
+        search_query = ""
+    elif query:
+        search_query = query
+    else:
+        raise click.UsageError("Provide a query or use --clear.")
+    publish_notification(
+        root,
+        {"type": "ui_control", "action": {"action": "set_search", "query": search_query}},
+    )
+    if clear or not search_query:
+        click.echo("Cleared search query")
+    else:
+        click.echo(f"Set search query to: {search_query}")
+
+
+@console.command("status")
+def console_status() -> None:
+    """Print a human-readable summary of the current console UI state."""
+    root = Path.cwd()
+    ui_state = fetch_console_ui_state(root)
+    if ui_state is None:
+        click.echo("Console server is not running.")
+        return
+    focused = ui_state.get("focused_issue_id") or "none"
+    view = ui_state.get("view_mode") or "none"
+    search = ui_state.get("search_query") or "none"
+    click.echo(f"focus:  {focused}")
+    click.echo(f"view:   {view}")
+    click.echo(f"search: {search}")
+
+
+@console.group("get")
+def console_get() -> None:
+    """Query a specific piece of console UI state."""
+
+
+@console_get.command("focus")
+def console_get_focus() -> None:
+    """Print the currently focused issue ID, or 'none'."""
+    root = Path.cwd()
+    ui_state = fetch_console_ui_state(root)
+    if ui_state is None:
+        click.echo("Console server is not running.")
+        return
+    click.echo(ui_state.get("focused_issue_id") or "none")
+
+
+@console_get.command("view")
+def console_get_view() -> None:
+    """Print the current view mode, or 'none'."""
+    root = Path.cwd()
+    ui_state = fetch_console_ui_state(root)
+    if ui_state is None:
+        click.echo("Console server is not running.")
+        return
+    click.echo(ui_state.get("view_mode") or "none")
+
+
+@console_get.command("search")
+def console_get_search() -> None:
+    """Print the active search query, or 'none'."""
+    root = Path.cwd()
+    ui_state = fetch_console_ui_state(root)
+    if ui_state is None:
+        click.echo("Console server is not running.")
+        return
+    click.echo(ui_state.get("search_query") or "none")
 
 
 @cli.command("validate")

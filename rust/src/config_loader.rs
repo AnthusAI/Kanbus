@@ -106,11 +106,16 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
         errors.push("statuses must not be empty".to_string());
     }
 
-    // Check for duplicate status keys
+    // Check for duplicate status keys/names
     let mut status_keys = std::collections::HashSet::new();
+    let mut status_names = std::collections::HashSet::new();
     for status in &configuration.statuses {
         if !status_keys.insert(&status.key) {
             errors.push("duplicate status key".to_string());
+            break;
+        }
+        if !status_names.insert(&status.name) {
+            errors.push("duplicate status name".to_string());
             break;
         }
         if !category_names.is_empty() && !category_names.contains(&status.category) {

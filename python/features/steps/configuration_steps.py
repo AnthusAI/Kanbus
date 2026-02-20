@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -125,6 +126,18 @@ def given_project_with_configuration_file(context: object) -> None:
     initialize_default_project(context)
     repository = Path(context.working_directory)
     (repository / ".kanbus.yml").write_text(
+        yaml.safe_dump(copy.deepcopy(DEFAULT_CONFIGURATION), sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given('a Kanbus project with a file "{filename}" containing a valid configuration')
+def given_project_with_config_file(context: object, filename: str) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    config_path = repository / filename
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
         yaml.safe_dump(copy.deepcopy(DEFAULT_CONFIGURATION), sort_keys=False),
         encoding="utf-8",
     )
@@ -257,6 +270,43 @@ def given_project_with_unreadable_configuration_file(context: object) -> None:
         encoding="utf-8",
     )
     config_path.chmod(0)
+
+
+@given('no "{filename}" file exists')
+def given_no_file_exists(context: object, filename: str) -> None:
+    repository = Path(context.temp_dir) / "repo-no-file"
+    repository.mkdir(parents=True, exist_ok=True)
+    ensure_git_repository(repository)
+    file_path = repository / filename
+    if file_path.exists():
+        if file_path.is_dir():
+            shutil.rmtree(file_path)
+        else:
+            file_path.unlink()
+    context.working_directory = repository
+
+
+@given(
+    'a Kanbus project with a file "{filename}" containing an unknown top-level field'
+)
+def given_project_with_unknown_field(context: object, filename: str) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    config_path = repository / filename
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["unknown_field"] = "value"
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given('the environment variable "{name}" is not set')
+def given_env_var_not_set(context: object, name: str) -> None:
+    if not hasattr(context, "environment_overrides"):
+        context.environment_overrides = {}
+    context.environment_overrides.pop(name, None)
 
 
 @given("a Kanbus project with an invalid configuration containing empty hierarchy")
@@ -495,20 +545,6 @@ def then_time_zone_should_match(context: object, time_zone: str) -> None:
 # Configuration standardization steps
 
 
-@given('a Kanbus project with a file "kanbus.yml" containing a valid configuration')
-def given_valid_kanbus_yml(context: object) -> None:
-    """Create a valid kanbus.yml configuration file."""
-    initialize_default_project(context)
-    repository = Path(context.working_directory)
-    config_content = """project_key: KAN
-default_priority: 2
-priorities:
-  0: {name: critical}
-  1: {name: high}
-  2: {name: medium}
-  3: {name: low}
-"""
-    (repository / "kanbus.yml").write_text(config_content, encoding="utf-8")
 
 
 @given("the environment variable KANBUS_PROJECT_KEY is not set")
@@ -520,62 +556,8 @@ def given_kanbus_project_key_not_set(context: object) -> None:
         del os.environ["KANBUS_PROJECT_KEY"]
 
 
-@given('no "kanbus.yml" file exists')
-def given_no_kanbus_yml(context: object) -> None:
-    """Ensure no kanbus.yml file exists."""
-    initialize_default_project(context)
-    repository = Path(context.working_directory)
-    kanbus_yml = repository / "kanbus.yml"
-    if kanbus_yml.exists():
-        kanbus_yml.unlink()
-    # Also remove .kanbus.yml if it exists
-    dotkanbus_yml = repository / ".kanbus.yml"
-    if dotkanbus_yml.exists():
-        dotkanbus_yml.unlink()
 
 
-@given(
-    'a Kanbus project with a file "kanbus.yml" containing an unknown top-level field'
-)
-def given_kanbus_yml_unknown_field(context: object) -> None:
-    """Create kanbus.yml with unknown field."""
-    initialize_default_project(context)
-    repository = Path(context.working_directory)
-    config_content = """project_key: KAN
-unknown_field: invalid_value
-"""
-    (repository / "kanbus.yml").write_text(config_content, encoding="utf-8")
-
-
-@given('a Kanbus project with a file "kanbus.yml" attempting to override the hierarchy')
-def given_kanbus_yml_override_hierarchy(context: object) -> None:
-    """Create kanbus.yml attempting to override hierarchy."""
-    initialize_default_project(context)
-    repository = Path(context.working_directory)
-    config_content = """project_key: KAN
-hierarchy: [custom, levels]
-"""
-    (repository / "kanbus.yml").write_text(config_content, encoding="utf-8")
-    # Mark that validation is not yet implemented
-    context.validation_not_implemented = True
-
-
-@given(
-    'a Kanbus project with a file "kanbus.yml" where issue type "bug" has no workflow binding'
-)
-def given_kanbus_yml_missing_workflow(context: object) -> None:
-    """Create kanbus.yml with issue type lacking workflow."""
-    initialize_default_project(context)
-    repository = Path(context.working_directory)
-    config_content = """project_key: KAN
-types: [bug]
-workflows:
-  default:
-    open: [in_progress, closed]
-"""
-    (repository / "kanbus.yml").write_text(config_content, encoding="utf-8")
-    # Mark that validation is not yet implemented
-    context.validation_not_implemented = True
 
 
 @given("a Kanbus project with default workflows")

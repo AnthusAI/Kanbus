@@ -2,12 +2,144 @@
 
 from __future__ import annotations
 
+import json
+import os
+import socket
+import subprocess
+import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from behave import given, then, when
+
+
+# ---------------------------------------------------------------------------
+# kbsc server lifecycle helpers
+# ---------------------------------------------------------------------------
+
+
+def _kbsc_binary_path() -> Path:
+    """Locate the kbsc binary.
+
+    Checks KBSC_BINARY env var first, then falls back to the debug build
+    under rust/target/debug/kbsc relative to the repository root.
+    """
+    env_path = os.environ.get("KBSC_BINARY")
+    if env_path:
+        return Path(env_path)
+    repo_root = Path(__file__).resolve().parents[3]
+    return repo_root / "rust" / "target" / "debug" / "kbsc"
+
+
+def _allocate_port() -> int:
+    """Bind to port 0 to obtain an ephemeral port, then release it."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def _wait_for_server(port: int, timeout: float = 10.0) -> bool:
+    """Poll GET /api/config until the server responds with 200."""
+    url = f"http://127.0.0.1:{port}/api/config"
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=0.5) as resp:
+                if resp.status == 200:
+                    return True
+        except (urllib.error.URLError, OSError):
+            pass
+        time.sleep(0.1)
+    return False
+
+
+def _build_kbsc_if_needed(binary: Path) -> None:
+    """Run `cargo build --bin kbsc` if the binary does not exist."""
+    if binary.exists():
+        return
+    repo_root = Path(__file__).resolve().parents[3]
+    result = subprocess.run(
+        ["cargo", "build", "--bin", "kbsc"],
+        cwd=repo_root / "rust",
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("cargo build --bin kbsc failed")
+
+
+def _start_kbsc(working_directory: Path, port: int) -> subprocess.Popen:  # type: ignore[type-arg]
+    binary = _kbsc_binary_path()
+    _build_kbsc_if_needed(binary)
+    return subprocess.Popen(
+        [str(binary)],
+        env={
+            **os.environ,
+            "CONSOLE_PORT": str(port),
+            "CONSOLE_DATA_ROOT": str(working_directory),
+        },
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def _write_console_port_to_config(root: Path, port: int) -> None:
+    config_path = root / ".kanbus.yml"
+    existing = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    if "console_port:" in existing:
+        lines = [
+            f"console_port: {port}" if line.startswith("console_port:") else line
+            for line in existing.splitlines()
+        ]
+        new_contents = "\n".join(lines) + "\n"
+    else:
+        new_contents = existing + f"\nconsole_port: {port}\n"
+    config_path.write_text(new_contents, encoding="utf-8")
+
+
+def _post_notification(port: int, event: dict) -> None:  # type: ignore[type-arg]
+    url = f"http://127.0.0.1:{port}/api/notifications"
+    payload = json.dumps(event).encode()
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        resp.read()
+
+
+def _stop_kbsc(port: int) -> None:
+    """Request a graceful shutdown via POST /api/shutdown (best-effort)."""
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/shutdown",
+            data=b"",
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=2)
+    except (urllib.error.URLError, OSError):
+        pass
+
+
+def stop_console_server(context: object) -> None:
+    """Shut down and wait for the kbsc process stored on context (if any)."""
+    proc = getattr(context, "console_server_process", None)
+    port = getattr(context, "console_server_port", None)
+    if proc is None:
+        return
+    if port is not None:
+        _stop_kbsc(port)
+    try:
+        proc.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+    context.console_server_process = None
+    context.console_server_port = None
 
 
 @dataclass
@@ -54,6 +186,80 @@ class ConsoleState:
 @given("the console is open")
 def given_console_open(context: object) -> None:
     context.console_state = _open_console(context)
+
+
+@given("the console server is not running")
+def given_console_server_not_running(context: object) -> None:
+    """No-op: default test environment has no console server running."""
+    context.console_server_process = None
+    context.console_server_port = None
+
+
+@given("the console server is running")
+def given_console_server_is_running(context: object) -> None:
+    """Start a real kbsc process on an ephemeral port."""
+    if getattr(context, "console_server_process", None) is not None:
+        return  # already started
+    working_directory = Path(context.working_directory)
+    port = _allocate_port()
+    _write_console_port_to_config(working_directory, port)
+    proc = _start_kbsc(working_directory, port)
+    context.console_server_process = proc
+    context.console_server_port = port
+    assert _wait_for_server(port), f"kbsc did not become ready on port {port}"
+
+
+@given('the console focused issue is "{issue_id}"')
+def given_console_focused_issue(context: object, issue_id: str) -> None:
+    _post_notification(context.console_server_port, {
+        "type": "issue_focused",
+        "issue_id": issue_id,
+        "user": None,
+        "comment_id": None,
+    })
+
+
+@given("no issue is focused in the console")
+def given_no_issue_focused(context: object) -> None:
+    _post_notification(context.console_server_port, {
+        "type": "ui_control",
+        "action": {"action": "clear_focus"},
+    })
+
+
+@given('the console view mode is "{mode}"')
+def given_console_view_mode(context: object, mode: str) -> None:
+    _post_notification(context.console_server_port, {
+        "type": "ui_control",
+        "action": {"action": "set_view_mode", "mode": mode},
+    })
+
+
+@given('the console search query is "{query}"')
+def given_console_search_query(context: object, query: str) -> None:
+    _post_notification(context.console_server_port, {
+        "type": "ui_control",
+        "action": {"action": "set_search", "query": query},
+    })
+
+
+@when("the console server is restarted")
+def when_console_server_is_restarted(context: object) -> None:
+    """Gracefully shut down kbsc and start a fresh instance on the same port."""
+    port = context.console_server_port
+    _stop_kbsc(port)
+    proc = getattr(context, "console_server_process", None)
+    if proc is not None:
+        try:
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    context.console_server_process = None
+    time.sleep(0.2)
+    working_directory = Path(context.working_directory)
+    new_proc = _start_kbsc(working_directory, port)
+    context.console_server_process = new_proc
+    assert _wait_for_server(port), f"kbsc did not become ready on port {port} after restart"
 
 
 @given("local storage is cleared")

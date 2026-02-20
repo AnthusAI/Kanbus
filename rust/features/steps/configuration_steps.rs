@@ -7,7 +7,7 @@ use serde_yaml::Value;
 use tempfile::TempDir;
 
 use kanbus::cli::run_from_args_with_output;
-use kanbus::config::write_default_configuration;
+use kanbus::config::{default_project_configuration, write_default_configuration};
 use kanbus::config_loader::load_project_configuration;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -46,6 +46,9 @@ fn initialize_project(world: &mut KanbusWorld) {
     world.temp_dir = Some(temp_dir);
     run_cli(world, "kanbus init");
     assert_eq!(world.exit_code, Some(0));
+    if let Some(root) = world.working_directory.as_ref() {
+        world.configuration_path = Some(root.join(".kanbus.yml"));
+    }
 }
 
 #[given("a Kanbus repository with a .kanbus.yml file containing the default configuration")]
@@ -62,6 +65,13 @@ fn given_repo_with_empty_configuration(world: &mut KanbusWorld) {
         .expect("working directory not set")
         .join(".kanbus.yml");
     fs::write(config_path, "").expect("write empty config");
+    world.configuration_path = Some(
+        world
+            .working_directory
+            .as_ref()
+            .expect("working directory not set")
+            .join(".kanbus.yml"),
+    );
 }
 
 #[given("a Kanbus repository with a .kanbus.yml file containing null")]
@@ -73,6 +83,13 @@ fn given_repo_with_null_configuration(world: &mut KanbusWorld) {
         .expect("working directory not set")
         .join(".kanbus.yml");
     fs::write(config_path, "null\n").expect("write null config");
+    world.configuration_path = Some(
+        world
+            .working_directory
+            .as_ref()
+            .expect("working directory not set")
+            .join(".kanbus.yml"),
+    );
 }
 
 #[given("a Kanbus repository with a .kanbus.yml file pointing to an absolute project directory")]
@@ -113,6 +130,13 @@ fn given_repo_with_non_mapping_config(world: &mut KanbusWorld) {
         .expect("working directory not set")
         .join(".kanbus.yml");
     fs::write(config_path, "- not-a-map\n").expect("write non-mapping config");
+    world.configuration_path = Some(
+        world
+            .working_directory
+            .as_ref()
+            .expect("working directory not set")
+            .join(".kanbus.yml"),
+    );
 }
 
 #[given("a Kanbus repository with a .kanbus.yml file containing an empty project directory")]
@@ -207,14 +231,23 @@ fn given_repository_without_configuration(world: &mut KanbusWorld) {
         .expect("git init failed");
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
+    world.configuration_path = Some(
+        world
+            .working_directory
+            .as_ref()
+            .expect("working directory not set")
+            .join(".kanbus.yml"),
+    );
 }
 
-fn update_config_file(world: &KanbusWorld, update: impl FnOnce(&mut serde_yaml::Mapping)) {
-    let config_path = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set")
-        .join(".kanbus.yml");
+fn update_config_file(world: &mut KanbusWorld, update: impl FnOnce(&mut serde_yaml::Mapping)) {
+    let config_path = world.configuration_path.clone().unwrap_or_else(|| {
+        world
+            .working_directory
+            .as_ref()
+            .expect("working directory not set")
+            .join(".kanbus.yml")
+    });
     if !config_path.exists() {
         write_default_configuration(&config_path).expect("write default config");
     }
@@ -223,7 +256,8 @@ fn update_config_file(world: &KanbusWorld, update: impl FnOnce(&mut serde_yaml::
     let mapping = value.as_mapping_mut().expect("mapping");
     update(mapping);
     let updated = serde_yaml::to_string(&value).expect("serialize config");
-    fs::write(config_path, updated).expect("write config");
+    fs::write(&config_path, updated).expect("write config");
+    world.configuration_path = Some(config_path);
 }
 
 #[given("a Kanbus project with an invalid configuration containing unknown fields")]
@@ -246,6 +280,7 @@ fn given_project_with_configuration_file(world: &mut KanbusWorld) {
         .expect("working directory not set")
         .join(".kanbus.yml");
     write_default_configuration(&config_path).expect("write default config");
+    world.configuration_path = Some(config_path);
 }
 
 #[given(expr = "the Kanbus configuration sets default assignee {string}")]
@@ -373,6 +408,7 @@ fn given_project_with_unreadable_configuration_file(world: &mut KanbusWorld) {
         permissions.set_mode(0o000);
         fs::set_permissions(&config_path, permissions).expect("set permissions");
     }
+    world.configuration_path = Some(config_path);
 }
 
 #[given("a Kanbus project with an invalid configuration containing empty hierarchy")]
@@ -462,14 +498,10 @@ fn when_configuration_loaded(world: &mut KanbusWorld) {
         .working_directory
         .as_ref()
         .expect("working directory not set");
-    let config_path = {
-        let candidate = root.join("kanbus.yml");
-        if candidate.exists() {
-            candidate
-        } else {
-            root.join(".kanbus.yml")
-        }
-    };
+    let config_path = world
+        .configuration_path
+        .clone()
+        .unwrap_or_else(|| root.join(".kanbus.yml"));
     match load_project_configuration(&config_path) {
         Ok(configuration) => {
             world.configuration = Some(configuration);
@@ -482,19 +514,6 @@ fn when_configuration_loaded(world: &mut KanbusWorld) {
             world.stderr = Some(error.to_string());
         }
     }
-}
-
-#[then("the project key should be \"kanbus\"")]
-fn then_project_key_should_match(world: &mut KanbusWorld) {
-    let configuration = world.configuration.as_ref().expect("configuration");
-    assert_eq!(configuration.project_key, "kanbus");
-}
-
-#[then("the hierarchy should be \"initiative, epic, task, sub-task\"")]
-fn then_hierarchy_should_match(world: &mut KanbusWorld) {
-    let configuration = world.configuration.as_ref().expect("configuration");
-    let hierarchy = configuration.hierarchy.join(", ");
-    assert_eq!(hierarchy, "initiative, epic, task, sub-task");
 }
 
 #[then("the non-hierarchical types should be \"bug, story, chore\"")]
@@ -563,7 +582,19 @@ fn given_project_with_valid_config_file(world: &mut KanbusWorld, filename: Strin
         .as_ref()
         .expect("working directory not set")
         .join(filename);
-    write_default_configuration(&config_path).expect("write config");
+    let mut config = default_project_configuration();
+    if config_path.file_name().and_then(|name| name.to_str()) == Some("kanbus.yml") {
+        config.project_key = "KAN".to_string();
+        config.hierarchy = vec![
+            "initiative".to_string(),
+            "epic".to_string(),
+            "issue".to_string(),
+            "subtask".to_string(),
+        ];
+    }
+    let contents = serde_yaml::to_string(&config).expect("serialize config");
+    fs::write(&config_path, contents).expect("write config");
+    world.configuration_path = Some(config_path);
 }
 
 #[given(expr = "the environment variable {word} is not set")]
@@ -572,24 +603,44 @@ fn given_env_var_not_set(_world: &mut KanbusWorld, var_name: String) {
 }
 
 #[given(expr = "no {string} file exists")]
-fn given_no_file_exists(world: &mut KanbusWorld, _filename: String) {
+fn given_no_file_exists(world: &mut KanbusWorld, filename: String) {
     let temp_dir = TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().join("repo-no-config");
     fs::create_dir_all(&repo_path).expect("create repo dir");
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
+    if let Some(root) = world.working_directory.as_ref() {
+        world.configuration_path = Some(root.join(filename));
+    }
 }
 
 #[given(expr = "a Kanbus project with a file {string} containing an unknown top-level field")]
-fn given_project_with_unknown_field(world: &mut KanbusWorld, _filename: String) {
+fn given_project_with_unknown_field(world: &mut KanbusWorld, filename: String) {
     initialize_project(world);
-    // kanbus init creates .kanbus.yml, we just add unknown field to it
-    update_config_file(world, |mapping| {
-        mapping.insert(
-            Value::String("unknown_field".to_string()),
-            Value::String("value".to_string()),
-        );
-    });
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(filename);
+    let mut config = default_project_configuration();
+    if config_path.file_name().and_then(|name| name.to_str()) == Some("kanbus.yml") {
+        config.project_key = "KAN".to_string();
+        config.hierarchy = vec![
+            "initiative".to_string(),
+            "epic".to_string(),
+            "issue".to_string(),
+            "subtask".to_string(),
+        ];
+    }
+    let mut value = serde_yaml::to_value(&config).expect("serialize config");
+    let mapping = value.as_mapping_mut().expect("mapping");
+    mapping.insert(
+        Value::String("unknown_field".to_string()),
+        Value::String("value".to_string()),
+    );
+    let updated = serde_yaml::to_string(&value).expect("serialize config");
+    fs::write(&config_path, updated).expect("write config");
+    world.configuration_path = Some(config_path);
 }
 
 #[when("I load the configuration")]
@@ -621,6 +672,13 @@ fn given_project_with_minimal_configuration(world: &mut KanbusWorld) {
         .expect("working directory not set")
         .join(".kanbus.yml");
     fs::write(config_path, "project_key: tsk\n").expect("write minimal config");
+    world.configuration_path = Some(
+        world
+            .working_directory
+            .as_ref()
+            .expect("working directory not set")
+            .join(".kanbus.yml"),
+    );
 }
 
 #[given("a Kanbus repository with a .kanbus.yml file containing empty statuses")]
@@ -796,6 +854,13 @@ fn given_kanbus_yml_project_key(world: &mut KanbusWorld, value: String) {
         .expect("working directory not set")
         .join("kanbus.yml");
     fs::write(path, format!("project_key: {value}\n")).expect("write kanbus.yml");
+    world.configuration_path = Some(
+        world
+            .working_directory
+            .as_ref()
+            .expect("working directory not set")
+            .join("kanbus.yml"),
+    );
 }
 
 #[when("I load the configuration without override")]
@@ -863,8 +928,20 @@ fn then_project_key_should_match_param(world: &mut KanbusWorld, expected: String
 }
 
 #[then(expr = "the hierarchy should be {string}")]
-fn then_hierarchy_should_match_param(_world: &mut KanbusWorld, expected: String) {
-    assert!(expected.contains('>'), "expected hierarchy format with >");
+fn then_hierarchy_should_match_param(world: &mut KanbusWorld, expected: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    let parts = if expected.contains('>') {
+        expected
+            .split('>')
+            .map(|value| value.trim().to_string())
+            .collect::<Vec<_>>()
+    } else {
+        expected
+            .split(',')
+            .map(|value| value.trim().to_string())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(configuration.hierarchy, parts);
 }
 
 #[then(expr = "the hierarchy should include {string}")]

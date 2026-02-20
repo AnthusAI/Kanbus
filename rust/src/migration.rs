@@ -219,7 +219,7 @@ fn convert_record(
     let issue_type = map_issue_type(&issue_type_raw);
     validate_issue_type(configuration, &issue_type)?;
 
-    let status = required_string(record, "status")?;
+    let status = map_status(&required_string(record, "status")?);
     validate_status(configuration, &issue_type, &status)?;
 
     let priority_value = record
@@ -592,7 +592,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
             types.insert(map_issue_type(issue_type));
         }
         if let Some(status) = record.get("status").and_then(Value::as_str) {
-            statuses.insert(status.to_string());
+            statuses.insert(map_status(status));
         }
         if let Some(priority) = record.get("priority").and_then(Value::as_i64) {
             priorities.insert(priority as u8);
@@ -691,3 +691,14 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];
+
+const BEADS_STATUS_MAP: &[(&str, &str)] = &[("in-progress", "in_progress")];
+
+fn map_status(raw: &str) -> String {
+    for (source, target) in BEADS_STATUS_MAP {
+        if raw == *source {
+            return target.to_string();
+        }
+    }
+    raw.to_string()
+}

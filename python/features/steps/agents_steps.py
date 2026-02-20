@@ -107,10 +107,6 @@ def when_run_setup_agents_force(context: object) -> None:
     run_cli(context, "kanbus setup agents --force")
 
 
-@when('I run "kanbus setup agents" and respond "{response}"')
-def when_run_setup_agents_with_response(context: object, response: str) -> None:
-    run_cli_with_input(context, "kanbus setup agents", f"{response}\n")
-
 
 @when('I run "kanbus setup agents" non-interactively')
 def when_run_setup_agents_non_interactive(context: object) -> None:

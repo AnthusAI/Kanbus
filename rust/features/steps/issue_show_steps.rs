@@ -1,7 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
 
-use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
 use kanbus::config_loader::load_project_configuration;
@@ -16,50 +15,6 @@ fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     load_project_directory(cwd).expect("project dir")
 }
 
-fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
-    let issue_path = project_dir
-        .join("issues")
-        .join(format!("{}.json", issue.identifier));
-    let contents = serde_json::to_string_pretty(issue).expect("serialize issue");
-    fs::write(issue_path, contents).expect("write issue");
-}
-
-fn build_issue(identifier: &str, title: &str) -> IssueData {
-    let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
-    IssueData {
-        identifier: identifier.to_string(),
-        title: title.to_string(),
-        description: "".to_string(),
-        issue_type: "task".to_string(),
-        status: "open".to_string(),
-        priority: 2,
-        assignee: None,
-        creator: None,
-        parent: None,
-        labels: Vec::new(),
-        dependencies: Vec::new(),
-        comments: Vec::new(),
-        created_at: timestamp,
-        updated_at: timestamp,
-        closed_at: None,
-        custom: std::collections::BTreeMap::new(),
-    }
-}
-
-#[given("an issue \"kanbus-aaa\" exists with title \"Implement OAuth2 flow\"")]
-fn given_issue_exists(world: &mut KanbusWorld) {
-    let project_dir = load_project_dir(world);
-    let issue = build_issue("kanbus-aaa", "Implement OAuth2 flow");
-    write_issue_file(&project_dir, &issue);
-}
-
-#[given("an issue \"kanbus-desc\" exists with title \"Describe me\"")]
-fn given_issue_desc_exists(world: &mut KanbusWorld) {
-    let project_dir = load_project_dir(world);
-    let issue = build_issue("kanbus-desc", "Describe me");
-    write_issue_file(&project_dir, &issue);
-}
-
 #[given("issue \"kanbus-aaa\" has status \"open\" and type \"task\"")]
 fn given_issue_status_type(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
@@ -70,15 +25,6 @@ fn given_issue_status_type(world: &mut KanbusWorld) {
     payload["type"] = "task".into();
     let updated = serde_json::to_string_pretty(&payload).expect("serialize");
     fs::write(&issue_path, updated).expect("write issue");
-}
-
-#[when("I format issue \"kanbus-labels\" for display")]
-fn when_format_issue_display(world: &mut KanbusWorld) {
-    let project_dir = load_project_dir(world);
-    let issue_path = project_dir.join("issues").join("kanbus-labels.json");
-    let contents = fs::read_to_string(&issue_path).expect("read issue");
-    let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
-    world.formatted_output = Some(format_issue_for_display(&issue, None, false, false));
 }
 
 #[when(expr = "I format issue {string} for display")]

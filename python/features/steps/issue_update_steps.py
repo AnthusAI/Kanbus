@@ -13,19 +13,6 @@ from features.steps.shared import (
 )
 
 
-@given('an issue "kanbus-aaa" exists with title "Old Title"')
-def given_issue_with_title(context: object) -> None:
-    project_dir = load_project_directory(context)
-    issue = build_issue("kanbus-aaa", "Old Title", "task", "open", None, [])
-    write_issue_file(project_dir, issue)
-
-
-@given('an issue "kanbus-bbb" exists with title "Duplicate Title"')
-def given_issue_with_duplicate_title(context: object) -> None:
-    project_dir = load_project_directory(context)
-    issue = build_issue("kanbus-bbb", "Duplicate Title", "task", "open", None, [])
-    write_issue_file(project_dir, issue)
-
 
 @when(
     'I run "kanbus update kanbus-aaa --title \\"New Title\\" --description \\"Updated description\\""'

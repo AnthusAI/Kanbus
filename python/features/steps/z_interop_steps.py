@@ -31,6 +31,11 @@ def given_kanbus_issue_exists(context: object, identifier: str) -> None:
         f.write(json.dumps(issue_record) + "\n")
 
 
+@given(r"a kanbus issue (?P<identifier>[^\"\\s]+) exists")
+def given_kanbus_issue_exists_no_quotes(context: object, identifier: str) -> None:
+    given_kanbus_issue_exists(context, identifier)
+
+
 @given('a beads issue "(?P<identifier>[^"]+)" exists')
 def given_beads_issue_exists(context: object, identifier: str) -> None:
     """Create a Beads issue in the .beads/issues.jsonl file."""
@@ -46,6 +51,11 @@ def given_beads_issue_exists(context: object, identifier: str) -> None:
     }
     with open(issues_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(issue_record) + "\n")
+
+
+@given(r"a beads issue (?P<identifier>[^\"\\s]+) exists")
+def given_beads_issue_exists_no_quotes(context: object, identifier: str) -> None:
+    given_beads_issue_exists(context, identifier)
 
 
 @given(
@@ -73,6 +83,15 @@ def given_kanbus_issue_with_dependency(
         f.write(json.dumps(issue_record) + "\n")
 
 
+@given(
+    r"a kanbus issue (?P<identifier>[^\"\\s]+) exists with dependency (?P<dependency>[^\"\\s].+)"
+)
+def given_kanbus_issue_with_dependency_no_quotes(
+    context: object, identifier: str, dependency: str
+) -> None:
+    given_kanbus_issue_with_dependency(context, identifier, dependency)
+
+
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists with labels "(?P<labels>[^"]+)"')
 def given_kanbus_issue_with_labels(
     context: object, identifier: str, labels: str
@@ -93,6 +112,15 @@ def given_kanbus_issue_with_labels(
         f.write(json.dumps(issue_record) + "\n")
 
 
+@given(
+    r"a kanbus issue (?P<identifier>[^\"\\s]+) exists with labels (?P<labels>[^\"\\s].+)"
+)
+def given_kanbus_issue_with_labels_no_quotes(
+    context: object, identifier: str, labels: str
+) -> None:
+    given_kanbus_issue_with_labels(context, identifier, labels)
+
+
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists with title "(?P<title>[^"]+)"')
 def given_kanbus_issue_with_title(context: object, identifier: str, title: str) -> None:
     """Create a Kanbus issue with specific title."""
@@ -108,6 +136,15 @@ def given_kanbus_issue_with_title(context: object, identifier: str, title: str) 
     }
     with open(issues_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(issue_record) + "\n")
+
+
+@given(
+    r"a kanbus issue (?P<identifier>[^\"\\s]+) exists with title (?P<title>[^\"\\s].+)"
+)
+def given_kanbus_issue_with_title_no_quotes(
+    context: object, identifier: str, title: str
+) -> None:
+    given_kanbus_issue_with_title(context, identifier, title)
 
 
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists with status "(?P<status>[^"]+)"')
@@ -129,6 +166,15 @@ def given_kanbus_issue_with_status(
         f.write(json.dumps(issue_record) + "\n")
 
 
+@given(
+    r"a kanbus issue (?P<identifier>[^\"\\s]+) exists with status (?P<status>[^\"\\s]+)"
+)
+def given_kanbus_issue_with_status_no_quotes(
+    context: object, identifier: str, status: str
+) -> None:
+    given_kanbus_issue_with_status(context, identifier, status)
+
+
 @given('a kanbus issue "(?P<identifier>[^"]+)" exists with priority (?P<priority>\\d+)')
 def given_kanbus_issue_with_priority(
     context: object, identifier: str, priority: str
@@ -148,10 +194,24 @@ def given_kanbus_issue_with_priority(
         f.write(json.dumps(issue_record) + "\n")
 
 
+@given(r"a kanbus issue (?P<identifier>[^\"\\s]+) exists with priority (?P<priority>\\d+)")
+def given_kanbus_issue_with_priority_no_quotes(
+    context: object, identifier: str, priority: str
+) -> None:
+    given_kanbus_issue_with_priority(context, identifier, priority)
+
+
 @given('a kanbus-only issue "(?P<identifier>[^"]+)" exists')
 def given_kanbus_only_issue_exists(context: object, identifier: str) -> None:
     """Create an issue that only exists in Kanbus, not in Beads."""
     run_cli(context, f"kanbus create Kanbus-only test issue for {identifier}")
+
+
+@given(r"a kanbus-only issue (?P<identifier>[^\"\\s]+) exists")
+def given_kanbus_only_issue_exists_no_quotes(
+    context: object, identifier: str
+) -> None:
+    given_kanbus_only_issue_exists(context, identifier)
 
 
 @given('a beads issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)"')
@@ -173,6 +233,15 @@ def given_beads_issue_with_parent(context: object, child: str, parent_id: str) -
         f.write(json.dumps(issue_record) + "\n")
 
 
+@given(
+    r"a beads issue (?P<child>[^\"\\s]+) exists with parent (?P<parent_id>[^\"\\s]+)"
+)
+def given_beads_issue_with_parent_no_quotes(
+    context: object, child: str, parent_id: str
+) -> None:
+    given_beads_issue_with_parent(context, child, parent_id)
+
+
 @given('a kanbus issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)"')
 def given_kanbus_issue_with_parent(context: object, child: str, parent_id: str) -> None:
     """Create a Beads issue with a parent relationship for interoperability testing."""
@@ -191,6 +260,15 @@ def given_kanbus_issue_with_parent(context: object, child: str, parent_id: str) 
         f.write(json.dumps(issue_record) + "\n")
 
 
+@given(
+    r"a kanbus issue (?P<child>[^\"\\s]+) exists with parent (?P<parent_id>[^\"\\s]+)"
+)
+def given_kanbus_issue_with_parent_no_quotes(
+    context: object, child: str, parent_id: str
+) -> None:
+    given_kanbus_issue_with_parent(context, child, parent_id)
+
+
 # Use a generic pattern for all command variants
 @when('I run "(?P<command>[^"]+)" with stdin "(?P<stdin_text>[^"]+)"')
 def when_run_command_with_stdin(context: object, command: str, stdin_text: str) -> None:
@@ -200,9 +278,36 @@ def when_run_command_with_stdin(context: object, command: str, stdin_text: str) 
     run_cli_with_input(context, command, stdin_content)
 
 
+@when(r"I run (?P<command>[^\"].+) with stdin (?P<stdin_text>[^\"].+)")
+def when_run_command_with_stdin_no_quotes(
+    context: object, command: str, stdin_text: str
+) -> None:
+    stdin_content = stdin_text.replace("\\n", "\n")
+    run_cli_with_input(context, command, stdin_content)
+
+
 @when('I run "(?P<command>[^"]+)"')
 def when_run_command(context: object, command: str) -> None:
     """Generic step to run any kanbus command."""
+    run_cli(context, command)
+
+
+@when(r"I run (?P<command>[^\"].+?) and respond (?P<response>[^\".]+)")
+def when_run_command_and_respond_no_quotes(
+    context: object, command: str, response: str
+) -> None:
+    run_cli_with_input(context, command, f"{response}\n")
+
+
+@when(r"I run (?P<command>[^\"].+) non-interactively")
+def when_run_command_non_interactively_no_quotes(
+    context: object, command: str
+) -> None:
+    run_cli(context, command)
+
+
+@when(r"I run (?P<command>[^\"].+)")
+def when_run_command_no_quotes(context: object, command: str) -> None:
     run_cli(context, command)
 
 
@@ -249,6 +354,15 @@ def then_comments_in_order(
         idx1 >= 0 and idx2 >= 0 and idx3 >= 0
     ), f"Not all comments found: {comment1}, {comment2}, {comment3}"
     assert idx1 < idx2 < idx3, f"Comments not in order: {idx1}, {idx2}, {idx3}"
+
+
+@then(
+    r"the comments should appear in order: (?P<comment1>[^\"\\s].+), (?P<comment2>[^\"\\s].+), (?P<comment3>[^\"\\s].+)"
+)
+def then_comments_in_order_no_quotes(
+    context: object, comment1: str, comment2: str, comment3: str
+) -> None:
+    then_comments_in_order(context, comment1, comment2, comment3)
 
 
 # Reset step matcher back to parse for other files

@@ -1,8 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use chrono::{TimeZone, Utc};
-use cucumber::{given, then};
+use cucumber::then;
 
 use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
@@ -29,70 +28,12 @@ fn then_issue_should_have_parent(world: &mut KanbusWorld, identifier: String, pa
     assert_eq!(payload["parent"], parent);
 }
 
-fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
-    let issue_path = project_dir
-        .join("issues")
-        .join(format!("{}.json", issue.identifier));
-    let contents = serde_json::to_string_pretty(issue).expect("serialize issue");
-    fs::write(issue_path, contents).expect("write issue");
-}
-
 fn load_issue(project_dir: &PathBuf, identifier: &str) -> IssueData {
     let issue_path = project_dir
         .join("issues")
         .join(format!("{identifier}.json"));
     let contents = fs::read_to_string(issue_path).expect("read issue");
     serde_json::from_str(&contents).expect("parse issue")
-}
-
-#[given("an issue \"kanbus-aaa\" exists with title \"Old Title\"")]
-fn given_issue_with_title(world: &mut KanbusWorld) {
-    let project_dir = load_project_dir(world);
-    let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
-    let issue = IssueData {
-        identifier: "kanbus-aaa".to_string(),
-        title: "Old Title".to_string(),
-        description: "".to_string(),
-        issue_type: "task".to_string(),
-        status: "open".to_string(),
-        priority: 2,
-        assignee: None,
-        creator: None,
-        parent: None,
-        labels: Vec::new(),
-        dependencies: Vec::new(),
-        comments: Vec::new(),
-        created_at: timestamp,
-        updated_at: timestamp,
-        closed_at: None,
-        custom: std::collections::BTreeMap::new(),
-    };
-    write_issue_file(&project_dir, &issue);
-}
-
-#[given("an issue \"kanbus-bbb\" exists with title \"Duplicate Title\"")]
-fn given_issue_with_duplicate_title(world: &mut KanbusWorld) {
-    let project_dir = load_project_dir(world);
-    let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
-    let issue = IssueData {
-        identifier: "kanbus-bbb".to_string(),
-        title: "Duplicate Title".to_string(),
-        description: "".to_string(),
-        issue_type: "task".to_string(),
-        status: "open".to_string(),
-        priority: 2,
-        assignee: None,
-        creator: None,
-        parent: None,
-        labels: Vec::new(),
-        dependencies: Vec::new(),
-        comments: Vec::new(),
-        created_at: timestamp,
-        updated_at: timestamp,
-        closed_at: None,
-        custom: std::collections::BTreeMap::new(),
-    };
-    write_issue_file(&project_dir, &issue);
 }
 
 #[then("issue \"kanbus-aaa\" should have title \"New Title\"")]

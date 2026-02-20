@@ -42,6 +42,9 @@ def after_scenario(context: object, scenario: object) -> None:
     :param scenario: Behave scenario object.
     :type scenario: object
     """
+    from features.steps.console_ui_steps import stop_console_server
+    stop_console_server(context)
+
     temp_dir_object = getattr(context, "temp_dir_object", None)
     if temp_dir_object is not None:
         temp_dir_object.cleanup()

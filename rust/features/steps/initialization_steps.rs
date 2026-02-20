@@ -22,6 +22,7 @@ pub struct KanbusWorld {
     pub stdout: Option<String>,
     pub stderr: Option<String>,
     pub configuration: Option<ProjectConfiguration>,
+    pub configuration_path: Option<PathBuf>,
     pub generated_id: Option<String>,
     pub generated_ids: Option<HashSet<String>>,
     pub id_generation_error: Option<String>,

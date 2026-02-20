@@ -23,6 +23,15 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build kbsc for integration tests
+        run: |
+          cd rust
+          cargo build --bin kbsc
+          echo "KBSC_BINARY=$(pwd)/target/debug/kbsc" >> "$GITHUB_ENV"
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
