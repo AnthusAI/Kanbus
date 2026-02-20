@@ -14,7 +14,8 @@ function stateFilePath() {
   if (!projectRoot) {
     throw new Error("CONSOLE_PROJECT_ROOT is required for CLI steps");
   }
-  return path.join(projectRoot, ".cache", "console_state.json");
+  // Mirror the location used by the server: sibling .cache next to the project
+  return path.join(path.dirname(projectRoot), ".cache", "console_state.json");
 }
 
 async function loadState() {
@@ -52,7 +53,14 @@ When("I run {string}", async function (command) {
     const parts = command.split(/\s+/);
     const subcommand = parts[2];
 
-    if (subcommand === "focus" && parts[3]) {
+    if (subcommand === "status") {
+      const status = {
+        focused_issue_id: state.focused_issue_id ?? "none",
+        view_mode: state.view_mode ?? "issues",
+        search_query: state.search_query ?? ""
+      };
+      lastStdout = `${status.focused_issue_id}\n${status.view_mode}\n${status.search_query}\n`;
+    } else if (subcommand === "focus" && parts[3]) {
       state.focused_issue_id = parts[3];
       await saveState(state);
       lastStdout = `${parts[3]}\n`;
