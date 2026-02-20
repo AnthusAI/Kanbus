@@ -43,7 +43,7 @@ use rust_embed::RustEmbed;
 
 #[cfg(feature = "embed-assets")]
 #[derive(RustEmbed)]
-#[folder = "../apps/console/dist"]
+#[folder = "embedded_assets/console"]
 struct EmbeddedAssets;
 
 #[derive(Clone)]
