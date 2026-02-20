@@ -67,3 +67,65 @@ pub fn write_issue_to_file(issue: &IssueData, issue_path: &Path) -> Result<(), K
 pub fn issue_path_for_identifier(issues_directory: &Path, identifier: &str) -> PathBuf {
     issues_directory.join(format!("{identifier}.json"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+    use tempfile::tempdir;
+
+    fn sample_issue(identifier: &str) -> IssueData {
+        IssueData {
+            identifier: identifier.to_string(),
+            title: "Title".to_string(),
+            description: "Desc".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn list_issue_identifiers_skips_non_json() {
+        let temp = tempdir().unwrap();
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).unwrap();
+        std::fs::write(issues_dir.join("a.json"), "{}").unwrap();
+        std::fs::write(issues_dir.join("note.txt"), "skip").unwrap();
+        let ids = list_issue_identifiers(&issues_dir).unwrap();
+        assert_eq!(ids.len(), 1);
+        assert!(ids.contains("a"));
+    }
+
+    #[test]
+    fn write_and_read_issue_roundtrip() {
+        let temp = tempdir().unwrap();
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).unwrap();
+        let issue = sample_issue("kanbus-abc");
+        let path = issue_path_for_identifier(&issues_dir, &issue.identifier);
+        write_issue_to_file(&issue, &path).unwrap();
+        let loaded = read_issue_from_file(&path).unwrap();
+        assert_eq!(loaded.identifier, issue.identifier);
+        assert_eq!(loaded.title, issue.title);
+    }
+
+    #[test]
+    fn issue_path_for_identifier_appends_json() {
+        let temp = tempdir().unwrap();
+        let issues_dir = temp.path().join("issues");
+        let path = issue_path_for_identifier(&issues_dir, "kanbus-xyz");
+        assert!(path.ends_with("kanbus-xyz.json"));
+    }
+}
