@@ -34,7 +34,9 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::wrappers::IntervalStream;
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
-use kanbus::notification_events::NotificationEvent;
+use kanbus::console_ui_state::{load_state, save_state, ConsoleUiState};
+use kanbus::daemon_paths::get_console_state_path;
+use kanbus::notification_events::{NotificationEvent, UiControlAction};
 
 #[cfg(feature = "embed-assets")]
 use rust_embed::RustEmbed;
@@ -53,6 +55,10 @@ struct AppState {
     telemetry_tx: broadcast::Sender<String>,
     telemetry_log: Option<Arc<StdMutex<std::fs::File>>>,
     notification_tx: broadcast::Sender<NotificationEvent>,
+    /// Cache of the last URL route pushed to clients, for CLI query commands.
+    ui_state: Arc<tokio::sync::RwLock<ConsoleUiState>>,
+    /// Path to the persisted console state JSON file.
+    state_file_path: PathBuf,
 }
 
 #[tokio::main]
@@ -118,6 +124,17 @@ async fn main() {
     let (telemetry_tx, _) = broadcast::channel(256);
     let (notification_tx, _) = broadcast::channel::<NotificationEvent>(256);
     let telemetry_log = open_telemetry_log(&repo_root);
+
+    // Load persisted console UI state (or start with empty state)
+    let state_file_path = get_console_state_path(&data_root).unwrap_or_else(|_| {
+        data_root
+            .join(".kanbus")
+            .join(".cache")
+            .join("console_state.json")
+    });
+    let initial_ui_state = load_state(&state_file_path).unwrap_or_default();
+    eprintln!("Console UI state loaded from {}", state_file_path.display());
+
     let state = AppState {
         base_root: data_root,
         assets_root: assets_root.clone(),
@@ -126,6 +143,8 @@ async fn main() {
         telemetry_tx,
         telemetry_log,
         notification_tx,
+        ui_state: Arc::new(tokio::sync::RwLock::new(initial_ui_state)),
+        state_file_path,
     };
     let _assets_root = state.assets_root.clone();
 
@@ -137,6 +156,7 @@ async fn main() {
         .route("/api/events", get(get_events_root))
         .route("/api/events/realtime", get(get_realtime_events_root))
         .route("/api/notifications", post(post_notification_root))
+        .route("/api/ui-state", get(get_ui_state_root))
         .route("/api/render/d2", post(post_render_d2))
         .route("/api/telemetry/console", post(post_console_telemetry_root))
         .route(
@@ -184,9 +204,9 @@ async fn main() {
     #[cfg(unix)]
     {
         let socket_path = get_notification_socket_path(&state.base_root);
-        let notification_tx_clone = state.notification_tx.clone();
+        let socket_state = state.clone();
         tokio::spawn(async move {
-            if let Err(e) = listen_on_socket(socket_path, notification_tx_clone).await {
+            if let Err(e) = listen_on_socket(socket_path, socket_state).await {
                 eprintln!("Unix socket listener error: {}", e);
             }
         });
@@ -527,16 +547,109 @@ async fn post_notification_root(
     State(state): State<AppState>,
     Json(event): Json<NotificationEvent>,
 ) -> StatusCode {
+    // Update cached UI state based on the event
+    update_ui_state_from_event(&state, &event).await;
     // Broadcast the notification to all SSE subscribers
     let _ = state.notification_tx.send(event);
     StatusCode::OK
 }
 
+async fn get_ui_state_root(State(state): State<AppState>) -> axum::Json<ConsoleUiState> {
+    let ui_state = state.ui_state.read().await;
+    axum::Json(ui_state.clone())
+}
+
+/// Update the cached UI state when a relevant notification is received,
+/// then persist to disk.
+async fn update_ui_state_from_event(state: &AppState, event: &NotificationEvent) {
+    let mut changed = false;
+    {
+        let mut ui_state = state.ui_state.write().await;
+        match event {
+            NotificationEvent::IssueFocused {
+                issue_id,
+                comment_id,
+                ..
+            } => {
+                ui_state.focused_issue_id = Some(issue_id.clone());
+                ui_state.focused_comment_id = comment_id.clone();
+                changed = true;
+            }
+            NotificationEvent::UiControl { action } => match action {
+                UiControlAction::ClearFocus => {
+                    ui_state.focused_issue_id = None;
+                    ui_state.focused_comment_id = None;
+                    changed = true;
+                }
+                UiControlAction::SetViewMode { mode } => {
+                    ui_state.view_mode = Some(mode.clone());
+                    changed = true;
+                }
+                UiControlAction::SetSearch { query } => {
+                    ui_state.search_query = if query.is_empty() {
+                        None
+                    } else {
+                        Some(query.clone())
+                    };
+                    changed = true;
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+    if changed {
+        let ui_state = state.ui_state.read().await;
+        if let Err(e) = save_state(&state.state_file_path, &ui_state) {
+            eprintln!("Warning: failed to persist console UI state: {}", e);
+        }
+    }
+}
+
 async fn get_realtime_events_root(
     State(state): State<AppState>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    // Replay last-known UI state to the new subscriber, if any state has been set
+    let replay_events: Vec<Result<Event, Infallible>> = {
+        let ui_state = state.ui_state.read().await;
+        let mut events = Vec::new();
+        if let Some(ref issue_id) = ui_state.focused_issue_id {
+            let notification = NotificationEvent::IssueFocused {
+                issue_id: issue_id.clone(),
+                user: None,
+                comment_id: ui_state.focused_comment_id.clone(),
+            };
+            if let Ok(data) = serde_json::to_string(&notification) {
+                events.push(Ok(Event::default().data(data)));
+            }
+        } else if ui_state.view_mode.is_some() || ui_state.search_query.is_some() {
+            // Replay view mode if set
+            if let Some(ref mode) = ui_state.view_mode {
+                let notification = NotificationEvent::UiControl {
+                    action: UiControlAction::SetViewMode { mode: mode.clone() },
+                };
+                if let Ok(data) = serde_json::to_string(&notification) {
+                    events.push(Ok(Event::default().data(data)));
+                }
+            }
+            // Replay search query if set
+            if let Some(ref query) = ui_state.search_query {
+                let notification = NotificationEvent::UiControl {
+                    action: UiControlAction::SetSearch {
+                        query: query.clone(),
+                    },
+                };
+                if let Ok(data) = serde_json::to_string(&notification) {
+                    events.push(Ok(Event::default().data(data)));
+                }
+            }
+        }
+        events
+    };
+
     let receiver = state.notification_tx.subscribe();
-    let stream = BroadcastStream::new(receiver).filter_map(|event| async move {
+    let replay_stream = stream::iter(replay_events);
+    let live_stream = BroadcastStream::new(receiver).filter_map(|event| async move {
         match event {
             Ok(notification) => {
                 // Serialize the notification event to JSON
@@ -548,7 +661,8 @@ async fn get_realtime_events_root(
             Err(_) => None,
         }
     });
-    Sse::new(stream).keep_alive(
+    let combined: BoxStream<Result<Event, Infallible>> = Box::pin(replay_stream.chain(live_stream));
+    Sse::new(combined).keep_alive(
         KeepAlive::new()
             .interval(Duration::from_secs(15))
             .text(": keep-alive"),
@@ -1000,10 +1114,7 @@ fn get_notification_socket_path(root: &StdPath) -> PathBuf {
 
 /// Listen on Unix domain socket for notification events from CLI commands.
 #[cfg(unix)]
-async fn listen_on_socket(
-    socket_path: PathBuf,
-    notification_tx: broadcast::Sender<NotificationEvent>,
-) -> io::Result<()> {
+async fn listen_on_socket(socket_path: PathBuf, state: AppState) -> io::Result<()> {
     use tokio::io::{AsyncBufReadExt, BufReader};
     use tokio::net::UnixListener;
 
@@ -1018,7 +1129,7 @@ async fn listen_on_socket(
     loop {
         match listener.accept().await {
             Ok((stream, _addr)) => {
-                let tx = notification_tx.clone();
+                let conn_state = state.clone();
                 tokio::spawn(async move {
                     let mut reader = BufReader::new(stream);
                     let mut line = String::new();
@@ -1035,7 +1146,9 @@ async fn listen_on_socket(
                                     "Socket received notification: {:?}",
                                     event.description()
                                 );
-                                match tx.send(event) {
+                                // Update cached UI state before broadcasting
+                                update_ui_state_from_event(&conn_state, &event).await;
+                                match conn_state.notification_tx.send(event) {
                                     Ok(receiver_count) => {
                                         eprintln!("Broadcast sent to {} receivers", receiver_count);
                                     }
@@ -1061,10 +1174,7 @@ async fn listen_on_socket(
 }
 
 #[cfg(not(unix))]
-async fn listen_on_socket(
-    _socket_path: PathBuf,
-    _notification_tx: broadcast::Sender<NotificationEvent>,
-) -> io::Result<()> {
+async fn listen_on_socket(_socket_path: PathBuf, _state: AppState) -> io::Result<()> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "unix domain sockets unsupported on this platform",

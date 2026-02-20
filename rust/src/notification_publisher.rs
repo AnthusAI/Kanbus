@@ -119,6 +119,7 @@ mod tests {
         let event = NotificationEvent::IssueFocused {
             issue_id: "test-123".to_string(),
             user: None,
+            comment_id: None,
         };
 
         let result = publish_notification(temp_dir.path(), event);

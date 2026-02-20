@@ -26,6 +26,9 @@ pub enum NotificationEvent {
         issue_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         user: Option<String>,
+        /// Optional comment ID to scroll to within the focused issue.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        comment_id: Option<String>,
     },
     /// UI control command to manipulate console UI state.
     UiControl { action: UiControlAction },
@@ -93,7 +96,7 @@ impl NotificationEvent {
             NotificationEvent::IssueDeleted { issue_id } => {
                 format!("Issue {} deleted", issue_id)
             }
-            NotificationEvent::IssueFocused { issue_id, user } => {
+            NotificationEvent::IssueFocused { issue_id, user, .. } => {
                 if let Some(u) = user {
                     format!("Issue {} focused by {}", issue_id, u)
                 } else {
@@ -170,6 +173,7 @@ mod tests {
         let event = NotificationEvent::IssueFocused {
             issue_id: "kanbus-abc".to_string(),
             user: Some("dev@example.com".to_string()),
+            comment_id: None,
         };
         assert_eq!(
             event.description(),

@@ -9,6 +9,7 @@ pub mod config_loader;
 pub mod console_backend;
 pub mod console_snapshot;
 pub mod console_telemetry;
+pub mod console_ui_state;
 pub mod content_validation;
 pub mod daemon_client;
 pub mod daemon_paths;
