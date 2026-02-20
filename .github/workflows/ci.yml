@@ -282,13 +282,15 @@ jobs:
           python -m pip install -e python
 
       - name: Install console dependencies
-        run: npm ci --workspace apps/console
+        working-directory: apps/console
+        run: npm ci
 
       - name: Build console assets
         env:
           # Matches console-ui job; ensures kbsc sees embedded assets under apps/console/dist
           NODE_ENV: production
-        run: npm run build --workspace apps/console
+        working-directory: apps/console
+        run: npm run build
 
       - name: Build Rust release binary
         run: |
