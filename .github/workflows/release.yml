@@ -11,6 +11,11 @@ on:
         required: false
         type: boolean
         default: true
+      rust_only:
+        description: "Publish Rust crate and binaries for an existing tag (skip PyPI)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -130,7 +135,9 @@ jobs:
         id: release_tag
         if: ${{ steps.guard.outputs.skip != 'true' }}
         run: |
-          if [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ]; then
+          if [ -n "${{ github.event.inputs.rust_only }}" ]; then
+            echo "tag=${{ github.event.inputs.rust_only }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ]; then
             git fetch --tags
             tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
             echo "tag=${tag}" >> "$GITHUB_OUTPUT"
