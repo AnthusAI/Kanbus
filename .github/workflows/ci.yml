@@ -80,7 +80,6 @@ jobs:
       coverage_percent: ${{ steps.rust_coverage.outputs.percentage }}
       coverage_color: ${{ steps.rust_coverage.outputs.color }}
     env:
-      CARGO_TERM_PROGRESS_WHEN: always
       RUST_BACKTRACE: 1
     steps:
       - name: Checkout
