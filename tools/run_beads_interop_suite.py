@@ -20,6 +20,7 @@ class CommandResult:
     """Result of a subprocess command."""
 
     command: list[str]
+    cwd: Path | None
     return_code: int
     stdout: str
     stderr: str
@@ -49,10 +50,36 @@ def run_command(
     )
     return CommandResult(
         command=command,
+        cwd=cwd,
         return_code=result.returncode,
         stdout=result.stdout or "",
         stderr=result.stderr or "",
     )
+
+def _format_command(result: CommandResult) -> str:
+    return " ".join(result.command)
+
+
+def _format_result(result: CommandResult, label: str) -> str:
+    parts = [
+        f"{label} failed",
+        f"command: {_format_command(result)}",
+        f"cwd: {result.cwd or os.getcwd()}",
+        f"exit code: {result.return_code}",
+    ]
+    stdout = result.stdout.strip()
+    stderr = result.stderr.strip()
+    if stdout:
+        parts.append("stdout:")
+        parts.append(stdout)
+    else:
+        parts.append("stdout: <empty>")
+    if stderr:
+        parts.append("stderr:")
+        parts.append(stderr)
+    else:
+        parts.append("stderr: <empty>")
+    return "\n".join(parts)
 
 
 def ensure_success(result: CommandResult, label: str) -> None:
@@ -65,8 +92,7 @@ def ensure_success(result: CommandResult, label: str) -> None:
     :raises RuntimeError: If the command failed.
     """
     if result.return_code != 0:
-        details = (result.stderr or result.stdout).strip()
-        raise RuntimeError(f"{label} failed: {details}")
+        raise RuntimeError(_format_result(result, label))
 
 
 def strip_ansi(text: str) -> str:
@@ -102,7 +128,9 @@ def parse_json_payload(text: str, label: str) -> object:
     try:
         return json.loads(payload_text)
     except json.JSONDecodeError as error:
-        raise RuntimeError(f"{label} returned invalid JSON: {error}") from error
+        raise RuntimeError(
+            f"{label} returned invalid JSON: {error}\nRaw payload:\n{payload_text}"
+        ) from error
 
 
 def parse_json_payload_from_streams(
