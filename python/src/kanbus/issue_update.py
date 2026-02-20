@@ -144,7 +144,9 @@ def update_issue(
             raise IssueUpdateError(str(error)) from error
         if updated_issue.parent != resolved_parent:
             if validate:
-                parent_issue = read_issue_from_file(issues_dir / f"{resolved_parent}.json")
+                parent_issue = read_issue_from_file(
+                    issues_dir / f"{resolved_parent}.json"
+                )
                 try:
                     validate_parent_child_relationship(
                         configuration,

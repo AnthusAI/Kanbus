@@ -933,5 +933,52 @@ def _format_project_marker_error(error: ProjectMarkerError) -> str:
     return message
 
 
+@cli.group()
+def jira() -> None:
+    """Jira synchronization commands."""
+
+
+@jira.command(name="pull")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without writing files.",
+)
+@click.pass_context
+def jira_pull(context: click.Context, dry_run: bool) -> None:
+    """Pull issues from Jira into Kanbus."""
+    from kanbus.jira_sync import JiraSyncError, pull_from_jira
+
+    root = Path.cwd()
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+
+    if configuration.jira is None:
+        raise click.ClickException("no jira configuration in .kanbus.yml")
+
+    if configuration.jira.sync_direction not in ("pull", "both"):
+        raise click.ClickException(
+            "sync_direction must be 'pull' or 'both' to use jira pull"
+        )
+
+    if dry_run:
+        click.echo("Dry run — no files will be written.\n")
+
+    try:
+        result = pull_from_jira(
+            root, configuration.jira, configuration.project_key, dry_run
+        )
+    except JiraSyncError as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(f"pulled {result.pulled} new, updated {result.updated} existing")
+
+
 if __name__ == "__main__":
     cli()

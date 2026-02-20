@@ -86,7 +86,6 @@ fn list_issues_local(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     list_issues_for_project(&project_dir)
 }
 
-
 fn list_issues_for_project(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let issues_dir = project_dir.join("issues");
     let cache_path = project_dir.join(".cache").join("index.json");

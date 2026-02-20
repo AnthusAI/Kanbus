@@ -49,9 +49,7 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
     )
 
 
-def resolve_issue_identifier(
-    issues_dir: Path, project_key: str, candidate: str
-) -> str:
+def resolve_issue_identifier(issues_dir: Path, project_key: str, candidate: str) -> str:
     """Resolve a full issue identifier from a user-provided value.
 
     Accepts a full identifier or a unique short identifier using the project key.
