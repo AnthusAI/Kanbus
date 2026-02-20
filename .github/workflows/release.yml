@@ -66,9 +66,20 @@ jobs:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: semantic-release version
 
-      - name: Publish release to GitHub
+      - name: Check release artifacts
+        id: release_ready
         working-directory: python
         if: ${{ steps.guard.outputs.skip != 'true' }}
+        run: |
+          if [ -d "dist" ] && [ -n "$(ls -A dist 2>/dev/null)" ]; then
+            echo "release_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release to GitHub
+        working-directory: python
+        if: ${{ steps.guard.outputs.skip != 'true' && steps.release_ready.outputs.release_ready == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -79,7 +90,7 @@ jobs:
 
       - name: Publish release to PyPI
         working-directory: python
-        if: ${{ steps.guard.outputs.skip != 'true' }}
+        if: ${{ steps.guard.outputs.skip != 'true' && steps.release_ready.outputs.release_ready == 'true' }}
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
@@ -89,7 +100,7 @@ jobs:
 
       - name: Verify PyPI release
         working-directory: python
-        if: ${{ steps.guard.outputs.skip != 'true' }}
+        if: ${{ steps.guard.outputs.skip != 'true' && steps.release_ready.outputs.release_ready == 'true' }}
         run: |
           python - <<'PY'
           import json
@@ -119,9 +130,13 @@ jobs:
         id: release_tag
         if: ${{ steps.guard.outputs.skip != 'true' }}
         run: |
-          git fetch --tags
-          tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ]; then
+            git fetch --tags
+            tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+            echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
 
   rust-binaries:
     needs: pypi-release
