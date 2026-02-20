@@ -545,8 +545,6 @@ def then_time_zone_should_match(context: object, time_zone: str) -> None:
 # Configuration standardization steps
 
 
-
-
 @given("the environment variable KANBUS_PROJECT_KEY is not set")
 def given_kanbus_project_key_not_set(context: object) -> None:
     """Ensure KANBUS_PROJECT_KEY environment variable is not set."""
@@ -554,10 +552,6 @@ def given_kanbus_project_key_not_set(context: object) -> None:
 
     if "KANBUS_PROJECT_KEY" in os.environ:
         del os.environ["KANBUS_PROJECT_KEY"]
-
-
-
-
 
 
 @given("a Kanbus project with default workflows")

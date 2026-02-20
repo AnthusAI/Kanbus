@@ -735,7 +735,9 @@ def console_focus(identifier: str, comment: Optional[str]) -> None:
 def console_unfocus() -> None:
     """Clear the current focus filter in the console."""
     root = Path.cwd()
-    publish_notification(root, {"type": "ui_control", "action": {"action": "clear_focus"}})
+    publish_notification(
+        root, {"type": "ui_control", "action": {"action": "clear_focus"}}
+    )
     click.echo("Cleared focus filter")
 
 
@@ -765,7 +767,10 @@ def console_search(query: Optional[str], clear: bool) -> None:
         raise click.UsageError("Provide a query or use --clear.")
     publish_notification(
         root,
-        {"type": "ui_control", "action": {"action": "set_search", "query": search_query}},
+        {
+            "type": "ui_control",
+            "action": {"action": "set_search", "query": search_query},
+        },
     )
     if clear or not search_query:
         click.echo("Cleared search query")

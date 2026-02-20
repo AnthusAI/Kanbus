@@ -211,36 +211,48 @@ def given_console_server_is_running(context: object) -> None:
 
 @given('the console focused issue is "{issue_id}"')
 def given_console_focused_issue(context: object, issue_id: str) -> None:
-    _post_notification(context.console_server_port, {
-        "type": "issue_focused",
-        "issue_id": issue_id,
-        "user": None,
-        "comment_id": None,
-    })
+    _post_notification(
+        context.console_server_port,
+        {
+            "type": "issue_focused",
+            "issue_id": issue_id,
+            "user": None,
+            "comment_id": None,
+        },
+    )
 
 
 @given("no issue is focused in the console")
 def given_no_issue_focused(context: object) -> None:
-    _post_notification(context.console_server_port, {
-        "type": "ui_control",
-        "action": {"action": "clear_focus"},
-    })
+    _post_notification(
+        context.console_server_port,
+        {
+            "type": "ui_control",
+            "action": {"action": "clear_focus"},
+        },
+    )
 
 
 @given('the console view mode is "{mode}"')
 def given_console_view_mode(context: object, mode: str) -> None:
-    _post_notification(context.console_server_port, {
-        "type": "ui_control",
-        "action": {"action": "set_view_mode", "mode": mode},
-    })
+    _post_notification(
+        context.console_server_port,
+        {
+            "type": "ui_control",
+            "action": {"action": "set_view_mode", "mode": mode},
+        },
+    )
 
 
 @given('the console search query is "{query}"')
 def given_console_search_query(context: object, query: str) -> None:
-    _post_notification(context.console_server_port, {
-        "type": "ui_control",
-        "action": {"action": "set_search", "query": query},
-    })
+    _post_notification(
+        context.console_server_port,
+        {
+            "type": "ui_control",
+            "action": {"action": "set_search", "query": query},
+        },
+    )
 
 
 @when("the console server is restarted")
@@ -259,7 +271,9 @@ def when_console_server_is_restarted(context: object) -> None:
     working_directory = Path(context.working_directory)
     new_proc = _start_kbsc(working_directory, port)
     context.console_server_process = new_proc
-    assert _wait_for_server(port), f"kbsc did not become ready on port {port} after restart"
+    assert _wait_for_server(
+        port
+    ), f"kbsc did not become ready on port {port} after restart"
 
 
 @given("local storage is cleared")

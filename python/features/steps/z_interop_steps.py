@@ -194,7 +194,9 @@ def given_kanbus_issue_with_priority(
         f.write(json.dumps(issue_record) + "\n")
 
 
-@given(r"a kanbus issue (?P<identifier>[^\"\\s]+) exists with priority (?P<priority>\\d+)")
+@given(
+    r"a kanbus issue (?P<identifier>[^\"\\s]+) exists with priority (?P<priority>\\d+)"
+)
 def given_kanbus_issue_with_priority_no_quotes(
     context: object, identifier: str, priority: str
 ) -> None:
@@ -208,9 +210,7 @@ def given_kanbus_only_issue_exists(context: object, identifier: str) -> None:
 
 
 @given(r"a kanbus-only issue (?P<identifier>[^\"\\s]+) exists")
-def given_kanbus_only_issue_exists_no_quotes(
-    context: object, identifier: str
-) -> None:
+def given_kanbus_only_issue_exists_no_quotes(context: object, identifier: str) -> None:
     given_kanbus_only_issue_exists(context, identifier)
 
 
@@ -300,9 +300,7 @@ def when_run_command_and_respond_no_quotes(
 
 
 @when(r"I run (?P<command>[^\"].+) non-interactively")
-def when_run_command_non_interactively_no_quotes(
-    context: object, command: str
-) -> None:
+def when_run_command_non_interactively_no_quotes(context: object, command: str) -> None:
     run_cli(context, command)
 
 

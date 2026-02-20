@@ -20,7 +20,6 @@ from kanbus.issue_display import format_issue_for_display
 from kanbus.models import DependencyLink, IssueComment
 
 
-
 @given('an issue "{identifier}" exists with title "{title}"')
 def given_issue_exists_with_title_generic(
     context: object, identifier: str, title: str
