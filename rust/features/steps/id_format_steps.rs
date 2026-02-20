@@ -33,12 +33,19 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
                 }));
                 if let Err(err) = result {
                     eprintln!("warning: could not record new Kanbus id: {:?}", err);
+                    if let Some(stdout) = &world.stdout {
+                        if let Some(identifier) = parse_issue_id_from_output(stdout) {
+                            world.last_kanbus_issue_id = Some(identifier.clone());
+                            let mut current = current_issue_ids(world);
+                            current.insert(identifier);
+                            world.existing_kanbus_ids = Some(current);
+                        }
+                    }
                 }
             } else if command.contains("kanbus create") {
                 if let Some(stdout) = &world.stdout {
-                    let re = regex::Regex::new(r"(?m)^ID:\s*([A-Za-z0-9._-]+)").expect("regex");
-                    if let Some(cap) = re.captures(stdout) {
-                        world.last_kanbus_issue_id = Some(cap[1].to_string());
+                    if let Some(identifier) = parse_issue_id_from_output(stdout) {
+                        world.last_kanbus_issue_id = Some(identifier);
                         world.existing_kanbus_ids = Some(current_issue_ids(world));
                     }
                 }
@@ -72,9 +79,12 @@ fn project_issues_dir(world: &KanbusWorld) -> PathBuf {
 }
 
 fn current_issue_ids(world: &KanbusWorld) -> HashSet<String> {
-    project_issues_dir(world)
-        .read_dir()
-        .expect("read issues dir")
+    let issues_dir = project_issues_dir(world);
+    let entries = match issues_dir.read_dir() {
+        Ok(entries) => entries,
+        Err(_) => return HashSet::new(),
+    };
+    entries
         .filter_map(|entry| entry.ok())
         .filter_map(|entry| {
             entry
@@ -126,10 +136,9 @@ fn record_new_kanbus_id(world: &mut KanbusWorld) {
     let new_ids: HashSet<String> = current.difference(&before).cloned().collect();
     let picked = if new_ids.is_empty() {
         // Fallback: try to parse the ID from stdout (e.g., when files didn't change yet).
-        let re = regex::Regex::new(r"(?m)^ID:\s*([A-Za-z0-9._-]+)").expect("regex");
         if let Some(stdout) = &world.stdout {
-            if let Some(captures) = re.captures(stdout) {
-                captures[1].to_string()
+            if let Some(identifier) = parse_issue_id_from_output(stdout) {
+                identifier
             } else {
                 current.iter().cloned().max().unwrap_or_default()
             }
@@ -151,6 +160,14 @@ fn record_new_kanbus_id(world: &mut KanbusWorld) {
     let mut updated = current.clone();
     updated.insert(picked);
     world.existing_kanbus_ids = Some(updated);
+}
+
+fn parse_issue_id_from_output(output: &str) -> Option<String> {
+    let ansi_regex = Regex::new(r"\x1b\[[0-9;]*m").expect("regex");
+    let cleaned = ansi_regex.replace_all(output, "");
+    let re = Regex::new(r"(?m)^ID:\s*([A-Za-z0-9._-]+)").expect("regex");
+    re.captures(cleaned.as_ref())
+        .map(|cap| cap[1].to_string())
 }
 
 #[then(expr = "stdout should match pattern {string}")]

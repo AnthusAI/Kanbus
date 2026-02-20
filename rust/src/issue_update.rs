@@ -36,6 +36,7 @@ pub fn update_issue(
     description: Option<&str>,
     status: Option<&str>,
     assignee: Option<&str>,
+    priority: Option<u8>,
     claim: bool,
     validate: bool,
     add_labels: &[String],
@@ -82,6 +83,16 @@ pub fn update_issue(
     if let Some(new_assignee) = assignee {
         if updated_issue.assignee.as_deref() != Some(new_assignee) {
             updated_assignee = Some(new_assignee.to_string());
+        }
+    }
+
+    let mut updated_priority: Option<i32> = None;
+    if let Some(new_priority) = priority {
+        if validate && !configuration.priorities.contains_key(&new_priority) {
+            return Err(KanbusError::IssueOperation("invalid priority".to_string()));
+        }
+        if updated_issue.priority != new_priority as i32 {
+            updated_priority = Some(new_priority as i32);
         }
     }
 
@@ -144,6 +155,7 @@ pub fn update_issue(
         && updated_title.is_none()
         && updated_description.is_none()
         && updated_assignee.is_none()
+        && updated_priority.is_none()
         && updated_labels.is_none()
         && updated_parent.is_none()
     {
@@ -175,6 +187,9 @@ pub fn update_issue(
     if let Some(new_assignee) = updated_assignee {
         updated_issue.assignee = Some(new_assignee);
     }
+    if let Some(new_priority) = updated_priority {
+        updated_issue.priority = new_priority;
+    }
     if let Some(new_labels) = updated_labels {
         updated_issue.labels = new_labels;
     }
@@ -200,6 +215,9 @@ pub fn update_issue(
     }
     if assignee.is_some() || claim {
         fields_changed.push("assignee".to_string());
+    }
+    if priority.is_some() {
+        fields_changed.push("priority".to_string());
     }
     if parent.is_some() {
         fields_changed.push("parent".to_string());

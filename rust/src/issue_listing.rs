@@ -1,5 +1,6 @@
 //! Issue listing utilities.
 
+use std::io::ErrorKind;
 use std::path::Path;
 
 use crate::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
@@ -50,7 +51,22 @@ pub fn list_issues(
     }
     normalized.sort();
     normalized.dedup();
-    normalized.retain(|path| path.join("issues").is_dir());
+    let mut permission_error = None;
+    normalized.retain(|path| {
+        let issues_dir = path.join("issues");
+        match std::fs::metadata(&issues_dir) {
+            Ok(metadata) => metadata.is_dir(),
+            Err(error) => {
+                if error.kind() == ErrorKind::PermissionDenied {
+                    permission_error = Some(error);
+                }
+                false
+            }
+        }
+    });
+    if let Some(error) = permission_error {
+        return Err(KanbusError::Io(error.to_string()));
+    }
     let projects = normalized;
     if projects.is_empty() {
         return Err(KanbusError::IssueOperation(
@@ -65,6 +81,21 @@ pub fn list_issues(
     if include_local || local_only {
         let project_dir = load_project_directory(root)?;
         let local_dir = find_project_local_directory(&project_dir);
+        if !local_only && is_daemon_enabled() {
+            let payloads = request_index_list(root)?;
+            let mut issues: Vec<IssueData> = payloads
+                .into_iter()
+                .map(serde_json::from_value::<IssueData>)
+                .map(|result| result.map_err(|error| KanbusError::Io(error.to_string())))
+                .collect::<Result<Vec<IssueData>, KanbusError>>()?;
+            if let Some(local_dir) = local_dir {
+                let local_issues_dir = local_dir.join("issues");
+                if local_issues_dir.exists() {
+                    issues.extend(load_issues_from_directory(&local_issues_dir)?);
+                }
+            }
+            return apply_query(issues, status, issue_type, assignee, label, sort, search);
+        }
         let issues = list_issues_with_local(&project_dir, local_dir.as_deref(), local_only)?;
         return apply_query(issues, status, issue_type, assignee, label, sort, search);
     }

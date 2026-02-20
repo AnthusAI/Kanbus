@@ -457,8 +457,10 @@ pub fn update_beads_issue(
     root: &Path,
     identifier: &str,
     status: Option<&str>,
+    priority: Option<u8>,
     title: Option<&str>,
     description: Option<&str>,
+    assignee: Option<&str>,
     add_labels: &[String],
     remove_labels: &[String],
     set_labels: Option<&str>,
@@ -519,6 +521,13 @@ pub fn update_beads_issue(
             .insert("status".to_string(), json!(new_status));
         updated = true;
     }
+    if let Some(new_priority) = priority {
+        record
+            .as_object_mut()
+            .expect("beads record")
+            .insert("priority".to_string(), json!(new_priority));
+        updated = true;
+    }
     if let Some(new_title) = title {
         record
             .as_object_mut()
@@ -531,6 +540,13 @@ pub fn update_beads_issue(
             .as_object_mut()
             .expect("beads record")
             .insert("description".to_string(), json!(new_description));
+        updated = true;
+    }
+    if let Some(new_assignee) = assignee {
+        record
+            .as_object_mut()
+            .expect("beads record")
+            .insert("assignee".to_string(), json!(new_assignee));
         updated = true;
     }
     // Labels
@@ -594,11 +610,17 @@ pub fn update_beads_issue(
     if status.is_some() {
         fields_changed.push("status".to_string());
     }
+    if priority.is_some() {
+        fields_changed.push("priority".to_string());
+    }
     if title.is_some() {
         fields_changed.push("title".to_string());
     }
     if description.is_some() {
         fields_changed.push("description".to_string());
+    }
+    if assignee.is_some() {
+        fields_changed.push("assignee".to_string());
     }
     let _ = publish_notification(
         root,

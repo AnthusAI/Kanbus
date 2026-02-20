@@ -22,6 +22,7 @@ pub fn close_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusErr
         None,
         Some("closed"),
         None,
+        None,
         false,
         true,
         &[],

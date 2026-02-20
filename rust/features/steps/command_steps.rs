@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -5,6 +6,11 @@ use std::process::{Command, Stdio};
 use cucumber::{given, when};
 
 use kanbus::cli::run_from_args_with_output;
+use kanbus::daemon_client::{has_test_daemon_response, set_test_daemon_response, TestDaemonResponse};
+use kanbus::daemon_protocol::{
+    ErrorEnvelope, RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION,
+};
+use kanbus::daemon_server::handle_request_for_testing;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
@@ -20,12 +26,42 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
     if std::env::var("KANBUS_NO_DAEMON").is_err() {
         std::env::set_var("KANBUS_NO_DAEMON", "1");
     }
+    if normalized.starts_with("kanbus list")
+        && kanbus::daemon_client::is_daemon_enabled()
+        && !has_test_daemon_response()
+        && !world.daemon_list_error
+    {
+        let request = RequestEnvelope {
+            protocol_version: PROTOCOL_VERSION.to_string(),
+            request_id: "req-list".to_string(),
+            action: "index.list".to_string(),
+            payload: std::collections::BTreeMap::new(),
+        };
+        let response = handle_request_for_testing(cwd.as_path(), request);
+        set_test_daemon_response(Some(TestDaemonResponse::Envelope(response)));
+    }
+    if world.daemon_list_error && normalized.starts_with("kanbus list") {
+        std::env::set_var("KANBUS_NO_DAEMON", "0");
+        let response = ResponseEnvelope {
+            protocol_version: PROTOCOL_VERSION.to_string(),
+            request_id: "req-list".to_string(),
+            status: "error".to_string(),
+            result: None,
+            error: Some(ErrorEnvelope {
+                code: "internal_error".to_string(),
+                message: "daemon error".to_string(),
+                details: std::collections::BTreeMap::new(),
+            }),
+        };
+        set_test_daemon_response(Some(TestDaemonResponse::Envelope(response)));
+    }
 
     match run_from_args_with_output(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
             world.stderr = Some(String::new());
+            record_kanbus_issue_id_if_created(world, &normalized);
             let no_daemon = std::env::var("KANBUS_NO_DAEMON")
                 .unwrap_or_default()
                 .to_ascii_lowercase();
@@ -79,6 +115,61 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         world.stderr = Some(String::new());
         world.daemon_connected = true;
     }
+}
+
+fn record_kanbus_issue_id_if_created(world: &mut KanbusWorld, command: &str) {
+    if !command.contains("kanbus create") {
+        return;
+    }
+
+    if let Some(existing) = world.existing_kanbus_ids.clone() {
+        let current = current_issue_ids(world);
+        let new_ids: HashSet<String> = current.difference(&existing).cloned().collect();
+        if let Some(identifier) = new_ids.iter().next().cloned() {
+            world.last_kanbus_issue_id = Some(identifier.clone());
+            return;
+        }
+    }
+
+    if let Some(stdout) = world.stdout.as_ref() {
+        if let Some(identifier) = parse_issue_id_from_output(stdout) {
+            world.last_kanbus_issue_id = Some(identifier.clone());
+            if world.existing_kanbus_ids.is_none() {
+                world.existing_kanbus_ids = Some(current_issue_ids(world));
+            }
+        }
+    }
+}
+
+fn parse_issue_id_from_output(output: &str) -> Option<String> {
+    let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").expect("regex");
+    let cleaned = ansi_regex.replace_all(output, "");
+    let re = regex::Regex::new(r"(?m)^ID:\s*([A-Za-z0-9._-]+)").expect("regex");
+    re.captures(cleaned.as_ref())
+        .map(|cap| cap[1].to_string())
+}
+
+fn current_issue_ids(world: &KanbusWorld) -> HashSet<String> {
+    let issues_dir = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join("project")
+        .join("issues");
+    let entries = match issues_dir.read_dir() {
+        Ok(entries) => entries,
+        Err(_) => return HashSet::new(),
+    };
+    entries
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            entry
+                .path()
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(String::from)
+        })
+        .collect()
 }
 
 fn build_kbs_binary() -> PathBuf {
