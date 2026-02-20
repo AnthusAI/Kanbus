@@ -69,6 +69,22 @@ fn given_issue_depends_on(
     write_issue_file(&project_dir, &issue);
 }
 
+#[then(expr = "issue {string} has dependency {string} of type {string}")]
+fn then_issue_has_dependency(
+    world: &mut KanbusWorld,
+    identifier: String,
+    target: String,
+    dependency_type: String,
+) {
+    let project_dir = load_project_dir(world);
+    let issue = read_issue_file(&project_dir, &identifier);
+    let found = issue
+        .dependencies
+        .iter()
+        .any(|dep| dep.target == target && dep.dependency_type == dependency_type);
+    assert!(found, "expected dependency not found");
+}
+
 #[when("ready issues are listed for a single project")]
 fn when_ready_issues_listed_single_project(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("cwd");

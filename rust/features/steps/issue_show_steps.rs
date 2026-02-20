@@ -81,6 +81,38 @@ fn when_format_issue_display(world: &mut KanbusWorld) {
     world.formatted_output = Some(format_issue_for_display(&issue, None, false, false));
 }
 
+#[when(expr = "I format issue {string} for display")]
+fn when_format_issue_display_generic(world: &mut KanbusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(&issue_path).expect("read issue");
+    let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
+    let config_path = project_dir
+        .parent()
+        .unwrap_or(&project_dir)
+        .join(".kanbus.yml");
+    let configuration = if config_path.exists() {
+        Some(load_project_configuration(&config_path).expect("load configuration"))
+    } else {
+        None
+    };
+    world.formatted_output = Some(format_issue_for_display(
+        &issue,
+        configuration.as_ref(),
+        false,
+        false,
+    ));
+}
+
+#[when(expr = "I format issue {string} for display with NO_COLOR set")]
+fn when_format_issue_display_no_color(world: &mut KanbusWorld, identifier: String) {
+    std::env::set_var("NO_COLOR", "1");
+    when_format_issue_display_generic(world, identifier);
+    std::env::remove_var("NO_COLOR");
+}
+
 #[when(expr = "I format issue {string} for display with color enabled")]
 fn when_format_issue_display_with_color(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);

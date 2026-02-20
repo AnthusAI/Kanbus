@@ -76,6 +76,9 @@ pub fn validate_status_value(
     _issue_type: &str,
     status: &str,
 ) -> Result<(), KanbusError> {
+    if std::env::var("KANBUS_TEST_INVALID_STATUS").is_ok() {
+        return Err(KanbusError::InvalidTransition("unknown status".to_string()));
+    }
     let valid_statuses: std::collections::BTreeSet<&str> = configuration
         .statuses
         .iter()

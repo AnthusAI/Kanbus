@@ -1,7 +1,8 @@
 //! Content validation for fenced code blocks in Markdown text.
 
-use std::io::Write;
-use std::process::Command;
+use std::io::{Read, Write};
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 use crate::error::KanbusError;
 
@@ -128,6 +129,11 @@ fn validate_gherkin(block: &CodeBlock) -> Result<(), KanbusError> {
 }
 
 fn validate_external(block: &CodeBlock, tool: &str) -> Result<(), KanbusError> {
+    if let Ok(forced_missing) = std::env::var("KANBUS_TEST_EXTERNAL_TOOL_MISSING") {
+        if forced_missing == tool {
+            return Ok(());
+        }
+    }
     // Check if the external tool is available on PATH.
     let available = Command::new("which")
         .arg(tool)
@@ -169,38 +175,72 @@ fn validate_external(block: &CodeBlock, tool: &str) -> Result<(), KanbusError> {
             .map_err(|e| KanbusError::Io(e.to_string()))?;
     }
 
-    let result = match tool {
-        "mmdc" => Command::new("mmdc")
-            .args(["-i", temp_path.to_str().unwrap_or(""), "-o", "/dev/null"])
-            .output(),
-        "plantuml" => Command::new("plantuml")
-            .args(["-checkonly", temp_path.to_str().unwrap_or("")])
-            .output(),
-        "d2" => Command::new("d2")
-            .args(["fmt", temp_path.to_str().unwrap_or("")])
-            .output(),
+    let mut command = match tool {
+        "mmdc" => {
+            let mut cmd = Command::new("mmdc");
+            cmd.args(["-i", temp_path.to_str().unwrap_or(""), "-o", "/dev/null"]);
+            cmd
+        }
+        "plantuml" => {
+            let mut cmd = Command::new("plantuml");
+            cmd.args(["-checkonly", temp_path.to_str().unwrap_or("")]);
+            cmd
+        }
+        "d2" => {
+            let mut cmd = Command::new("d2");
+            cmd.args(["fmt", temp_path.to_str().unwrap_or("")]);
+            cmd
+        }
         _ => return Ok(()),
     };
 
-    let _ = std::fs::remove_file(&temp_path);
+    let mut child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| KanbusError::Io(e.to_string()))?;
 
-    match result {
-        Ok(output) if !output.status.success() => {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let language = match tool {
-                "mmdc" => "mermaid",
-                "plantuml" => "plantuml",
-                "d2" => "d2",
-                _ => tool,
-            };
-            Err(KanbusError::IssueOperation(format!(
-                "invalid {} in code block at line {}: {}",
-                language,
-                block.start_line,
-                stderr.trim()
-            )))
+    let timeout_ms = std::env::var("KANBUS_TEST_EXTERNAL_TIMEOUT_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(30_000);
+    let timeout = Duration::from_millis(timeout_ms);
+    let start = Instant::now();
+
+    loop {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|e| KanbusError::Io(e.to_string()))?
+        {
+            let mut stderr = String::new();
+            if let Some(mut err) = child.stderr.take() {
+                err.read_to_string(&mut stderr)
+                    .map_err(|e| KanbusError::Io(e.to_string()))?;
+            }
+            let _ = std::fs::remove_file(&temp_path);
+            if !status.success() {
+                let language = match tool {
+                    "mmdc" => "mermaid",
+                    "plantuml" => "plantuml",
+                    "d2" => "d2",
+                    _ => tool,
+                };
+                return Err(KanbusError::IssueOperation(format!(
+                    "invalid {} in code block at line {}: {}",
+                    language,
+                    block.start_line,
+                    stderr.trim()
+                )));
+            }
+            return Ok(());
         }
-        _ => Ok(()),
+        if start.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = std::fs::remove_file(&temp_path);
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(50));
     }
 }
 

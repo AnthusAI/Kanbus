@@ -379,6 +379,183 @@ fn given_kanbus_issue_exists(world: &mut KanbusWorld, identifier: String) {
     fs::write(beads_path, beads_content).expect("write beads issues");
 }
 
+#[given(expr = "a kanbus issue {string} exists with labels {string}")]
+fn given_kanbus_issue_exists_with_labels(
+    world: &mut KanbusWorld,
+    identifier: String,
+    labels: String,
+) {
+    let cwd = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let project_dir = load_project_directory(cwd).expect("project dir");
+    let timestamp = Utc::now();
+    let label_list: Vec<String> = labels
+        .split(',')
+        .map(|label| label.trim().to_string())
+        .filter(|label| !label.is_empty())
+        .collect();
+
+    let issue = IssueData {
+        identifier: identifier.clone(),
+        title: "Test Issue".to_string(),
+        description: String::new(),
+        issue_type: "task".to_string(),
+        status: "open".to_string(),
+        priority: 2,
+        assignee: None,
+        creator: None,
+        parent: None,
+        labels: label_list.clone(),
+        dependencies: Vec::new(),
+        comments: Vec::new(),
+        created_at: timestamp,
+        updated_at: timestamp,
+        closed_at: None,
+        custom: std::collections::BTreeMap::new(),
+    };
+
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", identifier));
+    let contents = serde_json::to_string_pretty(&issue).expect("serialize issue");
+    fs::write(issue_path, contents).expect("write issue");
+
+    let beads_path = cwd.join(".beads").join("issues.jsonl");
+    let now = timestamp.to_rfc3339();
+    let beads_record = json!({
+        "id": identifier,
+        "title": "Test Issue",
+        "description": "",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "task",
+        "labels": label_list,
+        "created_at": now,
+        "created_by": "fixture",
+        "updated_at": now,
+    });
+    let mut beads_content = fs::read_to_string(&beads_path).unwrap_or_default();
+    beads_content.push_str(&serde_json::to_string(&beads_record).expect("serialize beads record"));
+    beads_content.push('\n');
+    fs::write(beads_path, beads_content).expect("write beads issues");
+}
+
+#[given(expr = "a kanbus issue {string} exists with title {string}")]
+fn given_kanbus_issue_exists_with_title(
+    world: &mut KanbusWorld,
+    identifier: String,
+    title: String,
+) {
+    let cwd = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let project_dir = load_project_directory(cwd).expect("project dir");
+    let timestamp = Utc::now();
+
+    let issue = IssueData {
+        identifier: identifier.clone(),
+        title: title.clone(),
+        description: String::new(),
+        issue_type: "task".to_string(),
+        status: "open".to_string(),
+        priority: 2,
+        assignee: None,
+        creator: None,
+        parent: None,
+        labels: Vec::new(),
+        dependencies: Vec::new(),
+        comments: Vec::new(),
+        created_at: timestamp,
+        updated_at: timestamp,
+        closed_at: None,
+        custom: std::collections::BTreeMap::new(),
+    };
+
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", identifier));
+    let contents = serde_json::to_string_pretty(&issue).expect("serialize issue");
+    fs::write(issue_path, contents).expect("write issue");
+
+    let beads_path = cwd.join(".beads").join("issues.jsonl");
+    let now = timestamp.to_rfc3339();
+    let beads_record = json!({
+        "id": identifier,
+        "title": title,
+        "description": "",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "task",
+        "created_at": now,
+        "created_by": "fixture",
+        "updated_at": now,
+    });
+    let mut beads_content = fs::read_to_string(&beads_path).unwrap_or_default();
+    beads_content.push_str(&serde_json::to_string(&beads_record).expect("serialize beads record"));
+    beads_content.push('\n');
+    fs::write(beads_path, beads_content).expect("write beads issues");
+}
+
+#[given(expr = "a kanbus issue {string} exists with priority {int}")]
+fn given_kanbus_issue_exists_with_priority(
+    world: &mut KanbusWorld,
+    identifier: String,
+    priority: i32,
+) {
+    let cwd = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let project_dir = load_project_directory(cwd).expect("project dir");
+    let timestamp = Utc::now();
+
+    let issue = IssueData {
+        identifier: identifier.clone(),
+        title: "Test Issue".to_string(),
+        description: String::new(),
+        issue_type: "task".to_string(),
+        status: "open".to_string(),
+        priority,
+        assignee: None,
+        creator: None,
+        parent: None,
+        labels: Vec::new(),
+        dependencies: Vec::new(),
+        comments: Vec::new(),
+        created_at: timestamp,
+        updated_at: timestamp,
+        closed_at: None,
+        custom: std::collections::BTreeMap::new(),
+    };
+
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", identifier));
+    let contents = serde_json::to_string_pretty(&issue).expect("serialize issue");
+    fs::write(issue_path, contents).expect("write issue");
+
+    let beads_path = cwd.join(".beads").join("issues.jsonl");
+    let now = timestamp.to_rfc3339();
+    let beads_record = json!({
+        "id": identifier,
+        "title": "Test Issue",
+        "description": "",
+        "status": "open",
+        "priority": priority,
+        "issue_type": "task",
+        "created_at": now,
+        "created_by": "fixture",
+        "updated_at": now,
+    });
+    let mut beads_content = fs::read_to_string(&beads_path).unwrap_or_default();
+    beads_content.push_str(&serde_json::to_string(&beads_record).expect("serialize beads record"));
+    beads_content.push('\n');
+    fs::write(beads_path, beads_content).expect("write beads issues");
+}
+
 #[given(expr = "a beads issue {string} exists")]
 fn given_beads_issue_exists(world: &mut KanbusWorld, identifier: String) {
     let cwd = world
