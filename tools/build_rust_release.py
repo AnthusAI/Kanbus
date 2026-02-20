@@ -136,8 +136,8 @@ def build_release(repo_root: Path, target: str | None) -> Path:
         command.extend(["--target", target])
     build_result = run_command(command, cwd=rust_dir)
     if build_result.return_code != 0:
-        print(_format_command_result(build_result))
-        print(preflight_diagnostics(repo_root))
+        print(_format_command_result(build_result), file=sys.stderr)
+        print(preflight_diagnostics(repo_root), file=sys.stderr)
         raise RuntimeError("cargo build --release failed")
     ensure_success(build_result, "cargo build --release")
 
@@ -171,7 +171,7 @@ def main(argv: list[str]) -> int:
     try:
         binary = build_release(repo_root, args.target)
     except RuntimeError as error:
-        print(str(error))
+        print(str(error), file=sys.stderr)
         return 1
     print(str(binary))
     return 0
