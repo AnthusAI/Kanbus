@@ -319,6 +319,27 @@ Before any PR can merge:
    - Python coverage ≥ 100% ✓
    - Rust coverage ≥ 100% (cargo-tarpaulin) ✓
 
+## Rust Coverage (Local macOS)
+
+**Problem:** `cargo tarpaulin` with `--engine ptrace` fails on macOS (unsupported). `--engine llvm` can fail with `Parsing failed` unless you use the rustup LLVM tools.
+
+**Known-good local command (macOS):**
+```bash
+PATH="$HOME/.cargo/bin:$PATH" \
+LLVM_PROFDATA="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-profdata" \
+LLVM_COV="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-cov" \
+cargo tarpaulin --engine llvm --lib --test cucumber \
+  --exclude-files "src/bin/*" --exclude-files "features/steps/*" \
+  --out Xml --output-dir ../coverage-rust -- --test-threads 1
+```
+
+**If you still see `Parsing failed`** on macOS, run the Linux ptrace path instead (CI or a Linux host):
+```bash
+cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads \
+  --exclude-files "src/bin/*" --exclude-files "features/steps/*" \
+  --timeout 180 --out Xml --output-dir ../coverage-rust
+```
+
 6. **YAML test cases** (when implemented)
    - Both implementations pass identical YAML test vectors ✓
 
@@ -333,4 +354,3 @@ Before any PR can merge:
 7. **Run parity checker** to verify both implementations are in sync
 8. **Run all quality gates**
 9. **Submit PR only when all gates pass**
-
