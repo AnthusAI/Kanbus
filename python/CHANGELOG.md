@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.9.2 (2026-02-20)
+
+### Bug Fixes
+
+- Run npm ci in package directories for release
+  ([`3308928`](https://github.com/AnthusAI/Kanbus/commit/33089286c236dcb266a92061070117bea4c0beb4))
+
+- Use absolute working directories in rust-crate
+  ([`2072002`](https://github.com/AnthusAI/Kanbus/commit/2072002628a0755bad3e129282a3549cfc10fcf3))
+
+
 ## v0.9.1 (2026-02-20)
 
 ### Bug Fixes
