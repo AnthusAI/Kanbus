@@ -226,24 +226,34 @@ Severity is not emotion. It is signal.
 
 ## Command examples
 
+List issues:
 
-kanbus create "Plan the roadmap" --type initiative
+    kbs list
+    kbs list --type epic
+    kbs list --status open
+    kbs list --type task --status in_progress
 
-kanbus create "Release v1" --type epic --parent <initiative-id>
+Intuitive aliases (same result as list with --type filter):
 
-kanbus create "Implement feature" --type task --parent <epic-id>
+    kbs issues          equivalent to: kbs list
+    kbs epics           equivalent to: kbs list --type epic
+    kbs tasks           equivalent to: kbs list --type task
+    kbs stories         equivalent to: kbs list --type story
+    kbs bugs            equivalent to: kbs list --type bug
 
-kanbus create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
+Create (type hierarchy: initiative > epic > story / task / bug > sub-task):
 
-kanbus update <id> --status in_progress --assignee "you@example.com"
+    kbs create "Plan the roadmap" --type initiative
+    kbs create "Release v1" --type epic --parent <initiative-id>
+    kbs create "Implement feature" --type task --parent <epic-id>
+    kbs create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
 
-kanbus update <id> --status blocked
+Update and close:
 
-kanbus comment <id> "Progress note"
-
-kanbus list --status open
-
-kanbus close <id> --comment "Summary of the change"
+    kbs update <id> --status in_progress --assignee "you@example.com"
+    kbs update <id> --status blocked
+    kbs comment <id> "Progress note"
+    kbs close <id> --comment "Summary of the change"
 
 
 ## Semantic Release Alignment
