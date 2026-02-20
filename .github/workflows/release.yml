@@ -9,7 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  publish:
+  pypi-release:
+    name: PyPI Release
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     outputs:
@@ -74,8 +75,8 @@ jobs:
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
   rust-binaries:
-    needs: publish
-    if: ${{ needs.publish.outputs.release_tag != '' }}
+    needs: pypi-release
+    if: ${{ needs.pypi-release.outputs.release_tag != '' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -136,15 +137,15 @@ jobs:
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.publish.outputs.release_tag }}
+          tag_name: ${{ needs.pypi-release.outputs.release_tag }}
           files: |
             dist/kbs-${{ matrix.target }}.${{ matrix.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   console-server-binaries:
-    needs: publish
-    if: ${{ needs.publish.outputs.release_tag != '' }}
+    needs: pypi-release
+    if: ${{ needs.pypi-release.outputs.release_tag != '' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -224,15 +225,15 @@ jobs:
       - name: Upload console server assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.publish.outputs.release_tag }}
+          tag_name: ${{ needs.pypi-release.outputs.release_tag }}
           files: |
             dist/kbsc-${{ matrix.target }}.${{ matrix.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   rust-crate:
-    needs: publish
-    if: ${{ needs.publish.outputs.release_tag != '' }}
+    needs: pypi-release
+    if: ${{ needs.pypi-release.outputs.release_tag != '' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -280,7 +281,7 @@ jobs:
 
       - name: Sync crate version to release tag
         run: |
-          tag_version="${{ needs.publish.outputs.release_tag }}"
+          tag_version="${{ needs.pypi-release.outputs.release_tag }}"
           tag_version="${tag_version#v}"
           python - <<'PY' "$tag_version"
           import pathlib, re, sys
@@ -323,7 +324,7 @@ jobs:
       - name: Check if crate version already exists
         id: crate_version_check
         run: |
-          version="${{ needs.publish.outputs.release_tag }}"
+          version="${{ needs.pypi-release.outputs.release_tag }}"
           version="${version#v}"
           python - <<'PY' "$version"
           import json
