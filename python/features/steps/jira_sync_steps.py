@@ -73,9 +73,7 @@ def _build_jira_issue(
     return issue
 
 
-def _start_fake_jira_server(
-    issues: List[Dict[str, Any]], port: int
-) -> HTTPServer:
+def _start_fake_jira_server(issues: List[Dict[str, Any]], port: int) -> HTTPServer:
     """Start a fake Jira HTTP server on the given port.
 
     :param issues: List of Jira issue dicts to serve.
@@ -158,9 +156,7 @@ def given_fake_jira_server(context: object) -> None:
     context.fake_jira_issues = issues
 
 
-@given(
-    "the Kanbus configuration includes Jira settings pointing at the fake server"
-)
+@given("the Kanbus configuration includes Jira settings pointing at the fake server")
 def given_jira_config(context: object) -> None:
     """Write a jira: block into the project .kanbus.yml.
 
@@ -196,6 +192,7 @@ def given_env_var_unset(context: object, name: str) -> None:
     """
     context.environment_overrides.pop(name, None)
     import os
+
     context._unset_env_vars = getattr(context, "_unset_env_vars", [])
     context._unset_env_vars.append((name, os.environ.get(name)))
     os.environ.pop(name, None)
@@ -234,9 +231,7 @@ def then_issue_file_count(context: object, count: int) -> None:
     project_dir = load_project_directory(context)
     issues_dir = project_dir / "issues"
     actual = len(list(issues_dir.glob("*.json"))) if issues_dir.exists() else 0
-    assert actual == count, (
-        f"Expected {count} issue files, found {actual}"
-    )
+    assert actual == count, f"Expected {count} issue files, found {actual}"
 
 
 @then('an issue file with jira_key "{jira_key}" should exist with title "{title}"')
@@ -254,9 +249,7 @@ def then_issue_file_exists_with_title(
     """
     issue = _find_issue_by_jira_key(context, jira_key)
     assert issue is not None, f"No issue found with jira_key {jira_key!r}"
-    assert issue["title"] == title, (
-        f"Expected title {title!r}, got {issue['title']!r}"
-    )
+    assert issue["title"] == title, f"Expected title {title!r}, got {issue['title']!r}"
 
 
 @then('an issue file with jira_key "{jira_key}" should have type "{issue_type}"')
@@ -273,18 +266,14 @@ def then_issue_has_type(context: object, jira_key: str, issue_type: str) -> None
     issue = _find_issue_by_jira_key(context, jira_key)
     assert issue is not None, f"No issue found with jira_key {jira_key!r}"
     actual = issue.get("type") or issue.get("issue_type")
-    assert actual == issue_type, (
-        f"Expected type {issue_type!r}, got {actual!r}"
-    )
+    assert actual == issue_type, f"Expected type {issue_type!r}, got {actual!r}"
 
 
 @then(
     'the issue with jira_key "{child_key}" should have a parent matching'
     ' the issue with jira_key "{parent_key}"'
 )
-def then_issue_parent_matches(
-    context: object, child_key: str, parent_key: str
-) -> None:
+def then_issue_parent_matches(context: object, child_key: str, parent_key: str) -> None:
     """Assert the child issue's parent field matches the parent issue's Kanbus ID.
 
     :param context: Behave context object.
@@ -298,9 +287,9 @@ def then_issue_parent_matches(
     child_issue = _find_issue_by_jira_key(context, child_key)
     assert parent_issue is not None, f"No issue found with jira_key {parent_key!r}"
     assert child_issue is not None, f"No issue found with jira_key {child_key!r}"
-    assert child_issue.get("parent") == parent_issue["id"], (
-        f"Expected parent {parent_issue['id']!r}, got {child_issue.get('parent')!r}"
-    )
+    assert (
+        child_issue.get("parent") == parent_issue["id"]
+    ), f"Expected parent {parent_issue['id']!r}, got {child_issue.get('parent')!r}"
 
 
 @then('the output should contain "{text}"')
@@ -313,16 +302,13 @@ def then_output_contains(context: object, text: str) -> None:
     :type text: str
     """
     import re as _re
+
     ansi_re = _re.compile(r"\x1b\[[0-9;]*m")
     combined = ansi_re.sub("", context.result.output or "")
-    assert text in combined, (
-        f"Expected {text!r} in output, got:\n{combined}"
-    )
+    assert text in combined, f"Expected {text!r} in output, got:\n{combined}"
 
 
-def _find_issue_by_jira_key(
-    context: object, jira_key: str
-) -> Dict[str, Any] | None:
+def _find_issue_by_jira_key(context: object, jira_key: str) -> Dict[str, Any] | None:
     """Find an issue JSON dict by its jira_key custom field.
 
     :param context: Behave context object.

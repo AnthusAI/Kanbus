@@ -5,11 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
 from typing import Iterable
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON_SRC = ROOT / "python" / "src"
@@ -56,7 +57,7 @@ def _parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser.add_argument(
         "--root",
         type=Path,
-        default=ROOT / "tools" / "tmp" / "benchmark-discovery-fixtures",
+        default=None,
         help="Fixture root directory.",
     )
     parser.add_argument(
@@ -226,7 +227,7 @@ def main(argv: Iterable[str]) -> int:
     args = _parse_args(argv)
     plan = FixturePlan(projects=args.projects, issues_per_project=args.issues_per_project)
 
-    root = args.root
+    root = args.root or Path(tempfile.mkdtemp(prefix="kanbus-benchmark-discovery-"))
     single_root = generate_single_project(root, plan).parent
     multi_root = generate_multi_project(root, plan)
 

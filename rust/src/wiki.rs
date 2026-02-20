@@ -115,9 +115,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
         .render_str(&template, context! {})
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
     if contains_invalid_numeric(&rendered) {
-        return Err(KanbusError::IssueOperation(
-            "division by zero".to_string(),
-        ));
+        return Err(KanbusError::IssueOperation("division by zero".to_string()));
     }
     Ok(rendered)
 }
@@ -141,12 +139,17 @@ fn filter_issues_from_kwargs(
 }
 
 fn contains_invalid_numeric(rendered: &str) -> bool {
-    rendered.split(|ch: char| !ch.is_alphanumeric()).any(|token| {
-        if token.is_empty() {
-            return false;
-        }
-        matches!(token.to_ascii_lowercase().as_str(), "inf" | "infinity" | "nan")
-    })
+    rendered
+        .split(|ch: char| !ch.is_alphanumeric())
+        .any(|token| {
+            if token.is_empty() {
+                return false;
+            }
+            matches!(
+                token.to_ascii_lowercase().as_str(),
+                "inf" | "infinity" | "nan"
+            )
+        })
 }
 
 fn read_string_kwarg(kwargs: &Kwargs, key: &str) -> Result<Option<String>, Error> {

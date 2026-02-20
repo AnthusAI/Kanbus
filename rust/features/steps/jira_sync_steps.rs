@@ -53,7 +53,6 @@ fn build_jira_issue(
     json!({"key": key, "fields": fields})
 }
 
-
 #[given("a fake Jira server is running with issues")]
 async fn given_fake_jira_server(world: &mut KanbusWorld, step: &cucumber::gherkin::Step) {
     let issues: Vec<Value> = step
@@ -146,9 +145,7 @@ async fn given_fake_jira_server(world: &mut KanbusWorld, step: &cucumber::gherki
     world.fake_jira_issues = issues.as_ref().clone();
 }
 
-#[given(
-    "the Kanbus configuration includes Jira settings pointing at the fake server"
-)]
+#[given("the Kanbus configuration includes Jira settings pointing at the fake server")]
 fn given_jira_config(world: &mut KanbusWorld) {
     let port = world.fake_jira_port.expect("fake jira port not set");
     let config_path = world
@@ -173,7 +170,6 @@ fn given_env_var_unset(world: &mut KanbusWorld, name: String) {
     world.jira_unset_env_vars.push((name, original));
 }
 
-
 #[then(expr = "{int} issue files should exist in the issues directory")]
 fn then_issue_file_count(world: &mut KanbusWorld, count: usize) {
     let issues_dir = world
@@ -197,7 +193,10 @@ fn then_issue_file_count(world: &mut KanbusWorld, count: usize) {
     } else {
         0
     };
-    assert_eq!(actual, count, "Expected {count} issue files, found {actual}");
+    assert_eq!(
+        actual, count,
+        "Expected {count} issue files, found {actual}"
+    );
 }
 
 #[then(expr = "an issue file with jira_key {string} should exist with title {string}")]
@@ -205,7 +204,10 @@ fn then_issue_exists_with_title(world: &mut KanbusWorld, jira_key: String, title
     let issue = find_issue_by_jira_key(world, &jira_key)
         .unwrap_or_else(|| panic!("No issue found with jira_key {jira_key:?}"));
     let actual_title = issue["title"].as_str().unwrap_or("");
-    assert_eq!(actual_title, title, "Expected title {title:?}, got {actual_title:?}");
+    assert_eq!(
+        actual_title, title,
+        "Expected title {title:?}, got {actual_title:?}"
+    );
 }
 
 #[then(expr = "an issue file with jira_key {string} should have type {string}")]
@@ -213,17 +215,16 @@ fn then_issue_has_type(world: &mut KanbusWorld, jira_key: String, issue_type: St
     let issue = find_issue_by_jira_key(world, &jira_key)
         .unwrap_or_else(|| panic!("No issue found with jira_key {jira_key:?}"));
     let actual = issue["type"].as_str().unwrap_or("");
-    assert_eq!(actual, issue_type, "Expected type {issue_type:?}, got {actual:?}");
+    assert_eq!(
+        actual, issue_type,
+        "Expected type {issue_type:?}, got {actual:?}"
+    );
 }
 
 #[then(
     expr = "the issue with jira_key {string} should have a parent matching the issue with jira_key {string}"
 )]
-fn then_issue_parent_matches(
-    world: &mut KanbusWorld,
-    child_key: String,
-    parent_key: String,
-) {
+fn then_issue_parent_matches(world: &mut KanbusWorld, child_key: String, parent_key: String) {
     let parent_issue = find_issue_by_jira_key(world, &parent_key)
         .unwrap_or_else(|| panic!("No issue found with jira_key {parent_key:?}"));
     let child_issue = find_issue_by_jira_key(world, &child_key)

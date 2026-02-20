@@ -58,6 +58,7 @@ def after_scenario(context: object, scenario: object) -> None:
         context.fake_jira_server = None
     for name, original_value in getattr(context, "_unset_env_vars", []):
         import os
+
         if original_value is not None:
             os.environ[name] = original_value
     context._unset_env_vars = []

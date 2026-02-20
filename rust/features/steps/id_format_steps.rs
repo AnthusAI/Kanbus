@@ -166,8 +166,7 @@ fn parse_issue_id_from_output(output: &str) -> Option<String> {
     let ansi_regex = Regex::new(r"\x1b\[[0-9;]*m").expect("regex");
     let cleaned = ansi_regex.replace_all(output, "");
     let re = Regex::new(r"(?m)^ID:\s*([A-Za-z0-9._-]+)").expect("regex");
-    re.captures(cleaned.as_ref())
-        .map(|cap| cap[1].to_string())
+    re.captures(cleaned.as_ref()).map(|cap| cap[1].to_string())
 }
 
 #[then(expr = "stdout should match pattern {string}")]

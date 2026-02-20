@@ -6,10 +6,10 @@ use std::process::{Command, Stdio};
 use cucumber::{given, when};
 
 use kanbus::cli::run_from_args_with_output;
-use kanbus::daemon_client::{has_test_daemon_response, set_test_daemon_response, TestDaemonResponse};
-use kanbus::daemon_protocol::{
-    ErrorEnvelope, RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION,
+use kanbus::daemon_client::{
+    has_test_daemon_response, set_test_daemon_response, TestDaemonResponse,
 };
+use kanbus::daemon_protocol::{ErrorEnvelope, RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION};
 use kanbus::daemon_server::handle_request_for_testing;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -145,8 +145,7 @@ fn parse_issue_id_from_output(output: &str) -> Option<String> {
     let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").expect("regex");
     let cleaned = ansi_regex.replace_all(output, "");
     let re = regex::Regex::new(r"(?m)^ID:\s*([A-Za-z0-9._-]+)").expect("regex");
-    re.captures(cleaned.as_ref())
-        .map(|cap| cap[1].to_string())
+    re.captures(cleaned.as_ref()).map(|cap| cap[1].to_string())
 }
 
 fn current_issue_ids(world: &KanbusWorld) -> HashSet<String> {
