@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "f92d6c65-2e03-4f62-98c4-191758b559b8",
+  "issue_id": "tskl-tnl.4",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T14:56:21.895Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "Update, close, delete, comment, promote, and localize operations must resolve the issue to its source project and mutate in place. Events written to the source project's event directory. No duplicates, no cross-project file moves.",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tskl-tnl",
+    "priority": 2,
+    "status": "open",
+    "title": "Cross-project mutation routing"
+  }
+}

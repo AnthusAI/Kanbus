@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "656f51e5-f269-49f1-9942-6b7ab770232c",
+  "issue_id": "tskl-xlh",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T16:07:08.242Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "The kbs CLI reports version 0.6.0 (from Cargo.toml) while the actual semantic release version is v0.11.0. The Cargo.toml version is only synced during CI release, so local builds always report a stale version. The binary should derive its version from the latest git tag at build time so it always matches the semantic release version.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 0,
+    "status": "open",
+    "title": "kbs binary reports stale hardcoded version instead of semantic release version"
+  }
+}
