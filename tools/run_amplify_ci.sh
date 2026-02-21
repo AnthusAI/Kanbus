@@ -15,7 +15,36 @@ sudo dnf -y install \
   openssl-devel \
   pkgconfig \
   python3.11 \
-  python3.11-pip
+  python3.11-pip \
+  alsa-lib \
+  atk \
+  at-spi2-atk \
+  at-spi2-core \
+  cairo \
+  cups-libs \
+  dbus-libs \
+  gdk-pixbuf2 \
+  glib2 \
+  gtk3 \
+  libX11 \
+  libXcomposite \
+  libXcursor \
+  libXdamage \
+  libXext \
+  libXfixes \
+  libXi \
+  libXrandr \
+  libXScrnSaver \
+  libXtst \
+  libdrm \
+  libxkbcommon \
+  mesa-libgbm \
+  nss \
+  pango \
+  xorg-x11-fonts-100dpi \
+  xorg-x11-fonts-75dpi \
+  xorg-x11-fonts-Type1 \
+  xorg-x11-fonts-misc
 
 python3.11 -m pip install --upgrade pip
 python3.11 -m pip install -e python
@@ -53,6 +82,7 @@ cd ..
 
 cd apps/console
 npm ci --prefer-offline --no-audit
+npx playwright install chromium
 npm run test:ui
 cd ../..
 
