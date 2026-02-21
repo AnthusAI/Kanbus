@@ -13,12 +13,12 @@ sudo dnf -y install \
   libicu-devel \
   openssl-devel \
   pkgconfig \
-  python3 \
-  python3-pip
+  python3.11 \
+  python3.11-pip
 
-python3 -m pip install --upgrade pip
-python3 -m pip install -e python
-python3 -m pip install black ruff coverage
+python3.11 -m pip install --upgrade pip
+python3.11 -m pip install -e python
+python3.11 -m pip install black ruff coverage
 
 curl https://sh.rustup.rs -sSf | sh -s -- -y
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -29,10 +29,10 @@ cd python
 black --check .
 ruff check .
 mkdir -p ../coverage-python
-python -m coverage run --source=kanbus -m behave
-python -m coverage xml -o ../coverage-python/coverage.xml
+python3.11 -m coverage run --source=kanbus -m behave
+python3.11 -m coverage xml -o ../coverage-python/coverage.xml
 cd ..
-python3 tools/check_spec_parity.py
+python3.11 tools/check_spec_parity.py
 
 (cd packages/ui && npm ci && npm run build)
 (cd apps/console && npm ci && npm run build)
@@ -55,7 +55,7 @@ npx playwright install --with-deps
 npm run test:ui
 cd ../..
 
-python3 tools/check_benchmarks.py
+python3.11 tools/check_benchmarks.py
 
 cd rust
 cargo build --release --bin kbs --bin kbsc
@@ -65,7 +65,7 @@ cp rust/target/release/kbs dist/kbs
 cp rust/target/release/kbsc dist/kbsc
 tools/test_prebuilt_binaries_docker.sh dist/kbs dist/kbsc
 
-binary=$(python3 tools/build_rust_release.py)
-python3 tools/run_beads_interop_suite.py --rust-binary "$binary"
+binary=$(python3.11 tools/build_rust_release.py)
+python3.11 tools/run_beads_interop_suite.py --rust-binary "$binary"
 
 echo "Amplify CI gate completed."
