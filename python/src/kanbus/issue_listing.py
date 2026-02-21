@@ -178,16 +178,10 @@ def _list_issues_locally(root: Path) -> List[IssueData]:
 def _list_issues_for_project(project_dir: Path) -> List[IssueData]:
     issues_dir = project_dir / "issues"
     if not issues_dir.is_dir():
-        # Beads fallback: project_dir is typically <repo>/project, so
-        # the repo root is one level up.
-        repo_root = project_dir.parent
-        beads_path = repo_root / ".beads" / "issues.jsonl"
-        if beads_path.exists():
-            try:
-                return load_beads_issues(repo_root)
-            except MigrationError:
-                return []
-        return []
+        raise IssueListingError(
+            f"issues directory not found: {issues_dir}. "
+            "Run 'kanbus migrate' if you need to migrate from an older format."
+        )
     cache_path = project_dir / ".cache" / "index.json"
     cached = load_cache_if_valid(cache_path, issues_dir)
     if cached is not None:
