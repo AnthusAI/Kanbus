@@ -28,7 +28,7 @@ def given_project_with_varied_issues(context: object) -> None:
         build_issue("kanbus-parent", "Parent", "epic", "open", None, []),
         build_issue("kanbus-child", "Child", "task", "open", "kanbus-parent", []),
         build_issue("kanbus-closed", "Closed", "bug", "closed", None, []),
-        build_issue("kanbus-deferred", "Deferred", "task", "deferred", None, []),
+        build_issue("kanbus-backlog", "Backlog", "task", "backlog", None, []),
         build_issue("kanbus-other", "Other", "story", "open", None, []),
     ]
     for issue in issues:
@@ -62,7 +62,7 @@ def then_index_type_task(context: object) -> None:
     index = getattr(context, "index", None)
     assert index is not None
     identifiers = sorted(issue.identifier for issue in index.by_type.get("task", []))
-    assert identifiers == ["kanbus-child", "kanbus-deferred"]
+    assert identifiers == ["kanbus-backlog", "kanbus-child"]
 
 
 @then("querying by parent should return the correct children")

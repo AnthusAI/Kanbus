@@ -27,7 +27,7 @@ def given_issues_for_list_color_coverage(context: object) -> None:
         ),
         build_issue("kanbus-line-bug", "Bug", "bug", "blocked", None, []),
         build_issue("kanbus-line-story", "Story", "story", "closed", None, []),
-        build_issue("kanbus-line-chore", "Chore", "chore", "deferred", None, []),
+        build_issue("kanbus-line-chore", "Chore", "chore", "backlog", None, []),
         build_issue(
             "kanbus-line-initiative", "Initiative", "initiative", "unknown", None, []
         ),

@@ -68,7 +68,7 @@ fn given_issues_for_list_color_coverage(world: &mut KanbusWorld) {
         ),
         build_issue("kanbus-line-bug", "Bug", "bug", "blocked", None, 2),
         build_issue("kanbus-line-story", "Story", "story", "closed", None, 3),
-        build_issue("kanbus-line-chore", "Chore", "chore", "deferred", None, 4),
+        build_issue("kanbus-line-chore", "Chore", "chore", "backlog", None, 4),
         build_issue(
             "kanbus-line-initiative",
             "Initiative",

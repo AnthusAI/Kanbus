@@ -186,6 +186,7 @@ fn status_color(status: &str, configuration: Option<&ProjectConfiguration>) -> O
     }
     // Fallback to default colors
     parse_color(match status {
+        "backlog" => "grey",
         "open" => "cyan",
         "in_progress" => "blue",
         "blocked" => "red",

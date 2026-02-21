@@ -167,17 +167,17 @@ def given_repo_kanbus_external_project(context: object) -> None:
     write_issue_file(external_project, _build_issue("kanbus-external", "External task"))
     payload = {
         "project_directory": "project",
-        "external_projects": [str(external_project)],
+        "virtual_projects": {"external": {"path": str(external_project)}},
         "project_key": "kanbus",
         "hierarchy": ["initiative", "epic", "task", "sub-task"],
         "types": ["bug", "story", "chore"],
         "workflows": {
             "default": {
-                "open": ["in_progress", "closed", "deferred"],
+                "backlog": ["open", "closed"],
+                "open": ["in_progress", "closed", "backlog"],
                 "in_progress": ["open", "blocked", "closed"],
                 "blocked": ["in_progress", "closed"],
                 "closed": ["open"],
-                "deferred": ["open", "closed"],
             }
         },
         "initial_status": "open",
@@ -202,17 +202,17 @@ def given_repo_kanbus_missing_path(context: object) -> None:
     root = _create_repo(context, "kanbus-missing")
     payload = {
         "project_directory": "project",
-        "external_projects": ["missing/project"],
+        "virtual_projects": {"missing": {"path": "missing/project"}},
         "project_key": "kanbus",
         "hierarchy": ["initiative", "epic", "task", "sub-task"],
         "types": ["bug", "story", "chore"],
         "workflows": {
             "default": {
-                "open": ["in_progress", "closed", "deferred"],
+                "backlog": ["open", "closed"],
+                "open": ["in_progress", "closed", "backlog"],
                 "in_progress": ["open", "blocked", "closed"],
                 "blocked": ["in_progress", "closed"],
                 "closed": ["open"],
-                "deferred": ["open", "closed"],
             }
         },
         "initial_status": "open",
@@ -245,17 +245,17 @@ def given_repo_kanbus_with_blank_lines(context: object) -> None:
     (root / "extras" / "project").mkdir(parents=True)
     payload = {
         "project_directory": "extras/project",
-        "external_projects": [],
+        "virtual_projects": {},
         "project_key": "kanbus",
         "hierarchy": ["initiative", "epic", "task", "sub-task"],
         "types": ["bug", "story", "chore"],
         "workflows": {
             "default": {
-                "open": ["in_progress", "closed", "deferred"],
+                "backlog": ["open", "closed"],
+                "open": ["in_progress", "closed", "backlog"],
                 "in_progress": ["open", "blocked", "closed"],
                 "blocked": ["in_progress", "closed"],
                 "closed": ["open"],
-                "deferred": ["open", "closed"],
             }
         },
         "initial_status": "open",
@@ -358,7 +358,7 @@ def then_project_multiple(context: object) -> None:
 
 @then('project discovery should fail with "kanbus path not found"')
 def then_project_missing_path(context: object) -> None:
-    assert context.project_error.startswith("kanbus path not found")
+    assert "path not found" in context.project_error
 
 
 @then('project discovery should fail with "unknown configuration fields"')

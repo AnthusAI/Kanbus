@@ -12,6 +12,7 @@ from kanbus.ids import format_issue_key
 from kanbus.models import IssueData, ProjectConfiguration
 
 STATUS_GLYPHS = {
+    "backlog": "○",
     "open": "◌",
     "in_progress": "◐",
     "blocked": "◑",
@@ -20,6 +21,7 @@ STATUS_GLYPHS = {
 }
 
 DEFAULT_STATUS_COLORS: Dict[str, str] = {
+    "backlog": "grey",
     "open": "cyan",
     "in_progress": "blue",
     "blocked": "red",

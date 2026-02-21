@@ -23,16 +23,16 @@
   ],
   "workflows": {
     "default": {
+      "backlog": [
+        "open",
+        "closed"
+      ],
       "blocked": [
         "in_progress",
         "closed"
       ],
       "closed": [
         "open"
-      ],
-      "deferred": [
-        "open",
-        "closed"
       ],
       "in_progress": [
         "open",
@@ -42,7 +42,7 @@
       "open": [
         "in_progress",
         "closed",
-        "deferred"
+        "backlog"
       ]
     },
     "epic": {

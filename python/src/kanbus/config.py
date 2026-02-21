@@ -11,18 +11,18 @@ DEFAULT_TYPES: List[str] = ["bug", "story", "chore"]
 
 DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "project_directory": "project",
-    "external_projects": [],
+    "virtual_projects": {},
     "console_port": None,
     "project_key": "kanbus",
     "hierarchy": DEFAULT_HIERARCHY,
     "types": DEFAULT_TYPES,
     "workflows": {
         "default": {
-            "open": ["in_progress", "closed", "deferred"],
+            "backlog": ["open", "closed"],
+            "open": ["in_progress", "closed", "backlog"],
             "in_progress": ["open", "blocked", "closed"],
             "blocked": ["in_progress", "closed"],
             "closed": ["open"],
-            "deferred": ["open", "closed"],
         },
         "epic": {
             "open": ["in_progress", "closed"],
@@ -42,12 +42,13 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "assignee": None,
     "time_zone": None,
     "categories": [
-        {"name": "To do", "color": "gray"},
+        {"name": "To do", "color": "grey"},
         {"name": "In progress", "color": "blue"},
         {"name": "Done", "color": "green"},
     ],
     "statuses": [
-        {"key": "open", "name": "Open", "category": "To do", "collapsed": False},
+        {"key": "backlog", "name": "Backlog", "category": "To do", "collapsed": True},
+        {"key": "open", "name": "Discovery", "category": "To do", "collapsed": False},
         {
             "key": "in_progress",
             "name": "In Progress",
@@ -61,23 +62,25 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
             "collapsed": True,
         },
         {"key": "closed", "name": "Done", "category": "Done", "collapsed": True},
-        {"key": "deferred", "name": "Deferred", "category": "To do", "collapsed": True},
     ],
     "transition_labels": {
         "default": {
+            "backlog": {
+                "open": "Start discovery",
+                "closed": "Drop",
+            },
             "open": {
-                "in_progress": "Start progress",
-                "closed": "Close",
-                "deferred": "Defer",
+                "in_progress": "Start work",
+                "closed": "Drop",
+                "backlog": "Back to backlog",
             },
             "in_progress": {
-                "open": "Stop progress",
+                "open": "Pause",
                 "blocked": "Block",
                 "closed": "Complete",
             },
-            "blocked": {"in_progress": "Unblock", "closed": "Close"},
+            "blocked": {"in_progress": "Unblock", "closed": "Drop"},
             "closed": {"open": "Reopen"},
-            "deferred": {"open": "Resume", "closed": "Close"},
         },
         "epic": {
             "open": {"in_progress": "Start", "closed": "Complete"},
@@ -88,7 +91,7 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "type_colors": {
         "initiative": "bright_blue",
         "epic": "magenta",
-        "task": "cyan",
+        "task": "blue",
         "sub-task": "bright_cyan",
         "bug": "red",
         "story": "yellow",

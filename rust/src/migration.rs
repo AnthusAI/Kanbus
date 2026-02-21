@@ -599,7 +599,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         }
     }
 
-    statuses.extend(["open", "in_progress", "blocked", "deferred", "closed"].map(str::to_string));
+    statuses.extend(["open", "in_progress", "blocked", "backlog", "deferred", "closed"].map(str::to_string));
     priorities.extend([0, 1, 2, 3, 4]);
 
     let mut status_vec: Vec<String> = statuses.into_iter().collect();
@@ -665,7 +665,8 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
 
     ProjectConfiguration {
         project_directory: "project".to_string(),
-        external_projects: Vec::new(),
+        virtual_projects: BTreeMap::new(),
+        new_issue_project: None,
         ignore_paths: Vec::new(),
         console_port: None,
         project_key: "BD".to_string(),

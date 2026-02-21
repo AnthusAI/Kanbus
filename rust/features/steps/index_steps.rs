@@ -86,7 +86,7 @@ fn given_project_with_varied_issues(world: &mut KanbusWorld) {
             Some("kanbus-parent"),
         ),
         build_issue("kanbus-closed", "Closed", "bug", "closed", None),
-        build_issue("kanbus-deferred", "Deferred", "task", "deferred", None),
+        build_issue("kanbus-backlog", "Backlog", "task", "backlog", None),
         build_issue("kanbus-other", "Other", "story", "open", None),
     ];
     for issue in issues {
@@ -136,7 +136,7 @@ fn then_index_type_task(world: &mut KanbusWorld) {
         .map(|issue| issue.identifier.clone())
         .collect();
     identifiers.sort();
-    assert_eq!(identifiers, vec!["kanbus-child", "kanbus-deferred"]);
+    assert_eq!(identifiers, vec!["kanbus-backlog", "kanbus-child"]);
 }
 
 #[then("querying by parent should return the correct children")]

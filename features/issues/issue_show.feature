@@ -96,7 +96,7 @@ Feature: Issue display
       | kanbus-color1  | in_progress  | 0        | chore      | dev@example.com  |
       | kanbus-color2  | blocked      | 3        | event      | dev@example.com  |
       | kanbus-color3  | closed       | 4        | task       | dev@example.com  |
-      | kanbus-color4  | deferred     | 9        | unknown    | dev@example.com  |
+      | kanbus-color4  | backlog      | 9        | unknown    | dev@example.com  |
       | kanbus-color5  | unknown      | 2        | task       | dev@example.com  |
 
   Scenario: Format issue display uses configured status colors

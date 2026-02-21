@@ -15,11 +15,15 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         "default".to_string(),
         BTreeMap::from([
             (
+                "backlog".to_string(),
+                vec!["open".to_string(), "closed".to_string()],
+            ),
+            (
                 "open".to_string(),
                 vec![
                     "in_progress".to_string(),
                     "closed".to_string(),
-                    "deferred".to_string(),
+                    "backlog".to_string(),
                 ],
             ),
             (
@@ -35,10 +39,6 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 vec!["in_progress".to_string(), "closed".to_string()],
             ),
             ("closed".to_string(), vec!["open".to_string()]),
-            (
-                "deferred".to_string(),
-                vec!["open".to_string(), "closed".to_string()],
-            ),
         ]),
     );
     workflows.insert(
@@ -62,17 +62,24 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 "default".to_string(),
                 BTreeMap::from([
                     (
+                        "backlog".to_string(),
+                        BTreeMap::from([
+                            ("open".to_string(), "Start discovery".to_string()),
+                            ("closed".to_string(), "Drop".to_string()),
+                        ]),
+                    ),
+                    (
                         "open".to_string(),
                         BTreeMap::from([
-                            ("in_progress".to_string(), "Start progress".to_string()),
-                            ("closed".to_string(), "Close".to_string()),
-                            ("deferred".to_string(), "Defer".to_string()),
+                            ("in_progress".to_string(), "Start work".to_string()),
+                            ("closed".to_string(), "Drop".to_string()),
+                            ("backlog".to_string(), "Back to backlog".to_string()),
                         ]),
                     ),
                     (
                         "in_progress".to_string(),
                         BTreeMap::from([
-                            ("open".to_string(), "Stop progress".to_string()),
+                            ("open".to_string(), "Pause".to_string()),
                             ("blocked".to_string(), "Block".to_string()),
                             ("closed".to_string(), "Complete".to_string()),
                         ]),
@@ -81,19 +88,12 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                         "blocked".to_string(),
                         BTreeMap::from([
                             ("in_progress".to_string(), "Unblock".to_string()),
-                            ("closed".to_string(), "Close".to_string()),
+                            ("closed".to_string(), "Drop".to_string()),
                         ]),
                     ),
                     (
                         "closed".to_string(),
                         BTreeMap::from([("open".to_string(), "Reopen".to_string())]),
-                    ),
-                    (
-                        "deferred".to_string(),
-                        BTreeMap::from([
-                            ("open".to_string(), "Resume".to_string()),
-                            ("closed".to_string(), "Close".to_string()),
-                        ]),
                     ),
                 ]),
             ),
@@ -177,7 +177,8 @@ pub fn default_project_configuration() -> ProjectConfiguration {
 
     ProjectConfiguration {
         project_directory: "project".to_string(),
-        external_projects: Vec::new(),
+        virtual_projects: BTreeMap::new(),
+        new_issue_project: None,
         ignore_paths: Vec::new(),
         console_port: None,
         project_key: "kanbus".to_string(),
@@ -198,8 +199,15 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         time_zone: None,
         statuses: vec![
             StatusDefinition {
+                key: "backlog".to_string(),
+                name: "Backlog".to_string(),
+                category: "To do".to_string(),
+                color: None,
+                collapsed: true,
+            },
+            StatusDefinition {
                 key: "open".to_string(),
-                name: "Open".to_string(),
+                name: "Discovery".to_string(),
                 category: "To do".to_string(),
                 color: None,
                 collapsed: false,
@@ -225,19 +233,12 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 color: None,
                 collapsed: true,
             },
-            StatusDefinition {
-                key: "deferred".to_string(),
-                name: "Deferred".to_string(),
-                category: "To do".to_string(),
-                color: None,
-                collapsed: true,
-            },
         ],
         categories,
         type_colors: BTreeMap::from([
             ("initiative".to_string(), "bright_blue".to_string()),
             ("epic".to_string(), "magenta".to_string()),
-            ("task".to_string(), "cyan".to_string()),
+            ("task".to_string(), "blue".to_string()),
             ("sub-task".to_string(), "bright_cyan".to_string()),
             ("bug".to_string(), "red".to_string()),
             ("story".to_string(), "yellow".to_string()),

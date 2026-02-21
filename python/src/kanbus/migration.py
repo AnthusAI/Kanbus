@@ -150,7 +150,7 @@ def _load_configuration_for_beads(
     # Build permissive workflows allowing any status transition.
     statuses = sorted(
         {record.get("status", "") for record in records if record.get("status")}
-        | {"open", "in_progress", "blocked", "deferred", "closed"}
+        | {"open", "in_progress", "blocked", "backlog", "deferred", "closed"}
     )
     status_definitions = [
         StatusDefinition(
@@ -182,7 +182,7 @@ def _load_configuration_for_beads(
 
     return ProjectConfiguration(
         project_directory="project",
-        external_projects=[],
+        virtual_projects={},
         ignore_paths=[],
         project_key="BD",
         hierarchy=hierarchy,
