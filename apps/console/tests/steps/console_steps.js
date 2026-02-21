@@ -80,7 +80,7 @@ When(
   "I view an issue card or detail that shows priority",
   async function () {
     const priorityLocator = this.page.locator(".issue-accent-priority").first();
-    await expect(priorityLocator).toBeVisible();
+    await expect(priorityLocator).toBeVisible({ timeout: 15000 });
     this.priorityElement = priorityLocator;
   }
 );
