@@ -15,6 +15,7 @@ import { Board } from "./components/Board";
 import { TaskDetailPanel } from "./components/TaskDetailPanel";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { AnimatedSelector } from "@kanbus/ui";
+import { ProjectFilterPanel } from "./components/ProjectFilterPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
 import {
@@ -52,27 +53,38 @@ type IssueSelectionContext = {
 
 const VIEW_MODE_STORAGE_KEY = "kanbus.console.viewMode";
 const DETAIL_WIDTH_STORAGE_KEY = "kanbus.console.detailWidth";
-const PROJECT_FILTER_STORAGE_KEY = "kanbus.console.projectFilter";
-const LOCAL_FILTER_STORAGE_KEY = "kanbus.console.localFilter";
+const ENABLED_PROJECTS_STORAGE_KEY = "kanbus.console.enabledProjects";
+const SHOW_LOCAL_STORAGE_KEY = "kanbus.console.showLocal";
+const SHOW_SHARED_STORAGE_KEY = "kanbus.console.showShared";
 
-type LocalFilter = "all" | "local" | "shared";
-
-function loadStoredProjectFilter(): string {
+function loadStoredEnabledProjects(): Set<string> | null {
   if (typeof window === "undefined") {
-    return "all";
+    return null;
   }
-  return window.localStorage.getItem(PROJECT_FILTER_STORAGE_KEY) ?? "all";
+  const stored = window.localStorage.getItem(ENABLED_PROJECTS_STORAGE_KEY);
+  if (!stored) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed)) {
+      return new Set(parsed);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
-function loadStoredLocalFilter(): LocalFilter {
+function loadStoredBoolean(key: string, fallback: boolean): boolean {
   if (typeof window === "undefined") {
-    return "all";
+    return fallback;
   }
-  const stored = window.localStorage.getItem(LOCAL_FILTER_STORAGE_KEY);
-  if (stored === "local" || stored === "shared") {
-    return stored;
+  const stored = window.localStorage.getItem(key);
+  if (stored === "false") {
+    return false;
   }
-  return "all";
+  return fallback;
 }
 
 function loadStoredViewMode(): ViewMode {
@@ -470,6 +482,7 @@ export default function App() {
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [projectFilterOpen, setProjectFilterOpen] = useState(false);
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
@@ -491,8 +504,9 @@ export default function App() {
   });
   const [detailClosing, setDetailClosing] = useState(false);
   const [detailNavDirection, setDetailNavDirection] = useState<NavAction>("none");
-  const [projectFilter, setProjectFilter] = useState<string>(() => loadStoredProjectFilter());
-  const [localFilter, setLocalFilter] = useState<LocalFilter>(() => loadStoredLocalFilter());
+  const [enabledProjects, setEnabledProjects] = useState<Set<string> | null>(() => loadStoredEnabledProjects());
+  const [showLocal, setShowLocal] = useState(() => loadStoredBoolean(SHOW_LOCAL_STORAGE_KEY, true));
+  const [showShared, setShowShared] = useState(() => loadStoredBoolean(SHOW_SHARED_STORAGE_KEY, true));
   const layoutFrameRef = React.useRef<HTMLDivElement | null>(null);
   const navActionRef = React.useRef<NavAction>("none");
   const wasDetailOpenRef = React.useRef(false);
@@ -742,12 +756,18 @@ export default function App() {
   }, [detailWidth]);
 
   useEffect(() => {
-    window.localStorage.setItem(PROJECT_FILTER_STORAGE_KEY, projectFilter);
-  }, [projectFilter]);
+    if (enabledProjects != null) {
+      window.localStorage.setItem(ENABLED_PROJECTS_STORAGE_KEY, JSON.stringify([...enabledProjects]));
+    }
+  }, [enabledProjects]);
 
   useEffect(() => {
-    window.localStorage.setItem(LOCAL_FILTER_STORAGE_KEY, localFilter);
-  }, [localFilter]);
+    window.localStorage.setItem(SHOW_LOCAL_STORAGE_KEY, String(showLocal));
+  }, [showLocal]);
+
+  useEffect(() => {
+    window.localStorage.setItem(SHOW_SHARED_STORAGE_KEY, String(showShared));
+  }, [showShared]);
 
   useEffect(() => {
     if (!detailMaximized) {
@@ -1080,6 +1100,26 @@ export default function App() {
     return [config.project_key, ...Object.keys(config.virtual_projects)];
   }, [config, hasVirtualProjects]);
 
+  const effectiveEnabledProjects = useMemo(() => {
+    if (enabledProjects != null) {
+      return enabledProjects;
+    }
+    return new Set(projectLabels);
+  }, [enabledProjects, projectLabels]);
+
+  const handleToggleProject = (label: string) => {
+    setEnabledProjects((prev) => {
+      const current = prev ?? new Set(projectLabels);
+      const next = new Set(current);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
+  };
+
   const hasLocalIssues = useMemo(() => {
     return issues.some((issue) => issue.custom?.source === "local");
   }, [issues]);
@@ -1123,21 +1163,22 @@ export default function App() {
     }
 
     // Apply project filter
-    if (hasVirtualProjects && projectFilter !== "all") {
+    if (hasVirtualProjects && effectiveEnabledProjects.size < projectLabels.length) {
       result = result.filter(
-        (issue) => issue.custom?.project_label === projectFilter
+        (issue) => effectiveEnabledProjects.has(issue.custom?.project_label as string)
       );
     }
 
-    // Apply local/shared filter
-    if (localFilter === "local") {
-      result = result.filter((issue) => issue.custom?.source === "local");
-    } else if (localFilter === "shared") {
-      result = result.filter((issue) => issue.custom?.source === "shared");
+    // Apply local/shared source filter
+    if (!showLocal) {
+      result = result.filter((issue) => issue.custom?.source !== "local");
+    }
+    if (!showShared) {
+      result = result.filter((issue) => issue.custom?.source !== "shared");
     }
 
     return result;
-  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, projectFilter, localFilter, hasVirtualProjects]);
+  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects]);
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
@@ -1256,70 +1297,6 @@ export default function App() {
               }
             ]}
           />
-          {hasVirtualProjects ? (
-            <AnimatedSelector
-              name="project"
-              value={projectFilter}
-              onChange={(value) => setProjectFilter(value)}
-              options={[
-                {
-                  id: "all",
-                  label: "All",
-                  content: (
-                    <span className="selector-option">
-                      <FolderOpen className="h-4 w-4" />
-                      <span className="selector-label">All</span>
-                    </span>
-                  )
-                },
-                ...projectLabels.map((label) => ({
-                  id: label,
-                  label,
-                  content: (
-                    <span className="selector-option">
-                      <span className="selector-label">{label}</span>
-                    </span>
-                  )
-                }))
-              ]}
-            />
-          ) : null}
-          {hasLocalIssues ? (
-            <AnimatedSelector
-              name="local"
-              value={localFilter}
-              onChange={(value) => setLocalFilter(value as LocalFilter)}
-              options={[
-                {
-                  id: "all",
-                  label: "All",
-                  content: (
-                    <span className="selector-option">
-                      <span className="selector-label">All</span>
-                    </span>
-                  )
-                },
-                {
-                  id: "local",
-                  label: "Local",
-                  content: (
-                    <span className="selector-option">
-                      <span className="selector-label">Local</span>
-                    </span>
-                  )
-                },
-                {
-                  id: "shared",
-                  label: "Project",
-                  content: (
-                    <span className="selector-option">
-                      <span className="selector-label">Project</span>
-                    </span>
-                  )
-                }
-              ]}
-            />
-          ) : null}
         </div>
         <button
           className="flex-none toggle-button rounded-full bg-[var(--column)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted h-7 flex items-center justify-center gap-2"
@@ -1344,6 +1321,16 @@ export default function App() {
             </span>
           </span>
         </button>
+        {hasVirtualProjects || hasLocalIssues ? (
+          <button
+            className="flex-none flex items-center gap-2 rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
+            onClick={() => setProjectFilterOpen(true)}
+            type="button"
+            data-testid="open-project-filter"
+          >
+            <FolderOpen className="h-4 w-4" />
+          </button>
+        ) : null}
         <button
           className="flex-none flex items-center gap-2 rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
           onClick={() => setSettingsOpen(true)}
@@ -1500,6 +1487,18 @@ export default function App() {
       </div>
 
       <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <ProjectFilterPanel
+        isOpen={projectFilterOpen}
+        onClose={() => setProjectFilterOpen(false)}
+        projectLabels={projectLabels}
+        enabledProjects={effectiveEnabledProjects}
+        onToggleProject={handleToggleProject}
+        hasLocalIssues={hasLocalIssues}
+        showLocal={showLocal}
+        showShared={showShared}
+        onToggleLocal={() => setShowLocal((prev) => !prev)}
+        onToggleShared={() => setShowShared((prev) => !prev)}
+      />
     </AppShell>
   );
 }

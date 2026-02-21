@@ -79,7 +79,7 @@ def _load_console_issues(
         shared = _read_issues_from_dir(issues_dir)
         for issue in shared:
             issues.append(_tag_issue(issue, source="shared"))
-    except (OSError, json.JSONDecodeError, ValidationError) as error:
+    except Exception as error:
         raise ConsoleSnapshotError("issue file is invalid") from error
 
     local_dir = find_project_local_directory(project_dir)
@@ -90,7 +90,7 @@ def _load_console_issues(
                 local = _read_issues_from_dir(local_issues_dir)
                 for issue in local:
                     issues.append(_tag_issue(issue, source="local"))
-            except (OSError, json.JSONDecodeError, ValidationError) as error:
+            except Exception as error:
                 raise ConsoleSnapshotError("issue file is invalid") from error
 
     issues.sort(key=lambda issue: issue.identifier)
