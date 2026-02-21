@@ -74,4 +74,3 @@ fn given_repo_project_above_cwd(world: &mut KanbusWorld) {
     fs::create_dir_all(&child_dir).expect("create child dir");
     world.working_directory = Some(child_dir);
 }
-
