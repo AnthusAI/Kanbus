@@ -153,7 +153,13 @@ async function ensureBaseProject() {
 
 async function openProjectFilterPanel(page) {
   const panel = page.getByTestId("project-filter-panel");
-  await page.getByTestId("open-project-filter").click();
+  const isOpen = await panel.evaluate((element) => {
+    const container = element.closest("[aria-hidden]");
+    return container?.getAttribute("aria-hidden") === "false";
+  });
+  if (!isOpen) {
+    await page.getByTestId("open-project-filter").click();
+  }
   await expect(panel).toBeVisible();
 }
 
