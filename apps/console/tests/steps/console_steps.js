@@ -266,6 +266,8 @@ Given("the console is open with virtual projects configured", async function () 
   );
   await refreshConsoleSnapshot();
   await this.page.reload({ waitUntil: "domcontentloaded" });
+  await this.page.getByRole("tab", { name: "Issues" }).click();
+  await waitForIssueCards(this.page);
 });
 
 Given(
@@ -292,6 +294,8 @@ Given(
     );
     await refreshConsoleSnapshot();
     await this.page.reload({ waitUntil: "domcontentloaded" });
+    await this.page.getByRole("tab", { name: "Issues" }).click();
+    await waitForIssueCards(this.page);
   }
 );
 
