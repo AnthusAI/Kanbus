@@ -3,15 +3,17 @@ set -euo pipefail
 
 echo "Running full CI gate inside Amplify..."
 
-sudo apt-get update -y
-sudo apt-get install -y \
-  build-essential \
+sudo dnf -y update
+sudo dnf -y install \
+  gcc \
+  gcc-c++ \
+  make \
   curl \
   git \
-  golang-go \
-  libicu-dev \
-  libssl-dev \
-  pkg-config \
+  golang \
+  libicu-devel \
+  openssl-devel \
+  pkgconfig \
   python3 \
   python3-pip
 
