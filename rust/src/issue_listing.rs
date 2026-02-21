@@ -178,6 +178,17 @@ fn list_issues_local(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
 
 fn list_issues_for_project(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let issues_dir = project_dir.join("issues");
+    if !issues_dir.is_dir() {
+        // Beads fallback: project_dir is typically <repo>/project, so
+        // the repo root is one level up.
+        if let Some(repo_root) = project_dir.parent() {
+            let beads_path = repo_root.join(".beads").join("issues.jsonl");
+            if beads_path.exists() {
+                return crate::migration::load_beads_issues(repo_root);
+            }
+        }
+        return Ok(Vec::new());
+    }
     load_issues_from_directory(&issues_dir)
 }
 
