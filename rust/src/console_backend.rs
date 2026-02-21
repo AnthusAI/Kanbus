@@ -8,7 +8,9 @@ use serde::Serialize;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::file_io::{find_project_local_directory, get_configuration_path};
+use crate::file_io::{
+    find_project_local_directory, get_configuration_path, resolve_labeled_projects,
+};
 use crate::migration::load_beads_issues;
 use crate::models::{IssueData, ProjectConfiguration};
 
@@ -53,12 +55,37 @@ impl FileStore {
         &self,
         configuration: &ProjectConfiguration,
     ) -> Result<Vec<IssueData>, KanbusError> {
+        if !configuration.virtual_projects.is_empty() {
+            return self.load_issues_with_virtual_projects();
+        }
         if configuration.beads_compatibility {
             load_beads_issues(self.root())
         } else {
             let project_dir = self.root().join(&configuration.project_directory);
             load_console_issues(&project_dir)
         }
+    }
+
+    /// Load issues from all virtual projects.
+    fn load_issues_with_virtual_projects(
+        &self,
+    ) -> Result<Vec<IssueData>, KanbusError> {
+        let labeled = resolve_labeled_projects(self.root())?;
+        let mut all_issues = Vec::new();
+        for project in &labeled {
+            let issues_dir = project.project_dir.join("issues");
+            if issues_dir.is_dir() {
+                let mut issues = load_console_issues(&project.project_dir)?;
+                all_issues.append(&mut issues);
+            } else if let Some(repo_root) = project.project_dir.parent() {
+                let beads_path = repo_root.join(".beads").join("issues.jsonl");
+                if beads_path.exists() {
+                    let mut issues = load_beads_issues(repo_root)?;
+                    all_issues.append(&mut issues);
+                }
+            }
+        }
+        Ok(all_issues)
     }
 
     /// Build a snapshot payload for this store.
