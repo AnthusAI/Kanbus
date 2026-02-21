@@ -668,10 +668,13 @@ def _run_coverage_helper() -> None:
         _select_status_example("open", {"open": [], "done": ["closed"]})
         _select_status_example("open", {"open": []})
 
+        os.environ["KANBUS_NON_INTERACTIVE"] = "1"
         try:
             _confirm_overwrite()
         except click.ClickException:
             pass
+        finally:
+            os.environ.pop("KANBUS_NON_INTERACTIVE", None)
 
         original_get_text_stream = click.get_text_stream
         try:
