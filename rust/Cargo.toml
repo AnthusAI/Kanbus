@@ -31,6 +31,7 @@ http-body-util = "0.1"
 tokio-stream = { version = "0.1", features = ["sync"] }
 futures-util = "0.3"
 axum = { version = "0.7", features = ["tokio", "http1"] }
+tower-http = { version = "0.6", features = ["cors"] }
 mime_guess = "2.0"
 rust-embed = { version = "8.5", optional = true }
 reqwest = { version = "0.12", features = ["blocking", "json", "native-tls-vendored"] }

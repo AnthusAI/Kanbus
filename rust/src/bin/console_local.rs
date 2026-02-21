@@ -23,6 +23,7 @@ use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
+use tower_http::cors::{Any, CorsLayer};
 use futures_util::stream;
 use futures_util::stream::BoxStream;
 use futures_util::Stream;
@@ -238,7 +239,13 @@ async fn main() {
         );
     }
 
-    let app = app.with_state(state);
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any)
+        .allow_private_network(true);
+
+    let app = app.with_state(state).layer(cors);
     let (listener, port) = acquire_listener(desired_port).await;
 
     #[cfg(feature = "embed-assets")]
