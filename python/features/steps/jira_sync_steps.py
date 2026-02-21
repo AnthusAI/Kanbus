@@ -181,6 +181,23 @@ def given_jira_config(context: object) -> None:
     context.environment_overrides["JIRA_USER_EMAIL"] = "test@example.com"
 
 
+@given("credentials are provided via .env file only")
+def given_credentials_via_dotenv_only(context: object) -> None:
+    """Create .env with JIRA credentials and remove them from environment overrides.
+
+    The CLI must load .env automatically to succeed; credentials are not in the
+    environment passed to the subprocess.
+    """
+    repository = Path(context.working_directory)
+    dotenv_path = repository / ".env"
+    dotenv_path.write_text(
+        "JIRA_API_TOKEN=test-token\nJIRA_USER_EMAIL=test@example.com\n",
+        encoding="utf-8",
+    )
+    context.environment_overrides.pop("JIRA_API_TOKEN", None)
+    context.environment_overrides.pop("JIRA_USER_EMAIL", None)
+
+
 @given('the environment variable "{name}" is unset')
 def given_env_var_unset(context: object, name: str) -> None:
     """Remove an environment variable from the test overrides.

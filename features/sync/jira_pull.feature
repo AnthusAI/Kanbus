@@ -85,3 +85,16 @@ Feature: Jira pull synchronization
     When I run "kanbus jira pull"
     Then the command should succeed
     And the issue with jira_key "AQ-2" should have a parent matching the issue with jira_key "AQ-1"
+
+  Scenario: Jira pull loads credentials from .env automatically
+    Given a Kanbus project with default configuration
+    And a fake Jira server is running with issues:
+      | key   | summary              | type | status | priority |
+      | AQ-1  | Build login service  | Task | To Do  | Medium   |
+      | AQ-2  | Fix signup bug       | Bug  | To Do  | Medium   |
+    And the Kanbus configuration includes Jira settings pointing at the fake server
+    And credentials are provided via .env file only
+    When I run "kanbus jira pull"
+    Then the command should succeed
+    And stdout should contain "pulled"
+    And 2 issue files should exist in the issues directory

@@ -206,6 +206,26 @@ fn given_jira_config(world: &mut KanbusWorld) {
     world.jira_env_set = true;
 }
 
+#[given("credentials are provided via .env file only")]
+fn given_credentials_via_dotenv_only(world: &mut KanbusWorld) {
+    let repo = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let dotenv_path = repo.join(".env");
+    std::fs::write(
+        dotenv_path,
+        "JIRA_API_TOKEN=test-token\nJIRA_USER_EMAIL=test@example.com\n",
+    )
+    .expect("write .env");
+
+    for name in ["JIRA_API_TOKEN", "JIRA_USER_EMAIL"] {
+        let original = std::env::var(name).ok();
+        std::env::remove_var(name);
+        world.jira_unset_env_vars.push((name.to_string(), original));
+    }
+}
+
 #[given(expr = "the environment variable {string} is unset")]
 fn given_env_var_unset(world: &mut KanbusWorld, name: String) {
     let original = std::env::var(&name).ok();
