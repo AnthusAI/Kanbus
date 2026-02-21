@@ -779,6 +779,8 @@ def _run_coverage_helper() -> None:
                 pass
             beads_dir = beads_dep_root / ".beads"
             beads_dir.mkdir()
+            project_dir = beads_dep_root / "project"
+            project_dir.mkdir()
             try:
                 add_beads_dependency(beads_dep_root, "src", "tgt", "blocked-by")
             except BeadsWriteError:
@@ -858,6 +860,8 @@ def _run_coverage_helper() -> None:
                 pass
             beads_dir = beads_remove_root / ".beads"
             beads_dir.mkdir()
+            project_dir = beads_remove_root / "project"
+            project_dir.mkdir()
             try:
                 remove_beads_dependency(beads_remove_root, "src", "tgt", "blocked-by")
             except BeadsWriteError:
