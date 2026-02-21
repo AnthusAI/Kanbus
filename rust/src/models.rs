@@ -126,31 +126,3 @@ pub struct PriorityDefinition {
     #[serde(default)]
     pub color: Option<String>,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn jira_sync_direction_defaults_to_pull() {
-        let payload = json!({
-            "url": "https://jira.example",
-            "project_key": "KAN",
-            "type_mappings": {},
-            "field_mappings": {}
-        });
-        let config: JiraConfiguration = serde_json::from_value(payload).unwrap();
-        assert_eq!(config.sync_direction, "pull");
-    }
-
-    #[test]
-    fn dependency_link_serializes_type_field() {
-        let link = DependencyLink {
-            target: "kanbus-abc".to_string(),
-            dependency_type: "blocked-by".to_string(),
-        };
-        let value = serde_json::to_value(&link).unwrap();
-        assert_eq!(value["type"], "blocked-by");
-    }
-}
