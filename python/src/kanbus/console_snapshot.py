@@ -79,6 +79,8 @@ def _load_console_issues(
         shared = _read_issues_from_dir(issues_dir)
         for issue in shared:
             issues.append(_tag_issue(issue, source="shared"))
+    except PermissionError as error:
+        raise ConsoleSnapshotError(str(error)) from error
     except Exception as error:
         raise ConsoleSnapshotError("issue file is invalid") from error
 
@@ -90,6 +92,8 @@ def _load_console_issues(
                 local = _read_issues_from_dir(local_issues_dir)
                 for issue in local:
                     issues.append(_tag_issue(issue, source="local"))
+            except PermissionError as error:
+                raise ConsoleSnapshotError(str(error)) from error
             except Exception as error:
                 raise ConsoleSnapshotError("issue file is invalid") from error
 
@@ -116,6 +120,8 @@ def _load_issues_with_virtual_projects(
                     all_issues.append(
                         _tag_issue(issue, project_label=project.label, source="shared")
                     )
+            except PermissionError as error:
+                raise ConsoleSnapshotError(str(error)) from error
             except Exception as error:
                 raise ConsoleSnapshotError(str(error)) from error
 
@@ -133,6 +139,8 @@ def _load_issues_with_virtual_projects(
                                     source="local",
                                 )
                             )
+                    except PermissionError as error:
+                        raise ConsoleSnapshotError(str(error)) from error
                     except Exception as error:
                         raise ConsoleSnapshotError(str(error)) from error
         else:

@@ -182,6 +182,40 @@ def given_override_time_zone(context: object, time_zone: str) -> None:
     )
 
 
+@given('the Kanbus configuration has a virtual project "{label}" at path "{path}"')
+def given_configuration_virtual_project(
+    context: object, label: str, path: str
+) -> None:
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    virtual_projects = payload.get("virtual_projects") or {}
+    virtual_projects[label] = {"path": path}
+    payload["virtual_projects"] = virtual_projects
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given(
+    'a Kanbus override file adds a virtual project "{label}" at path "{path}"'
+)
+def given_override_virtual_project(context: object, label: str, path: str) -> None:
+    repository = Path(context.working_directory)
+    override_path = repository / ".kanbus.override.yml"
+    payload = {}
+    if override_path.exists():
+        payload = yaml.safe_load(override_path.read_text(encoding="utf-8")) or {}
+    virtual_projects = payload.get("virtual_projects") or {}
+    virtual_projects[label] = {"path": path}
+    payload["virtual_projects"] = virtual_projects
+    override_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 @given("a Kanbus override file that is not a mapping")
 def given_override_not_mapping(context: object) -> None:
     repository = Path(context.working_directory)
@@ -554,6 +588,11 @@ def then_default_assignee_should_match(context: object, assignee: str) -> None:
 @then('the time zone should be "{time_zone}"')
 def then_time_zone_should_match(context: object, time_zone: str) -> None:
     assert context.configuration.time_zone == time_zone
+
+
+@then('the configuration should have virtual project "{label}"')
+def then_configuration_has_virtual_project(context: object, label: str) -> None:
+    assert label in context.configuration.virtual_projects
 
 
 # Configuration standardization steps

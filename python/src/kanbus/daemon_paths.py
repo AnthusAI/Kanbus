@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kanbus.project import load_project_directory
+from kanbus.project import load_project_directory, resolve_labeled_projects
 
 
 def get_daemon_socket_path(root: Path) -> Path:
@@ -15,6 +15,7 @@ def get_daemon_socket_path(root: Path) -> Path:
     :return: Path to daemon socket file.
     :rtype: Path
     """
+    resolve_labeled_projects(root)
     project_dir = load_project_directory(root)
     return project_dir / ".cache" / "kanbus.sock"
 

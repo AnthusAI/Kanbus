@@ -515,6 +515,12 @@ def given_issue_exists_virtual(context: object, identifier: str, label: str) -> 
     _create_issue(project.shared_dir, identifier, "Virtual issue")
 
 
+@given('an issue "{identifier}" exists in the primary project')
+def given_issue_exists_primary(context: object, identifier: str) -> None:
+    state = _ensure_virtual_state(context)
+    _create_issue(state.current_project_dir, identifier, "Primary issue")
+
+
 @given('a local issue "{identifier}" exists in virtual project "{label}"')
 def given_local_issue_exists_virtual(
     context: object, identifier: str, label: str
@@ -532,6 +538,16 @@ def then_issue_file_updated_virtual(context: object, label: str) -> None:
     project = state.virtual_projects[label]
     issues = list((project.shared_dir / "issues").glob("*.json"))
     assert issues
+
+
+@then("the issue file in the primary project should be updated")
+def then_issue_file_updated_primary(context: object) -> None:
+    state = _ensure_virtual_state(context)
+    assert state.last_updated_issue is not None
+    identifier, project_dir = state.last_updated_issue
+    assert Path(project_dir).resolve() == state.current_project_dir.resolve()
+    issue_path = state.current_project_dir / "issues" / f"{identifier}.json"
+    assert issue_path.exists()
 
 
 @then("no issue file should be created in the current project")

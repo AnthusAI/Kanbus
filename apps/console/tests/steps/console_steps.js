@@ -66,6 +66,25 @@ async function saveKanbusConfig(config) {
   await writeFile(consoleConfigPath, contents);
 }
 
+async function resolveProjectLabel(label) {
+  if (label !== "kbs") {
+    return label;
+  }
+  const config = await loadKanbusConfig();
+  return config?.project_key ?? label;
+}
+
+async function getConfiguredProjectLabels() {
+  const config = await loadKanbusConfig();
+  const labels = [];
+  if (config?.project_key) {
+    labels.push(config.project_key);
+  }
+  const virtual = config?.virtual_projects ?? {};
+  labels.push(...Object.keys(virtual));
+  return labels;
+}
+
 async function refreshConsoleSnapshot() {
   const configResponse = await fetch(`${consoleApiBase}/config?refresh=1`);
   if (!configResponse.ok) {
@@ -316,22 +335,26 @@ Then("the project filter should not be visible", async function () {
 
 Then("the project filter should list {string}", async function (label) {
   await openProjectFilterPanel(this.page);
+  const resolvedLabel = await resolveProjectLabel(label);
   await expect(
-    this.page.getByTestId("project-filter-panel").getByRole("button", { name: label })
+    this.page
+      .getByTestId("project-filter-panel")
+      .getByRole("button", { name: resolvedLabel })
   ).toBeVisible();
 });
 
 When("I select project {string} in the project filter", async function (label) {
   await openProjectFilterPanel(this.page);
-  const labels = ["kbs", "alpha", "beta"];
+  const resolvedLabel = await resolveProjectLabel(label);
+  const labels = await getConfiguredProjectLabels();
   for (const entry of labels) {
-    await setFilterChecked(this.page, entry, entry === label);
+    await setFilterChecked(this.page, entry, entry === resolvedLabel);
   }
 });
 
 When("I select all projects in the project filter", async function () {
   await openProjectFilterPanel(this.page);
-  const labels = ["kbs", "alpha", "beta"];
+  const labels = await getConfiguredProjectLabels();
   for (const entry of labels) {
     await setFilterChecked(this.page, entry, true);
   }
