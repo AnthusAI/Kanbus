@@ -33,7 +33,15 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     data = _load_configuration_data(path)
     _validate_canonical_config_overrides(path, data)
     override = _load_override_configuration(path.parent / ".kanbus.override.yml")
-    merged = {**DEFAULT_CONFIGURATION, **data, **override}
+    merged = {**DEFAULT_CONFIGURATION, **data}
+    # Apply overrides, merging virtual_projects additively so the override
+    # adds entries rather than replacing the entire map.
+    if override:
+        main_vp = merged.get("virtual_projects")
+        override_vp = override.get("virtual_projects")
+        merged.update(override)
+        if isinstance(main_vp, dict) and isinstance(override_vp, dict):
+            merged["virtual_projects"] = {**main_vp, **override_vp}
     _reject_legacy_fields(merged)
     _normalize_virtual_projects(merged)
 

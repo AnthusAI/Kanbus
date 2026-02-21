@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a31ccd85-6cb2-4f25-af9a-328b0e29dd89",
+  "issue_id": "tskl-4ia",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T18:39:53.820Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "Support a .kanbus.override.yml file that is gitignored and merges additively with .kanbus.yml, enabling per-developer local settings such as virtual project mappings.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": null,
+    "priority": 2,
+    "status": "open",
+    "title": "epic Local configuration overrides"
+  }
+}

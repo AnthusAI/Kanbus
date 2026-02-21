@@ -1,5 +1,4 @@
 project_directory: project
-virtual_projects: {}
 ignore_paths:
   - features/project
 console_port: 4242
