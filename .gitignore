@@ -13,6 +13,7 @@ rust/target/
 
 # Taskulus
 project/.cache/
+project/events/
 tools/tmp/
 tools/tmp/*
 tmp/
