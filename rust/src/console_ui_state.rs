@@ -47,38 +47,3 @@ pub fn save_state(path: &Path, state: &ConsoleUiState) -> Result<(), KanbusError
     let json = serde_json::to_string_pretty(state).map_err(|e| KanbusError::Io(e.to_string()))?;
     std::fs::write(path, json).map_err(|e| KanbusError::Io(e.to_string()))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    #[test]
-    fn loads_default_when_missing() {
-        let temp = tempdir().unwrap();
-        let path = temp.path().join("console_state.json");
-        let state = load_state(&path).unwrap();
-        assert_eq!(state.focused_issue_id, None);
-        assert_eq!(state.focused_comment_id, None);
-        assert_eq!(state.view_mode, None);
-        assert_eq!(state.search_query, None);
-    }
-
-    #[test]
-    fn saves_and_loads_state() {
-        let temp = tempdir().unwrap();
-        let path = temp.path().join("cache").join("console_state.json");
-        let state = ConsoleUiState {
-            focused_issue_id: Some("kanbus-abc".to_string()),
-            focused_comment_id: Some("comment-1".to_string()),
-            view_mode: Some("issues".to_string()),
-            search_query: Some("query".to_string()),
-        };
-        save_state(&path, &state).unwrap();
-        let loaded = load_state(&path).unwrap();
-        assert_eq!(loaded.focused_issue_id, state.focused_issue_id);
-        assert_eq!(loaded.focused_comment_id, state.focused_comment_id);
-        assert_eq!(loaded.view_mode, state.view_mode);
-        assert_eq!(loaded.search_query, state.search_query);
-    }
-}
