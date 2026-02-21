@@ -58,6 +58,17 @@ fn given_project_with_beads_compatibility(world: &mut KanbusWorld) {
     world.temp_dir = Some(temp_dir);
 }
 
+#[given("a project directory exists")]
+fn given_project_directory_exists(world: &mut KanbusWorld) {
+    let root = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let project_dir = root.join("project");
+    fs::create_dir_all(project_dir.join("issues")).expect("create issues dir");
+    fs::create_dir_all(project_dir.join("events")).expect("create events dir");
+}
+
 #[then(expr = "beads issues.jsonl should contain {string}")]
 fn then_beads_jsonl_contains(world: &mut KanbusWorld, identifier: String) {
     let root = world
