@@ -9,6 +9,7 @@ from typing import Dict, List
 
 from pydantic import ValidationError
 from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.issue_listing import IssueListingError, list_issues
 from kanbus.migration import MigrationError, load_beads_issues
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.project import ProjectMarkerError, get_configuration_path
@@ -55,6 +56,8 @@ def _load_console_issues(
     project_dir: Path,
     configuration: ProjectConfiguration,
 ) -> List[IssueData]:
+    if configuration.virtual_projects:
+        return _load_issues_with_virtual_projects(root, configuration)
     if configuration.beads_compatibility:
         try:
             issues = load_beads_issues(root)
@@ -89,6 +92,19 @@ def _load_console_issues(
         except ValidationError as error:
             raise ConsoleSnapshotError("issue file is invalid") from error
 
+    issues.sort(key=lambda issue: issue.identifier)
+    return issues
+
+
+def _load_issues_with_virtual_projects(
+    root: Path,
+    configuration: ProjectConfiguration,
+) -> List[IssueData]:
+    try:
+        beads_mode = configuration.beads_compatibility
+        issues = list_issues(root, beads_mode=beads_mode)
+    except IssueListingError as error:
+        raise ConsoleSnapshotError(str(error)) from error
     issues.sort(key=lambda issue: issue.identifier)
     return issues
 
