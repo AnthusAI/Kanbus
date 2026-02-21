@@ -134,7 +134,7 @@ fn when_render_absolute(world: &mut KanbusWorld, filename: String) {
     );
 }
 
-#[then(expr = "\"{string}\" should appear before \"{string}\" in the output")]
+#[then(expr = "{string} should appear before {string} in the output")]
 fn then_text_before_text(world: &mut KanbusWorld, first: String, second: String) {
     let stdout = world.stdout.as_ref().expect("stdout");
     let first_index = stdout.find(&first).expect("first value in stdout");

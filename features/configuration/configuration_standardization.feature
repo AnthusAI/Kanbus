@@ -23,21 +23,18 @@ Feature: Configuration standardization across Python and Rust
     Then the command should fail with exit code 1
     And stderr should contain "unknown configuration fields"
 
-  @wip
   Scenario: Hierarchy is fixed and cannot be customized
     Given a Kanbus project with a file "kanbus.yml" attempting to override the hierarchy
     When I load the configuration
     Then the command should fail with exit code 1
     And stderr should contain "hierarchy is fixed"
 
-  @wip
   Scenario: Each issue type must bind to a workflow
     Given a Kanbus project with a file "kanbus.yml" where issue type "bug" has no workflow binding
     When I load the configuration
     Then the command should fail with exit code 1
     And stderr should contain "missing workflow binding for issue type"
 
-  @wip
   Scenario: Invalid status transition is rejected
     Given a Kanbus project with default workflows
     And an issue "kanbus-123" of type "bug" with status "open"

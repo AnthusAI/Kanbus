@@ -668,6 +668,12 @@ html[data-motion="reduced"] .detail-page {
   display: grid;
 }
 
+.detail-comment.comment-highlight {
+  outline: 2px solid var(--accent, #6366f1);
+  outline-offset: 2px;
+  transition: outline-color 2.5s ease-out;
+}
+
 .loading-banner {
   background: var(--card-muted);
   color: var(--text-foreground);

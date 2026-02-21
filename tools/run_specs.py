@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -134,40 +135,84 @@ def _run_rust_specs() -> tuple[bool, CommandResult]:
 
 
 def _run_rust_coverage() -> tuple[bool, CoverageResult | None, CommandResult]:
-    """Run Rust coverage via cargo-tarpaulin.
+    """Run Rust coverage via cargo-llvm-cov.
 
     :return: Tuple of success flag, coverage result, and command result.
     :rtype: tuple[bool, CoverageResult | None, CommandResult]
     """
     rust_dir = ROOT / "rust"
-    coverage_xml = rust_dir / "cobertura.xml"
+    coverage_dir = ROOT / "coverage-rust"
+    coverage_xml = coverage_dir / "cobertura.xml"
     if coverage_xml.exists():
         coverage_xml.unlink()
 
+    console_dir = ROOT / "apps" / "console"
+    ui_dir = ROOT / "packages" / "ui"
+    coverage_dir.mkdir(parents=True, exist_ok=True)
+
+    assets_result = _run_command(["npm", "ci"], cwd=ui_dir)
+    if assets_result.return_code != 0:
+        return False, None, assets_result
+    assets_result = _run_command(["npm", "run", "build"], cwd=ui_dir)
+    if assets_result.return_code != 0:
+        return False, None, assets_result
+    assets_result = _run_command(["npm", "ci"], cwd=console_dir)
+    if assets_result.return_code != 0:
+        return False, None, assets_result
+    assets_result = _run_command(["npm", "run", "build"], cwd=console_dir)
+    if assets_result.return_code != 0:
+        return False, None, assets_result
+    assets_source = console_dir / "dist"
+    assets_target = rust_dir / "embedded_assets" / "console"
+    if not assets_source.exists():
+        return (
+            False,
+            None,
+            CommandResult(
+                command=["sync-console-assets"],
+                return_code=1,
+                stdout="",
+                stderr=f"Missing console assets at {assets_source}",
+            ),
+        )
+    if assets_target.exists():
+        shutil.rmtree(assets_target)
+    shutil.copytree(assets_source, assets_target)
+
     command = [
         "cargo",
-        "tarpaulin",
-        "--engine",
-        "llvm",
+        "llvm-cov",
+        "--locked",
+        "--no-report",
+        "--all-features",
+        "--lib",
+        "--bins",
         "--tests",
-        "--test",
-        "cucumber",
-        "--implicit-test-threads",
-        "--exclude-files",
-        "src/bin/*",
-        "--exclude-files",
-        "features/steps/*",
-        "--out",
-        "Xml",
+        "--ignore-filename-regex",
+        "features/steps/.*|src/bin/.*|src/main.rs",
     ]
     result = _run_command(command, cwd=rust_dir)
-    ok = result.return_code == 0
+    if result.return_code != 0:
+        return False, None, result
+    report_result = _run_command(
+        [
+            "cargo",
+            "llvm-cov",
+            "report",
+            "--locked",
+            "--cobertura",
+            "--output-path",
+            str(coverage_xml),
+        ],
+        cwd=rust_dir,
+    )
+    ok = report_result.return_code == 0
     coverage_result = None
     if coverage_xml.exists():
         coverage_result = _parse_line_rate(coverage_xml)
     else:
         ok = False
-    return ok, coverage_result, result
+    return ok, coverage_result, report_result
 
 
 def _summarize_json(summary: SpecRunSummary) -> None:
@@ -250,7 +295,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--skip-rust-coverage",
         action="store_true",
-        help="Skip cargo-tarpaulin coverage run.",
+        help="Skip cargo-llvm-cov coverage run.",
     )
     parser.add_argument(
         "--format",

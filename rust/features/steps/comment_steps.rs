@@ -100,6 +100,25 @@ fn then_issue_has_comment_with_id(
     assert!(found, "expected comment not found");
 }
 
+#[given(expr = "issue {string} has a comment from {string} with text {string} and id {string}")]
+fn given_issue_has_comment_with_id(
+    world: &mut KanbusWorld,
+    identifier: String,
+    author: String,
+    text: String,
+    comment_id: String,
+) {
+    let project_dir = load_project_dir(world);
+    let mut issue = load_issue(&project_dir, &identifier);
+    issue.comments.push(IssueComment {
+        id: Some(comment_id),
+        author,
+        text,
+        created_at: Utc::now(),
+    });
+    save_issue(&project_dir, &issue);
+}
+
 #[then(expr = "issue {string} has a comment from {string} with text {string} and no id")]
 fn then_issue_has_comment_without_id(
     world: &mut KanbusWorld,
@@ -114,6 +133,24 @@ fn then_issue_has_comment_without_id(
         .iter()
         .any(|comment| comment.author == author && comment.text == text && comment.id.is_none());
     assert!(found, "expected comment not found");
+}
+
+#[given(expr = "issue {string} has a comment from {string} with text {string} and no id")]
+fn given_issue_has_comment_without_id(
+    world: &mut KanbusWorld,
+    identifier: String,
+    author: String,
+    text: String,
+) {
+    let project_dir = load_project_dir(world);
+    let mut issue = load_issue(&project_dir, &identifier);
+    issue.comments.push(IssueComment {
+        id: None,
+        author,
+        text,
+        created_at: Utc::now(),
+    });
+    save_issue(&project_dir, &issue);
 }
 
 // Additional Given steps for comment manipulation tests

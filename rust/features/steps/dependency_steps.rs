@@ -53,6 +53,29 @@ fn build_issue(identifier: &str) -> IssueData {
     }
 }
 
+#[given(expr = "issue {string} has dependency {string} of type {string}")]
+fn given_issue_has_dependency(
+    world: &mut KanbusWorld,
+    identifier: String,
+    target: String,
+    dependency_type: String,
+) {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let mut issue = if issue_path.exists() {
+        read_issue_file(&project_dir, &identifier)
+    } else {
+        build_issue(&identifier)
+    };
+    issue.dependencies.push(DependencyLink {
+        target,
+        dependency_type,
+    });
+    write_issue_file(&project_dir, &issue);
+}
+
 #[given(expr = "issue {string} depends on {string} with type {string}")]
 fn given_issue_depends_on(
     world: &mut KanbusWorld,

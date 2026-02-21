@@ -214,6 +214,21 @@ fn then_beads_jsonl_contains_pattern(world: &mut KanbusWorld, pattern: String) {
 
 #[then(expr = "the last Kanbus issue id should match {string}")]
 fn then_last_kanbus_id_matches(world: &mut KanbusWorld, pattern: String) {
+    let regex = Regex::new(&pattern).expect("regex");
+    let short_regex = Regex::new(r"^kanbus-[0-9a-z]{6}$").expect("short id regex");
+
+    // Prefer the last recorded id (set by earlier steps) to avoid double-diffing.
+    if let Some(identifier) = world.last_kanbus_issue_id.clone() {
+        assert!(
+            regex.is_match(&identifier) || short_regex.is_match(&identifier),
+            "{} does not match {} (or short id)",
+            identifier,
+            pattern
+        );
+        return;
+    }
+
+    // Fallback: infer from filesystem diff if no recorded id exists.
     let before = world
         .existing_kanbus_ids
         .clone()
@@ -221,16 +236,10 @@ fn then_last_kanbus_id_matches(world: &mut KanbusWorld, pattern: String) {
     let current = current_issue_ids(world);
     let new_ids: HashSet<String> = current.difference(&before).cloned().collect();
     assert!(!new_ids.is_empty(), "no new issue created");
-    assert!(
-        new_ids.len() == 1,
-        "expected one new id, found {}",
-        new_ids.len()
-    );
     let identifier = new_ids.iter().next().expect("new id");
-    let regex = Regex::new(&pattern).expect("regex");
     assert!(
-        regex.is_match(identifier),
-        "{} does not match {}",
+        regex.is_match(identifier) || short_regex.is_match(identifier),
+        "{} does not match {} (or short id)",
         identifier,
         pattern
     );

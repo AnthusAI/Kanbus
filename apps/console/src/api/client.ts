@@ -18,7 +18,7 @@ export type NotificationEvent =
   | { type: "issue_created"; issue_id: string; issue_data: Issue }
   | { type: "issue_updated"; issue_id: string; fields_changed: string[]; issue_data: Issue }
   | { type: "issue_deleted"; issue_id: string }
-  | { type: "issue_focused"; issue_id: string; user?: string }
+  | { type: "issue_focused"; issue_id: string; user?: string; comment_id?: string }
   | { type: "ui_control"; action: UiControlAction };
 
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {

@@ -1,3 +1,4 @@
+@cli
 Feature: Console UI state commands
   As a Kanbus user or agent
   I want CLI commands to read and write the console UI state

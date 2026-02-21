@@ -286,6 +286,11 @@ def when_run_command_with_stdin_no_quotes(
     run_cli_with_input(context, command, stdin_content)
 
 
+@when('I run "(?P<command>[^"]+)" and respond "(?P<response>[^"]+)"')
+def when_run_command_and_respond(context: object, command: str, response: str) -> None:
+    run_cli_with_input(context, command, f"{response}\n")
+
+
 @when('I run "(?P<command>[^"]+)"')
 def when_run_command(context: object, command: str) -> None:
     """Generic step to run any kanbus command."""

@@ -19,6 +19,28 @@ fn example_dir(name: &str) -> PathBuf {
     repo_root().join("examples").join(slug)
 }
 
+fn build_kbs_binary() -> PathBuf {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let target_dir = std::env::var("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| manifest_dir.join("target"));
+    let binary_path = target_dir.join("debug").join("kbs");
+    if binary_path.exists() {
+        return binary_path;
+    }
+
+    let status = Command::new("cargo")
+        .args(["build", "--bin", "kbs"])
+        .current_dir(&manifest_dir)
+        .env("CARGO_TARGET_DIR", &target_dir)
+        .status()
+        .expect("build kbs binary");
+    if !status.success() {
+        panic!("failed to build kbs binary");
+    }
+    binary_path
+}
+
 #[given(expr = "the {string} example project does not exist")]
 fn given_example_missing(_world: &mut KanbusWorld, name: String) {
     let path = example_dir(&name);
@@ -38,6 +60,36 @@ fn when_create_example_project(_world: &mut KanbusWorld, name: String) {
         .expect("git init failed");
     if !status.success() {
         panic!("git init failed");
+    }
+}
+
+#[when(expr = "I run \"kanbus init\" in the {string} example project")]
+fn when_run_kanbus_init_in_example(_world: &mut KanbusWorld, name: String) {
+    let path = example_dir(&name);
+    let binary_path = build_kbs_binary();
+    let status = Command::new(binary_path)
+        .args(["init"])
+        .current_dir(&path)
+        .env("KANBUS_NO_DAEMON", "1")
+        .status()
+        .expect("kanbus init failed");
+    if !status.success() {
+        panic!("kanbus init failed");
+    }
+}
+
+#[when(expr = "I run \"kanbus setup agents\" in the {string} example project")]
+fn when_run_kanbus_setup_agents_in_example(_world: &mut KanbusWorld, name: String) {
+    let path = example_dir(&name);
+    let binary_path = build_kbs_binary();
+    let status = Command::new(binary_path)
+        .args(["setup", "agents"])
+        .current_dir(&path)
+        .env("KANBUS_NO_DAEMON", "1")
+        .status()
+        .expect("kanbus setup agents failed");
+    if !status.success() {
+        panic!("kanbus setup agents failed");
     }
 }
 

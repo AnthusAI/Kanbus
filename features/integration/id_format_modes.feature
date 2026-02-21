@@ -25,9 +25,6 @@ Feature: ID formats differ between Beads mode and Kanbus mode
     Then the command should succeed
     And the last Kanbus issue id should match "kanbus-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 
-  @wip
-  @wip
-  @wip
   Scenario: Native Kanbus mode creates a task with UUID id under epic
     Given a migrated Kanbus repository from the Beads fixture
     And I record existing Kanbus issue ids

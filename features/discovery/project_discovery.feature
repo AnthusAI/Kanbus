@@ -1,4 +1,3 @@
-@wip
 Feature: Project discovery
   As a Kanbus user
   I want Kanbus to discover projects by convention

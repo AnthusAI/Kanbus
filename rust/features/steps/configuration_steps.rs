@@ -9,6 +9,8 @@ use tempfile::TempDir;
 use kanbus::cli::run_from_args_with_output;
 use kanbus::config::{default_project_configuration, write_default_configuration};
 use kanbus::config_loader::load_project_configuration;
+use kanbus::file_io::get_configuration_path;
+use kanbus::workflows::validate_status_transition;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
@@ -50,6 +52,75 @@ fn initialize_project(world: &mut KanbusWorld) {
         world.configuration_path = Some(root.join(".kanbus.yml"));
     }
 }
+
+#[given("a Kanbus project with a file \"kanbus.yml\" attempting to override the hierarchy")]
+fn given_project_with_custom_hierarchy(world: &mut KanbusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        mapping.insert(
+            Value::String("hierarchy".to_string()),
+            Value::Sequence(vec![
+                Value::String("custom".to_string()),
+                Value::String("epic".to_string()),
+                Value::String("task".to_string()),
+            ]),
+        );
+    });
+}
+
+#[given("a Kanbus project with a file \"kanbus.yml\" where issue type \"bug\" has no workflow binding")]
+fn given_project_missing_workflow_binding(world: &mut KanbusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        // Remove the default workflow to force validation to look for per-type binding.
+        mapping.remove(&Value::String("workflows".to_string()));
+        mapping.insert(
+            Value::String("workflows".to_string()),
+            Value::Mapping(serde_yaml::Mapping::from_iter([(
+                Value::String("epic".to_string()),
+                Value::Mapping(serde_yaml::Mapping::new()),
+            )])),
+        );
+    });
+}
+
+#[given("a Kanbus project with default workflows")]
+fn given_project_with_default_workflows(world: &mut KanbusWorld) {
+    initialize_project(world);
+}
+
+#[when(expr = "I update issue \"{word}\" to status \"{word}\"")]
+fn when_update_issue_status(world: &mut KanbusWorld, id: String, status: String) {
+    let root = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let config_path = get_configuration_path(root).expect("config path");
+    let configuration = load_project_configuration(&config_path).expect("load config");
+
+    let issues_dir = root.join("project").join("issues");
+    let issue_path = issues_dir.join(format!("{}.json", id));
+    let contents = fs::read_to_string(&issue_path).expect("read issue");
+    let mut issue: kanbus::models::IssueData = serde_json::from_str(&contents).expect("parse");
+
+    let result = validate_status_transition(
+        &configuration,
+        &issue.issue_type,
+        &issue.status,
+        &status,
+    );
+    if let Err(error) = result {
+        world.exit_code = Some(1);
+        world.stderr = Some(error.to_string());
+    } else {
+        issue.status = status;
+        let updated = serde_json::to_string_pretty(&issue).expect("serialize");
+        fs::write(issue_path, updated).expect("write issue");
+        world.exit_code = Some(0);
+        world.stderr = Some(String::new());
+    }
+}
+
 
 #[given("a Kanbus repository with a .kanbus.yml file containing the default configuration")]
 fn given_repo_with_default_configuration(world: &mut KanbusWorld) {
@@ -548,7 +619,7 @@ fn then_project_directory_should_match_absolute(world: &mut KanbusWorld) {
     );
 }
 
-#[then(expr = "the project directory should be \"{string}\"")]
+#[then(expr = "the project directory should be {string}")]
 fn then_project_directory_should_match(world: &mut KanbusWorld, value: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
     assert_eq!(configuration.project_directory, value);
@@ -571,8 +642,6 @@ fn then_time_zone_should_match(world: &mut KanbusWorld, time_zone: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
     assert_eq!(configuration.time_zone.as_deref(), Some(time_zone.as_str()));
 }
-
-// Additional steps for configuration standardization tests
 
 #[given(expr = "a Kanbus project with a file {string} containing a valid configuration")]
 fn given_project_with_valid_config_file(world: &mut KanbusWorld, filename: String) {

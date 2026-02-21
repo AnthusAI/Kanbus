@@ -66,6 +66,7 @@ interface TaskDetailPanelProps {
   onAfterClose: () => void;
   onFocus: (issueId: string) => void;
   focusedIssueId: string | null;
+  focusedCommentId?: string | null;
   onNavigateToDescendant?: (issue: Issue) => void;
 }
 
@@ -167,6 +168,7 @@ export function TaskDetailPanel({
   onAfterClose,
   onFocus,
   focusedIssueId,
+  focusedCommentId,
   onNavigateToDescendant
 }: TaskDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -210,6 +212,20 @@ export function TaskDetailPanel({
 
     previousCommentCountRef.current = currentCommentCount;
   }, [task?.comments?.length, task, isOpen]);
+
+  // Scroll to and highlight a specific comment — fires when the panel content
+  // lands (displayTask?.id changes) or when focusedCommentId is set.
+  useEffect(() => {
+    if (!focusedCommentId || !displayTask || !contentRef.current) return;
+    const target = contentRef.current.querySelector(
+      `[data-comment-id="${CSS.escape(focusedCommentId)}"]`
+    ) as HTMLElement | null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.add("comment-highlight");
+    const timer = window.setTimeout(() => target.classList.remove("comment-highlight"), 2500);
+    return () => window.clearTimeout(timer);
+  }, [focusedCommentId, displayTask?.id]);
 
   useEffect(() => {
     if (!task) {
@@ -657,7 +673,11 @@ skinparam SequenceDividerFontColor white`
                 comments.map((comment, index) => {
                   const commentHtml = marked.parse(comment.text, { async: false }) as string;
                   return (
-                    <div key={`${comment.created_at}-${index}`} className="detail-comment grid gap-2">
+                    <div
+                      key={`${comment.created_at}-${index}`}
+                      className="detail-comment grid gap-2"
+                      data-comment-id={comment.id}
+                    >
                       <div className="text-xs font-semibold text-foreground">
                         {comment.author}
                       </div>
