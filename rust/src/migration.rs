@@ -599,7 +599,17 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         }
     }
 
-    statuses.extend(["open", "in_progress", "blocked", "backlog", "deferred", "closed"].map(str::to_string));
+    statuses.extend(
+        [
+            "open",
+            "in_progress",
+            "blocked",
+            "backlog",
+            "deferred",
+            "closed",
+        ]
+        .map(str::to_string),
+    );
     priorities.extend([0, 1, 2, 3, 4]);
 
     let mut status_vec: Vec<String> = statuses.into_iter().collect();

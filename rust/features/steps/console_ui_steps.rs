@@ -228,11 +228,7 @@ fn when_set_motion(world: &mut KanbusWorld, motion: String) {
 fn given_console_open_with_virtual_projects(world: &mut KanbusWorld) {
     world.console_state = Some(open_console(world));
     let state = require_console_state(world);
-    state.project_filter_options = vec![
-        "kbs".to_string(),
-        "alpha".to_string(),
-        "beta".to_string(),
-    ];
+    state.project_filter_options = vec!["kbs".to_string(), "alpha".to_string(), "beta".to_string()];
     state.project_filter_visible = true;
     // Add a default alpha shared issue so filter scenarios have data.
     state.issues.push(ConsoleIssue {
@@ -257,11 +253,7 @@ fn given_console_open_with_virtual_projects_named(
 ) {
     world.console_state = Some(open_console(world));
     let state = require_console_state(world);
-    state.project_filter_options = vec![
-        "kbs".to_string(),
-        alpha.clone(),
-        beta.clone(),
-    ];
+    state.project_filter_options = vec!["kbs".to_string(), alpha.clone(), beta.clone()];
     state.project_filter_visible = true;
 }
 
@@ -421,7 +413,10 @@ fn then_local_filter_not_visible(world: &mut KanbusWorld) {
 #[then(expr = "project {string} should still be selected in the project filter")]
 fn then_project_filter_still_selected(world: &mut KanbusWorld, label: String) {
     let state = require_console_state(world);
-    assert_eq!(state.selected_project_filter.as_deref(), Some(label.as_str()));
+    assert_eq!(
+        state.selected_project_filter.as_deref(),
+        Some(label.as_str())
+    );
 }
 
 #[then(expr = "I should only see issues from {string}")]
@@ -434,8 +429,10 @@ fn then_only_see_issues_from(world: &mut KanbusWorld, label: String) {
 #[then("I should see issues from all projects")]
 fn then_see_issues_from_all_projects(world: &mut KanbusWorld) {
     let visible = visible_issues_with_filters(require_console_state(world));
-    let labels: std::collections::HashSet<String> =
-        visible.iter().map(|issue| issue.project_label.clone()).collect();
+    let labels: std::collections::HashSet<String> = visible
+        .iter()
+        .map(|issue| issue.project_label.clone())
+        .collect();
     assert!(labels.contains("kbs"));
     assert!(labels.contains("alpha"));
     assert!(labels.contains("beta"));
@@ -476,7 +473,10 @@ fn then_no_tab_selected(world: &mut KanbusWorld) {
 #[then(expr = "the detail panel should show issue {string}")]
 fn then_detail_panel_shows_issue(world: &mut KanbusWorld, issue_title: String) {
     let state = require_console_state(world);
-    assert_eq!(state.selected_task_title.as_deref(), Some(issue_title.as_str()));
+    assert_eq!(
+        state.selected_task_title.as_deref(),
+        Some(issue_title.as_str())
+    );
 }
 
 #[then(expr = "I should see the issue {string}")]
@@ -583,9 +583,7 @@ fn when_open_console_route(world: &mut KanbusWorld, route: String) {
         state.selected_task_title = Some("Observability overhaul".to_string());
     } else if route.contains("/epics/") || route.ends_with("/epics") {
         state.selected_tab = "Epics".to_string();
-    } else if route.contains("/issues/")
-        && !route.contains("/kanbus-")
-        && !route.contains("/acme/")
+    } else if route.contains("/issues/") && !route.contains("/kanbus-") && !route.contains("/acme/")
     {
         state.selected_tab = "Issues".to_string();
     } else if route.contains("/acme/") && route.contains("/epics/") {
@@ -823,9 +821,8 @@ fn console_app_root() -> PathBuf {
 
 fn assert_priority_pill_uses_background() {
     let root = console_app_root();
-    let globals_css =
-        std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
-            .expect("read globals.css");
+    let globals_css = std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
+        .expect("read globals.css");
     if !globals_css.contains("background") || !globals_css.contains("--issue-priority-bg") {
         panic!("priority label must use background with --issue-priority-bg in globals.css");
     }
@@ -841,9 +838,8 @@ fn assert_priority_pill_uses_background() {
 
 fn assert_priority_pill_uses_foreground_text() {
     let root = console_app_root();
-    let globals_css =
-        std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
-            .expect("read globals.css");
+    let globals_css = std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
+        .expect("read globals.css");
     let start = globals_css.find(".issue-accent-priority");
     let start = start.expect(".issue-accent-priority not found in globals.css");
     let end = std::cmp::min(start + 600, globals_css.len());

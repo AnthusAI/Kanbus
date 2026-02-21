@@ -382,8 +382,30 @@ fn cover_additional_paths() {
     )
     .expect("write external projects");
     let _ = load_project_directory(root_multi);
-    let _ = list_issues(root_multi, None, None, None, None, None, None, &[], true, true);
-    let _ = list_issues(root_multi, None, None, None, None, None, None, &[], false, false);
+    let _ = list_issues(
+        root_multi,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        &[],
+        true,
+        true,
+    );
+    let _ = list_issues(
+        root_multi,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        &[],
+        false,
+        false,
+    );
     std::env::remove_var("KANBUS_NO_DAEMON");
     let _ = run_from_args_with_output(["kanbus", "daemon-status"], root_multi);
     std::env::set_var("KANBUS_NO_DAEMON", "1");

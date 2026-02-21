@@ -260,9 +260,7 @@ fn given_kanbus_issue_with_dependency(world: &mut KanbusWorld, issue: String, de
     world.last_beads_issue_id = Some(issue);
 }
 
-#[given(
-    regex = r#"a kanbus issue "(?P<identifier>[^"]+)" exists with status "(?P<status>[^"]+)""#
-)]
+#[given(regex = r#"a kanbus issue "(?P<identifier>[^"]+)" exists with status "(?P<status>[^"]+)""#)]
 fn given_kanbus_issue_with_status(world: &mut KanbusWorld, issue: String, status: String) {
     upsert_beads_issue(world, &issue, None, Some(&status));
     world.last_beads_issue_id = Some(issue);
@@ -353,7 +351,7 @@ fn then_last_issue_not_in_list_output(world: &mut KanbusWorld) {
 
 // Additional steps for comments interoperability
 
-#[given(regex = r#"a kanbus issue "(?P<identifier>[^"]+)" exists"#)]
+#[given(expr = "a kanbus issue {string} exists")]
 fn given_kanbus_issue_exists(world: &mut KanbusWorld, identifier: String) {
     let cwd = world
         .working_directory
@@ -407,9 +405,7 @@ fn given_kanbus_issue_exists(world: &mut KanbusWorld, identifier: String) {
     fs::write(beads_path, beads_content).expect("write beads issues");
 }
 
-#[given(
-    regex = r#"a kanbus issue "(?P<identifier>[^"]+)" exists with labels "(?P<labels>[^"]+)""#
-)]
+#[given(regex = r#"a kanbus issue "(?P<identifier>[^"]+)" exists with labels "(?P<labels>[^"]+)""#)]
 fn given_kanbus_issue_exists_with_labels(
     world: &mut KanbusWorld,
     identifier: String,
@@ -472,9 +468,7 @@ fn given_kanbus_issue_exists_with_labels(
     fs::write(beads_path, beads_content).expect("write beads issues");
 }
 
-#[given(
-    regex = r#"a kanbus issue "(?P<identifier>[^"]+)" exists with title "(?P<title>[^"]+)""#
-)]
+#[given(regex = r#"a kanbus issue "(?P<identifier>[^"]+)" exists with title "(?P<title>[^"]+)""#)]
 fn given_kanbus_issue_exists_with_title(
     world: &mut KanbusWorld,
     identifier: String,
@@ -531,9 +525,7 @@ fn given_kanbus_issue_exists_with_title(
     fs::write(beads_path, beads_content).expect("write beads issues");
 }
 
-#[given(
-    regex = r#"a kanbus issue "(?P<identifier>[^"]+)" exists with priority (?P<priority>\d+)"#
-)]
+#[given(regex = r#"a kanbus issue "(?P<identifier>[^"]+)" exists with priority (?P<priority>\d+)"#)]
 fn given_kanbus_issue_exists_with_priority(
     world: &mut KanbusWorld,
     identifier: String,
@@ -676,9 +668,7 @@ fn given_kanbus_only_issue(world: &mut KanbusWorld, identifier: String) {
     fs::write(issue_path, contents).expect("write issue");
 }
 
-#[given(
-    regex = r#"a beads issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)""#
-)]
+#[given(regex = r#"a beads issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)""#)]
 fn given_beads_issue_with_parent(world: &mut KanbusWorld, identifier: String, parent_id: String) {
     let cwd = world
         .working_directory
@@ -715,7 +705,10 @@ fn then_beads_jsonl_contains(world: &mut KanbusWorld, identifier: String) {
         .join(".beads")
         .join("issues.jsonl");
     let contents = fs::read_to_string(beads_path).expect("read beads issues");
-    assert!(contents.contains(&identifier), "identifier not found in issues.jsonl");
+    assert!(
+        contents.contains(&identifier),
+        "identifier not found in issues.jsonl"
+    );
 }
 
 #[then(regex = r#"beads issues\.jsonl should not contain "(?P<identifier>[^"]+)""#)]

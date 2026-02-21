@@ -67,9 +67,7 @@ impl FileStore {
     }
 
     /// Load issues from all virtual projects.
-    fn load_issues_with_virtual_projects(
-        &self,
-    ) -> Result<Vec<IssueData>, KanbusError> {
+    fn load_issues_with_virtual_projects(&self) -> Result<Vec<IssueData>, KanbusError> {
         let labeled = resolve_labeled_projects(self.root())?;
         let mut all_issues = Vec::new();
         for project in &labeled {
@@ -217,7 +215,8 @@ fn load_console_issues(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError
 }
 
 fn tag_custom(issue: &mut IssueData, key: &str, value: &str) {
-    issue
-        .custom
-        .insert(key.to_string(), serde_json::Value::String(value.to_string()));
+    issue.custom.insert(
+        key.to_string(),
+        serde_json::Value::String(value.to_string()),
+    );
 }

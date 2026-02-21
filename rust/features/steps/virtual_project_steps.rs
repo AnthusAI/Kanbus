@@ -12,6 +12,7 @@ use crate::step_definitions::initialization_steps::KanbusWorld;
 
 #[derive(Debug, Clone)]
 pub struct VirtualProject {
+    #[allow(dead_code)]
     pub label: String,
     pub shared_dir: PathBuf,
     pub local_dir: PathBuf,
@@ -92,10 +93,16 @@ fn ensure_virtual_state(world: &mut KanbusWorld) -> &mut VirtualProjectState {
         let state = initialize_virtual_repo(world);
         world.virtual_project_state = Some(state);
     }
-    world.virtual_project_state.as_mut().expect("virtual project state")
+    world
+        .virtual_project_state
+        .as_mut()
+        .expect("virtual project state")
 }
 
-fn configure_virtual_projects<'a>(world: &'a mut KanbusWorld, labels: Vec<&str>) -> &'a mut VirtualProjectState {
+fn configure_virtual_projects<'a>(
+    world: &'a mut KanbusWorld,
+    labels: Vec<&str>,
+) -> &'a mut VirtualProjectState {
     let state = ensure_virtual_state(world);
     state.virtual_projects.clear();
     for label in labels {
@@ -150,7 +157,9 @@ fn write_issue(project_dir: &Path, issue: &IssueData) {
 }
 
 fn read_issue(project_dir: &Path, identifier: &str) -> IssueData {
-    let issue_path = project_dir.join("issues").join(format!("{identifier}.json"));
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
     let contents = fs::read_to_string(issue_path).expect("read issue");
     serde_json::from_str(&contents).expect("parse issue")
 }
@@ -285,7 +294,12 @@ fn list_issues(
         if let Ok(entries) = fs::read_dir(&issues_dir) {
             for entry in entries.filter_map(|entry| entry.ok()) {
                 if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-                    append_issue(&state.current_label, stem, "local", &state.current_local_dir);
+                    append_issue(
+                        &state.current_label,
+                        stem,
+                        "local",
+                        &state.current_local_dir,
+                    );
                 }
             }
         }
@@ -295,7 +309,12 @@ fn list_issues(
         if let Ok(entries) = fs::read_dir(&issues_dir) {
             for entry in entries.filter_map(|entry| entry.ok()) {
                 if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-                    append_issue(&state.current_label, stem, "shared", &state.current_project_dir);
+                    append_issue(
+                        &state.current_label,
+                        stem,
+                        "shared",
+                        &state.current_project_dir,
+                    );
                 }
             }
         }
@@ -397,7 +416,13 @@ pub fn maybe_simulate_virtual_project_command(world: &mut KanbusWorld, command: 
                 }
             }
         }
-        let result = list_issues(&state, &project_filters, local_only, no_local, status.as_deref());
+        let result = list_issues(
+            &state,
+            &project_filters,
+            local_only,
+            no_local,
+            status.as_deref(),
+        );
         set_result(world, result);
         world.virtual_project_state = Some(state);
         return true;
@@ -405,8 +430,8 @@ pub fn maybe_simulate_virtual_project_command(world: &mut KanbusWorld, command: 
 
     if action == "show" && args.len() >= 3 {
         let identifier = &args[2];
-        let label = issue_project_label(&state, identifier)
-            .unwrap_or_else(|| state.current_label.clone());
+        let label =
+            issue_project_label(&state, identifier).unwrap_or_else(|| state.current_label.clone());
         set_result(
             world,
             SimulatedResult {
@@ -514,7 +539,11 @@ pub fn maybe_simulate_virtual_project_command(world: &mut KanbusWorld, command: 
         return true;
     }
 
-    if ["update", "close", "comment", "delete", "promote", "localize"].contains(&action) {
+    if [
+        "update", "close", "comment", "delete", "promote", "localize",
+    ]
+    .contains(&action)
+    {
         if args.len() < 3 {
             return false;
         }
@@ -704,7 +733,6 @@ fn given_virtual_projects_alpha_beta(world: &mut KanbusWorld, alpha: String, bet
     configure_virtual_projects(world, vec![alpha.as_str(), beta.as_str()]);
 }
 
-
 #[given(expr = "a Kanbus project with new_issue_project set to {string}")]
 fn given_project_with_new_issue_project(world: &mut KanbusWorld, label: String) {
     let state = configure_virtual_projects(world, vec!["alpha", "beta"]);
@@ -739,7 +767,13 @@ fn when_select_project_from_prompt(world: &mut KanbusWorld, label: String) {
         .clone()
         .unwrap_or_else(|| "kanbus create Interactive task".to_string());
     let args = shell_words::split(&command).expect("parse command");
-    let title = args.iter().skip(2).filter(|arg| !arg.starts_with("--")).cloned().collect::<Vec<String>>().join(" ");
+    let title = args
+        .iter()
+        .skip(2)
+        .filter(|arg| !arg.starts_with("--"))
+        .cloned()
+        .collect::<Vec<String>>()
+        .join(" ");
     let identifier = format!("{label}-task{:02}", state.issue_counter);
     state.issue_counter += 1;
     if label == state.current_label {
@@ -853,7 +887,12 @@ fn given_issue_exists_virtual(world: &mut KanbusWorld, identifier: String, label
 fn given_local_issue_exists_virtual(world: &mut KanbusWorld, identifier: String, label: String) {
     let state = configure_virtual_projects(world, vec![label.as_str()]);
     let project = state.virtual_projects.get(&label).expect("virtual project");
-    create_issue(&project.local_dir, &identifier, "Local virtual issue", "open");
+    create_issue(
+        &project.local_dir,
+        &identifier,
+        "Local virtual issue",
+        "open",
+    );
 }
 
 #[then(expr = "the issue file in virtual project {string} should be updated")]
@@ -875,7 +914,10 @@ fn then_issue_status_virtual(world: &mut KanbusWorld, label: String, status: Str
         .expect("read issues dir")
         .filter_map(|entry| entry.ok());
     let issue_path = entries.next().expect("issue file").path();
-    let stem = issue_path.file_stem().and_then(|s| s.to_str()).expect("stem");
+    let stem = issue_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .expect("stem");
     let issue = read_issue(&project.shared_dir, stem);
     assert_eq!(issue.status, status);
 }
@@ -957,7 +999,12 @@ fn then_event_file_created_virtual(world: &mut KanbusWorld, label: String) {
 #[given("issues exist in multiple virtual projects")]
 fn given_issues_multiple_virtual(world: &mut KanbusWorld) {
     let state = configure_virtual_projects(world, vec!["alpha", "beta"]);
-    create_issue(&state.current_project_dir, "kbs-001", "Current issue", "open");
+    create_issue(
+        &state.current_project_dir,
+        "kbs-001",
+        "Current issue",
+        "open",
+    );
     create_issue(
         &state.virtual_projects["alpha"].shared_dir,
         "alpha-001",
@@ -1000,7 +1047,6 @@ fn given_virtual_project_local(world: &mut KanbusWorld, label: String) {
     );
 }
 
-
 #[given(expr = "a virtual project {string} has shared and local issues")]
 fn given_virtual_project_shared_local(world: &mut KanbusWorld, label: String) {
     let state = configure_virtual_projects(world, vec![label.as_str()]);
@@ -1017,7 +1063,6 @@ fn given_virtual_project_shared_local(world: &mut KanbusWorld, label: String) {
         "open",
     );
 }
-
 
 #[then(expr = "stdout should contain issues from {string}")]
 fn then_stdout_contains_issues_from(world: &mut KanbusWorld, label: String) {

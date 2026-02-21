@@ -3,9 +3,9 @@
 use std::io::ErrorKind;
 use std::path::Path;
 
+use crate::config_loader::load_project_configuration;
 use crate::daemon_client::{is_daemon_enabled, request_index_list};
 use crate::error::KanbusError;
-use crate::config_loader::load_project_configuration;
 use crate::file_io::{
     canonicalize_path, discover_kanbus_projects, discover_project_directories,
     find_project_local_directory, get_configuration_path, load_project_directory,
@@ -158,7 +158,9 @@ fn list_with_project_filter(
     let known: HashSet<&str> = labeled.iter().map(|p| p.label.as_str()).collect();
     for name in project_filter {
         if !known.contains(name.as_str()) {
-            return Err(KanbusError::IssueOperation(format!("unknown project: {name}")));
+            return Err(KanbusError::IssueOperation(format!(
+                "unknown project: {name}"
+            )));
         }
     }
     let allowed: HashSet<&str> = project_filter.iter().map(|s| s.as_str()).collect();

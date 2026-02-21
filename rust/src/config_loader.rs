@@ -379,14 +379,16 @@ fn apply_overrides(mut value: Mapping, overrides: Mapping) -> Mapping {
         if key == vp_key {
             // Merge virtual_projects additively so the override adds entries
             // rather than replacing the entire map.
-            if let (Some(Value::Mapping(existing)), Value::Mapping(additions)) =
-                (value.get(&vp_key).cloned(), value_override)
-            {
-                let mut merged = existing;
-                for (k, v) in additions {
-                    merged.insert(k, v);
+            if let Value::Mapping(additions) = value_override {
+                if let Some(Value::Mapping(existing)) = value.get(&vp_key).cloned() {
+                    let mut merged = existing;
+                    for (k, v) in additions {
+                        merged.insert(k, v);
+                    }
+                    value.insert(vp_key.clone(), Value::Mapping(merged));
+                } else {
+                    value.insert(vp_key.clone(), Value::Mapping(additions));
                 }
-                value.insert(vp_key.clone(), Value::Mapping(merged));
                 continue;
             }
         }
