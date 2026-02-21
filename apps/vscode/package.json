@@ -37,8 +37,9 @@
   "scripts": {
     "compile": "tsc -p ./tsconfig.json",
     "watch": "tsc -watch -p ./tsconfig.json",
-    "build": "npm run compile && npm run copy-bin",
+    "build": "npm run compile && npm run copy-bin && npm run copy-assets",
     "copy-bin": "mkdir -p bin && cp ../../rust/target/release/kbsc bin/kbsc",
+    "copy-assets": "rm -rf console-assets && cp -r ../../apps/console/dist console-assets",
     "package": "npm run build && vsce package",
     "package:darwin-arm64": "npm run build && vsce package --target darwin-arm64",
     "package:darwin-x64": "npm run build && vsce package --target darwin-x64",
