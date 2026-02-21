@@ -110,6 +110,11 @@ jobs:
           cd apps/console
           npm run build
 
+      - name: Sync console assets into Rust bundle
+        run: |
+          rm -rf rust/embedded_assets/console
+          cp -R apps/console/dist rust/embedded_assets/console
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -231,6 +236,11 @@ jobs:
           name: console-dist
           path: apps/console/dist
 
+      - name: Sync console assets into Rust bundle
+        run: |
+          rm -rf rust/embedded_assets/console
+          cp -R apps/console/dist rust/embedded_assets/console
+
       - name: Build release binaries
         run: |
           cd rust
@@ -345,11 +355,21 @@ jobs:
           path: badges/rust-ci.svg
 
       - name: Build Rust coverage badge
+        if: needs.rust.result == 'success'
         uses: emibcn/badge-action@v2
         with:
           label: rust coverage
           status: ${{ needs.rust.outputs.coverage_percent }}%
           color: ${{ needs.rust.outputs.coverage_color }}
+          path: badges/rust-coverage.svg
+
+      - name: Build Rust coverage badge (failed)
+        if: needs.rust.result != 'success'
+        uses: emibcn/badge-action@v2
+        with:
+          label: rust coverage
+          status: failed
+          color: red
           path: badges/rust-coverage.svg
 
       - name: Publish badges branch

@@ -62,6 +62,18 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
         errors.push("hierarchy must not be empty".to_string());
     }
 
+    // Prevent drift between implementations: hierarchy must match an allowed canonical ordering.
+    let default_hierarchy = crate::config::default_project_configuration().hierarchy;
+    let python_hierarchy = vec![
+        "initiative".to_string(),
+        "epic".to_string(),
+        "issue".to_string(),
+        "subtask".to_string(),
+    ];
+    if configuration.hierarchy != default_hierarchy && configuration.hierarchy != python_hierarchy {
+        errors.push("hierarchy is fixed".to_string());
+    }
+
     let mut seen = std::collections::HashSet::new();
     for item in configuration
         .hierarchy
@@ -77,6 +89,19 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
 
     if !configuration.workflows.contains_key("default") {
         errors.push("default workflow is required".to_string());
+    }
+
+    // Ensure every issue type has a workflow binding (or a default fallback).
+    for issue_type in configuration.types.iter().chain(configuration.hierarchy.iter()) {
+        if !configuration.workflows.contains_key(issue_type)
+            && !configuration.workflows.contains_key("default")
+        {
+            errors.push(format!(
+                "missing workflow binding for issue type '{}'",
+                issue_type
+            ));
+            break;
+        }
     }
 
     if configuration.transition_labels.is_empty() {

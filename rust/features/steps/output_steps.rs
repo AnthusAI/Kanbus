@@ -58,6 +58,16 @@ fn then_stdout_lists_before(world: &mut KanbusWorld, first: String, second: Stri
     assert!(first_index < second_index);
 }
 
+#[then("stdout should contain parent reference")]
+fn then_stdout_contains_parent_reference(world: &mut KanbusWorld) {
+    let stdout = strip_ansi(world.stdout.as_ref().expect("stdout"));
+    let lower = stdout.to_lowercase();
+    assert!(
+        lower.contains("parent") || lower.contains("parent-child"),
+        "no parent reference found in stdout"
+    );
+}
+
 fn strip_ansi(text: &str) -> String {
     static ANSI_RE: OnceLock<Regex> = OnceLock::new();
     let regex = ANSI_RE.get_or_init(|| Regex::new("\x1b\\[[0-9;]*m").expect("regex"));

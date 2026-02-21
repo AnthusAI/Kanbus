@@ -22,6 +22,7 @@ python3 -m pip install black ruff coverage
 curl https://sh.rustup.rs -sSf | sh -s -- -y
 export PATH="$HOME/.cargo/bin:$PATH"
 rustup default stable
+rustup component add llvm-tools-preview
 
 cd python
 black --check .
@@ -32,12 +33,19 @@ python -m coverage xml -o ../coverage-python/coverage.xml
 cd ..
 python3 tools/check_spec_parity.py
 
+(cd packages/ui && npm ci && npm run build)
+(cd apps/console && npm ci && npm run build)
+rm -rf rust/embedded_assets/console
+cp -R apps/console/dist rust/embedded_assets/console
+
 cd rust
 cargo fmt --check
 cargo clippy -- -D warnings
 cargo test
-cargo install cargo-tarpaulin --locked --version 0.30.0
-cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads --exclude-files "src/bin/*" --exclude-files "features/steps/*" --timeout 180 --out Xml --output-dir ../coverage-rust
+cargo install cargo-llvm-cov --locked
+mkdir -p ../coverage-rust
+cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*|src/bin/.*|src/main.rs"
+cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobertura.xml
 cd ..
 
 cd apps/console

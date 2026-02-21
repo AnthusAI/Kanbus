@@ -284,9 +284,6 @@ jobs:
     needs: pypi-release
     if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.pypi_only != 'true') }}
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: rust
     env:
       CARGO_TERM_COLOR: always
     steps:
@@ -316,6 +313,11 @@ jobs:
           npm ci --prefer-offline --no-audit
           npm run build
 
+      - name: Sync console assets into Rust bundle
+        run: |
+          rm -rf rust/embedded_assets/console
+          cp -R apps/console/dist rust/embedded_assets/console
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -329,6 +331,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
 
       - name: Sync crate version to release tag
+        working-directory: rust
         run: |
           tag_version="${{ needs.pypi-release.outputs.release_tag }}"
           tag_version="${tag_version#v}"
@@ -356,18 +359,23 @@ jobs:
           PY
 
       - name: Update Cargo.lock
+        working-directory: rust
         run: cargo generate-lockfile
 
       - name: fmt
+        working-directory: rust
         run: cargo fmt --check
 
       - name: clippy
+        working-directory: rust
         run: cargo clippy --locked -- -D warnings
 
       - name: test
+        working-directory: rust
         run: cargo test --locked
 
       - name: package (verification)
+        working-directory: rust
         run: cargo package --locked
 
       - name: Check if crate version already exists
@@ -405,4 +413,5 @@ jobs:
         if: ${{ steps.crate_version_check.outputs.publish == 'true' }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        working-directory: rust
         run: cargo publish --locked --token "$CARGO_REGISTRY_TOKEN"
