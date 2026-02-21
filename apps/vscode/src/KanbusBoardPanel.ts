@@ -196,6 +196,11 @@ export class KanbusBoardPanel {
   window.EventSource.CONNECTING = _EventSource.CONNECTING;
   window.EventSource.OPEN = _EventSource.OPEN;
   window.EventSource.CLOSED = _EventSource.CLOSED;
+
+  // ── Stub sendBeacon — not available in vscode-webview-resource: origin ────
+  // The console app uses sendBeacon for telemetry; stub it out silently so
+  // it doesn't spam the DevTools console with errors.
+  navigator.sendBeacon = function() { return false; };
 })();
 </script>`;
   }
