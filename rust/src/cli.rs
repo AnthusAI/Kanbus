@@ -49,7 +49,7 @@ use crate::wiki::{render_wiki_page, WikiRenderRequest};
 #[derive(Debug, Parser)]
 #[command(
     name = "kbs",
-    version,
+    version = env!("GIT_VERSION"),
     after_help = "Examples:
   kbs list                                     list all issues
   kbs issues                                   alias for: kbs list
@@ -227,6 +227,9 @@ enum Commands {
         /// Search term.
         #[arg(long)]
         search: Option<String>,
+        /// Filter by project label.
+        #[arg(long = "project")]
+        project: Vec<String>,
         /// Exclude local issues.
         #[arg(long = "no-local")]
         no_local: bool,
@@ -988,6 +991,7 @@ fn execute_command(
             label,
             sort,
             search,
+            project,
             no_local,
             local_only,
             porcelain,
@@ -1028,6 +1032,7 @@ fn execute_command(
                     label.as_deref(),
                     sort.as_deref(),
                     search.as_deref(),
+                    &project,
                     !no_local,
                     local_only,
                 )?
