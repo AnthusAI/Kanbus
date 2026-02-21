@@ -212,17 +212,6 @@ fn given_repo_kanbus_invalid(world: &mut KanbusWorld) {
     fs::write(root.join(".kanbus.yml"), "unknown_field: value\n").expect("write config");
 }
 
-#[given("a repository with a project directory above the current directory")]
-fn given_repo_project_above(world: &mut KanbusWorld) {
-    let root = create_repo(world, "project-above");
-    let project_dir = root.join("project");
-    fs::create_dir_all(project_dir.join("issues")).expect("create project issues");
-    write_issue(&project_dir, &build_issue("kanbus-above", "Above task"));
-    let subdir = root.join("subdir");
-    fs::create_dir_all(&subdir).expect("create subdir");
-    world.working_directory = Some(subdir);
-}
-
 #[given("a project directory with a sibling project-local directory")]
 fn given_project_with_local_sibling(world: &mut KanbusWorld) {
     let root = create_repo(world, "project-local-sibling");
