@@ -1,4 +1,4 @@
-import type { IssuesSnapshot, Issue } from "../types/issues";
+import type { IssuesSnapshot, Issue, IssueEventsResponse } from "../types/issues";
 
 export type UiControlAction =
   | { action: "clear_focus" }
@@ -172,4 +172,27 @@ export function subscribeToNotifications(
     console.info("[notifications] disconnect");
     source.close();
   };
+}
+
+export async function fetchIssueEvents(
+  apiBase: string,
+  issueId: string,
+  options?: { before?: string | null; limit?: number }
+): Promise<IssueEventsResponse> {
+  const params = new URLSearchParams();
+  if (options?.limit) {
+    params.set("limit", String(options.limit));
+  }
+  if (options?.before) {
+    params.set("before", options.before);
+  }
+  const query = params.toString();
+  const url = query
+    ? `${apiBase}/issues/${issueId}/events?${query}`
+    : `${apiBase}/issues/${issueId}/events`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`issue events request failed: ${response.status}`);
+  }
+  return (await response.json()) as IssueEventsResponse;
 }

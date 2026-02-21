@@ -19,6 +19,7 @@ pub mod dependencies;
 pub mod dependency_tree;
 pub mod doctor;
 pub mod error;
+pub mod event_history;
 pub mod file_io;
 pub mod hierarchy;
 pub mod ids;

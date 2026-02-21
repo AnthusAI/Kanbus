@@ -11,6 +11,10 @@ use crate::issue_creation::resolve_issue_identifier;
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::IssueData;
+use crate::users::get_current_user;
+use crate::event_history::{
+    build_update_events, events_dir_for_issue_path, now_timestamp, write_events_batch,
+};
 use crate::workflows::{
     apply_transition_side_effects, validate_status_transition, validate_status_value,
 };
@@ -45,6 +49,7 @@ pub fn update_issue(
     parent: Option<&str>,
 ) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
+    let before_issue = lookup.issue.clone();
     let config_path = get_configuration_path(lookup.project_dir.as_path())?;
     let configuration = load_project_configuration(&config_path)?;
 
@@ -199,6 +204,18 @@ pub fn update_issue(
     updated_issue.updated_at = current_time;
 
     write_issue_to_file(&updated_issue, &lookup.issue_path)?;
+
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let events = build_update_events(&before_issue, &updated_issue, &actor_id, &occurred_at);
+    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
+    match write_events_batch(&events_dir, &events) {
+        Ok(_paths) => {}
+        Err(error) => {
+            write_issue_to_file(&before_issue, &lookup.issue_path)?;
+            return Err(error);
+        }
+    }
 
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;

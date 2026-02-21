@@ -11,6 +11,11 @@ use crate::file_io::{
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::{load_issue_from_project, IssueLookupResult};
 use crate::models::{DependencyLink, IssueData};
+use crate::users::get_current_user;
+use crate::event_history::{
+    dependency_payload, events_dir_for_issue_path, now_timestamp, write_events_batch, EventRecord,
+    EventType,
+};
 
 const ALLOWED_DEPENDENCY_TYPES: [&str; 2] = ["blocked-by", "relates-to"];
 
@@ -66,6 +71,24 @@ pub fn add_dependency(
     });
     write_issue_to_file(&updated_issue, &source_lookup.issue_path)?;
 
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        updated_issue.identifier.clone(),
+        EventType::DependencyAdded,
+        actor_id,
+        dependency_payload(dependency_type, target_id),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_issue_path(&source_lookup.project_dir, &source_lookup.issue_path)?;
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            write_issue_to_file(&source_lookup.issue, &source_lookup.issue_path)?;
+            return Err(error);
+        }
+    }
+
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
@@ -104,7 +127,7 @@ pub fn remove_dependency(
     let IssueLookupResult {
         issue,
         issue_path,
-        project_dir: _,
+        project_dir,
     } = load_issue_from_project(root, source_id)?;
 
     let filtered: Vec<DependencyLink> = issue
@@ -119,6 +142,24 @@ pub fn remove_dependency(
     let mut updated_issue = issue.clone();
     updated_issue.dependencies = filtered;
     write_issue_to_file(&updated_issue, &issue_path)?;
+
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        updated_issue.identifier.clone(),
+        EventType::DependencyRemoved,
+        actor_id,
+        dependency_payload(dependency_type, target_id),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_issue_path(&project_dir, &issue_path)?;
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            write_issue_to_file(&issue, &issue_path)?;
+            return Err(error);
+        }
+    }
 
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;

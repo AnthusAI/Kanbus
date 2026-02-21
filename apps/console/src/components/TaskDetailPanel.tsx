@@ -10,7 +10,7 @@ import {
 import gsap from "gsap";
 import mermaid from "mermaid";
 import plantumlEncoder from "plantuml-encoder";
-import type { Issue, ProjectConfig } from "../types/issues";
+import type { Issue, ProjectConfig, IssueEvent } from "../types/issues";
 import { Board } from "./Board";
 import { buildIssueColorStyle, buildStatusBadgeStyle } from "../utils/issue-colors";
 import { formatTimestamp } from "../utils/format-timestamp";
@@ -19,6 +19,7 @@ import { IconButton } from "./IconButton";
 import { getTypeIcon } from "../utils/issue-icons";
 import { useFlashEffect } from "../hooks/useFlashEffect";
 import { useTypingEffect } from "../hooks/useTypingEffect";
+import { fetchIssueEvents } from "../api/client";
 
 const markdownRenderer = new marked.Renderer();
 markdownRenderer.link = (token: { href: string; title?: string | null; text: string }) => {
@@ -56,6 +57,7 @@ interface TaskDetailPanelProps {
   columns: string[];
   priorityLookup: Record<number, string>;
   config?: ProjectConfig;
+  apiBase: string;
   isOpen: boolean;
   isVisible: boolean;
   navDirection: "push" | "pop" | "none";
@@ -158,6 +160,7 @@ export function TaskDetailPanel({
   columns,
   priorityLookup,
   config,
+  apiBase,
   isOpen,
   isVisible,
   navDirection,
@@ -179,6 +182,11 @@ export function TaskDetailPanel({
   const [pagePhase, setPagePhase] = useState<"idle" | "ready" | "animating">("idle");
   const [pageDirection, setPageDirection] = useState<"push" | "pop">("push");
   const [panelOpenActive, setPanelOpenActive] = useState(false);
+  const [activeTab, setActiveTab] = useState<"comments" | "events">("comments");
+  const [eventHistory, setEventHistory] = useState<IssueEvent[]>([]);
+  const [eventCursor, setEventCursor] = useState<string | null>(null);
+  const [eventLoading, setEventLoading] = useState(false);
+  const [eventError, setEventError] = useState<string | null>(null);
 
   // Flash effects for real-time updates
   const statusFlashRef = useFlashEffect(task?.status, isOpen);
@@ -213,6 +221,52 @@ export function TaskDetailPanel({
     previousCommentCountRef.current = currentCommentCount;
   }, [task?.comments?.length, task, isOpen]);
 
+  useEffect(() => {
+    setActiveTab("comments");
+    setEventHistory([]);
+    setEventCursor(null);
+    setEventError(null);
+  }, [task?.id]);
+
+  const loadEvents = async (reset: boolean) => {
+    if (!task || !apiBase) {
+      return;
+    }
+    if (eventLoading) {
+      return;
+    }
+    setEventLoading(true);
+    try {
+      const response = await fetchIssueEvents(apiBase, task.id, {
+        limit: 50,
+        before: reset ? null : eventCursor
+      });
+      setEventHistory((current) =>
+        reset ? response.events : [...current, ...response.events]
+      );
+      setEventCursor(response.next_before ?? null);
+      setEventError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load events";
+      setEventError(message);
+    } finally {
+      setEventLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== "events") {
+      return;
+    }
+    if (!task || !apiBase) {
+      return;
+    }
+    if (eventHistory.length > 0 || eventLoading) {
+      return;
+    }
+    void loadEvents(true);
+  }, [activeTab, task?.id, apiBase, eventHistory.length, eventLoading]);
+
   // Scroll to and highlight a specific comment — fires when the panel content
   // lands (displayTask?.id changes) or when focusedCommentId is set.
   useEffect(() => {
@@ -226,6 +280,64 @@ export function TaskDetailPanel({
     const timer = window.setTimeout(() => target.classList.remove("comment-highlight"), 2500);
     return () => window.clearTimeout(timer);
   }, [focusedCommentId, displayTask?.id]);
+
+  const formatEventValue = (value: unknown) => {
+    if (value === null || value === undefined) {
+      return "none";
+    }
+    if (typeof value === "string") {
+      return value.length > 120 ? `${value.slice(0, 117)}...` : value;
+    }
+    const text = JSON.stringify(value);
+    return text.length > 120 ? `${text.slice(0, 117)}...` : text;
+  };
+
+  const renderEventSummary = (event: IssueEvent) => {
+    const payload = event.payload as Record<string, unknown>;
+    switch (event.event_type) {
+      case "issue_created":
+        return `Issue created (${String(payload.issue_type)}, ${String(payload.status)})`;
+      case "issue_deleted":
+        return `Issue deleted (${String(payload.issue_type)})`;
+      case "state_transition":
+        return `State changed from ${String(payload.from_status)} to ${String(payload.to_status)}`;
+      case "field_updated": {
+        const changes = payload.changes as Record<
+          string,
+          { from: unknown; to: unknown }
+        >;
+        if (!changes) {
+          return "Fields updated";
+        }
+        return (
+          <div className="grid gap-1 text-xs text-muted">
+            {Object.entries(changes).map(([field, change]) => (
+              <div key={field}>
+                <span className="font-semibold text-foreground">{field}</span>{" "}
+                {formatEventValue(change.from)} → {formatEventValue(change.to)}
+              </div>
+            ))}
+          </div>
+        );
+      }
+      case "comment_added":
+        return `Comment added by ${String(payload.comment_author)} (${String(payload.comment_id)})`;
+      case "comment_updated":
+        return `Comment updated by ${String(payload.comment_author)} (${String(payload.comment_id)})`;
+      case "comment_deleted":
+        return `Comment deleted by ${String(payload.comment_author)} (${String(payload.comment_id)})`;
+      case "dependency_added":
+        return `Dependency added: ${String(payload.dependency_type)} ${String(payload.target_id)}`;
+      case "dependency_removed":
+        return `Dependency removed: ${String(payload.dependency_type)} ${String(payload.target_id)}`;
+      case "issue_localized":
+        return `Issue moved from ${String(payload.from_location)} to ${String(payload.to_location)}`;
+      case "issue_promoted":
+        return `Issue moved from ${String(payload.from_location)} to ${String(payload.to_location)}`;
+      default:
+        return event.event_type;
+    }
+  };
 
   useEffect(() => {
     if (!task) {
@@ -660,44 +772,109 @@ skinparam SequenceDividerFontColor white`
               </div>
             ) : null}
           </div>
-          <div className="detail-section p-3 grid gap-2">
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+          <div className="detail-section p-3 grid gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition-colors ${
+                  activeTab === "comments"
+                    ? "bg-[var(--card-muted)] text-selected"
+                    : "text-muted hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab("comments")}
+                type="button"
+              >
                 Comments
-              </div>
+              </button>
+              <button
+                className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition-colors ${
+                  activeTab === "events"
+                    ? "bg-[var(--card-muted)] text-selected"
+                    : "text-muted hover:text-foreground"
+                }`}
+                onClick={() => {
+                  setActiveTab("events");
+                  if (eventHistory.length === 0 && !eventLoading) {
+                    void loadEvents(true);
+                  }
+                }}
+                type="button"
+              >
+                Event History
+              </button>
             </div>
-            <div className="grid gap-2">
-              {comments.length === 0 ? (
-                <div className="text-sm text-muted">No comments yet.</div>
-              ) : (
-                comments.map((comment, index) => {
-                  const commentHtml = marked.parse(comment.text, { async: false }) as string;
-                  return (
-                    <div
-                      key={`${comment.created_at}-${index}`}
-                      className="detail-comment grid gap-2"
-                      data-comment-id={comment.id}
-                    >
-                      <div className="text-xs font-semibold text-foreground">
-                        {comment.author}
-                      </div>
-                      <div className="text-xs text-muted">
-                        {formatTimestamp(comment.created_at, config?.time_zone)}
-                      </div>
+            {activeTab === "comments" ? (
+              <div className="grid gap-2">
+                {comments.length === 0 ? (
+                  <div className="text-sm text-muted">No comments yet.</div>
+                ) : (
+                  comments.map((comment, index) => {
+                    const commentHtml = marked.parse(comment.text, { async: false }) as string;
+                    return (
                       <div
-                        className="issue-description-markdown text-sm text-foreground"
-                        dangerouslySetInnerHTML={{
-                          __html: DOMPurify.sanitize(commentHtml, {
-                            USE_PROFILES: { html: true },
-                            ADD_ATTR: ["target", "rel"]
-                          })
-                        }}
-                      />
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                        key={`${comment.created_at}-${index}`}
+                        className="detail-comment grid gap-2"
+                        data-comment-id={comment.id}
+                      >
+                        <div className="text-xs font-semibold text-foreground">
+                          {comment.author}
+                        </div>
+                        <div className="text-xs text-muted">
+                          {formatTimestamp(comment.created_at, config?.time_zone)}
+                        </div>
+                        <div
+                          className="issue-description-markdown text-sm text-foreground"
+                          dangerouslySetInnerHTML={{
+                            __html: DOMPurify.sanitize(commentHtml, {
+                              USE_PROFILES: { html: true },
+                              ADD_ATTR: ["target", "rel"]
+                            })
+                          }}
+                        />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {eventError ? (
+                  <div className="text-sm text-muted">{eventError}</div>
+                ) : null}
+                {eventHistory.length === 0 && !eventLoading ? (
+                  <div className="text-sm text-muted">No events yet.</div>
+                ) : (
+                  <div className="grid gap-3">
+                    {eventHistory.map((event) => (
+                      <div key={event.event_id} className="grid gap-1">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="font-semibold text-foreground">
+                            {event.actor_id}
+                          </span>
+                          <span className="text-muted">
+                            {formatTimestamp(event.occurred_at, config?.time_zone)}
+                          </span>
+                        </div>
+                        <div className="text-sm text-foreground">
+                          {renderEventSummary(event)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {eventLoading ? (
+                  <div className="text-xs text-muted">Loading events...</div>
+                ) : null}
+                {eventCursor ? (
+                  <button
+                    className="w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-muted hover:text-foreground transition-colors"
+                    onClick={() => void loadEvents(false)}
+                    type="button"
+                  >
+                    Load more
+                  </button>
+                ) : null}
+              </div>
+            )}
           </div>
           <div className="detail-section p-3 grid gap-2">
             <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">

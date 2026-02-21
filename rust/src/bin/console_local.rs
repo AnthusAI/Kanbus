@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::body::Bytes;
-use axum::extract::{Path as AxumPath, State};
+use axum::extract::{Path as AxumPath, Query, State};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
@@ -32,10 +32,12 @@ use tokio::sync::broadcast;
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::wrappers::IntervalStream;
+use serde::{Deserialize, Serialize};
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
 use kanbus::console_ui_state::{load_state, save_state, ConsoleUiState};
 use kanbus::daemon_paths::get_console_state_path;
+use kanbus::event_history::{load_issue_events, EventRecord};
 use kanbus::notification_events::{NotificationEvent, UiControlAction};
 
 #[cfg(feature = "embed-assets")]
@@ -59,6 +61,19 @@ struct AppState {
     ui_state: Arc<tokio::sync::RwLock<ConsoleUiState>>,
     /// Path to the persisted console state JSON file.
     state_file_path: PathBuf,
+}
+
+#[derive(Debug, Deserialize)]
+struct IssueEventsQuery {
+    limit: Option<usize>,
+    before: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct IssueEventsResponse {
+    issue_id: String,
+    events: Vec<EventRecord>,
+    next_before: Option<String>,
 }
 
 #[tokio::main]
@@ -153,6 +168,7 @@ async fn main() {
         .route("/api/config", get(get_config_root))
         .route("/api/issues", get(get_issues_root))
         .route("/api/issues/:id", get(get_issue_root))
+        .route("/api/issues/:id/events", get(get_issue_events_root))
         .route("/api/events", get(get_events_root))
         .route("/api/events/realtime", get(get_realtime_events_root))
         .route("/api/notifications", post(post_notification_root))
@@ -173,6 +189,10 @@ async fn main() {
         .route("/:account/:project/api/config", get(get_config))
         .route("/:account/:project/api/issues", get(get_issues))
         .route("/:account/:project/api/issues/:id", get(get_issue))
+        .route(
+            "/:account/:project/api/issues/:id/events",
+            get(get_issue_events),
+        )
         .route("/:account/:project/api/events", get(get_events))
         .route(
             "/:account/:project/api/events/realtime",
@@ -395,6 +415,88 @@ async fn get_issue_root(State(state): State<AppState>, AxumPath(id): AxumPath<St
         return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
     }
     Json(matches[0]).into_response()
+}
+
+async fn get_issue_events_root(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+    Query(query): Query<IssueEventsQuery>,
+) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    let snapshot = match store.build_snapshot() {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
+    if matches.is_empty() {
+        return error_response("issue not found", StatusCode::NOT_FOUND);
+    }
+    if matches.len() > 1 {
+        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
+    }
+    let issue_id = matches[0].identifier.clone();
+    let project_dir = store.root().join(&snapshot.config.project_directory);
+    let limit = query.limit.unwrap_or(50).clamp(1, 200);
+    let (events, next_before) =
+        match load_issue_events(&project_dir, &issue_id, query.before.as_deref(), limit) {
+            Ok(result) => result,
+            Err(error) => {
+                return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
+    Json(IssueEventsResponse {
+        issue_id,
+        events,
+        next_before,
+    })
+    .into_response()
+}
+
+async fn get_issue_events(
+    State(state): State<AppState>,
+    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    Query(query): Query<IssueEventsQuery>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    let snapshot = match store.build_snapshot() {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
+    if matches.is_empty() {
+        return error_response("issue not found", StatusCode::NOT_FOUND);
+    }
+    if matches.len() > 1 {
+        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
+    }
+    let issue_id = matches[0].identifier.clone();
+    let project_dir = store.root().join(&snapshot.config.project_directory);
+    let limit = query.limit.unwrap_or(50).clamp(1, 200);
+    let (events, next_before) =
+        match load_issue_events(&project_dir, &issue_id, query.before.as_deref(), limit) {
+            Ok(result) => result,
+            Err(error) => {
+                return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
+    Json(IssueEventsResponse {
+        issue_id,
+        events,
+        next_before,
+    })
+    .into_response()
 }
 
 async fn get_events(

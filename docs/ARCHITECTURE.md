@@ -10,6 +10,10 @@ Kanbus ships two first-class CLIs—Python and Rust—that execute the same Gher
 
 Kanbus stores each issue as its own JSON file under `project/issues/`, eliminating merge-heavy monoliths and removing any secondary database. Hierarchical types and workflows live in `project/config.yaml`, keeping schema alongside data. There is exactly one storage path: the JSON files in the repository. No fallbacks, no mirrored SQLite caches, and no daemon-owned state are required to read or list issues.
 
+## Event History
+
+Kanbus records an append-only event log under `project/events/` (and `project-local/events/` for local issues). Each discrete issue action writes a single JSON file named with an RFC3339 timestamp plus a UUID suffix (e.g., `2026-02-21T06:09:40.180Z__<event_id>.json`). The event payload captures issue identifiers, actor, timestamps, and action-specific fields (state transitions, comment IDs, dependency changes, and field updates). There is no indexing layer; consumers scan and filter the files when event history is requested.
+
 ## Performance Benchmark
 
 We benchmarked end-to-end “list all beads” latency using the Beads project itself as real-world data:

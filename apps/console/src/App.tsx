@@ -477,6 +477,7 @@ export default function App() {
   const config = snapshot?.config;
   const issues = snapshot?.issues ?? [];
   const deferredIssues = useDeferredValue(issues);
+  const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
 
   // Initialize collapsed columns from config (only once)
   useEffect(() => {
@@ -1359,6 +1360,7 @@ export default function App() {
               columns={columns}
               priorityLookup={priorityLookup}
               config={config}
+              apiBase={apiBase}
               onClose={handleTaskClose}
               onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
               isMaximized={detailMaximized}

@@ -24,6 +24,13 @@ from kanbus.workflows import (
     validate_status_transition,
     validate_status_value,
 )
+from kanbus.event_history import (
+    build_update_events,
+    events_dir_for_issue_path,
+    now_timestamp,
+    write_events_batch,
+)
+from kanbus.users import get_current_user
 
 
 class IssueUpdateError(RuntimeError):
@@ -82,6 +89,7 @@ def update_issue(
 
     project_dir = lookup.project_dir
     configuration = load_project_configuration(get_configuration_path(project_dir))
+    before_issue = lookup.issue
     updated_issue = lookup.issue
     current_time = datetime.now(timezone.utc)
 
@@ -205,6 +213,15 @@ def update_issue(
 
     updated_issue = updated_issue.model_copy(update=update_fields)
     write_issue_to_file(updated_issue, lookup.issue_path)
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    events = build_update_events(before_issue, updated_issue, actor_id, occurred_at)
+    events_dir = events_dir_for_issue_path(lookup.project_dir, lookup.issue_path)
+    try:
+        write_events_batch(events_dir, events)
+    except Exception as error:  # noqa: BLE001
+        write_issue_to_file(before_issue, lookup.issue_path)
+        raise IssueUpdateError(str(error)) from error
     return updated_issue
 
 

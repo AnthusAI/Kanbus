@@ -11,6 +11,11 @@ use crate::issue_files::{
     issue_path_for_identifier, list_issue_identifiers, read_issue_from_file, write_issue_to_file,
 };
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::users::get_current_user;
+use crate::event_history::{
+    events_dir_for_local, events_dir_for_project, issue_created_payload, now_timestamp,
+    write_events_batch, EventRecord, EventType,
+};
 use crate::workflows::validate_status_value;
 use crate::{
     file_io::{
@@ -140,6 +145,36 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
 
     let issue_path = issue_path_for_identifier(&issues_dir, &issue.identifier);
     write_issue_to_file(&issue, &issue_path)?;
+
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        issue.identifier.clone(),
+        EventType::IssueCreated,
+        actor_id,
+        issue_created_payload(&issue),
+        occurred_at,
+    );
+    let events_dir = if request.local {
+        match events_dir_for_local(&project_dir) {
+            Ok(path) => path,
+            Err(error) => {
+                std::fs::remove_file(&issue_path)
+                    .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+                return Err(error);
+            }
+        }
+    } else {
+        events_dir_for_project(&project_dir)
+    };
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            std::fs::remove_file(&issue_path)
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Err(error);
+        }
+    }
 
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;

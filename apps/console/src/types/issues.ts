@@ -72,6 +72,35 @@ export interface Issue {
   custom?: Record<string, unknown>;
 }
 
+export type IssueEventType =
+  | "issue_created"
+  | "state_transition"
+  | "field_updated"
+  | "comment_added"
+  | "comment_updated"
+  | "comment_deleted"
+  | "dependency_added"
+  | "dependency_removed"
+  | "issue_deleted"
+  | "issue_localized"
+  | "issue_promoted";
+
+export interface IssueEvent {
+  schema_version: number;
+  event_id: string;
+  issue_id: string;
+  event_type: IssueEventType;
+  occurred_at: string;
+  actor_id: string;
+  payload: Record<string, unknown>;
+}
+
+export interface IssueEventsResponse {
+  issue_id: string;
+  events: IssueEvent[];
+  next_before?: string | null;
+}
+
 export interface IssuesSnapshot {
   config: ProjectConfig;
   issues: Issue[];

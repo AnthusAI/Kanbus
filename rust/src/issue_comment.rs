@@ -5,9 +5,14 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::error::KanbusError;
+use crate::event_history::{
+    comment_payload, comment_updated_payload, events_dir_for_issue_path, now_timestamp,
+    write_events_batch, EventRecord, EventType,
+};
 use crate::issue_files::write_issue_to_file;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueComment, IssueData};
+use crate::users::get_current_user;
 
 /// Result of adding a comment to an issue.
 #[derive(Debug, Clone)]
@@ -124,6 +129,28 @@ pub fn add_comment(
     };
     write_issue_to_file(&updated, &lookup.issue_path)?;
 
+    let comment_id = comment
+        .id
+        .clone()
+        .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        updated.identifier.clone(),
+        EventType::CommentAdded,
+        actor_id,
+        comment_payload(&comment_id, &comment.author),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            write_issue_to_file(&lookup.issue, &lookup.issue_path)?;
+            return Err(error);
+        }
+    }
+
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
     use crate::notification_publisher::publish_notification;
@@ -162,6 +189,11 @@ pub fn update_comment(
     let lookup = load_issue_from_project(root, identifier)?;
     let (mut issue, changed) = ensure_comment_ids(&lookup.issue);
     let index = find_comment_by_prefix(&issue, comment_id_prefix)?;
+    let existing_comment = issue
+        .comments
+        .get(index)
+        .cloned()
+        .ok_or_else(|| KanbusError::IssueOperation("comment not found".to_string()))?;
     let timestamp = Utc::now();
     if let Some(comment) = issue.comments.get_mut(index) {
         comment.text = text.to_string();
@@ -170,6 +202,28 @@ pub fn update_comment(
     write_issue_to_file(&issue, &lookup.issue_path)?;
     if changed {
         // already written updated issue with ids
+    }
+
+    let comment_id = existing_comment
+        .id
+        .clone()
+        .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        issue.identifier.clone(),
+        EventType::CommentUpdated,
+        actor_id,
+        comment_updated_payload(&comment_id, &existing_comment.author),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            write_issue_to_file(&lookup.issue, &lookup.issue_path)?;
+            return Err(error);
+        }
     }
 
     // Publish real-time notification
@@ -196,9 +250,31 @@ pub fn delete_comment(
     let lookup = load_issue_from_project(root, identifier)?;
     let (mut issue, _changed) = ensure_comment_ids(&lookup.issue);
     let index = find_comment_by_prefix(&issue, comment_id_prefix)?;
-    issue.comments.remove(index);
+    let removed = issue.comments.remove(index);
     issue.updated_at = Utc::now();
     write_issue_to_file(&issue, &lookup.issue_path)?;
+
+    let comment_id = removed
+        .id
+        .clone()
+        .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        issue.identifier.clone(),
+        EventType::CommentDeleted,
+        actor_id,
+        comment_payload(&comment_id, &removed.author),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            write_issue_to_file(&lookup.issue, &lookup.issue_path)?;
+            return Err(error);
+        }
+    }
 
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;

@@ -11,6 +11,12 @@ use std::sync::{Mutex, OnceLock};
 use uuid::Uuid;
 
 use crate::error::KanbusError;
+use crate::event_history::{
+    build_update_events, comment_payload, comment_updated_payload, dependency_payload,
+    events_dir_for_project, issue_created_payload, issue_deleted_payload, now_timestamp,
+    write_events_batch, EventRecord, EventType,
+};
+use crate::file_io::load_project_directory;
 use crate::migration::load_beads_issue_by_id;
 use crate::models::{DependencyLink, IssueData};
 use crate::users::get_current_user;
@@ -35,6 +41,8 @@ pub fn create_beads_issue(
     if !issues_path.exists() {
         return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
+    let original_contents =
+        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let records = load_beads_records(&issues_path)?;
     if records.is_empty() {
         return Err(KanbusError::IssueOperation(
@@ -112,6 +120,26 @@ pub fn create_beads_issue(
         closed_at: None,
         custom: std::collections::BTreeMap::new(),
     };
+
+    let project_dir = load_project_directory(root)?;
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        issue.identifier.clone(),
+        EventType::IssueCreated,
+        actor_id,
+        issue_created_payload(&issue),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_project(&project_dir);
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            fs::write(&issues_path, original_contents)
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Err(error);
+        }
+    }
 
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
@@ -194,9 +222,13 @@ pub fn add_beads_comment(
     if !issues_path.exists() {
         return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
+    let original_contents =
+        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let mut records = load_beads_records(&issues_path)?;
     let mut found = false;
+    let mut created_comment_id: Option<String> = None;
+    let mut comment_author: Option<String> = None;
     for record in &mut records {
         if record.get("id").and_then(|id| id.as_str()) != Some(identifier) {
             continue;
@@ -217,6 +249,8 @@ pub fn add_beads_comment(
         };
         let comment_id = (comments.len() + 1) as i64;
         let created_at = Utc::now().to_rfc3339();
+        created_comment_id = Some(comment_id.to_string());
+        comment_author = Some(author.to_string());
         comments.push(json!({
             "id": comment_id,
             "issue_id": identifier,
@@ -235,6 +269,30 @@ pub fn add_beads_comment(
         return Err(KanbusError::IssueOperation("not found".to_string()));
     }
     write_beads_records(&issues_path, &records)?;
+
+    let project_dir = load_project_directory(root)?;
+    let comment_id = created_comment_id.ok_or_else(|| {
+        KanbusError::IssueOperation("comment id is required".to_string())
+    })?;
+    let comment_author = comment_author.unwrap_or_default();
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        identifier.to_string(),
+        EventType::CommentAdded,
+        actor_id,
+        comment_payload(&beads_comment_uuid(identifier, &comment_id), &comment_author),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_project(&project_dir);
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            fs::write(&issues_path, original_contents)
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Err(error);
+        }
+    }
     Ok(())
 }
 
@@ -255,9 +313,13 @@ pub fn update_beads_comment(
     if !issues_path.exists() {
         return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
+    let original_contents =
+        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let mut records = load_beads_records(&issues_path)?;
     let mut found = false;
+    let mut updated_comment_id: Option<String> = None;
+    let mut updated_comment_author: Option<String> = None;
     for record in &mut records {
         if record.get("id").and_then(|id| id.as_str()) != Some(identifier) {
             continue;
@@ -268,6 +330,15 @@ pub fn update_beads_comment(
         };
         let index = match_comment_prefix(identifier, comments, comment_id_prefix)?;
         if let Some(comment) = comments.get_mut(index).and_then(Value::as_object_mut) {
+            updated_comment_id = comment
+                .get("id")
+                .and_then(Value::as_i64)
+                .map(|value| value.to_string())
+                .or_else(|| comment.get("id").and_then(Value::as_str).map(str::to_string));
+            updated_comment_author = comment
+                .get("author")
+                .and_then(Value::as_str)
+                .map(str::to_string);
             comment.insert("text".to_string(), json!(text));
         }
         let updated_at = Utc::now().to_rfc3339();
@@ -282,6 +353,30 @@ pub fn update_beads_comment(
         return Err(KanbusError::IssueOperation("not found".to_string()));
     }
     write_beads_records(&issues_path, &records)?;
+
+    let project_dir = load_project_directory(root)?;
+    let comment_id = updated_comment_id.ok_or_else(|| {
+        KanbusError::IssueOperation("comment id is required".to_string())
+    })?;
+    let comment_author = updated_comment_author.unwrap_or_default();
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        identifier.to_string(),
+        EventType::CommentUpdated,
+        actor_id,
+        comment_updated_payload(&beads_comment_uuid(identifier, &comment_id), &comment_author),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_project(&project_dir);
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            fs::write(&issues_path, original_contents)
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Err(error);
+        }
+    }
     Ok(())
 }
 
@@ -301,9 +396,13 @@ pub fn delete_beads_comment(
     if !issues_path.exists() {
         return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
+    let original_contents =
+        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let mut records = load_beads_records(&issues_path)?;
     let mut found = false;
+    let mut deleted_comment_id: Option<String> = None;
+    let mut deleted_comment_author: Option<String> = None;
     for record in &mut records {
         if record.get("id").and_then(|id| id.as_str()) != Some(identifier) {
             continue;
@@ -313,6 +412,17 @@ pub fn delete_beads_comment(
             return Err(KanbusError::IssueOperation("comment not found".to_string()));
         };
         let index = match_comment_prefix(identifier, comments, comment_id_prefix)?;
+        if let Some(removed) = comments.get(index).and_then(Value::as_object) {
+            deleted_comment_id = removed
+                .get("id")
+                .and_then(Value::as_i64)
+                .map(|value| value.to_string())
+                .or_else(|| removed.get("id").and_then(Value::as_str).map(str::to_string));
+            deleted_comment_author = removed
+                .get("author")
+                .and_then(Value::as_str)
+                .map(str::to_string);
+        }
         comments.remove(index);
         let updated_at = Utc::now().to_rfc3339();
         if let Some(updated) = record.get_mut("updated_at") {
@@ -326,6 +436,30 @@ pub fn delete_beads_comment(
         return Err(KanbusError::IssueOperation("not found".to_string()));
     }
     write_beads_records(&issues_path, &records)?;
+
+    let project_dir = load_project_directory(root)?;
+    let comment_id = deleted_comment_id.ok_or_else(|| {
+        KanbusError::IssueOperation("comment id is required".to_string())
+    })?;
+    let comment_author = deleted_comment_author.unwrap_or_default();
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        identifier.to_string(),
+        EventType::CommentDeleted,
+        actor_id,
+        comment_payload(&beads_comment_uuid(identifier, &comment_id), &comment_author),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_project(&project_dir);
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            fs::write(&issues_path, original_contents)
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Err(error);
+        }
+    }
     Ok(())
 }
 
@@ -346,6 +480,8 @@ pub fn add_beads_dependency(
     if !issues_path.exists() {
         return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
+    let original_contents =
+        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let mut records = load_beads_records(&issues_path)?;
     let target_id = resolve_beads_identifier(&records, target)?;
@@ -404,6 +540,26 @@ pub fn add_beads_dependency(
     }
 
     write_beads_records(&issues_path, &records)?;
+
+    let project_dir = load_project_directory(root)?;
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        identifier.to_string(),
+        EventType::DependencyAdded,
+        actor_id,
+        dependency_payload(dependency_type, &target_id),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_project(&project_dir);
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            fs::write(&issues_path, original_contents)
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Err(error);
+        }
+    }
     Ok(())
 }
 
@@ -424,6 +580,8 @@ pub fn remove_beads_dependency(
     if !issues_path.exists() {
         return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
+    let original_contents =
+        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let mut records = load_beads_records(&issues_path)?;
     let target_id = resolve_beads_identifier(&records, target)?;
@@ -448,6 +606,26 @@ pub fn remove_beads_dependency(
     }
 
     write_beads_records(&issues_path, &records)?;
+
+    let project_dir = load_project_directory(root)?;
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        identifier.to_string(),
+        EventType::DependencyRemoved,
+        actor_id,
+        dependency_payload(dependency_type, &target_id),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_project(&project_dir);
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            fs::write(&issues_path, original_contents)
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Err(error);
+        }
+    }
     Ok(())
 }
 
@@ -475,6 +653,9 @@ pub fn update_beads_issue(
     if !issues_path.exists() {
         return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
+    let original_contents =
+        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let before_issue = load_beads_issue_by_id(root, identifier)?;
 
     let mut records = load_beads_records(&issues_path)?;
     let mut exact_match_index = None;
@@ -602,6 +783,20 @@ pub fn update_beads_issue(
     write_beads_records(&issues_path, &records)?;
 
     let updated_issue = load_beads_issue_by_id(root, identifier)?;
+
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let events = build_update_events(&before_issue, &updated_issue, &actor_id, &occurred_at);
+    let project_dir = load_project_directory(root)?;
+    let events_dir = events_dir_for_project(&project_dir);
+    match write_events_batch(&events_dir, &events) {
+        Ok(_paths) => {}
+        Err(error) => {
+            fs::write(&issues_path, original_contents)
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Err(error);
+        }
+    }
 
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;
@@ -763,6 +958,9 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
     if !issues_path.exists() {
         return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
     }
+    let original_contents =
+        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let deleted_issue = load_beads_issue_by_id(root, identifier)?;
     let mut records = load_beads_records(&issues_path)?;
     let original_count = records.len();
     records.retain(|record| record.get("id").and_then(|id| id.as_str()) != Some(identifier));
@@ -795,6 +993,26 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
         }
     }
     write_beads_records(&issues_path, &records)?;
+
+    let project_dir = load_project_directory(root)?;
+    let occurred_at = now_timestamp();
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        identifier.to_string(),
+        EventType::IssueDeleted,
+        actor_id,
+        issue_deleted_payload(&deleted_issue),
+        occurred_at,
+    );
+    let events_dir = events_dir_for_project(&project_dir);
+    match write_events_batch(&events_dir, &[event]) {
+        Ok(_paths) => {}
+        Err(error) => {
+            fs::write(&issues_path, original_contents)
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Err(error);
+        }
+    }
 
     // Publish real-time notification
     use crate::notification_events::NotificationEvent;

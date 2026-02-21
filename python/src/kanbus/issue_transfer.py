@@ -12,6 +12,15 @@ from kanbus.project import (
     find_project_local_directory,
     load_project_directory,
 )
+from kanbus.event_history import (
+    create_event,
+    events_dir_for_local,
+    events_dir_for_project,
+    now_timestamp,
+    transfer_payload,
+    write_events_batch,
+)
+from kanbus.users import get_current_user
 
 
 class IssueTransferError(RuntimeError):
@@ -48,6 +57,21 @@ def promote_issue(root: Path, identifier: str) -> IssueData:
 
     issue = read_issue_from_file(local_issue_path)
     local_issue_path.replace(target_path)
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=issue.identifier,
+        event_type="issue_promoted",
+        actor_id=actor_id,
+        payload=transfer_payload("local", "shared"),
+        occurred_at=occurred_at,
+    )
+    try:
+        events_dir = events_dir_for_project(project_dir)
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        target_path.replace(local_issue_path)
+        raise IssueTransferError(str(error)) from error
     return issue
 
 
@@ -78,4 +102,19 @@ def localize_issue(root: Path, identifier: str) -> IssueData:
 
     issue = read_issue_from_file(shared_issue_path)
     shared_issue_path.replace(target_path)
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=issue.identifier,
+        event_type="issue_localized",
+        actor_id=actor_id,
+        payload=transfer_payload("shared", "local"),
+        occurred_at=occurred_at,
+    )
+    try:
+        events_dir = events_dir_for_local(project_dir)
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        target_path.replace(shared_issue_path)
+        raise IssueTransferError(str(error)) from error
     return issue

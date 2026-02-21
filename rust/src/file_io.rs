@@ -75,9 +75,11 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), KanbusE
     }
 
     let issues_dir = project_dir.join("issues");
+    let events_dir = project_dir.join("events");
 
     std::fs::create_dir(&project_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     std::fs::create_dir(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::create_dir(&events_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     let config_path = root.join(".kanbus.yml");
     if !config_path.exists() {
         let default_configuration = default_project_configuration();
@@ -286,7 +288,9 @@ pub fn ensure_project_local_directory(project_dir: &Path) -> Result<PathBuf, Kan
         .map(|parent| parent.join("project-local"))
         .ok_or_else(|| KanbusError::Io("project-local path unavailable".to_string()))?;
     let issues_dir = local_dir.join("issues");
+    let events_dir = local_dir.join("events");
     std::fs::create_dir_all(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::create_dir_all(&events_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     ensure_gitignore_entry(
         project_dir
             .parent()

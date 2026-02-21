@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
+from uuid import NAMESPACE_URL, uuid5
 
 import click
 
@@ -249,7 +250,10 @@ def _convert_record(
     )
 
     comment_items = record.get("comments", []) or []
-    comments = [_convert_comment(item) for item in comment_items]
+    comments = [
+        _convert_comment(identifier, item, index)
+        for index, item in enumerate(comment_items)
+    ]
 
     custom: Dict[str, object] = {}
     if record.get("owner"):
@@ -345,13 +349,25 @@ def _convert_dependencies(
     return parent, dependency_links
 
 
-def _convert_comment(comment: Dict[str, Any]) -> IssueComment:
+def _beads_comment_uuid(issue_id: str, comment_id: str) -> str:
+    key = f"kanbus-comment:{issue_id}:{comment_id}"
+    return str(uuid5(NAMESPACE_URL, key))
+
+
+def _convert_comment(issue_id: str, comment: Dict[str, Any], index: int) -> IssueComment:
     author = comment.get("author", "").strip()
     text = comment.get("text", "").strip()
     created_at = _parse_timestamp(comment.get("created_at"), "comment.created_at")
+    comment_id = comment.get("id", index + 1)
+    comment_id_text = str(comment_id)
     if not author or not text:
         raise MigrationError("invalid comment")
-    return IssueComment(author=author, text=text, created_at=created_at)
+    return IssueComment(
+        id=_beads_comment_uuid(issue_id, comment_id_text),
+        author=author,
+        text=text,
+        created_at=created_at,
+    )
 
 
 def _parse_timestamp(value: Any, field_name: str) -> datetime:

@@ -53,9 +53,11 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
         raise InitializationError("already initialized")
 
     issues_dir = project_dir / "issues"
+    events_dir = project_dir / "events"
 
     project_dir.mkdir(parents=True, exist_ok=False)
     issues_dir.mkdir(parents=True)
+    events_dir.mkdir(parents=True)
     config_path = root / ".kanbus.yml"
     if not config_path.exists():
         config_path.write_text(

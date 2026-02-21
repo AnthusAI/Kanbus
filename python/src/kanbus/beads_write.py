@@ -9,8 +9,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set
 
+from uuid import NAMESPACE_URL, uuid5
+
 from kanbus.models import DependencyLink, IssueData
 from kanbus.users import get_current_user
+from kanbus.event_history import (
+    build_update_events,
+    comment_payload,
+    create_event,
+    dependency_payload,
+    events_dir_for_project,
+    issue_created_payload,
+    issue_deleted_payload,
+    now_timestamp,
+    write_events_batch,
+)
+from kanbus.migration import load_beads_issue
+from kanbus.project import load_project_directory
 
 
 class BeadsWriteError(RuntimeError):
@@ -22,6 +37,11 @@ class BeadsDeleteError(RuntimeError):
 
 
 _TEST_BEADS_SLUG_SEQUENCE: Optional[list[str]] = None
+
+
+def _beads_comment_uuid(issue_id: str, comment_id: str) -> str:
+    key = f"kanbus-comment:{issue_id}:{comment_id}"
+    return str(uuid5(NAMESPACE_URL, key))
 
 
 def set_test_beads_slug_sequence(sequence: Optional[Iterable[str]]) -> None:
@@ -76,6 +96,7 @@ def create_beads_issue(
     issues_path = beads_dir / "issues.jsonl"
     if not issues_path.exists():
         raise BeadsWriteError("no issues.jsonl")
+    original_contents = issues_path.read_text(encoding="utf-8")
 
     records = _load_beads_records(issues_path)
     if not records:
@@ -129,7 +150,7 @@ def create_beads_issue(
 
     _append_beads_record(issues_path, record)
 
-    return IssueData(
+    issue = IssueData(
         id=identifier,
         title=title,
         description=resolved_description,
@@ -147,6 +168,28 @@ def create_beads_issue(
         closed_at=None,
         custom={},
     )
+    try:
+        project_dir = load_project_directory(root)
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=issue.identifier,
+        event_type="issue_created",
+        actor_id=actor_id,
+        payload=issue_created_payload(issue),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+
+    return issue
 
 
 def update_beads_issue(
@@ -193,6 +236,11 @@ def update_beads_issue(
     issues_path = beads_dir / "issues.jsonl"
     if not issues_path.exists():
         raise BeadsWriteError("no issues.jsonl")
+    original_contents = issues_path.read_text(encoding="utf-8")
+    try:
+        before_issue = load_beads_issue(root, identifier)
+    except Exception as error:  # noqa: BLE001
+        raise BeadsWriteError(str(error)) from error
     records = _load_beads_records(issues_path)
     updated = False
     for record in records:
@@ -230,39 +278,27 @@ def update_beads_issue(
         for record in records:
             handle.write(json.dumps(record) + "\n")
 
-    # Return a minimal IssueData for display
-    return IssueData(
-        id=identifier,
-        title=next(
-            rec.get("title", "") for rec in records if rec.get("id") == identifier
-        ),
-        description=next(
-            rec.get("description", "") for rec in records if rec.get("id") == identifier
-        ),
-        type=next(
-            rec.get("issue_type", "") for rec in records if rec.get("id") == identifier
-        ),
-        status=next(
-            rec.get("status", "") for rec in records if rec.get("id") == identifier
-        ),
-        priority=next(
-            rec.get("priority", 0) for rec in records if rec.get("id") == identifier
-        ),
-        assignee=next(
-            rec.get("assignee") for rec in records if rec.get("id") == identifier
-        ),
-        creator=next(
-            rec.get("created_by") for rec in records if rec.get("id") == identifier
-        ),
-        parent=None,
-        labels=[],
-        dependencies=[],
-        comments=[],
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-        closed_at=None,
-        custom={},
-    )
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception as error:  # noqa: BLE001
+        raise BeadsWriteError(str(error)) from error
+
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    events = build_update_events(before_issue, updated_issue, actor_id, occurred_at)
+    try:
+        project_dir = load_project_directory(root)
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, events)
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+
+    return updated_issue
 
 
 def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> None:
@@ -284,9 +320,11 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
     issues_path = beads_dir / "issues.jsonl"
     if not issues_path.exists():
         raise BeadsWriteError("no issues.jsonl")
+    original_contents = issues_path.read_text(encoding="utf-8")
 
     records = _load_beads_records(issues_path)
     found = False
+    created_comment_id: Optional[str] = None
     for record in records:
         if record.get("id") == identifier:
             found = True
@@ -294,6 +332,7 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
             if "comments" not in record:
                 record["comments"] = []
             comment_id = len(record["comments"]) + 1
+            created_comment_id = str(comment_id)
             comment = {
                 "id": comment_id,
                 "issue_id": identifier,
@@ -314,6 +353,28 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
         for record in records:
             json.dump(record, handle, separators=(",", ":"))
             handle.write("\n")
+    if created_comment_id is None:
+        raise BeadsWriteError("comment id is required")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=identifier,
+        event_type="comment_added",
+        actor_id=actor_id,
+        payload=comment_payload(_beads_comment_uuid(identifier, created_comment_id), author),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
 
 
 def delete_beads_issue(root: Path, identifier: str) -> None:
@@ -333,6 +394,11 @@ def delete_beads_issue(root: Path, identifier: str) -> None:
     issues_path = beads_dir / "issues.jsonl"
     if not issues_path.exists():
         raise BeadsDeleteError("no issues.jsonl")
+    original_contents = issues_path.read_text(encoding="utf-8")
+    try:
+        deleted_issue = load_beads_issue(root, identifier)
+    except Exception as error:  # noqa: BLE001
+        raise BeadsDeleteError(str(error)) from error
 
     records = _load_beads_records(issues_path)
     remaining = [record for record in records if record.get("id") != identifier]
@@ -364,6 +430,27 @@ def delete_beads_issue(root: Path, identifier: str) -> None:
     with issues_path.open("w", encoding="utf-8") as handle:
         for record in remaining:
             handle.write(json.dumps(record) + "\n")
+
+    try:
+        project_dir = load_project_directory(root)
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=identifier,
+        event_type="issue_deleted",
+        actor_id=actor_id,
+        payload=issue_deleted_payload(deleted_issue),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsDeleteError(str(error)) from error
 
 
 def _load_beads_records(issues_path: Path) -> List[Dict[str, object]]:
@@ -442,6 +529,7 @@ def add_beads_dependency(
     issues_path = beads_dir / "issues.jsonl"
     if not issues_path.exists():
         raise BeadsWriteError("no issues.jsonl")
+    original_contents = issues_path.read_text(encoding="utf-8")
 
     records = _load_beads_records(issues_path)
     found = False
@@ -506,6 +594,26 @@ def add_beads_dependency(
         for record in records:
             json.dump(record, handle, separators=(",", ":"))
             handle.write("\n")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=identifier,
+        event_type="dependency_removed",
+        actor_id=actor_id,
+        payload=dependency_payload(dependency_type, target),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
 
 
 def remove_beads_dependency(

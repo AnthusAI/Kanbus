@@ -10,6 +10,15 @@ from uuid import uuid4
 from kanbus.issue_files import write_issue_to_file
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueComment, IssueData
+from kanbus.event_history import (
+    comment_payload,
+    comment_updated_payload,
+    create_event,
+    events_dir_for_issue_path,
+    now_timestamp,
+    write_events_batch,
+)
+from kanbus.users import get_current_user
 
 
 class IssueCommentError(RuntimeError):
@@ -110,6 +119,24 @@ def add_comment(
         update={"comments": comments, "updated_at": timestamp}
     )
     write_issue_to_file(updated, lookup.issue_path)
+    comment_id = comment.id
+    if not comment_id:
+        raise IssueCommentError("comment id is required")
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=updated.identifier,
+        event_type="comment_added",
+        actor_id=actor_id,
+        payload=comment_payload(comment_id, comment.author),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_issue_path(lookup.project_dir, lookup.issue_path)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        write_issue_to_file(lookup.issue, lookup.issue_path)
+        raise IssueCommentError(str(error)) from error
     return IssueCommentResult(issue=updated, comment=comment)
 
 
@@ -136,12 +163,30 @@ def update_comment(
     issue, _ = _ensure_comment_ids(lookup.issue)
     index = _find_comment_index(issue, comment_id)
     comments = list(issue.comments)
+    existing_comment = comments[index]
     updated_comment = comments[index].model_copy(update={"text": text})
     comments[index] = updated_comment
     updated = issue.model_copy(
         update={"comments": comments, "updated_at": datetime.now(timezone.utc)}
     )
     write_issue_to_file(updated, lookup.issue_path)
+    if not existing_comment.id:
+        raise IssueCommentError("comment id is required")
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=updated.identifier,
+        event_type="comment_updated",
+        actor_id=actor_id,
+        payload=comment_updated_payload(existing_comment.id, existing_comment.author),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_issue_path(lookup.project_dir, lookup.issue_path)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        write_issue_to_file(lookup.issue, lookup.issue_path)
+        raise IssueCommentError(str(error)) from error
     return updated
 
 
@@ -154,9 +199,26 @@ def delete_comment(root: Path, identifier: str, comment_id: str) -> IssueData:
     issue, _ = _ensure_comment_ids(lookup.issue)
     index = _find_comment_index(issue, comment_id)
     comments = list(issue.comments)
-    comments.pop(index)
+    removed_comment = comments.pop(index)
     updated = issue.model_copy(
         update={"comments": comments, "updated_at": datetime.now(timezone.utc)}
     )
     write_issue_to_file(updated, lookup.issue_path)
+    if not removed_comment.id:
+        raise IssueCommentError("comment id is required")
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=updated.identifier,
+        event_type="comment_deleted",
+        actor_id=actor_id,
+        payload=comment_payload(removed_comment.id, removed_comment.author),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_issue_path(lookup.project_dir, lookup.issue_path)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        write_issue_to_file(lookup.issue, lookup.issue_path)
+        raise IssueCommentError(str(error)) from error
     return updated

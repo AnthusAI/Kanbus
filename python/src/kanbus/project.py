@@ -224,7 +224,9 @@ def ensure_project_local_directory(project_dir: Path) -> Path:
     """
     local_dir = project_dir.parent / "project-local"
     issues_dir = local_dir / "issues"
+    events_dir = local_dir / "events"
     issues_dir.mkdir(parents=True, exist_ok=True)
+    events_dir.mkdir(parents=True, exist_ok=True)
     _ensure_gitignore_entry(project_dir.parent, "project-local/")
     return local_dir
 

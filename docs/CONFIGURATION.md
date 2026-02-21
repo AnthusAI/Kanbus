@@ -10,6 +10,12 @@ kanbus.yml
 
 The file must exist; there is no fallback path. A missing file is a hard error with a clear message.
 
+## Event history storage
+
+- Event files are written to `project/events/` (shared issues) or `project-local/events/` (local issues).
+- Each event is a standalone JSON file named with an RFC3339 timestamp and UUID suffix, e.g. `2026-02-21T06:09:40.180Z__<event_id>.json`.
+- Event records include `schema_version`, `event_id`, `issue_id`, `event_type`, `occurred_at`, `actor_id`, and an action-specific `payload`.
+
 ## Loading semantics (dotyaml parity)
 
 1. Load `.env` (unless disabled), setting variables only when they are not already defined.

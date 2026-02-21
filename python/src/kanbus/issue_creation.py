@@ -19,6 +19,14 @@ from kanbus.issue_files import (
 )
 from kanbus.issue_lookup import IssueLookupError, resolve_issue_identifier
 from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.event_history import (
+    create_event,
+    events_dir_for_local,
+    events_dir_for_project,
+    issue_created_payload,
+    now_timestamp,
+    write_events_batch,
+)
 from kanbus.project import (
     ProjectMarkerError,
     ensure_project_local_directory,
@@ -27,6 +35,7 @@ from kanbus.project import (
     load_project_directory,
 )
 from kanbus.workflows import InvalidTransitionError, validate_status_value
+from kanbus.users import get_current_user
 
 
 class IssueCreationError(RuntimeError):
@@ -176,6 +185,24 @@ def create_issue(
 
     issue_path = issues_dir / f"{identifier}.json"
     write_issue_to_file(issue, issue_path)
+
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=issue.identifier,
+        event_type="issue_created",
+        actor_id=actor_id,
+        payload=issue_created_payload(issue),
+        occurred_at=occurred_at,
+    )
+    try:
+        events_dir = (
+            events_dir_for_local(project_dir) if local else events_dir_for_project(project_dir)
+        )
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issue_path.unlink(missing_ok=True)
+        raise IssueCreationError(str(error)) from error
     return IssueCreationResult(issue=issue, configuration=configuration)
 
 
