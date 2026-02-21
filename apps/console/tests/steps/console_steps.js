@@ -153,9 +153,6 @@ async function ensureBaseProject() {
 
 async function openProjectFilterPanel(page) {
   const panel = page.getByTestId("project-filter-panel");
-  if (await panel.isVisible()) {
-    return;
-  }
   await page.getByTestId("open-project-filter").click();
   await expect(panel).toBeVisible();
 }
