@@ -213,10 +213,28 @@ fn write_tool_block_files(root: &Path) -> Result<(), KanbusError> {
 ///
 /// Returns `KanbusError::IssueOperation` if no project or multiple projects are found.
 pub fn load_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
+    // When a config file is found, derive the primary project directory from it.
+    // Virtual project directories are for reading and lookup only — including
+    // them here causes "multiple projects found" errors for write operations.
+    if let Ok(config_path) = get_configuration_path(root) {
+        if let Ok(configuration) = load_project_configuration(&config_path) {
+            let base = config_path.parent().unwrap_or_else(|| Path::new(""));
+            let primary = base.join(&configuration.project_directory);
+            if is_path_ignored(&primary, base, &configuration.ignore_paths) {
+                return Err(KanbusError::IssueOperation(
+                    "project not initialized".to_string(),
+                ));
+            }
+            return Ok(match canonicalize_path(&primary) {
+                Ok(p) => p,
+                Err(_) => primary,
+            });
+        }
+    }
+
+    // No config file — fall back to filesystem scanning.
     let mut projects = Vec::new();
     discover_project_directories(root, &mut projects)?;
-    let mut dotfile_projects = discover_kanbus_projects(root)?;
-    projects.append(&mut dotfile_projects);
 
     let mut normalized = Vec::new();
     for path in projects {
@@ -227,19 +245,6 @@ pub fn load_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
     }
     normalized.sort();
     normalized.dedup();
-
-    let config_path = match get_configuration_path(root) {
-        Ok(path) => path,
-        Err(_) => return filter_and_validate_projects(normalized),
-    };
-
-    if let Ok(configuration) = load_project_configuration(&config_path) {
-        let base = config_path.parent().unwrap_or_else(|| Path::new(""));
-        normalized.retain(|project_path| {
-            !is_path_ignored(project_path, base, &configuration.ignore_paths)
-        });
-    }
-
     filter_and_validate_projects(normalized)
 }
 
