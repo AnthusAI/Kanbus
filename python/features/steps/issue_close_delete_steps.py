@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from behave import then, when
+from behave import then
 
 from features.steps.shared import load_project_directory
 

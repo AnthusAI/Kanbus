@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 import yaml
-from behave import given, then, when
+from behave import given, then
 
 from features.steps.shared import (
     ensure_git_repository,

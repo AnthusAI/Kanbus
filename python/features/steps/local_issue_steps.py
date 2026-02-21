@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from behave import given, then, when
+from behave import given, then
 
 from features.steps.shared import (
     build_issue,

@@ -12,7 +12,6 @@ from kanbus.issue_files import read_issue_from_file
 from kanbus.models import IssueData
 from kanbus.project import (
     ProjectMarkerError,
-    ResolvedProject,
     discover_project_directories,
     find_project_local_directory,
     load_project_directory,
