@@ -1,0 +1,50 @@
+{
+  "name": "kanbus-board",
+  "displayName": "Kanbus Board",
+  "description": "Kanban board for Kanbus projects",
+  "version": "0.1.0",
+  "publisher": "kanbus",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "workspaceContains:.kanbus.yml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "kanbus.openBoard",
+        "title": "Kanbus: Open Board"
+      }
+    ],
+    "configuration": {
+      "title": "Kanbus",
+      "properties": {
+        "kanbus.port": {
+          "type": "number",
+          "default": 0,
+          "description": "Port for kbsc server. 0 = auto-select a free port."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./tsconfig.json",
+    "watch": "tsc -watch -p ./tsconfig.json",
+    "build": "npm run compile && npm run copy-assets && npm run copy-bin",
+    "copy-assets": "rm -rf console-assets && cp -r ../console/dist console-assets",
+    "copy-bin": "mkdir -p bin && cp ../../rust/target/release/kbsc bin/kbsc",
+    "package": "npm run build && vsce package",
+    "package:darwin-arm64": "npm run build && vsce package --target darwin-arm64",
+    "package:darwin-x64": "npm run build && vsce package --target darwin-x64",
+    "package:linux-x64": "npm run build && vsce package --target linux-x64"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "@vscode/vsce": "^2.0.0"
+  }
+}
