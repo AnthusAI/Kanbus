@@ -8,7 +8,7 @@ use serde::Serialize;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::file_io::get_configuration_path;
+use crate::file_io::{find_project_local_directory, get_configuration_path};
 use crate::migration::load_beads_issues;
 use crate::models::{IssueData, ProjectConfiguration};
 
@@ -125,16 +125,9 @@ fn short_id_matches(candidate: &str, project_key: &str, full_id: &str) -> bool {
     full_suffix.starts_with(prefix)
 }
 
-fn load_console_issues(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
-    let issues_dir = project_dir.join("issues");
-    if !issues_dir.exists() || !issues_dir.is_dir() {
-        return Err(KanbusError::IssueOperation(
-            "project/issues directory not found".to_string(),
-        ));
-    }
-
+fn load_issues_from_dir(issues_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let mut issues = Vec::new();
-    for entry in fs::read_dir(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))? {
+    for entry in fs::read_dir(issues_dir).map_err(|error| KanbusError::Io(error.to_string()))? {
         let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
         let path = entry.path();
         if path.extension().and_then(|value| value.to_str()) != Some("json") {
@@ -146,6 +139,26 @@ fn load_console_issues(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError
             .map_err(|_error| KanbusError::IssueOperation("issue file is invalid".to_string()))?;
         issues.push(issue);
     }
+    Ok(issues)
+}
+
+fn load_console_issues(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
+    let issues_dir = project_dir.join("issues");
+    if !issues_dir.exists() || !issues_dir.is_dir() {
+        return Err(KanbusError::IssueOperation(
+            "project/issues directory not found".to_string(),
+        ));
+    }
+
+    let mut issues = load_issues_from_dir(&issues_dir)?;
+
+    if let Some(local_dir) = find_project_local_directory(project_dir) {
+        let local_issues_dir = local_dir.join("issues");
+        if local_issues_dir.is_dir() {
+            issues.extend(load_issues_from_dir(&local_issues_dir)?);
+        }
+    }
+
     Ok(issues)
 }
 

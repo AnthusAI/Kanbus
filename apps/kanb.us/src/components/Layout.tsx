@@ -6,6 +6,7 @@ const navigation = [
   { label: "Features", href: "/features" },
   { label: "Architecture", href: "/architecture" },
   { label: "Jira Sync", href: "/jira-sync" },
+  { label: "Local Tasks", href: "/local-tasks" },
   { label: "Getting Started", href: "/getting-started" },
   { label: "Documentation", href: "/docs" },
 ];
@@ -110,6 +111,7 @@ const Layout = ({ children }: LayoutProps) => {
                 <li><a href="/features" className="text-muted hover:text-selected">Features</a></li>
                 <li><a href="/architecture" className="text-muted hover:text-selected">Architecture</a></li>
                 <li><a href="/jira-sync" className="text-muted hover:text-selected">Jira Sync</a></li>
+                <li><a href="/local-tasks" className="text-muted hover:text-selected">Local Tasks</a></li>
                 <li><a href="/getting-started" className="text-muted hover:text-selected">Getting Started</a></li>
                 <li><a href="/docs" className="text-muted hover:text-selected">Documentation</a></li>
               </ul>

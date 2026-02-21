@@ -3,14 +3,12 @@
 use std::io::ErrorKind;
 use std::path::Path;
 
-use crate::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
 use crate::daemon_client::{is_daemon_enabled, request_index_list};
 use crate::error::KanbusError;
 use crate::file_io::{
     canonicalize_path, discover_kanbus_projects, discover_project_directories,
     find_project_local_directory, load_project_directory,
 };
-use crate::index::build_index_from_directory;
 use crate::models::IssueData;
 use crate::queries::{filter_issues, search_issues, sort_issues};
 
@@ -119,22 +117,7 @@ fn list_issues_local(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
 
 fn list_issues_for_project(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let issues_dir = project_dir.join("issues");
-    let cache_path = project_dir.join(".cache").join("index.json");
-    if let Some(index) = load_cache_if_valid(&cache_path, &issues_dir)? {
-        return Ok(index
-            .by_id
-            .values()
-            .map(|issue| issue.as_ref().clone())
-            .collect());
-    }
-    let index = build_index_from_directory(&issues_dir)?;
-    let mtimes = collect_issue_file_mtimes(&issues_dir)?;
-    write_cache(&index, &cache_path, &mtimes)?;
-    Ok(index
-        .by_id
-        .values()
-        .map(|issue| issue.as_ref().clone())
-        .collect())
+    load_issues_from_directory(&issues_dir)
 }
 
 fn list_issues_with_local(
