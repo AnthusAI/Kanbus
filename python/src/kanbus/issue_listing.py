@@ -68,8 +68,16 @@ def list_issues(
 
     if project_filter:
         return _list_with_project_filter(
-            root, project_filter, status, issue_type, assignee, label,
-            sort, search, include_local, local_only,
+            root,
+            project_filter,
+            status,
+            issue_type,
+            assignee,
+            label,
+            sort,
+            search,
+            include_local,
+            local_only,
         )
 
     try:

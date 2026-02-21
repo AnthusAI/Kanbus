@@ -83,7 +83,9 @@ def _ensure_virtual_state(context: object) -> VirtualProjectState:
     return state
 
 
-def _configure_virtual_projects(context: object, labels: List[str]) -> VirtualProjectState:
+def _configure_virtual_projects(
+    context: object, labels: List[str]
+) -> VirtualProjectState:
     state = _ensure_virtual_state(context)
     for label in labels:
         if label in state.virtual_projects:
@@ -154,10 +156,18 @@ def _parse_command(command: str) -> List[str]:
 
 
 def _make_result(exit_code: int, stdout: str = "", stderr: str = "") -> SimpleNamespace:
-    return SimpleNamespace(exit_code=exit_code, stdout=stdout, stderr=stderr, output=stdout + stderr)
+    return SimpleNamespace(
+        exit_code=exit_code, stdout=stdout, stderr=stderr, output=stdout + stderr
+    )
 
 
-def _list_issues(state: VirtualProjectState, project_filters: List[str], local_only: bool, no_local: bool, status: Optional[str]) -> SimpleNamespace:
+def _list_issues(
+    state: VirtualProjectState,
+    project_filters: List[str],
+    local_only: bool,
+    no_local: bool,
+    status: Optional[str],
+) -> SimpleNamespace:
     if local_only and no_local:
         return _make_result(1, stderr="local-only conflicts with no-local")
     if project_filters:
@@ -238,7 +248,9 @@ def simulate_virtual_project_command(
                 project_filters.append(args[index + 1])
             if value == "--status" and index + 1 < len(args):
                 status = args[index + 1]
-        context.result = _list_issues(state, project_filters, local_only, no_local, status)
+        context.result = _list_issues(
+            state, project_filters, local_only, no_local, status
+        )
         return True
 
     if action == "show" and len(args) >= 3:
@@ -260,7 +272,9 @@ def simulate_virtual_project_command(
                 target_label = state.current_label
             else:
                 if state.new_issue_project == "ask":
-                    context.result = _make_result(1, stderr="project selection required")
+                    context.result = _make_result(
+                        1, stderr="project selection required"
+                    )
                     return True
                 target_label = state.new_issue_project
         identifier = f"{target_label}-task{state.issue_counter:02d}"
@@ -284,13 +298,19 @@ def simulate_virtual_project_command(
             title = "New task"
 
         if target_label == state.current_label:
-            project_dir = state.current_local_dir if location == "local" else state.current_project_dir
+            project_dir = (
+                state.current_local_dir
+                if location == "local"
+                else state.current_project_dir
+            )
         else:
             project = state.virtual_projects.get(target_label)
             if project is None:
                 context.result = _make_result(1, stderr="unknown project")
                 return True
-            project_dir = project.local_dir if location == "local" else project.shared_dir
+            project_dir = (
+                project.local_dir if location == "local" else project.shared_dir
+            )
         _create_issue(project_dir, identifier, title)
         context.result = _make_result(0, stdout=f"Created {identifier}")
         return True
@@ -355,7 +375,10 @@ def simulate_virtual_project_command(
             return True
 
         if action == "promote":
-            if project_dir.name == "project" and issue_path.parent == project_dir / "issues":
+            if (
+                project_dir.name == "project"
+                and issue_path.parent == project_dir / "issues"
+            ):
                 context.result = _make_result(0, stdout="already shared")
                 return True
             target = project_dir.parent / "project" / "issues" / issue_path.name
@@ -366,7 +389,9 @@ def simulate_virtual_project_command(
 
         if action == "localize":
             if issue_path.parent == project_dir / "issues":
-                target = project_dir.parent / "project-local" / "issues" / issue_path.name
+                target = (
+                    project_dir.parent / "project-local" / "issues" / issue_path.name
+                )
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(issue_path), target)
             context.result = _make_result(0, stdout="localized")
@@ -400,7 +425,9 @@ def given_project_with_new_issue_project(context: object, label: str) -> None:
     state = _configure_virtual_projects(context, ["alpha", "beta"])
     state.new_issue_project = label
     if label == "nonexistent":
-        context.simulated_configuration_error = "new_issue_project references unknown project"
+        context.simulated_configuration_error = (
+            "new_issue_project references unknown project"
+        )
 
 
 @when('I run "kanbus create Interactive task" interactively')
@@ -426,7 +453,9 @@ def when_select_project_from_prompt(context: object, label: str) -> None:
         context.result = _make_result(1, stderr="unknown project")
         return
     project_dir = (
-        state.current_project_dir if label == state.current_label else project.shared_dir
+        state.current_project_dir
+        if label == state.current_label
+        else project.shared_dir
     )
     _create_issue(project_dir, identifier, title)
     context.result = _make_result(0, stdout=f"Created {identifier}")
@@ -488,7 +517,9 @@ def given_issue_exists_virtual(context: object, identifier: str, label: str) -> 
 
 
 @given('a local issue "{identifier}" exists in virtual project "{label}"')
-def given_local_issue_exists_virtual(context: object, identifier: str, label: str) -> None:
+def given_local_issue_exists_virtual(
+    context: object, identifier: str, label: str
+) -> None:
     state = _ensure_virtual_state(context)
     if label not in state.virtual_projects:
         state = _configure_virtual_projects(context, [label])
@@ -541,28 +572,40 @@ def then_stdout_contains_source_label(context: object, label: str) -> None:
 
 
 @then('issue "{identifier}" should exist in virtual project "{label}" shared directory')
-def then_issue_exists_shared_virtual(context: object, identifier: str, label: str) -> None:
+def then_issue_exists_shared_virtual(
+    context: object, identifier: str, label: str
+) -> None:
     state = _ensure_virtual_state(context)
     project = state.virtual_projects[label]
     assert (project.shared_dir / "issues" / f"{identifier}.json").exists()
 
 
-@then('issue "{identifier}" should not exist in virtual project "{label}" local directory')
-def then_issue_missing_local_virtual(context: object, identifier: str, label: str) -> None:
+@then(
+    'issue "{identifier}" should not exist in virtual project "{label}" local directory'
+)
+def then_issue_missing_local_virtual(
+    context: object, identifier: str, label: str
+) -> None:
     state = _ensure_virtual_state(context)
     project = state.virtual_projects[label]
     assert not (project.local_dir / "issues" / f"{identifier}.json").exists()
 
 
 @then('issue "{identifier}" should exist in virtual project "{label}" local directory')
-def then_issue_exists_local_virtual(context: object, identifier: str, label: str) -> None:
+def then_issue_exists_local_virtual(
+    context: object, identifier: str, label: str
+) -> None:
     state = _ensure_virtual_state(context)
     project = state.virtual_projects[label]
     assert (project.local_dir / "issues" / f"{identifier}.json").exists()
 
 
-@then('issue "{identifier}" should not exist in virtual project "{label}" shared directory')
-def then_issue_missing_shared_virtual(context: object, identifier: str, label: str) -> None:
+@then(
+    'issue "{identifier}" should not exist in virtual project "{label}" shared directory'
+)
+def then_issue_missing_shared_virtual(
+    context: object, identifier: str, label: str
+) -> None:
     state = _ensure_virtual_state(context)
     project = state.virtual_projects[label]
     assert not (project.shared_dir / "issues" / f"{identifier}.json").exists()
@@ -580,28 +623,46 @@ def then_event_file_created(context: object, label: str) -> None:
 def given_issues_multiple_virtual(context: object) -> None:
     state = _configure_virtual_projects(context, ["alpha", "beta"])
     _create_issue(state.current_project_dir, "kbs-001", "Current issue")
-    _create_issue(state.virtual_projects["alpha"].shared_dir, "alpha-001", "Alpha issue")
+    _create_issue(
+        state.virtual_projects["alpha"].shared_dir, "alpha-001", "Alpha issue"
+    )
     _create_issue(state.virtual_projects["beta"].shared_dir, "beta-001", "Beta issue")
 
 
-@given('issues exist in multiple virtual projects with various statuses')
+@given("issues exist in multiple virtual projects with various statuses")
 def given_issues_multiple_statuses(context: object) -> None:
     state = _configure_virtual_projects(context, ["alpha", "beta"])
-    _create_issue(state.virtual_projects["alpha"].shared_dir, "alpha-open", "Alpha open", status="open")
-    _create_issue(state.virtual_projects["alpha"].shared_dir, "alpha-closed", "Alpha closed", status="closed")
+    _create_issue(
+        state.virtual_projects["alpha"].shared_dir,
+        "alpha-open",
+        "Alpha open",
+        status="open",
+    )
+    _create_issue(
+        state.virtual_projects["alpha"].shared_dir,
+        "alpha-closed",
+        "Alpha closed",
+        status="closed",
+    )
 
 
 @given('a virtual project "{label}" has local issues')
 def given_virtual_project_alpha_local(context: object, label: str) -> None:
     state = _configure_virtual_projects(context, [label])
-    _create_issue(state.virtual_projects[label].local_dir, f"{label}-local", "Local alpha")
+    _create_issue(
+        state.virtual_projects[label].local_dir, f"{label}-local", "Local alpha"
+    )
 
 
 @given('a virtual project "{label}" has shared and local issues')
 def given_virtual_project_alpha_shared_local(context: object, label: str) -> None:
     state = _configure_virtual_projects(context, [label])
-    _create_issue(state.virtual_projects[label].shared_dir, f"{label}-shared", "Shared alpha")
-    _create_issue(state.virtual_projects[label].local_dir, f"{label}-local", "Local alpha")
+    _create_issue(
+        state.virtual_projects[label].shared_dir, f"{label}-shared", "Shared alpha"
+    )
+    _create_issue(
+        state.virtual_projects[label].local_dir, f"{label}-local", "Local alpha"
+    )
 
 
 @then('stdout should contain issues from "{label}"')
@@ -670,7 +731,9 @@ def then_each_issue_has_label(context: object) -> None:
 @given("a virtual project has local issues")
 def given_virtual_project_has_local(context: object) -> None:
     state = _configure_virtual_projects(context, ["alpha"])
-    _create_issue(state.virtual_projects["alpha"].local_dir, "alpha-local", "Local issue")
+    _create_issue(
+        state.virtual_projects["alpha"].local_dir, "alpha-local", "Local issue"
+    )
 
 
 @then("local issues from the virtual project should be listed")
@@ -699,7 +762,9 @@ def given_duplicate_virtual_labels(context: object) -> None:
 @given("a Kanbus project with a virtual project label matching the project key")
 def given_virtual_label_conflict(context: object) -> None:
     _ensure_virtual_state(context)
-    context.simulated_configuration_error = "virtual project label conflicts with project key"
+    context.simulated_configuration_error = (
+        "virtual project label conflicts with project key"
+    )
 
 
 @given("a Kanbus repository with a .kanbus.yml file using external_projects")
@@ -713,7 +778,9 @@ def given_external_projects_config(context: object) -> None:
 @given("a repository with a .kanbus.yml file with virtual projects configured")
 def given_repo_with_virtual_projects_config(context: object) -> None:
     state = _configure_virtual_projects(context, ["extern"])
-    _create_issue(state.virtual_projects["extern"].shared_dir, "kanbus-extern", "Extern")
+    _create_issue(
+        state.virtual_projects["extern"].shared_dir, "kanbus-extern", "Extern"
+    )
 
 
 @then('stdout should contain the virtual project label for "{identifier}"')

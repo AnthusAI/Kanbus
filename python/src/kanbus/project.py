@@ -82,7 +82,9 @@ def _resolve_labeled_project_directories(
 ) -> List[ResolvedProject]:
     projects: List[ResolvedProject] = []
     primary = base / configuration.project_directory
-    projects.append(ResolvedProject(label=configuration.project_key, project_dir=primary))
+    projects.append(
+        ResolvedProject(label=configuration.project_key, project_dir=primary)
+    )
     for label, vp in configuration.virtual_projects.items():
         candidate = Path(vp.path)
         if not candidate.is_absolute():
@@ -155,11 +157,7 @@ def _apply_ignore_paths(root: Path, project_dirs: List[Path]) -> List[Path]:
             ignored.add(ignore_path.resolve())
         except OSError:
             pass
-    return [
-        path
-        for path in project_dirs
-        if path.resolve() not in ignored
-    ]
+    return [path for path in project_dirs if path.resolve() not in ignored]
 
 
 def _normalize_project_directories(paths: Iterable[Path]) -> List[Path]:
