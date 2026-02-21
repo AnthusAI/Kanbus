@@ -152,11 +152,7 @@ fn load_issue_events(world: &KanbusWorld, issue_id: &str) -> Vec<(String, Value)
             .to_string();
         let contents = fs::read_to_string(&path).expect("read event");
         let record: Value = serde_json::from_str(&contents).expect("parse event");
-        if record
-            .get("issue_id")
-            .and_then(|value| value.as_str())
-            == Some(issue_id)
-        {
+        if record.get("issue_id").and_then(|value| value.as_str()) == Some(issue_id) {
             events.push((filename, record));
         }
     }
@@ -165,11 +161,7 @@ fn load_issue_events(world: &KanbusWorld, issue_id: &str) -> Vec<(String, Value)
 
 fn find_event<'a>(events: &'a [(String, Value)], event_type: &str) -> Option<&'a Value> {
     events.iter().find_map(|(_, record)| {
-        if record
-            .get("event_type")
-            .and_then(|value| value.as_str())
-            == Some(event_type)
-        {
+        if record.get("event_type").and_then(|value| value.as_str()) == Some(event_type) {
             Some(record)
         } else {
             None
@@ -191,7 +183,10 @@ fn when_capture_issue_identifier(world: &mut KanbusWorld) {
 #[when(expr = "I update the last issue status to {string}")]
 fn when_update_last_issue_status(world: &mut KanbusWorld, status: String) {
     let identifier = last_issue_id(world);
-    run_cli(world, &format!("kanbus update {identifier} --status {status}"));
+    run_cli(
+        world,
+        &format!("kanbus update {identifier} --status {status}"),
+    );
 }
 
 #[when(expr = "I update the last issue title to {string}")]
@@ -239,8 +234,7 @@ fn then_event_filenames_iso(world: &mut KanbusWorld) {
     let identifier = last_issue_id(world);
     let events = load_issue_events(world, &identifier);
     let filename_regex =
-        Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z__.+\.json$")
-            .expect("regex");
+        Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z__.+\.json$").expect("regex");
     assert!(!events.is_empty(), "expected events for issue");
     for (filename, _) in events {
         assert!(
@@ -257,10 +251,7 @@ fn then_event_log_state_transition(world: &mut KanbusWorld, from: String, to: St
     let identifier = last_issue_id(world);
     let events = load_issue_events(world, &identifier);
     let found = events.iter().any(|(_, record)| {
-        record
-            .get("event_type")
-            .and_then(|value| value.as_str())
-            == Some("state_transition")
+        record.get("event_type").and_then(|value| value.as_str()) == Some("state_transition")
             && record
                 .get("payload")
                 .and_then(|payload| payload.get("from_status"))
@@ -278,20 +269,11 @@ fn then_event_log_state_transition(world: &mut KanbusWorld, from: String, to: St
 #[then(
     expr = "the event log for the last issue should include a field update for {string} from {string} to {string}"
 )]
-fn then_event_log_field_update(
-    world: &mut KanbusWorld,
-    field: String,
-    from: String,
-    to: String,
-) {
+fn then_event_log_field_update(world: &mut KanbusWorld, field: String, from: String, to: String) {
     let identifier = last_issue_id(world);
     let events = load_issue_events(world, &identifier);
     let found = events.iter().any(|(_, record)| {
-        if record
-            .get("event_type")
-            .and_then(|value| value.as_str())
-            != Some("field_updated")
-        {
+        if record.get("event_type").and_then(|value| value.as_str()) != Some("field_updated") {
             return false;
         }
         let change = record
@@ -315,11 +297,7 @@ fn then_event_log_comment_added(world: &mut KanbusWorld, author: String) {
     let identifier = last_issue_id(world);
     let events = load_issue_events(world, &identifier);
     let found = events.iter().any(|(_, record)| {
-        if record
-            .get("event_type")
-            .and_then(|value| value.as_str())
-            != Some("comment_added")
-        {
+        if record.get("event_type").and_then(|value| value.as_str()) != Some("comment_added") {
             return false;
         }
         let payload = record.get("payload")?;
@@ -350,22 +328,12 @@ fn then_event_log_no_comment_text(world: &mut KanbusWorld) {
     }
 }
 
-#[then(
-    expr = "the event log for the last issue should include a dependency {string} on {string}"
-)]
-fn then_event_log_dependency(
-    world: &mut KanbusWorld,
-    dependency_type: String,
-    target: String,
-) {
+#[then(expr = "the event log for the last issue should include a dependency {string} on {string}")]
+fn then_event_log_dependency(world: &mut KanbusWorld, dependency_type: String, target: String) {
     let identifier = last_issue_id(world);
     let events = load_issue_events(world, &identifier);
     let found = events.iter().any(|(_, record)| {
-        if record
-            .get("event_type")
-            .and_then(|value| value.as_str())
-            != Some("dependency_added")
-        {
+        if record.get("event_type").and_then(|value| value.as_str()) != Some("dependency_added") {
             return false;
         }
         let payload = record.get("payload")?;
