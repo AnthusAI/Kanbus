@@ -9,8 +9,6 @@ Deviation from The Way is extremely offensive to the religious sensibilities of 
 
 ## The Sacrament of Work
 
-The Sacrament of Work is the sacrament of vibe coding in this repository.
-
 Kanbus is the instrument of record. Nothing exists until it is named there.
 
 Work begins in declaration, not in code.
@@ -26,39 +24,44 @@ Every change must be:
 If it is not recorded, it did not happen.
 
 Use Markdown in issue descriptions and comments whenever it helps make the intent clearer.
-When relationships, flows, or state transitions are easier to grasp visually, add a Mermaid diagram.
 
-Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
+You are strongly encouraged to illustrate your issue descriptions with diagrams.  When relationships, flows, or state transitions are easier to grasp visually, add a PlantUML, D2 or Mermaid diagram.  The system supports them all, and you can use the best tool for communicating the idea.  Be sure to use vertically-oriented layouts for diagrams since these issues will be presented in narrow viewports.
+
+Diagrams must use fenced code blocks with the appropriate language identifier:
+```mermaid
+```plantuml
+```d2
+
+Direct file system access is strictly forbidden:
+- Do not edit the project/ directory directly
+- Do not read issue JSON with tools like cat, jq, or grep
+- Do not inspect the file system structure
+- All work must pass through the kbs command
 
 ## Running Kanbus (Do This Exactly)
 
-Run Kanbus from the repo root so it can find `.kanbus.yml` and `.beads/`.
+CRITICAL: Always run Kanbus from the repository root so it can find `.kanbus.yml`.
+Running from subdirectories will fail.
 
-Preferred (Rust):
+Preferred command:
 
 ```bash
-cargo run --manifest-path rust/Cargo.toml --bin kanbusr -- <command> [args...]
-# prefer installed alias: kbs <command> [args...]
+kbs <command> [args...]
 ```
 
 Example:
 
 ```bash
-cargo run --manifest-path rust/Cargo.toml --bin kanbusr -- create "My epic" --type epic --description "..."
-# or: kbs create "My epic" --type epic --description "..."
+kbs create "My epic" --type epic --description "..."
 ```
 
-Fallback (Python):
+Fallback (only if kbs is not available):
 
 ```bash
 python -m kanbus.cli <command> [args...]
 ```
 
-If the Python module is missing, install it first:
-
-```bash
-python -m pip install -e python
-```
+NOTE: The kbs command is strongly preferred. Only use Python fallback if kbs is unavailable.
 
 ## The Order of Being
 
@@ -182,15 +185,15 @@ Workflow selection: use a workflow named after the issue type when present; othe
 default workflow:
 
 
+- backlog -> open, closed
+
 - blocked -> in_progress, closed
 
 - closed -> open
 
-- deferred -> open, closed
-
 - in_progress -> open, blocked, closed
 
-- open -> in_progress, closed, deferred
+- open -> in_progress, closed, backlog
 
 
 
@@ -226,35 +229,146 @@ Severity is not emotion. It is signal.
 
 ## Command examples
 
-List issues:
 
-    kbs list
-    kbs list --type epic
-    kbs list --status open
-    kbs list --type task --status in_progress
+kanbus create "Plan the roadmap" --type initiative
 
-Intuitive aliases (same result as list with --type filter):
+kanbus create "Release v1" --type epic --parent <initiative-id>
 
-    kbs issues          equivalent to: kbs list
-    kbs epics           equivalent to: kbs list --type epic
-    kbs tasks           equivalent to: kbs list --type task
-    kbs stories         equivalent to: kbs list --type story
-    kbs bugs            equivalent to: kbs list --type bug
+kanbus create "Implement feature" --type task --parent <epic-id>
 
-Create (type hierarchy: initiative > epic > story / task / bug > sub-task):
+kanbus create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
 
-    kbs create "Plan the roadmap" --type initiative
-    kbs create "Release v1" --type epic --parent <initiative-id>
-    kbs create "Implement feature" --type task --parent <epic-id>
-    kbs create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
+kanbus update <id> --status in_progress --assignee "you@example.com"
 
-Update and close:
+kanbus update <id> --status blocked
 
-    kbs update <id> --status in_progress --assignee "you@example.com"
-    kbs update <id> --status blocked
-    kbs comment <id> "Progress note"
-    kbs close <id> --comment "Summary of the change"
+kanbus comment <id> "Progress note"
 
+kanbus list --status open
+
+kanbus close <id> --comment "Summary of the change"
+
+
+## Console UI Control: Real-Time Collaboration
+
+When the user is actively watching the Kanbus console UI (typically at http://localhost:4242), you can programmatically control the interface to guide their attention and coordinate work in real-time.
+
+### The Focus Command
+
+The `kbs console focus` command immediately highlights an issue on the board, opens it in the detail panel, and filters to show only that issue and its descendants. This happens with sub-100ms latency via Unix socket and SSE notifications.
+
+```bash
+kbs console focus <issue-id>
+```
+
+### When to Use Real-Time Control
+
+Use `kbs console focus` proactively to:
+- **Direct attention after creating important work**: Show new epics or critical tasks immediately
+- **Demonstrate updates**: Let the user see changes as they happen
+- **Coordinate during collaboration**: Show what you're working on in real-time
+- **Provide context**: Help the user understand issue relationships and structure
+
+### Example: Creating and Focusing on an Epic
+
+When you create a new epic with sub-tasks, immediately focus on it to show the user:
+
+```bash
+# Create the epic
+kbs create "Implement authentication system" --type epic --description "Add JWT-based authentication with login, logout, and token refresh"
+
+# The system returns: ID: tskl-auth
+
+# Create sub-tasks
+kbs create "Design authentication flow" --parent tskl-auth --type task
+kbs create "Implement JWT generation" --parent tskl-auth --type task
+kbs create "Add login endpoint" --parent tskl-auth --type task
+kbs create "Add logout endpoint" --parent tskl-auth --type task
+
+# NOW show the user the complete structure
+kbs console focus tskl-auth
+```
+
+The user immediately sees the epic with all 4 sub-tasks on their board, understanding the full scope of what you've planned.
+
+### Example: Tracking Progress in Real-Time
+
+As you work through tasks, keep the user informed by focusing on what you're doing:
+
+```bash
+# Start working on the first task
+kbs update tskl-auth.1 --status in_progress --assignee agent
+kbs console focus tskl-auth.1
+
+# User now sees you're working on "Design authentication flow"
+
+# Complete it and move to the next
+kbs close tskl-auth.1
+kbs update tskl-auth.2 --status in_progress
+kbs console focus tskl-auth.2
+
+# User sees the completion and your shift to JWT generation
+```
+
+### Example: Showing Complex Relationships
+
+When working with nested hierarchies, use focus to show structure:
+
+```bash
+# After creating a deep hierarchy
+kbs create "Frontend overhaul" --type epic
+# Returns: tskl-frontend
+
+kbs create "Redesign dashboard" --parent tskl-frontend --type story
+# Returns: tskl-frontend.1
+
+kbs create "Update header component" --parent tskl-frontend.1 --type task
+kbs create "Add metrics widgets" --parent tskl-frontend.1 --type task
+kbs create "Improve responsive layout" --parent tskl-frontend.1 --type task
+
+# Show the entire tree structure
+kbs console focus tskl-frontend
+
+# Now zoom in to show just the dashboard story and its tasks
+kbs console focus tskl-frontend.1
+```
+
+### Example: Debugging with Focus
+
+When investigating bugs, use focus to show the issue context:
+
+```bash
+# User reports a bug related to authentication
+kbs create "Login fails with expired tokens" --type bug --parent tskl-auth
+
+# Show them you're investigating by focusing on the bug in context
+kbs console focus tskl-auth
+# Now they see the bug alongside the original authentication epic
+
+# After fixing
+kbs close tskl-auth.5
+kbs console focus tskl-auth
+# Show the epic with the bug now closed
+```
+
+### Best Practices for Real-Time Control
+
+1. **Focus after creation**: Always focus on newly created epics so the user sees the structure
+2. **Focus when starting work**: When you update an issue to in_progress, focus on it
+3. **Focus on parents after completion**: When closing a task, focus on its parent to show progress
+4. **Don't over-focus**: Only focus when it genuinely helps the user understand what's happening
+5. **Narrate your focus**: Briefly explain why you're focusing, e.g., "Let me show you the structure I've created"
+
+### Future Commands (Planned in tskl-m59)
+
+Additional UI control commands are being implemented:
+- `kbs console unfocus` - Clear focus and return to full board view
+- `kbs console view <mode>` - Switch between initiatives/epics/issues views
+- `kbs console search <query>` - Set search filter
+- `kbs console maximize` - Maximize the detail panel
+- `kbs console close-detail` - Close the detail panel
+
+Check `kbs show tskl-m59` for current implementation status.
 
 ## Semantic Release Alignment
 
@@ -295,28 +409,40 @@ Example:
 As a new user, I want a Hello World program, so that I can verify the toolchain works.
 
 3. Create an epic for the milestone and record the story
-Command:
-kanbus create "Hello World program" --type epic
+
+```bash
+kbs create "Hello World program" --type epic
+```
 
 Example output (capture the ID):
+```
 ID: kanbus-1a2b3c
+```
 
 Record the intent on the epic:
-kanbus comment kanbus-1a2b3c "As a new user, I want a Hello World program, so that I can verify the toolchain works."
+```bash
+kbs comment kanbus-1a2b3c "As a new user, I want a Hello World program, so that I can verify the toolchain works."
+```
 
 4. Create a story for the behavior and include Gherkin (before any code)
-Command:
-kanbus create "Prints Hello World to stdout" --type story --parent kanbus-1a2b3c
+
+```bash
+kbs create "Prints Hello World to stdout" --type story --parent kanbus-1a2b3c
+```
 
 Example output (capture the story ID):
+```
 ID: kanbus-4d5e6f
+```
 
 Attach the Gherkin acceptance criteria:
-kanbus comment kanbus-4d5e6f "Feature: Hello World
+```bash
+kbs comment kanbus-4d5e6f "Feature: Hello World
   Scenario: Run the program
     Given a configured environment
     When I run the program
     Then it prints \"Hello, world\" to stdout"
+```
 
 5. Run the Gherkin and confirm it fails (before any production code)
 Run the behavior tests in the repo and confirm the new scenario fails for the right reason.
