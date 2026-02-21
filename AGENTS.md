@@ -145,6 +145,19 @@ except FileNotFoundError as error:
     ) from error
 ```
 
+## Rust coverage (repeatable command)
+
+Use this command to get the library/test coverage figure (excludes binaries and test harness targets) that matches our usual badge number:
+
+```bash
+PATH="$HOME/.cargo/bin:$PATH" \
+cargo llvm-cov report \
+  --manifest-path rust/Cargo.toml \
+  --ignore-filename-regex 'rust/src/bin/.*|rust/tests/.*'
+```
+
+The last run with this filter reported **87.30% line coverage**. Always use the same ignore regex to keep the denominator consistent. If you need HTML output, add `--html --output-dir /tmp/kanbus-cov-lib` to the same command.
+
 ## Code Style Standards
 
 ### Python
@@ -317,32 +330,30 @@ Before any PR can merge:
 
 5. **Coverage**
    - Python coverage ≥ 100% ✓
-   - Rust coverage ≥ 100% (cargo-tarpaulin) ✓
+   - Rust coverage ≥ 100% (cargo llvm-cov) ✓
 
-## Rust Coverage (Local macOS)
+## Rust Coverage (Local)
 
-**Problem:** `cargo tarpaulin` with `--engine ptrace` fails on macOS (unsupported). `--engine llvm` can fail with `Parsing failed` unless you use the rustup LLVM tools.
-
-**Known-good local command (macOS, requires cargo-tarpaulin 0.31.1):**
+**Required toolchain:**
 ```bash
-cargo install cargo-tarpaulin --locked --version 0.31.1
-```
-```bash
-PATH="$HOME/.cargo/bin:$PATH" \
-RUSTUP_TOOLCHAIN=stable \
-RUSTC="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc" \
-LLVM_PROFDATA="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-profdata" \
-LLVM_COV="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-cov" \
-cargo tarpaulin --engine llvm --lib --test cucumber --implicit-test-threads \
-  --exclude-files "src/bin/*" --exclude-files "features/steps/*" \
-  --out Xml --output-dir ../coverage-rust
+rustup component add llvm-tools-preview
+cargo install cargo-llvm-cov --locked
 ```
 
-**If you still see `Parsing failed`** on macOS, run the Linux ptrace path instead (CI or a Linux host):
+**Console assets (required for `embed-assets`):**
 ```bash
-cargo tarpaulin --engine ptrace --tests --test cucumber --implicit-test-threads \
-  --exclude-files "src/bin/*" --exclude-files "features/steps/*" \
-  --timeout 180 --out Xml --output-dir ../coverage-rust
+(cd packages/ui && npm ci && npm run build)
+(cd apps/console && npm ci && npm run build)
+rm -rf rust/embedded_assets/console
+cp -R apps/console/dist rust/embedded_assets/console
+```
+
+**Coverage run:**
+```bash
+cd rust
+mkdir -p ../coverage-rust
+cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*|src/bin/.*|src/main.rs"
+cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobertura.xml
 ```
 
 6. **YAML test cases** (when implemented)
