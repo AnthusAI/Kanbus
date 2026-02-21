@@ -55,7 +55,7 @@ async function main() {
   const configurationPath = path.join(tempDir, ".kanbus.yml");
   await writeFile(
     configurationPath,
-    "project_directory: project\nproject_key: kanbus\n",
+    "project_directory: project\nproject_key: kbs\n",
     "utf-8"
   );
 

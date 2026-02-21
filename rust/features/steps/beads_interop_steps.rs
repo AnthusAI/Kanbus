@@ -213,31 +213,7 @@ fn given_beads_fixture_repo(world: &mut KanbusWorld) {
     world.last_beads_issue_id = None;
 }
 
-#[when("I run \"kanbus --beads create Interop child via Kanbus --parent bdx-epic\"")]
-fn when_create_interop_child(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus --beads create Interop child via Kanbus --parent bdx-epic",
-    );
-}
-
-#[when("I run \"kanbus --beads create Interop updatable --parent bdx-epic\"")]
-fn when_create_interop_updatable(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus --beads create Interop updatable --parent bdx-epic",
-    );
-}
-
-#[when("I run \"kanbus --beads create Interop deletable --parent bdx-epic\"")]
-fn when_create_interop_deletable(world: &mut KanbusWorld) {
-    run_cli(
-        world,
-        "kanbus --beads create Interop deletable --parent bdx-epic",
-    );
-}
-
-#[given(regex = r#"a kanbus issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)""#)]
+#[given(regex = r#"a kanbus issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)"$"#)]
 fn given_kanbus_child_issue(world: &mut KanbusWorld, child: String, parent: String) {
     upsert_beads_issue(world, &parent, None, None);
     upsert_beads_issue(world, &child, Some(&parent), None);
@@ -582,7 +558,7 @@ fn given_kanbus_issue_exists_with_priority(
     fs::write(beads_path, beads_content).expect("write beads issues");
 }
 
-#[given(regex = r#"a beads issue "(?P<identifier>[^"]+)" exists"#)]
+#[given(regex = r#"a beads issue "(?P<identifier>[^"]+)" exists$"#)]
 fn given_beads_issue_exists(world: &mut KanbusWorld, identifier: String) {
     let cwd = world
         .working_directory
@@ -668,7 +644,7 @@ fn given_kanbus_only_issue(world: &mut KanbusWorld, identifier: String) {
     fs::write(issue_path, contents).expect("write issue");
 }
 
-#[given(regex = r#"a beads issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)""#)]
+#[given(regex = r#"a beads issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)"$"#)]
 fn given_beads_issue_with_parent(world: &mut KanbusWorld, identifier: String, parent_id: String) {
     let cwd = world
         .working_directory

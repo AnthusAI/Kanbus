@@ -127,14 +127,6 @@ fn given_record_existing_ids(world: &mut KanbusWorld) {
     world.existing_kanbus_ids = Some(ids);
 }
 
-#[when("I run \"kanbus create Native deletable --type epic\"")]
-fn when_run_create_native_deletable(world: &mut KanbusWorld) {
-    run_cli(world, "kanbus create Native deletable --type epic");
-    if world.last_kanbus_issue_id.is_none() && world.existing_kanbus_ids.is_some() {
-        record_new_kanbus_id(world);
-    }
-}
-
 fn record_new_kanbus_id(world: &mut KanbusWorld) {
     let before = world
         .existing_kanbus_ids
@@ -297,6 +289,9 @@ fn when_create_native_task_under_recorded_epic(world: &mut KanbusWorld) {
 
 #[then("the last Kanbus issue id should be recorded")]
 fn then_last_kanbus_id_recorded(world: &mut KanbusWorld) {
+    if world.last_kanbus_issue_id.is_none() {
+        record_new_kanbus_id(world);
+    }
     assert!(
         world.last_kanbus_issue_id.is_some(),
         "no Kanbus issue id recorded"
