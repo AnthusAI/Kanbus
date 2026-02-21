@@ -223,6 +223,26 @@ def write_beads_config(beads_dir: Path) -> None:
     config_path.write_text("no-db: true\nno-daemon: true\n", encoding="utf-8")
 
 
+def ensure_kanbus_project(repo_root: Path) -> None:
+    """Ensure a minimal Kanbus project config exists in the Beads repo."""
+    project_dir = repo_root / "project"
+    (project_dir / "issues").mkdir(parents=True, exist_ok=True)
+    (project_dir / "events").mkdir(parents=True, exist_ok=True)
+    config_path = repo_root / ".kanbus.yml"
+    if not config_path.exists():
+        config_path.write_text(
+            "\n".join(
+                [
+                    "project_directory: project",
+                    "project_key: kanbus",
+                    "beads_compatibility: true",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+
 def clone_beads_repo(
     source: str, branch: str | None, destination: Path
 ) -> CommandResult:
@@ -505,6 +525,7 @@ def main(argv: list[str]) -> int:
             beads_dir = beads_repo / ".beads"
             ensure_issues_jsonl(beads_dir)
             write_beads_config(beads_dir)
+            ensure_kanbus_project(beads_repo)
 
             if args.bd_binary:
                 bd_binary = Path(args.bd_binary)
