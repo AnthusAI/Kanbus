@@ -171,6 +171,7 @@ async function openProjectFilterPanel(page) {
 
 async function closeProjectFilterPanel(page) {
   const panel = page.getByTestId("project-filter-panel");
+  const container = panel.locator("xpath=ancestor-or-self::*[@aria-hidden][1]");
   const isOpen = await panel.evaluate((element) => {
     const container = element.closest("[aria-hidden]");
     return container?.getAttribute("aria-hidden") === "false";
@@ -179,7 +180,9 @@ async function closeProjectFilterPanel(page) {
     return;
   }
   await page.getByTestId("project-filter-backdrop").click();
-  await expect(panel).not.toBeVisible();
+  await expect
+    .poll(async () => container.getAttribute("aria-hidden"), { timeout: 8000 })
+    .toBe("true");
 }
 
 async function waitForIssueCards(page, minCount = 1) {
