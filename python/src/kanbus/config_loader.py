@@ -34,6 +34,8 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     _validate_canonical_config_overrides(path, data)
     override = _load_override_configuration(path.parent / ".kanbus.override.yml")
     merged = {**DEFAULT_CONFIGURATION, **data, **override}
+    _reject_legacy_fields(merged)
+    _normalize_virtual_projects(merged)
 
     try:
         configuration = ProjectConfiguration.model_validate(merged)
@@ -141,6 +143,20 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     errors: List[str] = []
     if not configuration.project_directory:
         errors.append("project_directory must not be empty")
+
+    for label in configuration.virtual_projects:
+        if label == configuration.project_key:
+            errors.append("virtual project label conflicts with project key")
+            break
+
+    if configuration.new_issue_project is not None:
+        target = configuration.new_issue_project
+        if (
+            target != "ask"
+            and target != configuration.project_key
+            and target not in configuration.virtual_projects
+        ):
+            errors.append("new_issue_project references unknown project")
 
     if not configuration.hierarchy:
         errors.append("hierarchy must not be empty")
@@ -255,6 +271,23 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
                 )
 
     return errors
+
+
+def _normalize_virtual_projects(data: dict) -> None:
+    """Convert virtual_projects from a list (e.g. []) to an empty dict.
+
+    Older configs used a list format; the model expects a dict mapping labels
+    to VirtualProjectConfig.
+    """
+    if isinstance(data.get("virtual_projects"), list):
+        data["virtual_projects"] = {}
+
+
+def _reject_legacy_fields(data: dict) -> None:
+    if "external_projects" in data:
+        raise ConfigurationError(
+            "external_projects has been replaced by virtual_projects"
+        )
 
 
 def _has_unknown_fields(error: ValidationError) -> bool:

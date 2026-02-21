@@ -34,6 +34,8 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     let mut merged_value = merge_with_defaults(raw_value)?;
     let overrides = load_override_configuration(path.parent().unwrap_or(Path::new(".")))?;
     merged_value = apply_overrides(merged_value, overrides);
+    reject_legacy_fields(&merged_value)?;
+    normalize_virtual_projects(&mut merged_value);
     let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
         .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
 
@@ -92,6 +94,22 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
 
     if configuration.project_directory.trim().is_empty() {
         errors.push("project_directory must not be empty".to_string());
+    }
+
+    for label in configuration.virtual_projects.keys() {
+        if label == &configuration.project_key {
+            errors.push("virtual project label conflicts with project key".to_string());
+            break;
+        }
+    }
+
+    if let Some(ref target) = configuration.new_issue_project {
+        if target != "ask"
+            && target != &configuration.project_key
+            && !configuration.virtual_projects.contains_key(target)
+        {
+            errors.push("new_issue_project references unknown project".to_string());
+        }
     }
 
     if configuration.hierarchy.is_empty() {
@@ -269,6 +287,26 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
     }
 
     errors
+}
+
+/// Convert `virtual_projects` from a YAML sequence (e.g. `[]`) to an empty
+/// mapping so that it deserializes into `BTreeMap<String, VirtualProjectConfig>`.
+/// Older configs (and the old `external_projects` field) used a list format.
+fn normalize_virtual_projects(mapping: &mut Mapping) {
+    let key = Value::String("virtual_projects".to_string());
+    if let Some(Value::Sequence(_)) = mapping.get(&key) {
+        mapping.insert(key, Value::Mapping(Mapping::new()));
+    }
+}
+
+fn reject_legacy_fields(mapping: &Mapping) -> Result<(), KanbusError> {
+    let key = Value::String("external_projects".to_string());
+    if mapping.contains_key(&key) {
+        return Err(KanbusError::Configuration(
+            "external_projects has been replaced by virtual_projects".to_string(),
+        ));
+    }
+    Ok(())
 }
 
 fn map_configuration_error(error: &serde_yaml::Error) -> String {
