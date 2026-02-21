@@ -5,6 +5,10 @@ use std::path::{Path, PathBuf};
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
+use crate::event_history::{
+    events_dir_for_local, events_dir_for_project, issue_created_payload, now_timestamp,
+    write_events_batch, EventRecord, EventType,
+};
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::ids::{generate_issue_identifier, IssueIdentifierRequest};
 use crate::issue_files::{
@@ -12,10 +16,6 @@ use crate::issue_files::{
 };
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::users::get_current_user;
-use crate::event_history::{
-    events_dir_for_local, events_dir_for_project, issue_created_payload, now_timestamp,
-    write_events_batch, EventRecord, EventType,
-};
 use crate::workflows::validate_status_value;
 use crate::{
     file_io::{

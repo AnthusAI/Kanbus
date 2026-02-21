@@ -5,8 +5,8 @@ use std::path::Path;
 
 use crate::error::KanbusError;
 use crate::event_history::{
-    events_dir_for_local, events_dir_for_project, now_timestamp, transfer_payload, write_events_batch,
-    EventRecord, EventType,
+    events_dir_for_local, events_dir_for_project, now_timestamp, transfer_payload,
+    write_events_batch, EventRecord, EventType,
 };
 use crate::file_io::{
     ensure_project_local_directory, find_project_local_directory, load_project_directory,

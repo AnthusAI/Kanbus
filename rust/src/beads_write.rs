@@ -271,9 +271,8 @@ pub fn add_beads_comment(
     write_beads_records(&issues_path, &records)?;
 
     let project_dir = load_project_directory(root)?;
-    let comment_id = created_comment_id.ok_or_else(|| {
-        KanbusError::IssueOperation("comment id is required".to_string())
-    })?;
+    let comment_id = created_comment_id
+        .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
     let comment_author = comment_author.unwrap_or_default();
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
@@ -281,7 +280,10 @@ pub fn add_beads_comment(
         identifier.to_string(),
         EventType::CommentAdded,
         actor_id,
-        comment_payload(&beads_comment_uuid(identifier, &comment_id), &comment_author),
+        comment_payload(
+            &beads_comment_uuid(identifier, &comment_id),
+            &comment_author,
+        ),
         occurred_at,
     );
     let events_dir = events_dir_for_project(&project_dir);
@@ -334,7 +336,12 @@ pub fn update_beads_comment(
                 .get("id")
                 .and_then(Value::as_i64)
                 .map(|value| value.to_string())
-                .or_else(|| comment.get("id").and_then(Value::as_str).map(str::to_string));
+                .or_else(|| {
+                    comment
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                });
             updated_comment_author = comment
                 .get("author")
                 .and_then(Value::as_str)
@@ -355,9 +362,8 @@ pub fn update_beads_comment(
     write_beads_records(&issues_path, &records)?;
 
     let project_dir = load_project_directory(root)?;
-    let comment_id = updated_comment_id.ok_or_else(|| {
-        KanbusError::IssueOperation("comment id is required".to_string())
-    })?;
+    let comment_id = updated_comment_id
+        .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
     let comment_author = updated_comment_author.unwrap_or_default();
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
@@ -365,7 +371,10 @@ pub fn update_beads_comment(
         identifier.to_string(),
         EventType::CommentUpdated,
         actor_id,
-        comment_updated_payload(&beads_comment_uuid(identifier, &comment_id), &comment_author),
+        comment_updated_payload(
+            &beads_comment_uuid(identifier, &comment_id),
+            &comment_author,
+        ),
         occurred_at,
     );
     let events_dir = events_dir_for_project(&project_dir);
@@ -417,7 +426,12 @@ pub fn delete_beads_comment(
                 .get("id")
                 .and_then(Value::as_i64)
                 .map(|value| value.to_string())
-                .or_else(|| removed.get("id").and_then(Value::as_str).map(str::to_string));
+                .or_else(|| {
+                    removed
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                });
             deleted_comment_author = removed
                 .get("author")
                 .and_then(Value::as_str)
@@ -438,9 +452,8 @@ pub fn delete_beads_comment(
     write_beads_records(&issues_path, &records)?;
 
     let project_dir = load_project_directory(root)?;
-    let comment_id = deleted_comment_id.ok_or_else(|| {
-        KanbusError::IssueOperation("comment id is required".to_string())
-    })?;
+    let comment_id = deleted_comment_id
+        .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
     let comment_author = deleted_comment_author.unwrap_or_default();
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
@@ -448,7 +461,10 @@ pub fn delete_beads_comment(
         identifier.to_string(),
         EventType::CommentDeleted,
         actor_id,
-        comment_payload(&beads_comment_uuid(identifier, &comment_id), &comment_author),
+        comment_payload(
+            &beads_comment_uuid(identifier, &comment_id),
+            &comment_author,
+        ),
         occurred_at,
     );
     let events_dir = events_dir_for_project(&project_dir);

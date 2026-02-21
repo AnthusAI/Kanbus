@@ -6,15 +6,15 @@ use std::path::Path;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
+use crate::event_history::{
+    build_update_events, events_dir_for_issue_path, now_timestamp, write_events_batch,
+};
 use crate::file_io::get_configuration_path;
 use crate::issue_creation::resolve_issue_identifier;
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::IssueData;
 use crate::users::get_current_user;
-use crate::event_history::{
-    build_update_events, events_dir_for_issue_path, now_timestamp, write_events_batch,
-};
 use crate::workflows::{
     apply_transition_side_effects, validate_status_transition, validate_status_value,
 };

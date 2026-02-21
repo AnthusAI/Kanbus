@@ -208,7 +208,12 @@ pub fn transfer_payload(from_location: &str, to_location: &str) -> Value {
 
 pub fn field_update_payload(before: &IssueData, after: &IssueData) -> Option<Value> {
     let mut changes = Map::new();
-    push_change(&mut changes, "title", json!(before.title), json!(after.title));
+    push_change(
+        &mut changes,
+        "title",
+        json!(before.title),
+        json!(after.title),
+    );
     push_change(
         &mut changes,
         "description",
@@ -227,8 +232,18 @@ pub fn field_update_payload(before: &IssueData, after: &IssueData) -> Option<Val
         json!(before.priority),
         json!(after.priority),
     );
-    push_change(&mut changes, "labels", json!(before.labels), json!(after.labels));
-    push_change(&mut changes, "parent", json!(before.parent), json!(after.parent));
+    push_change(
+        &mut changes,
+        "labels",
+        json!(before.labels),
+        json!(after.labels),
+    );
+    push_change(
+        &mut changes,
+        "parent",
+        json!(before.parent),
+        json!(after.parent),
+    );
     if changes.is_empty() {
         None
     } else {
@@ -313,6 +328,10 @@ pub fn load_issue_events(
             next_before = Some(filename);
         }
     }
-    let cursor = if results.len() >= limit { next_before } else { None };
+    let cursor = if results.len() >= limit {
+        next_before
+    } else {
+        None
+    };
     Ok((results, cursor))
 }

@@ -4,6 +4,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::error::KanbusError;
+use crate::event_history::{
+    dependency_payload, events_dir_for_issue_path, now_timestamp, write_events_batch, EventRecord,
+    EventType,
+};
 use crate::file_io::{
     discover_kanbus_projects, discover_project_directories, find_project_local_directory,
     load_project_directory,
@@ -12,10 +16,6 @@ use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::{load_issue_from_project, IssueLookupResult};
 use crate::models::{DependencyLink, IssueData};
 use crate::users::get_current_user;
-use crate::event_history::{
-    dependency_payload, events_dir_for_issue_path, now_timestamp, write_events_batch, EventRecord,
-    EventType,
-};
 
 const ALLOWED_DEPENDENCY_TYPES: [&str; 2] = ["blocked-by", "relates-to"];
 
@@ -80,7 +80,8 @@ pub fn add_dependency(
         dependency_payload(dependency_type, target_id),
         occurred_at,
     );
-    let events_dir = events_dir_for_issue_path(&source_lookup.project_dir, &source_lookup.issue_path)?;
+    let events_dir =
+        events_dir_for_issue_path(&source_lookup.project_dir, &source_lookup.issue_path)?;
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
         Err(error) => {
