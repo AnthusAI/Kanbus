@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import List
 
@@ -28,6 +29,7 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     if not path.exists():
         raise ConfigurationError("configuration file not found")
 
+    _load_dotenv(path.parent / ".env")
     data = _load_configuration_data(path)
     _validate_canonical_config_overrides(path, data)
     override = _load_override_configuration(path.parent / ".kanbus.override.yml")
@@ -50,6 +52,32 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
             raise ConfigurationError("; ".join(workflow_errors))
 
     return configuration
+
+
+def _load_dotenv(path: Path) -> None:
+    if not path.exists():
+        return
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.lower().startswith("export "):
+            stripped = stripped[7:].lstrip()
+        if "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+        os.environ[key] = value
 
 
 def _validate_canonical_config_overrides(path: Path, data: dict) -> None:
