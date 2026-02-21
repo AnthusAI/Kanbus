@@ -258,7 +258,11 @@ def build_beads_cli(beads_repo: Path, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     suppress_beads_test_helpers(beads_repo)
     binary = output_dir / "bd"
-    result = run_command(["go", "build", "-o", str(binary), "./cmd/bd"], cwd=beads_repo)
+    env = os.environ.copy()
+    env["GOTOOLCHAIN"] = "auto"
+    result = run_command(
+        ["go", "build", "-o", str(binary), "./cmd/bd"], cwd=beads_repo, env=env
+    )
     ensure_success(result, "bd build")
     if not binary.exists():
         raise RuntimeError("bd binary not found after build")
