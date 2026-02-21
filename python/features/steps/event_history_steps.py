@@ -8,7 +8,11 @@ from pathlib import Path
 
 from behave import then, when
 
-from features.steps.shared import capture_issue_identifier, load_project_directory, run_cli
+from features.steps.shared import (
+    capture_issue_identifier,
+    load_project_directory,
+    run_cli,
+)
 
 
 def _last_issue_id(context: object) -> str:
@@ -50,13 +54,13 @@ def when_update_last_issue_status(context: object, status: str) -> None:
 @when('I update the last issue title to "{title}"')
 def when_update_last_issue_title(context: object, title: str) -> None:
     identifier = _last_issue_id(context)
-    run_cli(context, f"kanbus update {identifier} --title \"{title}\"")
+    run_cli(context, f'kanbus update {identifier} --title "{title}"')
 
 
 @when('I add a comment to the last issue with text "{text}"')
 def when_add_comment_last_issue(context: object, text: str) -> None:
     identifier = _last_issue_id(context)
-    run_cli(context, f"kanbus comment {identifier} \"{text}\"")
+    run_cli(context, f'kanbus comment {identifier} "{text}"')
 
 
 @when('I add a blocked-by dependency from the last issue to "{target}"')
@@ -101,7 +105,10 @@ def then_event_log_state_transition(
         if event.get("event_type") != "state_transition":
             continue
         payload = event.get("payload", {})
-        if payload.get("from_status") == from_status and payload.get("to_status") == to_status:
+        if (
+            payload.get("from_status") == from_status
+            and payload.get("to_status") == to_status
+        ):
             found = True
             break
     assert found, f"expected state transition {from_status} -> {to_status}"
