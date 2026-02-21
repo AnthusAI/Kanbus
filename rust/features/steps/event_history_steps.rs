@@ -300,7 +300,9 @@ fn then_event_log_comment_added(world: &mut KanbusWorld, author: String) {
         if record.get("event_type").and_then(|value| value.as_str()) != Some("comment_added") {
             return false;
         }
-        let payload = record.get("payload")?;
+        let Some(payload) = record.get("payload") else {
+            return false;
+        };
         let comment_author = payload.get("comment_author").and_then(|v| v.as_str());
         let comment_id = payload.get("comment_id").and_then(|v| v.as_str());
         comment_author == Some(author.as_str()) && comment_id.is_some()
@@ -336,7 +338,9 @@ fn then_event_log_dependency(world: &mut KanbusWorld, dependency_type: String, t
         if record.get("event_type").and_then(|value| value.as_str()) != Some("dependency_added") {
             return false;
         }
-        let payload = record.get("payload")?;
+        let Some(payload) = record.get("payload") else {
+            return false;
+        };
         let dep_type = payload.get("dependency_type").and_then(|v| v.as_str());
         let target_id = payload.get("target_id").and_then(|v| v.as_str());
         dep_type == Some(dependency_type.as_str()) && target_id == Some(target.as_str())
