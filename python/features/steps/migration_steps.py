@@ -8,12 +8,7 @@ from pathlib import Path
 
 from behave import given, then, when
 
-from features.steps.shared import (
-    ensure_git_repository,
-    ensure_project_directory,
-    load_project_directory,
-    run_cli,
-)
+from features.steps.shared import ensure_git_repository, load_project_directory, run_cli
 from kanbus.migration import MigrationError, migrate_from_beads
 
 
@@ -32,7 +27,6 @@ def given_repo_with_beads(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     target_beads = repository_path / ".beads"
     shutil.copytree(_fixture_beads_dir(), target_beads)
     context.working_directory = repository_path
@@ -43,7 +37,6 @@ def given_repo_without_beads(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     context.working_directory = repository_path
 
 
@@ -52,7 +45,6 @@ def given_repo_empty_beads(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     (repository_path / ".beads").mkdir()
     context.working_directory = repository_path
 
@@ -62,7 +54,6 @@ def given_repo_with_empty_issues_jsonl(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     beads_dir = repository_path / ".beads"
     beads_dir.mkdir()
     (beads_dir / "issues.jsonl").write_text("", encoding="utf-8")
@@ -74,7 +65,6 @@ def given_repo_with_blank_lines(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     beads_dir = repository_path / ".beads"
     beads_dir.mkdir()
     record = {
@@ -100,7 +90,6 @@ def given_repo_with_invalid_beads_id(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     beads_dir = repository_path / ".beads"
     beads_dir.mkdir()
     record = {
@@ -123,7 +112,6 @@ def given_repo_with_metadata_dependencies(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     beads_dir = repository_path / ".beads"
     beads_dir.mkdir()
     base = {
@@ -156,7 +144,6 @@ def given_repo_with_feature_issue(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     beads_dir = repository_path / ".beads"
     beads_dir.mkdir()
     record = {
@@ -179,7 +166,6 @@ def given_repo_with_epic_parent_child(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     beads_dir = repository_path / ".beads"
     beads_dir.mkdir()
     parent_record = {
@@ -222,7 +208,6 @@ def given_repo_with_fractional_timestamps(context: object) -> None:
     repository_path = Path(context.temp_dir) / "repo"
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
-    ensure_project_directory(repository_path)
     beads_dir = repository_path / ".beads"
     beads_dir.mkdir()
     records = [
@@ -295,7 +280,6 @@ def when_validate_migration_errors(context: object) -> None:
         repo = Path(context.temp_dir) / f"case-{label}"
         repo.mkdir(parents=True, exist_ok=True)
         ensure_git_repository(repo)
-        ensure_project_directory(repo)
         beads_dir = repo / ".beads"
         beads_dir.mkdir()
         lines = "\n".join(json.dumps(record) for record in records)
