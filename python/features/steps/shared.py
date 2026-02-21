@@ -147,6 +147,20 @@ def ensure_git_repository(path: Path) -> None:
     subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)
 
 
+def ensure_project_directory(path: Path) -> Path:
+    """Create a minimal project directory for test fixtures.
+
+    :param path: Repository root path.
+    :type path: Path
+    :return: Project directory path.
+    :rtype: Path
+    """
+    project_dir = path / "project"
+    (project_dir / "issues").mkdir(parents=True, exist_ok=True)
+    (project_dir / "events").mkdir(parents=True, exist_ok=True)
+    return project_dir
+
+
 def initialize_default_project(context: object) -> None:
     """Create a default project repository and run kanbus init.
 
