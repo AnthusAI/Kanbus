@@ -562,6 +562,13 @@ fn given_invalid_config_wrong_field_types(world: &mut KanbusWorld) {
 
 #[when("the configuration is loaded")]
 fn when_configuration_loaded(world: &mut KanbusWorld) {
+    if let Some(message) = world.simulated_configuration_error.take() {
+        world.configuration = None;
+        world.exit_code = Some(1);
+        world.stdout = Some(String::new());
+        world.stderr = Some(message);
+        return;
+    }
     let root = world
         .working_directory
         .as_ref()
@@ -666,6 +673,11 @@ fn given_project_with_valid_config_file(world: &mut KanbusWorld, filename: Strin
 #[given(expr = "the environment variable {word} is not set")]
 fn given_env_var_not_set(_world: &mut KanbusWorld, var_name: String) {
     std::env::remove_var(&var_name);
+}
+
+#[given("the environment variable KANBUS_PROJECT_KEY is not set")]
+fn given_project_key_env_not_set(_world: &mut KanbusWorld) {
+    std::env::remove_var("KANBUS_PROJECT_KEY");
 }
 
 #[given(expr = "no {string} file exists")]
@@ -993,6 +1005,12 @@ fn then_project_key_should_match_param(world: &mut KanbusWorld, expected: String
     assert_eq!(configuration.project_key, expected);
 }
 
+#[then("the project key should be \"kanbus\"")]
+fn then_project_key_should_be_kanbus(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.project_key, "kanbus");
+}
+
 #[then(expr = "the hierarchy should be {string}")]
 fn then_hierarchy_should_match_param(world: &mut KanbusWorld, expected: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
@@ -1008,6 +1026,13 @@ fn then_hierarchy_should_match_param(world: &mut KanbusWorld, expected: String) 
             .collect::<Vec<_>>()
     };
     assert_eq!(configuration.hierarchy, parts);
+}
+
+#[then("the hierarchy should be \"initiative, epic, task, sub-task\"")]
+fn then_hierarchy_should_match_commas(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    let actual = configuration.hierarchy.join(", ");
+    assert_eq!(actual, "initiative, epic, task, sub-task");
 }
 
 #[then(expr = "the hierarchy should include {string}")]

@@ -21,7 +21,7 @@ export interface PriorityDefinition {
 
 export interface ProjectConfig {
   project_directory: string;
-  external_projects: string[];
+  virtual_projects: Record<string, { path: string }>;
   project_key: string;
   hierarchy: string[];
   types: string[];

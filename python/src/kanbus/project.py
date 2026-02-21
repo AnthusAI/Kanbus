@@ -4,11 +4,20 @@ from __future__ import annotations
 
 import os
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Optional
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.models import ProjectConfiguration
+
+
+@dataclass
+class ResolvedProject:
+    """A resolved project directory with its label."""
+
+    label: str
+    project_dir: Path
 
 
 class ProjectMarkerError(RuntimeError):
@@ -50,19 +59,53 @@ def discover_kanbus_projects(root: Path) -> List[Path]:
     return _normalize_project_directories(project_dirs)
 
 
+def resolve_labeled_projects(root: Path) -> List[ResolvedProject]:
+    """Resolve all labeled project directories from configuration.
+
+    :param root: Repository root.
+    :type root: Path
+    :return: List of resolved projects with labels.
+    :rtype: List[ResolvedProject]
+    :raises ProjectMarkerError: If configuration or paths are invalid.
+    """
+    config_path = get_configuration_path(root)
+    try:
+        configuration = load_project_configuration(config_path)
+    except RuntimeError as error:
+        raise ProjectMarkerError(str(error)) from error
+    return _resolve_labeled_project_directories(config_path.parent, configuration)
+
+
+def _resolve_labeled_project_directories(
+    base: Path, configuration: ProjectConfiguration
+) -> List[ResolvedProject]:
+    projects: List[ResolvedProject] = []
+    primary = base / configuration.project_directory
+    projects.append(ResolvedProject(label=configuration.project_key, project_dir=primary))
+    for label, vp in configuration.virtual_projects.items():
+        candidate = Path(vp.path)
+        if not candidate.is_absolute():
+            candidate = base / candidate
+        candidate = resolve_project_path(candidate)
+        if not candidate.is_dir():
+            raise ProjectMarkerError(f"virtual project path not found: {candidate}")
+        projects.append(ResolvedProject(label=label, project_dir=candidate))
+    return projects
+
+
 def _resolve_project_directories(
     base: Path, configuration: ProjectConfiguration
 ) -> List[Path]:
     paths: List[Path] = []
     primary = base / configuration.project_directory
     paths.append(primary)
-    for extra in configuration.external_projects:
-        candidate = Path(extra)
+    for vp in configuration.virtual_projects.values():
+        candidate = Path(vp.path)
         if not candidate.is_absolute():
             candidate = base / candidate
         candidate = resolve_project_path(candidate)
         if not candidate.is_dir():
-            raise ProjectMarkerError(f"kanbus path not found: {candidate}")
+            raise ProjectMarkerError(f"virtual project path not found: {candidate}")
         paths.append(candidate)
     return paths
 
@@ -176,7 +219,7 @@ def load_project_directory(root: Path) -> Path:
         raise ProjectMarkerError(
             f"multiple projects found: {discovered}. "
             "Run this command from a directory with a single project/, "
-            "or remove extra entries from external_projects in .kanbus.yml."
+            "or remove extra entries from virtual_projects in .kanbus.yml."
         )
 
     return project_dirs[0]

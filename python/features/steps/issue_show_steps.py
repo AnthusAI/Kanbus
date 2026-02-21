@@ -12,7 +12,6 @@ from features.steps.shared import (
     build_issue,
     load_project_directory,
     read_issue_file,
-    run_cli,
     write_issue_file,
 )
 from kanbus.config_loader import load_project_configuration
@@ -35,38 +34,6 @@ def given_issue_status_and_type(context: object) -> None:
     issue = read_issue_file(project_dir, "kanbus-aaa")
     issue = issue.model_copy(update={"status": "open", "issue_type": "task"})
     write_issue_file(project_dir, issue)
-
-
-@when('I run "kanbus show kanbus-aaa"')
-def when_run_show(context: object) -> None:
-    run_cli(context, "kanbus show kanbus-aaa")
-
-
-@when('I run "kanbus show kanbus-desc"')
-def when_run_show_desc(context: object) -> None:
-    run_cli(context, "kanbus show kanbus-desc")
-
-
-@when('I run "kanbus show kanbus-aaa --json"')
-def when_run_show_json(context: object) -> None:
-    run_cli(context, "kanbus show kanbus-aaa --json")
-
-
-@when('I run "kanbus show kanbus-labels"')
-def when_run_show_labels(context: object) -> None:
-    run_cli(context, "kanbus show kanbus-labels")
-
-
-@when('I run "kanbus show kanbus-missing"')
-def when_run_show_missing(context: object) -> None:
-    run_cli(context, "kanbus show kanbus-missing")
-
-
-@when('I format issue "kanbus-labels" for display')
-def when_format_issue_for_display(context: object) -> None:
-    project_dir = load_project_directory(context)
-    issue = read_issue_file(project_dir, "kanbus-labels")
-    context.formatted_output = format_issue_for_display(issue)
 
 
 @when('I format issue "{identifier}" for display')

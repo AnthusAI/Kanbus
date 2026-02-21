@@ -10,7 +10,6 @@ from features.steps.shared import (
     build_issue,
     load_project_directory,
     read_issue_file,
-    run_cli,
     write_issue_file,
 )
 from kanbus.issue_comment import (
@@ -27,31 +26,6 @@ def given_current_user(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
     overrides["KANBUS_USER"] = "dev@example.com"
     context.environment_overrides = overrides
-
-
-@when('I run "kanbus comment kanbus-aaa \\"First comment\\""')
-def when_comment_first(context: object) -> None:
-    run_cli(context, 'kanbus comment kanbus-aaa "First comment"')
-
-
-@when('I run "kanbus comment kanbus-aaa \\"Second comment\\""')
-def when_comment_second(context: object) -> None:
-    run_cli(context, 'kanbus comment kanbus-aaa "Second comment"')
-
-
-@when('I run "kanbus comment kanbus-missing \\"Missing issue note\\""')
-def when_comment_missing(context: object) -> None:
-    run_cli(context, 'kanbus comment kanbus-missing "Missing issue note"')
-
-
-@when('I run "kanbus comment kanbus-note \\"Searchable comment\\""')
-def when_comment_note(context: object) -> None:
-    run_cli(context, 'kanbus comment kanbus-note "Searchable comment"')
-
-
-@when('I run "kanbus comment kanbus-dup \\"Dup keyword\\""')
-def when_comment_dup(context: object) -> None:
-    run_cli(context, 'kanbus comment kanbus-dup "Dup keyword"')
 
 
 @then('issue "kanbus-aaa" should have 1 comment')

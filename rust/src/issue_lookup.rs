@@ -4,10 +4,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::error::KanbusError;
-use crate::file_io::load_project_directory;
+use crate::file_io::find_project_local_directory;
 use crate::ids::format_issue_key;
 use crate::issue_files::{issue_path_for_identifier, read_issue_from_file};
 use crate::models::IssueData;
+use crate::project::discover_project_directories;
 
 /// Issue lookup result.
 #[derive(Debug)]
@@ -29,25 +30,39 @@ pub fn load_issue_from_project(
     root: &Path,
     identifier: &str,
 ) -> Result<IssueLookupResult, KanbusError> {
-    let project_dir = load_project_directory(root)?;
-    let issues_dir = project_dir.join("issues");
-
-    let issue_path = issue_path_for_identifier(&issues_dir, identifier);
-    if issue_path.exists() {
-        let issue = read_issue_from_file(&issue_path)?;
-        return Ok(IssueLookupResult {
-            issue,
-            issue_path,
-            project_dir,
-        });
+    let project_dirs = discover_project_directories(root)?;
+    if project_dirs.is_empty() {
+        return Err(KanbusError::IssueOperation(
+            "project not initialized".to_string(),
+        ));
     }
 
-    let matches = find_matching_issues(&issues_dir, identifier)?;
+    let mut all_matches: Vec<(String, PathBuf, PathBuf)> = Vec::new();
 
-    match matches.len() {
+    for project_dir in &project_dirs {
+        for issues_dir in search_directories(project_dir) {
+            let issue_path = issue_path_for_identifier(&issues_dir, identifier);
+            if issue_path.exists() {
+                let issue = read_issue_from_file(&issue_path)?;
+                return Ok(IssueLookupResult {
+                    issue,
+                    issue_path,
+                    project_dir: project_dir.clone(),
+                });
+            }
+
+            if let Ok(matches) = find_matching_issues(&issues_dir, identifier) {
+                for (full_id, path) in matches {
+                    all_matches.push((full_id, path, project_dir.clone()));
+                }
+            }
+        }
+    }
+
+    match all_matches.len() {
         0 => Err(KanbusError::IssueOperation("not found".to_string())),
         1 => {
-            let (_full_id, issue_path) = matches.into_iter().next().unwrap();
+            let (_full_id, issue_path, project_dir) = all_matches.into_iter().next().unwrap();
             let issue = read_issue_from_file(&issue_path)?;
             Ok(IssueLookupResult {
                 issue,
@@ -56,13 +71,22 @@ pub fn load_issue_from_project(
             })
         }
         _ => {
-            let ids: Vec<String> = matches.into_iter().map(|(id, _)| id).collect();
+            let ids: Vec<String> = all_matches.into_iter().map(|(id, _, _)| id).collect();
             Err(KanbusError::IssueOperation(format!(
                 "ambiguous identifier, matches: {}",
                 ids.join(", ")
             )))
         }
     }
+}
+
+/// Return issue directories to search for a given project directory.
+fn search_directories(project_dir: &Path) -> Vec<PathBuf> {
+    let mut dirs = vec![project_dir.join("issues")];
+    if let Some(local_dir) = find_project_local_directory(project_dir) {
+        dirs.push(local_dir.join("issues"));
+    }
+    dirs
 }
 
 /// Find issues that match an abbreviated identifier.

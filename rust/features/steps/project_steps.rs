@@ -191,7 +191,12 @@ fn given_repo_kanbus_external_project(world: &mut KanbusWorld) {
         &build_issue("kanbus-external", "External task"),
     );
     let mut configuration = default_project_configuration();
-    configuration.external_projects = vec![external_project.display().to_string()];
+    configuration.virtual_projects.insert(
+        "external".to_string(),
+        kanbus::models::VirtualProjectConfig {
+            path: external_project.display().to_string(),
+        },
+    );
     let payload = serde_yaml::to_string(&configuration).expect("serialize config");
     fs::write(root.join(".kanbus.yml"), payload).expect("write config");
     world.expected_project_path = Some(external_project);
@@ -201,7 +206,12 @@ fn given_repo_kanbus_external_project(world: &mut KanbusWorld) {
 fn given_repo_kanbus_missing(world: &mut KanbusWorld) {
     let root = create_repo(world, "kanbus-missing");
     let mut configuration = default_project_configuration();
-    configuration.external_projects = vec!["missing/project".to_string()];
+    configuration.virtual_projects.insert(
+        "missing".to_string(),
+        kanbus::models::VirtualProjectConfig {
+            path: "missing/project".to_string(),
+        },
+    );
     let payload = serde_yaml::to_string(&configuration).expect("serialize config");
     fs::write(root.join(".kanbus.yml"), payload).expect("write config");
 }
@@ -370,7 +380,10 @@ fn then_project_permission_denied(world: &mut KanbusWorld) {
 #[then("project discovery should fail with \"kanbus path not found\"")]
 fn then_project_missing(world: &mut KanbusWorld) {
     let error = world.project_error.as_ref().expect("error");
-    assert!(error.starts_with("kanbus path not found"));
+    assert!(
+        error.contains("path not found"),
+        "expected 'path not found' in error: {error}"
+    );
 }
 
 #[then("project discovery should fail with \"unknown configuration fields\"")]

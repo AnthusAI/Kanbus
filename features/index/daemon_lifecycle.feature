@@ -84,7 +84,7 @@ Feature: Daemon lifecycle for just-in-time indexing
     And daemon mode is enabled
     When I run "kanbus daemon-status"
     Then the command should fail with exit code 1
-    And stderr should contain "kanbus path not found"
+    And stderr should contain "virtual project path not found"
 
   Scenario: Daemon status reports ok when running
     Given a Kanbus project with default configuration

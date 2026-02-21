@@ -14,9 +14,13 @@ use kanbus::daemon_protocol::{ErrorEnvelope, RequestEnvelope, ResponseEnvelope, 
 use kanbus::daemon_server::handle_request_for_testing;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
+use crate::step_definitions::virtual_project_steps::maybe_simulate_virtual_project_command;
 
 fn run_cli_command(world: &mut KanbusWorld, command: &str) {
     let normalized = command.replace("\\\"", "\"");
+    if maybe_simulate_virtual_project_command(world, &normalized) {
+        return;
+    }
     let args = shell_words::split(&normalized).expect("parse command");
     let cwd = world
         .working_directory
@@ -201,6 +205,9 @@ fn build_kbs_binary() -> PathBuf {
 
 fn run_cli_command_with_stdin(world: &mut KanbusWorld, command: &str, input: &str) {
     let normalized = command.replace("\\\"", "\"");
+    if maybe_simulate_virtual_project_command(world, &normalized) {
+        return;
+    }
     let mut args = shell_words::split(&normalized).expect("parse command");
     if matches!(args.first().map(String::as_str), Some("kanbus")) {
         args.remove(0);
@@ -228,7 +235,18 @@ fn run_cli_command_with_stdin(world: &mut KanbusWorld, command: &str, input: &st
             .write_all(normalized_input.as_bytes())
             .expect("write stdin");
     }
-    let output = child.wait_with_output().expect("wait on kbs");
+    let output = match child.wait_with_output() {
+        Ok(output) => output,
+        Err(error) => {
+            if error.kind() == std::io::ErrorKind::BrokenPipe {
+                world.exit_code = Some(1);
+                world.stdout = Some(String::new());
+                world.stderr = Some("stdin closed unexpectedly".to_string());
+                return;
+            }
+            panic!("wait on kbs failed: {error}");
+        }
+    };
     world.exit_code = Some(output.status.code().unwrap_or(1));
     world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
     world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
@@ -261,6 +279,13 @@ fn run_cli_command_non_interactive(world: &mut KanbusWorld, command: &str) {
     world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
 }
 
+#[when(expr = "I run {string} non-interactively")]
+fn when_run_command_non_interactive(world: &mut KanbusWorld, command: String) {
+    std::env::set_var("KANBUS_NON_INTERACTIVE", "1");
+    run_cli_command_non_interactive(world, &command);
+    std::env::remove_var("KANBUS_NON_INTERACTIVE");
+}
+
 #[given(expr = "I run {string}")]
 fn given_run_command(world: &mut KanbusWorld, command: String) {
     run_cli_command(world, &command);
@@ -272,21 +297,18 @@ fn when_run_command(world: &mut KanbusWorld, command: String) {
 }
 
 #[given(expr = "I run {string} with stdin {string}")]
-fn given_run_command_with_stdin(world: &mut KanbusWorld, command: String, input: String) {
+fn given_run_command_with_stdin(world: &mut KanbusWorld, command: String, stdin_text: String) {
+    let input = stdin_text.replace("\\n", "\n");
     run_cli_command_with_stdin(world, &command, &input);
 }
 
 #[when(expr = "I run {string} with stdin {string}")]
-fn when_run_command_with_stdin(world: &mut KanbusWorld, command: String, input: String) {
+fn when_run_command_with_stdin(world: &mut KanbusWorld, command: String, stdin_text: String) {
+    let input = stdin_text.replace("\\n", "\n");
     run_cli_command_with_stdin(world, &command, &input);
 }
 
 #[when(expr = "I run {string} and respond {string}")]
 fn when_run_command_with_response(world: &mut KanbusWorld, command: String, response: String) {
-    run_cli_command_with_stdin(world, &command, &response);
-}
-
-#[when(expr = "I run {string} non-interactively")]
-fn when_run_command_non_interactive(world: &mut KanbusWorld, command: String) {
-    run_cli_command_non_interactive(world, &command);
+    run_cli_command_with_stdin(world, &command, &format!("{response}\n"));
 }

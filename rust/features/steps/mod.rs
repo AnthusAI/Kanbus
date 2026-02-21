@@ -34,5 +34,6 @@ pub mod project_steps;
 pub mod pytest_migration_steps;
 pub mod query_steps;
 pub mod users_steps;
+pub mod virtual_project_steps;
 pub mod wiki_steps;
 pub mod workflow_steps;

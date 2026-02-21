@@ -270,48 +270,88 @@ def given_kanbus_issue_with_parent_no_quotes(
 
 
 # Use a generic pattern for all command variants
-@when('I run "(?P<command>[^"]+)" with stdin "(?P<stdin_text>[^"]+)"')
+@when('I run "(?P<command>.+)" with stdin "(?P<stdin_text>.+)"')
+@given('I run "(?P<command>.+)" with stdin "(?P<stdin_text>.+)"')
 def when_run_command_with_stdin(context: object, command: str, stdin_text: str) -> None:
     """Generic step to run any kanbus command with stdin input."""
     # Decode escaped newlines
-    stdin_content = stdin_text.replace("\\n", "\n")
-    run_cli_with_input(context, command, stdin_content)
+    stdin_content = _normalize_step_text(stdin_text).replace("\\n", "\n")
+    command_text = _normalize_step_text(command)
+    if _maybe_handle_virtual_project_command(context, command_text, stdin_content):
+        return
+    run_cli_with_input(context, command_text, stdin_content)
 
 
 @when(r"I run (?P<command>[^\"].+) with stdin (?P<stdin_text>[^\"].+)")
 def when_run_command_with_stdin_no_quotes(
     context: object, command: str, stdin_text: str
 ) -> None:
-    stdin_content = stdin_text.replace("\\n", "\n")
-    run_cli_with_input(context, command, stdin_content)
+    stdin_content = _normalize_step_text(stdin_text).replace("\\n", "\n")
+    command_text = _normalize_step_text(command)
+    if _maybe_handle_virtual_project_command(context, command_text, stdin_content):
+        return
+    run_cli_with_input(context, command_text, stdin_content)
 
 
-@when('I run "(?P<command>[^"]+)" and respond "(?P<response>[^"]+)"')
+@when('I run "(?P<command>.+)" and respond "(?P<response>.+)"')
+@given('I run "(?P<command>.+)" and respond "(?P<response>.+)"')
 def when_run_command_and_respond(context: object, command: str, response: str) -> None:
-    run_cli_with_input(context, command, f"{response}\n")
+    command_text = _normalize_step_text(command)
+    response_text = _normalize_step_text(response)
+    if _maybe_handle_virtual_project_command(context, command_text, response_text):
+        return
+    run_cli_with_input(context, command_text, f"{response_text}\n")
 
 
-@when('I run "(?P<command>[^"]+)"')
+@when('I run "(?P<command>.+)"')
+@given('I run "(?P<command>.+)"')
 def when_run_command(context: object, command: str) -> None:
     """Generic step to run any kanbus command."""
-    run_cli(context, command)
+    command_text = _normalize_step_text(command)
+    if _maybe_handle_virtual_project_command(context, command_text, None):
+        return
+    run_cli(context, command_text)
 
 
 @when(r"I run (?P<command>[^\"].+?) and respond (?P<response>[^\".]+)")
 def when_run_command_and_respond_no_quotes(
     context: object, command: str, response: str
 ) -> None:
-    run_cli_with_input(context, command, f"{response}\n")
+    command_text = _normalize_step_text(command)
+    response_text = _normalize_step_text(response)
+    if _maybe_handle_virtual_project_command(context, command_text, response_text):
+        return
+    run_cli_with_input(context, command_text, f"{response_text}\n")
 
 
 @when(r"I run (?P<command>[^\"].+) non-interactively")
 def when_run_command_non_interactively_no_quotes(context: object, command: str) -> None:
-    run_cli(context, command)
+    command_text = _normalize_step_text(command)
+    if _maybe_handle_virtual_project_command(context, command_text, None):
+        return
+    run_cli(context, command_text)
 
 
 @when(r"I run (?P<command>[^\"].+)")
 def when_run_command_no_quotes(context: object, command: str) -> None:
-    run_cli(context, command)
+    command_text = _normalize_step_text(command)
+    if _maybe_handle_virtual_project_command(context, command_text, None):
+        return
+    run_cli(context, command_text)
+
+
+def _normalize_step_text(text: str) -> str:
+    return text.replace('\\"', '"').replace("\\'", "'")
+
+
+def _maybe_handle_virtual_project_command(
+    context: object, command: str, stdin_text: str | None
+) -> bool:
+    if not hasattr(context, "virtual_project_state"):
+        return False
+    from features.steps.virtual_project_steps import simulate_virtual_project_command
+
+    return simulate_virtual_project_command(context, command, stdin_text)
 
 
 @then('beads issues\\.jsonl should not contain "(?P<identifier>[^"]+)"')

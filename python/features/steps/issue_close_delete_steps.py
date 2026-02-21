@@ -4,27 +4,7 @@ from __future__ import annotations
 
 from behave import then, when
 
-from features.steps.shared import load_project_directory, run_cli
-
-
-@when('I run "kanbus close kanbus-aaa"')
-def when_run_close(context: object) -> None:
-    run_cli(context, "kanbus close kanbus-aaa")
-
-
-@when('I run "kanbus close kanbus-missing"')
-def when_run_close_missing(context: object) -> None:
-    run_cli(context, "kanbus close kanbus-missing")
-
-
-@when('I run "kanbus delete kanbus-aaa"')
-def when_run_delete(context: object) -> None:
-    run_cli(context, "kanbus delete kanbus-aaa")
-
-
-@when('I run "kanbus delete kanbus-missing"')
-def when_run_delete_missing(context: object) -> None:
-    run_cli(context, "kanbus delete kanbus-missing")
+from features.steps.shared import load_project_directory
 
 
 @then('issue "kanbus-aaa" should not exist')

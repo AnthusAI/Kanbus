@@ -13,7 +13,6 @@ from behave import given, then, when
 from features.steps.shared import (
     ensure_git_repository,
     ensure_project_directory,
-    run_cli,
 )
 from kanbus.beads_write import set_test_beads_slug_sequence
 from kanbus.config import DEFAULT_CONFIGURATION
@@ -55,121 +54,11 @@ def given_project_directory_exists(context: object) -> None:
     ensure_project_directory(Path(repository_path))
 
 
-@when('I run "kanbus --beads list"')
-def when_run_list_beads(context: object) -> None:
-    run_cli(context, "kanbus --beads list")
-
-
-@when('I run "kanbus --beads list --no-local"')
-def when_run_list_beads_no_local(context: object) -> None:
-    run_cli(context, "kanbus --beads list --no-local")
-
-
-@when('I run "kanbus --beads ready"')
-def when_run_ready_beads(context: object) -> None:
-    run_cli(context, "kanbus --beads ready")
-
-
-@when('I run "kanbus --beads ready --no-local"')
-def when_run_ready_beads_no_local(context: object) -> None:
-    run_cli(context, "kanbus --beads ready --no-local")
-
-
-@when('I run "kanbus --beads show {identifier}"')
-def when_run_show_beads(context: object, identifier: str) -> None:
-    run_cli(context, f"kanbus --beads show {identifier}")
-
-
-@when('I run "kanbus --beads create New beads child --parent bdx-epic"')
-def when_run_create_beads_child(context: object) -> None:
-    run_cli(context, "kanbus --beads create New beads child --parent bdx-epic")
-
-
 @then('beads issues.jsonl should contain "{identifier}"')
 def then_beads_jsonl_contains(context: object, identifier: str) -> None:
     issues_path = context.working_directory / ".beads" / "issues.jsonl"
     contents = issues_path.read_text(encoding="utf-8")
     assert identifier in contents
-
-
-@when('I run "kanbus --beads create Local beads issue --local"')
-def when_run_create_beads_local(context: object) -> None:
-    run_cli(context, "kanbus --beads create Local beads issue --local")
-
-
-@when('I run "kanbus --beads create Missing beads issue"')
-def when_run_create_beads_missing(context: object) -> None:
-    run_cli(context, "kanbus --beads create Missing beads issue")
-
-
-@when('I run "kanbus --beads create Missing issues file"')
-def when_run_create_beads_missing_issues(context: object) -> None:
-    run_cli(context, "kanbus --beads create Missing issues file")
-
-
-@when('I run "kanbus --beads create Empty beads file"')
-def when_run_create_beads_empty(context: object) -> None:
-    run_cli(context, "kanbus --beads create Empty beads file")
-
-
-@when('I run "kanbus --beads create Orphan beads issue --parent bdx-missing"')
-def when_run_create_beads_orphan(context: object) -> None:
-    run_cli(context, "kanbus --beads create Orphan beads issue --parent bdx-missing")
-
-
-@when('I run "kanbus --beads create Assigned beads issue --assignee dev@example.com"')
-def when_run_create_beads_assigned(context: object) -> None:
-    run_cli(
-        context,
-        "kanbus --beads create Assigned beads issue --assignee dev@example.com",
-    )
-
-
-@when('I run "kanbus --beads create Described beads issue --description Details"')
-def when_run_create_beads_description(context: object) -> None:
-    run_cli(
-        context, "kanbus --beads create Described beads issue --description Details"
-    )
-
-
-@when('I run "kanbus --beads create Beads with blanks"')
-def when_run_create_beads_blank(context: object) -> None:
-    run_cli(context, "kanbus --beads create Beads with blanks")
-
-
-@when('I run "kanbus --beads create Invalid prefix"')
-def when_run_create_beads_invalid_prefix(context: object) -> None:
-    run_cli(context, "kanbus --beads create Invalid prefix")
-
-
-@when('I run "kanbus --beads create Colliding beads issue"')
-def when_run_create_beads_collision(context: object) -> None:
-    run_cli(context, "kanbus --beads create Colliding beads issue")
-
-
-@when('I run "kanbus --beads create Next child --parent bdx-epic"')
-def when_run_create_beads_next_child(context: object) -> None:
-    run_cli(context, "kanbus --beads create Next child --parent bdx-epic")
-
-
-@when('I run "kanbus --beads update bdx-missing --status closed"')
-def when_run_update_beads_missing(context: object) -> None:
-    run_cli(context, "kanbus --beads update bdx-missing --status closed")
-
-
-@when('I run "kanbus --beads update bdx-epic --status closed"')
-def when_run_update_beads_success(context: object) -> None:
-    run_cli(context, "kanbus --beads update bdx-epic --status closed")
-
-
-@when('I run "kanbus --beads delete bdx-missing"')
-def when_run_delete_beads_missing(context: object) -> None:
-    run_cli(context, "kanbus --beads delete bdx-missing")
-
-
-@when('I run "kanbus --beads delete bdx-task"')
-def when_run_delete_beads_success(context: object) -> None:
-    run_cli(context, "kanbus --beads delete bdx-task")
 
 
 @then('beads issues.jsonl should include assignee "{assignee}"')

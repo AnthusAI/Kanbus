@@ -273,8 +273,8 @@ fn cover_additional_paths() {
         None,
     );
 
-    let _ = list_issues(root, None, None, None, None, None, None, true, false);
-    let _ = list_issues(root, None, None, None, None, None, None, false, true);
+    let _ = list_issues(root, None, None, None, None, None, None, &[], true, false);
+    let _ = list_issues(root, None, None, None, None, None, None, &[], false, true);
 
     let _ = build_console_snapshot(root);
 
@@ -378,12 +378,12 @@ fn cover_additional_paths() {
     fs::create_dir_all(extra_project.join("project").join("issues")).expect("extra project");
     fs::write(
         root_multi.join(".kanbus.yml"),
-        "external_projects:\n  - extra/project\n",
+        "virtual_projects:\n  extra:\n    path: extra/project\n",
     )
     .expect("write external projects");
     let _ = load_project_directory(root_multi);
-    let _ = list_issues(root_multi, None, None, None, None, None, None, true, true);
-    let _ = list_issues(root_multi, None, None, None, None, None, None, false, false);
+    let _ = list_issues(root_multi, None, None, None, None, None, None, &[], true, true);
+    let _ = list_issues(root_multi, None, None, None, None, None, None, &[], false, false);
     std::env::remove_var("KANBUS_NO_DAEMON");
     let _ = run_from_args_with_output(["kanbus", "daemon-status"], root_multi);
     std::env::set_var("KANBUS_NO_DAEMON", "1");

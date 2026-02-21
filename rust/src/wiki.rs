@@ -41,6 +41,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
         None,
         None,
         None,
+        &[],
         true,
         false,
     )?;

@@ -11,7 +11,6 @@ from features.steps.shared import (
     build_issue,
     load_project_directory,
     read_issue_file,
-    run_cli,
     write_issue_file,
 )
 from kanbus.dependencies import DependencyError, add_dependency, list_ready_issues
@@ -55,70 +54,6 @@ def then_issue_should_not_depend_on(
     )
 
 
-@when('I run "kanbus dep add kanbus-child --blocked-by kanbus-parent"')
-def when_run_dep_add_blocked(context: object) -> None:
-    from features.steps.shared import run_cli
-
-    run_cli(context, "kanbus dep add kanbus-child --blocked-by kanbus-parent")
-
-
-@when('I run "kanbus dep add kanbus-left --relates-to kanbus-right"')
-def when_run_dep_add_relates(context: object) -> None:
-    from features.steps.shared import run_cli
-
-    run_cli(context, "kanbus dep add kanbus-left --relates-to kanbus-right")
-
-
-@when('I run "kanbus dep add kanbus-left --blocked-by kanbus-right"')
-def when_run_dep_add_blocked_left(context: object) -> None:
-    run_cli(context, "kanbus dep add kanbus-left --blocked-by kanbus-right")
-
-
-@when('I run "kanbus dep remove kanbus-left --blocked-by kanbus-right"')
-def when_run_dep_remove(context: object) -> None:
-    run_cli(context, "kanbus dep remove kanbus-left --blocked-by kanbus-right")
-
-
-@when('I run "kanbus dep remove kanbus-left --relates-to kanbus-right"')
-def when_run_dep_remove_relates(context: object) -> None:
-    run_cli(context, "kanbus dep remove kanbus-left --relates-to kanbus-right")
-
-
-@when('I run "kanbus dep add kanbus-b --blocked-by kanbus-a"')
-def when_run_dep_add_cycle(context: object) -> None:
-    run_cli(context, "kanbus dep add kanbus-b --blocked-by kanbus-a")
-
-
-@when('I run "kanbus dep add kanbus-a --blocked-by kanbus-c"')
-def when_run_dep_add_shared_downstream(context: object) -> None:
-    run_cli(context, "kanbus dep add kanbus-a --blocked-by kanbus-c")
-
-
-@when('I run "kanbus dep add kanbus-missing --blocked-by kanbus-parent"')
-def when_run_dep_add_missing_issue(context: object) -> None:
-    run_cli(context, "kanbus dep add kanbus-missing --blocked-by kanbus-parent")
-
-
-@when('I run "kanbus ready"')
-def when_run_ready(context: object) -> None:
-    run_cli(context, "kanbus ready")
-
-
-@when('I run "kanbus ready --local-only --no-local"')
-def when_run_ready_conflict(context: object) -> None:
-    run_cli(context, "kanbus ready --local-only --no-local")
-
-
-@when('I run "kanbus ready --local-only"')
-def when_run_ready_local_only(context: object) -> None:
-    run_cli(context, "kanbus ready --local-only")
-
-
-@when('I run "kanbus ready --no-local"')
-def when_run_ready_no_local(context: object) -> None:
-    run_cli(context, "kanbus ready --no-local")
-
-
 @when("ready issues are listed for a single project")
 def when_ready_issues_listed_for_single_project(context: object) -> None:
     root = Path(context.working_directory)
@@ -133,46 +68,6 @@ def when_ready_issues_listed_for_single_project(context: object) -> None:
 def then_ready_list_should_contain(context: object, identifier: str) -> None:
     ready_ids = getattr(context, "ready_issue_ids", [])
     assert identifier in ready_ids
-
-
-@when('I run "kanbus dep tree kanbus-child"')
-def when_run_dep_tree_child(context: object) -> None:
-    run_cli(context, "kanbus dep tree kanbus-child")
-
-
-@when('I run "kanbus dep tree kanbus-c --depth 1"')
-def when_run_dep_tree_depth(context: object) -> None:
-    run_cli(context, "kanbus dep tree kanbus-c --depth 1")
-
-
-@when('I run "kanbus dep tree kanbus-root"')
-def when_run_dep_tree_root(context: object) -> None:
-    run_cli(context, "kanbus dep tree kanbus-root")
-
-
-@when('I run "kanbus dep tree kanbus-missing"')
-def when_run_dep_tree_missing(context: object) -> None:
-    run_cli(context, "kanbus dep tree kanbus-missing")
-
-
-@when('I run "kanbus dep tree kanbus-a"')
-def when_run_dep_tree_a(context: object) -> None:
-    run_cli(context, "kanbus dep tree kanbus-a")
-
-
-@when('I run "kanbus dep tree kanbus-child --format json"')
-def when_run_dep_tree_json(context: object) -> None:
-    run_cli(context, "kanbus dep tree kanbus-child --format json")
-
-
-@when('I run "kanbus dep tree kanbus-child --format dot"')
-def when_run_dep_tree_dot(context: object) -> None:
-    run_cli(context, "kanbus dep tree kanbus-child --format dot")
-
-
-@when('I run "kanbus dep tree kanbus-child --format invalid"')
-def when_run_dep_tree_invalid(context: object) -> None:
-    run_cli(context, "kanbus dep tree kanbus-child --format invalid")
 
 
 @given("a dependency tree with more than 25 nodes exists")
@@ -190,21 +85,6 @@ def given_large_dependency_tree(context: object) -> None:
                 }
             )
         write_issue_file(project_dir, issue)
-
-
-@when('I run "kanbus dep add kanbus-child"')
-def when_run_dep_add_missing_target(context: object) -> None:
-    run_cli(context, "kanbus dep add kanbus-child")
-
-
-@when('I run "kanbus dep remove kanbus-child"')
-def when_run_dep_remove_missing_target(context: object) -> None:
-    run_cli(context, "kanbus dep remove kanbus-child")
-
-
-@when('I run "kanbus dep remove kanbus-missing --blocked-by kanbus-parent"')
-def when_run_dep_remove_missing_issue(context: object) -> None:
-    run_cli(context, "kanbus dep remove kanbus-missing --blocked-by kanbus-parent")
 
 
 @dataclass

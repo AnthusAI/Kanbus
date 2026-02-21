@@ -6,7 +6,6 @@ use cucumber::{given, then};
 use tempfile::TempDir;
 
 use kanbus::agents_management::{kanbus_section_text, project_management_text};
-
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
 fn repo_root() -> PathBuf {
@@ -105,6 +104,7 @@ fn given_repo_agents_without_kanbus(world: &mut KanbusWorld) {
 fn given_repo_agents_with_kanbus(world: &mut KanbusWorld) {
     write_agents_fixture(world, "agents_with_kanbus.md");
 }
+
 
 #[then("AGENTS.md should exist")]
 fn then_agents_exists(world: &mut KanbusWorld) {

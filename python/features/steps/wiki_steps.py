@@ -66,11 +66,6 @@ def given_raw_wiki_page_with_content(context: object, filename: str) -> None:
     (working_directory / filename).write_text(content, encoding="utf-8")
 
 
-@when('I run "kanbus wiki render {page}"')
-def when_render_page(context: object, page: str) -> None:
-    run_cli(context, f"kanbus wiki render {page}")
-
-
 @when('I render the wiki page "{filename}" by absolute path')
 def when_render_page_absolute(context: object, filename: str) -> None:
     project_dir = load_project_directory(context)

@@ -7,7 +7,12 @@ from pathlib import Path
 
 from kanbus.issue_files import list_issue_identifiers, read_issue_from_file
 from kanbus.models import IssueData
-from kanbus.project import ProjectMarkerError, load_project_directory
+from kanbus.project import (
+    ProjectMarkerError,
+    discover_project_directories,
+    find_project_local_directory,
+    load_project_directory,
+)
 
 
 class IssueLookupError(RuntimeError):
@@ -26,6 +31,9 @@ class IssueLookupResult:
 def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
     """Load an issue by identifier from a project directory.
 
+    Searches all project directories (including virtual projects and local
+    directories) for the given identifier.
+
     :param root: Repository root path.
     :type root: Path
     :param identifier: Issue identifier.
@@ -35,18 +43,32 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
     :raises IssueLookupError: If the issue cannot be found.
     """
     try:
-        project_dir = load_project_directory(root)
+        project_dirs = discover_project_directories(root)
     except ProjectMarkerError as error:
         raise IssueLookupError(str(error)) from error
 
-    issue_path = project_dir / "issues" / f"{identifier}.json"
-    if not issue_path.exists():
-        raise IssueLookupError("not found")
+    if not project_dirs:
+        raise IssueLookupError("project not initialized")
 
-    issue = read_issue_from_file(issue_path)
-    return IssueLookupResult(
-        issue=issue, issue_path=issue_path, project_dir=project_dir
-    )
+    for project_dir in project_dirs:
+        for issues_dir in _search_directories(project_dir):
+            issue_path = issues_dir / f"{identifier}.json"
+            if issue_path.exists():
+                issue = read_issue_from_file(issue_path)
+                return IssueLookupResult(
+                    issue=issue, issue_path=issue_path, project_dir=project_dir
+                )
+
+    raise IssueLookupError("not found")
+
+
+def _search_directories(project_dir: Path) -> list[Path]:
+    """Return issue directories to search for a given project directory."""
+    dirs = [project_dir / "issues"]
+    local_dir = find_project_local_directory(project_dir)
+    if local_dir is not None:
+        dirs.append(local_dir / "issues")
+    return dirs
 
 
 def resolve_issue_identifier(issues_dir: Path, project_key: str, candidate: str) -> str:

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from behave import given, then, when
 
-from features.steps.shared import ensure_git_repository, run_cli
+from features.steps.shared import ensure_git_repository
 
 
 @given("an empty git repository")
@@ -38,16 +38,6 @@ def given_git_metadata_directory(context: object) -> None:
     repository_path.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(repository_path)
     context.working_directory = repository_path / ".git"
-
-
-@when('I run "kanbus init"')
-def when_run_tsk_init(context: object) -> None:
-    run_cli(context, "kanbus init")
-
-
-@when('I run "kanbus init --local"')
-def when_run_tsk_init_local(context: object) -> None:
-    run_cli(context, "kanbus init --local")
 
 
 @then('a ".kanbus.yml" file should be created')

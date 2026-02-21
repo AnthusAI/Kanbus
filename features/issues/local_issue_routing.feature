@@ -24,11 +24,11 @@ Feature: Local issue routing
     And issue "kanbus-shared01" should not exist in the shared issues directory
     And .gitignore should include "project-local/"
 
-  Scenario: Promote fails when project-local is missing
+  Scenario: Promote fails when issue is not found
     Given a Kanbus project with default configuration
     When I run "kanbus promote kanbus-missing"
     Then the command should fail with exit code 1
-    And stderr should contain "project-local not initialized"
+    And stderr should contain "not found"
 
   Scenario: Promote fails when local issue is missing
     Given a Kanbus project with default configuration
