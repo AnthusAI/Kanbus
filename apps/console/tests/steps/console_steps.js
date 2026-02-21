@@ -153,14 +153,39 @@ async function ensureBaseProject() {
 
 async function openProjectFilterPanel(page) {
   const panel = page.getByTestId("project-filter-panel");
+  const isVisible = await panel.isVisible().catch(() => false);
+  if (!isVisible) {
+    await page.getByTestId("open-project-filter").click();
+    await expect(panel).toBeVisible();
+    return;
+  }
   const isOpen = await panel.evaluate((element) => {
     const container = element.closest("[aria-hidden]");
     return container?.getAttribute("aria-hidden") === "false";
   });
   if (!isOpen) {
     await page.getByTestId("open-project-filter").click();
+    await expect(panel).toBeVisible();
   }
-  await expect(panel).toBeVisible();
+}
+
+async function closeProjectFilterPanel(page) {
+  const panel = page.getByTestId("project-filter-panel");
+  const isOpen = await panel.evaluate((element) => {
+    const container = element.closest("[aria-hidden]");
+    return container?.getAttribute("aria-hidden") === "false";
+  });
+  if (!isOpen) {
+    return;
+  }
+  await page.getByTestId("project-filter-backdrop").click();
+  await expect(panel).not.toBeVisible();
+}
+
+async function waitForIssueCards(page, minCount = 1) {
+  await expect
+    .poll(async () => page.locator(".issue-card").count(), { timeout: 10000 })
+    .toBeGreaterThanOrEqual(minCount);
 }
 
 async function isFilterChecked(page, label) {
@@ -359,6 +384,7 @@ When("I select project {string} in the project filter", async function (label) {
   for (const entry of labels) {
     await setFilterChecked(this.page, entry, entry === resolvedLabel);
   }
+  await closeProjectFilterPanel(this.page);
 });
 
 When("I select all projects in the project filter", async function () {
@@ -367,9 +393,11 @@ When("I select all projects in the project filter", async function () {
   for (const entry of labels) {
     await setFilterChecked(this.page, entry, true);
   }
+  await closeProjectFilterPanel(this.page);
 });
 
 Then("I should only see issues from {string}", async function (label) {
+  await waitForIssueCards(this.page);
   const count = await this.page.locator(".issue-card").count();
   expect(count).toBeGreaterThan(0);
   const cards = this.page.locator(".issue-card");
@@ -381,6 +409,7 @@ Then("I should only see issues from {string}", async function (label) {
 });
 
 Then("I should see issues from all projects", async function () {
+  await waitForIssueCards(this.page);
   await expect(issueCardLocator(this.page, "KBS issue")).toBeVisible();
   await expect(issueCardLocator(this.page, "Alpha issue")).toBeVisible();
   await expect(issueCardLocator(this.page, "Beta issue")).toBeVisible();
@@ -398,15 +427,18 @@ When("I select \"local only\" in the local filter", async function () {
   await openProjectFilterPanel(this.page);
   await setFilterChecked(this.page, "Local", true);
   await setFilterChecked(this.page, "Project", false);
+  await closeProjectFilterPanel(this.page);
 });
 
 When("I select \"project only\" in the local filter", async function () {
   await openProjectFilterPanel(this.page);
   await setFilterChecked(this.page, "Project", true);
   await setFilterChecked(this.page, "Local", false);
+  await closeProjectFilterPanel(this.page);
 });
 
 Then("I should only see local issues from {string}", async function (label) {
+  await waitForIssueCards(this.page);
   await expect(issueCardLocator(this.page, `${label} local issue`)).toBeVisible();
   const cards = this.page.locator(".issue-card");
   const count = await cards.count();
@@ -418,6 +450,7 @@ Then("I should only see local issues from {string}", async function (label) {
 });
 
 Then("I should only see shared issues from {string}", async function (label) {
+  await waitForIssueCards(this.page);
   await expect(issueCardLocator(this.page, `${label} shared issue`)).toBeVisible();
   const cards = this.page.locator(".issue-card");
   const count = await cards.count();
