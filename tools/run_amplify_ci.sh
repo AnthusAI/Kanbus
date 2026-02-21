@@ -53,7 +53,6 @@ cd ..
 
 cd apps/console
 npm ci --prefer-offline --no-audit
-npx playwright install --with-deps
 npm run test:ui
 cd ../..
 
