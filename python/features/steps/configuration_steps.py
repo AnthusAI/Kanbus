@@ -183,9 +183,7 @@ def given_override_time_zone(context: object, time_zone: str) -> None:
 
 
 @given('the Kanbus configuration has a virtual project "{label}" at path "{path}"')
-def given_configuration_virtual_project(
-    context: object, label: str, path: str
-) -> None:
+def given_configuration_virtual_project(context: object, label: str, path: str) -> None:
     repository = Path(context.working_directory)
     config_path = repository / ".kanbus.yml"
     payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
@@ -198,9 +196,7 @@ def given_configuration_virtual_project(
     )
 
 
-@given(
-    'a Kanbus override file adds a virtual project "{label}" at path "{path}"'
-)
+@given('a Kanbus override file adds a virtual project "{label}" at path "{path}"')
 def given_override_virtual_project(context: object, label: str, path: str) -> None:
     repository = Path(context.working_directory)
     override_path = repository / ".kanbus.override.yml"
