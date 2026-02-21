@@ -750,7 +750,11 @@ def then_default_priority_matches(context: object, expected: str) -> None:
     if hasattr(context, "configuration") and context.configuration:
         configuration = context.configuration
         priority = configuration.priorities.get(configuration.default_priority)
-        actual = priority.name if priority is not None else str(configuration.default_priority)
+        actual = (
+            priority.name
+            if priority is not None
+            else str(configuration.default_priority)
+        )
     else:
         actual = getattr(context, "loaded_default_priority", None)
     assert actual == expected, f"Expected default priority '{expected}', got '{actual}'"

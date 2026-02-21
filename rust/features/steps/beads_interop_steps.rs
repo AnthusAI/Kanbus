@@ -696,32 +696,4 @@ fn given_beads_issue_with_parent(world: &mut KanbusWorld, identifier: String, pa
     fs::write(beads_path, beads_content).expect("write beads issues");
 }
 
-#[then(regex = r#"beads issues\.jsonl should contain "(?P<identifier>[^"]+)""#)]
-fn then_beads_jsonl_contains(world: &mut KanbusWorld, identifier: String) {
-    let beads_path = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set")
-        .join(".beads")
-        .join("issues.jsonl");
-    let contents = fs::read_to_string(beads_path).expect("read beads issues");
-    assert!(
-        contents.contains(&identifier),
-        "identifier not found in issues.jsonl"
-    );
-}
-
-#[then(regex = r#"beads issues\.jsonl should not contain "(?P<identifier>[^"]+)""#)]
-fn then_beads_jsonl_not_contains(world: &mut KanbusWorld, identifier: String) {
-    let beads_path = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set")
-        .join(".beads")
-        .join("issues.jsonl");
-    let contents = fs::read_to_string(beads_path).expect("read beads issues");
-    assert!(
-        !contents.contains(&identifier),
-        "identifier still present in issues.jsonl"
-    );
-}
+// Steps for explicit JSONL contains/not-contains live in compatibility_steps to avoid ambiguity.

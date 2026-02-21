@@ -3,6 +3,7 @@ import { expect } from "@playwright/test";
 import { readFile, readdir, writeFile } from "fs/promises";
 import path from "path";
 import yaml from "js-yaml";
+import { rm, mkdir } from "fs/promises";
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
 const projectIssuesRoot = projectRoot ? path.join(projectRoot, "issues") : null;
@@ -11,6 +12,9 @@ const consoleBaseUrl =
   process.env.CONSOLE_BASE_URL ?? `http://localhost:${consolePort}/`;
 const consoleApiBase =
   process.env.CONSOLE_API_BASE ?? `${consoleBaseUrl.replace(/\/+$/, "")}/api`;
+const consoleConfigPath = projectRoot
+  ? path.join(projectRoot, "..", ".kanbus.yml")
+  : null;
 
 function issueCardLocator(page, title) {
   return page.locator(".issue-card", { hasText: title });
@@ -38,6 +42,114 @@ async function writeIssue(issue) {
   }
   const filePath = path.join(projectIssuesRoot, `${issue.id}.json`);
   await writeFile(filePath, JSON.stringify(issue, null, 2));
+}
+
+async function writeIssueInDir(issueDir, issue) {
+  await mkdir(issueDir, { recursive: true });
+  const filePath = path.join(issueDir, `${issue.id}.json`);
+  await writeFile(filePath, JSON.stringify(issue, null, 2));
+}
+
+async function loadKanbusConfig() {
+  if (!consoleConfigPath) {
+    throw new Error("CONSOLE_PROJECT_ROOT is required for config access");
+  }
+  const contents = await readFile(consoleConfigPath, "utf-8");
+  return yaml.load(contents) ?? {};
+}
+
+async function saveKanbusConfig(config) {
+  if (!consoleConfigPath) {
+    throw new Error("CONSOLE_PROJECT_ROOT is required for config access");
+  }
+  const contents = yaml.dump(config, { sortKeys: false });
+  await writeFile(consoleConfigPath, contents);
+}
+
+async function refreshConsoleSnapshot() {
+  const configResponse = await fetch(`${consoleApiBase}/config?refresh=1`);
+  if (!configResponse.ok) {
+    throw new Error(`console config request failed: ${configResponse.status}`);
+  }
+  const issuesResponse = await fetch(`${consoleApiBase}/issues?refresh=1`);
+  if (!issuesResponse.ok) {
+    throw new Error(`console issues request failed: ${issuesResponse.status}`);
+  }
+}
+
+function buildIssue({
+  id,
+  title,
+  type = "task",
+  status = "open",
+  priority = 2
+}) {
+  const timestamp = new Date().toISOString();
+  return {
+    id,
+    title,
+    description: "Generated during test",
+    type,
+    status,
+    priority,
+    assignee: null,
+    creator: "fixture",
+    labels: [],
+    dependencies: [],
+    comments: [],
+    created_at: timestamp,
+    updated_at: timestamp,
+    closed_at: null,
+    custom: {}
+  };
+}
+
+async function ensureVirtualProject(label) {
+  if (!projectRoot) {
+    throw new Error("CONSOLE_PROJECT_ROOT is required for project setup");
+  }
+  const repoRoot = path.join(projectRoot, "..");
+  const projectDir = path.join(repoRoot, "virtual", label, "project");
+  const localDir = path.join(repoRoot, "virtual", label, "project-local");
+  await mkdir(path.join(projectDir, "issues"), { recursive: true });
+  await mkdir(path.join(localDir, "issues"), { recursive: true });
+  return { projectDir, localDir };
+}
+
+async function ensureBaseProject() {
+  if (!projectRoot) {
+    throw new Error("CONSOLE_PROJECT_ROOT is required for project setup");
+  }
+  const localDir = path.join(projectRoot, "..", "project-local");
+  await mkdir(path.join(projectRoot, "issues"), { recursive: true });
+  await mkdir(path.join(localDir, "issues"), { recursive: true });
+  return { projectDir: projectRoot, localDir };
+}
+
+async function openProjectFilterPanel(page) {
+  const panel = page.getByTestId("project-filter-panel");
+  if (await panel.isVisible()) {
+    return;
+  }
+  await page.getByTestId("open-project-filter").click();
+  await expect(panel).toBeVisible();
+}
+
+async function isFilterChecked(page, label) {
+  const panel = page.getByTestId("project-filter-panel");
+  const button = panel.getByRole("button", { name: label }).first();
+  const checkbox = button.locator("span").first();
+  const className = await checkbox.getAttribute("class");
+  return Boolean(className && className.includes("border-accent"));
+}
+
+async function setFilterChecked(page, label, desired) {
+  const panel = page.getByTestId("project-filter-panel");
+  const button = panel.getByRole("button", { name: label }).first();
+  const current = await isFilterChecked(page, label);
+  if (current !== desired) {
+    await button.click();
+  }
 }
 
 async function fetchIssuesFromServer() {
@@ -74,6 +186,219 @@ function normalizeTimestamp(value) {
 
 Given("the console is open", async function () {
   await expect(this.page.getByTestId("open-settings")).toBeVisible();
+});
+
+Given("the console is open with virtual projects configured", async function () {
+  const config = await loadKanbusConfig();
+  config.project_key = "kbs";
+  config.virtual_projects = {
+    alpha: { path: "virtual/alpha/project" },
+    beta: { path: "virtual/beta/project" }
+  };
+  await saveKanbusConfig(config);
+  await ensureVirtualProject("alpha");
+  await ensureVirtualProject("beta");
+  const { projectDir } = await ensureBaseProject();
+  await writeIssueInDir(
+    path.join(projectDir, "issues"),
+    buildIssue({ id: "kbs-issue-1", title: "KBS issue" })
+  );
+  const alphaProject = await ensureVirtualProject("alpha");
+  await writeIssueInDir(
+    path.join(alphaProject.projectDir, "issues"),
+    buildIssue({ id: "alpha-shared-1", title: "Alpha shared issue" })
+  );
+  await refreshConsoleSnapshot();
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+});
+
+Given(
+  "the console is open with virtual projects {string} and {string} configured",
+  async function (alpha, beta) {
+    const config = await loadKanbusConfig();
+    config.project_key = "kbs";
+    config.virtual_projects = {
+      [alpha]: { path: `virtual/${alpha}/project` },
+      [beta]: { path: `virtual/${beta}/project` }
+    };
+    await saveKanbusConfig(config);
+    await ensureVirtualProject(alpha);
+    await ensureVirtualProject(beta);
+    const { projectDir } = await ensureBaseProject();
+    await writeIssueInDir(
+      path.join(projectDir, "issues"),
+      buildIssue({ id: "kbs-issue-1", title: "KBS issue" })
+    );
+    const alphaProject = await ensureVirtualProject(alpha);
+    await writeIssueInDir(
+      path.join(alphaProject.projectDir, "issues"),
+      buildIssue({ id: `${alpha}-shared-1`, title: `${alpha} shared issue` })
+    );
+    await refreshConsoleSnapshot();
+    await this.page.reload({ waitUntil: "domcontentloaded" });
+  }
+);
+
+Given("no virtual projects are configured", async function () {
+  const config = await loadKanbusConfig();
+  config.virtual_projects = {};
+  await saveKanbusConfig(config);
+  await refreshConsoleSnapshot();
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+});
+
+Given("issues exist in multiple projects", async function () {
+  const { projectDir } = await ensureBaseProject();
+  await writeIssueInDir(
+    path.join(projectDir, "issues"),
+    buildIssue({ id: "kbs-issue-1", title: "KBS issue" })
+  );
+  const alphaProject = await ensureVirtualProject("alpha");
+  await writeIssueInDir(
+    path.join(alphaProject.projectDir, "issues"),
+    buildIssue({ id: "alpha-issue-1", title: "Alpha issue" })
+  );
+  const betaProject = await ensureVirtualProject("beta");
+  await writeIssueInDir(
+    path.join(betaProject.projectDir, "issues"),
+    buildIssue({ id: "beta-issue-1", title: "Beta issue" })
+  );
+  await refreshConsoleSnapshot();
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+});
+
+Given("local issues exist in the current project", async function () {
+  const { localDir } = await ensureBaseProject();
+  await writeIssueInDir(
+    path.join(localDir, "issues"),
+    buildIssue({ id: "kbs-local-1", title: "Current local issue" })
+  );
+  const config = await loadKanbusConfig();
+  if (config.virtual_projects) {
+    config.virtual_projects = {};
+    await saveKanbusConfig(config);
+  }
+  await refreshConsoleSnapshot();
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+});
+
+Given("no local issues exist in any project", async function () {
+  if (!projectRoot) {
+    throw new Error("CONSOLE_PROJECT_ROOT is required for project setup");
+  }
+  const repoRoot = path.join(projectRoot, "..");
+  await rm(path.join(repoRoot, "project-local"), { recursive: true, force: true });
+  await rm(path.join(repoRoot, "virtual"), { recursive: true, force: true });
+  const config = await loadKanbusConfig();
+  config.virtual_projects = {};
+  await saveKanbusConfig(config);
+  await refreshConsoleSnapshot();
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+});
+
+Given("local issues exist in virtual project {string}", async function (label) {
+  const project = await ensureVirtualProject(label);
+  await writeIssueInDir(
+    path.join(project.localDir, "issues"),
+    buildIssue({ id: `${label}-local-1`, title: `${label} local issue` })
+  );
+  await refreshConsoleSnapshot();
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+});
+
+Then("the project filter should be visible in the navigation bar", async function () {
+  await expect(this.page.getByTestId("open-project-filter")).toBeVisible();
+});
+
+Then("the project filter should not be visible", async function () {
+  await expect(this.page.getByTestId("open-project-filter")).toHaveCount(0);
+});
+
+Then("the project filter should list {string}", async function (label) {
+  await openProjectFilterPanel(this.page);
+  await expect(
+    this.page.getByTestId("project-filter-panel").getByRole("button", { name: label })
+  ).toBeVisible();
+});
+
+When("I select project {string} in the project filter", async function (label) {
+  await openProjectFilterPanel(this.page);
+  const labels = ["kbs", "alpha", "beta"];
+  for (const entry of labels) {
+    await setFilterChecked(this.page, entry, entry === label);
+  }
+});
+
+When("I select all projects in the project filter", async function () {
+  await openProjectFilterPanel(this.page);
+  const labels = ["kbs", "alpha", "beta"];
+  for (const entry of labels) {
+    await setFilterChecked(this.page, entry, true);
+  }
+});
+
+Then("I should only see issues from {string}", async function (label) {
+  const count = await this.page.locator(".issue-card").count();
+  expect(count).toBeGreaterThan(0);
+  const cards = this.page.locator(".issue-card");
+  const cardCount = await cards.count();
+  for (let i = 0; i < cardCount; i += 1) {
+    const text = await cards.nth(i).innerText();
+    expect(text.toLowerCase()).toContain(label.toLowerCase());
+  }
+});
+
+Then("I should see issues from all projects", async function () {
+  await expect(issueCardLocator(this.page, "KBS issue")).toBeVisible();
+  await expect(issueCardLocator(this.page, "Alpha issue")).toBeVisible();
+  await expect(issueCardLocator(this.page, "Beta issue")).toBeVisible();
+});
+
+Then("the local issues filter should be visible in the navigation bar", async function () {
+  await expect(this.page.getByTestId("open-project-filter")).toBeVisible();
+});
+
+Then("the local issues filter should not be visible", async function () {
+  await expect(this.page.getByTestId("open-project-filter")).toHaveCount(0);
+});
+
+When("I select \"local only\" in the local filter", async function () {
+  await openProjectFilterPanel(this.page);
+  await setFilterChecked(this.page, "Local", true);
+  await setFilterChecked(this.page, "Project", false);
+});
+
+When("I select \"project only\" in the local filter", async function () {
+  await openProjectFilterPanel(this.page);
+  await setFilterChecked(this.page, "Project", true);
+  await setFilterChecked(this.page, "Local", false);
+});
+
+Then("I should only see local issues from {string}", async function (label) {
+  await expect(issueCardLocator(this.page, `${label} local issue`)).toBeVisible();
+  const cards = this.page.locator(".issue-card");
+  const count = await cards.count();
+  for (let i = 0; i < count; i += 1) {
+    const text = await cards.nth(i).innerText();
+    expect(text.toLowerCase()).toContain(label.toLowerCase());
+    expect(text.toLowerCase()).toContain("local");
+  }
+});
+
+Then("I should only see shared issues from {string}", async function (label) {
+  await expect(issueCardLocator(this.page, `${label} shared issue`)).toBeVisible();
+  const cards = this.page.locator(".issue-card");
+  const count = await cards.count();
+  for (let i = 0; i < count; i += 1) {
+    const text = await cards.nth(i).innerText();
+    expect(text.toLowerCase()).toContain(label.toLowerCase());
+  }
+});
+
+Then("project {string} should still be selected in the project filter", async function (label) {
+  await openProjectFilterPanel(this.page);
+  const selected = await isFilterChecked(this.page, label);
+  expect(selected).toBe(true);
 });
 
 When(
