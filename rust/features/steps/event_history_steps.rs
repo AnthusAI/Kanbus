@@ -209,7 +209,7 @@ fn when_add_dependency(world: &mut KanbusWorld, target: String) {
     let identifier = last_issue_id(world);
     run_cli(
         world,
-        &format!("kanbus dep add {identifier} --blocked-by {target}"),
+        &format!("kanbus dep {identifier} blocked-by {target}"),
     );
 }
 
