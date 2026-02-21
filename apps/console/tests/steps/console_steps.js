@@ -66,6 +66,12 @@ async function saveKanbusConfig(config) {
   await writeFile(consoleConfigPath, contents);
 }
 
+function ensureProjectKey(config) {
+  if (!config.project_key) {
+    config.project_key = "kanbus";
+  }
+}
+
 async function resolveProjectLabel(label) {
   if (label !== "kbs") {
     return label;
@@ -209,7 +215,7 @@ Given("the console is open", async function () {
 
 Given("the console is open with virtual projects configured", async function () {
   const config = await loadKanbusConfig();
-  config.project_key = "kbs";
+  ensureProjectKey(config);
   config.virtual_projects = {
     alpha: { path: "virtual/alpha/project" },
     beta: { path: "virtual/beta/project" }
@@ -235,7 +241,7 @@ Given(
   "the console is open with virtual projects {string} and {string} configured",
   async function (alpha, beta) {
     const config = await loadKanbusConfig();
-    config.project_key = "kbs";
+    ensureProjectKey(config);
     config.virtual_projects = {
       [alpha]: { path: `virtual/${alpha}/project` },
       [beta]: { path: `virtual/${beta}/project` }
