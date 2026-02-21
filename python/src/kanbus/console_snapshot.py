@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 
-from pydantic import ValidationError
 from kanbus.config_loader import ConfigurationError, load_project_configuration
-from kanbus.issue_listing import IssueListingError, list_issues
+from kanbus.issue_files import read_issue_from_file
 from kanbus.migration import MigrationError, load_beads_issues
 from kanbus.models import IssueData, ProjectConfiguration
-from kanbus.project import ProjectMarkerError, get_configuration_path
+from kanbus.project import (
+    ProjectMarkerError,
+    find_project_local_directory,
+    get_configuration_path,
+    resolve_labeled_projects,
+)
 
 
 class ConsoleSnapshotError(RuntimeError):
@@ -73,24 +76,22 @@ def _load_console_issues(
 
     issues: List[IssueData] = []
     try:
-        entries = sorted(
-            (entry for entry in issues_dir.iterdir() if entry.is_file()),
-            key=lambda item: item.name,
-        )
-    except OSError as error:
-        raise ConsoleSnapshotError(str(error)) from error
+        shared = _read_issues_from_dir(issues_dir)
+        for issue in shared:
+            issues.append(_tag_issue(issue, source="shared"))
+    except (OSError, json.JSONDecodeError, ValidationError) as error:
+        raise ConsoleSnapshotError("issue file is invalid") from error
 
-    for entry in entries:
-        if entry.suffix != ".json":
-            continue
-        try:
-            payload = json.loads(entry.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as error:
-            raise ConsoleSnapshotError("issue file is invalid") from error
-        try:
-            issues.append(IssueData.model_validate(payload))
-        except ValidationError as error:
-            raise ConsoleSnapshotError("issue file is invalid") from error
+    local_dir = find_project_local_directory(project_dir)
+    if local_dir is not None:
+        local_issues_dir = local_dir / "issues"
+        if local_issues_dir.is_dir():
+            try:
+                local = _read_issues_from_dir(local_issues_dir)
+                for issue in local:
+                    issues.append(_tag_issue(issue, source="local"))
+            except (OSError, json.JSONDecodeError, ValidationError) as error:
+                raise ConsoleSnapshotError("issue file is invalid") from error
 
     issues.sort(key=lambda issue: issue.identifier)
     return issues
@@ -101,12 +102,85 @@ def _load_issues_with_virtual_projects(
     configuration: ProjectConfiguration,
 ) -> List[IssueData]:
     try:
-        beads_mode = configuration.beads_compatibility
-        issues = list_issues(root, beads_mode=beads_mode)
-    except IssueListingError as error:
+        labeled = resolve_labeled_projects(root)
+    except Exception as error:
         raise ConsoleSnapshotError(str(error)) from error
-    issues.sort(key=lambda issue: issue.identifier)
+
+    all_issues: List[IssueData] = []
+    for project in labeled:
+        issues_dir = project.project_dir / "issues"
+        if issues_dir.is_dir():
+            try:
+                shared = _read_issues_from_dir(issues_dir)
+                for issue in shared:
+                    all_issues.append(
+                        _tag_issue(issue, project_label=project.label, source="shared")
+                    )
+            except Exception as error:
+                raise ConsoleSnapshotError(str(error)) from error
+
+            local_dir = find_project_local_directory(project.project_dir)
+            if local_dir is not None:
+                local_issues_dir = local_dir / "issues"
+                if local_issues_dir.is_dir():
+                    try:
+                        local = _read_issues_from_dir(local_issues_dir)
+                        for issue in local:
+                            all_issues.append(
+                                _tag_issue(
+                                    issue,
+                                    project_label=project.label,
+                                    source="local",
+                                )
+                            )
+                    except Exception as error:
+                        raise ConsoleSnapshotError(str(error)) from error
+        else:
+            repo_root = project.project_dir.parent
+            if repo_root is not None:
+                beads_path = repo_root / ".beads" / "issues.jsonl"
+                if beads_path.exists():
+                    try:
+                        beads_issues = load_beads_issues(repo_root)
+                        for issue in beads_issues:
+                            all_issues.append(
+                                _tag_issue(
+                                    issue,
+                                    project_label=project.label,
+                                    source="shared",
+                                )
+                            )
+                    except MigrationError as error:
+                        raise ConsoleSnapshotError(str(error)) from error
+
+    all_issues.sort(key=lambda issue: issue.identifier)
+    return all_issues
+
+
+def _read_issues_from_dir(issues_dir: Path) -> List[IssueData]:
+    issues: List[IssueData] = []
+    entries = sorted(
+        (entry for entry in issues_dir.iterdir() if entry.is_file()),
+        key=lambda item: item.name,
+    )
+    for entry in entries:
+        if entry.suffix != ".json":
+            continue
+        issues.append(read_issue_from_file(entry))
     return issues
+
+
+def _tag_issue(
+    issue: IssueData,
+    project_label: str | None = None,
+    source: str | None = None,
+) -> IssueData:
+    custom = {**issue.custom}
+    if project_label is not None:
+        custom["project_label"] = project_label
+    if source is not None:
+        custom["source"] = source
+    return issue.model_copy(update={"custom": custom})
 
 
 def _format_timestamp(value: datetime) -> str:
