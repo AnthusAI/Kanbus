@@ -30,11 +30,11 @@ types:
 # Workflow state machines (per type, with default fallback)
 workflows:
   default:
-    open: [in_progress, closed, deferred]
+    backlog: [open, closed]
+    open: [in_progress, closed, backlog]
     in_progress: [open, blocked, closed]
     blocked: [in_progress, closed]
     closed: [open]
-    deferred: [open, closed]
   epic:
     open: [in_progress, closed]
     in_progress: [open, closed]
@@ -119,11 +119,11 @@ types:
   - chore
 workflows:
   default:
-    open: [in_progress, closed, deferred]
+    backlog: [open, closed]
+    open: [in_progress, closed, backlog]
     in_progress: [open, blocked, closed]
     blocked: [in_progress, closed]
     closed: [open]
-    deferred: [open, closed]
 initial_status: open
 priorities:
   0: critical

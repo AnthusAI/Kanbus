@@ -40,11 +40,11 @@ issue_types:                     # non-hierarchical types
   - chore
 workflows:                       # state machines
   default:
-    open: [in_progress, closed, deferred]
+    backlog: [open, closed]
+    open: [in_progress, closed, backlog]
     in_progress: [open, blocked, closed]
     blocked: [in_progress, closed]
     closed: [open]
-    deferred: [open, closed]
 workflow_bindings:               # required; every type maps to a workflow
   bug: default
   story: default
