@@ -65,7 +65,7 @@ def when_add_comment_last_issue(context: object, text: str) -> None:
 @when('I add a blocked-by dependency from the last issue to "{target}"')
 def when_add_dependency(context: object, target: str) -> None:
     identifier = _last_issue_id(context)
-    run_cli(context, f"kanbus dep add {identifier} --blocked-by {target}")
+    run_cli(context, f"kanbus dep {identifier} blocked-by {target}")
 
 
 @when("I delete the last issue")

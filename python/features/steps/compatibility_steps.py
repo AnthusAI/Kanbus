@@ -10,7 +10,11 @@ from pathlib import Path
 import yaml
 from behave import given, then, when
 
-from features.steps.shared import ensure_git_repository, run_cli
+from features.steps.shared import (
+    ensure_git_repository,
+    ensure_project_directory,
+    run_cli,
+)
 from kanbus.beads_write import set_test_beads_slug_sequence
 from kanbus.config import DEFAULT_CONFIGURATION
 
@@ -41,6 +45,14 @@ def given_project_with_beads_compatibility(context: object) -> None:
     project_dir = repository_path / payload["project_directory"]
     (project_dir / "issues").mkdir(parents=True, exist_ok=True)
     context.working_directory = repository_path
+
+
+@given("a project directory exists")
+def given_project_directory_exists(context: object) -> None:
+    repository_path = getattr(context, "working_directory", None)
+    if repository_path is None:
+        raise RuntimeError("working directory not set")
+    ensure_project_directory(Path(repository_path))
 
 
 @when('I run "kanbus --beads list"')
