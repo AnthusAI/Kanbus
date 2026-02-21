@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import urlparse, parse_qs
 
-from behave import given, then, when
+from behave import given, then
 
 from features.steps.shared import load_project_directory
 

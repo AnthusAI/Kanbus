@@ -23,7 +23,6 @@ use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
-use tower_http::cors::{Any, CorsLayer};
 use futures_util::stream;
 use futures_util::stream::BoxStream;
 use futures_util::Stream;
@@ -34,6 +33,7 @@ use tokio::sync::broadcast;
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::wrappers::IntervalStream;
+use tower_http::cors::{Any, CorsLayer};
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
 use kanbus::console_ui_state::{load_state, save_state, ConsoleUiState};

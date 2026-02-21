@@ -17,7 +17,6 @@ from features.steps.shared import (
     build_issue,
     ensure_git_repository,
     ensure_project_directory,
-    load_project_directory,
     read_issue_file,
     write_issue_file,
 )
