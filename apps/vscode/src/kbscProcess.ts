@@ -87,13 +87,15 @@ export class KbscProcess implements vscode.Disposable {
   }
 
   private resolveKbscPath(): string {
+    const isWindows = process.platform === "win32";
+    const binaryName = isWindows ? "kbsc.exe" : "kbsc";
     // Look for bundled binary relative to the extension
-    const extensionBin = path.join(__dirname, "..", "bin", "kbsc");
+    const extensionBin = path.join(__dirname, "..", "bin", binaryName);
     if (fs.existsSync(extensionBin)) {
       return extensionBin;
     }
     // Fall back to PATH
-    return "kbsc";
+    return binaryName;
   }
 
   dispose(): void {

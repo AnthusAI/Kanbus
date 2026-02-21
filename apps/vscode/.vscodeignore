@@ -3,3 +3,6 @@ node_modules/**
 .vscode/**
 tsconfig.json
 .gitignore
+console-assets/**
+artifacts/**
+*.vsix

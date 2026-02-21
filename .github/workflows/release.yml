@@ -203,18 +203,22 @@ jobs:
             target: x86_64-unknown-linux-gnu
             binary: kbsc
             archive: tar.gz
+            vscode-target: linux-x64
           - os: macos-14
             target: aarch64-apple-darwin
             binary: kbsc
             archive: tar.gz
+            vscode-target: darwin-arm64
           - os: macos-14
             target: x86_64-apple-darwin
             binary: kbsc
             archive: tar.gz
+            vscode-target: darwin-x64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: kbsc.exe
             archive: zip
+            vscode-target: win32-x64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -271,6 +275,12 @@ jobs:
           Copy-Item "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/kbsc.exe"
           Compress-Archive -Path "dist/kbsc.exe" -DestinationPath "dist/kbsc-${{ matrix.target }}.zip" -Force
 
+      - name: Upload kbsc artifact for VSCode extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: kbsc-${{ matrix.vscode-target }}
+          path: rust/target/${{ matrix.target }}/release/${{ matrix.binary }}
+
       - name: Upload console server assets
         uses: softprops/action-gh-release@v2
         with:
@@ -279,6 +289,55 @@ jobs:
             dist/kbsc-${{ matrix.target }}.${{ matrix.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  vscode-extension:
+    name: Publish VSCode Extension
+    needs: [pypi-release, console-server-binaries]
+    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.pypi_only != 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/vscode/package-lock.json
+
+      - name: Install extension dependencies
+        run: npm ci
+        working-directory: apps/vscode
+
+      - name: Compile TypeScript
+        run: npm run compile
+        working-directory: apps/vscode
+
+      - name: Download all kbsc binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: apps/vscode/artifacts
+          pattern: kbsc-*
+
+      - name: Package extension for each platform
+        run: |
+          for target in darwin-arm64 darwin-x64 linux-x64; do
+            mkdir -p bin
+            cp artifacts/kbsc-$target/kbsc bin/kbsc
+            chmod +x bin/kbsc
+            ./node_modules/.bin/vsce package --target $target
+          done
+          mkdir -p bin
+          cp artifacts/kbsc-win32-x64/kbsc.exe bin/kbsc.exe
+          ./node_modules/.bin/vsce package --target win32-x64
+        working-directory: apps/vscode
+
+      - name: Publish all platform packages
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: ./node_modules/.bin/vsce publish --packagePath *.vsix
+        working-directory: apps/vscode
 
   rust-crate:
     needs: pypi-release

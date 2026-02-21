@@ -4,6 +4,10 @@
   "description": "Kanban board for Kanbus projects",
   "version": "0.1.0",
   "publisher": "kanbus",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AnthusAI/Kanbus"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -33,8 +37,7 @@
   "scripts": {
     "compile": "tsc -p ./tsconfig.json",
     "watch": "tsc -watch -p ./tsconfig.json",
-    "build": "npm run compile && npm run copy-assets && npm run copy-bin",
-    "copy-assets": "rm -rf console-assets && cp -r ../console/dist console-assets",
+    "build": "npm run compile && npm run copy-bin",
     "copy-bin": "mkdir -p bin && cp ../../rust/target/release/kbsc bin/kbsc",
     "package": "npm run build && vsce package",
     "package:darwin-arm64": "npm run build && vsce package --target darwin-arm64",
