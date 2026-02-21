@@ -260,6 +260,8 @@ def build_beads_cli(beads_repo: Path, output_dir: Path) -> Path:
     binary = output_dir / "bd"
     env = os.environ.copy()
     env["GOTOOLCHAIN"] = "auto"
+    env["GOSUMDB"] = "sum.golang.org"
+    env["GOPROXY"] = "https://proxy.golang.org,direct"
     cache_root = output_dir.parent / "go-cache"
     cache_root.mkdir(parents=True, exist_ok=True)
     env["GOPATH"] = str(cache_root)
