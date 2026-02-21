@@ -75,11 +75,15 @@ export class KanbusBoardPanel {
     const indexPath = path.join(assetsDir.fsPath, "index.html");
     let html = fs.readFileSync(indexPath, "utf8");
 
-    // Rewrite /assets/... paths to webview URIs and strip crossorigin attributes
-    html = html.replace(
-      /\s*crossorigin\s*(="[^"]*")?/gi,
-      ""
-    );
+    // Nonce for the injected script
+    const nonce = getNonce();
+    const serverBase = `http://127.0.0.1:${this.serverPort}`;
+    const assetsUri = webview.asWebviewUri(vscode.Uri.joinPath(assetsDir, "assets")).toString();
+
+    // Strip crossorigin attributes (webview can't do CORS pre-flight on its own resources)
+    html = html.replace(/\s*crossorigin\s*(="[^"]*")?/gi, "");
+
+    // Rewrite /assets/... paths to vscode-webview-resource: URIs
     html = html.replace(
       /(src|href)="\/assets\/([^"]+)"/g,
       (_match, attr, file) => {
@@ -90,16 +94,32 @@ export class KanbusBoardPanel {
       }
     );
 
-    // Inject our patch script before the closing </head>
-    const serverBase = `http://127.0.0.1:${this.serverPort}`;
-    const patchScript = this.buildPatchScript(serverBase);
+    // Inject CSP meta tag (replace any existing one, or prepend to <head>)
+    const csp = [
+      `default-src 'none'`,
+      `script-src 'nonce-${nonce}' ${assetsUri}`,
+      `style-src ${assetsUri} 'unsafe-inline' https://fonts.googleapis.com`,
+      `font-src https://fonts.gstatic.com`,
+      `img-src ${webview.cspSource} data:`,
+      `connect-src ${serverBase}`,
+    ].join("; ");
+
+    const cspTag = `<meta http-equiv="Content-Security-Policy" content="${csp}">`;
+    if (html.includes("http-equiv=\"Content-Security-Policy\"")) {
+      html = html.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/i, cspTag);
+    } else {
+      html = html.replace("<head>", `<head>\n  ${cspTag}`);
+    }
+
+    // Inject patch script (theme + API redirect) before </head>
+    const patchScript = this.buildPatchScript(nonce, serverBase);
     html = html.replace("</head>", `${patchScript}\n</head>`);
 
     return html;
   }
 
-  private buildPatchScript(serverBase: string): string {
-    return `<script>
+  private buildPatchScript(nonce: string, serverBase: string): string {
+    return `<script nonce="${nonce}">
 (function() {
   // ── Theme: map VSCode's body classes to prefers-color-scheme ──────────────
   function isDark() {
@@ -170,4 +190,13 @@ export class KanbusBoardPanel {
     this.disposables.forEach((d) => d.dispose());
     this.disposables = [];
   }
+}
+
+function getNonce(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let nonce = "";
+  for (let i = 0; i < 32; i++) {
+    nonce += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return nonce;
 }
