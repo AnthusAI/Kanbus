@@ -92,7 +92,11 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
     }
 
     // Ensure every issue type has a workflow binding (or a default fallback).
-    for issue_type in configuration.types.iter().chain(configuration.hierarchy.iter()) {
+    for issue_type in configuration
+        .types
+        .iter()
+        .chain(configuration.hierarchy.iter())
+    {
         if !configuration.workflows.contains_key(issue_type)
             && !configuration.workflows.contains_key("default")
         {

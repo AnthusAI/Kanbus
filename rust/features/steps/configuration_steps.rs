@@ -68,7 +68,9 @@ fn given_project_with_custom_hierarchy(world: &mut KanbusWorld) {
     });
 }
 
-#[given("a Kanbus project with a file \"kanbus.yml\" where issue type \"bug\" has no workflow binding")]
+#[given(
+    "a Kanbus project with a file \"kanbus.yml\" where issue type \"bug\" has no workflow binding"
+)]
 fn given_project_missing_workflow_binding(world: &mut KanbusWorld) {
     initialize_project(world);
     update_config_file(world, |mapping| {
@@ -103,12 +105,8 @@ fn when_update_issue_status(world: &mut KanbusWorld, id: String, status: String)
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     let mut issue: kanbus::models::IssueData = serde_json::from_str(&contents).expect("parse");
 
-    let result = validate_status_transition(
-        &configuration,
-        &issue.issue_type,
-        &issue.status,
-        &status,
-    );
+    let result =
+        validate_status_transition(&configuration, &issue.issue_type, &issue.status, &status);
     if let Err(error) = result {
         world.exit_code = Some(1);
         world.stderr = Some(error.to_string());
@@ -120,7 +118,6 @@ fn when_update_issue_status(world: &mut KanbusWorld, id: String, status: String)
         world.stderr = Some(String::new());
     }
 }
-
 
 #[given("a Kanbus repository with a .kanbus.yml file containing the default configuration")]
 fn given_repo_with_default_configuration(world: &mut KanbusWorld) {
