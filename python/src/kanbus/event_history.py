@@ -158,7 +158,9 @@ def transfer_payload(from_location: str, to_location: str) -> Dict[str, Any]:
     return {"from_location": from_location, "to_location": to_location}
 
 
-def field_update_payload(before: IssueData, after: IssueData) -> Optional[Dict[str, Any]]:
+def field_update_payload(
+    before: IssueData, after: IssueData
+) -> Optional[Dict[str, Any]]:
     changes: Dict[str, Dict[str, Any]] = {}
 
     def push(field: str, from_value: Any, to_value: Any) -> None:

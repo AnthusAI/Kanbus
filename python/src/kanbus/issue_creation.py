@@ -197,7 +197,9 @@ def create_issue(
     )
     try:
         events_dir = (
-            events_dir_for_local(project_dir) if local else events_dir_for_project(project_dir)
+            events_dir_for_local(project_dir)
+            if local
+            else events_dir_for_project(project_dir)
         )
         write_events_batch(events_dir, [event])
     except Exception as error:  # noqa: BLE001

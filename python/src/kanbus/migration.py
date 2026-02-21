@@ -354,7 +354,9 @@ def _beads_comment_uuid(issue_id: str, comment_id: str) -> str:
     return str(uuid5(NAMESPACE_URL, key))
 
 
-def _convert_comment(issue_id: str, comment: Dict[str, Any], index: int) -> IssueComment:
+def _convert_comment(
+    issue_id: str, comment: Dict[str, Any], index: int
+) -> IssueComment:
     author = comment.get("author", "").strip()
     text = comment.get("text", "").strip()
     created_at = _parse_timestamp(comment.get("created_at"), "comment.created_at")

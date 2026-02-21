@@ -366,7 +366,9 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
         issue_id=identifier,
         event_type="comment_added",
         actor_id=actor_id,
-        payload=comment_payload(_beads_comment_uuid(identifier, created_comment_id), author),
+        payload=comment_payload(
+            _beads_comment_uuid(identifier, created_comment_id), author
+        ),
         occurred_at=occurred_at,
     )
     events_dir = events_dir_for_project(project_dir)
