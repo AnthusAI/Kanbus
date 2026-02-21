@@ -78,10 +78,10 @@ export class KanbusBoardPanel {
     // Nonce for the injected script
     const nonce = getNonce();
     const serverBase = `http://127.0.0.1:${this.serverPort}`;
-    const assetsUri = webview.asWebviewUri(vscode.Uri.joinPath(assetsDir, "assets")).toString();
 
     // Strip crossorigin attributes (webview can't do CORS pre-flight on its own resources)
-    html = html.replace(/\s*crossorigin\s*(="[^"]*")?/gi, "");
+    // Replace with a single space so adjacent attributes don't get concatenated
+    html = html.replace(/\s+crossorigin(="[^"]*")?/gi, " ");
 
     // Rewrite /assets/... paths to vscode-webview-resource: URIs
     html = html.replace(
@@ -95,10 +95,11 @@ export class KanbusBoardPanel {
     );
 
     // Inject CSP meta tag (replace any existing one, or prepend to <head>)
+    // webview.cspSource covers all vscode-webview-resource: URIs for bundled assets
     const csp = [
       `default-src 'none'`,
-      `script-src 'nonce-${nonce}' ${assetsUri}`,
-      `style-src ${assetsUri} 'unsafe-inline' https://fonts.googleapis.com`,
+      `script-src 'nonce-${nonce}' ${webview.cspSource}`,
+      `style-src ${webview.cspSource} 'unsafe-inline' https://fonts.googleapis.com`,
       `font-src https://fonts.gstatic.com`,
       `img-src ${webview.cspSource} data:`,
       `connect-src ${serverBase}`,
@@ -122,30 +123,46 @@ export class KanbusBoardPanel {
     return `<script nonce="${nonce}">
 (function() {
   // ── Theme: map VSCode's body classes to prefers-color-scheme ──────────────
+  // VSCode sets vscode-dark/vscode-light on <body>, but body may not exist yet
+  // when this script runs (it's in <head>). Read from documentElement instead
+  // via the data-vscode-theme-kind attribute that VSCode sets on <html>.
   function isDark() {
-    return document.body.classList.contains("vscode-dark") ||
-           document.body.classList.contains("vscode-high-contrast");
+    var kind = document.documentElement.getAttribute("data-vscode-theme-kind");
+    if (kind) {
+      return kind === "vscode-dark" || kind === "vscode-high-contrast";
+    }
+    // Fallback: check body classes once body exists
+    return document.body
+      ? document.body.classList.contains("vscode-dark") ||
+        document.body.classList.contains("vscode-high-contrast")
+      : false;
   }
 
+  // Override matchMedia so useAppearance's system mode reads VSCode's theme.
+  // Return the real MediaQueryList but override only the .matches property
+  // so all methods (addEventListener etc.) remain fully bound and functional.
   var _matchMedia = window.matchMedia.bind(window);
   window.matchMedia = function(query) {
-    var result = _matchMedia(query);
+    var mql = _matchMedia(query);
     if (query === "(prefers-color-scheme: dark)") {
-      var dark = isDark();
-      var overridden = Object.create(result);
-      Object.defineProperty(overridden, "matches", { get: function() { return isDark(); } });
-      return overridden;
+      Object.defineProperty(mql, "matches", {
+        get: function() { return isDark(); },
+        configurable: true
+      });
     }
-    return result;
+    return mql;
   };
 
-  // When VSCode switches theme, update the html class so React re-renders
-  var observer = new MutationObserver(function() {
-    var root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(isDark() ? "dark" : "light");
+  // When VSCode switches theme, update the html class so React picks it up
+  // via the existing matchMedia listener in useAppearance.
+  document.addEventListener("DOMContentLoaded", function() {
+    var observer = new MutationObserver(function() {
+      var root = document.documentElement;
+      root.classList.remove("light", "dark");
+      root.classList.add(isDark() ? "dark" : "light");
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
   });
-  observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
   // ── API: redirect relative /api/* calls to kbsc server ───────────────────
   var serverBase = ${JSON.stringify(serverBase)};
