@@ -986,11 +986,11 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
     hasher.finish()
 }
 
-fn open_telemetry_log(repo_root: &StdPath) -> Option<Arc<StdMutex<std::fs::File>>> {
-    let log_path = std::env::var("CONSOLE_LOG_PATH")
-        .ok()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| repo_root.join("console.log"));
+fn open_telemetry_log(_repo_root: &StdPath) -> Option<Arc<StdMutex<std::fs::File>>> {
+    let log_path = match std::env::var("CONSOLE_LOG_PATH") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => return None,
+    };
     if let Some(parent) = log_path.parent() {
         if let Err(error) = std::fs::create_dir_all(parent) {
             eprintln!("[console] failed to create log dir: {error}");
