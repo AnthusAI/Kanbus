@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "cddb27db-f85f-4320-a56c-cbfaed48baff",
+  "issue_id": "tskl-acp.6",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T17:25:34.700Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "As a developer, I want to install the extension from a .vsix file so that I can use it without publishing to the VSCode Marketplace.  Acceptance Criteria (BDD):  Scenario: Console assets are bundled into the extension   Given the React console app has been built (apps/console/dist/ exists)   When I run 'npm run compile' in apps/vscode/   Then TypeScript source is compiled to apps/vscode/dist/   And apps/console/dist/ is copied to apps/vscode/console-assets/   And the extension can load the React app from console-assets/  Scenario: Extension packages as a .vsix file   Given the extension has been compiled   When I run 'npm run package' in apps/vscode/   Then a .vsix file is produced   And it contains dist/ and console-assets/ but not src/ or node_modules/  Scenario: Extension installs from .vsix   Given a kanbus-board-0.1.0.vsix file   When I run 'code --install-extension kanbus-board-0.1.0.vsix'   Then the extension installs   And activates in any workspace containing .kanbus.yml  Implementation: Add build scripts to package.json (compile: tsc + copy-assets, package: vsce package). Create .vscodeignore to exclude src/ and node_modules/. Add console-assets/ to .gitignore since it is a build artifact.",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tskl-acp",
+    "priority": 2,
+    "status": "open",
+    "title": "Extension builds and packages as a .vsix"
+  }
+}

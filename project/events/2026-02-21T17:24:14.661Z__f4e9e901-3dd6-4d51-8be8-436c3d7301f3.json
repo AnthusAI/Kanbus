@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "f4e9e901-3dd6-4d51-8be8-436c3d7301f3",
+  "issue_id": "tskl-acp.1",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T17:24:14.661Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "As a developer working in a Kanbus project, I want the extension to activate automatically so that I can open the board without manual setup.  Acceptance Criteria (BDD):  Scenario: Extension activates when .kanbus.yml is present   Given a VSCode workspace containing a .kanbus.yml file   When VSCode opens the workspace   Then the extension activates   And the command 'Kanbus: Open Board' appears in the command palette  Scenario: Extension stays dormant in non-Kanbus workspaces   Given a VSCode workspace with no .kanbus.yml file   When VSCode opens the workspace   Then the extension does not activate   And 'Kanbus: Open Board' does not appear in the command palette  Implementation: Create apps/vscode/ with package.json (activationEvents: workspaceContains:.kanbus.yml), tsconfig.json, and src/extension.ts entry point registering the kanbus.openBoard command.",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tskl-acp",
+    "priority": 2,
+    "status": "open",
+    "title": "Extension activates in Kanbus projects"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "6ea1a4ed-fa64-4e4e-9c0e-d45561fe8d77",
+  "issue_id": "tskl-tnl.2",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T14:56:21.652Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "Add --project <name> filter to kanbus list (repeatable for multiple projects). Composable with --local-only, --no-local, --status, and other existing filters. Reject unknown project names.",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tskl-tnl",
+    "priority": 2,
+    "status": "open",
+    "title": "Project filtering for CLI"
+  }
+}

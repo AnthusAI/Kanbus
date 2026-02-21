@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a736b537-8bfb-4a72-a7ed-f499f4244ee9",
+  "issue_id": "tskl-tnl.1",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T14:56:21.528Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "Replace external_projects with virtual_projects config field in .kanbus.yml — a labeled map of project paths. Validate paths at load time, reject duplicates, reject label collisions with project key. Reject legacy external_projects with a migration error message. Update existing multi-project tests.",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tskl-tnl",
+    "priority": 2,
+    "status": "open",
+    "title": "Virtual project configuration and discovery"
+  }
+}

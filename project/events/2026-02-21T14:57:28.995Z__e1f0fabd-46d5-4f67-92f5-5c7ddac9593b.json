@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "e1f0fabd-46d5-4f67-92f5-5c7ddac9593b",
+  "issue_id": "tskl-46f",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T14:57:28.995Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "The default kanbus.yml template still uses a 'deferred' status. Update both Rust and Python defaults to use 'backlog' with the improved workflow (backlog, open/Discovery, in_progress, blocked, closed) and new transition labels.",
+    "issue_type": "chore",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Update default kanbus.yml template: replace deferred with backlog workflow"
+  }
+}

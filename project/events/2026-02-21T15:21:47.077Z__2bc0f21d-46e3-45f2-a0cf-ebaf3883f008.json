@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "2bc0f21d-46e3-45f2-a0cf-ebaf3883f008",
+  "issue_id": "tskl-puu",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T15:21:47.077Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "The kbsc console server unconditionally creates and writes to a console.log file in the repo root. The open_telemetry_log() function in console_local.rs always opens this file on startup. Logging should only be enabled when explicitly requested (e.g., via CONSOLE_LOG_PATH env var or a --log flag), not by default.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Telemetry logging to console.log enabled by default in kbsc"
+  }
+}

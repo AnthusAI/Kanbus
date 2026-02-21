@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "96e23154-2692-4a23-88fa-9b4b81a2d212",
+  "issue_id": "tskl-tnl.5",
+  "event_type": "field_updated",
+  "occurred_at": "2026-02-21T14:56:40.011Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "changes": {
+      "labels": {
+        "from": [],
+        "to": [
+          "virtual-projects"
+        ]
+      }
+    }
+  }
+}

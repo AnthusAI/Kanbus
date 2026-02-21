@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "de954739-0840-4bb5-9bff-c94c20092e4c",
+  "issue_id": "tskl-acp.4",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T17:25:06.602Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "As a developer, I want the board to load live data and receive real-time updates so that I see the current state of my issues and changes appear automatically.  Acceptance Criteria (BDD):  Scenario: React app fetches data from kbsc   Given the Webview is loaded with the React console app   And kbsc is running on port 5200   When the React app calls fetch('/api/config') and fetch('/api/issues')   Then the injected fetch patch rewrites these to http://127.0.0.1:5200/api/config and /api/issues   And the board populates with the project configuration and issues  Scenario: SSE stream delivers real-time updates   Given the board is displayed in the Webview   And the React app opens new EventSource('/api/events')   Then the injected EventSource patch rewrites this to http://127.0.0.1:5200/api/events   And when an issue is created or updated via the CLI   Then the board updates automatically without a manual refresh  Scenario: Notification events reach the board   Given the board is displayed   When I run 'kbs create' or 'kbs update' from the terminal   Then kbsc receives the notification via Unix socket   And broadcasts it over the /api/events/realtime SSE stream   And the React app shows the new or updated issue  Scenario: Content Security Policy allows API connections   Given the Webview has a CSP meta tag   Then connect-src includes http://127.0.0.1:{PORT}   And script-src allows the nonce for the injected patch script   And style-src allows inline styles and Google Fonts  Implementation: Inject a script into the Webview HTML that patches window.fetch and window.EventSource. Also stub history.pushState/replaceState since Webview navigation is a no-op. Set CSP connect-src to the kbsc server URL.",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tskl-acp",
+    "priority": 2,
+    "status": "open",
+    "title": "API calls and real-time updates work inside the Webview"
+  }
+}

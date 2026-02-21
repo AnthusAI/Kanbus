@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "f2a1e667-2ad1-4bcb-b5ef-313972b0157e",
+  "issue_id": "tskl-a10",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-21T14:58:46.595Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "Update the default kanbus.yml template to use a backlog-based workflow instead of the old deferred-based workflow. Includes updating Rust/Python defaults, test fixtures, feature specs, display fallbacks, documentation, and regenerating CONTRIBUTING_AGENT.md.",
+    "issue_type": "epic",
+    "labels": [],
+    "parent": null,
+    "priority": 2,
+    "status": "open",
+    "title": "Update default workflow: replace deferred with backlog"
+  }
+}
