@@ -32,6 +32,17 @@ cd rust
 cargo build
 ```
 
+Linux build dependencies (for OpenSSL/reqwest):
+
+```bash
+# Amazon Linux / RHEL / CentOS
+sudo yum install -y gcc make perl-core openssl-devel pkgconfig
+
+# Ubuntu / Debian
+sudo apt-get update
+sudo apt-get install -y build-essential perl pkg-config libssl-dev
+```
+
 Run the CLI:
 
 ```bash

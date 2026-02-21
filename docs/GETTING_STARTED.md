@@ -52,6 +52,17 @@ cargo install kanbus
 
 The Rust installation includes `kbs` (CLI) and `kbsc` (web server).
 
+Linux build dependencies (for OpenSSL/reqwest):
+
+```bash
+# Amazon Linux / RHEL / CentOS
+sudo yum install -y gcc make perl-core openssl-devel pkgconfig
+
+# Ubuntu / Debian
+sudo apt-get update
+sudo apt-get install -y build-essential perl pkg-config libssl-dev
+```
+
 ## Step 1: Initialize a project
 
 Create a new repository or enter an existing one, then initialize Kanbus.
