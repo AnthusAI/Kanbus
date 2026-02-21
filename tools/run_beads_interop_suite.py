@@ -260,6 +260,11 @@ def build_beads_cli(beads_repo: Path, output_dir: Path) -> Path:
     binary = output_dir / "bd"
     env = os.environ.copy()
     env["GOTOOLCHAIN"] = "auto"
+    cache_root = output_dir.parent / "go-cache"
+    cache_root.mkdir(parents=True, exist_ok=True)
+    env["GOPATH"] = str(cache_root)
+    env["GOMODCACHE"] = str(cache_root / "mod")
+    env["GOCACHE"] = str(cache_root / "build")
     result = run_command(
         ["go", "build", "-o", str(binary), "./cmd/bd"], cwd=beads_repo, env=env
     )
