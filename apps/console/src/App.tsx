@@ -3,6 +3,7 @@ import {
   CheckCheck,
   Filter,
   FilterX,
+  FolderOpen,
   Lightbulb,
   ListChecks,
   Search,
@@ -51,6 +52,28 @@ type IssueSelectionContext = {
 
 const VIEW_MODE_STORAGE_KEY = "kanbus.console.viewMode";
 const DETAIL_WIDTH_STORAGE_KEY = "kanbus.console.detailWidth";
+const PROJECT_FILTER_STORAGE_KEY = "kanbus.console.projectFilter";
+const LOCAL_FILTER_STORAGE_KEY = "kanbus.console.localFilter";
+
+type LocalFilter = "all" | "local" | "shared";
+
+function loadStoredProjectFilter(): string {
+  if (typeof window === "undefined") {
+    return "all";
+  }
+  return window.localStorage.getItem(PROJECT_FILTER_STORAGE_KEY) ?? "all";
+}
+
+function loadStoredLocalFilter(): LocalFilter {
+  if (typeof window === "undefined") {
+    return "all";
+  }
+  const stored = window.localStorage.getItem(LOCAL_FILTER_STORAGE_KEY);
+  if (stored === "local" || stored === "shared") {
+    return stored;
+  }
+  return "all";
+}
 
 function loadStoredViewMode(): ViewMode {
   if (typeof window === "undefined") {
@@ -468,6 +491,8 @@ export default function App() {
   });
   const [detailClosing, setDetailClosing] = useState(false);
   const [detailNavDirection, setDetailNavDirection] = useState<NavAction>("none");
+  const [projectFilter, setProjectFilter] = useState<string>(() => loadStoredProjectFilter());
+  const [localFilter, setLocalFilter] = useState<LocalFilter>(() => loadStoredLocalFilter());
   const layoutFrameRef = React.useRef<HTMLDivElement | null>(null);
   const navActionRef = React.useRef<NavAction>("none");
   const wasDetailOpenRef = React.useRef(false);
@@ -715,6 +740,14 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem(DETAIL_WIDTH_STORAGE_KEY, String(detailWidth));
   }, [detailWidth]);
+
+  useEffect(() => {
+    window.localStorage.setItem(PROJECT_FILTER_STORAGE_KEY, projectFilter);
+  }, [projectFilter]);
+
+  useEffect(() => {
+    window.localStorage.setItem(LOCAL_FILTER_STORAGE_KEY, localFilter);
+  }, [localFilter]);
 
   useEffect(() => {
     if (!detailMaximized) {
@@ -1036,6 +1069,21 @@ export default function App() {
     }
   };
 
+  const hasVirtualProjects = config
+    ? Object.keys(config.virtual_projects).length > 0
+    : false;
+
+  const projectLabels = useMemo(() => {
+    if (!config || !hasVirtualProjects) {
+      return [];
+    }
+    return [config.project_key, ...Object.keys(config.virtual_projects)];
+  }, [config, hasVirtualProjects]);
+
+  const hasLocalIssues = useMemo(() => {
+    return issues.some((issue) => issue.custom?.source === "local");
+  }, [issues]);
+
   const filteredIssues = useMemo(() => {
     // Use non-deferred issues when search is active for immediate feedback
     const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
@@ -1074,8 +1122,22 @@ export default function App() {
       result = result.filter((issue) => matchesSearchQuery(issue, searchQuery));
     }
 
+    // Apply project filter
+    if (hasVirtualProjects && projectFilter !== "all") {
+      result = result.filter(
+        (issue) => issue.custom?.project_label === projectFilter
+      );
+    }
+
+    // Apply local/shared filter
+    if (localFilter === "local") {
+      result = result.filter((issue) => issue.custom?.source === "local");
+    } else if (localFilter === "shared") {
+      result = result.filter((issue) => issue.custom?.source === "shared");
+    }
+
     return result;
-  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery]);
+  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, projectFilter, localFilter, hasVirtualProjects]);
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
@@ -1194,6 +1256,70 @@ export default function App() {
               }
             ]}
           />
+          {hasVirtualProjects ? (
+            <AnimatedSelector
+              name="project"
+              value={projectFilter}
+              onChange={(value) => setProjectFilter(value)}
+              options={[
+                {
+                  id: "all",
+                  label: "All",
+                  content: (
+                    <span className="selector-option">
+                      <FolderOpen className="h-4 w-4" />
+                      <span className="selector-label">All</span>
+                    </span>
+                  )
+                },
+                ...projectLabels.map((label) => ({
+                  id: label,
+                  label,
+                  content: (
+                    <span className="selector-option">
+                      <span className="selector-label">{label}</span>
+                    </span>
+                  )
+                }))
+              ]}
+            />
+          ) : null}
+          {hasLocalIssues ? (
+            <AnimatedSelector
+              name="local"
+              value={localFilter}
+              onChange={(value) => setLocalFilter(value as LocalFilter)}
+              options={[
+                {
+                  id: "all",
+                  label: "All",
+                  content: (
+                    <span className="selector-option">
+                      <span className="selector-label">All</span>
+                    </span>
+                  )
+                },
+                {
+                  id: "local",
+                  label: "Local",
+                  content: (
+                    <span className="selector-option">
+                      <span className="selector-label">Local</span>
+                    </span>
+                  )
+                },
+                {
+                  id: "shared",
+                  label: "Project",
+                  content: (
+                    <span className="selector-option">
+                      <span className="selector-label">Project</span>
+                    </span>
+                  )
+                }
+              ]}
+            />
+          ) : null}
         </div>
         <button
           className="flex-none toggle-button rounded-full bg-[var(--column)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted h-7 flex items-center justify-center gap-2"

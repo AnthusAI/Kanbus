@@ -75,12 +75,32 @@ impl FileStore {
         for project in &labeled {
             let issues_dir = project.project_dir.join("issues");
             if issues_dir.is_dir() {
-                let mut issues = load_console_issues(&project.project_dir)?;
-                all_issues.append(&mut issues);
+                let mut shared = load_issues_from_dir(&issues_dir)?;
+                for issue in &mut shared {
+                    tag_custom(issue, "project_label", &project.label);
+                    tag_custom(issue, "source", "shared");
+                }
+                all_issues.append(&mut shared);
+
+                if let Some(local_dir) = find_project_local_directory(&project.project_dir) {
+                    let local_issues_dir = local_dir.join("issues");
+                    if local_issues_dir.is_dir() {
+                        let mut local = load_issues_from_dir(&local_issues_dir)?;
+                        for issue in &mut local {
+                            tag_custom(issue, "project_label", &project.label);
+                            tag_custom(issue, "source", "local");
+                        }
+                        all_issues.append(&mut local);
+                    }
+                }
             } else if let Some(repo_root) = project.project_dir.parent() {
                 let beads_path = repo_root.join(".beads").join("issues.jsonl");
                 if beads_path.exists() {
                     let mut issues = load_beads_issues(repo_root)?;
+                    for issue in &mut issues {
+                        tag_custom(issue, "project_label", &project.label);
+                        tag_custom(issue, "source", "shared");
+                    }
                     all_issues.append(&mut issues);
                 }
             }
@@ -178,13 +198,26 @@ fn load_console_issues(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError
     }
 
     let mut issues = load_issues_from_dir(&issues_dir)?;
+    for issue in &mut issues {
+        tag_custom(issue, "source", "shared");
+    }
 
     if let Some(local_dir) = find_project_local_directory(project_dir) {
         let local_issues_dir = local_dir.join("issues");
         if local_issues_dir.is_dir() {
-            issues.extend(load_issues_from_dir(&local_issues_dir)?);
+            let mut local_issues = load_issues_from_dir(&local_issues_dir)?;
+            for issue in &mut local_issues {
+                tag_custom(issue, "source", "local");
+            }
+            issues.extend(local_issues);
         }
     }
 
     Ok(issues)
+}
+
+fn tag_custom(issue: &mut IssueData, key: &str, value: &str) {
+    issue
+        .custom
+        .insert(key.to_string(), serde_json::Value::String(value.to_string()));
 }
