@@ -5,9 +5,11 @@ use std::path::Path;
 
 use crate::daemon_client::{is_daemon_enabled, request_index_list};
 use crate::error::KanbusError;
+use crate::config_loader::load_project_configuration;
 use crate::file_io::{
     canonicalize_path, discover_kanbus_projects, discover_project_directories,
-    find_project_local_directory, load_project_directory, resolve_labeled_projects,
+    find_project_local_directory, get_configuration_path, load_project_directory,
+    resolve_labeled_projects,
 };
 use crate::models::IssueData;
 use crate::queries::{filter_issues, search_issues, sort_issues};
@@ -65,6 +67,14 @@ pub fn list_issues(
     }
     normalized.sort();
     normalized.dedup();
+    if let Ok(config_path) = get_configuration_path(root) {
+        if let Ok(configuration) = load_project_configuration(&config_path) {
+            let base = config_path.parent().unwrap_or_else(|| Path::new(""));
+            normalized.retain(|project_path| {
+                !crate::file_io::is_path_ignored(project_path, base, &configuration.ignore_paths)
+            });
+        }
+    }
     let mut permission_error = None;
     normalized.retain(|path| {
         let issues_dir = path.join("issues");

@@ -155,6 +155,7 @@ def when_list_issues_directly_after_configuration_failure(context: object) -> No
                 label=None,
                 sort=None,
                 search=None,
+                projects=(),
                 no_local=False,
                 local_only=False,
                 limit=50,

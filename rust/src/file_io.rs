@@ -453,7 +453,7 @@ fn resolve_project_directories(
     Ok(projects)
 }
 
-fn is_path_ignored(path: &Path, base: &Path, ignore_paths: &[String]) -> bool {
+pub(crate) fn is_path_ignored(path: &Path, base: &Path, ignore_paths: &[String]) -> bool {
     for ignore_pattern in ignore_paths {
         let ignore_path = base.join(ignore_pattern);
         if let Ok(ignore_canonical) = ignore_path.canonicalize() {

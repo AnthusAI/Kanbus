@@ -36,6 +36,7 @@ def discover_project_directories(root: Path) -> List[Path]:
     project_dirs: List[Path] = []
     _collect_project_directories(root, project_dirs)
     project_dirs.extend(discover_kanbus_projects(root))
+    project_dirs = _apply_ignore_paths(root, project_dirs)
     return _normalize_project_directories(project_dirs)
 
 
@@ -133,6 +134,32 @@ def _collect_project_directories(root: Path, projects: List[Path]) -> None:
             projects.append(nested_project)
         # Do not recurse into subdirectories; explicit configuration controls
         # additional project discovery.
+
+
+def _apply_ignore_paths(root: Path, project_dirs: List[Path]) -> List[Path]:
+    """Filter out project directories matching ignore_paths from configuration."""
+    marker = _find_configuration_file(root)
+    if marker is None:
+        return project_dirs
+    try:
+        configuration = _load_configuration(marker)
+    except RuntimeError:
+        return project_dirs
+    if not configuration.ignore_paths:
+        return project_dirs
+    base = marker.parent
+    ignored = set()
+    for pattern in configuration.ignore_paths:
+        ignore_path = base / pattern
+        try:
+            ignored.add(ignore_path.resolve())
+        except OSError:
+            pass
+    return [
+        path
+        for path in project_dirs
+        if path.resolve() not in ignored
+    ]
 
 
 def _normalize_project_directories(paths: Iterable[Path]) -> List[Path]:
