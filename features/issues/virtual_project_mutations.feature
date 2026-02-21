@@ -3,6 +3,14 @@ Feature: Issue mutations across virtual projects
   I want mutations to apply to the original issue in its original project
   So that no duplicates are created and source projects stay consistent
 
+  Scenario: Update a primary project issue when virtual projects are configured
+    Given a Kanbus project with virtual projects configured
+    And an issue "kbs-task01" exists in the primary project
+    When I run "kanbus update kbs-task01 --status in_progress"
+    Then the command should succeed
+    And the issue file in the primary project should be updated
+    And no issue file should be created in any virtual project
+
   Scenario: Update an issue from a virtual project
     Given a Kanbus project with virtual projects configured
     And an issue "alpha-task01" exists in virtual project "alpha"

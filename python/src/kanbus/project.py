@@ -230,25 +230,44 @@ def _find_git_root(root: Path) -> Optional[Path]:
 
 
 def load_project_directory(root: Path) -> Path:
-    """Load a single project directory from the current root.
+    """Load the primary project directory for write operations.
+
+    When a configuration file is found, derives the project directory directly
+    from ``project_directory`` in the config. Virtual project directories are
+    for reading and lookup only and are not returned here.
 
     :param root: Repository root path.
     :type root: Path
-    :return: Path to the project directory.
+    :return: Path to the primary project directory.
     :rtype: Path
-    :raises ProjectMarkerError: If no project or multiple projects are found.
+    :raises ProjectMarkerError: If no project is found or the configuration
+        is invalid.
     """
-    project_dirs = discover_project_directories(root)
+    marker = _find_configuration_file(root)
+    if marker is not None:
+        try:
+            configuration = _load_configuration(marker)
+        except RuntimeError as error:
+            raise ProjectMarkerError(str(error)) from error
+        primary = marker.parent / configuration.project_directory
+        filtered = _apply_ignore_paths(root, [primary])
+        if not filtered:
+            raise ProjectMarkerError("project not initialized")
+        return _normalize_project_directories(filtered)[0]
+
+    # No config file — fall back to filesystem scanning.
+    project_dirs: List[Path] = []
+    _collect_project_directories(root, project_dirs)
+    project_dirs = _apply_ignore_paths(root, project_dirs)
+    project_dirs = _normalize_project_directories(project_dirs)
     if not project_dirs:
         raise ProjectMarkerError("project not initialized")
     if len(project_dirs) > 1:
         discovered = ", ".join(str(path) for path in project_dirs)
         raise ProjectMarkerError(
             f"multiple projects found: {discovered}. "
-            "Run this command from a directory with a single project/, "
-            "or remove extra entries from virtual_projects in .kanbus.yml."
+            "Run this command from a directory with a single project/"
         )
-
     return project_dirs[0]
 
 
