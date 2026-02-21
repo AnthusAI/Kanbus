@@ -1,5 +1,6 @@
 //! Configuration loading and validation.
 
+use std::env;
 use std::fs;
 use std::path::Path;
 
@@ -19,6 +20,8 @@ use crate::models::ProjectConfiguration;
 ///
 /// Returns `KanbusError::Configuration` if the configuration is invalid.
 pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, KanbusError> {
+    let dotenv_path = path.parent().unwrap_or(Path::new(".")).join(".env");
+    load_dotenv(&dotenv_path);
     let contents = fs::read_to_string(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
             KanbusError::Configuration("configuration file not found".to_string())
@@ -40,6 +43,39 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     }
 
     Ok(configuration)
+}
+
+fn load_dotenv(path: &Path) {
+    let Ok(contents) = fs::read_to_string(path) else {
+        return;
+    };
+
+    for line in contents.lines() {
+        let mut stripped = line.trim();
+        if stripped.is_empty() || stripped.starts_with('#') {
+            continue;
+        }
+        if let Some(rest) = stripped.strip_prefix("export ") {
+            stripped = rest.trim_start();
+        }
+        let Some((key, value)) = stripped.split_once('=') else {
+            continue;
+        };
+        let key = key.trim();
+        if key.is_empty() || env::var_os(key).is_some() {
+            continue;
+        }
+        let mut value = value.trim().to_string();
+        if value.len() >= 2 {
+            let bytes = value.as_bytes();
+            let first = bytes[0];
+            let last = bytes[bytes.len() - 1];
+            if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+                value = value[1..value.len() - 1].to_string();
+            }
+        }
+        env::set_var(key, value);
+    }
 }
 
 /// Validate configuration rules beyond schema validation.
