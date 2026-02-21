@@ -19,6 +19,7 @@ sudo dnf -y install \
 python3.11 -m pip install --upgrade pip
 python3.11 -m pip install -e python
 python3.11 -m pip install black ruff coverage
+export PATH="$HOME/.local/bin:$PATH"
 
 curl https://sh.rustup.rs -sSf | sh -s -- -y
 export PATH="$HOME/.cargo/bin:$PATH"
