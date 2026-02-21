@@ -9,7 +9,7 @@ from pathlib import Path
 
 from behave import given, then, when
 
-from features.steps.shared import run_cli
+from features.steps.shared import ensure_project_directory, run_cli
 from kanbus.ids import format_issue_key
 
 
@@ -29,6 +29,7 @@ def given_beads_fixture_repo(context: object) -> None:
     if repo_path.exists():
         shutil.rmtree(repo_path)
     repo_path.mkdir(parents=True, exist_ok=True)
+    ensure_project_directory(repo_path)
     beads_dir = repo_path / ".beads"
     beads_dir.mkdir()
     fixture = _fixture_beads_dir()
