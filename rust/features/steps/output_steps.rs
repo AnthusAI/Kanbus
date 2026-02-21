@@ -26,6 +26,15 @@ fn then_stderr_contains_text(world: &mut KanbusWorld, text: String) {
     assert!(stderr.contains(&normalized));
 }
 
+#[then(expr = "the output should contain {string}")]
+fn then_output_contains_text(world: &mut KanbusWorld, text: String) {
+    let stdout = world.stdout.as_deref().unwrap_or("");
+    let stderr = world.stderr.as_deref().unwrap_or("");
+    let normalized = text.replace("\\\"", "\"");
+    let combined = strip_ansi(&format!("{stdout}{stderr}"));
+    assert!(combined.contains(&normalized));
+}
+
 #[then(expr = "stdout should contain {string} once")]
 fn then_stdout_contains_once(world: &mut KanbusWorld, text: String) {
     let stdout = strip_ansi(world.stdout.as_ref().expect("stdout"));

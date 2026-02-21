@@ -12,7 +12,7 @@ from urllib.parse import urlparse, parse_qs
 
 from behave import given, then, when
 
-from features.steps.shared import load_project_directory, run_cli
+from features.steps.shared import load_project_directory
 
 
 def _find_free_port() -> int:
@@ -213,27 +213,6 @@ def given_env_var_unset(context: object, name: str) -> None:
     context._unset_env_vars = getattr(context, "_unset_env_vars", [])
     context._unset_env_vars.append((name, os.environ.get(name)))
     os.environ.pop(name, None)
-
-
-@when('I run "kanbus jira pull"')
-@given('I run "kanbus jira pull"')
-def when_run_jira_pull(context: object) -> None:
-    """Run the jira pull command.
-
-    :param context: Behave context object.
-    :type context: object
-    """
-    run_cli(context, "kanbus jira pull")
-
-
-@when('I run "kanbus jira pull --dry-run"')
-def when_run_jira_pull_dry_run(context: object) -> None:
-    """Run the jira pull command in dry-run mode.
-
-    :param context: Behave context object.
-    :type context: object
-    """
-    run_cli(context, "kanbus jira pull --dry-run")
 
 
 @then("{count:d} issue files should exist in the issues directory")

@@ -70,13 +70,21 @@ fn default_jira_sync_direction() -> String {
     "pull".to_string()
 }
 
+/// Configuration for a single virtual project.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VirtualProjectConfig {
+    pub path: String,
+}
+
 /// Project configuration loaded from .kanbus.yml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProjectConfiguration {
     pub project_directory: String,
     #[serde(default)]
-    pub external_projects: Vec<String>,
+    pub virtual_projects: BTreeMap<String, VirtualProjectConfig>,
+    #[serde(default)]
+    pub new_issue_project: Option<String>,
     #[serde(default)]
     pub ignore_paths: Vec<String>,
     #[serde(default)]

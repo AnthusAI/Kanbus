@@ -126,7 +126,7 @@ Feature: Issue dependencies
     Given a repository with a .kanbus.yml file referencing a missing path
     When I run "kanbus ready"
     Then the command should fail with exit code 1
-    And stderr should contain "kanbus path not found"
+    And stderr should contain "virtual project path not found"
 
   Scenario: Ready includes local issues
     Given a Kanbus project with default configuration

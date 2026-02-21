@@ -16,7 +16,6 @@ from behave import given, then, when
 from features.steps.shared import (
     build_issue,
     load_project_directory,
-    run_cli,
     write_issue_file,
 )
 from kanbus.cache import collect_issue_file_mtimes, write_cache
@@ -376,21 +375,6 @@ def then_daemon_rebuilt_index(context: object) -> None:
     project_dir = load_project_directory(context)
     cache_path = get_index_cache_path(project_dir.parent)
     assert cache_path.stat().st_mtime > context.cache_mtime
-
-
-@when('I run "kanbus list"')
-def when_run_list(context: object) -> None:
-    run_cli(context, "kanbus list")
-
-
-@when('I run "kanbus daemon-status"')
-def when_run_daemon_status(context: object) -> None:
-    run_cli(context, "kanbus daemon-status")
-
-
-@when('I run "kanbus daemon-stop"')
-def when_run_daemon_stop(context: object) -> None:
-    run_cli(context, "kanbus daemon-stop")
 
 
 @when('I parse protocol versions "{first}" and "{second}"')

@@ -13,7 +13,6 @@ import shutil
 from features.steps.shared import (
     build_issue,
     load_project_directory,
-    run_cli,
     write_issue_file,
 )
 from kanbus.maintenance import (
@@ -23,21 +22,6 @@ from kanbus.maintenance import (
 )
 from kanbus.models import DependencyLink
 from kanbus.doctor import DoctorError, run_doctor
-
-
-@when('I run "kanbus validate"')
-def when_run_validate(context: object) -> None:
-    run_cli(context, "kanbus validate")
-
-
-@when('I run "kanbus stats"')
-def when_run_stats(context: object) -> None:
-    run_cli(context, "kanbus stats")
-
-
-@when('I run "kanbus doctor"')
-def when_run_doctor(context: object) -> None:
-    run_cli(context, "kanbus doctor")
 
 
 @when("I validate the project directly")

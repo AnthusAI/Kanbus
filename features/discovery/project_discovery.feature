@@ -34,7 +34,7 @@ Feature: Project discovery
     Then the command should fail with exit code 1
     And stderr should contain "local-only conflicts with no-local"
 
-  Scenario: Configuration file adds external projects
-    Given a repository with a .kanbus.yml file referencing another project
+  Scenario: Configuration file adds virtual projects
+    Given a repository with a .kanbus.yml file with virtual projects configured
     When I run "kanbus list"
-    Then issues from the referenced project should be listed
+    Then issues from the virtual projects should be listed

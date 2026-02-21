@@ -13,6 +13,13 @@ use crate::project_management_template::{
 use serde_json;
 use serde_yaml;
 
+/// A resolved project directory with its label.
+#[derive(Debug, Clone)]
+pub struct ResolvedProject {
+    pub label: String,
+    pub project_dir: PathBuf,
+}
+
 fn should_force_canonicalize_failure() -> bool {
     std::env::var_os("KANBUS_TEST_CANONICALIZE_FAILURE").is_some()
 }
@@ -251,7 +258,7 @@ fn filter_and_validate_projects(normalized: Vec<PathBuf>) -> Result<PathBuf, Kan
         return Err(KanbusError::IssueOperation(format!(
             "multiple projects found: {joined}. \
              Run this command from a directory with a single project/, \
-             or remove extra entries from external_projects in .kanbus.yml."
+             or remove extra entries from virtual_projects in .kanbus.yml."
         )));
     }
     Ok(normalized[0].clone())
@@ -356,12 +363,31 @@ pub fn discover_kanbus_projects(root: &Path) -> Result<Vec<PathBuf>, KanbusError
     let mut projects = Vec::new();
     if let Some(config_path) = find_configuration_file(root)? {
         let configuration = load_project_configuration(&config_path)?;
-        projects.extend(resolve_project_directories(
+        let resolved = resolve_project_directories(
             config_path.parent().unwrap_or_else(|| Path::new("")),
             &configuration,
-        )?);
+        )?;
+        projects.extend(resolved.into_iter().map(|rp| rp.project_dir));
     }
     Ok(projects)
+}
+
+/// Resolve all labeled project directories from configuration.
+///
+/// # Arguments
+///
+/// * `root` - Repository root.
+///
+/// # Errors
+///
+/// Returns `KanbusError` if configuration or paths are invalid.
+pub fn resolve_labeled_projects(root: &Path) -> Result<Vec<ResolvedProject>, KanbusError> {
+    let config_path = get_configuration_path(root)?;
+    let configuration = load_project_configuration(&config_path)?;
+    resolve_project_directories(
+        config_path.parent().unwrap_or_else(|| Path::new("")),
+        &configuration,
+    )
 }
 
 fn find_configuration_file(root: &Path) -> Result<Option<PathBuf>, KanbusError> {
@@ -395,14 +421,17 @@ fn find_configuration_file(root: &Path) -> Result<Option<PathBuf>, KanbusError> 
 fn resolve_project_directories(
     base: &Path,
     configuration: &ProjectConfiguration,
-) -> Result<Vec<PathBuf>, KanbusError> {
+) -> Result<Vec<ResolvedProject>, KanbusError> {
     let mut projects = Vec::new();
     let primary = base.join(&configuration.project_directory);
     if !is_path_ignored(&primary, base, &configuration.ignore_paths) {
-        projects.push(primary);
+        projects.push(ResolvedProject {
+            label: configuration.project_key.clone(),
+            project_dir: primary,
+        });
     }
-    for extra in &configuration.external_projects {
-        let candidate = Path::new(extra);
+    for (label, vp) in &configuration.virtual_projects {
+        let candidate = Path::new(&vp.path);
         let resolved = if candidate.is_absolute() {
             candidate.to_path_buf()
         } else {
@@ -410,12 +439,15 @@ fn resolve_project_directories(
         };
         if !resolved.is_dir() {
             return Err(KanbusError::IssueOperation(format!(
-                "kanbus path not found: {}",
+                "virtual project path not found: {}",
                 resolved.display()
             )));
         }
         if !is_path_ignored(&resolved, base, &configuration.ignore_paths) {
-            projects.push(resolved);
+            projects.push(ResolvedProject {
+                label: label.clone(),
+                project_dir: resolved,
+            });
         }
     }
     Ok(projects)

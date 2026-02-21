@@ -14,6 +14,8 @@ use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
 use serde_json::Value;
 
+use crate::step_definitions::virtual_project_steps::VirtualProjectState;
+
 #[derive(Debug, Default, World)]
 pub struct KanbusWorld {
     pub temp_dir: Option<TempDir>,
@@ -98,6 +100,8 @@ pub struct KanbusWorld {
     pub sample_issue: Option<kanbus::models::IssueData>,
     pub dependency_error: Option<String>,
     pub original_invalid_status_env: Option<Option<String>>,
+    pub virtual_project_state: Option<VirtualProjectState>,
+    pub simulated_configuration_error: Option<String>,
 }
 
 impl Drop for KanbusWorld {

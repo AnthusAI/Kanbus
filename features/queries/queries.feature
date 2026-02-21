@@ -29,10 +29,10 @@ Feature: Query and list operations
     Then stdout should contain "alpha/project T kanbus-alphal"
     And stdout should not contain "beta/project T kanbus-beta"
 
-  Scenario: List output includes external project paths from configuration file
-    Given a repository with a .kanbus.yml file referencing another project
+  Scenario: List output includes virtual project labels from configuration file
+    Given a repository with a .kanbus.yml file with virtual projects configured
     When I run "kanbus list"
-    Then stdout should contain the external project path for "kanbus-extern"
+    Then stdout should contain the virtual project label for "kanbus-extern"
 
   Scenario: List issues filtered by type
     Given a Kanbus project with default configuration
@@ -161,7 +161,7 @@ Feature: Query and list operations
     Given a repository with a .kanbus.yml file referencing a missing path
     When I run "kanbus list"
     Then the command should fail with exit code 1
-    And stderr should contain "kanbus path not found"
+    And stderr should contain "virtual project path not found"
 
   Scenario: List fails when configuration is invalid
     Given a Kanbus project with an invalid configuration containing unknown fields

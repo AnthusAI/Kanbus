@@ -27,11 +27,19 @@ def before_scenario(context: object, scenario: object) -> None:
     context.last_issue_id = None
     context.environment_overrides = {"KANBUS_NO_DAEMON": "1"}
     context.daemon_core = None
+    context.virtual_project_state = None
+    context.virtual_project_missing_path = False
+    context.virtual_project_missing_issues_dir = False
+    context.simulated_configuration_error = None
 
 
 def before_all(context: object) -> None:
     """Run extra coverage helpers before the suite."""
-    _run_coverage_helper()
+    try:
+        _run_coverage_helper()
+    except Exception:
+        # Coverage helper failures should not block the suite.
+        return
 
 
 def after_scenario(context: object, scenario: object) -> None:

@@ -8,10 +8,9 @@ use crate::event_history::{
     events_dir_for_local, events_dir_for_project, now_timestamp, transfer_payload,
     write_events_batch, EventRecord, EventType,
 };
-use crate::file_io::{
-    ensure_project_local_directory, find_project_local_directory, load_project_directory,
-};
+use crate::file_io::{ensure_project_local_directory, find_project_local_directory};
 use crate::issue_files::read_issue_from_file;
+use crate::issue_lookup::load_issue_from_project;
 use crate::models::IssueData;
 use crate::users::get_current_user;
 
@@ -24,13 +23,17 @@ use crate::users::get_current_user;
 /// # Errors
 /// Returns `KanbusError::IssueOperation` if promotion fails.
 pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusError> {
-    let project_dir = load_project_directory(root)?;
+    let lookup = load_issue_from_project(root, identifier)?;
+    let project_dir = lookup.project_dir;
+
     let local_dir = find_project_local_directory(&project_dir)
         .ok_or_else(|| KanbusError::IssueOperation("project-local not initialized".to_string()))?;
 
     let local_issue_path = local_dir.join("issues").join(format!("{identifier}.json"));
     if !local_issue_path.exists() {
-        return Err(KanbusError::IssueOperation("not found".to_string()));
+        return Err(KanbusError::IssueOperation(
+            "issue is not in project-local".to_string(),
+        ));
     }
 
     let target_path = project_dir
@@ -74,12 +77,15 @@ pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusE
 /// # Errors
 /// Returns `KanbusError::IssueOperation` if localization fails.
 pub fn localize_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusError> {
-    let project_dir = load_project_directory(root)?;
+    let lookup = load_issue_from_project(root, identifier)?;
+    let project_dir = lookup.project_dir;
     let shared_issue_path = project_dir
         .join("issues")
         .join(format!("{identifier}.json"));
     if !shared_issue_path.exists() {
-        return Err(KanbusError::IssueOperation("not found".to_string()));
+        return Err(KanbusError::IssueOperation(
+            "issue is not in shared project".to_string(),
+        ));
     }
 
     let local_dir = ensure_project_local_directory(&project_dir)?;

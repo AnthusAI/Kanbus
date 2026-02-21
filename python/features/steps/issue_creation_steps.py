@@ -10,86 +10,8 @@ from features.steps.shared import (
     capture_issue_identifier,
     load_project_directory,
     read_issue_file,
-    run_cli,
 )
 from kanbus.issue_creation import IssueCreationError, create_issue
-
-
-@when('I run "kanbus create Implement OAuth2 flow"')
-def when_run_create_default(context: object) -> None:
-    run_cli(context, "kanbus create Implement OAuth2 flow")
-
-
-@when('I run "kanbus create implement oauth2 flow"')
-def when_run_create_duplicate_title(context: object) -> None:
-    run_cli(context, "kanbus create implement oauth2 flow")
-
-
-@when(
-    'I run "kanbus create Fix login bug --type bug --priority 1 --assignee dev@example.com --parent kanbus-epic01 --label auth --label urgent --description \\"Bug in login\\""'
-)
-def when_run_create_full(context: object) -> None:
-    run_cli(
-        context,
-        "kanbus create Fix login bug --type bug --priority 1 --assignee dev@example.com "
-        '--parent kanbus-epic01 --label auth --label urgent --description "Bug in login"',
-    )
-
-
-@when('I run "kanbus create Bad Issue --type nonexistent"')
-def when_run_create_invalid_type(context: object) -> None:
-    run_cli(context, "kanbus create Bad Issue --type nonexistent")
-
-
-@when('I run "kanbus create Orphan --parent kanbus-nonexistent"')
-def when_run_create_missing_parent(context: object) -> None:
-    run_cli(context, "kanbus create Orphan --parent kanbus-nonexistent")
-
-
-@when('I run "kanbus create"')
-def when_run_create_without_title(context: object) -> None:
-    run_cli(context, "kanbus create")
-
-
-@when('I run "kanbus create Bad Priority --priority 99"')
-def when_run_create_invalid_priority(context: object) -> None:
-    run_cli(context, "kanbus create Bad Priority --priority 99")
-
-
-@when(
-    'I run "kanbus create Bad Parent --type epic --parent kanbus-epic01 --no-validate"'
-)
-def when_run_create_invalid_parent_no_validate(context: object) -> None:
-    run_cli(
-        context,
-        "kanbus create Bad Parent --type epic --parent kanbus-epic01 --no-validate",
-    )
-
-
-@when('I run "kanbus create Child Task --type {issue_type} --parent kanbus-parent"')
-def when_run_create_child_task_with_parent(context: object, issue_type: str) -> None:
-    run_cli(
-        context,
-        f"kanbus create Child Task --type {issue_type} --parent kanbus-parent",
-    )
-
-
-@when('I run "kanbus create Child --type {issue_type} --parent kanbus-bug01"')
-def when_run_create_child_with_bug_parent(context: object, issue_type: str) -> None:
-    run_cli(
-        context,
-        f"kanbus create Child --type {issue_type} --parent kanbus-bug01",
-    )
-
-
-@when('I run "kanbus create Standalone Task --type task"')
-def when_run_create_standalone_task(context: object) -> None:
-    run_cli(context, "kanbus create Standalone Task --type task")
-
-
-@when('I run "kanbus create Snapshot issue"')
-def when_run_create_snapshot_issue(context: object) -> None:
-    run_cli(context, "kanbus create Snapshot issue")
 
 
 @when('I create an issue directly with title "Implement OAuth2 flow"')
@@ -249,11 +171,6 @@ def then_created_issue_assignee(context: object) -> None:
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
     assert issue.assignee == "dev@example.com"
-
-
-@when('I run "kanbus create Child short parent --parent kanbus-abcdef"')
-def when_run_create_short_parent(context: object) -> None:
-    run_cli(context, "kanbus create Child short parent --parent kanbus-abcdef")
 
 
 @then('the created issue should have parent "{parent_identifier}"')

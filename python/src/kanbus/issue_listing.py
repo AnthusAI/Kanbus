@@ -12,9 +12,11 @@ from kanbus.issue_files import read_issue_from_file
 from kanbus.models import IssueData
 from kanbus.project import (
     ProjectMarkerError,
+    ResolvedProject,
     discover_project_directories,
     find_project_local_directory,
     load_project_directory,
+    resolve_labeled_projects,
     resolve_project_path,
 )
 from kanbus.migration import MigrationError, load_beads_issues
@@ -33,6 +35,7 @@ def list_issues(
     label: str | None = None,
     sort: str | None = None,
     search: str | None = None,
+    project_filter: List[str] | None = None,
     include_local: bool = True,
     local_only: bool = False,
     beads_mode: bool = False,
@@ -43,6 +46,8 @@ def list_issues(
     :type root: Path
     :return: List of issues.
     :rtype: List[IssueData]
+    :param project_filter: Optional list of project labels to include.
+    :type project_filter: List[str] | None
     :param beads_mode: Whether to read from Beads JSONL instead of project files.
     :type beads_mode: bool
     :raises IssueListingError: If listing fails.
@@ -60,6 +65,13 @@ def list_issues(
         if status is None:
             issues = [issue for issue in issues if issue.status != "closed"]
         return _apply_query(issues, status, issue_type, assignee, label, sort, search)
+
+    if project_filter:
+        return _list_with_project_filter(
+            root, project_filter, status, issue_type, assignee, label,
+            sort, search, include_local, local_only,
+        )
+
     try:
         project_dirs = discover_project_directories(root)
     except ProjectMarkerError as error:
@@ -127,6 +139,35 @@ def list_issues(
     return _apply_query(
         shared_issues, status, issue_type, assignee, label, sort, search
     )
+
+
+def _list_with_project_filter(
+    root: Path,
+    project_filter: List[str],
+    status: str | None,
+    issue_type: str | None,
+    assignee: str | None,
+    label: str | None,
+    sort: str | None,
+    search: str | None,
+    include_local: bool,
+    local_only: bool,
+) -> List[IssueData]:
+    try:
+        labeled = resolve_labeled_projects(root)
+    except ProjectMarkerError as error:
+        raise IssueListingError(str(error)) from error
+    if not labeled:
+        raise IssueListingError("project not initialized")
+    known_labels = {project.label for project in labeled}
+    for name in project_filter:
+        if name not in known_labels:
+            raise IssueListingError(f"unknown project: {name}")
+    allowed = set(project_filter)
+    filtered_projects = [project for project in labeled if project.label in allowed]
+    project_dirs = [project.project_dir for project in filtered_projects]
+    issues = _list_issues_across_projects(root, project_dirs, include_local, local_only)
+    return _apply_query(issues, status, issue_type, assignee, label, sort, search)
 
 
 def _list_issues_locally(root: Path) -> List[IssueData]:

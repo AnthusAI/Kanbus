@@ -590,6 +590,7 @@ def comment(
 @click.option("--label")
 @click.option("--sort")
 @click.option("--search")
+@click.option("--project", "projects", multiple=True, help="Filter by project label.")
 @click.option("--no-local", is_flag=True, default=False)
 @click.option("--local-only", is_flag=True, default=False)
 @click.option(
@@ -614,6 +615,7 @@ def list_command(
     label: str | None,
     sort: str | None,
     search: str | None,
+    projects: tuple[str, ...],
     no_local: bool,
     local_only: bool,
     limit: int,
@@ -640,6 +642,7 @@ def list_command(
             label=label,
             sort=sort,
             search=search,
+            project_filter=list(projects),
             include_local=not no_local,
             local_only=local_only,
             beads_mode=beads_mode,

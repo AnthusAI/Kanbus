@@ -129,13 +129,23 @@ class JiraConfiguration(BaseModel):
     field_mappings: Dict[str, str] = Field(default_factory=dict)
 
 
+class VirtualProjectConfig(BaseModel):
+    """Configuration for a single virtual project."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    path: str
+
+
 class ProjectConfiguration(BaseModel):
     """Project configuration loaded from .kanbus.yml.
 
     :param project_directory: Relative path to the primary project directory.
     :type project_directory: str
-    :param external_projects: Optional list of additional project directories.
-    :type external_projects: List[str]
+    :param virtual_projects: Map of label to virtual project configuration.
+    :type virtual_projects: Dict[str, VirtualProjectConfig]
+    :param new_issue_project: Project label for new issue creation routing.
+    :type new_issue_project: Optional[str]
     :param ignore_paths: Paths to exclude from project discovery.
     :type ignore_paths: List[str]
     :param project_key: Issue ID project key (prefix).
@@ -158,8 +168,6 @@ class ProjectConfiguration(BaseModel):
     :type assignee: Optional[str]
     :param time_zone: Preferred display time zone.
     :type time_zone: Optional[str]
-    :param status_colors: Optional map of status to color name.
-    :type status_colors: Dict[str, str]
     :param type_colors: Optional map of issue type to color name.
     :type type_colors: Dict[str, str]
     :param beads_compatibility: Default Beads compatibility mode.
@@ -171,7 +179,8 @@ class ProjectConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     project_directory: str
-    external_projects: List[str] = Field(default_factory=list)
+    virtual_projects: Dict[str, VirtualProjectConfig] = Field(default_factory=dict)
+    new_issue_project: Optional[str] = None
     ignore_paths: List[str] = Field(default_factory=list)
     console_port: Optional[int] = None
     project_key: str = Field(min_length=1)

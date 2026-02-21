@@ -42,22 +42,6 @@ def given_migrated_kanbus_repo(context: object) -> None:
     context.last_kanbus_id = None
 
 
-@when('I run "kanbus --beads create Beads epic --type epic"')
-def when_run_create_beads_epic(context: object) -> None:
-    run_cli(context, "kanbus --beads create Beads epic --type epic")
-
-
-@when('I run "kanbus --beads create Beads child --parent bdx-epic"')
-def when_run_create_beads_child(context: object) -> None:
-    run_cli(context, "kanbus --beads create Beads child --parent bdx-epic")
-
-
-@when('I run "kanbus create Native epic --type epic"')
-@given('I run "kanbus create Native epic --type epic"')
-def when_run_create_native_epic(context: object) -> None:
-    run_cli(context, "kanbus create Native epic --type epic")
-
-
 @when('I run "kanbus create Native deletable --type epic"')
 def when_run_create_native_deletable(context: object) -> None:
     run_cli(context, "kanbus create Native deletable --type epic")

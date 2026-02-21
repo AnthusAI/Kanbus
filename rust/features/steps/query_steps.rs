@@ -230,7 +230,7 @@ fn given_issue_with_full_metadata(
 #[when("I list issues directly after configuration path lookup fails")]
 fn when_list_issues_directly_after_configuration_failure(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("working directory");
-    if let Err(error) = list_issues(root, None, None, None, None, None, None, true, false) {
+    if let Err(error) = list_issues(root, None, None, None, None, None, None, &[], true, false) {
         world.exit_code = Some(1);
         world.stdout = Some(String::new());
         world.stderr = Some(error.to_string());

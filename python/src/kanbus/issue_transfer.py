@@ -5,12 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from kanbus.issue_files import read_issue_from_file
+from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueData
 from kanbus.project import (
-    ProjectMarkerError,
     ensure_project_local_directory,
     find_project_local_directory,
-    load_project_directory,
 )
 from kanbus.event_history import (
     create_event,
@@ -39,13 +38,14 @@ def promote_issue(root: Path, identifier: str) -> IssueData:
     :raises IssueTransferError: If promotion fails.
     """
     try:
-        project_dir = load_project_directory(root)
-    except ProjectMarkerError as error:
+        lookup = load_issue_from_project(root, identifier)
+    except IssueLookupError as error:
         raise IssueTransferError(str(error)) from error
+    project_dir = lookup.project_dir
 
     local_dir = find_project_local_directory(project_dir)
     if local_dir is None:
-        raise IssueTransferError("project-local not initialized")
+        raise IssueTransferError("not found")
 
     local_issue_path = local_dir / "issues" / f"{identifier}.json"
     if not local_issue_path.exists():
@@ -87,13 +87,14 @@ def localize_issue(root: Path, identifier: str) -> IssueData:
     :raises IssueTransferError: If localization fails.
     """
     try:
-        project_dir = load_project_directory(root)
-    except ProjectMarkerError as error:
+        lookup = load_issue_from_project(root, identifier)
+    except IssueLookupError as error:
         raise IssueTransferError(str(error)) from error
+    project_dir = lookup.project_dir
 
     shared_issue_path = project_dir / "issues" / f"{identifier}.json"
     if not shared_issue_path.exists():
-        raise IssueTransferError("not found")
+        raise IssueTransferError("issue is not in shared project")
 
     local_dir = ensure_project_local_directory(project_dir)
     target_path = local_dir / "issues" / f"{identifier}.json"

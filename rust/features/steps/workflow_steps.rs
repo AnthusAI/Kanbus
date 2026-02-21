@@ -225,7 +225,8 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
     )]);
     let configuration = ProjectConfiguration {
         project_directory: "project".to_string(),
-        external_projects: Vec::new(),
+        virtual_projects: std::collections::BTreeMap::new(),
+        new_issue_project: None,
         ignore_paths: Vec::new(),
         console_port: None,
         project_key: "kanbus".to_string(),

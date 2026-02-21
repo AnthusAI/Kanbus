@@ -7,10 +7,11 @@ use crate::daemon_client::{is_daemon_enabled, request_index_list};
 use crate::error::KanbusError;
 use crate::file_io::{
     canonicalize_path, discover_kanbus_projects, discover_project_directories,
-    find_project_local_directory, load_project_directory,
+    find_project_local_directory, load_project_directory, resolve_labeled_projects,
 };
 use crate::models::IssueData;
 use crate::queries::{filter_issues, search_issues, sort_issues};
+use std::collections::HashSet;
 
 /// List issues for the project.
 ///
@@ -28,6 +29,7 @@ pub fn list_issues(
     label: Option<&str>,
     sort: Option<&str>,
     search: Option<&str>,
+    project_filter: &[String],
     include_local: bool,
     local_only: bool,
 ) -> Result<Vec<IssueData>, KanbusError> {
@@ -35,6 +37,20 @@ pub fn list_issues(
         return Err(KanbusError::IssueOperation(
             "local-only conflicts with no-local".to_string(),
         ));
+    }
+    if !project_filter.is_empty() {
+        return list_with_project_filter(
+            root,
+            project_filter,
+            status,
+            issue_type,
+            assignee,
+            label,
+            sort,
+            search,
+            include_local,
+            local_only,
+        );
     }
     let mut projects = Vec::new();
     discover_project_directories(root, &mut projects)?;
@@ -107,6 +123,41 @@ pub fn list_issues(
         return apply_query(issues, status, issue_type, assignee, label, sort, search);
     }
     let issues = list_issues_local(root)?;
+    apply_query(issues, status, issue_type, assignee, label, sort, search)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn list_with_project_filter(
+    root: &Path,
+    project_filter: &[String],
+    status: Option<&str>,
+    issue_type: Option<&str>,
+    assignee: Option<&str>,
+    label: Option<&str>,
+    sort: Option<&str>,
+    search: Option<&str>,
+    include_local: bool,
+    local_only: bool,
+) -> Result<Vec<IssueData>, KanbusError> {
+    let labeled = resolve_labeled_projects(root)?;
+    if labeled.is_empty() {
+        return Err(KanbusError::IssueOperation(
+            "project not initialized".to_string(),
+        ));
+    }
+    let known: HashSet<&str> = labeled.iter().map(|p| p.label.as_str()).collect();
+    for name in project_filter {
+        if !known.contains(name.as_str()) {
+            return Err(KanbusError::IssueOperation(format!("unknown project: {name}")));
+        }
+    }
+    let allowed: HashSet<&str> = project_filter.iter().map(|s| s.as_str()).collect();
+    let project_dirs: Vec<std::path::PathBuf> = labeled
+        .into_iter()
+        .filter(|p| allowed.contains(p.label.as_str()))
+        .map(|p| p.project_dir)
+        .collect();
+    let issues = list_issues_across_projects(root, &project_dirs, include_local, local_only)?;
     apply_query(issues, status, issue_type, assignee, label, sort, search)
 }
 

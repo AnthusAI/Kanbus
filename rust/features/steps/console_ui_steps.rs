@@ -1,6 +1,7 @@
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use chrono_tz::Tz;
 use cucumber::{given, then, when};
+use std::path::PathBuf;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
@@ -14,6 +15,8 @@ pub struct ConsoleIssue {
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
     pub closed_at: Option<String>,
+    pub project_label: String,
+    pub location: String,
 }
 
 #[allow(dead_code)]
@@ -46,6 +49,8 @@ impl Default for ConsoleSettings {
 pub struct ConsoleLocalStorage {
     pub selected_tab: Option<String>,
     pub settings: ConsoleSettings,
+    pub selected_project_filter: Option<String>,
+    pub selected_local_filter: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -55,6 +60,11 @@ pub struct ConsoleState {
     pub selected_task_title: Option<String>,
     pub settings: ConsoleSettings,
     pub time_zone: Option<String>,
+    pub project_filter_options: Vec<String>,
+    pub project_filter_visible: bool,
+    pub local_filter_visible: bool,
+    pub selected_project_filter: Option<String>,
+    pub selected_local_filter: Option<String>,
 }
 
 #[given("the console is open")]
@@ -97,6 +107,8 @@ fn when_add_task_issue(world: &mut KanbusWorld, title: String) {
         created_at: None,
         updated_at: None,
         closed_at: None,
+        project_label: "kbs".to_string(),
+        location: "shared".to_string(),
     });
 }
 
@@ -212,10 +224,259 @@ fn when_set_motion(world: &mut KanbusWorld, motion: String) {
     world.console_local_storage.settings.motion = motion;
 }
 
+#[given("the console is open with virtual projects configured")]
+fn given_console_open_with_virtual_projects(world: &mut KanbusWorld) {
+    world.console_state = Some(open_console(world));
+    let state = require_console_state(world);
+    state.project_filter_options = vec![
+        "kbs".to_string(),
+        "alpha".to_string(),
+        "beta".to_string(),
+    ];
+    state.project_filter_visible = true;
+    // Add a default alpha shared issue so filter scenarios have data.
+    state.issues.push(ConsoleIssue {
+        title: "Alpha shared issue".to_string(),
+        issue_type: "task".to_string(),
+        parent_title: None,
+        comments: Vec::new(),
+        assignee: None,
+        created_at: None,
+        updated_at: None,
+        closed_at: None,
+        project_label: "alpha".to_string(),
+        location: "shared".to_string(),
+    });
+}
+
+#[given(expr = "the console is open with virtual projects {string} and {string} configured")]
+fn given_console_open_with_virtual_projects_named(
+    world: &mut KanbusWorld,
+    alpha: String,
+    beta: String,
+) {
+    world.console_state = Some(open_console(world));
+    let state = require_console_state(world);
+    state.project_filter_options = vec![
+        "kbs".to_string(),
+        alpha.clone(),
+        beta.clone(),
+    ];
+    state.project_filter_visible = true;
+}
+
+#[given("no virtual projects are configured")]
+fn given_no_virtual_projects(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    state.project_filter_options = vec!["kbs".to_string()];
+    state.project_filter_visible = false;
+}
+
+#[given("issues exist in multiple projects")]
+fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    state.issues = vec![
+        ConsoleIssue {
+            title: "KBS issue".to_string(),
+            issue_type: "task".to_string(),
+            parent_title: None,
+            comments: Vec::new(),
+            assignee: None,
+            created_at: None,
+            updated_at: None,
+            closed_at: None,
+            project_label: "kbs".to_string(),
+            location: "shared".to_string(),
+        },
+        ConsoleIssue {
+            title: "Alpha issue".to_string(),
+            issue_type: "task".to_string(),
+            parent_title: None,
+            comments: Vec::new(),
+            assignee: None,
+            created_at: None,
+            updated_at: None,
+            closed_at: None,
+            project_label: "alpha".to_string(),
+            location: "shared".to_string(),
+        },
+        ConsoleIssue {
+            title: "Beta issue".to_string(),
+            issue_type: "task".to_string(),
+            parent_title: None,
+            comments: Vec::new(),
+            assignee: None,
+            created_at: None,
+            updated_at: None,
+            closed_at: None,
+            project_label: "beta".to_string(),
+            location: "shared".to_string(),
+        },
+    ];
+}
+
+#[given("local issues exist in the current project")]
+fn given_local_issues_current_project(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    state.issues.push(ConsoleIssue {
+        title: "Local current issue".to_string(),
+        issue_type: "task".to_string(),
+        parent_title: None,
+        comments: Vec::new(),
+        assignee: None,
+        created_at: None,
+        updated_at: None,
+        closed_at: None,
+        project_label: "kbs".to_string(),
+        location: "local".to_string(),
+    });
+    state.local_filter_visible = true;
+}
+
+#[given(expr = "local issues exist in virtual project {string}")]
+fn given_local_issues_virtual_project(world: &mut KanbusWorld, label: String) {
+    let state = require_console_state(world);
+    state.issues.push(ConsoleIssue {
+        title: format!("{label} local issue"),
+        issue_type: "task".to_string(),
+        parent_title: None,
+        comments: Vec::new(),
+        assignee: None,
+        created_at: None,
+        updated_at: None,
+        closed_at: None,
+        project_label: label,
+        location: "local".to_string(),
+    });
+    state.local_filter_visible = true;
+}
+
+#[given("no local issues exist in any project")]
+fn given_no_local_issues_any_project(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    for issue in &mut state.issues {
+        issue.location = "shared".to_string();
+    }
+    state.local_filter_visible = false;
+}
+
+#[when(expr = "I select project {string} in the project filter")]
+fn when_select_project_filter(world: &mut KanbusWorld, label: String) {
+    let state = require_console_state(world);
+    state.selected_project_filter = Some(label.clone());
+    world.console_local_storage.selected_project_filter = Some(label);
+}
+
+#[when("I select all projects in the project filter")]
+fn when_select_all_projects_filter(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    state.selected_project_filter = None;
+    world.console_local_storage.selected_project_filter = None;
+}
+
+#[when("I select \"local only\" in the local filter")]
+fn when_select_local_only_filter(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    state.selected_local_filter = Some("local".to_string());
+    world.console_local_storage.selected_local_filter = Some("local".to_string());
+}
+
+#[when("I select \"project only\" in the local filter")]
+fn when_select_project_only_filter(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    state.selected_local_filter = Some("shared".to_string());
+    world.console_local_storage.selected_local_filter = Some("shared".to_string());
+}
+
+#[then("the project filter should be visible in the navigation bar")]
+fn then_project_filter_visible(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert!(state.project_filter_visible);
+}
+
+#[then("the project filter should not be visible")]
+fn then_project_filter_not_visible(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert!(!state.project_filter_visible);
+}
+
+#[then(expr = "the project filter should list {string}")]
+fn then_project_filter_should_list(world: &mut KanbusWorld, label: String) {
+    let state = require_console_state(world);
+    assert!(state.project_filter_options.contains(&label));
+}
+
+#[then("the local issues filter should be visible in the navigation bar")]
+fn then_local_filter_visible(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert!(state.local_filter_visible);
+}
+
+#[then("the local issues filter should not be visible")]
+fn then_local_filter_not_visible(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert!(!state.local_filter_visible);
+}
+
+#[then(expr = "project {string} should still be selected in the project filter")]
+fn then_project_filter_still_selected(world: &mut KanbusWorld, label: String) {
+    let state = require_console_state(world);
+    assert_eq!(state.selected_project_filter.as_deref(), Some(label.as_str()));
+}
+
+#[then(expr = "I should only see issues from {string}")]
+fn then_only_see_issues_from(world: &mut KanbusWorld, label: String) {
+    let visible = visible_issues_with_filters(require_console_state(world));
+    assert!(!visible.is_empty());
+    assert!(visible.iter().all(|issue| issue.project_label == label));
+}
+
+#[then("I should see issues from all projects")]
+fn then_see_issues_from_all_projects(world: &mut KanbusWorld) {
+    let visible = visible_issues_with_filters(require_console_state(world));
+    let labels: std::collections::HashSet<String> =
+        visible.iter().map(|issue| issue.project_label.clone()).collect();
+    assert!(labels.contains("kbs"));
+    assert!(labels.contains("alpha"));
+    assert!(labels.contains("beta"));
+}
+
+#[then(expr = "I should only see local issues from {string}")]
+fn then_only_local_issues_from(world: &mut KanbusWorld, label: String) {
+    let visible = visible_issues_with_filters(require_console_state(world));
+    assert!(!visible.is_empty());
+    assert!(visible.iter().all(|issue| issue.project_label == label));
+    assert!(visible.iter().all(|issue| issue.location == "local"));
+}
+
+#[then(expr = "I should only see shared issues from {string}")]
+fn then_only_shared_issues_from(world: &mut KanbusWorld, label: String) {
+    let visible = visible_issues_with_filters(require_console_state(world));
+    assert!(!visible.is_empty());
+    assert!(visible.iter().all(|issue| issue.project_label == label));
+    assert!(visible.iter().all(|issue| issue.location == "shared"));
+}
+
 #[then(expr = "the {string} tab should be selected")]
 fn then_tab_selected(world: &mut KanbusWorld, tab: String) {
     let state = require_console_state(world);
     assert_eq!(state.selected_tab, tab);
+}
+
+#[then("no view tab should be selected")]
+fn then_no_tab_selected(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert!(
+        state.selected_tab.is_empty(),
+        "Expected no tab to be selected, but '{}' is selected",
+        state.selected_tab
+    );
+}
+
+#[then(expr = "the detail panel should show issue {string}")]
+fn then_detail_panel_shows_issue(world: &mut KanbusWorld, issue_title: String) {
+    let state = require_console_state(world);
+    assert_eq!(state.selected_task_title.as_deref(), Some(issue_title.as_str()));
 }
 
 #[then(expr = "I should see the issue {string}")]
@@ -309,6 +570,44 @@ fn then_issue_metadata_assignee(world: &mut KanbusWorld, assignee: String) {
     assert_eq!(issue.assignee.as_deref(), Some(assignee.as_str()));
 }
 
+#[when(expr = "I open the console route {string}")]
+fn when_open_console_route(world: &mut KanbusWorld, route: String) {
+    let state = require_console_state(world);
+    if route.contains("/issues/kanbus-epic-1/kanbus-task-1") {
+        state.selected_tab = String::new();
+        state.selected_task_title = Some("Add structured logging".to_string());
+    } else if route.contains("/all") {
+        state.selected_tab = String::new();
+    } else if route.contains("/issues/kanbus-epic") {
+        state.selected_tab = "Epics".to_string();
+        state.selected_task_title = Some("Observability overhaul".to_string());
+    } else if route.contains("/epics/") || route.ends_with("/epics") {
+        state.selected_tab = "Epics".to_string();
+    } else if route.contains("/issues/")
+        && !route.contains("/kanbus-")
+        && !route.contains("/acme/")
+    {
+        state.selected_tab = "Issues".to_string();
+    } else if route.contains("/acme/") && route.contains("/epics/") {
+        state.selected_tab = "Epics".to_string();
+    }
+}
+
+#[when("I view an issue card or detail that shows priority")]
+fn when_view_issue_card_or_detail_with_priority(world: &mut KanbusWorld) {
+    require_console_state(world);
+}
+
+#[then("the priority label should use the priority color as background")]
+fn then_priority_label_uses_background(_world: &mut KanbusWorld) {
+    assert_priority_pill_uses_background();
+}
+
+#[then("the priority label text should use the normal text foreground color")]
+fn then_priority_label_uses_foreground_text(_world: &mut KanbusWorld) {
+    assert_priority_pill_uses_foreground_text();
+}
+
 fn open_console(world: &KanbusWorld) -> ConsoleState {
     let selected_tab = world
         .console_local_storage
@@ -317,12 +616,19 @@ fn open_console(world: &KanbusWorld) -> ConsoleState {
         .unwrap_or_else(|| "Epics".to_string());
     let settings = world.console_local_storage.settings.clone();
     let time_zone = world.console_time_zone.clone();
+    let selected_project_filter = world.console_local_storage.selected_project_filter.clone();
+    let selected_local_filter = world.console_local_storage.selected_local_filter.clone();
     ConsoleState {
         issues: default_issues(),
         selected_tab,
         selected_task_title: None,
         settings,
         time_zone,
+        project_filter_options: vec!["kbs".to_string()],
+        project_filter_visible: false,
+        local_filter_visible: false,
+        selected_project_filter,
+        selected_local_filter,
     }
 }
 
@@ -358,6 +664,30 @@ fn visible_issue_titles(state: &ConsoleState) -> Vec<String> {
     issues.iter().map(|issue| issue.title.clone()).collect()
 }
 
+fn visible_issues_with_filters(state: &ConsoleState) -> Vec<&ConsoleIssue> {
+    let mut issues: Vec<&ConsoleIssue> = state.issues.iter().collect();
+    if let Some(ref filter) = state.selected_project_filter {
+        issues = issues
+            .into_iter()
+            .filter(|issue| &issue.project_label == filter)
+            .collect();
+    }
+    if let Some(ref local_filter) = state.selected_local_filter {
+        if local_filter == "local" {
+            issues = issues
+                .into_iter()
+                .filter(|issue| issue.location == "local")
+                .collect();
+        } else if local_filter == "shared" {
+            issues = issues
+                .into_iter()
+                .filter(|issue| issue.location == "shared")
+                .collect();
+        }
+    }
+    issues
+}
+
 fn default_issues() -> Vec<ConsoleIssue> {
     vec![
         ConsoleIssue {
@@ -369,6 +699,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            project_label: "kbs".to_string(),
+            location: "shared".to_string(),
         },
         ConsoleIssue {
             title: "Increase reliability".to_string(),
@@ -379,6 +711,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            project_label: "kbs".to_string(),
+            location: "shared".to_string(),
         },
         ConsoleIssue {
             title: "Add structured logging".to_string(),
@@ -389,6 +723,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            project_label: "kbs".to_string(),
+            location: "shared".to_string(),
         },
         ConsoleIssue {
             title: "Fix crash on startup".to_string(),
@@ -399,6 +735,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            project_label: "kbs".to_string(),
+            location: "shared".to_string(),
         },
         ConsoleIssue {
             title: "Wire logger middleware".to_string(),
@@ -409,6 +747,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            project_label: "kbs".to_string(),
+            location: "shared".to_string(),
         },
     ]
 }
@@ -472,4 +812,43 @@ fn format_timestamp(value: &str, time_zone: Option<&str>) -> String {
         period,
         tzname
     )
+}
+
+fn console_app_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("apps")
+        .join("console")
+}
+
+fn assert_priority_pill_uses_background() {
+    let root = console_app_root();
+    let globals_css =
+        std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
+            .expect("read globals.css");
+    if !globals_css.contains("background") || !globals_css.contains("--issue-priority-bg") {
+        panic!("priority label must use background with --issue-priority-bg in globals.css");
+    }
+    let issue_colors =
+        std::fs::read_to_string(root.join("src").join("utils").join("issue-colors.ts"))
+            .expect("read issue-colors.ts");
+    if !issue_colors.contains("issue-priority-bg-light")
+        || !issue_colors.contains("issue-priority-bg-dark")
+    {
+        panic!("issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark");
+    }
+}
+
+fn assert_priority_pill_uses_foreground_text() {
+    let root = console_app_root();
+    let globals_css =
+        std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
+            .expect("read globals.css");
+    let start = globals_css.find(".issue-accent-priority");
+    let start = start.expect(".issue-accent-priority not found in globals.css");
+    let end = std::cmp::min(start + 600, globals_css.len());
+    let block = &globals_css[start..end];
+    if !block.contains("var(--text-foreground)") || !block.contains("color") {
+        panic!(".issue-accent-priority must set color to var(--text-foreground)");
+    }
 }

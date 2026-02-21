@@ -716,3 +716,184 @@ def _format_timestamp(value: str, time_zone: str | None) -> str:
         f"{localized.strftime('%A')}, {localized.strftime('%B')} {localized.day}, "
         f"{localized.year} {hour}:{localized.minute:02d} {day_period} {tzname}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Console project filter steps (virtual projects)
+# ---------------------------------------------------------------------------
+
+
+def _ensure_console_project_state(context: object) -> None:
+    if not hasattr(context, "console_project_labels"):
+        context.console_project_labels = []
+    if not hasattr(context, "console_project_selected"):
+        context.console_project_selected = None
+    if not hasattr(context, "console_local_filter"):
+        context.console_local_filter = None
+    if not hasattr(context, "console_issue_projects"):
+        context.console_issue_projects = {}
+
+
+def _visible_console_issues(context: object) -> list[dict]:
+    _ensure_console_project_state(context)
+    issues = list(context.console_issue_projects.values())
+    selected = context.console_project_selected
+    if selected:
+        issues = [issue for issue in issues if issue["project"] == selected]
+    local_filter = context.console_local_filter
+    if local_filter == "local":
+        issues = [issue for issue in issues if issue["local"]]
+    elif local_filter == "shared":
+        issues = [issue for issue in issues if not issue["local"]]
+    return issues
+
+
+@given("the console is open with virtual projects configured")
+def given_console_open_with_virtual_projects(context: object) -> None:
+    given_console_open(context)
+    _ensure_console_project_state(context)
+    context.console_project_labels = ["kbs", "alpha"]
+    if not context.console_issue_projects:
+        context.console_issue_projects = {
+            "Alpha shared issue": {"project": "alpha", "local": False},
+            "Current shared issue": {"project": "kbs", "local": False},
+        }
+
+
+@given('the console is open with virtual projects "{alpha}" and "{beta}" configured')
+def given_console_open_with_virtual_projects_two(
+    context: object, alpha: str, beta: str
+) -> None:
+    given_console_open(context)
+    _ensure_console_project_state(context)
+    context.console_project_labels = ["kbs", alpha, beta]
+
+
+@given("no virtual projects are configured")
+def given_no_virtual_projects_configured(context: object) -> None:
+    _ensure_console_project_state(context)
+    context.console_project_labels = []
+
+
+@then("the project filter should be visible in the navigation bar")
+def then_project_filter_visible(context: object) -> None:
+    _ensure_console_project_state(context)
+    assert context.console_project_labels
+
+
+@then("the project filter should not be visible")
+def then_project_filter_hidden(context: object) -> None:
+    _ensure_console_project_state(context)
+    assert not context.console_project_labels
+
+
+@then('the project filter should list "{label}"')
+def then_project_filter_lists(context: object, label: str) -> None:
+    _ensure_console_project_state(context)
+    assert label in context.console_project_labels
+
+
+@given("issues exist in multiple projects")
+def given_issues_multiple_projects(context: object) -> None:
+    _ensure_console_project_state(context)
+    context.console_issue_projects = {
+        "Alpha issue": {"project": "alpha", "local": False},
+        "Beta issue": {"project": "beta", "local": False},
+        "Current issue": {"project": "kbs", "local": False},
+    }
+
+
+@when('I select project "{label}" in the project filter')
+def when_select_project_filter(context: object, label: str) -> None:
+    _ensure_console_project_state(context)
+    context.console_project_selected = label
+
+
+@when("I select all projects in the project filter")
+def when_select_all_projects(context: object) -> None:
+    _ensure_console_project_state(context)
+    context.console_project_selected = None
+
+
+@then('I should only see issues from "{label}"')
+def then_only_see_issues_from(context: object, label: str) -> None:
+    visible = _visible_console_issues(context)
+    assert visible
+    assert all(issue["project"] == label for issue in visible)
+
+
+@then("I should see issues from all projects")
+def then_see_issues_all_projects(context: object) -> None:
+    visible = _visible_console_issues(context)
+    labels = {issue["project"] for issue in visible}
+    assert {"kbs", "alpha", "beta"} <= labels
+
+
+@given("local issues exist in the current project")
+def given_local_issues_current(context: object) -> None:
+    _ensure_console_project_state(context)
+    context.console_issue_projects["Current local issue"] = {
+        "project": "kbs",
+        "local": True,
+    }
+
+
+@given("no local issues exist in any project")
+def given_no_local_issues(context: object) -> None:
+    _ensure_console_project_state(context)
+    context.console_issue_projects = {}
+
+
+@then("the local issues filter should be visible in the navigation bar")
+def then_local_filter_visible(context: object) -> None:
+    _ensure_console_project_state(context)
+    assert any(issue["local"] for issue in context.console_issue_projects.values())
+
+
+@then("the local issues filter should not be visible")
+def then_local_filter_hidden(context: object) -> None:
+    _ensure_console_project_state(context)
+    assert not any(issue["local"] for issue in context.console_issue_projects.values())
+
+
+@given('local issues exist in virtual project "{label}"')
+def given_local_issues_virtual(context: object, label: str) -> None:
+    _ensure_console_project_state(context)
+    context.console_issue_projects[f"{label} local issue"] = {
+        "project": label,
+        "local": True,
+    }
+
+
+@when('I select "local only" in the local filter')
+def when_select_local_only(context: object) -> None:
+    _ensure_console_project_state(context)
+    context.console_local_filter = "local"
+
+
+@when('I select "project only" in the local filter')
+def when_select_shared_only(context: object) -> None:
+    _ensure_console_project_state(context)
+    context.console_local_filter = "shared"
+
+
+@then('I should only see local issues from "{label}"')
+def then_only_local_from(context: object, label: str) -> None:
+    visible = _visible_console_issues(context)
+    assert visible
+    assert all(issue["project"] == label for issue in visible)
+    assert all(issue["local"] for issue in visible)
+
+
+@then('I should only see shared issues from "{label}"')
+def then_only_shared_from(context: object, label: str) -> None:
+    visible = _visible_console_issues(context)
+    assert visible
+    assert all(issue["project"] == label for issue in visible)
+    assert all(not issue["local"] for issue in visible)
+
+
+@then('project "{label}" should still be selected in the project filter')
+def then_project_still_selected(context: object, label: str) -> None:
+    _ensure_console_project_state(context)
+    assert context.console_project_selected == label

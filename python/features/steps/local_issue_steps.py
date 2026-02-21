@@ -10,7 +10,6 @@ from features.steps.shared import (
     build_issue,
     capture_issue_identifier,
     load_project_directory,
-    run_cli,
     write_issue_file,
 )
 
@@ -20,46 +19,6 @@ def _local_project_directory(context: object) -> Path:
     local_dir = project_dir.parent / "project-local"
     (local_dir / "issues").mkdir(parents=True, exist_ok=True)
     return local_dir
-
-
-@when('I run "kanbus create --local Local task"')
-def when_run_create_local(context: object) -> None:
-    run_cli(context, "kanbus create --local Local task")
-
-
-@when('I run "kanbus create --local local"')
-def when_run_create_local_duplicate(context: object) -> None:
-    run_cli(context, "kanbus create --local local")
-
-
-@when('I run "kanbus promote kanbus-local01"')
-def when_run_promote(context: object) -> None:
-    run_cli(context, "kanbus promote kanbus-local01")
-
-
-@when('I run "kanbus localize kanbus-shared01"')
-def when_run_localize(context: object) -> None:
-    run_cli(context, "kanbus localize kanbus-shared01")
-
-
-@when('I run "kanbus promote kanbus-missing"')
-def when_run_promote_missing(context: object) -> None:
-    run_cli(context, "kanbus promote kanbus-missing")
-
-
-@when('I run "kanbus promote kanbus-dupe01"')
-def when_run_promote_dupe(context: object) -> None:
-    run_cli(context, "kanbus promote kanbus-dupe01")
-
-
-@when('I run "kanbus localize kanbus-missing"')
-def when_run_localize_missing(context: object) -> None:
-    run_cli(context, "kanbus localize kanbus-missing")
-
-
-@when('I run "kanbus localize kanbus-dupe02"')
-def when_run_localize_dupe(context: object) -> None:
-    run_cli(context, "kanbus localize kanbus-dupe02")
 
 
 @given('a local issue "kanbus-local01" exists')
