@@ -94,7 +94,15 @@ cd ..
 mkdir -p dist
 cp rust/target/release/kbs dist/kbs
 cp rust/target/release/kbsc dist/kbsc
-tools/test_prebuilt_binaries_docker.sh dist/kbs dist/kbsc
+if command -v docker >/dev/null 2>&1; then
+  if docker info >/dev/null 2>&1; then
+    tools/test_prebuilt_binaries_docker.sh dist/kbs dist/kbsc
+  else
+    echo "Skipping docker prebuilt binary test: docker daemon not available."
+  fi
+else
+  echo "Skipping docker prebuilt binary test: docker not installed."
+fi
 
 binary=$(python3.11 tools/build_rust_release.py)
 python3.11 tools/run_beads_interop_suite.py --rust-binary "$binary"
