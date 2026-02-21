@@ -8,6 +8,7 @@ sudo dnf -y install \
   gcc \
   gcc-c++ \
   make \
+  perl \
   git \
   golang \
   libicu-devel \
