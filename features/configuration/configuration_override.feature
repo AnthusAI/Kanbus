@@ -36,6 +36,15 @@ Feature: Configuration overrides
     Then the command should fail with exit code 1
     And stderr should contain "override configuration is invalid"
 
+  Scenario: Override file merges virtual_projects additively
+    Given a Kanbus repository with a .kanbus.yml file containing the default configuration
+    And the Kanbus configuration has a virtual project "alpha" at path "../Alpha/project"
+    And a Kanbus override file adds a virtual project "beta" at path "../Beta/project"
+    When the configuration is loaded
+    Then the command should succeed
+    And the configuration should have virtual project "alpha"
+    And the configuration should have virtual project "beta"
+
   Scenario: Override file must be readable
     Given a Kanbus repository with a .kanbus.yml file containing the default configuration
     And an unreadable .kanbus.override.yml file
