@@ -2,8 +2,8 @@
 # Kanbus Development Mode - Runs all necessary watchers for frontend and backend
 # Usage: ./dev.sh
 # This script will:
-# 1. Watch and rebuild the console frontend (React/Vite)
-# 2. Watch and rebuild/restart the Rust console backend
+# 1. Run the console Vite dev server (apps/console)
+# 2. Run the console dev API server (apps/console)
 # 3. Exit cleanly when interrupted
 # Works with any POSIX shell (sh, bash, zsh, etc.)
 
@@ -24,10 +24,11 @@ echo "════════════════════════�
 echo ""
 echo "Starting:"
 echo "  • UI styles watcher (packages/ui) → copies CSS changes to dist/"
-echo "  • Frontend watcher (apps/console) → rebuilds to dist/"
-echo "  • Rust backend (kbsc console server) → auto-restarts on Rust changes"
+echo "  • UI TypeScript watcher (packages/ui)"
+echo "  • Console dev server (apps/console) → Vite + API"
 echo ""
-echo "The console will be available at: http://127.0.0.1:5174"
+echo "The console will be available at: http://127.0.0.1:5173"
+echo "Console API will be available at: http://127.0.0.1:5174"
 echo ""
 echo "Press Ctrl+C to stop all services."
 echo "═══════════════════════════════════════════════════════════════"
@@ -37,7 +38,7 @@ echo ""
 cleanup() {
   echo ""
   echo "Shutting down dev servers..."
-  kill $UI_WATCHER_PID $UI_TSC_PID $FRONTEND_PID $BACKEND_PID 2>/dev/null || true
+  kill $UI_WATCHER_PID $UI_TSC_PID $CONSOLE_DEV_PID 2>/dev/null || true
   wait 2>/dev/null || true
   echo "Dev servers stopped."
 }
@@ -63,26 +64,16 @@ npm run dev > /tmp/kanbus-ui-tsc.log 2>&1 &
 UI_TSC_PID=$!
 echo "  UI TSC PID: $UI_TSC_PID"
 
-# Start frontend watcher in background
-echo "Starting frontend watcher..."
+# Start console dev server (Vite + API) in background
+echo "Starting console dev server..."
 cd "$CONSOLE_DIR" || exit 1
-npm run build -- --watch > /tmp/kanbus-frontend.log 2>&1 &
-FRONTEND_PID=$!
-echo "  Frontend PID: $FRONTEND_PID"
-
-# Give frontend watcher a moment to start
-sleep 2s
-
-# Start Rust backend with cargo-watch from the rust directory
-echo "Starting Rust backend with auto-restart..."
-cd "$RUST_DIR" || exit 1
-cargo watch -x "run --bin kbsc --features embed-assets" &
-BACKEND_PID=$!
-echo "  Backend PID: $BACKEND_PID"
+npm run dev > /tmp/kanbus-console-dev.log 2>&1 &
+CONSOLE_DEV_PID=$!
+echo "  Console Dev PID: $CONSOLE_DEV_PID"
 
 echo ""
 echo "✓ Development servers started"
 echo ""
 
 # Wait for all processes
-wait $UI_WATCHER_PID $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+wait $UI_WATCHER_PID $UI_TSC_PID $CONSOLE_DEV_PID 2>/dev/null || true
