@@ -288,8 +288,12 @@ def when_console_reloaded(context: object) -> None:
 @when('I switch to the "{tab}" tab')
 def when_switch_tab(context: object, tab: str) -> None:
     state = _require_console_state(context)
-    state.selected_tab = tab
     storage = _ensure_console_storage(context)
+    if state.selected_tab == tab:
+        state.selected_tab = None
+        storage.selected_tab = None
+        return
+    state.selected_tab = tab
     storage.selected_tab = tab
 
 
