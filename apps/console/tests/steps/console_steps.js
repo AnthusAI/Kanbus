@@ -151,37 +151,24 @@ async function ensureBaseProject() {
   return { projectDir: projectRoot, localDir };
 }
 
-async function openProjectFilterPanel(page) {
-  const panel = page.getByTestId("project-filter-panel");
-  const isVisible = await panel.isVisible().catch(() => false);
-  if (!isVisible) {
-    await page.getByTestId("open-project-filter").click();
-    await expect(panel).toBeVisible();
-    return;
-  }
-  const isOpen = await panel.evaluate((element) => {
-    const container = element.closest("[aria-hidden]");
-    return container?.getAttribute("aria-hidden") === "false";
-  });
+async function openFilterSidebar(page) {
+  const panel = page.getByTestId("filter-sidebar");
+  const isOpen = (await panel.getAttribute("aria-hidden")) === "false";
   if (!isOpen) {
-    await page.getByTestId("open-project-filter").click();
-    await expect(panel).toBeVisible();
+    await page.getByTestId("filter-button").click();
+    await expect(panel).toHaveAttribute("aria-hidden", "false");
   }
 }
 
-async function closeProjectFilterPanel(page) {
-  const panel = page.getByTestId("project-filter-panel");
-  const container = panel.locator("xpath=ancestor-or-self::*[@aria-hidden][1]");
-  const isOpen = await panel.evaluate((element) => {
-    const container = element.closest("[aria-hidden]");
-    return container?.getAttribute("aria-hidden") === "false";
-  });
+async function closeFilterSidebar(page) {
+  const panel = page.getByTestId("filter-sidebar");
+  const isOpen = (await panel.getAttribute("aria-hidden")) === "false";
   if (!isOpen) {
     return;
   }
-  await page.getByTestId("project-filter-backdrop").click();
+  await page.getByTestId("filter-sidebar-close").click();
   await expect
-    .poll(async () => container.getAttribute("aria-hidden"), { timeout: 8000 })
+    .poll(async () => panel.getAttribute("aria-hidden"), { timeout: 8000 })
     .toBe("true");
 }
 
@@ -192,7 +179,7 @@ async function waitForIssueCards(page, minCount = 1) {
 }
 
 async function isFilterChecked(page, label) {
-  const panel = page.getByTestId("project-filter-panel");
+  const panel = page.getByTestId("filter-sidebar");
   const button = panel.getByRole("button", { name: label }).first();
   const checkbox = button.locator("span").first();
   const className = await checkbox.getAttribute("class");
@@ -200,7 +187,7 @@ async function isFilterChecked(page, label) {
 }
 
 async function setFilterChecked(page, label, desired) {
-  const panel = page.getByTestId("project-filter-panel");
+  const panel = page.getByTestId("filter-sidebar");
   const button = panel.getByRole("button", { name: label }).first();
   const current = await isFilterChecked(page, label);
   if (current !== desired) {
@@ -367,40 +354,42 @@ Given("local issues exist in virtual project {string}", async function (label) {
 });
 
 Then("the project filter should be visible in the navigation bar", async function () {
-  await expect(this.page.getByTestId("open-project-filter")).toBeVisible();
+  await openFilterSidebar(this.page);
+  await expect(this.page.getByTestId("filter-projects-section")).toBeVisible();
 });
 
 Then("the project filter should not be visible", async function () {
-  await expect(this.page.getByTestId("open-project-filter")).toHaveCount(0);
+  await openFilterSidebar(this.page);
+  await expect(this.page.locator('[data-testid="filter-projects-section"]')).toHaveCount(0);
 });
 
 Then("the project filter should list {string}", async function (label) {
-  await openProjectFilterPanel(this.page);
   const resolvedLabel = await resolveProjectLabel(label);
+  await openFilterSidebar(this.page);
   await expect(
     this.page
-      .getByTestId("project-filter-panel")
+      .getByTestId("filter-projects-section")
       .getByRole("button", { name: resolvedLabel })
   ).toBeVisible();
 });
 
 When("I select project {string} in the project filter", async function (label) {
-  await openProjectFilterPanel(this.page);
+  await openFilterSidebar(this.page);
   const resolvedLabel = await resolveProjectLabel(label);
   const labels = await getConfiguredProjectLabels();
   for (const entry of labels) {
     await setFilterChecked(this.page, entry, entry === resolvedLabel);
   }
-  await closeProjectFilterPanel(this.page);
+  await closeFilterSidebar(this.page);
 });
 
 When("I select all projects in the project filter", async function () {
-  await openProjectFilterPanel(this.page);
+  await openFilterSidebar(this.page);
   const labels = await getConfiguredProjectLabels();
   for (const entry of labels) {
     await setFilterChecked(this.page, entry, true);
   }
-  await closeProjectFilterPanel(this.page);
+  await closeFilterSidebar(this.page);
 });
 
 Then("I should only see issues from {string}", async function (label) {
@@ -423,25 +412,27 @@ Then("I should see issues from all projects", async function () {
 });
 
 Then("the local issues filter should be visible in the navigation bar", async function () {
-  await expect(this.page.getByTestId("open-project-filter")).toBeVisible();
+  await openFilterSidebar(this.page);
+  await expect(this.page.getByTestId("filter-source-section")).toBeVisible();
 });
 
 Then("the local issues filter should not be visible", async function () {
-  await expect(this.page.getByTestId("open-project-filter")).toHaveCount(0);
+  await openFilterSidebar(this.page);
+  await expect(this.page.locator('[data-testid="filter-source-section"]')).toHaveCount(0);
 });
 
 When("I select \"local only\" in the local filter", async function () {
-  await openProjectFilterPanel(this.page);
+  await openFilterSidebar(this.page);
   await setFilterChecked(this.page, "Local", true);
   await setFilterChecked(this.page, "Project", false);
-  await closeProjectFilterPanel(this.page);
+  await closeFilterSidebar(this.page);
 });
 
 When("I select \"project only\" in the local filter", async function () {
-  await openProjectFilterPanel(this.page);
+  await openFilterSidebar(this.page);
   await setFilterChecked(this.page, "Project", true);
   await setFilterChecked(this.page, "Local", false);
-  await closeProjectFilterPanel(this.page);
+  await closeFilterSidebar(this.page);
 });
 
 Then("I should only see local issues from {string}", async function (label) {
@@ -468,7 +459,7 @@ Then("I should only see shared issues from {string}", async function (label) {
 });
 
 Then("project {string} should still be selected in the project filter", async function (label) {
-  await openProjectFilterPanel(this.page);
+  await openFilterSidebar(this.page);
   const selected = await isFilterChecked(this.page, label);
   expect(selected).toBe(true);
 });
