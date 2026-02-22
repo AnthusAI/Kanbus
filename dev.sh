@@ -37,7 +37,7 @@ echo ""
 cleanup() {
   echo ""
   echo "Shutting down dev servers..."
-  kill $UI_WATCHER_PID $UI_TSC_PID $FRONTEND_PID $BACKEND_PID 2>/dev/null || true
+  kill $UI_WATCHER_PID $UI_TSC_PID $FRONTEND_PID $BACKEND_PID $ASSET_SYNC_PID 2>/dev/null || true
   wait 2>/dev/null || true
   echo "Dev servers stopped."
 }
@@ -70,6 +70,26 @@ npm run build -- --watch > /tmp/kanbus-frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo "  Frontend PID: $FRONTEND_PID"
 
+# Keep embedded assets in sync with the watch build so the Rust server always
+# serves the latest hashed files (prevents 404s for index-*.js/css).
+# Runs in background; touches a stamp so cargo-watch notices updates.
+echo "Starting embedded-asset sync..."
+(
+  set -e
+  DIST_DIR="$CONSOLE_DIR/dist"
+  TARGET_DIR="$RUST_DIR/embedded_assets/console"
+  mkdir -p "$TARGET_DIR"
+  while true; do
+    if [ -d "$DIST_DIR" ]; then
+      rsync -a --delete "$DIST_DIR/" "$TARGET_DIR/" >/tmp/kanbus-asset-sync.log 2>&1 || true
+      touch "$TARGET_DIR/.stamp"
+    fi
+    sleep 2
+  done
+) &
+ASSET_SYNC_PID=$!
+echo "  Asset sync PID: $ASSET_SYNC_PID"
+
 # Give frontend watcher a moment to start
 sleep 2s
 
@@ -85,4 +105,4 @@ echo "✓ Development servers started"
 echo ""
 
 # Wait for all processes
-wait $UI_WATCHER_PID $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+wait $UI_WATCHER_PID $BACKEND_PID $FRONTEND_PID $ASSET_SYNC_PID 2>/dev/null || true
