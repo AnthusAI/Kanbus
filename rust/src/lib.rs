@@ -44,6 +44,7 @@ pub mod notification_publisher;
 pub mod project;
 pub mod project_management_template;
 pub mod queries;
+pub mod rich_text_signals;
 pub mod users;
 pub mod wiki;
 pub mod workflows;

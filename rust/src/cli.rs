@@ -16,6 +16,9 @@ use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::content_validation::validate_code_blocks;
+use crate::rich_text_signals::{
+    apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
+};
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
 use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
@@ -523,6 +526,7 @@ enum CommentCommands {
 #[derive(Debug, Default)]
 pub struct CommandOutput {
     pub stdout: String,
+    pub stderr: String,
 }
 
 /// Run the CLI with explicit arguments.
@@ -544,6 +548,9 @@ where
     if !output.stdout.is_empty() {
         println!("{}", output.stdout);
     }
+    if !output.stderr.is_empty() {
+        eprint!("{}", output.stderr);
+    }
     Ok(())
 }
 
@@ -564,14 +571,19 @@ where
 {
     #[cfg(tarpaulin)]
     cover_help_request();
+    start_stderr_capture();
     let args_vec: Vec<OsString> = args.into_iter().map(Into::into).collect();
     let beads_flag = args_vec.iter().any(|arg| arg == "--beads");
     let cli = match Cli::try_parse_from(&args_vec) {
         Ok(parsed) => parsed,
         Err(error) => {
             let rendered = error.render().to_string();
+            let captured_stderr = take_captured_stderr().unwrap_or_default();
             if is_help_request(error.kind()) {
-                return Ok(CommandOutput { stdout: rendered });
+                return Ok(CommandOutput {
+                    stdout: rendered,
+                    stderr: captured_stderr,
+                });
             }
             return Err(KanbusError::IssueOperation(rendered));
         }
@@ -579,10 +591,13 @@ where
     let root = resolve_root(cwd);
     let root = canonicalize_path(&root).unwrap_or(root);
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
-    let stdout = execute_command(cli.command, &root, beads_mode, beads_forced)?;
+    let stdout = execute_command(cli.command, &root, beads_mode, beads_forced);
+    let captured_stderr = take_captured_stderr().unwrap_or_default();
+    let stdout = stdout?;
 
     Ok(CommandOutput {
         stdout: stdout.unwrap_or_default(),
+        stderr: captured_stderr,
     })
 }
 
@@ -646,10 +661,17 @@ fn execute_command(
             if title_text.trim().is_empty() {
                 return Err(KanbusError::IssueOperation("title is required".to_string()));
             }
-            let description_text = description
+            let raw_description_text = description
                 .as_ref()
                 .map(|values| values.join(" "))
                 .unwrap_or_default();
+            let (quality_result, description_text) = if raw_description_text.is_empty() {
+                (None, raw_description_text)
+            } else {
+                let qr = apply_text_quality_signals(&raw_description_text);
+                let repaired = qr.text.clone();
+                (Some(qr), repaired)
+            };
             if !no_validate && !description_text.is_empty() {
                 validate_code_blocks(&description_text)?;
             }
@@ -689,9 +711,11 @@ fn execute_command(
                 }
 
                 let use_color = should_use_color();
-                return Ok(Some(format_issue_for_display(
-                    &issue, None, use_color, false,
-                )));
+                let output = format_issue_for_display(&issue, None, use_color, false);
+                if let Some(ref qr) = quality_result {
+                    emit_signals(qr, "description", Some(&issue.identifier), None, false);
+                }
+                return Ok(Some(output));
             }
             let request = IssueCreationRequest {
                 root: root.to_path_buf(),
@@ -729,12 +753,11 @@ fn execute_command(
             }
 
             let use_color = should_use_color();
-            Ok(Some(format_issue_for_display(
-                &issue,
-                Some(&configuration),
-                use_color,
-                false,
-            )))
+            let output = format_issue_for_display(&issue, Some(&configuration), use_color, false);
+            if let Some(ref qr) = quality_result {
+                emit_signals(qr, "description", Some(&issue.identifier), None, false);
+            }
+            Ok(Some(output))
         }
         Commands::Show { identifier, json } => {
             let (issue, configuration) = if beads_mode {
@@ -813,8 +836,17 @@ fn execute_command(
             } else {
                 Some(description_text.as_str())
             };
+            let (update_quality_result, repaired_description) =
+                if let Some(desc) = description_value {
+                    let qr = apply_text_quality_signals(desc);
+                    let repaired = qr.text.clone();
+                    (Some(qr), Some(repaired))
+                } else {
+                    (None, None)
+                };
+            let final_description_value = repaired_description.as_deref();
             if !no_validate {
-                if let Some(text) = description_value {
+                if let Some(text) = final_description_value {
                     validate_code_blocks(text)?;
                 }
             }
@@ -830,7 +862,7 @@ fn execute_command(
                     status.as_deref(),
                     priority,
                     title_value,
-                    description_value,
+                    final_description_value,
                     assignee_value.as_deref(),
                     &add_labels,
                     &remove_labels,
@@ -841,7 +873,7 @@ fn execute_command(
                     root,
                     &identifier,
                     title_value,
-                    description_value,
+                    final_description_value,
                     status.as_deref(),
                     assignee_value.as_deref(),
                     priority,
@@ -854,6 +886,9 @@ fn execute_command(
                 )?;
             }
             let formatted_identifier = format_issue_key(&identifier, false);
+            if let Some(ref qr) = update_quality_result {
+                emit_signals(qr, "description", Some(&identifier), None, true);
+            }
             Ok(Some(format!("Updated {}", formatted_identifier)))
         }
         Commands::Close { identifier } => {
@@ -903,14 +938,28 @@ fn execute_command(
                         "comment text is required".to_string(),
                     ));
                 }
+                let comment_update_quality_result = apply_text_quality_signals(&text_value);
+                let repaired_text_value = comment_update_quality_result.text.clone();
                 if !no_validate {
-                    validate_code_blocks(&text_value)?;
+                    validate_code_blocks(&repaired_text_value)?;
                 }
                 if beads_mode {
-                    update_beads_comment(&root_for_beads, &identifier, &comment_id, &text_value)?;
+                    update_beads_comment(
+                        &root_for_beads,
+                        &identifier,
+                        &comment_id,
+                        &repaired_text_value,
+                    )?;
                 } else {
-                    update_comment(root, &identifier, &comment_id, &text_value)?;
+                    update_comment(root, &identifier, &comment_id, &repaired_text_value)?;
                 }
+                emit_signals(
+                    &comment_update_quality_result,
+                    "comment",
+                    Some(&identifier),
+                    Some(&comment_id),
+                    true,
+                );
                 Ok(None)
             }
             Some(CommentCommands::Delete {
@@ -960,18 +1009,35 @@ fn execute_command(
                         "comment text is required".to_string(),
                     ));
                 }
+                let add_comment_quality_result = apply_text_quality_signals(&text_value);
+                let repaired_comment_text = add_comment_quality_result.text.clone();
                 if !no_validate {
-                    validate_code_blocks(&text_value)?;
+                    validate_code_blocks(&repaired_comment_text)?;
                 }
                 if beads_mode {
                     add_beads_comment(
                         &root_for_beads,
                         &identifier,
                         &get_current_user(),
-                        &text_value,
+                        &repaired_comment_text,
                     )?;
+                    emit_signals(
+                        &add_comment_quality_result,
+                        "comment",
+                        Some(&identifier),
+                        None,
+                        false,
+                    );
                 } else {
-                    add_comment(root, &identifier, &get_current_user(), &text_value)?;
+                    let comment_result =
+                        add_comment(root, &identifier, &get_current_user(), &repaired_comment_text)?;
+                    emit_signals(
+                        &add_comment_quality_result,
+                        "comment",
+                        Some(&identifier),
+                        comment_result.comment.id.as_deref(),
+                        false,
+                    );
                 }
                 Ok(None)
             }
