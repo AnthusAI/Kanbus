@@ -2,20 +2,16 @@ import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   CheckCheck,
   Filter,
-  FilterX,
-  FolderOpen,
   Lightbulb,
   ListChecks,
-  Search,
-  SquareCheckBig,
-  X
+  SquareCheckBig
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
 import { Board } from "./components/Board";
 import { TaskDetailPanel } from "./components/TaskDetailPanel";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
-import { AnimatedSelector } from "@kanbus/ui";
-import { ProjectFilterPanel } from "./components/ProjectFilterPanel";
+import { AnimatedSelector, type SelectorOption } from "@kanbus/ui";
+import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
 import {
@@ -42,6 +38,7 @@ type RouteContext = {
   search: string | null;
   focused: string | null;
   comment: string | null;
+  typeFilter: string | null;
   error: string | null;
 };
 type IssueSelectionContext = {
@@ -56,6 +53,8 @@ const DETAIL_WIDTH_STORAGE_KEY = "kanbus.console.detailWidth";
 const ENABLED_PROJECTS_STORAGE_KEY = "kanbus.console.enabledProjects";
 const SHOW_LOCAL_STORAGE_KEY = "kanbus.console.showLocal";
 const SHOW_SHARED_STORAGE_KEY = "kanbus.console.showShared";
+const SHOW_TYPE_FILTER_TOOLBAR_KEY = "kanbus.console.showTypeFilterToolbar";
+const SHOW_INITIATIVES_IN_TYPE_FILTER_KEY = "kanbus.console.showInitiativesInTypeFilter";
 
 function loadStoredEnabledProjects(): Set<string> | null {
   if (typeof window === "undefined") {
@@ -113,15 +112,22 @@ function loadStoredDetailWidth(): number {
   return 33;
 }
 
-function parseQueryParams(search: string): { search: string | null; focused: string | null; comment: string | null } {
+function parseQueryParams(search: string): {
+  search: string | null;
+  focused: string | null;
+  comment: string | null;
+  typeFilter: string | null;
+} {
   const params = new URLSearchParams(search);
   const searchParam = params.get("search");
   const focusedParam = params.get("focused");
   const commentParam = params.get("comment");
+  const typeParam = params.get("type");
   return {
     search: searchParam && searchParam.length > 0 ? searchParam : null,
     focused: focusedParam && focusedParam.length > 0 ? focusedParam : null,
     comment: commentParam && commentParam.length > 0 ? commentParam : null,
+    typeFilter: typeParam === "all" ? "all" : null,
   };
 }
 
@@ -211,6 +217,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       search: null,
       focused: null,
       comment: null,
+      typeFilter: null,
       error: "Unsupported console route"
     };
   }
@@ -225,6 +232,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       search: null,
       focused: null,
       comment: null,
+      typeFilter: null,
       error: "URL must include /:account/:project"
     };
   }
@@ -307,6 +315,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
     search: null,
     focused: null,
     comment: null,
+    typeFilter: null,
     error: "Unsupported console route"
   };
 }
@@ -373,7 +382,12 @@ function collectDescendants(issues: Issue[], parentId: string): Set<string> {
 
 function buildUrl(
   path: string,
-  params: { search?: string | null; focused?: string | null; comment?: string | null } = {}
+  params: {
+    search?: string | null;
+    focused?: string | null;
+    comment?: string | null;
+    typeFilter?: string | null;
+  } = {}
 ): string {
   const qp = new URLSearchParams();
   if (params.focused) {
@@ -384,6 +398,9 @@ function buildUrl(
   }
   if (params.comment) {
     qp.set("comment", params.comment);
+  }
+  if (params.typeFilter === "all") {
+    qp.set("type", "all");
   }
   const qs = qp.toString();
   return qs ? `${path}?${qs}` : path;
@@ -482,7 +499,7 @@ export default function App() {
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [projectFilterOpen, setProjectFilterOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
@@ -507,6 +524,12 @@ export default function App() {
   const [enabledProjects, setEnabledProjects] = useState<Set<string> | null>(() => loadStoredEnabledProjects());
   const [showLocal, setShowLocal] = useState(() => loadStoredBoolean(SHOW_LOCAL_STORAGE_KEY, true));
   const [showShared, setShowShared] = useState(() => loadStoredBoolean(SHOW_SHARED_STORAGE_KEY, true));
+  const [showTypeFilterToolbar, setShowTypeFilterToolbar] = useState(() =>
+    loadStoredBoolean(SHOW_TYPE_FILTER_TOOLBAR_KEY, true)
+  );
+  const [showInitiativesInTypeFilter, setShowInitiativesInTypeFilter] = useState(() =>
+    loadStoredBoolean(SHOW_INITIATIVES_IN_TYPE_FILTER_KEY, true)
+  );
   const layoutFrameRef = React.useRef<HTMLDivElement | null>(null);
   const navActionRef = React.useRef<NavAction>("none");
   const wasDetailOpenRef = React.useRef(false);
@@ -517,6 +540,7 @@ export default function App() {
   const issues = snapshot?.issues ?? [];
   const deferredIssues = useDeferredValue(issues);
   const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
+  const showAllTypes = route.typeFilter === "all";
 
   // Initialize collapsed columns from config (only once)
   useEffect(() => {
@@ -544,6 +568,8 @@ export default function App() {
       || parsed.viewMode !== route.viewMode
       || parsed.search !== route.search
       || parsed.focused !== route.focused
+      || parsed.comment !== route.comment
+      || parsed.typeFilter !== route.typeFilter
       || parsed.error !== route.error
     ) {
       setRoute(parsed);
@@ -673,7 +699,12 @@ export default function App() {
     if (resolved.issue) {
       const issueUrl = buildUrl(
         `${route.basePath}/issues/${resolved.issue.id}`,
-        { focused: resolved.issue.id, search: searchQuery || null, comment: focusedCommentId }
+        {
+          focused: resolved.issue.id,
+          search: searchQuery || null,
+          comment: focusedCommentId,
+          typeFilter: route.typeFilter
+        }
       );
       navigate(issueUrl, setRoute, navActionRef);
     }
@@ -715,6 +746,9 @@ export default function App() {
     if (route.viewMode) {
       return;
     }
+    if (showAllTypes) {
+      return;
+    }
     if (route.parentId || focusedIssueId || searchQuery.trim()) {
       return;
     }
@@ -733,7 +767,7 @@ export default function App() {
     } else {
       viewModeAutoCorrected.current = true;
     }
-  }, [snapshot, focusedIssueId, route.basePath, route.parentId, route.viewMode, searchQuery, viewMode]);
+  }, [snapshot, focusedIssueId, route.basePath, route.parentId, route.viewMode, searchQuery, viewMode, showAllTypes]);
 
   useEffect(() => {
     if (route.viewMode) {
@@ -752,6 +786,36 @@ export default function App() {
   }, [route.parentId, route.viewMode]);
 
   useEffect(() => {
+    if (showInitiativesInTypeFilter) {
+      return;
+    }
+    if (!snapshot || route.basePath == null) {
+      return;
+    }
+    if (showAllTypes) {
+      return;
+    }
+    if (route.parentId || focusedIssueId || searchQuery.trim()) {
+      return;
+    }
+    if (resolvedViewMode !== "initiatives") {
+      return;
+    }
+    const counts = computeViewModeCounts(snapshot.issues);
+    const nextMode = counts.epics > 0 ? "epics" : "issues";
+    navigate(`${route.basePath}/${nextMode}/`, setRoute, navActionRef);
+  }, [
+    showInitiativesInTypeFilter,
+    snapshot,
+    route.basePath,
+    route.parentId,
+    focusedIssueId,
+    searchQuery,
+    resolvedViewMode,
+    showAllTypes
+  ]);
+
+  useEffect(() => {
     window.localStorage.setItem(DETAIL_WIDTH_STORAGE_KEY, String(detailWidth));
   }, [detailWidth]);
 
@@ -768,6 +832,20 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem(SHOW_SHARED_STORAGE_KEY, String(showShared));
   }, [showShared]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      SHOW_TYPE_FILTER_TOOLBAR_KEY,
+      String(showTypeFilterToolbar)
+    );
+  }, [showTypeFilterToolbar]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      SHOW_INITIATIVES_IN_TYPE_FILTER_KEY,
+      String(showInitiativesInTypeFilter)
+    );
+  }, [showInitiativesInTypeFilter]);
 
   useEffect(() => {
     if (!detailMaximized) {
@@ -951,6 +1029,7 @@ export default function App() {
   const resolvedViewMode = route.parentId
     ? null
     : routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
+  const typeFilterValue = showAllTypes ? null : resolvedViewMode;
 
   useEffect(() => {
     setRouteError(routeContext.error);
@@ -988,7 +1067,11 @@ export default function App() {
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     if (route.basePath != null) {
-      const url = buildUrl(window.location.pathname, { search: query || null, focused: focusedIssueId });
+      const url = buildUrl(window.location.pathname, {
+        search: query || null,
+        focused: focusedIssueId,
+        typeFilter: route.typeFilter
+      });
       const parsed = new URL(url, window.location.href);
       window.history.replaceState({}, "", parsed.pathname + parsed.search);
       setRoute(parseRoute(parsed.pathname, parsed.search));
@@ -998,11 +1081,37 @@ export default function App() {
   const handleSearchClear = () => {
     setSearchQuery("");
     if (route.basePath != null) {
-      const url = buildUrl(window.location.pathname, { focused: focusedIssueId });
+      const url = buildUrl(window.location.pathname, {
+        focused: focusedIssueId,
+        typeFilter: route.typeFilter
+      });
       const parsed = new URL(url, window.location.href);
       window.history.replaceState({}, "", parsed.pathname + parsed.search);
       setRoute(parseRoute(parsed.pathname, parsed.search));
     }
+  };
+
+  const handleTypeFilterChange = (value: string) => {
+    if (route.basePath == null) {
+      return;
+    }
+    const nextMode = value as ViewMode;
+    if (!showAllTypes && resolvedViewMode === nextMode) {
+      const url = buildUrl(window.location.pathname, {
+        search: searchQuery || null,
+        focused: focusedIssueId,
+        comment: focusedCommentId,
+        typeFilter: "all"
+      });
+      const parsed = new URL(url, window.location.href);
+      window.history.replaceState({}, "", parsed.pathname + parsed.search);
+      setRoute(parseRoute(parsed.pathname, parsed.search));
+      return;
+    }
+    const nextUrl = buildUrl(`${route.basePath}/${nextMode}/`, {
+      typeFilter: null
+    });
+    navigate(nextUrl, setRoute, navActionRef);
   };
 
   const handleTaskClose = () => {
@@ -1014,19 +1123,30 @@ export default function App() {
     }
     setSelectedTask(null);
     const nextMode = resolvedViewMode ?? loadStoredViewMode();
-    navigate(`${route.basePath}/${nextMode}/`, setRoute, navActionRef);
+    const nextUrl = buildUrl(`${route.basePath}/${nextMode}/`, {
+      typeFilter: route.typeFilter
+    });
+    navigate(nextUrl, setRoute, navActionRef);
+  };
+
+  const clearFocus = () => {
+    setFocusedIssueId(null);
+    setFocusedCommentId(null);
+    if (route.basePath != null) {
+      const url = buildUrl(window.location.pathname, {
+        search: searchQuery || null,
+        typeFilter: route.typeFilter
+      });
+      const parsed = new URL(url, window.location.href);
+      window.history.replaceState({}, "", parsed.pathname + parsed.search);
+      setRoute(parseRoute(parsed.pathname, parsed.search));
+    }
   };
 
   const handleUiControlAction = (action: UiControlAction) => {
     switch (action.action) {
       case "clear_focus":
-        setFocusedIssueId(null);
-        if (route.basePath != null) {
-          const url = buildUrl(window.location.pathname, { search: searchQuery || null });
-          const parsed = new URL(url, window.location.href);
-          window.history.replaceState({}, "", parsed.pathname + parsed.search);
-          setRoute(parseRoute(parsed.pathname, parsed.search));
-        }
+        clearFocus();
         break;
       case "set_view_mode":
         if (route.basePath != null) {
@@ -1037,7 +1157,11 @@ export default function App() {
       case "set_search":
         setSearchQuery(action.query);
         if (route.basePath != null) {
-          const url = buildUrl(window.location.pathname, { search: action.query || null, focused: focusedIssueId });
+          const url = buildUrl(window.location.pathname, {
+            search: action.query || null,
+            focused: focusedIssueId,
+            typeFilter: route.typeFilter
+          });
           const parsed = new URL(url, window.location.href);
           window.history.replaceState({}, "", parsed.pathname + parsed.search);
           setRoute(parseRoute(parsed.pathname, parsed.search));
@@ -1055,7 +1179,13 @@ export default function App() {
         }
         break;
       case "toggle_settings":
-        setSettingsOpen((prev) => !prev);
+        setSettingsOpen((prev) => {
+          const next = !prev;
+          if (next) {
+            setFilterOpen(false);
+          }
+          return next;
+        });
         break;
       case "set_setting":
         // Settings are handled by SettingsPanel component
@@ -1077,7 +1207,9 @@ export default function App() {
           const projectKey = snapshot.config.project_key;
           const resolved = resolveIssueByIdentifier(snapshot.issues, action.issue_id, projectKey);
           if (resolved.issue) {
-            const issueUrl = `${route.basePath}/issues/${resolved.issue.id}`;
+            const issueUrl = buildUrl(`${route.basePath}/issues/${resolved.issue.id}`, {
+              typeFilter: route.typeFilter
+            });
             navigate(issueUrl, setRoute, navActionRef);
           }
         }
@@ -1092,6 +1224,26 @@ export default function App() {
   const hasVirtualProjects = config
     ? Object.keys(config.virtual_projects).length > 0
     : false;
+
+  const typeFilterOptions = useMemo(() => {
+    const buildOption = (id: ViewMode, label: string): SelectorOption => ({
+      id,
+      label,
+      content: (
+        <span className="selector-option">
+          {React.createElement(VIEW_ICONS[id], { className: "h-4 w-4" })}
+          <span className="selector-label">{label}</span>
+        </span>
+      )
+    });
+    const options: SelectorOption[] = [];
+    if (showInitiativesInTypeFilter) {
+      options.push(buildOption("initiatives", "Initiatives"));
+    }
+    options.push(buildOption("epics", "Epics"));
+    options.push(buildOption("issues", "Issues"));
+    return options;
+  }, [showInitiativesInTypeFilter]);
 
   const projectLabels = useMemo(() => {
     if (!config || !hasVirtualProjects) {
@@ -1124,6 +1276,21 @@ export default function App() {
     return issues.some((issue) => issue.custom?.source === "local");
   }, [issues]);
 
+  const focusedIssueLabel = useMemo(() => {
+    if (!focusedIssueId) {
+      return null;
+    }
+    if (!snapshot) {
+      return focusedIssueId;
+    }
+    const resolved = resolveIssueByIdentifier(
+      snapshot.issues,
+      focusedIssueId,
+      snapshot.config.project_key
+    );
+    return resolved.issue?.title ?? focusedIssueId;
+  }, [snapshot, focusedIssueId]);
+
   const filteredIssues = useMemo(() => {
     // Use non-deferred issues when search is active for immediate feedback
     const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
@@ -1143,6 +1310,8 @@ export default function App() {
     } else if (hasSearchQuery) {
       // Global search: search across ALL issues regardless of view mode
       // This implements the Gherkin spec in tskl-dvi.1
+      result = sourceIssues;
+    } else if (showAllTypes) {
       result = sourceIssues;
     } else if (resolvedViewMode === "initiatives") {
       result = sourceIssues.filter((issue) => issue.type === "initiative");
@@ -1178,21 +1347,23 @@ export default function App() {
     }
 
     return result;
-  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects]);
+  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects, showAllTypes]);
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
       return;
     }
     if (route.parentId) {
-      navigate(
-        `${route.basePath}/issues/${route.parentId}/${issue.id}`,
-        setRoute,
-        navActionRef
-      );
+      const url = buildUrl(`${route.basePath}/issues/${route.parentId}/${issue.id}`, {
+        typeFilter: route.typeFilter
+      });
+      navigate(url, setRoute, navActionRef);
       return;
     }
-    navigate(`${route.basePath}/issues/${issue.id}`, setRoute, navActionRef);
+    const url = buildUrl(`${route.basePath}/issues/${issue.id}`, {
+      typeFilter: route.typeFilter
+    });
+    navigate(url, setRoute, navActionRef);
   };
 
   const motionMode = typeof document !== "undefined" ? document.documentElement.dataset.motion : "full";
@@ -1254,62 +1425,20 @@ export default function App() {
             onClear={handleSearchClear}
             placeholder="Search issues..."
           />
-          <AnimatedSelector
-            name="view"
-            value={resolvedViewMode}
-            onChange={(value) => {
-              if (route.basePath == null) {
-                return;
-              }
-              const next = value as ViewMode;
-              navigate(`${route.basePath}/${next}/`, setRoute, navActionRef);
-            }}
-            options={[
-              {
-                id: "initiatives",
-                label: "Initiatives",
-                content: (
-                  <span className="selector-option">
-                  {React.createElement(VIEW_ICONS.initiatives, { className: "h-4 w-4" })}
-                    <span className="selector-label">Initiatives</span>
-                  </span>
-                )
-              },
-              {
-                id: "epics",
-                label: "Epics",
-                content: (
-                  <span className="selector-option">
-                  {React.createElement(VIEW_ICONS.epics, { className: "h-4 w-4" })}
-                    <span className="selector-label">Epics</span>
-                  </span>
-                )
-              },
-              {
-                id: "issues",
-                label: "Issues",
-                content: (
-                  <span className="selector-option">
-                  {React.createElement(VIEW_ICONS.issues, { className: "h-4 w-4" })}
-                    <span className="selector-label">Issues</span>
-                  </span>
-                )
-              }
-            ]}
-          />
+          {showTypeFilterToolbar ? (
+            <AnimatedSelector
+              name="view"
+              value={typeFilterValue}
+              onChange={handleTypeFilterChange}
+              options={typeFilterOptions}
+            />
+          ) : null}
         </div>
         <button
           className="flex-none toggle-button rounded-full bg-[var(--column)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted h-7 flex items-center justify-center gap-2"
           onClick={() => {
-            if (focusedIssueId) {
-              setFocusedIssueId(null);
-              if (route.basePath != null) {
-                const url = buildUrl(window.location.pathname, { search: searchQuery || null });
-                const parsed = new URL(url, window.location.href);
-                window.history.replaceState({}, "", parsed.pathname + parsed.search);
-                setRoute(parseRoute(parsed.pathname, parsed.search));
-              }
-            }
+            setSettingsOpen(false);
+            setFilterOpen((prev) => !prev);
           }}
           type="button"
           data-testid="filter-button"
@@ -1317,23 +1446,16 @@ export default function App() {
           <span className="toggle-row flex items-center gap-2">
             <Filter className="h-4 w-4" />
             <span className={`${toggleMotionClass} whitespace-nowrap label-text toggle-label`}>
-              {focusedIssueId ? "Focused" : "Filter"}
+              Filter
             </span>
           </span>
         </button>
-        {hasVirtualProjects || hasLocalIssues ? (
-          <button
-            className="flex-none flex items-center gap-2 rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
-            onClick={() => setProjectFilterOpen(true)}
-            type="button"
-            data-testid="open-project-filter"
-          >
-            <FolderOpen className="h-4 w-4" />
-          </button>
-        ) : null}
         <button
           className="flex-none flex items-center gap-2 rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
-          onClick={() => setSettingsOpen(true)}
+          onClick={() => {
+            setFilterOpen(false);
+            setSettingsOpen((prev) => !prev);
+          }}
           type="button"
           data-testid="open-settings"
         >
@@ -1388,117 +1510,128 @@ export default function App() {
               />
             ) : null}
           </div>
-            {isDetailVisible ? (
-              <div
-                className="detail-resizer h-full w-2 min-w-2 lg:w-3 lg:min-w-3 xl:w-4 xl:min-w-4 flex items-center justify-center cursor-col-resize pointer-events-auto"
-                role="separator"
-                onMouseDown={(event) => {
-                  const frame = layoutFrameRef.current;
-                  if (!frame) {
+          <FilterSidebar
+            isOpen={filterOpen}
+            onClose={() => setFilterOpen(false)}
+            focusedIssueLabel={focusedIssueLabel}
+            onClearFocus={clearFocus}
+            projectLabels={projectLabels}
+            enabledProjects={effectiveEnabledProjects}
+            onToggleProject={handleToggleProject}
+            hasLocalIssues={hasLocalIssues}
+            showLocal={showLocal}
+            showShared={showShared}
+            onToggleLocal={() => setShowLocal((prev) => !prev)}
+            onToggleShared={() => setShowShared((prev) => !prev)}
+            typeOptions={typeFilterOptions}
+            typeValue={typeFilterValue}
+            onTypeChange={handleTypeFilterChange}
+          />
+          <SettingsPanel
+            isOpen={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            showTypeFilterToolbar={showTypeFilterToolbar}
+            showInitiativesInTypeFilter={showInitiativesInTypeFilter}
+            onToggleShowTypeFilterToolbar={() => setShowTypeFilterToolbar((prev) => !prev)}
+            onToggleShowInitiativesInTypeFilter={() => setShowInitiativesInTypeFilter((prev) => !prev)}
+          />
+          {isDetailVisible ? (
+            <div
+              className="detail-resizer h-full w-2 min-w-2 lg:w-3 lg:min-w-3 xl:w-4 xl:min-w-4 flex items-center justify-center cursor-col-resize pointer-events-auto"
+              role="separator"
+              onMouseDown={(event) => {
+                const frame = layoutFrameRef.current;
+                if (!frame) {
+                  return;
+                }
+                event.preventDefault();
+                setIsResizing(true);
+                const rect = frame.getBoundingClientRect();
+                const effectiveWidth = detailMaximized ? 100 : detailWidth;
+                if (detailMaximized) {
+                  setDetailWidth(100);
+                  setDetailMaximized(false);
+                }
+                const startX = event.clientX;
+                const startWidth = effectiveWidth;
+                const handleMove = (moveEvent: MouseEvent) => {
+                  const delta = moveEvent.clientX - startX;
+                  const pixelWidth = (startWidth / 100) * rect.width - delta;
+                  const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
+                  const clamped = (clampedPixels / rect.width) * 100;
+                  setDetailWidth(clamped);
+                };
+                const handleUp = () => {
+                  window.removeEventListener("mousemove", handleMove);
+                  window.removeEventListener("mouseup", handleUp);
+                  setIsResizing(false);
+                };
+                window.addEventListener("mousemove", handleMove);
+                window.addEventListener("mouseup", handleUp);
+              }}
+              onTouchStart={(event) => {
+                const frame = layoutFrameRef.current;
+                if (!frame) {
+                  return;
+                }
+                const touch = event.touches[0];
+                if (!touch) {
+                  return;
+                }
+                setIsResizing(true);
+                const rect = frame.getBoundingClientRect();
+                const effectiveWidth = detailMaximized ? 100 : detailWidth;
+                if (detailMaximized) {
+                  setDetailWidth(100);
+                  setDetailMaximized(false);
+                }
+                const startX = touch.clientX;
+                const startWidth = effectiveWidth;
+                const handleMove = (moveEvent: TouchEvent) => {
+                  const moveTouch = moveEvent.touches[0];
+                  if (!moveTouch) {
                     return;
                   }
-                  event.preventDefault();
-                  setIsResizing(true);
-                  const rect = frame.getBoundingClientRect();
-                  const effectiveWidth = detailMaximized ? 100 : detailWidth;
-                  if (detailMaximized) {
-                    setDetailWidth(100);
-                    setDetailMaximized(false);
-                  }
-                  const startX = event.clientX;
-                  const startWidth = effectiveWidth;
-                  const handleMove = (moveEvent: MouseEvent) => {
-                    const delta = moveEvent.clientX - startX;
-                    const pixelWidth = (startWidth / 100) * rect.width - delta;
-                    const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
-                    const clamped = (clampedPixels / rect.width) * 100;
-                    setDetailWidth(clamped);
-                  };
-                  const handleUp = () => {
-                    window.removeEventListener("mousemove", handleMove);
-                    window.removeEventListener("mouseup", handleUp);
-                    setIsResizing(false);
-                  };
-                  window.addEventListener("mousemove", handleMove);
-                  window.addEventListener("mouseup", handleUp);
-                }}
-                onTouchStart={(event) => {
-                  const frame = layoutFrameRef.current;
-                  if (!frame) {
-                    return;
-                  }
-                  const touch = event.touches[0];
-                  if (!touch) {
-                    return;
-                  }
-                  setIsResizing(true);
-                  const rect = frame.getBoundingClientRect();
-                  const effectiveWidth = detailMaximized ? 100 : detailWidth;
-                  if (detailMaximized) {
-                    setDetailWidth(100);
-                    setDetailMaximized(false);
-                  }
-                  const startX = touch.clientX;
-                  const startWidth = effectiveWidth;
-                  const handleMove = (moveEvent: TouchEvent) => {
-                    const moveTouch = moveEvent.touches[0];
-                    if (!moveTouch) {
-                      return;
-                    }
-                    const delta = moveTouch.clientX - startX;
-                    const pixelWidth = (startWidth / 100) * rect.width - delta;
-                    const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
-                    const clamped = (clampedPixels / rect.width) * 100;
-                    setDetailWidth(clamped);
-                  };
-                  const handleUp = () => {
-                    window.removeEventListener("touchmove", handleMove);
-                    window.removeEventListener("touchend", handleUp);
-                    setIsResizing(false);
-                  };
-                  window.addEventListener("touchmove", handleMove);
-                  window.addEventListener("touchend", handleUp);
-                }}
-              >
-                <span className="h-5 w-1 rounded-full bg-[var(--gray-5)]" />
-              </div>
-            ) : null}
-            <TaskDetailPanel
-              task={selectedTask}
-              allIssues={issues}
-              isOpen={isDetailOpen}
-              isVisible={isDetailVisible}
-              navDirection={detailNavDirection}
-              widthPercent={detailMaximized ? 100 : detailWidth}
-              columns={columns}
-              priorityLookup={priorityLookup}
-              config={config}
-              apiBase={apiBase}
-              onClose={handleTaskClose}
-              onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
-              isMaximized={detailMaximized}
-              onAfterClose={() => setDetailClosing(false)}
-              onFocus={handleFocus}
-              focusedIssueId={focusedIssueId}
-              focusedCommentId={focusedCommentId}
-              onNavigateToDescendant={handleSelectIssue}
-            />
-          </div>
+                  const delta = moveTouch.clientX - startX;
+                  const pixelWidth = (startWidth / 100) * rect.width - delta;
+                  const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
+                  const clamped = (clampedPixels / rect.width) * 100;
+                  setDetailWidth(clamped);
+                };
+                const handleUp = () => {
+                  window.removeEventListener("touchmove", handleMove);
+                  window.removeEventListener("touchend", handleUp);
+                  setIsResizing(false);
+                };
+                window.addEventListener("touchmove", handleMove);
+                window.addEventListener("touchend", handleUp);
+              }}
+            >
+              <span className="h-5 w-1 rounded-full bg-[var(--gray-5)]" />
+            </div>
+          ) : null}
+          <TaskDetailPanel
+            task={selectedTask}
+            allIssues={issues}
+            isOpen={isDetailOpen}
+            isVisible={isDetailVisible}
+            navDirection={detailNavDirection}
+            widthPercent={detailMaximized ? 100 : detailWidth}
+            columns={columns}
+            priorityLookup={priorityLookup}
+            config={config}
+            apiBase={apiBase}
+            onClose={handleTaskClose}
+            onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
+            isMaximized={detailMaximized}
+            onAfterClose={() => setDetailClosing(false)}
+            onFocus={handleFocus}
+            focusedIssueId={focusedIssueId}
+            focusedCommentId={focusedCommentId}
+            onNavigateToDescendant={handleSelectIssue}
+          />
+        </div>
       </div>
-
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <ProjectFilterPanel
-        isOpen={projectFilterOpen}
-        onClose={() => setProjectFilterOpen(false)}
-        projectLabels={projectLabels}
-        enabledProjects={effectiveEnabledProjects}
-        onToggleProject={handleToggleProject}
-        hasLocalIssues={hasLocalIssues}
-        showLocal={showLocal}
-        showShared={showShared}
-        onToggleLocal={() => setShowLocal((prev) => !prev)}
-        onToggleShared={() => setShowShared((prev) => !prev)}
-      />
     </AppShell>
   );
 }
