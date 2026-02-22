@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.11.1 (2026-02-22)
+
+### Bug Fixes
+
+- Trigger python release
+  ([`f2b9ee1`](https://github.com/AnthusAI/Kanbus/commit/f2b9ee1745a7cae815f217b204e053ee192cba6b))
+
+
 ## v0.11.0 (2026-02-21)
 
 
