@@ -1,0 +1,238 @@
+@import "@radix-ui/colors/amber.css";
+@import "@radix-ui/colors/blue.css";
+@import "@radix-ui/colors/bronze.css";
+@import "@radix-ui/colors/brown.css";
+@import "@radix-ui/colors/crimson.css";
+@import "@radix-ui/colors/cyan.css";
+@import "@radix-ui/colors/gold.css";
+@import "@radix-ui/colors/grass.css";
+@import "@radix-ui/colors/gray.css";
+@import "@radix-ui/colors/green.css";
+@import "@radix-ui/colors/indigo.css";
+@import "@radix-ui/colors/iris.css";
+@import "@radix-ui/colors/jade.css";
+@import "@radix-ui/colors/lime.css";
+@import "@radix-ui/colors/mauve.css";
+@import "@radix-ui/colors/mint.css";
+@import "@radix-ui/colors/olive.css";
+@import "@radix-ui/colors/orange.css";
+@import "@radix-ui/colors/pink.css";
+@import "@radix-ui/colors/plum.css";
+@import "@radix-ui/colors/purple.css";
+@import "@radix-ui/colors/red.css";
+@import "@radix-ui/colors/ruby.css";
+@import "@radix-ui/colors/sage.css";
+@import "@radix-ui/colors/sand.css";
+@import "@radix-ui/colors/sky.css";
+@import "@radix-ui/colors/slate.css";
+@import "@radix-ui/colors/teal.css";
+@import "@radix-ui/colors/tomato.css";
+@import "@radix-ui/colors/violet.css";
+@import "@radix-ui/colors/yellow.css";
+@import "@radix-ui/colors/amber-dark.css";
+@import "@radix-ui/colors/blue-dark.css";
+@import "@radix-ui/colors/bronze-dark.css";
+@import "@radix-ui/colors/brown-dark.css";
+@import "@radix-ui/colors/crimson-dark.css";
+@import "@radix-ui/colors/cyan-dark.css";
+@import "@radix-ui/colors/gold-dark.css";
+@import "@radix-ui/colors/grass-dark.css";
+@import "@radix-ui/colors/gray-dark.css";
+@import "@radix-ui/colors/green-dark.css";
+@import "@radix-ui/colors/indigo-dark.css";
+@import "@radix-ui/colors/iris-dark.css";
+@import "@radix-ui/colors/jade-dark.css";
+@import "@radix-ui/colors/lime-dark.css";
+@import "@radix-ui/colors/mauve-dark.css";
+@import "@radix-ui/colors/mint-dark.css";
+@import "@radix-ui/colors/olive-dark.css";
+@import "@radix-ui/colors/orange-dark.css";
+@import "@radix-ui/colors/pink-dark.css";
+@import "@radix-ui/colors/plum-dark.css";
+@import "@radix-ui/colors/purple-dark.css";
+@import "@radix-ui/colors/red-dark.css";
+@import "@radix-ui/colors/ruby-dark.css";
+@import "@radix-ui/colors/sage-dark.css";
+@import "@radix-ui/colors/sand-dark.css";
+@import "@radix-ui/colors/sky-dark.css";
+@import "@radix-ui/colors/slate-dark.css";
+@import "@radix-ui/colors/teal-dark.css";
+@import "@radix-ui/colors/tomato-dark.css";
+@import "@radix-ui/colors/violet-dark.css";
+@import "@radix-ui/colors/yellow-dark.css";
+
+.issue-card {
+  --issue-accent-foreground: var(--text-foreground);
+  --issue-accent-light: var(--slate-4);
+  --issue-accent-muted-light: var(--slate-2);
+  --issue-accent-dark: var(--slate-11);
+  --issue-accent-muted-dark: var(--slate-6);
+  --issue-accent: var(--issue-accent-light);
+  --issue-accent-muted: var(--issue-accent-muted-light);
+  --issue-priority-bg-light: var(--slate-5);
+  --issue-priority-bg-dark: var(--slate-6);
+  --issue-priority-bg: var(--issue-priority-bg-light);
+}
+
+.dark .issue-card {
+  --issue-accent: var(--issue-accent-dark);
+  --issue-accent-muted: var(--issue-accent-muted-dark);
+  --issue-priority-bg: var(--issue-priority-bg-dark);
+}
+
+.kb-grid {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 0;
+  scrollbar-width: none;
+  min-height: 100%;
+}
+
+.kb-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.kb-column {
+  background: transparent;
+  border-radius: 12px;
+  flex: 1 0 260px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.kb-column-header {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.kb-column-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.issue-card {
+  border-radius: 12px;
+  background: var(--card);
+  display: grid;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+
+.issue-card:focus-visible {
+  outline: none;
+}
+
+.issue-animate-seed {
+  opacity: 0;
+  transform: scale(0.75);
+}
+
+.issue-animate-in-up {
+  animation: issueAppearUp 0.35s ease-out both;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.issue-animate-in-down {
+  animation: issueAppearDown 0.35s ease-out both;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+@keyframes issueAppearUp {
+  from {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes issueAppearDown {
+  from {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.column-animate-in {
+  animation: columnAppear 0.6s ease-out both;
+}
+
+@keyframes columnAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.issue-card:focus-visible {
+  outline: none;
+}
+
+.issue-accent-bar {
+  background: var(--issue-accent);
+}
+
+.issue-accent-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--issue-accent-foreground);
+}
+
+.issue-accent-id {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  color: var(--issue-accent-foreground);
+}
+
+.issue-accent-priority {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-foreground);
+  background: var(--issue-priority-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.status-badge {
+  --status-badge-bg-light: var(--card-muted);
+  --status-badge-bg-dark: var(--card-muted);
+  --status-badge-bg: var(--status-badge-bg-light);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-foreground);
+  background: var(--status-badge-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.dark .status-badge {
+  --status-badge-bg: var(--status-badge-bg-dark);
+}
