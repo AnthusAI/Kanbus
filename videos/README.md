@@ -24,6 +24,26 @@ npm run bundle:components
 npm run vml:render:intro
 ```
 
+## Recommended Render Flow
+
+From the repository root, run:
+
+```bash
+node scripts/render-videos.js
+```
+
+This script bundles browser components, generates the timeline and script JSON, renders the intro MP4, and copies MP4/JPG assets into `apps/kanb.us/static/videos` for local previews.
+
+## Uploading to the CDN
+
+The upload script uses the rendered assets and syncs them to the configured S3 bucket:
+
+```bash
+VIDEOS_BUCKET=<bucket-name> VIDEOS_PREFIX=videos node scripts/upload-videos.js
+```
+
+Both `VIDEOS_BUCKET` and `VIDEOS_PREFIX` are required. There is no fallback logic.
+
 ## Project Structure
 
 ```
