@@ -19,6 +19,66 @@ from kanbus.models import IssueData
 from kanbus.project import load_project_directory as resolve_project_directory
 
 
+def run_cli_args(context: object, args: list[str]) -> None:
+    """Run the Kanbus CLI with an explicit list of arguments.
+
+    Unlike run_cli, this does not shell-parse the args, so embedded newlines
+    and special characters are preserved exactly as given.
+
+    :param context: Behave context object.
+    :type context: object
+    :param args: List of CLI arguments (excluding the program name).
+    :type args: list[str]
+    """
+    runner = CliRunner()
+
+    working_directory = getattr(context, "working_directory", None)
+    if working_directory is None:
+        raise RuntimeError("working directory not set")
+
+    previous = Path.cwd()
+    environment = os.environ.copy()
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides:
+        environment.update(overrides)
+    try:
+        os.chdir(working_directory)
+    except (FileNotFoundError, PermissionError) as error:
+        context.result = SimpleNamespace(
+            exit_code=1,
+            stdout="",
+            stderr=str(error),
+            output=str(error),
+        )
+        return
+    try:
+        result = runner.invoke(cli, args, env=environment)
+        stdout = None
+        stderr = None
+        try:
+            stdout = result.stdout
+        except (AttributeError, ValueError):
+            stdout = None
+        try:
+            stderr = result.stderr
+        except (AttributeError, ValueError):
+            stderr = None
+        if stdout is None:
+            stdout = result.output
+        if stderr is None:
+            stderr = ""
+        if result.exit_code != 0:
+            stderr = result.output
+        context.result = SimpleNamespace(
+            exit_code=result.exit_code,
+            stdout=stdout,
+            stderr=stderr,
+            output=result.output,
+        )
+    finally:
+        os.chdir(previous)
+
+
 def run_cli(context: object, command: str) -> None:
     """Run the Kanbus CLI in the scenario working directory.
 
