@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Layout, Section, Hero, CodeBlock } from "../components";
+import { Layout, Section, Hero, CodeBlock } from "../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 
 const LocalTasksPage = () => {
