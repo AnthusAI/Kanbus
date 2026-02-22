@@ -1,0 +1,13 @@
+<vml id="intro" title="Intro to Canvas" fps="24" width="1920" height="1080" poster="24s">
+  <voiceover provider="openai" model="gpt-4o-mini-tts" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="intro" title="Intro to Canvas">
+    <layer id="content" z="0">
+      <intro-scene />
+    </layer>
+
+    <cue id="intro" label="Intro">
+      <voice>Canvas keeps issues, plans, and execution aligned in one clear view. This board shows how priorities, status, and ownership stay connected without leaving the repository.</voice>
+    </cue>
+  </scene>
+</vml>
