@@ -85,6 +85,11 @@ fn when_console_reloaded(world: &mut KanbusWorld) {
 #[when(expr = "I switch to the {string} tab")]
 fn when_switch_tab(world: &mut KanbusWorld, tab: String) {
     let state = require_console_state(world);
+    if state.selected_tab == tab {
+        state.selected_tab.clear();
+        world.console_local_storage.selected_tab = None;
+        return;
+    }
     state.selected_tab = tab.clone();
     world.console_local_storage.selected_tab = Some(tab);
 }
