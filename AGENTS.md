@@ -370,3 +370,19 @@ cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobert
 7. **Run parity checker** to verify both implementations are in sync
 8. **Run all quality gates**
 9. **Submit PR only when all gates pass**
+
+## Git Flow Standards
+
+This project follows a standard Git Flow workflow:
+
+-   **`main`**: Stable, production-ready code. Direct commits are restricted.
+-   **`dev`**: The integration branch for new features. All feature branches target `dev`.
+-   **Feature Branches**: Create from `dev` (e.g., `feature/my-cool-feature`). Merge back to `dev` via PR.
+-   **Releases**: When `dev` is stable, merge `dev` -> `main`.
+-   **Hotfixes**: Critical fixes may branch from `main` (e.g., `hotfix/urgent-fix`) and merge to both `main` and `dev`.
+
+**Agent Protocol:**
+-   Always check which branch you are on (`git status`).
+-   If implementing a feature, ensure you branch from `dev`.
+-   If asked to switch branches, preserve uncommitted changes unless instructed otherwise.
+
