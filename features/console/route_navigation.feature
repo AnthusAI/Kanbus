@@ -38,3 +38,9 @@ Feature: Console route navigation
     Given the console is open
     When I open the console route "/acme/widgets/epics/"
     Then the "Epics" tab should be selected
+
+  Scenario: Clicking an active view tab clears selection
+    Given the console is open
+    When I switch to the "Epics" tab
+    And I switch to the "Epics" tab
+    Then no view tab should be selected
