@@ -16,6 +16,7 @@ from kanbus.file_io import (
     initialize_project,
 )
 from kanbus.content_validation import ContentValidationError, validate_code_blocks
+from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
 from kanbus.issue_creation import IssueCreationError, create_issue
 from kanbus.issue_close import IssueCloseError, close_issue
 from kanbus.issue_comment import IssueCommentError, add_comment
@@ -199,6 +200,11 @@ def create(
     if not title_text:
         raise click.ClickException("title is required")
 
+    quality_result = None
+    if description_text:
+        quality_result = apply_text_quality_signals(description_text)
+        description_text = quality_result.text
+
     if not no_validate and description_text:
         try:
             validate_code_blocks(description_text)
@@ -229,6 +235,8 @@ def create(
                 project_context=False,
             )
         )
+        if quality_result:
+            emit_signals(quality_result, "description", issue_id=issue.identifier)
         return
 
     try:
@@ -254,6 +262,8 @@ def create(
             project_context=False,
         )
     )
+    if quality_result:
+        emit_signals(quality_result, "description", issue_id=result.issue.identifier)
 
 
 @cli.command("show")
@@ -368,6 +378,13 @@ def update(
         except (ConfigurationError, ProjectMarkerError):
             pass
 
+    update_quality_result = None
+    if description:
+        description_text_stripped = description.strip()
+        if description_text_stripped:
+            update_quality_result = apply_text_quality_signals(description_text_stripped)
+            description = update_quality_result.text
+
     if not no_validate and description:
         try:
             validate_code_blocks(description)
@@ -399,6 +416,10 @@ def update(
             raise click.ClickException(str(error)) from error
         formatted_identifier = format_issue_key(identifier, project_context=False)
         click.echo(f"Updated {formatted_identifier}")
+        if update_quality_result:
+            emit_signals(
+                update_quality_result, "description", issue_id=identifier, is_update=True
+            )
         return
 
     # Regular Kanbus mode
@@ -424,6 +445,10 @@ def update(
 
     formatted_identifier = format_issue_key(identifier, project_context=False)
     click.echo(f"Updated {formatted_identifier}")
+    if update_quality_result:
+        emit_signals(
+            update_quality_result, "description", issue_id=identifier, is_update=True
+        )
 
 
 @cli.command("close")
@@ -553,6 +578,9 @@ def comment(
     if not comment_text:
         raise click.ClickException("Comment text required")
 
+    comment_quality_result = apply_text_quality_signals(comment_text)
+    comment_text = comment_quality_result.text
+
     if not no_validate:
         try:
             validate_code_blocks(comment_text)
@@ -572,12 +600,19 @@ def comment(
                 )
             except BeadsWriteError as error:
                 raise click.ClickException(str(error)) from error
+            emit_signals(comment_quality_result, "comment", issue_id=identifier)
         else:
-            add_comment(
+            result_comment = add_comment(
                 root=root,
                 identifier=identifier,
                 author=get_current_user(),
                 text=comment_text,
+            )
+            emit_signals(
+                comment_quality_result,
+                "comment",
+                issue_id=identifier,
+                comment_id=result_comment.comment.id,
             )
     except IssueCommentError as error:
         raise click.ClickException(str(error)) from error
