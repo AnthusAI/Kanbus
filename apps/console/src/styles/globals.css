@@ -1,5 +1,5 @@
 @import "@kanbus/ui/styles/index.css";
-@import "./issue-colors.css";
+@import "@kanbus/ui/styles/kanban.css";
 
 @tailwind base;
 @tailwind components;
@@ -49,104 +49,6 @@ p {
   height: 100%;
 }
 
-.kb-grid {
-  display: flex;
-  align-items: stretch;
-  overflow-x: auto;
-  padding-bottom: 0;
-  scrollbar-width: none;
-  min-height: 100%;
-}
-
-.kb-grid::-webkit-scrollbar {
-  display: none;
-}
-
-.kb-column {
-  background: transparent;
-  border-radius: 12px;
-  flex: 1 0 260px;
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.kb-column-header {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-}
-
-.kb-column-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-}
-
-.issue-card {
-  border-radius: 12px;
-  background: var(--card);
-  display: grid;
-  cursor: pointer;
-  overflow: hidden;
-  position: relative;
-}
-
-.issue-animate-seed {
-  opacity: 0;
-  transform: scale(0.75);
-}
-
-.issue-animate-in-up {
-  animation: issueAppearUp 0.35s ease-out both;
-  transform-origin: center;
-  will-change: transform, opacity;
-}
-
-.issue-animate-in-down {
-  animation: issueAppearDown 0.35s ease-out both;
-  transform-origin: center;
-  will-change: transform, opacity;
-}
-
-@keyframes issueAppearUp {
-  from {
-    opacity: 0;
-    transform: scale(0.75);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes issueAppearDown {
-  from {
-    opacity: 0;
-    transform: scale(1.35);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.column-animate-in {
-  animation: columnAppear 0.6s ease-out both;
-}
-
-@keyframes columnAppear {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
 .loading-pill {
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
@@ -158,69 +60,8 @@ p {
 }
 
 
-.issue-card:focus-visible {
-  outline: none;
-}
-
 button:focus-visible {
   outline: none;
-}
-
-.issue-accent-bar {
-  background: var(--issue-accent);
-}
-
-.issue-accent-row {
-}
-
-.issue-accent-left {
-}
-
-.issue-accent-icon {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  color: var(--issue-accent-foreground);
-}
-
-.issue-accent-id {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.18em;
-  color: var(--issue-accent-foreground);
-}
-
-.issue-accent-priority {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-foreground);
-  background: var(--issue-priority-bg);
-  border-radius: 999px;
-  padding: 2px 8px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.status-badge {
-  --status-badge-bg-light: var(--card-muted);
-  --status-badge-bg-dark: var(--card-muted);
-  --status-badge-bg: var(--status-badge-bg-light);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-foreground);
-  background: var(--status-badge-bg);
-  border-radius: 999px;
-  padding: 2px 8px;
-  white-space: nowrap;
-}
-
-.dark .status-badge {
-  --status-badge-bg: var(--status-badge-bg-dark);
 }
 
 .badge {
