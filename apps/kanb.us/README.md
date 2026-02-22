@@ -14,6 +14,12 @@ npm run dev
 Visit `http://localhost:8000` to preview the placeholder site. The home page
 lists the follow-up tasks captured in Beads epic `tskl-0lb`.
 
+## Video previews
+
+Set `GATSBY_VIDEOS_BASE_URL` to point at a local or CDN-backed videos folder.
+For local previews, you can use `GATSBY_VIDEOS_BASE_URL=/videos` and copy
+rendered MP4/JPG assets into `apps/kanb.us/static/videos`.
+
 ## Deployment
 
 1. Connect AWS Amplify Gen 2 to this repository and select the `apps/kanb.us`
