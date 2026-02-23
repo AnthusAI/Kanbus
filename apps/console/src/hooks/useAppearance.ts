@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 export type Theme = "neutral" | "cool" | "warm";
 export type Mode = "light" | "dark" | "system";
 export type Font = "sans" | "serif" | "mono";
-export type Motion = "full" | "reduced" | "off";
+export type Motion = "full" | "reduced" | "off" | "debug";
 
 interface AppearanceState {
   theme: Theme;
@@ -28,6 +28,18 @@ function getSystemMode(): Mode {
 export function useAppearance() {
   const [appearance, setAppearance] = useState<AppearanceState>(() => {
     const stored = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
+    const debugSlowMotion =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("kanbus.console.debugSlowMotion") === "true"
+        : false;
+    const fallbackMotion: Motion = getSystemReduceMotion() ? "reduced" : "full";
+    const defaultMotion: Motion = debugSlowMotion ? "debug" : fallbackMotion;
+    const resolveMotion = (value?: string): Motion | null => {
+      if (value === "full" || value === "reduced" || value === "off" || value === "debug") {
+        return value;
+      }
+      return null;
+    };
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as Partial<AppearanceState>;
@@ -35,14 +47,14 @@ export function useAppearance() {
           theme: parsed.theme ?? "neutral",
           mode: parsed.mode ?? getSystemMode(),
           font: parsed.font ?? "sans",
-          motion: parsed.motion ?? (getSystemReduceMotion() ? "reduced" : "full")
+          motion: resolveMotion(parsed.motion) ?? defaultMotion
         };
       } catch {
         return {
           theme: "neutral",
           mode: getSystemMode(),
           font: "sans",
-          motion: getSystemReduceMotion() ? "reduced" : "full"
+          motion: defaultMotion
         };
       }
     }
@@ -50,7 +62,7 @@ export function useAppearance() {
       theme: "neutral",
       mode: getSystemMode(),
       font: "sans",
-      motion: getSystemReduceMotion() ? "reduced" : "full"
+      motion: defaultMotion
     };
   });
 

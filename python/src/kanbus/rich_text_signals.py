@@ -7,9 +7,9 @@ submitted through the CLI, and emits actionable warnings and suggestions.
 from __future__ import annotations
 
 import re
-import sys
-from dataclasses import dataclass, field
 
+import click
+from dataclasses import dataclass, field
 
 _MARKDOWN_PATTERNS = [
     re.compile(r"^#{1,6}\s", re.MULTILINE),
@@ -112,8 +112,8 @@ def apply_text_quality_signals(text: str) -> TextQualityResult:
             "newlines.\n"
             "  To pass multi-line text correctly, use a heredoc or $'...\\n...' syntax:\n"
             "    kbs create \"Title\" --description $'First line\\nSecond line'\n"
-            "    kbs create \"Title\" --description \"$(cat <<'EOF'\\nFirst line\\n"
-            "Second line\\nEOF\\n)\""
+            '    kbs create "Title" --description "$(cat <<\'EOF\'\\nFirst line\\n'
+            'Second line\\nEOF\\n)"'
         )
 
     if not has_markdown_formatting(repaired_text):
@@ -160,11 +160,11 @@ def emit_signals(
     :type is_update: bool
     """
     for warning in result.warnings:
-        print(warning, file=sys.stderr)
+        click.echo(warning, err=True)
 
     if result.suggestions:
         for suggestion in result.suggestions:
-            print(suggestion, file=sys.stderr)
+            click.echo(suggestion, err=True)
 
         if issue_id:
             _emit_follow_up_hint(
@@ -194,12 +194,12 @@ def _emit_follow_up_hint(
     """
     if comment_id:
         hint = (
-            f'  -> To update this comment: '
+            f"  -> To update this comment: "
             f'kbs comment update {issue_id} {comment_id} "<your improved comment here>"'
         )
     else:
         hint = (
-            f'  -> To update the {context}: '
+            f"  -> To update the {context}: "
             f'kbs update {issue_id} --description "<your improved description here>"'
         )
-    print(hint, file=sys.stderr)
+    click.echo(hint, err=True)

@@ -86,8 +86,8 @@ fn when_console_reloaded(world: &mut KanbusWorld) {
 fn when_switch_tab(world: &mut KanbusWorld, tab: String) {
     let state = require_console_state(world);
     if state.selected_tab == tab {
-        state.selected_tab.clear();
-        world.console_local_storage.selected_tab = None;
+        state.selected_tab = "All".to_string();
+        world.console_local_storage.selected_tab = Some("All".to_string());
         return;
     }
     state.selected_tab = tab.clone();
@@ -661,6 +661,8 @@ fn visible_issue_titles(state: &ConsoleState) -> Vec<String> {
             .iter()
             .filter(|issue| issue.issue_type == "task" && issue.parent_title.is_none())
             .collect()
+    } else if state.selected_tab == "All" {
+        state.issues.iter().collect()
     } else {
         Vec::new()
     };
