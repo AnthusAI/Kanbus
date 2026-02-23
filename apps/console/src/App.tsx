@@ -1774,7 +1774,11 @@ export default function App() {
                 panelMode === "metrics" ? " view-track-metrics" : ""
               }`}
             >
-              <div className="view-panel" data-testid="board-view">
+              <div
+                className="view-panel"
+                data-testid="board-view"
+                aria-hidden={panelMode !== "board"}
+              >
             <div
               className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3 overflow-hidden${
                 detailMaximized ? " hidden" : ""
@@ -1906,6 +1910,8 @@ export default function App() {
                 <div
                   className="layout-slot layout-slot-metrics h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3"
                   data-testid="metrics-view"
+                  aria-hidden={panelMode !== "metrics"}
+                  hidden={panelMode !== "metrics"}
                 >
                   {config ? (
                     <MetricsPanel
