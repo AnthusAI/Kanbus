@@ -580,6 +580,12 @@ export default function App() {
       .then((data) => setSnapshot(data))
       .catch((err) => console.warn("[snapshot] refresh failed", err));
   }, [apiBase]);
+  const hasVirtualProjects = config
+    ? Object.keys(config.virtual_projects ?? {}).length > 0
+    : false;
+  const hasVirtualProjects = config
+    ? Object.keys(config.virtual_projects ?? {}).length > 0
+    : false;
   const showAllTypes = route.typeFilter === "all";
 
   // Initialize collapsed columns from config (only once)
@@ -1950,25 +1956,26 @@ export default function App() {
               </div>
             </div>
           </div>
-          <FilterSidebar
-            isOpen={sidebarPhase === "open" && activeSidebar === "filter"}
-            isVisible={
-              sidebarPhase !== "closed"
-              && (activeSidebar === "filter" || exitingSidebar === "filter")
-            }
-            animate={sidebarReady}
-            onTransitionEnd={handleSidebarTransitionEnd}
-            onClose={() => closeSidebar("filter")}
-            focusedIssueLabel={focusedIssueLabel}
-            onClearFocus={clearFocus}
-            projectLabels={projectLabels}
-            enabledProjects={effectiveEnabledProjects}
-            onToggleProject={handleToggleProject}
-            hasLocalIssues={hasLocalIssues}
-            showLocal={showLocal}
-            showShared={showShared}
-            onToggleLocal={() => setShowLocal((prev) => !prev)}
-            onToggleShared={() => setShowShared((prev) => !prev)}
+        <FilterSidebar
+          isOpen={sidebarPhase === "open" && activeSidebar === "filter"}
+          isVisible={
+            sidebarPhase !== "closed"
+            && (activeSidebar === "filter" || exitingSidebar === "filter")
+          }
+          animate={sidebarReady}
+          onTransitionEnd={handleSidebarTransitionEnd}
+          onClose={() => closeSidebar("filter")}
+          focusedIssueLabel={focusedIssueLabel}
+          onClearFocus={clearFocus}
+          projectLabels={projectLabels}
+          enabledProjects={effectiveEnabledProjects}
+          onToggleProject={handleToggleProject}
+          hasVirtualProjects={hasVirtualProjects}
+          hasLocalIssues={hasLocalIssues}
+          showLocal={showLocal}
+          showShared={showShared}
+          onToggleLocal={() => setShowLocal((prev) => !prev)}
+          onToggleShared={() => setShowShared((prev) => !prev)}
             typeOptions={typeFilterOptions}
             typeValue={typeFilterValue}
             onTypeChange={handleTypeFilterChange}

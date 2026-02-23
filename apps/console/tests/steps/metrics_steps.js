@@ -20,10 +20,17 @@ function requireProjectRoot() {
 }
 
 async function refreshConsoleSnapshot() {
-  const issuesResponse = await fetch(`${consoleApiBase}/issues?refresh=1`);
-  if (!issuesResponse.ok) {
-    throw new Error(`console issues request failed: ${issuesResponse.status}`);
+  const maxAttempts = 3;
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const issuesResponse = await fetch(`${consoleApiBase}/issues?refresh=1`);
+    if (issuesResponse.ok) {
+      return;
+    }
+    lastError = issuesResponse.status;
+    await new Promise((resolve) => setTimeout(resolve, 300));
   }
+  throw new Error(`console issues request failed: ${lastError}`);
 }
 
 async function loadConsoleConfig() {
