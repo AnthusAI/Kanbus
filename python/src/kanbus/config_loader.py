@@ -293,9 +293,9 @@ def _normalize_virtual_projects(data: dict) -> None:
 
 def _reject_legacy_fields(data: dict) -> None:
     if "external_projects" in data:
-        raise ConfigurationError(
-            "external_projects has been replaced by virtual_projects"
-        )
+        if "virtual_projects" not in data:
+            data["virtual_projects"] = data["external_projects"]
+        data.pop("external_projects", None)
 
 
 def _has_unknown_fields(error: ValidationError) -> bool:

@@ -34,7 +34,7 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     let mut merged_value = merge_with_defaults(raw_value)?;
     let overrides = load_override_configuration(path.parent().unwrap_or(Path::new(".")))?;
     merged_value = apply_overrides(merged_value, overrides);
-    reject_legacy_fields(&merged_value)?;
+    handle_legacy_fields(&mut merged_value);
     normalize_virtual_projects(&mut merged_value);
     let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
         .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
@@ -299,14 +299,17 @@ fn normalize_virtual_projects(mapping: &mut Mapping) {
     }
 }
 
-fn reject_legacy_fields(mapping: &Mapping) -> Result<(), KanbusError> {
-    let key = Value::String("external_projects".to_string());
-    if mapping.contains_key(&key) {
-        return Err(KanbusError::Configuration(
-            "external_projects has been replaced by virtual_projects".to_string(),
-        ));
+fn handle_legacy_fields(mapping: &mut Mapping) {
+    let legacy_key = Value::String("external_projects".to_string());
+    if let Some(legacy_value) = mapping.remove(&legacy_key) {
+        let virtual_key = Value::String("virtual_projects".to_string());
+        if !mapping.contains_key(&virtual_key) {
+            mapping.insert(virtual_key, legacy_value);
+        }
+        eprintln!(
+            "Warning: external_projects has been replaced by virtual_projects. Please update your configuration."
+        );
     }
-    Ok(())
 }
 
 fn map_configuration_error(error: &serde_yaml::Error) -> String {
