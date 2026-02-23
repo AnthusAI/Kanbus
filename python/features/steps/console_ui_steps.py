@@ -927,6 +927,11 @@ def when_switch_metrics_view(context: object) -> None:
     _ensure_console_storage(context).panel_mode = "metrics"
 
 
+@given('I switch to the "Metrics" view')
+def given_switch_metrics_view(context: object) -> None:
+    when_switch_metrics_view(context)
+
+
 @when('I switch to the "Board" view')
 def when_switch_board_view(context: object) -> None:
     state = _require_console_state(context)
@@ -941,11 +946,25 @@ def then_metrics_view_active(context: object) -> None:
         raise AssertionError(f"expected metrics view, got {state.panel_mode}")
 
 
+@then("the board view should be active")
+def then_board_view_active(context: object) -> None:
+    state = _require_console_state(context)
+    if state.panel_mode != "board":
+        raise AssertionError(f"expected board view, got {state.panel_mode}")
+
+
 @then("the board view should be inactive")
 def then_board_view_inactive(context: object) -> None:
     state = _require_console_state(context)
     if state.panel_mode == "board":
         raise AssertionError("expected board view to be inactive")
+
+
+@then("the metrics view should be inactive")
+def then_metrics_view_inactive(context: object) -> None:
+    state = _require_console_state(context)
+    if state.panel_mode == "metrics":
+        raise AssertionError("expected metrics view to be inactive")
 
 
 @then('the metrics toggle should select "{label}"')
@@ -988,6 +1007,14 @@ def given_metrics_issue(
         "project": project,
         "local": source == "local",
     }
+
+
+@given("no issues exist in the console")
+def given_no_issues_exist(context: object) -> None:
+    state = _require_console_state(context)
+    state.issues = []
+    _ensure_console_project_state(context)
+    context.console_issue_projects = {}
 
 
 @then('the metrics total should be "{count}"')

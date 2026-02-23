@@ -992,3 +992,16 @@ html[data-motion="reduced"] .sidebar-column {
 .descendant-link[data-status="closed"] .text-foreground {
   text-decoration: line-through;
 }
+
+.issue-accent-priority {
+  background: var(--issue-priority-bg);
+  color: var(--text-foreground);
+}
+
+html.light .issue-accent-priority {
+  --issue-priority-bg: var(--issue-priority-bg-light);
+}
+
+html.dark .issue-accent-priority {
+  --issue-priority-bg: var(--issue-priority-bg-dark);
+}
