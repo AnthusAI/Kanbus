@@ -136,23 +136,12 @@ fn then_stored_description_contains_real_newlines(world: &mut KanbusWorld) {
     let mut issue_files: Vec<_> = std::fs::read_dir(&issues_dir)
         .expect("read issues dir")
         .filter_map(|entry| entry.ok())
-        .filter(|entry| {
-            entry
-                .path()
-                .extension()
-                .and_then(|ext| ext.to_str())
-                == Some("json")
-        })
+        .filter(|entry| entry.path().extension().and_then(|ext| ext.to_str()) == Some("json"))
         .collect();
 
-    issue_files.sort_by_key(|entry| {
-        entry.metadata().and_then(|m| m.modified()).ok()
-    });
+    issue_files.sort_by_key(|entry| entry.metadata().and_then(|m| m.modified()).ok());
 
-    let issue_path = issue_files
-        .last()
-        .expect("at least one issue file")
-        .path();
+    let issue_path = issue_files.last().expect("at least one issue file").path();
     let issue = read_issue_from_file(&issue_path).expect("read issue");
 
     assert!(

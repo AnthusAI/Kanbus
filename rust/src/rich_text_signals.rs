@@ -81,15 +81,17 @@ pub fn repair_escape_sequences(text: &str) -> (String, bool) {
 /// * `text` - Text to inspect
 pub fn has_markdown_formatting(text: &str) -> bool {
     let markdown_patterns: &[fn(&str) -> bool] = &[
-        |t| t.lines().any(|line| {
-            let trimmed = line.trim_start();
-            trimmed.starts_with("# ")
-                || trimmed.starts_with("## ")
-                || trimmed.starts_with("### ")
-                || trimmed.starts_with("#### ")
-                || trimmed.starts_with("##### ")
-                || trimmed.starts_with("###### ")
-        }),
+        |t| {
+            t.lines().any(|line| {
+                let trimmed = line.trim_start();
+                trimmed.starts_with("# ")
+                    || trimmed.starts_with("## ")
+                    || trimmed.starts_with("### ")
+                    || trimmed.starts_with("#### ")
+                    || trimmed.starts_with("##### ")
+                    || trimmed.starts_with("###### ")
+            })
+        },
         |t| contains_pattern(t, "**"),
         |t| contains_inline_emphasis(t, '*'),
         |t| contains_pattern(t, "__"),
@@ -97,18 +99,23 @@ pub fn has_markdown_formatting(text: &str) -> bool {
         |t| t.contains("```"),
         |t| t.contains('`'),
         |t| t.lines().any(|line| line.trim_start().starts_with('>')),
-        |t| t.lines().any(|line| {
-            let trimmed = line.trim_start();
-            trimmed.starts_with("- ")
-                || trimmed.starts_with("* ")
-                || trimmed.starts_with("+ ")
-        }),
-        |t| t.lines().any(|line| {
-            let trimmed = line.trim_start();
-            trimmed.len() > 2
-                && trimmed.as_bytes().first().is_some_and(|b| b.is_ascii_digit())
-                && trimmed.contains(". ")
-        }),
+        |t| {
+            t.lines().any(|line| {
+                let trimmed = line.trim_start();
+                trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ")
+            })
+        },
+        |t| {
+            t.lines().any(|line| {
+                let trimmed = line.trim_start();
+                trimmed.len() > 2
+                    && trimmed
+                        .as_bytes()
+                        .first()
+                        .is_some_and(|b| b.is_ascii_digit())
+                    && trimmed.contains(". ")
+            })
+        },
         |t| t.lines().any(|line| line.trim() == "---"),
         |t| t.contains("]("),
     ];

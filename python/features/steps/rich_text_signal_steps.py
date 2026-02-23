@@ -83,9 +83,7 @@ def when_comment_with_literal_backslash_n_text(
 
 
 @when('I comment on "{identifier}" with plain text "{text}"')
-def when_comment_with_plain_text(
-    context: object, identifier: str, text: str
-) -> None:
+def when_comment_with_plain_text(context: object, identifier: str, text: str) -> None:
     """Add a plain text comment (no Markdown formatting).
 
     :param context: Behave context object.
@@ -127,12 +125,12 @@ def then_stored_description_contains_real_newlines(context: object) -> None:
     identifier = capture_issue_identifier(context)
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
-    assert "\n" in issue.description, (
-        f"Expected real newlines in description, got: {issue.description!r}"
-    )
-    assert "\\n" not in issue.description, (
-        f"Expected no literal backslash-n sequences in description, got: {issue.description!r}"
-    )
+    assert (
+        "\n" in issue.description
+    ), f"Expected real newlines in description, got: {issue.description!r}"
+    assert (
+        "\\n" not in issue.description
+    ), f"Expected no literal backslash-n sequences in description, got: {issue.description!r}"
 
 
 @then('stderr should not contain "{text}"')
