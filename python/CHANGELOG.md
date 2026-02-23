@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.12.0 (2026-02-23)
+
+### Documentation
+
+- Add Git Flow standards to AGENTS.md
+  ([`1053602`](https://github.com/AnthusAI/Kanbus/commit/10536021ef1005cca9e66936bc1826106ec0044a))
+
+### Features
+
+- Rich text quality signals (tskl-3ec)
+  ([`d562ffb`](https://github.com/AnthusAI/Kanbus/commit/d562ffbd88c2d042a2cf9eba29248dcb4db7abe3))
+
+
 ## v0.11.1 (2026-02-22)
 
 ### Bug Fixes
