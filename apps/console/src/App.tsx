@@ -1406,7 +1406,11 @@ export default function App() {
       id,
       label,
       content: (
-        <span className="selector-option">
+        <span
+          className="selector-option"
+          data-testid={`view-toggle-${id}`}
+          data-active={panelMode === id}
+        >
           {React.createElement(icon, { className: "h-4 w-4" })}
           <span className="selector-label">{label}</span>
         </span>
@@ -1416,7 +1420,7 @@ export default function App() {
       buildOption("board", "Board", LayoutGrid),
       buildOption("metrics", "Metrics", BarChart3)
     ];
-  }, []);
+  }, [panelMode]);
 
   const projectLabels = useMemo(() => {
     if (!config || !hasVirtualProjects) {
