@@ -1,7 +1,9 @@
 import React, { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  BarChart3,
   CheckCheck,
   Filter,
+  LayoutGrid,
   Lightbulb,
   ListChecks,
   SquareCheckBig,
@@ -15,6 +17,7 @@ import { AnimatedSelector, type SelectorOption } from "@kanbus/ui";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
+import { MetricsPanel } from "./components/MetricsPanel";
 import {
   fetchSnapshot,
   subscribeToSnapshots,
@@ -28,6 +31,7 @@ import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
 
 type ViewMode = "initiatives" | "epics" | "issues";
+type PanelMode = "board" | "metrics";
 type NavAction = "push" | "pop" | "none";
 type RouteContext = {
   account: string | null;
@@ -56,6 +60,7 @@ const SHOW_LOCAL_STORAGE_KEY = "kanbus.console.showLocal";
 const SHOW_SHARED_STORAGE_KEY = "kanbus.console.showShared";
 const SHOW_TYPE_FILTER_TOOLBAR_KEY = "kanbus.console.showTypeFilterToolbar";
 const SHOW_INITIATIVES_IN_TYPE_FILTER_KEY = "kanbus.console.showInitiativesInTypeFilter";
+const PANEL_MODE_STORAGE_KEY = "kanbus.console.panelMode";
 
 function loadStoredEnabledProjects(): Set<string> | null {
   if (typeof window === "undefined") {
@@ -99,6 +104,17 @@ function loadStoredViewMode(): ViewMode {
     return "issues";
   }
   return "epics";
+}
+
+function loadStoredPanelMode(): PanelMode {
+  if (typeof window === "undefined") {
+    return "board";
+  }
+  const stored = window.localStorage.getItem(PANEL_MODE_STORAGE_KEY);
+  if (stored === "metrics") {
+    return "metrics";
+  }
+  return "board";
 }
 
 function loadStoredDetailWidth(): number {
@@ -497,6 +513,9 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode | null>(() =>
     loadStoredViewMode()
   );
+  const [panelMode, setPanelMode] = useState<PanelMode>(() =>
+    loadStoredPanelMode()
+  );
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -738,6 +757,10 @@ export default function App() {
     }
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    window.localStorage.setItem(PANEL_MODE_STORAGE_KEY, panelMode);
+  }, [panelMode]);
 
   useEffect(() => {
     if (!snapshot) {
@@ -1203,6 +1226,14 @@ export default function App() {
     navigate(nextUrl, setRoute, navActionRef);
   };
 
+  const handlePanelModeChange = (value: string) => {
+    if (value === "metrics") {
+      setPanelMode("metrics");
+      return;
+    }
+    setPanelMode("board");
+  };
+
   const handleTaskClose = () => {
     setDetailClosing(true);
     setDetailMaximized(false);
@@ -1366,6 +1397,27 @@ export default function App() {
     return options;
   }, [showInitiativesInTypeFilter]);
 
+  const panelModeOptions = useMemo(() => {
+    const buildOption = (
+      id: string,
+      label: string,
+      icon: React.ComponentType<{ className?: string }>
+    ): SelectorOption => ({
+      id,
+      label,
+      content: (
+        <span className="selector-option">
+          {React.createElement(icon, { className: "h-4 w-4" })}
+          <span className="selector-label">{label}</span>
+        </span>
+      )
+    });
+    return [
+      buildOption("board", "Board", LayoutGrid),
+      buildOption("metrics", "Metrics", BarChart3)
+    ];
+  }, []);
+
   const projectLabels = useMemo(() => {
     if (!config || !hasVirtualProjects) {
       return [];
@@ -1470,6 +1522,43 @@ export default function App() {
     return result;
   }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects, showAllTypes]);
 
+  const metricsIssues = useMemo(() => {
+    const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
+    let result = sourceIssues;
+    const hasSearchQuery = searchQuery.trim().length > 0;
+
+    if (focusedIssueId) {
+      const ids = collectDescendants(sourceIssues, focusedIssueId);
+      result = sourceIssues.filter((issue) => ids.has(issue.id));
+    } else if (routeContext.parentIssue) {
+      const ids = collectDescendants(sourceIssues, routeContext.parentIssue.id);
+      result = sourceIssues.filter((issue) => ids.has(issue.id));
+    } else if (route.parentId) {
+      result = [];
+    } else if (hasSearchQuery) {
+      result = sourceIssues;
+    }
+
+    if (hasSearchQuery) {
+      result = result.filter((issue) => matchesSearchQuery(issue, searchQuery));
+    }
+
+    if (hasVirtualProjects && effectiveEnabledProjects.size < projectLabels.length) {
+      result = result.filter(
+        (issue) => effectiveEnabledProjects.has(issue.custom?.project_label as string)
+      );
+    }
+
+    if (!showLocal) {
+      result = result.filter((issue) => issue.custom?.source !== "local");
+    }
+    if (!showShared) {
+      result = result.filter((issue) => issue.custom?.source !== "shared");
+    }
+
+    return result;
+  }, [issues, deferredIssues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects]);
+
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
       return;
@@ -1573,6 +1662,14 @@ export default function App() {
   return (
     <AppShell>
       <div className="flex items-center gap-2">
+        <div className="flex-none">
+          <AnimatedSelector
+            name="panel-mode"
+            value={panelMode}
+            onChange={handlePanelModeChange}
+            options={panelModeOptions}
+          />
+        </div>
         <div className="flex-1 min-w-0 flex justify-end overflow-hidden gap-2">
           {loadingVisible ? (
             <span
@@ -1668,131 +1765,167 @@ export default function App() {
             }`}
           >
             <div
-              className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3${
+              className={`view-track${sidebarReady ? " view-track-animate" : ""}${
+                panelMode === "metrics" ? " view-track-metrics" : ""
+              }`}
+            >
+              <div className="view-panel">
+            <div
+              className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3 overflow-hidden${
                 detailMaximized ? " hidden" : ""
               }`}
             >
               {!detailMaximized ? (
-                <Board
-                  columns={columns}
-                  issues={filteredIssues}
-                  priorityLookup={priorityLookup}
-                  config={config}
-                  onSelectIssue={handleSelectIssue}
-                  selectedIssueId={selectedTask?.id ?? null}
-                  transitionKey={transitionKey}
-                  detailOpen={isDetailOpen}
-                  collapsedColumns={collapsedColumns}
-                  motion={{ mode: "css" }}
-                  onToggleCollapse={(column) => {
-                    setCollapsedColumns((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(column)) {
-                        next.delete(column);
-                      } else {
-                        next.add(column);
-                      }
-                      return next;
-                    });
-                  }}
-                />
+                <div className={`view-track${panelMode === "metrics" ? " view-track-metrics" : ""}`}>
+                  <div className="view-panel">
+                    <Board
+                      columns={columns}
+                      issues={filteredIssues}
+                      priorityLookup={priorityLookup}
+                      config={config}
+                      onSelectIssue={handleSelectIssue}
+                      selectedIssueId={selectedTask?.id ?? null}
+                      transitionKey={transitionKey}
+                      detailOpen={isDetailOpen}
+                      collapsedColumns={collapsedColumns}
+                      motion={{ mode: "css" }}
+                      onToggleCollapse={(column) => {
+                        setCollapsedColumns((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(column)) {
+                            next.delete(column);
+                          } else {
+                            next.add(column);
+                          }
+                          return next;
+                        });
+                      }}
+                    />
+                  </div>
+                  <div className="view-panel">
+                    {config ? (
+                      <MetricsPanel
+                        issues={filteredIssues}
+                        config={config}
+                        hasVirtualProjects={hasVirtualProjects}
+                        hasLocalIssues={hasLocalIssues}
+                        projectLabels={projectLabels}
+                      />
+                    ) : null}
+                  </div>
+                </div>
               ) : null}
             </div>
-            {isDetailVisible ? (
-              <div
-                className="detail-resizer h-full w-2 min-w-2 lg:w-3 lg:min-w-3 xl:w-4 xl:min-w-4 flex items-center justify-center cursor-col-resize pointer-events-auto"
-                role="separator"
-                onMouseDown={(event) => {
-                  const frame = layoutFrameRef.current;
-                  if (!frame) {
-                    return;
-                  }
-                  event.preventDefault();
-                  setIsResizing(true);
-                  const rect = frame.getBoundingClientRect();
-                  const effectiveWidth = detailMaximized ? 100 : detailWidth;
-                  if (detailMaximized) {
-                    setDetailWidth(100);
-                    setDetailMaximized(false);
-                  }
-                  const startX = event.clientX;
-                  const startWidth = effectiveWidth;
-                  const handleMove = (moveEvent: MouseEvent) => {
-                    const delta = moveEvent.clientX - startX;
-                    const pixelWidth = (startWidth / 100) * rect.width - delta;
-                    const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
-                    const clamped = (clampedPixels / rect.width) * 100;
-                    setDetailWidth(clamped);
-                  };
-                  const handleUp = () => {
-                    window.removeEventListener("mousemove", handleMove);
-                    window.removeEventListener("mouseup", handleUp);
-                    setIsResizing(false);
-                  };
-                  window.addEventListener("mousemove", handleMove);
-                  window.addEventListener("mouseup", handleUp);
-                }}
-                onTouchStart={(event) => {
-                  const frame = layoutFrameRef.current;
-                  if (!frame) {
-                    return;
-                  }
-                  const touch = event.touches[0];
-                  if (!touch) {
-                    return;
-                  }
-                  setIsResizing(true);
-                  const rect = frame.getBoundingClientRect();
-                  const effectiveWidth = detailMaximized ? 100 : detailWidth;
-                  if (detailMaximized) {
-                    setDetailWidth(100);
-                    setDetailMaximized(false);
-                  }
-                  const startX = touch.clientX;
-                  const startWidth = effectiveWidth;
-                  const handleMove = (moveEvent: TouchEvent) => {
-                    const moveTouch = moveEvent.touches[0];
-                    if (!moveTouch) {
-                      return;
-                    }
-                    const delta = moveTouch.clientX - startX;
-                    const pixelWidth = (startWidth / 100) * rect.width - delta;
-                    const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
-                    const clamped = (clampedPixels / rect.width) * 100;
-                    setDetailWidth(clamped);
-                  };
-                  const handleUp = () => {
-                    window.removeEventListener("touchmove", handleMove);
-                    window.removeEventListener("touchend", handleUp);
-                    setIsResizing(false);
-                  };
-                  window.addEventListener("touchmove", handleMove);
-                  window.addEventListener("touchend", handleUp);
-                }}
-              >
-                <span className="h-5 w-1 rounded-full bg-[var(--gray-5)]" />
+                {isDetailVisible ? (
+                  <div
+                    className="detail-resizer h-full w-2 min-w-2 lg:w-3 lg:min-w-3 xl:w-4 xl:min-w-4 flex items-center justify-center cursor-col-resize pointer-events-auto"
+                    role="separator"
+                    onMouseDown={(event) => {
+                      const frame = layoutFrameRef.current;
+                      if (!frame) {
+                        return;
+                      }
+                      event.preventDefault();
+                      setIsResizing(true);
+                      const rect = frame.getBoundingClientRect();
+                      const effectiveWidth = detailMaximized ? 100 : detailWidth;
+                      if (detailMaximized) {
+                        setDetailWidth(100);
+                        setDetailMaximized(false);
+                      }
+                      const startX = event.clientX;
+                      const startWidth = effectiveWidth;
+                      const handleMove = (moveEvent: MouseEvent) => {
+                        const delta = moveEvent.clientX - startX;
+                        const pixelWidth = (startWidth / 100) * rect.width - delta;
+                        const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
+                        const clamped = (clampedPixels / rect.width) * 100;
+                        setDetailWidth(clamped);
+                      };
+                      const handleUp = () => {
+                        window.removeEventListener("mousemove", handleMove);
+                        window.removeEventListener("mouseup", handleUp);
+                        setIsResizing(false);
+                      };
+                      window.addEventListener("mousemove", handleMove);
+                      window.addEventListener("mouseup", handleUp);
+                    }}
+                    onTouchStart={(event) => {
+                      const frame = layoutFrameRef.current;
+                      if (!frame) {
+                        return;
+                      }
+                      const touch = event.touches[0];
+                      if (!touch) {
+                        return;
+                      }
+                      setIsResizing(true);
+                      const rect = frame.getBoundingClientRect();
+                      const effectiveWidth = detailMaximized ? 100 : detailWidth;
+                      if (detailMaximized) {
+                        setDetailWidth(100);
+                        setDetailMaximized(false);
+                      }
+                      const startX = touch.clientX;
+                      const startWidth = effectiveWidth;
+                      const handleMove = (moveEvent: TouchEvent) => {
+                        const moveTouch = moveEvent.touches[0];
+                        if (!moveTouch) {
+                          return;
+                        }
+                        const delta = moveTouch.clientX - startX;
+                        const pixelWidth = (startWidth / 100) * rect.width - delta;
+                        const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
+                        const clamped = (clampedPixels / rect.width) * 100;
+                        setDetailWidth(clamped);
+                      };
+                      const handleUp = () => {
+                        window.removeEventListener("touchmove", handleMove);
+                        window.removeEventListener("touchend", handleUp);
+                        setIsResizing(false);
+                      };
+                      window.addEventListener("touchmove", handleMove);
+                      window.addEventListener("touchend", handleUp);
+                    }}
+                  >
+                    <span className="h-5 w-1 rounded-full bg-[var(--gray-5)]" />
+                  </div>
+                ) : null}
+                <TaskDetailPanel
+                  task={selectedTask}
+                  allIssues={issues}
+                  isOpen={isDetailOpen}
+                  isVisible={isDetailVisible}
+                  navDirection={detailNavDirection}
+                  widthPercent={detailMaximized ? 100 : detailWidth}
+                  columns={columns}
+                  priorityLookup={priorityLookup}
+                  config={config}
+                  apiBase={apiBase}
+                  onClose={handleTaskClose}
+                  onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
+                  isMaximized={detailMaximized}
+                  onAfterClose={() => setDetailClosing(false)}
+                  onFocus={handleFocus}
+                  focusedIssueId={focusedIssueId}
+                  focusedCommentId={focusedCommentId}
+                  onNavigateToDescendant={handleSelectIssue}
+                />
               </div>
-            ) : null}
-            <TaskDetailPanel
-              task={selectedTask}
-              allIssues={issues}
-              isOpen={isDetailOpen}
-              isVisible={isDetailVisible}
-              navDirection={detailNavDirection}
-              widthPercent={detailMaximized ? 100 : detailWidth}
-              columns={columns}
-              priorityLookup={priorityLookup}
-              config={config}
-              apiBase={apiBase}
-              onClose={handleTaskClose}
-              onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
-              isMaximized={detailMaximized}
-              onAfterClose={() => setDetailClosing(false)}
-              onFocus={handleFocus}
-              focusedIssueId={focusedIssueId}
-              focusedCommentId={focusedCommentId}
-              onNavigateToDescendant={handleSelectIssue}
-            />
+              <div className="view-panel">
+                <div className="layout-slot layout-slot-metrics h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3">
+                  {config ? (
+                    <MetricsPanel
+                      issues={metricsIssues}
+                      config={config}
+                      hasVirtualProjects={hasVirtualProjects}
+                      hasLocalIssues={hasLocalIssues}
+                      projectLabels={projectLabels}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            </div>
           </div>
           <FilterSidebar
             isOpen={sidebarPhase === "open" && activeSidebar === "filter"}
