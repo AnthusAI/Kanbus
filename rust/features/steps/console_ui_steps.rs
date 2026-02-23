@@ -697,15 +697,18 @@ fn then_metrics_view_inactive(world: &mut KanbusWorld) {
 fn then_metrics_toggle_selected(world: &mut KanbusWorld, view: String) {
     let state = require_console_state(world);
     let normalized = view.trim().to_lowercase();
-    let expected = if normalized == "metrics" { "metrics" } else { "board" };
+    let expected = if normalized == "metrics" {
+        "metrics"
+    } else {
+        "board"
+    };
     assert_eq!(state.panel_mode, expected);
 }
 
 #[then("the metrics toggle should include a board icon")]
 fn then_metrics_toggle_has_board_icon(_world: &mut KanbusWorld) {
     let root = console_app_root();
-    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx"))
-        .expect("read App.tsx");
+    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx")).expect("read App.tsx");
     assert!(
         app_tsx.contains("LayoutGrid") && app_tsx.contains("buildOption(\"board\")"),
         "expected LayoutGrid icon for board toggle"
@@ -715,8 +718,7 @@ fn then_metrics_toggle_has_board_icon(_world: &mut KanbusWorld) {
 #[then("the metrics toggle should include a chart icon")]
 fn then_metrics_toggle_has_chart_icon(_world: &mut KanbusWorld) {
     let root = console_app_root();
-    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx"))
-        .expect("read App.tsx");
+    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx")).expect("read App.tsx");
     assert!(
         app_tsx.contains("BarChart3") && app_tsx.contains("buildOption(\"metrics\")"),
         "expected BarChart3 icon for metrics toggle"
@@ -769,7 +771,9 @@ fn then_metrics_total(world: &mut KanbusWorld, count: String) {
 #[then(expr = "the metrics status count for {string} should be {string}")]
 fn then_metrics_status_count(world: &mut KanbusWorld, status: String, count: String) {
     let issues = metrics_filtered_issues(world);
-    let expected: usize = count.parse().expect("metrics status count should be numeric");
+    let expected: usize = count
+        .parse()
+        .expect("metrics status count should be numeric");
     let actual = issues.iter().filter(|issue| issue.status == status).count();
     assert_eq!(actual, expected);
 }
@@ -777,7 +781,9 @@ fn then_metrics_status_count(world: &mut KanbusWorld, status: String, count: Str
 #[then(expr = "the metrics project count for {string} should be {string}")]
 fn then_metrics_project_count(world: &mut KanbusWorld, label: String, count: String) {
     let issues = metrics_filtered_issues(world);
-    let expected: usize = count.parse().expect("metrics project count should be numeric");
+    let expected: usize = count
+        .parse()
+        .expect("metrics project count should be numeric");
     let actual = issues
         .iter()
         .filter(|issue| issue.project_label == label)
@@ -788,10 +794,15 @@ fn then_metrics_project_count(world: &mut KanbusWorld, label: String, count: Str
 #[then(expr = "the metrics scope count for {string} should be {string}")]
 fn then_metrics_scope_count(world: &mut KanbusWorld, label: String, count: String) {
     let issues = metrics_filtered_issues(world);
-    let expected: usize = count.parse().expect("metrics scope count should be numeric");
+    let expected: usize = count
+        .parse()
+        .expect("metrics scope count should be numeric");
     let normalized = label.trim().to_lowercase();
     let actual = if normalized == "local" {
-        issues.iter().filter(|issue| issue.location == "local").count()
+        issues
+            .iter()
+            .filter(|issue| issue.location == "local")
+            .count()
     } else {
         issues
             .iter()
