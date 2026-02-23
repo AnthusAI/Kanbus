@@ -537,6 +537,7 @@ export default function App() {
   const wasDetailOpenRef = React.useRef(false);
   const collapsedColumnsInitialized = React.useRef(false);
   const viewModeAutoCorrected = React.useRef(false);
+  const lastTypeSelectionRef = React.useRef<string | null>(null);
   useAppearance();
   const config = snapshot?.config;
   const issues = snapshot?.issues ?? [];
@@ -1158,6 +1159,11 @@ export default function App() {
     if (route.basePath == null) {
       return;
     }
+    const currentRoute = parseRoute(window.location.pathname, window.location.search);
+    const currentShowAll = currentRoute.typeFilter === "all";
+    const currentViewMode = currentRoute.parentId
+      ? null
+      : currentRoute.viewMode ?? viewMode ?? loadStoredViewMode();
     if (value === "all") {
       const url = buildUrl(window.location.pathname, {
         search: searchQuery || null,
@@ -1168,21 +1174,29 @@ export default function App() {
       const parsed = new URL(url, window.location.href);
       window.history.replaceState({}, "", parsed.pathname + parsed.search);
       setRoute(parseRoute(parsed.pathname, parsed.search));
+      lastTypeSelectionRef.current = "all";
       return;
     }
     const nextMode = value as ViewMode;
-    if (!showAllTypes && resolvedViewMode === nextMode) {
-      const url = buildUrl(window.location.pathname, {
-        search: searchQuery || null,
-        focused: focusedIssueId,
-        comment: focusedCommentId,
-        typeFilter: "all"
-      });
-      const parsed = new URL(url, window.location.href);
-      window.history.replaceState({}, "", parsed.pathname + parsed.search);
-      setRoute(parseRoute(parsed.pathname, parsed.search));
+    const repeatClick = lastTypeSelectionRef.current === nextMode;
+    if (!currentShowAll && currentViewMode === nextMode) {
+      if (repeatClick) {
+        const url = buildUrl(window.location.pathname, {
+          search: searchQuery || null,
+          focused: focusedIssueId,
+          comment: focusedCommentId,
+          typeFilter: "all"
+        });
+        const parsed = new URL(url, window.location.href);
+        window.history.replaceState({}, "", parsed.pathname + parsed.search);
+        setRoute(parseRoute(parsed.pathname, parsed.search));
+        lastTypeSelectionRef.current = "all";
+        return;
+      }
+      lastTypeSelectionRef.current = nextMode;
       return;
     }
+    lastTypeSelectionRef.current = nextMode;
     const nextUrl = buildUrl(`${route.basePath}/${nextMode}/`, {
       typeFilter: null
     });
