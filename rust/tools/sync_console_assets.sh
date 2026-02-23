@@ -4,7 +4,7 @@ set -euo pipefail
 # Rebuild console assets and copy into rust/embedded_assets/console
 # so that cargo builds with embed-assets can succeed locally.
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 pushd "$ROOT_DIR/apps/console" >/dev/null
 npm ci
