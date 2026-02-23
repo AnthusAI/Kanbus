@@ -919,6 +919,7 @@ def then_project_still_selected(context: object, label: str) -> None:
 # Metrics View Steps
 # ---------------------------------------------------------------------------
 
+
 @when('I switch to the "Metrics" view')
 def when_switch_metrics_view(context: object) -> None:
     state = _require_console_state(context)
@@ -952,7 +953,9 @@ def then_metrics_toggle_selects(context: object, label: str) -> None:
     state = _require_console_state(context)
     expected = "metrics" if label == "Metrics" else "board"
     if state.panel_mode != expected:
-        raise AssertionError(f"expected metrics toggle {expected}, got {state.panel_mode}")
+        raise AssertionError(
+            f"expected metrics toggle {expected}, got {state.panel_mode}"
+        )
 
 
 @then("the metrics toggle should include a board icon")
@@ -965,7 +968,9 @@ def then_metrics_toggle_chart_icon(context: object) -> None:
     pass
 
 
-@given('a metrics issue "{title}" of type "{type}" with status "{status}" in project "{project}" from "{source}"')
+@given(
+    'a metrics issue "{title}" of type "{type}" with status "{status}" in project "{project}" from "{source}"'
+)
 def given_metrics_issue(
     context: object, title: str, type: str, status: str, project: str, source: str
 ) -> None:
@@ -1004,7 +1009,9 @@ def then_metrics_status_count(context: object, status: str, count: str) -> None:
 @then('the metrics project count for "{project}" should be "{count}"')
 def then_metrics_project_count(context: object, project: str, count: str) -> None:
     summary = _calculate_metrics_summary(context)
-    found = next((row for row in summary["projectRows"] if row["label"] == project), None)
+    found = next(
+        (row for row in summary["projectRows"] if row["label"] == project), None
+    )
     actual = found["count"] if found else 0
     if str(actual) != count:
         raise AssertionError(f"expected project {project} count {count}, got {actual}")
@@ -1074,7 +1081,9 @@ def _calculate_metrics_summary(context: object) -> dict:
             project_scope_count += 1
     return {
         "total": total,
-        "statusRows": [{"key": k, "label": k, "count": v} for k, v in status_counts.items()],
+        "statusRows": [
+            {"key": k, "label": k, "count": v} for k, v in status_counts.items()
+        ],
         "projectRows": [{"label": k, "count": v} for k, v in project_counts.items()],
         "scopeRows": [
             {"label": "Project", "count": project_scope_count},
