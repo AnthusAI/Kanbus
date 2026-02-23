@@ -90,6 +90,7 @@ export function FilterSidebar({
   projectLabels,
   enabledProjects,
   onToggleProject,
+  hasVirtualProjects,
   hasLocalIssues,
   showLocal,
   showShared,
@@ -100,7 +101,7 @@ export function FilterSidebar({
   onTypeChange,
   onTransitionEnd
 }: FilterSidebarProps) {
-  const hasProjects = hasVirtualProjects && projectLabels.length > 0;
+  const hasProjects = projectLabels.length > 1 || hasVirtualProjects;
   const hasFocus = Boolean(focusedIssueLabel);
 
   return (
