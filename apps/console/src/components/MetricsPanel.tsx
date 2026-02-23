@@ -283,24 +283,26 @@ function MetricsChart({
           >
             {(barStacks) =>
               barStacks.map((barStack) =>
-                barStack.bars.map((bar) => (
-                  <rect
-                    key={`${barStack.key}-${bar.index}`}
-                    x={bar.x}
-                    y={bar.y}
-                    width={bar.width}
-                    height={bar.height}
-                    fill={bar.color}
-                    rx={6}
-                    className={barStack.key === statusKeys[0] ? "visx-bar-group" : undefined}
-                    data-type={
-                      barStack.key === statusKeys[0]
-                        ? (bar.bar as any)?.data?.type ?? (bar as any)?.bar?.data?.type
-                        : undefined
-                    }
-                    data-status={barStack.key}
-                  />
-                ))
+                barStack.bars.map((bar) => {
+                  if (!bar.width || bar.width <= 0 || !bar.height || bar.height <= 0) {
+                    return null;
+                  }
+                  const barData = (bar.bar as any)?.data ?? (bar as any)?.bar?.data;
+                  return (
+                    <rect
+                      key={`${barStack.key}-${bar.index}`}
+                      x={bar.x}
+                      y={bar.y}
+                      width={bar.width}
+                      height={bar.height}
+                      fill={bar.color}
+                      rx={6}
+                      className="visx-bar-group"
+                      data-type={barData?.type}
+                      data-status={barStack.key}
+                    />
+                  );
+                })
               )
             }
           </BarStackHorizontal>
