@@ -1770,7 +1770,7 @@ export default function App() {
                 panelMode === "metrics" ? " view-track-metrics" : ""
               }`}
             >
-              <div className="view-panel">
+              <div className="view-panel" data-testid="board-view">
             <div
               className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3 overflow-hidden${
                 detailMaximized ? " hidden" : ""
@@ -1899,7 +1899,10 @@ export default function App() {
                 />
               </div>
               <div className="view-panel">
-                <div className="layout-slot layout-slot-metrics h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3">
+                <div
+                  className="layout-slot layout-slot-metrics h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3"
+                  data-testid="metrics-view"
+                >
                   {config ? (
                     <MetricsPanel
                       issues={metricsIssues}

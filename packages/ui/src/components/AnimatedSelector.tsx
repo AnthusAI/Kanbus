@@ -250,6 +250,7 @@ export function AnimatedSelector({
             data-selector={name}
             data-option={option.id}
             data-testid={testId}
+            data-active={selected ? "true" : "false"}
             className={cn(
               "relative z-10 flex items-center gap-1 rounded-full px-1.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] whitespace-nowrap h-7",
               "md:px-2",
