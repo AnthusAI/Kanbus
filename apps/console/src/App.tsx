@@ -559,7 +559,17 @@ export default function App() {
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   useAppearance();
   const config = snapshot?.config;
-  const issues = snapshot?.issues ?? [];
+  const issues = useMemo(() => {
+    const list = snapshot?.issues ?? [];
+    if (!list.length) return [];
+    const map = new Map<string, Issue>();
+    list.forEach((issue) => {
+      if (issue?.id) {
+        map.set(issue.id, issue);
+      }
+    });
+    return Array.from(map.values());
+  }, [snapshot?.issues]);
   const deferredIssues = useDeferredValue(issues);
   const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
   const refreshSnapshot = useCallback(() => {
