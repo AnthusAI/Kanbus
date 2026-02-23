@@ -31,11 +31,16 @@ const FeaturesPage = () => {
           title="The Essentials"
           subtitle="Everything you need to manage projects without leaving your terminal."
         >
-          <div className="grid gap-6 md:grid-cols-1">
+          <div className="grid gap-6 md:grid-cols-2">
             <FeatureCard
               title="Core Management"
               description="The speed of CLI, the structure of Jira. Create, track, and update tasks without leaving your terminal. Filter by status, priority, and assignee with powerful query commands."
               href="/features/core-management"
+            />
+            <FeatureCard
+              title="Kanban Board"
+              description="Visualize your workflow. Drag and drop issues, filter by status, and see the big picture in a modern, reactive interface."
+              href="/features/kanban-board"
             />
           </div>
         </Section>
