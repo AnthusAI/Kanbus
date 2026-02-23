@@ -11,7 +11,6 @@ import re
 import click
 from dataclasses import dataclass, field
 
-
 _MARKDOWN_PATTERNS = [
     re.compile(r"^#{1,6}\s", re.MULTILINE),
     re.compile(r"\*\*[^*]+\*\*"),
