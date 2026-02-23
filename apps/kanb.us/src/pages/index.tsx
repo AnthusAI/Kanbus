@@ -79,7 +79,7 @@ const IndexPage = () => {
     <Layout>
       <Hero
         title="Track issues in your repository"
-        subtitle="where your agents can participate"
+        subtitle="where your agents can see it"
         eyebrow="Kanbus"
         actions={
           <>
@@ -98,6 +98,13 @@ const IndexPage = () => {
           </>
         }
       />
+
+      <p className="text-lg leading-8 text-muted max-w-2xl mx-auto text-center">
+        Files are the database. Kanbus keeps your issues, plans, and code in one repository, without the complexity.
+        <span className="block mt-4 text-base text-muted/80">
+          Already using Beads? Get an instant Kanban board with zero migration.
+        </span>
+      </p>
 
       <div className="space-y-12">
         <Section

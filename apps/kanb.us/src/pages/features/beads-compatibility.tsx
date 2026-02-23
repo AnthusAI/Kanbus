@@ -7,52 +7,51 @@ const BeadsCompatibilityPage = () => {
     <Layout>
       <Hero
         title="Beads Compatibility"
-        subtitle="Seamless interoperability with the Beads framework. Use Kanbus power on your existing data."
+        subtitle="Instant Kanban board for your existing Beads projects. No migration required."
         eyebrow="Integrations"
       />
 
       <div className="space-y-12">
         <Section
-          title="Zero Configuration"
-          subtitle="It just works."
+          title="Instant Kanban Board"
+          subtitle="Visualize your Beads issues immediately."
         >
           <Card className="p-8 shadow-card">
             <CardHeader className="p-0 mb-4">
-              <h3 className="text-xl font-bold text-foreground">Auto-detection</h3>
+              <h3 className="text-xl font-bold text-foreground">Zero Conversion Required</h3>
             </CardHeader>
             <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
               <p>
-                Kanbus automatically detects if your repository uses the Beads format. If it finds
-                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">.beads/issues.jsonl</code>,
-                it switches to compatibility mode instantly.
+                You don't need to convert your data to get a modern project board. Kanbus reads 
+                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">.beads/issues.jsonl</code> directly.
               </p>
               <p>
-                No configuration flags, no migration scripts. You can start using Kanbus commands
-                on your existing Beads project immediately.
+                Just type <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">kanbus console</code> (or <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">kbsc</code>) in your project root, 
+                or install the VS Code extension. You'll get a fully interactive Kanban board instantly, without changing a single file format.
               </p>
             </CardContent>
           </Card>
         </Section>
 
         <Section
-          title="Full CLI Power"
-          subtitle="A better interface for your data."
+          title="High Performance CLI"
+          subtitle="Faster operations, zero overhead."
           variant="alt"
         >
           <div className="space-y-6">
             <Card className="p-8 shadow-card">
               <CardHeader className="p-0 mb-4">
-                <h3 className="text-xl font-bold text-foreground">Read and Write</h3>
+                <h3 className="text-xl font-bold text-foreground">Bypass the Bottlenecks</h3>
               </CardHeader>
               <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
                 <p>
-                  All Kanbus commands work with Beads data. List issues, view details, create new tasks,
-                  and update status—Kanbus handles the underlying file format transparently.
+                  Avoid the hassles of SQLite server syncing and performance overhead. The Kanbus CLI is written in Rust 
+                  and operates directly on your data files with blazing speed.
                 </p>
-                <CodeBlock label="List Beads issues">{"kanbus list --status open"}</CodeBlock>
+                <CodeBlock label="Instant filtering">{"kanbus list --status open --assignee @me"}</CodeBlock>
                 <p>
-                  You get the speed and ergonomics of the Kanbus CLI while keeping the data format
-                  that your existing tools expect.
+                  Use the CLI with your agents for rapid context gathering and updates, all while maintaining full compatibility 
+                  with your existing Beads tooling.
                 </p>
               </CardContent>
             </Card>
@@ -60,25 +59,21 @@ const BeadsCompatibilityPage = () => {
         </Section>
 
         <Section
-          title="Best of Both Worlds"
-          subtitle="Mix modern features with legacy compatibility."
+          title="Risk-Free Migration"
+          subtitle="A smooth path forward."
         >
           <Card className="p-8 shadow-card">
             <CardHeader className="p-0 mb-4">
-              <h3 className="text-xl font-bold text-foreground">Local Tasks + Beads</h3>
+              <h3 className="text-xl font-bold text-foreground">Stay Flexible</h3>
             </CardHeader>
             <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
               <p>
-                Even in compatibility mode, you can use Kanbus-exclusive features like Local Tasks.
-                Keep your private TODO list in <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">.gitignore</code>
-                while collaborating on the shared Beads project.
+                There's no "big bang" migration. You can stay with the Beads format as long as you want 
+                while enjoying the benefits of the Kanbus board and CLI.
               </p>
-              <CodeBlock label="Create a local task in a Beads project">
-                {'kanbus create "Private experiment" --local'}
-              </CodeBlock>
               <p>
-                Kanbus merges both data sources into a single view, giving you a unified dashboard
-                for all your work.
+                When you're ready to switch formats entirely, it's a simple operation—but you don't have to do it 
+                to get value today.
               </p>
             </CardContent>
           </Card>
