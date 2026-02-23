@@ -184,10 +184,31 @@ Then("the metrics chart should use category colors", async function () {
     expect(fill).toBeTruthy();
 });
 
+async function isFilterChecked(page, label) {
+  const panel = page.getByTestId("filter-sidebar");
+  const button = panel.getByRole("button", { name: label }).first();
+  const checkbox = button.locator("span").first();
+  const className = await checkbox.getAttribute("class");
+  return Boolean(className && className.includes("border-accent"));
+}
+
+async function setFilterChecked(page, label, desired) {
+  const panel = page.getByTestId("filter-sidebar");
+  const button = panel.getByRole("button", { name: label }).first();
+  const current = await isFilterChecked(page, label);
+  if (current !== desired) {
+    await button.click();
+  }
+}
+
 When("I select metrics project {string}", async function (project) {
-    // Re-use existing filter steps logic if possible, or implement direct click
-    // Assuming this refers to the sidebar filter
-    await this.page.getByTestId("filter-button").click();
-    await this.page.getByRole("button", { name: project }).click();
-    await this.page.getByTestId("filter-sidebar-close").click();
+  await this.page.getByTestId("filter-button").click();
+  const section = this.page.getByTestId("filter-projects-section");
+  const buttons = section.getByRole("button");
+  const count = await buttons.count();
+  for (let index = 0; index < count; index += 1) {
+    const label = (await buttons.nth(index).innerText()).trim();
+    await setFilterChecked(this.page, label, label === project);
+  }
+  await this.page.getByTestId("filter-sidebar-close").click();
 });
