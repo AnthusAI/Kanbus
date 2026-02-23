@@ -19,13 +19,21 @@ RUST_DIR="$REPO_ROOT/rust"
 UI_DIR="$REPO_ROOT/packages/ui"
 
 CONFIG_PORT=""
+CONFIG_HOST=""
 if [ -f "$REPO_ROOT/.kanbus.yml" ]; then
   CONFIG_PORT=$(awk -F: '/^console_port:/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' "$REPO_ROOT/.kanbus.yml")
+  CONFIG_HOST=$(awk -F: '/^console_host:/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' "$REPO_ROOT/.kanbus.yml")
 fi
 
 case "$CONFIG_PORT" in
   ''|*[!0-9]*)
     CONFIG_PORT=""
+    ;;
+esac
+
+case "$CONFIG_HOST" in
+  ''|*[^0-9A-Za-z\.\:\-]*)
+    CONFIG_HOST=""
     ;;
 esac
 
@@ -39,12 +47,15 @@ DEFAULT_CONSOLE_PORT="5174"
 
 VITE_PORT="${VITE_PORT:-$DEFAULT_VITE_PORT}"
 CONSOLE_PORT="${CONSOLE_PORT:-$DEFAULT_CONSOLE_PORT}"
+DEFAULT_HOST="${CONFIG_HOST:-0.0.0.0}"
+CONSOLE_HOST="${CONSOLE_HOST:-$DEFAULT_HOST}"
+VITE_HOST="${VITE_HOST:-$CONSOLE_HOST}"
 
 CONSOLE_PROJECT_ROOT="${CONSOLE_PROJECT_ROOT:-$REPO_ROOT/project}"
 KANBUS_PYTHONPATH="${KANBUS_PYTHONPATH:-$REPO_ROOT/python/src}"
 KANBUS_PYTHON="${KANBUS_PYTHON:-python}"
 
-export VITE_PORT CONSOLE_PORT CONSOLE_PROJECT_ROOT KANBUS_PYTHONPATH KANBUS_PYTHON
+export VITE_PORT CONSOLE_PORT VITE_HOST CONSOLE_HOST CONSOLE_PROJECT_ROOT KANBUS_PYTHONPATH KANBUS_PYTHON
 
 echo "═══════════════════════════════════════════════════════════════"
 echo "Kanbus Development Server (Watch Mode)"
@@ -55,7 +66,10 @@ echo "  • UI styles watcher (packages/ui) → copies CSS changes to dist/"
 echo "  • UI TypeScript watcher (packages/ui)"
 echo "  • Console dev server (apps/console) → Vite + API"
 echo ""
-echo "The console will be available at: http://127.0.0.1:$VITE_PORT"
+echo "The console will be available at: http://${VITE_HOST}:$VITE_PORT"
+if [ "$VITE_HOST" = "0.0.0.0" ]; then
+  echo "  (Use your LAN IP for other devices, e.g. \`ipconfig getifaddr en0\`)"
+fi
 echo "Console API will be available at: http://127.0.0.1:$CONSOLE_PORT"
 echo ""
 echo "Press Ctrl+C to stop all services."
