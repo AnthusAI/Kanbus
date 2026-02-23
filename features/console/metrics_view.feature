@@ -40,6 +40,7 @@ Feature: Console metrics view
 
   Scenario: Metrics summary counts reflect issues
     Given the console is open
+    And no issues exist in the console
     And a metrics issue "Alpha epic" of type "epic" with status "open" in project "kbs" from "shared"
     And a metrics issue "Beta epic" of type "epic" with status "in_progress" in project "kbs" from "shared"
     And a metrics issue "Done task" of type "task" with status "closed" in project "kbs" from "local"
@@ -51,6 +52,7 @@ Feature: Console metrics view
 
   Scenario: Metrics summary shows project and scope breakdowns when available
     Given the console is open with virtual projects configured
+    And no issues exist in the console
     And a metrics issue "Alpha epic" of type "epic" with status "open" in project "alpha" from "shared"
     And a metrics issue "Beta epic" of type "epic" with status "open" in project "beta" from "shared"
     And a metrics issue "Local task" of type "task" with status "closed" in project "kbs" from "local"
@@ -63,6 +65,7 @@ Feature: Console metrics view
 
   Scenario: Chart groups by issue type and uses status colors
     Given the console is open
+    And no issues exist in the console
     And a metrics issue "Alpha epic" of type "epic" with status "open" in project "kbs" from "shared"
     And a metrics issue "Beta epic" of type "epic" with status "closed" in project "kbs" from "shared"
     And a metrics issue "Task one" of type "task" with status "in_progress" in project "kbs" from "shared"
@@ -75,6 +78,7 @@ Feature: Console metrics view
 
   Scenario: Chart reflects active filters
     Given the console is open
+    And no issues exist in the console
     And a metrics issue "Alpha epic" of type "epic" with status "open" in project "alpha" from "shared"
     And a metrics issue "Beta epic" of type "epic" with status "open" in project "beta" from "shared"
     When I select metrics project "alpha"
