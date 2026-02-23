@@ -1,15 +1,19 @@
 import { Given, When, Then, After } from "@cucumber/cucumber";
 import { expect } from "@playwright/test";
-import { writeFile, rm, mkdir, cp } from "fs/promises";
+import { writeFile, readFile, rm, mkdir, cp } from "fs/promises";
 import path from "path";
+import yaml from "js-yaml";
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
 const fixtureRoot = path.resolve(process.cwd(), "tests", "fixtures", "project");
+const consoleConfigPath = process.env.CONSOLE_CONFIG_PATH
+  ?? (projectRoot ? path.join(path.dirname(projectRoot), ".kanbus.yml") : null);
 const consolePort = process.env.CONSOLE_PORT ?? "5174";
 const consoleBaseUrl =
   process.env.CONSOLE_BASE_URL ?? `http://localhost:${consolePort}/`;
 const consoleApiBase =
   process.env.CONSOLE_API_BASE ?? `${consoleBaseUrl.replace(/\/+$/, "")}/api`;
+let issueCounter = 1;
 
 // Helper to ensure project root is available
 function requireProjectRoot() {
@@ -65,12 +69,25 @@ async function resetMetricsProjectRoot() {
   await rm(path.join(repoRoot, "project-local"), { recursive: true, force: true });
   await rm(path.join(repoRoot, "virtual"), { recursive: true, force: true });
   await cp(fixtureRoot, root, { recursive: true });
+  issueCounter = 1;
+}
+
+async function resetMetricsConfig() {
+  if (!consoleConfigPath) {
+    return;
+  }
+  const config = await loadKanbusConfigFile();
+  config.project_directory ??= "project";
+  config.project_key ??= "kanbus";
+  config.virtual_projects = {};
+  await saveKanbusConfigFile(config);
 }
 
 After(async function () {
   if (!this.metricsDirty) {
     return;
   }
+  await resetMetricsConfig();
   await resetMetricsProjectRoot();
   this.metricsDirty = false;
   this.metricsStale = false;
@@ -85,8 +102,11 @@ function buildMetricsIssue({
   project = "kbs"
 }) {
   const timestamp = new Date().toISOString();
+  const sanitizedProject = project.replace(/[^a-zA-Z0-9_-]/g, "");
+  const sequence = issueCounter++;
+  const defaultId = `${sanitizedProject}-${type}-${sequence}`;
   return {
-    id,
+    id: id ?? defaultId,
     title,
     description: "Generated for metrics test",
     type,
@@ -104,6 +124,37 @@ function buildMetricsIssue({
     // For virtual projects, we simulate them by placement, but the issue structure remains the same.
     // The console app determines project context based on where the file is loaded from.
   };
+}
+
+async function loadKanbusConfigFile() {
+  if (!consoleConfigPath) {
+    return {};
+  }
+  try {
+    const contents = await readFile(consoleConfigPath, "utf-8");
+    return yaml.load(contents) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveKanbusConfigFile(config) {
+  if (!consoleConfigPath) {
+    return;
+  }
+  const contents = yaml.dump(config, { sortKeys: false });
+  await writeFile(consoleConfigPath, contents, "utf-8");
+}
+
+async function ensureVirtualProjectConfig(label) {
+  const config = await loadKanbusConfigFile();
+  config.project_directory ??= "project";
+  config.project_key ??= "kanbus";
+  config.virtual_projects = config.virtual_projects ?? {};
+  if (!config.virtual_projects[label]) {
+    config.virtual_projects[label] = { path: `virtual/${label}/project` };
+  }
+  await saveKanbusConfigFile(config);
 }
 
 When("I switch to the {string} view", async function (viewName) {
@@ -169,6 +220,7 @@ Given(
     this.metricsStale = true;
     const root = requireProjectRoot();
     const repoRoot = path.dirname(root);
+    const resolvedProject = await resolveProjectLabel(projectLabel);
     
     let issueDir;
     if (projectLabel === "kbs") {
@@ -178,6 +230,7 @@ Given(
             issueDir = path.join(root, "issues");
         }
     } else {
+        await ensureVirtualProjectConfig(projectLabel);
         // Virtual project
         if (source === "local") {
             issueDir = path.join(repoRoot, "virtual", projectLabel, "project-local", "issues");
@@ -188,8 +241,14 @@ Given(
     
     await mkdir(issueDir, { recursive: true });
     
-    const id = `${projectLabel}-${source}-${title.replace(/\s+/g, "-").toLowerCase()}`;
-    const issue = buildMetricsIssue({ id, title, type, status });
+    const id = `${resolvedProject}-${type}-${issueCounter}`;
+    const issue = buildMetricsIssue({
+      id,
+      title,
+      type,
+      status,
+      project: resolvedProject
+    });
     await writeFile(path.join(issueDir, `${id}.json`), JSON.stringify(issue, null, 2));
   }
 );
