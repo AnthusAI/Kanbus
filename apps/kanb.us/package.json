@@ -4,6 +4,9 @@
   "description": "Kanbus public website",
   "private": true,
   "scripts": {
+    "predev": "npm --prefix ../../packages/ui install && npm --prefix ../../packages/ui run build",
+    "predevelop": "npm --prefix ../../packages/ui install && npm --prefix ../../packages/ui run build",
+    "prebuild": "npm --prefix ../../packages/ui install && npm --prefix ../../packages/ui run build",
     "develop": "gatsby develop",
     "dev": "gatsby develop",
     "build": "gatsby build",
@@ -15,12 +18,17 @@
     "@fontsource/space-grotesk": "^5.2.8",
     "@kanbus/ui": "file:../../packages/ui",
     "@tailwindcss/postcss": "^4.1.18",
+    "@radix-ui/colors": "^3.0.0",
+    "@radix-ui/react-scroll-area": "^1.1.2",
+    "@radix-ui/react-tabs": "^1.1.2",
     "clsx": "^2.1.1",
     "gatsby": "^5.13.0",
     "gatsby-plugin-postcss": "^6.16.0",
+    "gsap": "^3.12.5",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

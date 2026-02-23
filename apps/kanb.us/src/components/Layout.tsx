@@ -4,11 +4,7 @@ import { Menu, X } from "lucide-react";
 const navigation = [
   { label: "Philosophy", href: "/philosophy" },
   { label: "Features", href: "/features" },
-  { label: "Architecture", href: "/architecture" },
-  { label: "Jira Sync", href: "/jira-sync" },
-  { label: "Local Tasks", href: "/local-tasks" },
-  { label: "Getting Started", href: "/getting-started" },
-  { label: "Documentation", href: "/docs" },
+  { label: "Getting Started", href: "/getting-started" }
 ];
 
 type LayoutProps = {
@@ -105,25 +101,25 @@ const Layout = ({ children }: LayoutProps) => {
               </p>
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-foreground">Explore</h4>
+              <h4 className="text-sm font-semibold text-foreground">Features</h4>
               <ul className="mt-4 space-y-3 text-sm">
-                <li><a href="/philosophy" className="text-muted hover:text-selected">Philosophy</a></li>
-                <li><a href="/features" className="text-muted hover:text-selected">Features</a></li>
-                <li><a href="/architecture" className="text-muted hover:text-selected">Architecture</a></li>
-                <li><a href="/jira-sync" className="text-muted hover:text-selected">Jira Sync</a></li>
-                <li><a href="/local-tasks" className="text-muted hover:text-selected">Local Tasks</a></li>
-                <li><a href="/getting-started" className="text-muted hover:text-selected">Getting Started</a></li>
-                <li><a href="/docs" className="text-muted hover:text-selected">Documentation</a></li>
+                <li><a href="/features/jira-sync" className="text-muted hover:text-selected">Jira Sync</a></li>
+                <li><a href="/features/local-tasks" className="text-muted hover:text-selected">Local Tasks</a></li>
               </ul>
             </div>
             <div>
-               <h4 className="text-sm font-semibold text-foreground">Community</h4>
-               <ul className="mt-4 space-y-3 text-sm">
-                <li><a href="https://github.com/AnthusAI/Kanbus" className="text-muted hover:text-selected">GitHub</a></li>
+              <h4 className="text-sm font-semibold text-foreground">Reference</h4>
+              <ul className="mt-4 space-y-3 text-sm">
+                <li><a href="/architecture" className="text-muted hover:text-selected">Architecture</a></li>
+                <li><a href="/docs" className="text-muted hover:text-selected">Documentation</a></li>
               </ul>
             </div>
             <div className="col-span-2 md:col-span-1 md:text-right">
-              <div className="flex flex-col items-start md:items-end gap-2 text-sm text-muted">
+              <h4 className="text-sm font-semibold text-foreground">Community</h4>
+              <ul className="mt-4 space-y-3 text-sm">
+                <li><a href="https://github.com/AnthusAI/Kanbus" className="text-muted hover:text-selected">GitHub</a></li>
+              </ul>
+              <div className="mt-6 flex flex-col items-start md:items-end gap-2 text-sm text-muted">
                 <div className="flex items-center gap-2">
                   <span>Free and open-source software</span>
                   <a

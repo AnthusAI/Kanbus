@@ -8,7 +8,7 @@ import {
   Layers
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
-import { Board } from "./components/Board";
+import { Board } from "@kanbus/ui";
 import { TaskDetailPanel } from "./components/TaskDetailPanel";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { AnimatedSelector, type SelectorOption } from "@kanbus/ui";
@@ -1683,6 +1683,7 @@ export default function App() {
                   transitionKey={transitionKey}
                   detailOpen={isDetailOpen}
                   collapsedColumns={collapsedColumns}
+                  motion={{ mode: "css" }}
                   onToggleCollapse={(column) => {
                     setCollapsedColumns((prev) => {
                       const next = new Set(prev);

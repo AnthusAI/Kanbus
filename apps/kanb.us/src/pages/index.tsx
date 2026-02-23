@@ -1,18 +1,90 @@
 import * as React from "react";
 import { Layout, Section, Hero } from "../components";
-import { Card, CardContent, CardHeader } from "@kanbus/ui";
+import { Board, Card, CardContent, CardHeader } from "@kanbus/ui";
+import { FEATURE_ENTRIES } from "../content/features";
+import { VIDEOS } from "../content/videos";
+import { getVideoSrc, getVideosBaseUrl } from "../lib/getVideoSrc";
 
 const IndexPage = () => {
+  const boardConfig = {
+    statuses: [
+      { key: "backlog", name: "Backlog", category: "To do" },
+      { key: "in_progress", name: "In Progress", category: "In progress" },
+      { key: "closed", name: "Done", category: "Done" }
+    ],
+    categories: [
+      { name: "To do", color: "grey" },
+      { name: "In progress", color: "blue" },
+      { name: "Done", color: "green" }
+    ],
+    priorities: {
+      1: { name: "high", color: "bright_red" },
+      2: { name: "medium", color: "yellow" },
+      3: { name: "low", color: "blue" }
+    },
+    type_colors: {
+      epic: "magenta",
+      task: "blue",
+      bug: "red",
+      story: "yellow",
+      chore: "green"
+    }
+  };
+  const boardColumns = boardConfig.statuses.map((status) => status.key);
+  const boardIssues = [
+    {
+      id: "tsk-1a2b3c",
+      title: "Map release milestones",
+      type: "epic",
+      status: "backlog",
+      priority: 2
+    },
+    {
+      id: "tsk-4d5e6f",
+      title: "Wire notifications",
+      type: "task",
+      status: "in_progress",
+      priority: 1,
+      assignee: "ryan"
+    },
+    {
+      id: "tsk-7g8h9i",
+      title: "Fix sync edge case",
+      type: "bug",
+      status: "in_progress",
+      priority: 1
+    },
+    {
+      id: "tsk-0j1k2l",
+      title: "Ship static export",
+      type: "task",
+      status: "closed",
+      priority: 3
+    }
+  ];
+  const priorityLookup = {
+    1: "high",
+    2: "medium",
+    3: "low"
+  };
+
+  const introVideo = VIDEOS[0] ?? null;
+  const videosBaseUrl = getVideosBaseUrl();
+  const canRenderVideo = Boolean(introVideo && videosBaseUrl);
+  const introPoster =
+    canRenderVideo && introVideo?.poster ? getVideoSrc(introVideo.poster) : undefined;
+  const introSrc = canRenderVideo && introVideo ? getVideoSrc(introVideo.filename) : "";
+
   return (
     <Layout>
       <Hero
-        title="A tiny Jira clone for your repo"
-        subtitle="Files are the database. Kanbus keeps your issues, plans, and code in one repository, without the complexity."
+        title="Track issues in your repository"
+        subtitle="where your agents can participate"
         eyebrow="Kanbus"
         actions={
           <>
             <a
-              href="/docs"
+              href="/getting-started"
               className="rounded-full bg-selected px-6 py-3 text-sm font-semibold text-background shadow-card hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selected transition-all"
             >
               Get Started
@@ -28,6 +100,74 @@ const IndexPage = () => {
       />
 
       <div className="space-y-12">
+        <Section
+          title="Features"
+          subtitle="Focused capabilities that make Kanbus practical for daily work."
+        >
+          <div className="grid gap-6 md:grid-cols-2">
+            {FEATURE_ENTRIES.map((feature) => (
+              <a key={feature.href} href={feature.href} className="group">
+                <Card className="p-6 shadow-card transition-transform group-hover:-translate-y-1">
+                  <CardHeader className="p-0 mb-3">
+                    <h3 className="text-xl font-bold text-foreground">{feature.title}</h3>
+                  </CardHeader>
+                  <CardContent className="p-0 text-muted leading-relaxed">
+                    {feature.description}
+                  </CardContent>
+                </Card>
+              </a>
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          title="Intro video"
+          subtitle="A quick walkthrough of Canvas and how it ties issues to execution."
+          variant="alt"
+        >
+          <div className="grid gap-6 md:grid-cols-2 items-center">
+            <div className="space-y-3">
+              <h3 className="text-xl font-bold text-foreground">
+                {introVideo?.title}
+              </h3>
+              <p className="text-muted leading-relaxed">
+                {introVideo?.description}
+              </p>
+            </div>
+            <div className="rounded-2xl overflow-hidden shadow-card bg-card">
+              {canRenderVideo ? (
+                <video
+                  className="w-full h-full"
+                  controls
+                  preload="metadata"
+                  playsInline
+                  poster={introPoster}
+                  src={introSrc}
+                />
+              ) : (
+                <p className="p-8 text-muted text-sm text-center">
+                  Set GATSBY_VIDEOS_BASE_URL to enable the intro video preview.
+                </p>
+              )}
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          title="Kanban snapshot"
+          subtitle="The board you already use, rendered as a lightweight, shareable view."
+        >
+          <div className="rounded-2xl bg-card p-4 shadow-card">
+            <Board
+              columns={boardColumns}
+              issues={boardIssues}
+              priorityLookup={priorityLookup}
+              config={boardConfig}
+              motion={{ mode: "static" }}
+            />
+          </div>
+        </Section>
+
         <Section
           title="Files are the database"
           subtitle="Stop syncing your work to a separate silo. Kanbus stores everything in your Git repository."

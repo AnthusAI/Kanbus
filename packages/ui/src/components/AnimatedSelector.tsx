@@ -20,7 +20,12 @@ export interface AnimatedSelectorProps {
 }
 
 function motionMode(): string {
+  if (typeof document === "undefined") return "off";
   return document.documentElement.dataset.motion ?? "full";
+}
+
+function getGsap(): Promise<typeof gsap> {
+  return Promise.resolve(gsap);
 }
 
 export function AnimatedSelector({
@@ -37,18 +42,14 @@ export function AnimatedSelector({
   const highlightRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const lastWidthRef = useRef<number | null>(null);
-  const resizeTweenRef = useRef<gsap.core.Timeline | gsap.core.Tween | null>(null);
+  const resizeTweenRef = useRef<{ kill: () => void } | null>(null);
 
   const applyCompactState = (compact: boolean, animate: boolean) => {
+    if (typeof window === "undefined") return;
     const container = containerRef.current;
     if (!container) {
       return;
     }
-    console.info("[selector] compact-state", {
-      name,
-      compact,
-      animate
-    });
     const motion = motionMode();
     const shouldAnimate = animate && motion !== "off";
     const duration = motion === "reduced" ? 0.2 : motionDurationMs / 1000;
@@ -60,14 +61,6 @@ export function AnimatedSelector({
       label,
       width: label.scrollWidth
     }));
-    console.info("[selector] label-metrics", {
-      name,
-      labels: labelTargets.map(({ label, width }) => ({
-        text: label.textContent ?? "",
-        scrollWidth: width,
-        maxWidth: getComputedStyle(label).maxWidth
-      }))
-    });
 
     const endGap = compact ? 4 : 8;
     const endPadding = compact ? 4 : 8;
@@ -77,47 +70,49 @@ export function AnimatedSelector({
         ? { maxWidth: 0, x: -4 }
         : { maxWidth: width, x: 0 };
 
-    if (shouldAnimate) {
-      if (resizeTweenRef.current) {
-        resizeTweenRef.current.kill();
+    getGsap().then((gsap) => {
+      if (shouldAnimate) {
+        if (resizeTweenRef.current) {
+          resizeTweenRef.current.kill();
+        }
+        const timeline = gsap.timeline({
+          defaults: { duration, ease: motionEase, overwrite: true },
+          onUpdate: () => setHighlight(false),
+          onComplete: () => setHighlight(false)
+        });
+        labelTargets.forEach(({ label, width }) => {
+          timeline.to(label, { ...endLabelVars(width) }, 0);
+        });
+        options.forEach((option) => {
+          timeline.to(option, { gap: endGap }, 0);
+        });
+        buttons.forEach((button) => {
+          timeline.to(button, { paddingLeft: endPadding, paddingRight: endPadding }, 0);
+        });
+        resizeTweenRef.current = timeline;
+      } else {
+        labelTargets.forEach(({ label, width }) => {
+          gsap.set(label, endLabelVars(width));
+        });
+        options.forEach((option) => {
+          gsap.set(option, { gap: endGap });
+        });
+        buttons.forEach((button) => {
+          gsap.set(button, { paddingLeft: endPadding, paddingRight: endPadding });
+        });
+        setHighlight(false);
       }
-      const timeline = gsap.timeline({
-        defaults: { duration, ease: motionEase, overwrite: true },
-        onUpdate: () => setHighlight(false),
-        onComplete: () => setHighlight(false)
-      });
-      labelTargets.forEach(({ label, width }) => {
-        timeline.to(label, { ...endLabelVars(width) }, 0);
-      });
-      options.forEach((option) => {
-        timeline.to(option, { gap: endGap }, 0);
-      });
-      buttons.forEach((button) => {
-        timeline.to(button, { paddingLeft: endPadding, paddingRight: endPadding }, 0);
-      });
-      resizeTweenRef.current = timeline;
-    } else {
-      labelTargets.forEach(({ label, width }) => {
-        gsap.set(label, endLabelVars(width));
-      });
-      options.forEach((option) => {
-        gsap.set(option, { gap: endGap });
-      });
-      buttons.forEach((button) => {
-        gsap.set(button, { paddingLeft: endPadding, paddingRight: endPadding });
-      });
-      setHighlight(false);
-    }
-
+    });
   };
 
   const setHighlight = (animate: boolean) => {
+    if (typeof window === "undefined") return;
     const container = containerRef.current;
     const highlight = highlightRef.current;
     const target = value ? buttonRefs.current[value] : null;
     if (!container || !highlight || !target) {
       if (highlight) {
-        gsap.set(highlight, { opacity: 0 });
+        getGsap().then((gsap) => gsap.set(highlight, { opacity: 0 }));
       }
       return;
     }
@@ -131,27 +126,30 @@ export function AnimatedSelector({
 
     const currentMotion = motionMode();
     const shouldAnimate = animate && currentMotion !== "off";
-    gsap.killTweensOf(highlight);
 
-    if (!shouldAnimate) {
-      gsap.set(highlight, { x: left, y: top, width, height, opacity: 1, overwrite: true });
-      return;
-    }
+    getGsap().then((gsap) => {
+      gsap.killTweensOf(highlight);
 
-    let duration = motionDurationMs / 1000;
-    if (currentMotion === "reduced") {
-      duration = 0.2;
-    }
+      if (!shouldAnimate) {
+        gsap.set(highlight, { x: left, y: top, width, height, opacity: 1, overwrite: true });
+        return;
+      }
 
-    gsap.to(highlight, {
-      x: left,
-      y: top,
-      width,
-      height,
-      opacity: 1,
-      duration,
-      ease: motionEase,
-      overwrite: true
+      let duration = motionDurationMs / 1000;
+      if (currentMotion === "reduced") {
+        duration = 0.2;
+      }
+
+      gsap.to(highlight, {
+        x: left,
+        y: top,
+        width,
+        height,
+        opacity: 1,
+        duration,
+        ease: motionEase,
+        overwrite: true
+      });
     });
   };
 
