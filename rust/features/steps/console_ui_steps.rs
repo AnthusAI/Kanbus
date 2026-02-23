@@ -1,6 +1,7 @@
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use chrono_tz::Tz;
 use cucumber::{given, then, when};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -15,6 +16,7 @@ pub struct ConsoleIssue {
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
     pub closed_at: Option<String>,
+    pub status: String,
     pub project_label: String,
     pub location: String,
 }
@@ -51,12 +53,14 @@ pub struct ConsoleLocalStorage {
     pub settings: ConsoleSettings,
     pub selected_project_filter: Option<String>,
     pub selected_local_filter: Option<String>,
+    pub panel_mode: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ConsoleState {
     pub issues: Vec<ConsoleIssue>,
     pub selected_tab: String,
+    pub panel_mode: String,
     pub selected_task_title: Option<String>,
     pub settings: ConsoleSettings,
     pub time_zone: Option<String>,
@@ -112,6 +116,7 @@ fn when_add_task_issue(world: &mut KanbusWorld, title: String) {
         created_at: None,
         updated_at: None,
         closed_at: None,
+        status: "open".to_string(),
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
     });
@@ -245,6 +250,7 @@ fn given_console_open_with_virtual_projects(world: &mut KanbusWorld) {
         created_at: None,
         updated_at: None,
         closed_at: None,
+        status: "open".to_string(),
         project_label: "alpha".to_string(),
         location: "shared".to_string(),
     });
@@ -282,6 +288,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            status: "open".to_string(),
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
@@ -294,6 +301,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            status: "open".to_string(),
             project_label: "alpha".to_string(),
             location: "shared".to_string(),
         },
@@ -306,6 +314,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            status: "open".to_string(),
             project_label: "beta".to_string(),
             location: "shared".to_string(),
         },
@@ -324,6 +333,7 @@ fn given_local_issues_current_project(world: &mut KanbusWorld) {
         created_at: None,
         updated_at: None,
         closed_at: None,
+        status: "open".to_string(),
         project_label: "kbs".to_string(),
         location: "local".to_string(),
     });
@@ -342,6 +352,7 @@ fn given_local_issues_virtual_project(world: &mut KanbusWorld, label: String) {
         created_at: None,
         updated_at: None,
         closed_at: None,
+        status: "open".to_string(),
         project_label: label,
         location: "local".to_string(),
     });
@@ -611,12 +622,251 @@ fn then_priority_label_uses_foreground_text(_world: &mut KanbusWorld) {
     assert_priority_pill_uses_foreground_text();
 }
 
+fn metrics_filtered_issues(world: &KanbusWorld) -> Vec<&ConsoleIssue> {
+    let state = world
+        .console_state
+        .as_ref()
+        .expect("console state not initialized");
+    let mut issues: Vec<&ConsoleIssue> = state.issues.iter().collect();
+    if let Some(ref filter) = world.metrics_project_filter {
+        issues = issues
+            .into_iter()
+            .filter(|issue| &issue.project_label == filter)
+            .collect();
+    }
+    if let Some(ref local_filter) = world.metrics_local_filter {
+        if local_filter == "local" {
+            issues = issues
+                .into_iter()
+                .filter(|issue| issue.location == "local")
+                .collect();
+        } else if local_filter == "project" {
+            issues = issues
+                .into_iter()
+                .filter(|issue| issue.location != "local")
+                .collect();
+        }
+    }
+    issues
+}
+
+fn metrics_status_categories(issues: &[&ConsoleIssue]) -> HashSet<String> {
+    let mut categories = HashSet::new();
+    for issue in issues {
+        let label = match issue.status.as_str() {
+            "open" => "To Do",
+            "in_progress" => "In Progress",
+            "blocked" => "Blocked",
+            "closed" | "done" => "Done",
+            _ => continue,
+        };
+        categories.insert(label.to_string());
+    }
+    categories
+}
+
+#[when(expr = "I switch to the {string} view")]
+fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
+    let state = require_console_state(world);
+    let normalized = view.trim().to_lowercase();
+    if normalized == "metrics" {
+        state.panel_mode = "metrics".to_string();
+        world.console_local_storage.panel_mode = Some("metrics".to_string());
+        return;
+    }
+    state.panel_mode = "board".to_string();
+    world.console_local_storage.panel_mode = Some("board".to_string());
+}
+
+#[then("the board view should be active")]
+fn then_board_view_active(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_eq!(state.panel_mode, "board");
+}
+
+#[then("the board view should be inactive")]
+fn then_board_view_inactive(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_ne!(state.panel_mode, "board");
+}
+
+#[then("the metrics view should be active")]
+fn then_metrics_view_active(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_eq!(state.panel_mode, "metrics");
+}
+
+#[then("the metrics view should be inactive")]
+fn then_metrics_view_inactive(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_ne!(state.panel_mode, "metrics");
+}
+
+#[then(expr = "the metrics toggle should select {string}")]
+fn then_metrics_toggle_selected(world: &mut KanbusWorld, view: String) {
+    let state = require_console_state(world);
+    let normalized = view.trim().to_lowercase();
+    let expected = if normalized == "metrics" { "metrics" } else { "board" };
+    assert_eq!(state.panel_mode, expected);
+}
+
+#[then("the metrics toggle should include a board icon")]
+fn then_metrics_toggle_has_board_icon(_world: &mut KanbusWorld) {
+    let root = console_app_root();
+    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx"))
+        .expect("read App.tsx");
+    assert!(
+        app_tsx.contains("LayoutGrid") && app_tsx.contains(\"buildOption(\\\"board\\\"\"),
+        "expected LayoutGrid icon for board toggle"
+    );
+}
+
+#[then("the metrics toggle should include a chart icon")]
+fn then_metrics_toggle_has_chart_icon(_world: &mut KanbusWorld) {
+    let root = console_app_root();
+    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx"))
+        .expect("read App.tsx");
+    assert!(
+        app_tsx.contains("BarChart3") && app_tsx.contains(\"buildOption(\\\"metrics\\\"\"),
+        "expected BarChart3 icon for metrics toggle"
+    );
+}
+
+#[given(
+    expr = "a metrics issue {string} of type {string} with status {string} in project {string} from {string}"
+)]
+fn given_metrics_issue(
+    world: &mut KanbusWorld,
+    title: String,
+    issue_type: String,
+    status: String,
+    project: String,
+    source: String,
+) {
+    let state = require_console_state(world);
+    if !world.metrics_issue_seeded {
+        state.issues.clear();
+        world.metrics_issue_seeded = true;
+    }
+    state.issues.push(ConsoleIssue {
+        title,
+        issue_type,
+        parent_title: None,
+        comments: Vec::new(),
+        assignee: None,
+        created_at: None,
+        updated_at: None,
+        closed_at: None,
+        status,
+        project_label: project,
+        location: source,
+    });
+}
+
+#[when(expr = "I select metrics project {string}")]
+fn when_select_metrics_project(world: &mut KanbusWorld, label: String) {
+    world.metrics_project_filter = Some(label);
+}
+
+#[then(expr = "the metrics total should be {string}")]
+fn then_metrics_total(world: &mut KanbusWorld, count: String) {
+    let issues = metrics_filtered_issues(world);
+    let expected: usize = count.parse().expect("metrics total should be numeric");
+    assert_eq!(issues.len(), expected);
+}
+
+#[then(expr = "the metrics status count for {string} should be {string}")]
+fn then_metrics_status_count(world: &mut KanbusWorld, status: String, count: String) {
+    let issues = metrics_filtered_issues(world);
+    let expected: usize = count.parse().expect("metrics status count should be numeric");
+    let actual = issues.iter().filter(|issue| issue.status == status).count();
+    assert_eq!(actual, expected);
+}
+
+#[then(expr = "the metrics project count for {string} should be {string}")]
+fn then_metrics_project_count(world: &mut KanbusWorld, label: String, count: String) {
+    let issues = metrics_filtered_issues(world);
+    let expected: usize = count.parse().expect("metrics project count should be numeric");
+    let actual = issues
+        .iter()
+        .filter(|issue| issue.project_label == label)
+        .count();
+    assert_eq!(actual, expected);
+}
+
+#[then(expr = "the metrics scope count for {string} should be {string}")]
+fn then_metrics_scope_count(world: &mut KanbusWorld, label: String, count: String) {
+    let issues = metrics_filtered_issues(world);
+    let expected: usize = count.parse().expect("metrics scope count should be numeric");
+    let normalized = label.trim().to_lowercase();
+    let actual = if normalized == "local" {
+        issues.iter().filter(|issue| issue.location == "local").count()
+    } else {
+        issues
+            .iter()
+            .filter(|issue| issue.location != "local")
+            .count()
+    };
+    assert_eq!(actual, expected);
+}
+
+#[then(expr = "the metrics chart should include type {string}")]
+fn then_metrics_chart_includes_type(world: &mut KanbusWorld, issue_type: String) {
+    let issues = metrics_filtered_issues(world);
+    assert!(issues.iter().any(|issue| issue.issue_type == issue_type));
+}
+
+#[then(expr = "the metrics chart should stack statuses for {string}")]
+fn then_metrics_chart_stacks_statuses(world: &mut KanbusWorld, issue_type: String) {
+    let issues = metrics_filtered_issues(world);
+    let statuses: HashSet<&str> = issues
+        .iter()
+        .filter(|issue| issue.issue_type == issue_type)
+        .map(|issue| issue.status.as_str())
+        .collect();
+    assert!(
+        statuses.len() >= 2,
+        "expected multiple statuses for {issue_type}"
+    );
+}
+
+#[then("the metrics chart should include a legend")]
+fn then_metrics_chart_includes_legend(world: &mut KanbusWorld) {
+    let issues = metrics_filtered_issues(world);
+    let categories = metrics_status_categories(&issues);
+    assert!(!categories.is_empty());
+}
+
+#[then("the metrics chart should use category colors")]
+fn then_metrics_chart_uses_category_colors(_world: &mut KanbusWorld) {
+    let root = console_app_root();
+    let issue_colors =
+        std::fs::read_to_string(root.join("src").join("utils").join("issue-colors.ts"))
+            .expect("read issue-colors.ts");
+    let metrics_panel =
+        std::fs::read_to_string(root.join("src").join("components").join("MetricsPanel.tsx"))
+            .expect("read MetricsPanel.tsx");
+    assert!(
+        issue_colors.contains("buildStatusCategoryColorVariable"),
+        "expected status category color helper"
+    );
+    assert!(
+        metrics_panel.contains("buildStatusCategoryColorVariable"),
+        "expected metrics chart to use category colors"
+    );
+}
+
 fn open_console(world: &KanbusWorld) -> ConsoleState {
     let selected_tab = world
         .console_local_storage
         .selected_tab
         .clone()
         .unwrap_or_else(|| "Epics".to_string());
+    let panel_mode = world
+        .console_local_storage
+        .panel_mode
+        .clone()
+        .unwrap_or_else(|| "board".to_string());
     let settings = world.console_local_storage.settings.clone();
     let time_zone = world.console_time_zone.clone();
     let selected_project_filter = world.console_local_storage.selected_project_filter.clone();
@@ -624,6 +874,7 @@ fn open_console(world: &KanbusWorld) -> ConsoleState {
     ConsoleState {
         issues: default_issues(),
         selected_tab,
+        panel_mode,
         selected_task_title: None,
         settings,
         time_zone,
@@ -704,6 +955,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            status: "open".to_string(),
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
@@ -716,6 +968,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            status: "open".to_string(),
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
@@ -728,6 +981,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            status: "open".to_string(),
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
@@ -740,6 +994,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            status: "open".to_string(),
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
@@ -752,6 +1007,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             created_at: None,
             updated_at: None,
             closed_at: None,
+            status: "open".to_string(),
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },

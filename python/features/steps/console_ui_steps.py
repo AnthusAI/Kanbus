@@ -151,6 +151,9 @@ class ConsoleIssue:
     created_at: str | None = None
     updated_at: str | None = None
     closed_at: str | None = None
+    status: str = "open"
+    project: str = "kbs"
+    source: str = "shared"
 
 
 @dataclass
@@ -171,6 +174,7 @@ class ConsoleSettings:
 class ConsoleLocalStorage:
     selected_tab: str | None = None
     settings: ConsoleSettings = field(default_factory=ConsoleSettings)
+    panel_mode: str | None = None
 
 
 @dataclass
@@ -180,6 +184,8 @@ class ConsoleState:
     selected_task_title: str | None
     settings: ConsoleSettings
     time_zone: str | None
+    panel_mode: str = "board"
+    metrics_project_filter: str | None = None
 
 
 @given("the console is open")
@@ -635,6 +641,7 @@ def _open_console(context: object) -> ConsoleState:
         selected_task_title=None,
         settings=settings,
         time_zone=time_zone,
+        panel_mode=storage.panel_mode or "board",
     )
 
 
