@@ -1776,44 +1776,29 @@ export default function App() {
               }`}
             >
               {!detailMaximized ? (
-                <div className={`view-track${panelMode === "metrics" ? " view-track-metrics" : ""}`}>
-                  <div className="view-panel">
-                    <Board
-                      columns={columns}
-                      issues={filteredIssues}
-                      priorityLookup={priorityLookup}
-                      config={config}
-                      onSelectIssue={handleSelectIssue}
-                      selectedIssueId={selectedTask?.id ?? null}
-                      transitionKey={transitionKey}
-                      detailOpen={isDetailOpen}
-                      collapsedColumns={collapsedColumns}
-                      motion={{ mode: "css" }}
-                      onToggleCollapse={(column) => {
-                        setCollapsedColumns((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(column)) {
-                            next.delete(column);
-                          } else {
-                            next.add(column);
-                          }
-                          return next;
-                        });
-                      }}
-                    />
-                  </div>
-                  <div className="view-panel">
-                    {config ? (
-                      <MetricsPanel
-                        issues={filteredIssues}
-                        config={config}
-                        hasVirtualProjects={hasVirtualProjects}
-                        hasLocalIssues={hasLocalIssues}
-                        projectLabels={projectLabels}
-                      />
-                    ) : null}
-                  </div>
-                </div>
+                <Board
+                  columns={columns}
+                  issues={filteredIssues}
+                  priorityLookup={priorityLookup}
+                  config={config}
+                  onSelectIssue={handleSelectIssue}
+                  selectedIssueId={selectedTask?.id ?? null}
+                  transitionKey={transitionKey}
+                  detailOpen={isDetailOpen}
+                  collapsedColumns={collapsedColumns}
+                  motion={{ mode: "css" }}
+                  onToggleCollapse={(column) => {
+                    setCollapsedColumns((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(column)) {
+                        next.delete(column);
+                      } else {
+                        next.add(column);
+                      }
+                      return next;
+                    });
+                  }}
+                />
               ) : null}
             </div>
                 {isDetailVisible ? (
