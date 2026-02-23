@@ -1466,7 +1466,7 @@ export default function App() {
 
   const filteredIssues = useMemo(() => {
     // Use non-deferred issues when search is active for immediate feedback
-    const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
+    const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
 
@@ -1557,7 +1557,7 @@ export default function App() {
     }
 
     return result;
-  }, [issues, deferredIssues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects]);
+  }, [issues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects]);
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
