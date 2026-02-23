@@ -1406,11 +1406,7 @@ export default function App() {
       id,
       label,
       content: (
-        <span
-          className="selector-option"
-          data-testid={`view-toggle-${id}`}
-          data-active={panelMode === id}
-        >
+        <span className="selector-option">
           {React.createElement(icon, { className: "h-4 w-4" })}
           <span className="selector-label">{label}</span>
         </span>
