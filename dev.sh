@@ -18,6 +18,30 @@ CONSOLE_DIR="$REPO_ROOT/apps/console"
 RUST_DIR="$REPO_ROOT/rust"
 UI_DIR="$REPO_ROOT/packages/ui"
 
+CONFIG_PORT=""
+if [ -f "$REPO_ROOT/.kanbus.yml" ]; then
+  CONFIG_PORT=$(awk -F: '/^console_port:/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' "$REPO_ROOT/.kanbus.yml")
+fi
+
+case "$CONFIG_PORT" in
+  ''|*[!0-9]*)
+    CONFIG_PORT=""
+    ;;
+esac
+
+if [ -n "$CONFIG_PORT" ]; then
+  DEFAULT_VITE_PORT="$CONFIG_PORT"
+  DEFAULT_CONSOLE_PORT=$((CONFIG_PORT + 1))
+else
+  DEFAULT_VITE_PORT="5173"
+  DEFAULT_CONSOLE_PORT="5174"
+fi
+
+VITE_PORT="${VITE_PORT:-$DEFAULT_VITE_PORT}"
+CONSOLE_PORT="${CONSOLE_PORT:-$DEFAULT_CONSOLE_PORT}"
+
+export VITE_PORT CONSOLE_PORT
+
 echo "═══════════════════════════════════════════════════════════════"
 echo "Kanbus Development Server (Watch Mode)"
 echo "═══════════════════════════════════════════════════════════════"
@@ -27,8 +51,8 @@ echo "  • UI styles watcher (packages/ui) → copies CSS changes to dist/"
 echo "  • UI TypeScript watcher (packages/ui)"
 echo "  • Console dev server (apps/console) → Vite + API"
 echo ""
-echo "The console will be available at: http://127.0.0.1:5173"
-echo "Console API will be available at: http://127.0.0.1:5174"
+echo "The console will be available at: http://127.0.0.1:$VITE_PORT"
+echo "Console API will be available at: http://127.0.0.1:$CONSOLE_PORT"
 echo ""
 echo "Press Ctrl+C to stop all services."
 echo "═══════════════════════════════════════════════════════════════"
