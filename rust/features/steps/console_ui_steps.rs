@@ -710,7 +710,7 @@ fn then_metrics_toggle_has_board_icon(_world: &mut KanbusWorld) {
     let root = console_app_root();
     let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx")).expect("read App.tsx");
     assert!(
-        app_tsx.contains("LayoutGrid") && app_tsx.contains("buildOption(\"board\")"),
+        app_tsx.contains("LayoutGrid") && app_tsx.contains("buildOption(\"board\","),
         "expected LayoutGrid icon for board toggle"
     );
 }
@@ -720,7 +720,7 @@ fn then_metrics_toggle_has_chart_icon(_world: &mut KanbusWorld) {
     let root = console_app_root();
     let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx")).expect("read App.tsx");
     assert!(
-        app_tsx.contains("BarChart3") && app_tsx.contains("buildOption(\"metrics\")"),
+        app_tsx.contains("BarChart3") && app_tsx.contains("buildOption(\"metrics\","),
         "expected BarChart3 icon for metrics toggle"
     );
 }
