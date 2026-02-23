@@ -5,6 +5,11 @@ import path from "path";
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
 const fixtureRoot = path.resolve(process.cwd(), "tests", "fixtures", "project");
+const consolePort = process.env.CONSOLE_PORT ?? "5174";
+const consoleBaseUrl =
+  process.env.CONSOLE_BASE_URL ?? `http://localhost:${consolePort}/`;
+const consoleApiBase =
+  process.env.CONSOLE_API_BASE ?? `${consoleBaseUrl.replace(/\/+$/, "")}/api`;
 
 // Helper to ensure project root is available
 function requireProjectRoot() {
@@ -12,6 +17,26 @@ function requireProjectRoot() {
     throw new Error("CONSOLE_PROJECT_ROOT is required for metrics tests");
   }
   return projectRoot;
+}
+
+async function refreshConsoleSnapshot() {
+  const configResponse = await fetch(`${consoleApiBase}/config?refresh=1`);
+  if (!configResponse.ok) {
+    throw new Error(`console config request failed: ${configResponse.status}`);
+  }
+  const issuesResponse = await fetch(`${consoleApiBase}/issues?refresh=1`);
+  if (!issuesResponse.ok) {
+    throw new Error(`console issues request failed: ${issuesResponse.status}`);
+  }
+}
+
+async function reloadConsoleIfStale(world) {
+  if (!world.metricsStale) {
+    return;
+  }
+  await refreshConsoleSnapshot();
+  await world.page.reload({ waitUntil: "domcontentloaded" });
+  world.metricsStale = false;
 }
 
 async function resetMetricsProjectRoot() {
@@ -29,6 +54,7 @@ After(async function () {
   }
   await resetMetricsProjectRoot();
   this.metricsDirty = false;
+  this.metricsStale = false;
 });
 
 // Helper to build a metrics issue
@@ -63,6 +89,7 @@ function buildMetricsIssue({
 
 When("I switch to the {string} view", async function (viewName) {
   const normalized = viewName.toLowerCase();
+  await reloadConsoleIfStale(this);
   await this.page.getByTestId(`view-toggle-${normalized}`).click();
 });
 
@@ -101,6 +128,7 @@ Then("the metrics toggle should include a chart icon", async function () {
 
 Given("no issues exist in the console", async function () {
   this.metricsDirty = true;
+  this.metricsStale = true;
   const root = requireProjectRoot();
   const repoRoot = path.dirname(root);
   
@@ -119,6 +147,7 @@ Given(
   "a metrics issue {string} of type {string} with status {string} in project {string} from {string}",
   async function (title, type, status, projectLabel, source) {
     this.metricsDirty = true;
+    this.metricsStale = true;
     const root = requireProjectRoot();
     const repoRoot = path.dirname(root);
     
@@ -202,6 +231,7 @@ async function setFilterChecked(page, label, desired) {
 }
 
 When("I select metrics project {string}", async function (project) {
+  await reloadConsoleIfStale(this);
   await this.page.getByTestId("filter-button").click();
   const section = this.page.getByTestId("filter-projects-section");
   const buttons = section.getByRole("button");
