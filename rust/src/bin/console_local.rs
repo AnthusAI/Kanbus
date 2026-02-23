@@ -4,7 +4,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
 use std::io::{self, IsTerminal, Write};
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::Path as StdPath;
 use std::path::PathBuf;
 use std::process::Command;
@@ -86,6 +86,7 @@ async fn main() {
         .map(PathBuf::from)
         .or_else(|| root_override.clone())
         .unwrap_or_else(|| repo_root.clone());
+    let (bind_ip, bind_host) = resolve_bind_host(std::env::var("CONSOLE_HOST").ok());
 
     // Try to load console_port from project config
     let config_port = match FileStore::new(&data_root).load_config() {
@@ -246,10 +247,12 @@ async fn main() {
         .allow_private_network(true);
 
     let app = app.with_state(state).layer(cors);
-    let (listener, port) = acquire_listener(desired_port).await;
+    let (listener, port) = acquire_listener(bind_ip, desired_port).await;
 
     #[cfg(feature = "embed-assets")]
-    println!("Console backend listening on http://127.0.0.1:{port} (embedded assets)");
+    println!(
+        "Console backend listening on http://{bind_host}:{port} (embedded assets)"
+    );
     #[cfg(not(feature = "embed-assets"))]
     {
         // Verify assets directory exists before starting server
@@ -260,7 +263,7 @@ async fn main() {
             eprintln!("Install the official release with embedded assets: cargo install kanbus --bin kbsc\n");
         }
         println!(
-            "Console backend listening on http://127.0.0.1:{port} (filesystem assets at {:?})",
+            "Console backend listening on http://{bind_host}:{port} (filesystem assets at {:?})",
             assets_root
         );
     }
@@ -270,8 +273,30 @@ async fn main() {
         .expect("server failure");
 }
 
-async fn acquire_listener(desired_port: u16) -> (tokio::net::TcpListener, u16) {
-    let initial_addr = SocketAddr::from(([127, 0, 0, 1], desired_port));
+fn resolve_bind_host(value: Option<String>) -> (IpAddr, String) {
+    let fallback = "127.0.0.1";
+    let raw = value.unwrap_or_else(|| fallback.to_string());
+    let candidate = raw.trim();
+    if candidate.is_empty() {
+        return (fallback.parse().expect("valid fallback ip"), fallback.to_string());
+    }
+    if candidate.eq_ignore_ascii_case("localhost") {
+        return (fallback.parse().expect("valid localhost ip"), fallback.to_string());
+    }
+    match candidate.parse::<IpAddr>() {
+        Ok(ip) => (ip, candidate.to_string()),
+        Err(_) => {
+            eprintln!(
+                "Warning: CONSOLE_HOST '{}' is invalid; defaulting to 127.0.0.1",
+                candidate
+            );
+            (fallback.parse().expect("valid fallback ip"), fallback.to_string())
+        }
+    }
+}
+
+async fn acquire_listener(bind_ip: IpAddr, desired_port: u16) -> (tokio::net::TcpListener, u16) {
+    let initial_addr = SocketAddr::from((bind_ip, desired_port));
     match tokio::net::TcpListener::bind(initial_addr).await {
         Ok(listener) => (listener, desired_port),
         Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
@@ -293,7 +318,7 @@ async fn acquire_listener(desired_port: u16) -> (tokio::net::TcpListener, u16) {
                     "Port is in use. Set CONSOLE_PORT to a free port and retry.",
                 );
             }
-            let fallback_addr = SocketAddr::from(([127, 0, 0, 1], fallback_port));
+            let fallback_addr = SocketAddr::from((bind_ip, fallback_port));
             match tokio::net::TcpListener::bind(fallback_addr).await {
                 Ok(listener) => (listener, fallback_port),
                 Err(fallback_error) => exit_with_port_error(
