@@ -12,6 +12,11 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
     href: "/features/core-management"
   },
   {
+    title: "Kanban Board",
+    description: "Visualize your workflow. Drag and drop issues, filter by status, and see the big picture in a modern, reactive interface.",
+    href: "/features/kanban-board"
+  },
+  {
     title: "Jira Sync",
     description: "Pull Jira issues into your repository so agents always have the full context.",
     href: "/features/jira-sync"

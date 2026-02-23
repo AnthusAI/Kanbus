@@ -103,6 +103,8 @@ const Layout = ({ children }: LayoutProps) => {
             <div>
               <h4 className="text-sm font-semibold text-foreground">Features</h4>
               <ul className="mt-4 space-y-3 text-sm">
+                <li><a href="/features/core-management" className="text-muted hover:text-selected">Core Management</a></li>
+                <li><a href="/features/kanban-board" className="text-muted hover:text-selected">Kanban Board</a></li>
                 <li><a href="/features/jira-sync" className="text-muted hover:text-selected">Jira Sync</a></li>
                 <li><a href="/features/local-tasks" className="text-muted hover:text-selected">Local Tasks</a></li>
               </ul>
