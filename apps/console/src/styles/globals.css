@@ -13,6 +13,38 @@
   --scrollbar-size: 8px;
   --scrollbar-thumb: var(--card-muted);
   --scrollbar-track: transparent;
+  --layout-transition: 0.35s;
+  --app-padding: 4px;
+}
+
+html[data-motion="debug"] {
+  --layout-transition: 4s;
+}
+
+html[data-motion="reduced"] {
+  --layout-transition: 0.2s;
+}
+
+html[data-motion="off"] {
+  --layout-transition: 0s;
+}
+
+@media (min-width: 321px) {
+  :root {
+    --app-padding: 8px;
+  }
+}
+
+@media (min-width: 640px) {
+  :root {
+    --app-padding: 12px;
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --app-padding: 16px;
+  }
 }
 
 html.light {
@@ -471,48 +503,51 @@ html[data-motion="reduced"] .search-input-field {
   height: 100%;
   width: 0;
   flex: 0 0 0;
-  opacity: 0;
   transform: translateX(100%);
-  transition: transform 0.35s ease, opacity 0.35s ease;
+  transition: transform var(--layout-transition) ease;
   pointer-events: none;
   position: relative;
   z-index: 50;
 }
 
 .sidebar-column {
-  background: var(--card);
+  position: absolute;
+  top: 0;
+  right: var(--frame-padding, 0px);
+  width: var(--sidebar-width);
+  height: 100%;
+  background: var(--column);
   border-radius: 12px;
   overflow-y: hidden;
   overflow-x: visible;
-  height: 100%;
-  width: 0;
-  flex: 0 0 0;
-  opacity: 0;
-  transform: translateX(100%);
-  transition: width 0.35s ease, flex-basis 0.35s ease, transform 0.35s ease, opacity 0.35s ease;
+  transform: translateX(var(--sidebar-offscreen, 120vw));
+  transition: none;
   pointer-events: none;
-  position: relative;
-  z-index: 45;
-  display: flex;
+  z-index: 1;
+  display: none;
   flex-direction: column;
 }
 
 .sidebar-column-visible {
+  display: flex;
+  visibility: visible;
   width: var(--sidebar-width);
   flex: 0 0 var(--sidebar-width);
   max-width: 100%;
 }
 
+.sidebar-column-animate {
+  transition: transform var(--layout-transition) linear;
+}
+
 .sidebar-column-open {
-  opacity: 1;
-  transform: translateX(0);
   pointer-events: auto;
+  transform: translateX(0);
 }
 
 .sidebar-column-closing {
-  opacity: 0;
-  transform: translateX(100%);
   pointer-events: none;
+  transform: translateX(var(--sidebar-offscreen, 120vw));
 }
 
 .detail-column-visible {
@@ -522,13 +557,11 @@ html[data-motion="reduced"] .search-input-field {
 }
 
 .detail-column-open {
-  opacity: 1;
   transform: translateX(0);
   pointer-events: auto;
 }
 
 .detail-column-closing {
-  opacity: 0;
   transform: translateX(100%);
   pointer-events: none;
 }
@@ -545,13 +578,13 @@ html[data-motion="reduced"] .search-input-field {
   }
 
   .sidebar-column-visible {
-    width: 100%;
-    flex: 0 0 100%;
+    width: calc(100% - (var(--frame-padding) * 2));
+    flex: 0 0 calc(100% - (var(--frame-padding) * 2));
   }
 
   .sidebar-column-open {
-    width: 100%;
-    flex: 0 0 100%;
+    width: calc(100% - (var(--frame-padding) * 2));
+    flex: 0 0 calc(100% - (var(--frame-padding) * 2));
   }
 }
 
@@ -608,25 +641,23 @@ html[data-motion="reduced"] .search-input-field {
   transform: translate3d(100%, 0, 0);
 }
 
-html[data-motion="off"][data-debug-motion="off"] .detail-column {
+html[data-motion="off"] .detail-column {
   transition: none;
-  transform: none;
 }
 
-html[data-motion="reduced"][data-debug-motion="off"] .detail-column {
+html[data-motion="reduced"] .detail-column {
   transition-duration: 0.2s;
 }
 
-html[data-motion="reduced"][data-debug-motion="off"] .detail-page {
+html[data-motion="reduced"] .detail-page {
   transition-duration: 0.2s;
 }
 
-html[data-motion="off"][data-debug-motion="off"] .sidebar-column {
+html[data-motion="off"] .sidebar-column {
   transition: none;
-  transform: none;
 }
 
-html[data-motion="reduced"][data-debug-motion="off"] .sidebar-column {
+html[data-motion="reduced"] .sidebar-column {
   transition-duration: 0.2s;
 }
 
@@ -812,10 +843,14 @@ html[data-motion="reduced"][data-debug-motion="off"] .sidebar-column {
 }
 
 .layout-frame {
-  background: var(--column);
+  background: transparent;
   border-radius: 12px;
+  --frame-padding: var(--app-padding);
   --detail-width: 33%;
   --sidebar-width: 360px;
+  --sidebar-gap: var(--frame-padding);
+  --sidebar-push: calc(var(--sidebar-width) + (var(--frame-padding) * 2));
+  --sidebar-offscreen: var(--sidebar-push);
   display: flex;
   align-items: stretch;
   position: relative;
@@ -881,6 +916,23 @@ html[data-motion="reduced"][data-debug-motion="off"] .sidebar-column {
 .layout-slot-board {
   width: 100%;
   height: 100%;
+}
+
+.layout-main {
+  display: flex;
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  transform: translateX(0);
+  transition: none;
+  will-change: transform;
+}
+
+.layout-main-animate {
+  transition: transform var(--layout-transition) linear;
+}
+.layout-main-pushed {
+  transform: translateX(calc(var(--sidebar-push) * -1));
 }
 
 

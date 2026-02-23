@@ -5,6 +5,8 @@ import { RightSidebar } from "./RightSidebar";
 
 interface FilterSidebarProps {
   isOpen: boolean;
+  isVisible?: boolean;
+  animate?: boolean;
   onClose: () => void;
   focusedIssueLabel: string | null;
   onClearFocus: () => void;
@@ -19,6 +21,7 @@ interface FilterSidebarProps {
   typeOptions: SelectorOption[];
   typeValue: string | null;
   onTypeChange: (value: string) => void;
+  onTransitionEnd?: (event: React.TransitionEvent<HTMLDivElement>) => void;
 }
 
 function FilterCheckbox({
@@ -78,6 +81,8 @@ function FocusPill({
 
 export function FilterSidebar({
   isOpen,
+  isVisible = false,
+  animate = false,
   onClose,
   focusedIssueLabel,
   onClearFocus,
@@ -91,7 +96,8 @@ export function FilterSidebar({
   onToggleShared,
   typeOptions,
   typeValue,
-  onTypeChange
+  onTypeChange,
+  onTransitionEnd
 }: FilterSidebarProps) {
   const hasProjects = projectLabels.length > 0;
   const hasFocus = Boolean(focusedIssueLabel);
@@ -99,10 +105,13 @@ export function FilterSidebar({
   return (
     <RightSidebar
       isOpen={isOpen}
+      isVisible={isVisible}
+      animate={animate}
       onClose={onClose}
       title="Filter"
       icon={<Filter className="h-4 w-4" />}
       testId="filter-sidebar"
+      onTransitionEnd={onTransitionEnd}
     >
       {hasFocus && focusedIssueLabel ? (
         <div className="flex flex-col gap-2" data-testid="filter-focus-section">

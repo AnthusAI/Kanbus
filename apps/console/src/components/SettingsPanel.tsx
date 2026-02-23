@@ -13,11 +13,14 @@ import { RightSidebar } from "./RightSidebar";
 
 interface SettingsPanelProps {
   isOpen: boolean;
+  isVisible?: boolean;
+  animate?: boolean;
   onClose: () => void;
   showTypeFilterToolbar: boolean;
   showInitiativesInTypeFilter: boolean;
   onToggleShowTypeFilterToolbar: () => void;
   onToggleShowInitiativesInTypeFilter: () => void;
+  onTransitionEnd?: (event: React.TransitionEvent<HTMLDivElement>) => void;
 }
 
 function SettingsToggle({
@@ -51,20 +54,26 @@ function SettingsToggle({
 
 export function SettingsPanel({
   isOpen,
+  isVisible = false,
+  animate = false,
   onClose,
   showTypeFilterToolbar,
   showInitiativesInTypeFilter,
   onToggleShowTypeFilterToolbar,
-  onToggleShowInitiativesInTypeFilter
+  onToggleShowInitiativesInTypeFilter,
+  onTransitionEnd
 }: SettingsPanelProps) {
   const { appearance, setMode, setTheme, setFont, setMotion } = useAppearance();
   return (
     <RightSidebar
       isOpen={isOpen}
+      isVisible={isVisible}
+      animate={animate}
       onClose={onClose}
       title="Settings"
       icon={<Settings className="h-4 w-4" />}
       testId="settings-panel"
+      onTransitionEnd={onTransitionEnd}
     >
       <div className="grid gap-3">
         <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted">
@@ -168,7 +177,8 @@ export function SettingsPanel({
           options={[
             { id: "full", label: "Full" },
             { id: "reduced", label: "Reduced" },
-            { id: "off", label: "Off" }
+            { id: "off", label: "Off" },
+            { id: "debug", label: "Debug" }
           ]}
         />
       </div>
@@ -236,6 +246,7 @@ export function SettingsPanel({
           onChange={onToggleShowInitiativesInTypeFilter}
         />
       </div>
+
     </RightSidebar>
   );
 }

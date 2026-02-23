@@ -16,9 +16,6 @@ use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::content_validation::validate_code_blocks;
-use crate::rich_text_signals::{
-    apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
-};
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
 use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
@@ -45,6 +42,9 @@ use crate::maintenance::{collect_project_stats, validate_project};
 use crate::migration::{load_beads_issue_by_id, load_beads_issues, migrate_from_beads};
 use crate::models::IssueData;
 use crate::queries::{filter_issues, search_issues};
+use crate::rich_text_signals::{
+    apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
+};
 use crate::users::get_current_user;
 use crate::wiki::{render_wiki_page, WikiRenderRequest};
 
@@ -464,6 +464,8 @@ enum ConsoleCommands {
     CloseDetail,
     /// Toggle the settings panel.
     ToggleSettings,
+    /// Reload the console page.
+    Reload,
     /// Update a specific setting value.
     SetSetting {
         /// Setting key.
@@ -1029,8 +1031,12 @@ fn execute_command(
                         false,
                     );
                 } else {
-                    let comment_result =
-                        add_comment(root, &identifier, &get_current_user(), &repaired_comment_text)?;
+                    let comment_result = add_comment(
+                        root,
+                        &identifier,
+                        &get_current_user(),
+                        &repaired_comment_text,
+                    )?;
                     emit_signals(
                         &add_comment_quality_result,
                         "comment",
@@ -1468,6 +1474,18 @@ fn execute_command(
 
                 let _ = publish_notification(root, event);
                 println!("Toggled settings panel");
+                Ok(None)
+            }
+            ConsoleCommands::Reload => {
+                use crate::notification_events::{NotificationEvent, UiControlAction};
+                use crate::notification_publisher::publish_notification;
+
+                let event = NotificationEvent::UiControl {
+                    action: UiControlAction::ReloadPage,
+                };
+
+                let _ = publish_notification(root, event);
+                println!("Reloaded console page");
                 Ok(None)
             }
             ConsoleCommands::SetSetting { key, value } => {

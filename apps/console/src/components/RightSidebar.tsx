@@ -1,50 +1,37 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { X } from "lucide-react";
 
 interface RightSidebarProps {
   isOpen: boolean;
+  isVisible?: boolean;
+  animate?: boolean;
   title: string;
   icon?: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
   testId?: string;
+  onTransitionEnd?: (event: React.TransitionEvent<HTMLDivElement>) => void;
 }
 
 export function RightSidebar({
   isOpen,
+  isVisible = false,
+  animate = false,
   title,
   icon,
   onClose,
   children,
-  testId
+  testId,
+  onTransitionEnd
 }: RightSidebarProps) {
-  const [isVisible, setIsVisible] = useState(isOpen);
-  const [isClosing, setIsClosing] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsVisible(true);
-      setIsClosing(false);
-      return;
-    }
-    if (isVisible) {
-      setIsClosing(true);
-    }
-  }, [isOpen, isVisible]);
-
   return (
     <div
-      className={`sidebar-column ${isVisible ? "sidebar-column-visible" : ""} ${
-        isOpen ? "sidebar-column-open" : isClosing ? "sidebar-column-closing" : ""
-      }`}
+      className={`sidebar-column${isVisible ? " sidebar-column-visible" : ""}${
+        animate ? " sidebar-column-animate" : ""
+      }${isOpen ? " sidebar-column-open" : ""}`}
       aria-hidden={!isOpen}
       data-testid={testId}
-      onTransitionEnd={(event) => {
-        if (!isOpen && isClosing && event.target === event.currentTarget && event.propertyName === "transform") {
-          setIsClosing(false);
-          setIsVisible(false);
-        }
-      }}
+      onTransitionEnd={onTransitionEnd}
     >
       <div className="flex h-full flex-col p-3">
         <div className="flex items-center justify-between">
