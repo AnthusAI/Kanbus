@@ -23,7 +23,20 @@ fn then_stdout_not_contains_text(world: &mut KanbusWorld, text: String) {
 fn then_stderr_contains_text(world: &mut KanbusWorld, text: String) {
     let stderr = strip_ansi(world.stderr.as_ref().expect("stderr"));
     let normalized = text.replace("\\\"", "\"");
-    assert!(stderr.contains(&normalized));
+    assert!(
+        stderr.contains(&normalized),
+        "Expected stderr to contain '{normalized}', but it didn't.\nSTDERR:\n{stderr}"
+    );
+}
+
+#[then(expr = "stderr should not contain {string}")]
+fn then_stderr_not_contains_text(world: &mut KanbusWorld, text: String) {
+    let stderr = strip_ansi(world.stderr.as_ref().expect("stderr"));
+    let normalized = text.replace("\\\"", "\"");
+    assert!(
+        !stderr.contains(&normalized),
+        "Expected stderr NOT to contain '{normalized}', but it did.\nSTDERR:\n{stderr}"
+    );
 }
 
 #[then(expr = "the output should contain {string}")]

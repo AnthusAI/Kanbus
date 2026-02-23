@@ -1,7 +1,10 @@
 //! Notification publisher for sending real-time events to the console server via Unix domain socket.
 
+use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
+use crate::file_io::get_configuration_path;
 use crate::notification_events::NotificationEvent;
+use reqwest::blocking::Client;
 use sha2::{Digest, Sha256};
 #[cfg(unix)]
 use std::io::Write;
@@ -33,37 +36,15 @@ fn get_socket_path(root: &Path) -> PathBuf {
 /// not block CRUD operations.
 pub fn publish_notification(root: &Path, event: NotificationEvent) -> Result<(), KanbusError> {
     let socket_path = get_socket_path(root);
-
-    // Debug: write to file
-    use std::io::Write;
-    if let Ok(mut f) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/tmp/kanbus-cli-debug.log")
-    {
-        let _ = writeln!(
-            f,
-            "CLI: Sending notification to socket: {}",
-            socket_path.display()
-        );
-    }
-
     let result = send_notification_sync(&socket_path, &event);
 
     if let Err(e) = result {
-        // Log error but don't fail - notification is best-effort
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .append(true)
-            .open("/tmp/kanbus-cli-debug.log")
-        {
-            let _ = writeln!(f, "CLI: Failed: {}", e);
+        if let Err(http_error) = send_notification_http(root, &event) {
+            eprintln!(
+                "Warning: Failed to send notification (socket: {}, http: {})",
+                e, http_error
+            );
         }
-        eprintln!("Warning: Failed to send notification: {}", e);
-    } else if let Ok(mut f) = std::fs::OpenOptions::new()
-        .append(true)
-        .open("/tmp/kanbus-cli-debug.log")
-    {
-        let _ = writeln!(f, "CLI: Notification sent successfully");
     }
 
     Ok(())
@@ -104,5 +85,50 @@ fn send_notification_sync(
     _socket_path: &Path,
     _event: &NotificationEvent,
 ) -> Result<(), KanbusError> {
+    Err(KanbusError::IssueOperation(
+        "Unix sockets are not supported".to_string(),
+    ))
+}
+
+fn send_notification_http(root: &Path, event: &NotificationEvent) -> Result<(), KanbusError> {
+    let port = resolve_console_port(root);
+    let url = format!("http://127.0.0.1:{port}/api/notifications");
+    let body = serde_json::to_vec(event)
+        .map_err(|e| KanbusError::IssueOperation(format!("Failed to serialize event: {}", e)))?;
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        let url = url.clone();
+        let body = body.clone();
+        handle.spawn(async move {
+            let client = reqwest::Client::new();
+            let _ = client
+                .post(url)
+                .header("Content-Type", "application/json")
+                .body(body)
+                .send()
+                .await;
+        });
+        return Ok(());
+    }
+
+    let client = Client::new();
+    client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .body(body)
+        .send()
+        .map_err(|e| {
+            KanbusError::IssueOperation(format!("Failed to send HTTP notification: {}", e))
+        })?;
     Ok(())
+}
+
+fn resolve_console_port(root: &Path) -> u16 {
+    if let Ok(config_path) = get_configuration_path(root) {
+        if let Ok(config) = load_project_configuration(&config_path) {
+            if let Some(port) = config.console_port {
+                return port;
+            }
+        }
+    }
+    5174
 }

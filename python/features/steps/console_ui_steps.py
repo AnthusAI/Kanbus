@@ -289,12 +289,15 @@ def when_console_reloaded(context: object) -> None:
 def when_switch_tab(context: object, tab: str) -> None:
     state = _require_console_state(context)
     storage = _ensure_console_storage(context)
-    if state.selected_tab == tab:
-        state.selected_tab = None
-        storage.selected_tab = None
+    last_click = getattr(context, "last_tab_click", None)
+    if state.selected_tab == tab and last_click == tab:
+        state.selected_tab = "All"
+        storage.selected_tab = "All"
+        context.last_tab_click = None
         return
     state.selected_tab = tab
     storage.selected_tab = tab
+    context.last_tab_click = tab
 
 
 @when('I open the task "{title}"')
@@ -661,6 +664,8 @@ def _visible_issue_titles(state: ConsoleState) -> list[str]:
             for issue in state.issues
             if issue.issue_type == "task" and issue.parent_title is None
         ]
+    elif state.selected_tab == "All":
+        issues = list(state.issues)
     else:
         issues = []
     return [issue.title for issue in issues]

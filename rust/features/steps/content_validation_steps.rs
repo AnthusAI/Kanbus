@@ -55,7 +55,7 @@ fn when_create_with_description(world: &mut KanbusWorld, step: &Step) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
+            world.stderr = Some(output.stderr);
         }
         Err(error) => {
             world.exit_code = Some(1);

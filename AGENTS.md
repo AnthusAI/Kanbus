@@ -23,6 +23,29 @@ tools/install-system.sh --mode symlink
 
 This may require sudo once to create the links in `/usr/local/bin`. After that, rebuild with `cargo build --release` and the symlinks will pick up the new binaries automatically.
 
+## VideoML pipeline (Kanb.us)
+
+The Kanb.us marketing site uses VideoML sources in `videos/`. The render and upload flow is centralized in root scripts.
+
+Required environment variables:
+- `VIDEOML_CLI` path to the VideoML CLI entry (e.g., `/path/to/videoml/cli/bin/vml.js`)
+- `BABULUS_BUNDLE` path to the Babulus standard bundle JS
+
+Local render + preview:
+```bash
+node scripts/render-videos.js
+```
+This bundles custom components, generates timelines, renders the intro MP4, and copies MP4/JPG assets into `apps/kanb.us/static/videos` for local preview. To preview on the Gatsby site, set:
+```
+GATSBY_VIDEOS_BASE_URL=/videos
+```
+
+Upload to CDN:
+```bash
+VIDEOS_BUCKET=<bucket-name> VIDEOS_PREFIX=videos node scripts/upload-videos.js
+```
+The upload script requires `VIDEOS_BUCKET` and `VIDEOS_PREFIX` and syncs MP4/JPG assets to S3. There is no fallback logic.
+
 ## Console UI Control
 
 When the user is actively watching the Kanbus console UI (typically at http://localhost:4242), you can programmatically control the interface to guide their attention. These commands use real-time socket+SSE notifications with sub-100ms latency.
@@ -370,3 +393,18 @@ cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobert
 7. **Run parity checker** to verify both implementations are in sync
 8. **Run all quality gates**
 9. **Submit PR only when all gates pass**
+
+## Git Flow Standards
+
+This project follows a standard Git Flow workflow:
+
+-   **`main`**: Stable, production-ready code. Direct commits are restricted.
+-   **`dev`**: The integration branch for new features. All feature branches target `dev`.
+-   **Feature Branches**: Create from `dev` (e.g., `feature/my-cool-feature`). Merge back to `dev` via PR.
+-   **Releases**: When `dev` is stable, merge `dev` -> `main`.
+-   **Hotfixes**: Critical fixes may branch from `main` (e.g., `hotfix/urgent-fix`) and merge to both `main` and `dev`.
+
+**Agent Protocol:**
+-   Always check which branch you are on (`git status`).
+-   If implementing a feature, ensure you branch from `dev`.
+-   If asked to switch branches, preserve uncommitted changes unless instructed otherwise.

@@ -1,13 +1,14 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import React, { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCheck,
   Filter,
   Lightbulb,
   ListChecks,
-  SquareCheckBig
+  SquareCheckBig,
+  Layers
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
-import { Board } from "./components/Board";
+import { Board } from "@kanbus/ui";
 import { TaskDetailPanel } from "./components/TaskDetailPanel";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { AnimatedSelector, type SelectorOption } from "@kanbus/ui";
@@ -500,6 +501,7 @@ export default function App() {
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [activeSidebar, setActiveSidebar] = useState<"filter" | "settings" | null>(null);
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
@@ -535,6 +537,7 @@ export default function App() {
   const wasDetailOpenRef = React.useRef(false);
   const collapsedColumnsInitialized = React.useRef(false);
   const viewModeAutoCorrected = React.useRef(false);
+  const lastTypeSelectionRef = React.useRef<string | null>(null);
   useAppearance();
   const config = snapshot?.config;
   const issues = snapshot?.issues ?? [];
@@ -786,36 +789,6 @@ export default function App() {
   }, [route.parentId, route.viewMode]);
 
   useEffect(() => {
-    if (showInitiativesInTypeFilter) {
-      return;
-    }
-    if (!snapshot || route.basePath == null) {
-      return;
-    }
-    if (showAllTypes) {
-      return;
-    }
-    if (route.parentId || focusedIssueId || searchQuery.trim()) {
-      return;
-    }
-    if (resolvedViewMode !== "initiatives") {
-      return;
-    }
-    const counts = computeViewModeCounts(snapshot.issues);
-    const nextMode = counts.epics > 0 ? "epics" : "issues";
-    navigate(`${route.basePath}/${nextMode}/`, setRoute, navActionRef);
-  }, [
-    showInitiativesInTypeFilter,
-    snapshot,
-    route.basePath,
-    route.parentId,
-    focusedIssueId,
-    searchQuery,
-    resolvedViewMode,
-    showAllTypes
-  ]);
-
-  useEffect(() => {
     window.localStorage.setItem(DETAIL_WIDTH_STORAGE_KEY, String(detailWidth));
   }, [detailWidth]);
 
@@ -846,6 +819,67 @@ export default function App() {
       String(showInitiativesInTypeFilter)
     );
   }, [showInitiativesInTypeFilter]);
+
+  useLayoutEffect(() => {
+    const frame = layoutFrameRef.current;
+    const shell = typeof document !== "undefined"
+      ? (document.querySelector(".app-shell") as HTMLElement | null)
+      : null;
+    if (!frame) {
+      return;
+    }
+
+    let raf = 0;
+    const update = () => {
+      const frameRect = frame.getBoundingClientRect();
+      const viewportRight = document.documentElement.clientWidth || window.innerWidth;
+      const outerPadding = Math.max(0, viewportRight - frameRect.right);
+      const sidebar = frame.querySelector(".sidebar-column") as HTMLElement | null;
+      const isCompact = window.matchMedia("(max-width: 768px)").matches;
+      const defaultWidth =
+        Number.parseFloat(getComputedStyle(frame).getPropertyValue("--sidebar-width"))
+        || 360;
+      const measuredWidth = sidebar?.getBoundingClientRect().width || 0;
+      const compactWidth = Math.max(0, frameRect.width - outerPadding * 2);
+      const sidebarWidth = isCompact ? compactWidth : (measuredWidth || defaultWidth);
+      const gap = outerPadding;
+      // Board push keeps a constant gap equal to frame padding.
+      // Add a 1px overscan to guarantee the sidebar starts fully offscreen.
+      const overscan = 1;
+      const push = Math.ceil(sidebarWidth + outerPadding * 2) + overscan;
+      frame.style.setProperty("--frame-padding", `${outerPadding}px`);
+      frame.style.setProperty("--sidebar-gap", `${gap}px`);
+      frame.style.setProperty("--sidebar-push", `${push}px`);
+    };
+    const schedule = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+      }
+      raf = requestAnimationFrame(update);
+    };
+
+    schedule();
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(schedule)
+      : null;
+    if (resizeObserver) {
+      if (shell) {
+        resizeObserver.observe(shell);
+      }
+      resizeObserver.observe(frame);
+    }
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      window.removeEventListener("resize", schedule);
+      if (raf) {
+        cancelAnimationFrame(raf);
+      }
+    };
+  }, []);
+
 
   useEffect(() => {
     if (!detailMaximized) {
@@ -1029,7 +1063,37 @@ export default function App() {
   const resolvedViewMode = route.parentId
     ? null
     : routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
-  const typeFilterValue = showAllTypes ? null : resolvedViewMode;
+  const typeFilterValue = showAllTypes ? "all" : resolvedViewMode;
+
+  useEffect(() => {
+    if (showInitiativesInTypeFilter) {
+      return;
+    }
+    if (!snapshot || route.basePath == null) {
+      return;
+    }
+    if (showAllTypes) {
+      return;
+    }
+    if (route.parentId || focusedIssueId || searchQuery.trim()) {
+      return;
+    }
+    if (resolvedViewMode !== "initiatives") {
+      return;
+    }
+    const counts = computeViewModeCounts(snapshot.issues);
+    const nextMode = counts.epics > 0 ? "epics" : "issues";
+    navigate(`${route.basePath}/${nextMode}/`, setRoute, navActionRef);
+  }, [
+    showInitiativesInTypeFilter,
+    snapshot,
+    route.basePath,
+    route.parentId,
+    focusedIssueId,
+    searchQuery,
+    resolvedViewMode,
+    showAllTypes
+  ]);
 
   useEffect(() => {
     setRouteError(routeContext.error);
@@ -1095,8 +1159,12 @@ export default function App() {
     if (route.basePath == null) {
       return;
     }
-    const nextMode = value as ViewMode;
-    if (!showAllTypes && resolvedViewMode === nextMode) {
+    const currentRoute = parseRoute(window.location.pathname, window.location.search);
+    const currentShowAll = currentRoute.typeFilter === "all";
+    const currentViewMode = currentRoute.parentId
+      ? null
+      : currentRoute.viewMode ?? viewMode ?? loadStoredViewMode();
+    if (value === "all") {
       const url = buildUrl(window.location.pathname, {
         search: searchQuery || null,
         focused: focusedIssueId,
@@ -1106,8 +1174,29 @@ export default function App() {
       const parsed = new URL(url, window.location.href);
       window.history.replaceState({}, "", parsed.pathname + parsed.search);
       setRoute(parseRoute(parsed.pathname, parsed.search));
+      lastTypeSelectionRef.current = "all";
       return;
     }
+    const nextMode = value as ViewMode;
+    const repeatClick = lastTypeSelectionRef.current === nextMode;
+    if (!currentShowAll && currentViewMode === nextMode) {
+      if (repeatClick) {
+        const url = buildUrl(window.location.pathname, {
+          search: searchQuery || null,
+          focused: focusedIssueId,
+          comment: focusedCommentId,
+          typeFilter: "all"
+        });
+        const parsed = new URL(url, window.location.href);
+        window.history.replaceState({}, "", parsed.pathname + parsed.search);
+        setRoute(parseRoute(parsed.pathname, parsed.search));
+        lastTypeSelectionRef.current = "all";
+        return;
+      }
+      lastTypeSelectionRef.current = nextMode;
+      return;
+    }
+    lastTypeSelectionRef.current = nextMode;
     const nextUrl = buildUrl(`${route.basePath}/${nextMode}/`, {
       typeFilter: null
     });
@@ -1127,6 +1216,32 @@ export default function App() {
       typeFilter: route.typeFilter
     });
     navigate(nextUrl, setRoute, navActionRef);
+  };
+
+  const openSidebar = (target: "filter" | "settings") => {
+    const switching = sidebarOpen && activeSidebar && activeSidebar !== target;
+    if (switching) {
+      setExitingSidebar(activeSidebar);
+      setSidebarPhase("opening");
+    } else {
+      setExitingSidebar(null);
+    }
+    if (target === "filter") {
+      setSettingsOpen(false);
+      setFilterOpen(true);
+    } else {
+      setFilterOpen(false);
+      setSettingsOpen(true);
+    }
+    setActiveSidebar(target);
+  };
+
+  const closeSidebar = (target: "filter" | "settings") => {
+    if (target === "filter") {
+      setFilterOpen(false);
+    } else {
+      setSettingsOpen(false);
+    }
   };
 
   const clearFocus = () => {
@@ -1182,6 +1297,7 @@ export default function App() {
         setSettingsOpen((prev) => {
           const next = !prev;
           if (next) {
+            setActiveSidebar("settings");
             setFilterOpen(false);
           }
           return next;
@@ -1226,22 +1342,27 @@ export default function App() {
     : false;
 
   const typeFilterOptions = useMemo(() => {
-    const buildOption = (id: ViewMode, label: string): SelectorOption => ({
+    const buildOption = (
+      id: string,
+      label: string,
+      icon: React.ComponentType<{ className?: string }>
+    ): SelectorOption => ({
       id,
       label,
       content: (
         <span className="selector-option">
-          {React.createElement(VIEW_ICONS[id], { className: "h-4 w-4" })}
+          {React.createElement(icon, { className: "h-4 w-4" })}
           <span className="selector-label">{label}</span>
         </span>
       )
     });
     const options: SelectorOption[] = [];
+    options.push(buildOption("all", "All", Layers));
     if (showInitiativesInTypeFilter) {
-      options.push(buildOption("initiatives", "Initiatives"));
+      options.push(buildOption("initiatives", "Initiatives", VIEW_ICONS.initiatives));
     }
-    options.push(buildOption("epics", "Epics"));
-    options.push(buildOption("issues", "Issues"));
+    options.push(buildOption("epics", "Epics", VIEW_ICONS.epics));
+    options.push(buildOption("issues", "Issues", VIEW_ICONS.issues));
     return options;
   }, [showInitiativesInTypeFilter]);
 
@@ -1377,6 +1498,61 @@ export default function App() {
   const transitionKey = `${resolvedViewMode ?? "none"}-${snapshot?.updated_at ?? ""}`;
   const showLoadingIndicator =
     loading || !snapshot;
+  const sidebarOpen = filterOpen || settingsOpen;
+  const [sidebarReady, setSidebarReady] = useState(false);
+  const [sidebarPhase, setSidebarPhase] = useState<"closed" | "opening" | "open" | "closing">("closed");
+  const [exitingSidebar, setExitingSidebar] = useState<"filter" | "settings" | null>(null);
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => setSidebarReady(true));
+    return () => window.cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    if (filterOpen) {
+      setActiveSidebar("filter");
+    } else if (settingsOpen) {
+      setActiveSidebar("settings");
+    }
+  }, [filterOpen, settingsOpen]);
+
+  useEffect(() => {
+    if (sidebarOpen) {
+      setSidebarPhase((prev) => (prev === "open" || prev === "opening" ? prev : "opening"));
+      return;
+    }
+    setSidebarPhase((prev) => (prev === "closed" ? prev : "closing"));
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    if (sidebarPhase !== "opening") {
+      return;
+    }
+    const id = window.requestAnimationFrame(() => setSidebarPhase("open"));
+    return () => window.cancelAnimationFrame(id);
+  }, [sidebarPhase]);
+
+  const handleSidebarTransitionEnd = (
+    event: React.TransitionEvent<HTMLDivElement>
+  ) => {
+    if (event.propertyName !== "transform") {
+      return;
+    }
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    if (!sidebarOpen && sidebarPhase === "closing") {
+      setSidebarPhase("closed");
+      setActiveSidebar(null);
+      setExitingSidebar(null);
+      return;
+    }
+    const target = event.currentTarget as HTMLElement;
+    const testId = target.dataset.testid;
+    if (testId && exitingSidebar && testId.includes(exitingSidebar)) {
+      setExitingSidebar(null);
+    }
+  };
 
   useEffect(() => {
     if (showLoadingIndicator) {
@@ -1437,8 +1613,11 @@ export default function App() {
         <button
           className="flex-none toggle-button rounded-full bg-[var(--column)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted h-7 flex items-center justify-center gap-2"
           onClick={() => {
-            setSettingsOpen(false);
-            setFilterOpen((prev) => !prev);
+            if (filterOpen) {
+              closeSidebar("filter");
+            } else {
+              openSidebar("filter");
+            }
           }}
           type="button"
           data-testid="filter-button"
@@ -1453,8 +1632,11 @@ export default function App() {
         <button
           className="flex-none flex items-center gap-2 rounded-full bg-[var(--column)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted h-8"
           onClick={() => {
-            setFilterOpen(false);
-            setSettingsOpen((prev) => !prev);
+            if (settingsOpen) {
+              closeSidebar("settings");
+            } else {
+              openSidebar("settings");
+            }
           }}
           type="button"
           data-testid="open-settings"
@@ -1481,38 +1663,146 @@ export default function App() {
           }`}
         >
           <div
-            className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3${
-              detailMaximized ? " hidden" : ""
+            className={`layout-main${sidebarReady ? " layout-main-animate" : ""}${
+              sidebarPhase === "open" || sidebarPhase === "opening" ? " layout-main-pushed" : ""
             }`}
           >
-            {!detailMaximized ? (
-              <Board
-                columns={columns}
-                issues={filteredIssues}
-                priorityLookup={priorityLookup}
-                config={config}
-                onSelectIssue={handleSelectIssue}
-                selectedIssueId={selectedTask?.id ?? null}
-                transitionKey={transitionKey}
-                detailOpen={isDetailOpen}
-                collapsedColumns={collapsedColumns}
-                onToggleCollapse={(column) => {
-                  setCollapsedColumns((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(column)) {
-                      next.delete(column);
-                    } else {
-                      next.add(column);
-                    }
-                    return next;
-                  });
+            <div
+              className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3${
+                detailMaximized ? " hidden" : ""
+              }`}
+            >
+              {!detailMaximized ? (
+                <Board
+                  columns={columns}
+                  issues={filteredIssues}
+                  priorityLookup={priorityLookup}
+                  config={config}
+                  onSelectIssue={handleSelectIssue}
+                  selectedIssueId={selectedTask?.id ?? null}
+                  transitionKey={transitionKey}
+                  detailOpen={isDetailOpen}
+                  collapsedColumns={collapsedColumns}
+                  motion={{ mode: "css" }}
+                  onToggleCollapse={(column) => {
+                    setCollapsedColumns((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(column)) {
+                        next.delete(column);
+                      } else {
+                        next.add(column);
+                      }
+                      return next;
+                    });
+                  }}
+                />
+              ) : null}
+            </div>
+            {isDetailVisible ? (
+              <div
+                className="detail-resizer h-full w-2 min-w-2 lg:w-3 lg:min-w-3 xl:w-4 xl:min-w-4 flex items-center justify-center cursor-col-resize pointer-events-auto"
+                role="separator"
+                onMouseDown={(event) => {
+                  const frame = layoutFrameRef.current;
+                  if (!frame) {
+                    return;
+                  }
+                  event.preventDefault();
+                  setIsResizing(true);
+                  const rect = frame.getBoundingClientRect();
+                  const effectiveWidth = detailMaximized ? 100 : detailWidth;
+                  if (detailMaximized) {
+                    setDetailWidth(100);
+                    setDetailMaximized(false);
+                  }
+                  const startX = event.clientX;
+                  const startWidth = effectiveWidth;
+                  const handleMove = (moveEvent: MouseEvent) => {
+                    const delta = moveEvent.clientX - startX;
+                    const pixelWidth = (startWidth / 100) * rect.width - delta;
+                    const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
+                    const clamped = (clampedPixels / rect.width) * 100;
+                    setDetailWidth(clamped);
+                  };
+                  const handleUp = () => {
+                    window.removeEventListener("mousemove", handleMove);
+                    window.removeEventListener("mouseup", handleUp);
+                    setIsResizing(false);
+                  };
+                  window.addEventListener("mousemove", handleMove);
+                  window.addEventListener("mouseup", handleUp);
                 }}
-              />
+                onTouchStart={(event) => {
+                  const frame = layoutFrameRef.current;
+                  if (!frame) {
+                    return;
+                  }
+                  const touch = event.touches[0];
+                  if (!touch) {
+                    return;
+                  }
+                  setIsResizing(true);
+                  const rect = frame.getBoundingClientRect();
+                  const effectiveWidth = detailMaximized ? 100 : detailWidth;
+                  if (detailMaximized) {
+                    setDetailWidth(100);
+                    setDetailMaximized(false);
+                  }
+                  const startX = touch.clientX;
+                  const startWidth = effectiveWidth;
+                  const handleMove = (moveEvent: TouchEvent) => {
+                    const moveTouch = moveEvent.touches[0];
+                    if (!moveTouch) {
+                      return;
+                    }
+                    const delta = moveTouch.clientX - startX;
+                    const pixelWidth = (startWidth / 100) * rect.width - delta;
+                    const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
+                    const clamped = (clampedPixels / rect.width) * 100;
+                    setDetailWidth(clamped);
+                  };
+                  const handleUp = () => {
+                    window.removeEventListener("touchmove", handleMove);
+                    window.removeEventListener("touchend", handleUp);
+                    setIsResizing(false);
+                  };
+                  window.addEventListener("touchmove", handleMove);
+                  window.addEventListener("touchend", handleUp);
+                }}
+              >
+                <span className="h-5 w-1 rounded-full bg-[var(--gray-5)]" />
+              </div>
             ) : null}
+            <TaskDetailPanel
+              task={selectedTask}
+              allIssues={issues}
+              isOpen={isDetailOpen}
+              isVisible={isDetailVisible}
+              navDirection={detailNavDirection}
+              widthPercent={detailMaximized ? 100 : detailWidth}
+              columns={columns}
+              priorityLookup={priorityLookup}
+              config={config}
+              apiBase={apiBase}
+              onClose={handleTaskClose}
+              onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
+              isMaximized={detailMaximized}
+              onAfterClose={() => setDetailClosing(false)}
+              onFocus={handleFocus}
+              focusedIssueId={focusedIssueId}
+              focusedCommentId={focusedCommentId}
+              onNavigateToDescendant={handleSelectIssue}
+            />
           </div>
           <FilterSidebar
-            isOpen={filterOpen}
-            onClose={() => setFilterOpen(false)}
+            isOpen={sidebarPhase === "open" && activeSidebar === "filter"}
+            isVisible={
+              sidebarPhase !== "closed"
+              && (activeSidebar === "filter" || exitingSidebar === "filter")
+            }
+            animate={sidebarReady}
+            onTransitionEnd={handleSidebarTransitionEnd}
+            onClose={() => closeSidebar("filter")}
             focusedIssueLabel={focusedIssueLabel}
             onClearFocus={clearFocus}
             projectLabels={projectLabels}
@@ -1528,107 +1818,18 @@ export default function App() {
             onTypeChange={handleTypeFilterChange}
           />
           <SettingsPanel
-            isOpen={settingsOpen}
-            onClose={() => setSettingsOpen(false)}
+            isOpen={sidebarPhase === "open" && activeSidebar === "settings"}
+            isVisible={
+              sidebarPhase !== "closed"
+              && (activeSidebar === "settings" || exitingSidebar === "settings")
+            }
+            animate={sidebarReady}
+            onTransitionEnd={handleSidebarTransitionEnd}
+            onClose={() => closeSidebar("settings")}
             showTypeFilterToolbar={showTypeFilterToolbar}
             showInitiativesInTypeFilter={showInitiativesInTypeFilter}
             onToggleShowTypeFilterToolbar={() => setShowTypeFilterToolbar((prev) => !prev)}
             onToggleShowInitiativesInTypeFilter={() => setShowInitiativesInTypeFilter((prev) => !prev)}
-          />
-          {isDetailVisible ? (
-            <div
-              className="detail-resizer h-full w-2 min-w-2 lg:w-3 lg:min-w-3 xl:w-4 xl:min-w-4 flex items-center justify-center cursor-col-resize pointer-events-auto"
-              role="separator"
-              onMouseDown={(event) => {
-                const frame = layoutFrameRef.current;
-                if (!frame) {
-                  return;
-                }
-                event.preventDefault();
-                setIsResizing(true);
-                const rect = frame.getBoundingClientRect();
-                const effectiveWidth = detailMaximized ? 100 : detailWidth;
-                if (detailMaximized) {
-                  setDetailWidth(100);
-                  setDetailMaximized(false);
-                }
-                const startX = event.clientX;
-                const startWidth = effectiveWidth;
-                const handleMove = (moveEvent: MouseEvent) => {
-                  const delta = moveEvent.clientX - startX;
-                  const pixelWidth = (startWidth / 100) * rect.width - delta;
-                  const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
-                  const clamped = (clampedPixels / rect.width) * 100;
-                  setDetailWidth(clamped);
-                };
-                const handleUp = () => {
-                  window.removeEventListener("mousemove", handleMove);
-                  window.removeEventListener("mouseup", handleUp);
-                  setIsResizing(false);
-                };
-                window.addEventListener("mousemove", handleMove);
-                window.addEventListener("mouseup", handleUp);
-              }}
-              onTouchStart={(event) => {
-                const frame = layoutFrameRef.current;
-                if (!frame) {
-                  return;
-                }
-                const touch = event.touches[0];
-                if (!touch) {
-                  return;
-                }
-                setIsResizing(true);
-                const rect = frame.getBoundingClientRect();
-                const effectiveWidth = detailMaximized ? 100 : detailWidth;
-                if (detailMaximized) {
-                  setDetailWidth(100);
-                  setDetailMaximized(false);
-                }
-                const startX = touch.clientX;
-                const startWidth = effectiveWidth;
-                const handleMove = (moveEvent: TouchEvent) => {
-                  const moveTouch = moveEvent.touches[0];
-                  if (!moveTouch) {
-                    return;
-                  }
-                  const delta = moveTouch.clientX - startX;
-                  const pixelWidth = (startWidth / 100) * rect.width - delta;
-                  const clampedPixels = Math.max(320, Math.min(rect.width, pixelWidth));
-                  const clamped = (clampedPixels / rect.width) * 100;
-                  setDetailWidth(clamped);
-                };
-                const handleUp = () => {
-                  window.removeEventListener("touchmove", handleMove);
-                  window.removeEventListener("touchend", handleUp);
-                  setIsResizing(false);
-                };
-                window.addEventListener("touchmove", handleMove);
-                window.addEventListener("touchend", handleUp);
-              }}
-            >
-              <span className="h-5 w-1 rounded-full bg-[var(--gray-5)]" />
-            </div>
-          ) : null}
-          <TaskDetailPanel
-            task={selectedTask}
-            allIssues={issues}
-            isOpen={isDetailOpen}
-            isVisible={isDetailVisible}
-            navDirection={detailNavDirection}
-            widthPercent={detailMaximized ? 100 : detailWidth}
-            columns={columns}
-            priorityLookup={priorityLookup}
-            config={config}
-            apiBase={apiBase}
-            onClose={handleTaskClose}
-            onToggleMaximize={() => setDetailMaximized((prev) => !prev)}
-            isMaximized={detailMaximized}
-            onAfterClose={() => setDetailClosing(false)}
-            onFocus={handleFocus}
-            focusedIssueId={focusedIssueId}
-            focusedCommentId={focusedCommentId}
-            onNavigateToDescendant={handleSelectIssue}
           />
         </div>
       </div>
