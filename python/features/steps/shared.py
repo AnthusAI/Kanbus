@@ -27,6 +27,14 @@ def _promote_quality_signals_to_stderr(stdout: str, stderr: str) -> str:
     return stderr
 
 
+def _build_cli_runner() -> CliRunner:
+    """Create a Click test runner compatible with older Click versions."""
+    try:
+        return CliRunner(mix_stderr=False)
+    except TypeError:
+        return CliRunner()
+
+
 def run_cli_args(context: object, args: list[str]) -> None:
     """Run the Kanbus CLI with an explicit list of arguments.
 
@@ -38,7 +46,7 @@ def run_cli_args(context: object, args: list[str]) -> None:
     :param args: List of CLI arguments (excluding the program name).
     :type args: list[str]
     """
-    runner = CliRunner(mix_stderr=False)
+    runner = _build_cli_runner()
 
     working_directory = getattr(context, "working_directory", None)
     if working_directory is None:
@@ -96,7 +104,7 @@ def run_cli(context: object, command: str) -> None:
     :param command: Full command string.
     :type command: str
     """
-    runner = CliRunner(mix_stderr=False)
+    runner = _build_cli_runner()
     args = shlex.split(command)[1:]
 
     working_directory = getattr(context, "working_directory", None)
@@ -157,7 +165,7 @@ def run_cli_with_input(context: object, command: str, input_text: str) -> None:
     :param input_text: Input to provide on stdin.
     :type input_text: str
     """
-    runner = CliRunner(mix_stderr=False)
+    runner = _build_cli_runner()
     args = shlex.split(command)[1:]
 
     working_directory = getattr(context, "working_directory", None)
