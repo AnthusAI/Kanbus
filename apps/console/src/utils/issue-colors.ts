@@ -104,6 +104,29 @@ function resolveStatusColor(config: ProjectConfig, statusKey: string): string | 
   return resolveRadixColorName(statusColor ?? categoryColor ?? null);
 }
 
+export function resolveStatusCategoryColorName(
+  config: ProjectConfig,
+  statusKey: string
+): string | null {
+  const statusDef = config.statuses.find((status) => status.key === statusKey);
+  const categoryColor =
+    config.categories.find((category) => category.name === statusDef?.category)
+      ?.color ?? null;
+  return resolveRadixColorName(categoryColor ?? null);
+}
+
+export function buildStatusCategoryColorVariable(
+  config: ProjectConfig,
+  statusKey: string,
+  scale: string
+): string | null {
+  const colorName = resolveStatusCategoryColorName(config, statusKey);
+  if (!colorName) {
+    return null;
+  }
+  return buildRadixVariable(colorName, scale);
+}
+
 export function buildIssueColorStyle(
   config: ProjectConfig,
   issue: Issue
