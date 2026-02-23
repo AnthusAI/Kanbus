@@ -1387,10 +1387,6 @@ export default function App() {
     }
   };
 
-  const hasVirtualProjects = config
-    ? Object.keys(config.virtual_projects).length > 0
-    : false;
-
   const typeFilterOptions = useMemo(() => {
     const buildOption = (
       id: string,
@@ -1438,11 +1434,16 @@ export default function App() {
   }, [panelMode]);
 
   const projectLabels = useMemo(() => {
-    if (!config || !hasVirtualProjects) {
+    if (!config) {
       return [];
     }
-    return [config.project_key, ...Object.keys(config.virtual_projects)];
-  }, [config, hasVirtualProjects]);
+    const labels = new Set<string>();
+    if (config.project_key) {
+      labels.add(config.project_key);
+    }
+    Object.keys(config.virtual_projects ?? {}).forEach((key) => labels.add(key));
+    return Array.from(labels);
+  }, [config]);
 
   const effectiveEnabledProjects = useMemo(() => {
     if (enabledProjects != null) {
@@ -1524,7 +1525,9 @@ export default function App() {
     }
 
     // Apply project filter
-    if (hasVirtualProjects && effectiveEnabledProjects.size < projectLabels.length) {
+    const shouldFilterProjects = projectLabels.length > 0
+      && effectiveEnabledProjects.size < projectLabels.length;
+    if (shouldFilterProjects) {
       result = result.filter(
         (issue) => effectiveEnabledProjects.has(issue.custom?.project_label as string)
       );
@@ -1539,7 +1542,7 @@ export default function App() {
     }
 
     return result;
-  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects, showAllTypes]);
+  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, showAllTypes]);
 
   const metricsIssues = useMemo(() => {
     const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
@@ -1562,7 +1565,9 @@ export default function App() {
       result = result.filter((issue) => matchesSearchQuery(issue, searchQuery));
     }
 
-    if (hasVirtualProjects && effectiveEnabledProjects.size < projectLabels.length) {
+    const shouldFilterProjects = projectLabels.length > 0
+      && effectiveEnabledProjects.size < projectLabels.length;
+    if (shouldFilterProjects) {
       result = result.filter(
         (issue) => effectiveEnabledProjects.has(issue.custom?.project_label as string)
       );
@@ -1576,7 +1581,7 @@ export default function App() {
     }
 
     return result;
-  }, [issues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects]);
+  }, [issues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared]);
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
@@ -1937,7 +1942,6 @@ export default function App() {
                     <MetricsPanel
                       issues={metricsIssues}
                       config={config}
-                      hasVirtualProjects={hasVirtualProjects}
                       hasLocalIssues={hasLocalIssues}
                       projectLabels={projectLabels}
                     />

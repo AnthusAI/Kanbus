@@ -8,7 +8,6 @@ import { buildStatusCategoryColorVariable } from "../utils/issue-colors";
 interface MetricsPanelProps {
   issues: Issue[];
   config: ProjectConfig;
-  hasVirtualProjects: boolean;
   hasLocalIssues: boolean;
   projectLabels: string[];
 }
@@ -333,7 +332,6 @@ function MetricsChart({
 export function MetricsPanel({
   issues,
   config,
-  hasVirtualProjects,
   hasLocalIssues,
   projectLabels,
 }: MetricsPanelProps) {
@@ -369,7 +367,7 @@ export function MetricsPanel({
               ))}
             </div>
           </div>
-          {hasVirtualProjects ? (
+          {projectLabels.length > 0 ? (
             <div className="metrics-block">
               <div className="metrics-section-title">Project</div>
               <div className="metrics-rows">
