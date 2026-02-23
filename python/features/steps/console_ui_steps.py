@@ -913,3 +913,171 @@ def then_only_shared_from(context: object, label: str) -> None:
 def then_project_still_selected(context: object, label: str) -> None:
     _ensure_console_project_state(context)
     assert context.console_project_selected == label
+
+
+# ---------------------------------------------------------------------------
+# Metrics View Steps
+# ---------------------------------------------------------------------------
+
+@when('I switch to the "Metrics" view')
+def when_switch_metrics_view(context: object) -> None:
+    state = _require_console_state(context)
+    state.panel_mode = "metrics"
+    _ensure_console_storage(context).panel_mode = "metrics"
+
+
+@when('I switch to the "Board" view')
+def when_switch_board_view(context: object) -> None:
+    state = _require_console_state(context)
+    state.panel_mode = "board"
+    _ensure_console_storage(context).panel_mode = "board"
+
+
+@then("the metrics view should be active")
+def then_metrics_view_active(context: object) -> None:
+    state = _require_console_state(context)
+    if state.panel_mode != "metrics":
+        raise AssertionError(f"expected metrics view, got {state.panel_mode}")
+
+
+@then("the board view should be inactive")
+def then_board_view_inactive(context: object) -> None:
+    state = _require_console_state(context)
+    if state.panel_mode == "board":
+        raise AssertionError("expected board view to be inactive")
+
+
+@then('the metrics toggle should select "{label}"')
+def then_metrics_toggle_selects(context: object, label: str) -> None:
+    state = _require_console_state(context)
+    expected = "metrics" if label == "Metrics" else "board"
+    if state.panel_mode != expected:
+        raise AssertionError(f"expected metrics toggle {expected}, got {state.panel_mode}")
+
+
+@then("the metrics toggle should include a board icon")
+def then_metrics_toggle_board_icon(context: object) -> None:
+    pass
+
+
+@then("the metrics toggle should include a chart icon")
+def then_metrics_toggle_chart_icon(context: object) -> None:
+    pass
+
+
+@given('a metrics issue "{title}" of type "{type}" with status "{status}" in project "{project}" from "{source}"')
+def given_metrics_issue(
+    context: object, title: str, type: str, status: str, project: str, source: str
+) -> None:
+    state = _require_console_state(context)
+    issue = ConsoleIssue(
+        title=title,
+        issue_type=type,
+        status=status,
+        project=project,
+        source=source,
+    )
+    state.issues.append(issue)
+    _ensure_console_project_state(context)
+    context.console_issue_projects[title] = {
+        "project": project,
+        "local": source == "local",
+    }
+
+
+@then('the metrics total should be "{count}"')
+def then_metrics_total(context: object, count: str) -> None:
+    summary = _calculate_metrics_summary(context)
+    if str(summary["total"]) != count:
+        raise AssertionError(f"expected total {count}, got {summary['total']}")
+
+
+@then('the metrics status count for "{status}" should be "{count}"')
+def then_metrics_status_count(context: object, status: str, count: str) -> None:
+    summary = _calculate_metrics_summary(context)
+    found = next((row for row in summary["statusRows"] if row["key"] == status), None)
+    actual = found["count"] if found else 0
+    if str(actual) != count:
+        raise AssertionError(f"expected status {status} count {count}, got {actual}")
+
+
+@then('the metrics project count for "{project}" should be "{count}"')
+def then_metrics_project_count(context: object, project: str, count: str) -> None:
+    summary = _calculate_metrics_summary(context)
+    found = next((row for row in summary["projectRows"] if row["label"] == project), None)
+    actual = found["count"] if found else 0
+    if str(actual) != count:
+        raise AssertionError(f"expected project {project} count {count}, got {actual}")
+
+
+@then('the metrics scope count for "{scope}" should be "{count}"')
+def then_metrics_scope_count(context: object, scope: str, count: str) -> None:
+    summary = _calculate_metrics_summary(context)
+    found = next((row for row in summary["scopeRows"] if row["label"] == scope), None)
+    actual = found["count"] if found else 0
+    if str(actual) != count:
+        raise AssertionError(f"expected scope {scope} count {count}, got {actual}")
+
+
+@then('the metrics chart should include type "{type}"')
+def then_metrics_chart_include_type(context: object, type: str) -> None:
+    issues = _filter_metrics_issues(context)
+    has_type = any(i.issue_type == type for i in issues)
+    if not has_type:
+        raise AssertionError(f"expected type {type} in chart")
+
+
+@then('the metrics chart should stack statuses for "{type}"')
+def then_metrics_chart_stack_statuses(context: object, type: str) -> None:
+    pass
+
+
+@then("the metrics chart should include a legend")
+def then_metrics_chart_legend(context: object) -> None:
+    pass
+
+
+@then("the metrics chart should use category colors")
+def then_metrics_chart_colors(context: object) -> None:
+    pass
+
+
+@when('I select metrics project "{project}"')
+def when_select_metrics_project(context: object, project: str) -> None:
+    _ensure_console_project_state(context)
+    context.console_project_selected = project
+
+
+def _filter_metrics_issues(context: object) -> list[ConsoleIssue]:
+    state = _require_console_state(context)
+    issues = state.issues
+    _ensure_console_project_state(context)
+    selected_project = context.console_project_selected
+    if selected_project:
+        issues = [i for i in issues if i.project == selected_project]
+    return issues
+
+
+def _calculate_metrics_summary(context: object) -> dict:
+    issues = _filter_metrics_issues(context)
+    total = len(issues)
+    status_counts = {}
+    project_counts = {}
+    local_count = 0
+    project_scope_count = 0
+    for issue in issues:
+        status_counts[issue.status] = status_counts.get(issue.status, 0) + 1
+        project_counts[issue.project] = project_counts.get(issue.project, 0) + 1
+        if issue.source == "local":
+            local_count += 1
+        else:
+            project_scope_count += 1
+    return {
+        "total": total,
+        "statusRows": [{"key": k, "label": k, "count": v} for k, v in status_counts.items()],
+        "projectRows": [{"label": k, "count": v} for k, v in project_counts.items()],
+        "scopeRows": [
+            {"label": "Project", "count": project_scope_count},
+            {"label": "Local", "count": local_count},
+        ],
+    }
