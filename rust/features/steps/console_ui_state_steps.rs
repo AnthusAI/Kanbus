@@ -20,7 +20,7 @@ fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     load_project_directory(cwd).expect("project dir")
 }
 
-fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
+fn write_issue_file(project_dir: &std::path::Path, issue: &IssueData) {
     let issue_path = project_dir
         .join("issues")
         .join(format!("{}.json", issue.identifier));
