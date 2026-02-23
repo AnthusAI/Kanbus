@@ -20,14 +20,26 @@ function requireProjectRoot() {
 }
 
 async function refreshConsoleSnapshot() {
-  const configResponse = await fetch(`${consoleApiBase}/config?refresh=1`);
-  if (!configResponse.ok) {
-    throw new Error(`console config request failed: ${configResponse.status}`);
-  }
   const issuesResponse = await fetch(`${consoleApiBase}/issues?refresh=1`);
   if (!issuesResponse.ok) {
     throw new Error(`console issues request failed: ${issuesResponse.status}`);
   }
+}
+
+async function loadConsoleConfig() {
+  const response = await fetch(`${consoleApiBase}/config`);
+  if (!response.ok) {
+    throw new Error(`console config request failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function resolveProjectLabel(label) {
+  if (label !== "kbs") {
+    return label;
+  }
+  const config = await loadConsoleConfig();
+  return config.project_key ?? label;
 }
 
 async function reloadConsoleIfStale(world) {
@@ -184,7 +196,8 @@ Then("the metrics status count for {string} should be {string}", async function 
 });
 
 Then("the metrics project count for {string} should be {string}", async function (project, count) {
-    await expect(this.page.getByTestId(`metrics-project-${project}`)).toHaveText(count);
+    const resolved = await resolveProjectLabel(project);
+    await expect(this.page.getByTestId(`metrics-project-${resolved}`)).toHaveText(count);
 });
 
 Then("the metrics scope count for {string} should be {string}", async function (scope, count) {
@@ -232,13 +245,14 @@ async function setFilterChecked(page, label, desired) {
 
 When("I select metrics project {string}", async function (project) {
   await reloadConsoleIfStale(this);
+  const resolved = await resolveProjectLabel(project);
   await this.page.getByTestId("filter-button").click();
   const section = this.page.getByTestId("filter-projects-section");
   const buttons = section.getByRole("button");
   const count = await buttons.count();
   for (let index = 0; index < count; index += 1) {
     const label = (await buttons.nth(index).innerText()).trim();
-    await setFilterChecked(this.page, label, label === project);
+    await setFilterChecked(this.page, label, label === resolved);
   }
   await this.page.getByTestId("filter-sidebar-close").click();
 });
