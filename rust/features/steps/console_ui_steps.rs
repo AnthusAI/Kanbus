@@ -629,22 +629,13 @@ fn metrics_filtered_issues(world: &KanbusWorld) -> Vec<&ConsoleIssue> {
         .expect("console state not initialized");
     let mut issues: Vec<&ConsoleIssue> = state.issues.iter().collect();
     if let Some(ref filter) = world.metrics_project_filter {
-        issues = issues
-            .into_iter()
-            .filter(|issue| &issue.project_label == filter)
-            .collect();
+        issues.retain(|issue| &issue.project_label == filter);
     }
     if let Some(ref local_filter) = world.metrics_local_filter {
         if local_filter == "local" {
-            issues = issues
-                .into_iter()
-                .filter(|issue| issue.location == "local")
-                .collect();
+            issues.retain(|issue| issue.location == "local");
         } else if local_filter == "project" {
-            issues = issues
-                .into_iter()
-                .filter(|issue| issue.location != "local")
-                .collect();
+            issues.retain(|issue| issue.location != "local");
         }
     }
     issues
