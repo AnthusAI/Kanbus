@@ -74,6 +74,11 @@ const FeaturesPage = () => {
               description="Seamless compatibility with existing Beads projects. Zero config required—Kanbus detects the format and adapts automatically."
               href="/features/beads-compatibility"
             />
+            <FeatureCard
+              title="VS Code Plugin"
+              description="Manage your project without leaving your code. Full Kanban board integration inside your editor."
+              href="/features/vscode-plugin"
+            />
           </div>
         </Section>
       </div>
