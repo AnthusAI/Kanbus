@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
-    "click",
+    "click==8.1.8",
     "jinja2",
     "pydantic",
     "pyyaml",
@@ -19,7 +19,7 @@ dependencies = [
     "behave",
     "coverage",
     "ruff",
-    "black",
+    "black==26.1.0",
     "sphinx",
 ]
 classifiers = [
@@ -59,7 +59,10 @@ line-length = 88
 target-version = "py311"
 
 [tool.semantic_release]
-version_toml = ["pyproject.toml:project.version"]
+version_toml = [
+    "pyproject.toml:project.version",
+    "../rust/Cargo.toml:package.version",
+]
 version_variable = ["src/kanbus/__init__.py:__version__"]
 tag_format = "v{version}"
 build_command = "python -m build"

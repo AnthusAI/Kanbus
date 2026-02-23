@@ -382,7 +382,9 @@ def update(
     if description:
         description_text_stripped = description.strip()
         if description_text_stripped:
-            update_quality_result = apply_text_quality_signals(description_text_stripped)
+            update_quality_result = apply_text_quality_signals(
+                description_text_stripped
+            )
             description = update_quality_result.text
 
     if not no_validate and description:
@@ -418,7 +420,10 @@ def update(
         click.echo(f"Updated {formatted_identifier}")
         if update_quality_result:
             emit_signals(
-                update_quality_result, "description", issue_id=identifier, is_update=True
+                update_quality_result,
+                "description",
+                issue_id=identifier,
+                is_update=True,
             )
         return
 
