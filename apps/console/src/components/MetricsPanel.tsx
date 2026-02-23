@@ -280,30 +280,38 @@ function MetricsChart({
             xScale={xScale}
             color={(key) => statusColors[key] ?? FALLBACK_COLOR}
           >
-            {(barStacks) =>
-              barStacks.map((barStack) =>
-                barStack.bars.map((bar) => {
-                  if (!bar.width || bar.width <= 0 || !bar.height || bar.height <= 0) {
-                    return null;
-                  }
+            {(barStacks) => {
+              const grouped = new Map<string, { bar: typeof barStacks[number]["bars"][number]; status: string; }[]>();
+              barStacks.forEach((stack) => {
+                stack.bars.forEach((bar) => {
                   const barData = (bar.bar as any)?.data ?? (bar as any)?.bar?.data;
-                  return (
+                  const type = barData?.type as string | undefined;
+                  if (!type || !bar.width || bar.width <= 0 || !bar.height || bar.height <= 0) {
+                    return;
+                  }
+                  const existing = grouped.get(type) ?? [];
+                  existing.push({ bar, status: stack.key });
+                  grouped.set(type, existing);
+                });
+              });
+
+              return Array.from(grouped.entries()).map(([type, bars]) => (
+                <g key={type} className="visx-bar-group" data-type={type}>
+                  {bars.map(({ bar, status }) => (
                     <rect
-                      key={`${barStack.key}-${bar.index}`}
+                      key={`${status}-${bar.index}`}
                       x={bar.x}
                       y={bar.y}
                       width={bar.width}
                       height={bar.height}
                       fill={bar.color}
                       rx={6}
-                      className="visx-bar-group"
-                      data-type={barData?.type}
-                      data-status={barStack.key}
+                      data-status={status}
                     />
-                  );
-                })
-              )
-            }
+                  ))}
+                </g>
+              ));
+            }}
           </BarStackHorizontal>
           {data.map((row) => {
             const y = yScale(row.type);
