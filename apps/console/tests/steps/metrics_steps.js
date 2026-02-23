@@ -1,9 +1,10 @@
-import { Given, When, Then } from "@cucumber/cucumber";
+import { Given, When, Then, After } from "@cucumber/cucumber";
 import { expect } from "@playwright/test";
-import { writeFile, rm } from "fs/promises";
+import { writeFile, rm, mkdir, cp } from "fs/promises";
 import path from "path";
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
+const fixtureRoot = path.resolve(process.cwd(), "tests", "fixtures", "project");
 
 // Helper to ensure project root is available
 function requireProjectRoot() {
@@ -12,6 +13,23 @@ function requireProjectRoot() {
   }
   return projectRoot;
 }
+
+async function resetMetricsProjectRoot() {
+  const root = requireProjectRoot();
+  const repoRoot = path.dirname(root);
+  await rm(path.join(repoRoot, "project"), { recursive: true, force: true });
+  await rm(path.join(repoRoot, "project-local"), { recursive: true, force: true });
+  await rm(path.join(repoRoot, "virtual"), { recursive: true, force: true });
+  await cp(fixtureRoot, root, { recursive: true });
+}
+
+After(async function () {
+  if (!this.metricsDirty) {
+    return;
+  }
+  await resetMetricsProjectRoot();
+  this.metricsDirty = false;
+});
 
 // Helper to build a metrics issue
 function buildMetricsIssue({
@@ -82,6 +100,7 @@ Then("the metrics toggle should include a chart icon", async function () {
 });
 
 Given("no issues exist in the console", async function () {
+  this.metricsDirty = true;
   const root = requireProjectRoot();
   const repoRoot = path.dirname(root);
   
@@ -93,16 +112,15 @@ Given("no issues exist in the console", async function () {
   await rm(path.join(repoRoot, "virtual"), { recursive: true, force: true });
   
   // Re-create issues directories
-  const mkdir = require("fs/promises").mkdir;
   await mkdir(path.join(root, "issues"), { recursive: true });
 });
 
 Given(
   "a metrics issue {string} of type {string} with status {string} in project {string} from {string}",
   async function (title, type, status, projectLabel, source) {
+    this.metricsDirty = true;
     const root = requireProjectRoot();
     const repoRoot = path.dirname(root);
-    const mkdir = require("fs/promises").mkdir;
     
     let issueDir;
     if (projectLabel === "kbs") {
