@@ -583,9 +583,6 @@ export default function App() {
   const hasVirtualProjects = config
     ? Object.keys(config.virtual_projects ?? {}).length > 0
     : false;
-  const hasVirtualProjects = config
-    ? Object.keys(config.virtual_projects ?? {}).length > 0
-    : false;
   const showAllTypes = route.typeFilter === "all";
 
   // Initialize collapsed columns from config (only once)
