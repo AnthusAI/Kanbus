@@ -89,6 +89,28 @@ const KanbanBoardPage = () => {
             </CardContent>
           </Card>
         </Section>
+        <Section
+          title="Also in VS Code"
+          subtitle="Get the same powerful board experience right inside your editor."
+          variant="alt"
+        >
+          <Card className="p-8 shadow-card bg-card">
+            <CardHeader className="p-0 mb-4">
+              <h3 className="text-xl font-bold text-foreground">Integrated Development</h3>
+            </CardHeader>
+            <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
+              <p>
+                Prefer to stay in your IDE? The Kanbus VS Code extension brings the full Kanban board 
+                experience into a dedicated tab. Drag, drop, and edit without switching windows.
+              </p>
+              <p>
+                <a href="/features/vscode-plugin" className="text-selected font-semibold hover:underline">
+                  Learn more about the VS Code integration →
+                </a>
+              </p>
+            </CardContent>
+          </Card>
+        </Section>
       </div>
     </Layout>
   );

@@ -30,5 +30,10 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
     title: "Beads Mode",
     description: "Seamless compatibility with existing Beads projects. Zero config required.",
     href: "/features/beads-compatibility"
+  },
+  {
+    title: "VS Code Plugin",
+    description: "Manage your project without leaving your code. Full Kanban board integration.",
+    href: "/features/vscode-plugin"
   }
 ];
