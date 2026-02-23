@@ -71,7 +71,21 @@ function useElementSize<T extends HTMLElement>() {
 }
 
 function resolveIssueProjectLabel(issue: Issue, config: ProjectConfig): string {
-  return (issue.custom?.project_label as string) || config.project_key;
+  const explicit = issue.custom?.project_label as string | undefined;
+  if (explicit) {
+    return explicit;
+  }
+  const parts = issue.id.split("-");
+  if (parts.length > 1) {
+    const prefix = parts[0];
+    if (prefix === config.project_key) {
+      return config.project_key;
+    }
+    if (config.virtual_projects && Object.keys(config.virtual_projects).includes(prefix)) {
+      return prefix;
+    }
+  }
+  return config.project_key;
 }
 
 function resolveIssueScope(issue: Issue): "local" | "project" {
@@ -278,8 +292,13 @@ function MetricsChart({
                     height={bar.height}
                     fill={bar.color}
                     rx={6}
-                    className="visx-bar-group"
-                    data-type={(bar.bar as any)?.data?.type ?? (bar as any)?.bar?.data?.type}
+                    className={barStack.key === statusKeys[0] ? "visx-bar-group" : undefined}
+                    data-type={
+                      barStack.key === statusKeys[0]
+                        ? (bar.bar as any)?.data?.type ?? (bar as any)?.bar?.data?.type
+                        : undefined
+                    }
+                    data-status={barStack.key}
                   />
                 ))
               )
