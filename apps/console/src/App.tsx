@@ -1775,6 +1775,7 @@ export default function App() {
                 data-testid="board-view"
                 aria-hidden={panelMode !== "board"}
                 hidden={panelMode !== "board"}
+                style={{ display: panelMode === "board" ? undefined : "none" }}
               >
             <div
               className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3 overflow-hidden${
@@ -1903,7 +1904,10 @@ export default function App() {
                   onNavigateToDescendant={handleSelectIssue}
                 />
               </div>
-              <div className="view-panel">
+              <div
+                className="view-panel"
+                style={{ display: panelMode === "metrics" ? undefined : "none" }}
+              >
                 <div
                   className="layout-slot layout-slot-metrics h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3"
                   data-testid="metrics-view"
