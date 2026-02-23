@@ -278,6 +278,8 @@ function MetricsChart({
                     height={bar.height}
                     fill={bar.color}
                     rx={6}
+                    className="visx-bar-group"
+                    data-type={(bar.bar as any)?.data?.type ?? (bar as any)?.bar?.data?.type}
                   />
                 ))
               )
@@ -326,7 +328,9 @@ export function MetricsPanel({
         <div className="metrics-summary">
           <div className="metrics-block">
             <div className="metrics-section-title">Total Issues</div>
-            <div className="metrics-total">{summary.total}</div>
+            <div className="metrics-total" data-testid="metrics-total-count">
+              {summary.total}
+            </div>
           </div>
           <div className="metrics-block">
             <div className="metrics-section-title">Status</div>
@@ -334,7 +338,12 @@ export function MetricsPanel({
               {summary.statusRows.map((row) => (
                 <div key={row.key} className="metrics-row">
                   <span className="metrics-row-label">{row.label}</span>
-                  <span className="metrics-row-value">{row.count}</span>
+                  <span
+                    className="metrics-row-value"
+                    data-testid={`metrics-status-${row.key}`}
+                  >
+                    {row.count}
+                  </span>
                 </div>
               ))}
             </div>
@@ -346,7 +355,12 @@ export function MetricsPanel({
                 {summary.projectRows.map((row) => (
                   <div key={row.label} className="metrics-row">
                     <span className="metrics-row-label">{row.label}</span>
-                    <span className="metrics-row-value">{row.count}</span>
+                    <span
+                      className="metrics-row-value"
+                      data-testid={`metrics-project-${row.label}`}
+                    >
+                      {row.count}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -359,7 +373,12 @@ export function MetricsPanel({
                 {summary.scopeRows.map((row) => (
                   <div key={row.label} className="metrics-row">
                     <span className="metrics-row-label">{row.label}</span>
-                    <span className="metrics-row-value">{row.count}</span>
+                    <span
+                      className="metrics-row-value"
+                      data-testid={`metrics-scope-${row.label.toLowerCase()}`}
+                    >
+                      {row.count}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -377,7 +396,7 @@ export function MetricsPanel({
               statusColors={chart.statusColors}
             />
           </div>
-          <div className="metrics-legend">
+          <div className="metrics-legend" data-testid="metrics-chart-legend">
             {chart.legend.map((entry) => (
               <div key={entry.label} className="metrics-legend-item">
                 <span
