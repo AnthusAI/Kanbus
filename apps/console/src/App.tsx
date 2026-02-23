@@ -1668,6 +1668,7 @@ export default function App() {
             value={panelMode}
             onChange={handlePanelModeChange}
             options={panelModeOptions}
+            testIdPrefix="view-toggle"
           />
         </div>
         <div className="flex-1 min-w-0 flex justify-end overflow-hidden gap-2">
