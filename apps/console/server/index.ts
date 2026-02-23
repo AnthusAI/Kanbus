@@ -10,6 +10,13 @@ import type { IssuesSnapshot } from "../src/types/issues";
 
 const app = express();
 const desiredPort = Number(process.env.CONSOLE_PORT ?? 5174);
+const vitePort = Number(process.env.VITE_PORT ?? 5173);
+const viteHost = process.env.VITE_HOST ?? "localhost";
+const allowedOrigins = new Set([
+  `http://${viteHost}:${vitePort}`,
+  `http://localhost:${vitePort}`,
+  `http://127.0.0.1:${vitePort}`
+]);
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT
   ? path.resolve(process.env.CONSOLE_PROJECT_ROOT)
   : null;
@@ -46,7 +53,13 @@ writeConsoleLog({
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     methods: ["GET", "POST"]
   })
 );
