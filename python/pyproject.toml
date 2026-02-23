@@ -19,7 +19,7 @@ dependencies = [
     "behave",
     "coverage",
     "ruff",
-    "black",
+    "black==26.1.0",
     "sphinx",
 ]
 classifiers = [
