@@ -1522,7 +1522,42 @@ export default function App() {
     return result;
   }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects, showAllTypes]);
 
-  const metricsIssues = filteredIssues;
+  const metricsIssues = useMemo(() => {
+    const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
+    let result = sourceIssues;
+    const hasSearchQuery = searchQuery.trim().length > 0;
+
+    if (focusedIssueId) {
+      const ids = collectDescendants(sourceIssues, focusedIssueId);
+      result = sourceIssues.filter((issue) => ids.has(issue.id));
+    } else if (routeContext.parentIssue) {
+      const ids = collectDescendants(sourceIssues, routeContext.parentIssue.id);
+      result = sourceIssues.filter((issue) => ids.has(issue.id));
+    } else if (route.parentId) {
+      result = [];
+    } else if (hasSearchQuery) {
+      result = sourceIssues;
+    }
+
+    if (hasSearchQuery) {
+      result = result.filter((issue) => matchesSearchQuery(issue, searchQuery));
+    }
+
+    if (hasVirtualProjects && effectiveEnabledProjects.size < projectLabels.length) {
+      result = result.filter(
+        (issue) => effectiveEnabledProjects.has(issue.custom?.project_label as string)
+      );
+    }
+
+    if (!showLocal) {
+      result = result.filter((issue) => issue.custom?.source !== "local");
+    }
+    if (!showShared) {
+      result = result.filter((issue) => issue.custom?.source !== "shared");
+    }
+
+    return result;
+  }, [issues, deferredIssues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects]);
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
@@ -1739,6 +1774,7 @@ export default function App() {
                 className="view-panel"
                 data-testid="board-view"
                 aria-hidden={panelMode !== "board"}
+                hidden={panelMode !== "board"}
               >
             <div
               className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3 overflow-hidden${
