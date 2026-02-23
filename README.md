@@ -6,6 +6,9 @@
 ![Rust CI](https://raw.githubusercontent.com/AnthusAI/Kanbus/badges/rust-ci.svg)
 ![Python Coverage](https://raw.githubusercontent.com/AnthusAI/Kanbus/badges/python-coverage.svg)
 ![Rust Coverage](https://raw.githubusercontent.com/AnthusAI/Kanbus/badges/rust-coverage.svg)
+[![PyPI](https://img.shields.io/pypi/v/kanbus.svg)](https://pypi.org/project/kanbus/)
+[![Crates.io](https://img.shields.io/crates/v/kanbus.svg)](https://crates.io/crates/kanbus)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](rust/LICENSE)
 
 ## Inspiration & Lineage
 

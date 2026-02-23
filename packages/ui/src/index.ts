@@ -3,4 +3,5 @@ export * from "./components/Badge";
 export * from "./components/Card";
 export * from "./components/ScrollArea";
 export * from "./components/Tabs";
+export * from "./kanban";
 export * from "./utils/cn";

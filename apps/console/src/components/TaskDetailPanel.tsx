@@ -11,12 +11,15 @@ import gsap from "gsap";
 import mermaid from "mermaid";
 import plantumlEncoder from "plantuml-encoder";
 import type { Issue, ProjectConfig, IssueEvent } from "../types/issues";
-import { Board } from "./Board";
-import { buildIssueColorStyle, buildStatusBadgeStyle } from "../utils/issue-colors";
+import { Board } from "@kanbus/ui";
+import {
+  buildIssueColorStyle,
+  buildStatusBadgeStyle,
+  formatIssueId,
+  getTypeIcon
+} from "@kanbus/ui";
 import { formatTimestamp } from "../utils/format-timestamp";
-import { formatIssueId } from "../utils/format-issue-id";
 import { IconButton } from "./IconButton";
-import { getTypeIcon } from "../utils/issue-icons";
 import { useFlashEffect } from "../hooks/useFlashEffect";
 import { useTypingEffect } from "../hooks/useTypingEffect";
 import { fetchIssueEvents } from "../api/client";
@@ -889,6 +892,7 @@ skinparam SequenceDividerFontColor white`
                 priorityLookup={priorityLookup}
                 config={config}
                 transitionKey={`${taskToRender.id}-${subTasks.length}`}
+                motion={{ mode: "css" }}
               />
             )}
           </div>

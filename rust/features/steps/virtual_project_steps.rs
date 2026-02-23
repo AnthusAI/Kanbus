@@ -895,6 +895,17 @@ fn given_local_issue_exists_virtual(world: &mut KanbusWorld, identifier: String,
     );
 }
 
+#[given(expr = "an issue {string} exists in the primary project")]
+fn given_issue_exists_primary(world: &mut KanbusWorld, identifier: String) {
+    let state = ensure_virtual_state(world);
+    create_issue(
+        &state.current_project_dir,
+        &identifier,
+        "Primary issue",
+        "open",
+    );
+}
+
 #[then(expr = "the issue file in virtual project {string} should be updated")]
 fn then_issue_file_updated_virtual(world: &mut KanbusWorld, label: String) {
     let state = ensure_virtual_state(world);
@@ -904,6 +915,19 @@ fn then_issue_file_updated_virtual(world: &mut KanbusWorld, label: String) {
         .filter_map(|entry| entry.ok())
         .collect::<Vec<_>>();
     assert!(!issues.is_empty());
+}
+
+#[then("the issue file in the primary project should be updated")]
+fn then_issue_file_updated_primary(world: &mut KanbusWorld) {
+    let state = ensure_virtual_state(world);
+    let updated = state
+        .last_updated_issue
+        .as_ref()
+        .expect("updated issue file");
+    assert!(
+        updated.starts_with(&state.current_project_dir),
+        "expected updated issue in primary project"
+    );
 }
 
 #[then(expr = "the issue file in virtual project {string} should have status {string}")]

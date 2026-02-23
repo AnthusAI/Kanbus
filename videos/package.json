@@ -1,0 +1,30 @@
+{
+  "name": "kanbus-videos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VideoML videos about Kanbus",
+  "scripts": {
+    "generate": "npm run vml:generate",
+    "render": "npm run vml:render:intro",
+    "bundle:components": "npx tsx scripts/bundle-browser-components.ts",
+    "vml:generate": "node $VIDEOML_CLI generate content/",
+    "vml:render:intro": "node $VIDEOML_CLI render --script src/videos/intro/intro.script.json --timeline src/videos/intro/intro.timeline.json --audio public/videoml/intro.wav --frames out/frames/intro --out out/intro.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
+    "vml:render:all": "npm run vml:render:intro"
+  },
+  "dependencies": {
+    "@kanbus/ui": "file:../packages/ui",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.9",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

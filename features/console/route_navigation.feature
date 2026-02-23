@@ -43,4 +43,4 @@ Feature: Console route navigation
     Given the console is open
     When I switch to the "Epics" tab
     And I switch to the "Epics" tab
-    Then no view tab should be selected
+    Then the "All" tab should be selected

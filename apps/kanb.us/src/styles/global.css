@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@kanbus/ui/styles/index.css";
+@import "@kanbus/ui/styles/kanban.css";
 @import "./content.css";
 
 :root {
