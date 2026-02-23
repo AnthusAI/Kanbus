@@ -1522,42 +1522,7 @@ export default function App() {
     return result;
   }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects, showAllTypes]);
 
-  const metricsIssues = useMemo(() => {
-    const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
-    let result = sourceIssues;
-    const hasSearchQuery = searchQuery.trim().length > 0;
-
-    if (focusedIssueId) {
-      const ids = collectDescendants(sourceIssues, focusedIssueId);
-      result = sourceIssues.filter((issue) => ids.has(issue.id));
-    } else if (routeContext.parentIssue) {
-      const ids = collectDescendants(sourceIssues, routeContext.parentIssue.id);
-      result = sourceIssues.filter((issue) => ids.has(issue.id));
-    } else if (route.parentId) {
-      result = [];
-    } else if (hasSearchQuery) {
-      result = sourceIssues;
-    }
-
-    if (hasSearchQuery) {
-      result = result.filter((issue) => matchesSearchQuery(issue, searchQuery));
-    }
-
-    if (hasVirtualProjects && effectiveEnabledProjects.size < projectLabels.length) {
-      result = result.filter(
-        (issue) => effectiveEnabledProjects.has(issue.custom?.project_label as string)
-      );
-    }
-
-    if (!showLocal) {
-      result = result.filter((issue) => issue.custom?.source !== "local");
-    }
-    if (!showShared) {
-      result = result.filter((issue) => issue.custom?.source !== "shared");
-    }
-
-    return result;
-  }, [issues, deferredIssues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects]);
+  const metricsIssues = filteredIssues;
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
