@@ -18,6 +18,7 @@ export default defineConfig(async () => {
     server: {
       host: viteHost,
       port,
+      allowedHosts: true,
       watch: {
         ignored: ["**/project/issues/**"]
       },
