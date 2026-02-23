@@ -391,6 +391,58 @@ fn given_override_time_zone(world: &mut KanbusWorld, time_zone: String) {
     fs::write(override_path, payload).expect("write override file");
 }
 
+#[given(expr = "the Kanbus configuration has a virtual project {string} at path {string}")]
+fn given_configuration_virtual_project(world: &mut KanbusWorld, label: String, path: String) {
+    update_config_file(world, |mapping| {
+        let key = Value::String("virtual_projects".to_string());
+        let mut projects = match mapping.get(&key) {
+            Some(Value::Mapping(existing)) => existing.clone(),
+            _ => serde_yaml::Mapping::new(),
+        };
+        let mut entry = serde_yaml::Mapping::new();
+        entry.insert(Value::String("path".to_string()), Value::String(path));
+        projects.insert(Value::String(label), Value::Mapping(entry));
+        mapping.insert(key, Value::Mapping(projects));
+    });
+}
+
+#[given(expr = "a Kanbus override file adds a virtual project {string} at path {string}")]
+fn given_override_virtual_project(world: &mut KanbusWorld, label: String, path: String) {
+    let repo_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let override_path = repo_path.join(".kanbus.override.yml");
+    let mut value = if override_path.exists() {
+        let contents = fs::read_to_string(&override_path).expect("read override file");
+        serde_yaml::from_str::<Value>(&contents)
+            .unwrap_or(Value::Mapping(serde_yaml::Mapping::new()))
+    } else {
+        Value::Mapping(serde_yaml::Mapping::new())
+    };
+    let mapping = match &mut value {
+        Value::Mapping(mapping) => mapping,
+        _ => {
+            value = Value::Mapping(serde_yaml::Mapping::new());
+            match &mut value {
+                Value::Mapping(mapping) => mapping,
+                _ => unreachable!("override mapping should be a mapping"),
+            }
+        }
+    };
+    let key = Value::String("virtual_projects".to_string());
+    let mut projects = match mapping.get(&key) {
+        Some(Value::Mapping(existing)) => existing.clone(),
+        _ => serde_yaml::Mapping::new(),
+    };
+    let mut entry = serde_yaml::Mapping::new();
+    entry.insert(Value::String("path".to_string()), Value::String(path));
+    projects.insert(Value::String(label), Value::Mapping(entry));
+    mapping.insert(key, Value::Mapping(projects));
+    let payload = serde_yaml::to_string(&value).expect("serialize override");
+    fs::write(override_path, payload).expect("write override file");
+}
+
 #[given("a Kanbus override file that is not a mapping")]
 fn given_override_not_mapping(world: &mut KanbusWorld) {
     let repo_path = world
@@ -645,6 +697,15 @@ fn then_default_assignee_should_match(world: &mut KanbusWorld, assignee: String)
 fn then_time_zone_should_match(world: &mut KanbusWorld, time_zone: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
     assert_eq!(configuration.time_zone.as_deref(), Some(time_zone.as_str()));
+}
+
+#[then(expr = "the configuration should have virtual project {string}")]
+fn then_configuration_has_virtual_project(world: &mut KanbusWorld, label: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(
+        configuration.virtual_projects.contains_key(&label),
+        "expected virtual project {label}"
+    );
 }
 
 #[given(expr = "a Kanbus project with a file {string} containing a valid configuration")]
