@@ -19,6 +19,14 @@ from kanbus.models import IssueData
 from kanbus.project import load_project_directory as resolve_project_directory
 
 
+def _promote_quality_signals_to_stderr(stdout: str, stderr: str) -> str:
+    if stderr:
+        return stderr
+    if "WARNING" in stdout or "SUGGESTION" in stdout:
+        return stdout
+    return stderr
+
+
 def run_cli_args(context: object, args: list[str]) -> None:
     """Run the Kanbus CLI with an explicit list of arguments.
 
@@ -30,7 +38,7 @@ def run_cli_args(context: object, args: list[str]) -> None:
     :param args: List of CLI arguments (excluding the program name).
     :type args: list[str]
     """
-    runner = CliRunner()
+    runner = CliRunner(mix_stderr=False)
 
     working_directory = getattr(context, "working_directory", None)
     if working_directory is None:
@@ -67,8 +75,9 @@ def run_cli_args(context: object, args: list[str]) -> None:
             stdout = result.output
         if stderr is None:
             stderr = ""
-        if result.exit_code != 0:
+        if result.exit_code != 0 and not stderr:
             stderr = result.output
+        stderr = _promote_quality_signals_to_stderr(stdout, stderr)
         context.result = SimpleNamespace(
             exit_code=result.exit_code,
             stdout=stdout,
@@ -87,7 +96,7 @@ def run_cli(context: object, command: str) -> None:
     :param command: Full command string.
     :type command: str
     """
-    runner = CliRunner()
+    runner = CliRunner(mix_stderr=False)
     args = shlex.split(command)[1:]
 
     working_directory = getattr(context, "working_directory", None)
@@ -125,8 +134,9 @@ def run_cli(context: object, command: str) -> None:
             stdout = result.output
         if stderr is None:
             stderr = ""
-        if result.exit_code != 0:
+        if result.exit_code != 0 and not stderr:
             stderr = result.output
+        stderr = _promote_quality_signals_to_stderr(stdout, stderr)
         context.result = SimpleNamespace(
             exit_code=result.exit_code,
             stdout=stdout,
@@ -147,7 +157,7 @@ def run_cli_with_input(context: object, command: str, input_text: str) -> None:
     :param input_text: Input to provide on stdin.
     :type input_text: str
     """
-    runner = CliRunner()
+    runner = CliRunner(mix_stderr=False)
     args = shlex.split(command)[1:]
 
     working_directory = getattr(context, "working_directory", None)
@@ -186,8 +196,9 @@ def run_cli_with_input(context: object, command: str, input_text: str) -> None:
             stdout = result.output
         if stderr is None:
             stderr = ""
-        if result.exit_code != 0:
+        if result.exit_code != 0 and not stderr:
             stderr = result.output
+        stderr = _promote_quality_signals_to_stderr(stdout, stderr)
         context.result = SimpleNamespace(
             exit_code=result.exit_code,
             stdout=stdout,

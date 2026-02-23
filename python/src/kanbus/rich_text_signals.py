@@ -7,7 +7,8 @@ submitted through the CLI, and emits actionable warnings and suggestions.
 from __future__ import annotations
 
 import re
-import sys
+
+import click
 from dataclasses import dataclass, field
 
 
@@ -160,11 +161,11 @@ def emit_signals(
     :type is_update: bool
     """
     for warning in result.warnings:
-        print(warning, file=sys.stderr)
+        click.echo(warning, err=True)
 
     if result.suggestions:
         for suggestion in result.suggestions:
-            print(suggestion, file=sys.stderr)
+            click.echo(suggestion, err=True)
 
         if issue_id:
             _emit_follow_up_hint(
@@ -202,4 +203,4 @@ def _emit_follow_up_hint(
             f"  -> To update the {context}: "
             f'kbs update {issue_id} --description "<your improved description here>"'
         )
-    print(hint, file=sys.stderr)
+    click.echo(hint, err=True)
