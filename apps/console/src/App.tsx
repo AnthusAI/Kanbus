@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   CheckCheck,
@@ -562,6 +562,14 @@ export default function App() {
   const issues = snapshot?.issues ?? [];
   const deferredIssues = useDeferredValue(issues);
   const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
+  const refreshSnapshot = useCallback(() => {
+    if (!apiBase) {
+      return;
+    }
+    fetchSnapshot(apiBase)
+      .then((data) => setSnapshot(data))
+      .catch((err) => console.warn("[snapshot] refresh failed", err));
+  }, [apiBase]);
   const showAllTypes = route.typeFilter === "all";
 
   // Initialize collapsed columns from config (only once)
@@ -1227,6 +1235,7 @@ export default function App() {
   };
 
   const handlePanelModeChange = (value: string) => {
+    refreshSnapshot();
     if (value === "metrics") {
       setPanelMode("metrics");
       return;
