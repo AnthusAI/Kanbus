@@ -13,6 +13,7 @@ interface FilterSidebarProps {
   projectLabels: string[];
   enabledProjects: ReadonlySet<string>;
   onToggleProject: (label: string) => void;
+  hasVirtualProjects: boolean;
   hasLocalIssues: boolean;
   showLocal: boolean;
   showShared: boolean;
@@ -89,6 +90,7 @@ export function FilterSidebar({
   projectLabels,
   enabledProjects,
   onToggleProject,
+  hasVirtualProjects,
   hasLocalIssues,
   showLocal,
   showShared,
@@ -99,7 +101,7 @@ export function FilterSidebar({
   onTypeChange,
   onTransitionEnd
 }: FilterSidebarProps) {
-  const hasProjects = projectLabels.length > 1;
+  const hasProjects = hasVirtualProjects || projectLabels.length > 1;
   const hasFocus = Boolean(focusedIssueLabel);
 
   return (
