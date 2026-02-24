@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v0.13.1 (2026-02-24)
+
+### Bug Fixes
+
+- **amplify**: Install ampx via npx package
+  ([`0a3a0e1`](https://github.com/AnthusAI/Kanbus/commit/0a3a0e118eaf7e2b8717f58eebe54d528701184f))
+
+### Chores
+
+- **rust**: Обновить Cargo.lock
+  ([`11e5dcb`](https://github.com/AnthusAI/Kanbus/commit/11e5dcb5c58d455ef87d46b5432b07b5f273124b))
+
+### Continuous Integration
+
+- **release**: Guard VSCode publish in script
+  ([`335c198`](https://github.com/AnthusAI/Kanbus/commit/335c198c01f6670714d1f8034826ce7c4b04a62c))
+
+- **release**: Skip VSCode publish without VSCE_PAT
+  ([`beaeee7`](https://github.com/AnthusAI/Kanbus/commit/beaeee7343c343fa1d874a5d40e778693fc4a192))
+
+### Testing
+
+- Add rust console step for empty metrics
+  ([`7568f99`](https://github.com/AnthusAI/Kanbus/commit/7568f99f10f19f859b730e11f1f812d46eae054f))
+
+
 ## v0.13.0 (2026-02-24)
 
 ### Bug Fixes
