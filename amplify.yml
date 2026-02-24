@@ -5,8 +5,16 @@ frontend:
       commands:
         - bash tools/run_amplify_ci.sh
         - |
-          if aws amplify list-backend-environments --app-id "$AWS_APP_ID" --region "$AWS_REGION" --output json \
-            | grep -q '"backendEnvironments":[[:space:]]*\\[[[:space:]]*\\]'; then
+          backend_count=$(
+            aws amplify list-backend-environments --app-id "$AWS_APP_ID" --region "$AWS_REGION" --output json \
+              | python3.11 - <<'PY'
+          import json
+          import sys
+          data = json.load(sys.stdin)
+          print(len(data.get("backendEnvironments", [])))
+          PY
+          ) || backend_count=""
+          if [ -z "$backend_count" ] || [ "$backend_count" -eq 0 ]; then
             echo "No Amplify backend environments; skipping ampx outputs."
           else
             npx --yes --package @aws-amplify/backend-cli@latest ampx generate outputs \
