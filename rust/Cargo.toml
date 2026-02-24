@@ -1,6 +1,6 @@
 [package]
 name = "kanbus"
-version = "0.12.0"
+version = "0.13.0"
 edition = "2021"
 description = "High-performance CLI and web console for the Kanbus issue tracker. Includes kanbus (CLI) and kanbus-console (web UI server)."
 license = "MIT"
