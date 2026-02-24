@@ -2,6 +2,195 @@
 
 <!-- version list -->
 
+## v0.13.0 (2026-02-24)
+
+### Bug Fixes
+
+- **ci**: Remove duplicate hasVirtualProjects declaration
+  ([`0da451f`](https://github.com/AnthusAI/Kanbus/commit/0da451f4ac45bda07bf58653cb28856af0eb7665))
+
+- **ci**: Stabilize console metrics tests
+  ([`6453863`](https://github.com/AnthusAI/Kanbus/commit/6453863418ce0defc139ca584f34d3e87f476ba9))
+
+- **config**: Accept legacy external_projects
+  ([`9b7a002`](https://github.com/AnthusAI/Kanbus/commit/9b7a0029bf2d74e96c215b6757fe00543d718c6a))
+
+- **console**: Fix failing console UI tests
+  ([`9067f09`](https://github.com/AnthusAI/Kanbus/commit/9067f09b303a7098ae1f018b2df582d597056871))
+
+- **console**: Mark active metrics toggle for tests
+  ([`514b8a2`](https://github.com/AnthusAI/Kanbus/commit/514b8a2f4e5e7328ad4da729f29d520acec7d730))
+
+- **console**: Remove nested view-track and duplicate MetricsPanel
+  ([`29a3315`](https://github.com/AnthusAI/Kanbus/commit/29a331514d3e16abd05b704575ea5f34d734d665))
+
+- **console**: Resolve clippy lints in console steps
+  ([`379d9b7`](https://github.com/AnthusAI/Kanbus/commit/379d9b769089f63cfbd80f34664586e556f81792))
+
+- **dev**: Allow console API CORS for 127.0.0.1
+  ([`a75e716`](https://github.com/AnthusAI/Kanbus/commit/a75e716dafd5c5d7bccfaf31f9f76e943ac0879d))
+
+- **dev**: Allow Vite host 0.0.0.0 for Playwright connectivity
+  ([`d3b9543`](https://github.com/AnthusAI/Kanbus/commit/d3b9543eb7c7300a88bcd3b449c8ea451b789045))
+
+- **dev**: Bind dev server to localhost for CI Playwright
+  ([`59577af`](https://github.com/AnthusAI/Kanbus/commit/59577af81a979a7c34b6ac6064f826c926cb8ef4))
+
+- **dev**: Bind Vite to network host
+  ([`f0593de`](https://github.com/AnthusAI/Kanbus/commit/f0593de21f5b4a5674fe844e03d4d9a7c21afcc7))
+
+- **dev**: Honor console_port in dev.sh
+  ([`0fd6653`](https://github.com/AnthusAI/Kanbus/commit/0fd665306075cd453bd3c0a3612dcca0138fa711))
+
+- **dev**: Use config port for UI only and wire python env
+  ([`f55e260`](https://github.com/AnthusAI/Kanbus/commit/f55e260092cec480cc97b86736360a4d5dc4dc41))
+
+- **rust**: Resolve borrow checker error in console_ui_steps.rs
+  ([`27e649d`](https://github.com/AnthusAI/Kanbus/commit/27e649d063c51433e3d8851c0e263fab933a3634))
+
+- **tests**: Expose panel toggle test ids
+  ([`b9a1a28`](https://github.com/AnthusAI/Kanbus/commit/b9a1a280de5edcd8faf919da1554f02a3a888125))
+
+- **ui**: Align metrics project filtering
+  ([`be89196`](https://github.com/AnthusAI/Kanbus/commit/be8919671cc63705890f56a114e636dac1cb555c))
+
+- **ui**: Always apply project filter to metrics and initialize enabled projects
+  ([`3b56b5b`](https://github.com/AnthusAI/Kanbus/commit/3b56b5ba112d0106d7b7f5f4277da88025a69b52))
+
+- **ui**: Apply project filters to metrics by deriving labels
+  ([`bba2e58`](https://github.com/AnthusAI/Kanbus/commit/bba2e58983ea28d04e7ca17b3e06493cef74bbe1))
+
+- **ui**: Apply project filters using derived project labels
+  ([`b9214a5`](https://github.com/AnthusAI/Kanbus/commit/b9214a531cdd5cda5e9c72b194c2a4c3220004eb))
+
+- **ui**: Base metrics on live issues and hide inactive panels
+  ([`aec7b9e`](https://github.com/AnthusAI/Kanbus/commit/aec7b9e54a72a23da86f92b6f7ebc772ca8e16c8))
+
+- **ui**: Compute metrics from filtered issues
+  ([`3eff1a6`](https://github.com/AnthusAI/Kanbus/commit/3eff1a6fd30e9362e5fb684b502f764f938a48f4))
+
+- **ui**: Dedupe issues before rendering metrics
+  ([`a792d3d`](https://github.com/AnthusAI/Kanbus/commit/a792d3d368bfa56db10688e4eda96d6efe156820))
+
+- **ui**: Ensure metrics panel hides and use live issue set
+  ([`4d280ff`](https://github.com/AnthusAI/Kanbus/commit/4d280ffd764b405bdb3c95c362e2c937017f40ab))
+
+- **ui**: Handle project prefixes without virtual config
+  ([`950df09`](https://github.com/AnthusAI/Kanbus/commit/950df09b3f0bb03d0816f3957466d8abf059b02b))
+
+- **ui**: Hide inactive metrics panel and tag chart data
+  ([`48d4c59`](https://github.com/AnthusAI/Kanbus/commit/48d4c59a1791be69b4899e1ff9f607f6038aa7e2))
+
+- **ui**: Hide inactive views and keep metrics counts unfiltered
+  ([`6403831`](https://github.com/AnthusAI/Kanbus/commit/6403831fef0e3ec894f66eb4aa46ba05aca85f6d))
+
+- **ui**: Hide project filter when single project and harden metrics refresh
+  ([`5ff8f5e`](https://github.com/AnthusAI/Kanbus/commit/5ff8f5ef024a4a648e8b1217cc62b0a163adf0a4))
+
+- **ui**: Hide project filter without virtuals and rely on config labels
+  ([`a6306fb`](https://github.com/AnthusAI/Kanbus/commit/a6306fbbb4d8aa1ec2d3ad21a0e8fe7a856c5d94))
+
+- **ui**: Initialize project filters after projectLabels declaration
+  ([`d4b8fe3`](https://github.com/AnthusAI/Kanbus/commit/d4b8fe39997451d06bc1dd809bb40f0d573f6b22))
+
+- **ui**: Keep metrics filter project selection and chart grouping
+  ([`6603b06`](https://github.com/AnthusAI/Kanbus/commit/6603b06c3a3de937e6e3c7e4c2d9699ef3ae5cd8))
+
+- **ui**: Remove duplicate metrics toggle testids
+  ([`8d1abbf`](https://github.com/AnthusAI/Kanbus/commit/8d1abbf2a61f56e39acf569c9f89260da679efd1))
+
+- **ui**: Render chart bars only when visible
+  ([`ec7d94e`](https://github.com/AnthusAI/Kanbus/commit/ec7d94e0ea508d8b69408576e216e9e344b65029))
+
+- **ui**: Respect selected project set in metrics and board filters
+  ([`53931ee`](https://github.com/AnthusAI/Kanbus/commit/53931ee8d0dacb7be6c1759bbeeac6bed8ded729))
+
+- **ui**: Use effective project filter set for metrics
+  ([`66fdb98`](https://github.com/AnthusAI/Kanbus/commit/66fdb9813f9e223590c90655c89386dc1eb32956))
+
+- **vite**: Allow LAN access
+  ([`45b216c`](https://github.com/AnthusAI/Kanbus/commit/45b216c48701220395404a6ec17b1bbe2cca7baf))
+
+### Chores
+
+- Update Cargo.lock
+  ([`2cf938b`](https://github.com/AnthusAI/Kanbus/commit/2cf938b8fa4b129ef43fd21ff01ed4fbcec903a7))
+
+- Update Cargo.lock version
+  ([`c160e2e`](https://github.com/AnthusAI/Kanbus/commit/c160e2e067672fdd0d79038d7a5b1846cb61fda4))
+
+- **ci**: Gate docs workflow on CI success
+  ([`88b9f03`](https://github.com/AnthusAI/Kanbus/commit/88b9f039908faf3c2db698614bc299360660d066))
+
+- **console**: Refresh embedded assets
+  ([`a0634ca`](https://github.com/AnthusAI/Kanbus/commit/a0634ca259aa7dd99cf299ca4519dd82eadc2018))
+
+- **console**: Refresh snapshot when toggling metrics view
+  ([`b353d34`](https://github.com/AnthusAI/Kanbus/commit/b353d34203cb7ae3672d9945d8fe320b089fbb38))
+
+- **ui**: Log project filter state in metrics
+  ([`aa40319`](https://github.com/AnthusAI/Kanbus/commit/aa40319f863b366ac576aafc6e9aea4631909509))
+
+### Code Style
+
+- Clarify project filter fallback comment
+  ([`e32b80e`](https://github.com/AnthusAI/Kanbus/commit/e32b80e67c276db43e05c1927b90d6ce8ef1b072))
+
+- **python**: Reformat console_ui_steps.py with black
+  ([`d008481`](https://github.com/AnthusAI/Kanbus/commit/d00848167c3b34a287c42bd416b39c87651ce8d3))
+
+- **rust**: Apply cargo fmt changes
+  ([`407b48c`](https://github.com/AnthusAI/Kanbus/commit/407b48ced84e72d18da1864947b69295f233027c))
+
+### Documentation
+
+- **kanb.us**: Highlight beads compatibility mode benefits
+  ([`17d3dec`](https://github.com/AnthusAI/Kanbus/commit/17d3decf538ec1ccf71169756dd68ce32b2f9f20))
+
+### Features
+
+- **console**: Allow network binding
+  ([`83a431c`](https://github.com/AnthusAI/Kanbus/commit/83a431c19c78518fe1966276b581f805dd521631))
+
+- **console**: Implement metrics view with visual charts and gherkin steps
+  ([`b7bd5db`](https://github.com/AnthusAI/Kanbus/commit/b7bd5db6c265203587412eb80cc672c0b3e4ec75))
+
+- **console**: Restore metrics view
+  ([`3bd9a4e`](https://github.com/AnthusAI/Kanbus/commit/3bd9a4ecd8ada2dcafba7cc2c9f9ec35abc0ed2b))
+
+- **kanb.us**: Add kanban board feature page
+  ([`beaa1f7`](https://github.com/AnthusAI/Kanbus/commit/beaa1f78dd020aa988265dd16d69c070b5d7822b))
+
+- **kanb.us**: Add vscode plugin feature page and link from kanban board
+  ([`433ac87`](https://github.com/AnthusAI/Kanbus/commit/433ac87814922e19b4871cabe021a9802a8ab89d))
+
+### Testing
+
+- **console**: Implement missing metrics view step definitions
+  ([`b764bfb`](https://github.com/AnthusAI/Kanbus/commit/b764bfb157278df0c36220e18d998032557eeb40))
+
+- **ui**: Add metrics test ids and toggle state
+  ([`9f7a2af`](https://github.com/AnthusAI/Kanbus/commit/9f7a2afa2e0c6592b403ebc1f8ccd560cc04d7ea))
+
+- **ui**: Align metrics project filter selection
+  ([`9ac2fb4`](https://github.com/AnthusAI/Kanbus/commit/9ac2fb48079bc113ce5ed823158bd27bb31760eb))
+
+- **ui**: Drop forced VITE_HOST override in UI runner
+  ([`2333ec8`](https://github.com/AnthusAI/Kanbus/commit/2333ec8f1a7a9345cc70243c0a20d537ce97b73b))
+
+- **ui**: Refresh data before metrics specs
+  ([`8693f85`](https://github.com/AnthusAI/Kanbus/commit/8693f851861403abab3ec2b30f75c786189d707a))
+
+- **ui**: Resolve project labels and refresh issues
+  ([`e48ec58`](https://github.com/AnthusAI/Kanbus/commit/e48ec58d7aef893e9969f2b99556004eb779fb1a))
+
+- **ui**: Stabilize metrics fixtures
+  ([`2431666`](https://github.com/AnthusAI/Kanbus/commit/2431666012e411bb2af368853218579d02a325ff))
+
+- **ui**: Wait for filter sidebar in metrics steps
+  ([`865146c`](https://github.com/AnthusAI/Kanbus/commit/865146c6c192020a04d9114ae7a984e068f0635a))
+
+
 ## v0.12.0 (2026-02-23)
 
 ### Documentation
