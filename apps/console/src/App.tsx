@@ -601,10 +601,6 @@ export default function App() {
       .then((data) => setSnapshot(data))
       .catch((err) => console.warn("[snapshot] refresh failed", err));
   }, [apiBase]);
-  const hasVirtualProjects = config
-    ? Object.keys(config.virtual_projects ?? {}).length > 0
-    : false;
-
   const showAllTypes = route.typeFilter === "all";
 
   // Initialize collapsed columns from config (only once)
@@ -1459,16 +1455,22 @@ export default function App() {
   }, [panelMode]);
 
   const projectLabels = useMemo(() => {
-    if (!config) {
-      return [];
-    }
     const labels = new Set<string>();
-    if (config.project_key) {
+    if (config?.project_key) {
       labels.add(config.project_key);
     }
-    Object.keys(config.virtual_projects ?? {}).forEach((key) => labels.add(key));
+    if (config?.virtual_projects) {
+      Object.keys(config.virtual_projects).forEach((key) => labels.add(key));
+    }
+    // Derive project labels from existing issues (covers fixtures without virtual_projects configured)
+    issues.forEach((issue) => {
+      const prefix = issue.id.split("-")[0];
+      if (prefix) {
+        labels.add(prefix);
+      }
+    });
     return Array.from(labels);
-  }, [config]);
+  }, [config, issues]);
 
   // Ensure project filter state is initialized once config/project labels are known
   useEffect(() => {
@@ -1608,6 +1610,9 @@ export default function App() {
     const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
+    if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+      console.info("[metrics] filter projects", Array.from(projectFilterSet), "issues", sourceIssues.length);
+    }
 
     if (focusedIssueId) {
       const ids = collectDescendants(sourceIssues, focusedIssueId);
@@ -2024,7 +2029,6 @@ export default function App() {
           projectLabels={projectLabels}
           enabledProjects={effectiveEnabledProjects}
           onToggleProject={handleToggleProject}
-          hasVirtualProjects={hasVirtualProjects}
           hasLocalIssues={hasLocalIssues}
           showLocal={showLocal}
           showShared={showShared}
