@@ -334,10 +334,15 @@ jobs:
         working-directory: apps/vscode
 
       - name: Publish all platform packages
+        if: ${{ secrets.VSCE_PAT != '' }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: ./node_modules/.bin/vsce publish --packagePath *.vsix
         working-directory: apps/vscode
+
+      - name: Skip VSCode publish (missing VSCE_PAT)
+        if: ${{ secrets.VSCE_PAT == '' }}
+        run: echo "VSCE_PAT not set; skipping VSCode Marketplace publish."
 
   rust-crate:
     needs: pypi-release
