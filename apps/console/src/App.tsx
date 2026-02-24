@@ -1540,6 +1540,7 @@ export default function App() {
   }, [snapshot, focusedIssueId]);
 
   const filteredIssues = useMemo(() => {
+    const projectFilterSet = enabledProjects ?? new Set(projectLabels);
     // Use non-deferred issues when search is active for immediate feedback
     const sourceIssues = issues;
     let result = sourceIssues;
@@ -1583,7 +1584,7 @@ export default function App() {
     if (projectLabels.length > 0) {
       result = result.filter((issue) => {
         const label = getIssueProjectLabel(issue, config ?? null);
-        return effectiveEnabledProjects.has(label);
+        return projectFilterSet.has(label);
       });
     }
 
@@ -1596,12 +1597,13 @@ export default function App() {
     }
 
     return result;
-  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, showAllTypes]);
+  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, enabledProjects, projectLabels.length, showLocal, showShared, showAllTypes, config]);
 
   const metricsIssues = useMemo(() => {
     if (!config) {
       return [];
     }
+    const projectFilterSet = enabledProjects ?? new Set(projectLabels);
     const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
@@ -1626,7 +1628,7 @@ export default function App() {
     if (projectLabels.length > 0) {
       result = result.filter((issue) => {
         const label = getIssueProjectLabel(issue, config);
-        return effectiveEnabledProjects.has(label);
+        return projectFilterSet.has(label);
       });
     }
 
