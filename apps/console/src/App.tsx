@@ -1611,6 +1611,12 @@ export default function App() {
       return [];
     }
     const projectFilterSet = effectiveEnabledProjects ?? new Set(projectLabels);
+    if (typeof window !== "undefined") {
+      console.info("[metrics-debug]", {
+        labels: projectLabels,
+        enabled: Array.from(projectFilterSet)
+      });
+    }
     const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
