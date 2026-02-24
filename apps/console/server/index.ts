@@ -11,7 +11,7 @@ import type { IssuesSnapshot } from "../src/types/issues";
 const app = express();
 const desiredPort = Number(process.env.CONSOLE_PORT ?? 5174);
 const vitePort = Number(process.env.VITE_PORT ?? 5173);
-// Bind broadly so localhost resolves (IPv4/IPv6) in CI browsers
+// Default to wide bind for dev; override via VITE_HOST if needed
 const viteHost = process.env.VITE_HOST ?? "0.0.0.0";
 const allowedOrigins = new Set([
   `http://${viteHost}:${vitePort}`,
