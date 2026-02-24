@@ -1459,22 +1459,19 @@ export default function App() {
   }, [panelMode]);
 
   const projectLabels = useMemo(() => {
+    if (!config) {
+      return [];
+    }
     const labels = new Set<string>();
-    if (config?.project_key) {
+    if (config.project_key) {
       labels.add(config.project_key);
     }
-    if (config?.virtual_projects) {
-      Object.keys(config.virtual_projects).forEach((key) => labels.add(key));
-    }
-    // Derive project labels from existing issues (covers fixtures without virtual_projects configured)
-    issues.forEach((issue) => {
-      const prefix = issue.id.split("-")[0];
-      if (prefix) {
-        labels.add(prefix);
-      }
-    });
-    return Array.from(labels).filter(Boolean);
-  }, [config, issues]);
+    Object.keys(config.virtual_projects ?? {}).forEach((key) => labels.add(key));
+    return Array.from(labels);
+  }, [config]);
+  const hasVirtualProjects = config
+    ? Object.keys(config.virtual_projects ?? {}).length > 0
+    : false;
 
   // Ensure project filter state is initialized once config/project labels are known
   useEffect(() => {
@@ -2039,6 +2036,7 @@ export default function App() {
           projectLabels={projectLabels}
           enabledProjects={effectiveEnabledProjects}
           onToggleProject={handleToggleProject}
+          hasVirtualProjects={hasVirtualProjects}
           hasLocalIssues={hasLocalIssues}
           showLocal={showLocal}
           showShared={showShared}
