@@ -756,6 +756,12 @@ fn given_metrics_issue(
     });
 }
 
+#[given("no issues exist in the console")]
+fn given_no_issues_exist_in_console(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    state.issues.clear();
+}
+
 #[when(expr = "I select metrics project {string}")]
 fn when_select_metrics_project(world: &mut KanbusWorld, label: String) {
     world.metrics_project_filter = Some(label);
