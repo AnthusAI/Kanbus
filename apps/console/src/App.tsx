@@ -373,6 +373,27 @@ function resolveIssueByIdentifier(
   return { issue: matches[0], error: null };
 }
 
+function getIssueProjectLabel(issue: Issue, config: ProjectConfig | null): string {
+  if (!config) {
+    return issue.custom?.project_label as string || issue.id.split("-")[0];
+  }
+  const explicit = issue.custom?.project_label as string | undefined;
+  if (explicit) {
+    return explicit;
+  }
+  const parts = issue.id.split("-");
+  if (parts.length > 1) {
+    const prefix = parts[0];
+    if (prefix === config.project_key) {
+      return config.project_key;
+    }
+    if (config.virtual_projects && Object.keys(config.virtual_projects).includes(prefix)) {
+      return prefix;
+    }
+  }
+  return config.project_key;
+}
+
 function collectDescendants(issues: Issue[], parentId: string): Set<string> {
   const childrenByParent = new Map<string, string[]>();
   issues.forEach((issue) => {
@@ -1554,9 +1575,10 @@ export default function App() {
     const shouldFilterProjects = projectLabels.length > 0
       && effectiveEnabledProjects.size < projectLabels.length;
     if (shouldFilterProjects) {
-      result = result.filter(
-        (issue) => effectiveEnabledProjects.has(issue.custom?.project_label as string)
-      );
+      result = result.filter((issue) => {
+        const label = getIssueProjectLabel(issue, config ?? null);
+        return effectiveEnabledProjects.has(label);
+      });
     }
 
     // Apply local/shared source filter
@@ -1596,13 +1618,10 @@ export default function App() {
 
     const shouldApplyProjectFilter = projectLabels.length > 0;
     if (shouldApplyProjectFilter) {
-      result = result.filter(
-        (issue) => {
-          const label = issue.custom?.project_label
-            ?? resolveIssueProjectLabel(issue, config);
-          return effectiveEnabledProjects.has(label);
-        }
-      );
+      result = result.filter((issue) => {
+        const label = getIssueProjectLabel(issue, config);
+        return effectiveEnabledProjects.has(label);
+      });
     }
 
     if (!showLocal) {
