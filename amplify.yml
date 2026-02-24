@@ -4,7 +4,14 @@ frontend:
     preBuild:
       commands:
         - bash tools/run_amplify_ci.sh
-        - npx --yes --package @aws-amplify/backend-cli@latest ampx generate outputs --branch $AWS_BRANCH --app-id $AWS_APP_ID --out-dir .
+        - |
+          if aws amplify list-backend-environments --app-id "$AWS_APP_ID" --region "$AWS_REGION" --output json \
+            | grep -q '"backendEnvironments":[[:space:]]*\\[[[:space:]]*\\]'; then
+            echo "No Amplify backend environments; skipping ampx outputs."
+          else
+            npx --yes --package @aws-amplify/backend-cli@latest ampx generate outputs \
+              --branch "$AWS_BRANCH" --app-id "$AWS_APP_ID" --out-dir .
+          fi
         # Build the shared UI package first
         - cd packages/ui && npm ci --prefer-offline --no-audit && npm run build && cd ../..
         # Install site dependencies
