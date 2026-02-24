@@ -62,6 +62,27 @@ async function reloadConsoleIfStale(world) {
   world.metricsStale = false;
 }
 
+async function openFilterSidebar(page) {
+  const panel = page.getByTestId("filter-sidebar");
+  const isOpen = (await panel.getAttribute("aria-hidden")) === "false";
+  if (!isOpen) {
+    await page.getByTestId("filter-button").click();
+    await expect(panel).toHaveAttribute("aria-hidden", "false");
+  }
+}
+
+async function closeFilterSidebar(page) {
+  const panel = page.getByTestId("filter-sidebar");
+  const isOpen = (await panel.getAttribute("aria-hidden")) === "false";
+  if (!isOpen) {
+    return;
+  }
+  await page.getByTestId("filter-sidebar-close").click();
+  await expect
+    .poll(async () => panel.getAttribute("aria-hidden"), { timeout: 8000 })
+    .toBe("true");
+}
+
 async function resetMetricsProjectRoot() {
   const root = requireProjectRoot();
   const repoRoot = path.dirname(root);
@@ -312,13 +333,14 @@ async function setFilterChecked(page, label, desired) {
 When("I select metrics project {string}", async function (project) {
   await reloadConsoleIfStale(this);
   const resolved = await resolveProjectLabel(project);
-  await this.page.getByTestId("filter-button").click();
+  await openFilterSidebar(this.page);
   const section = this.page.getByTestId("filter-projects-section");
   const buttons = section.getByRole("button");
+  await expect(buttons.first()).toBeVisible();
   const count = await buttons.count();
   for (let index = 0; index < count; index += 1) {
     const label = (await buttons.nth(index).innerText()).trim();
     await setFilterChecked(this.page, label, label === resolved);
   }
-  await this.page.getByTestId("filter-sidebar-close").click();
+  await closeFilterSidebar(this.page);
 });
