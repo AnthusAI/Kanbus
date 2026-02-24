@@ -79,7 +79,7 @@ const IndexPage = () => {
     <Layout>
       <Hero
         title="Track issues in your repository"
-        subtitle="where your agents can see it"
+        subtitle="where your agents can participate"
         eyebrow="Kanbus"
         actions={
           <>
