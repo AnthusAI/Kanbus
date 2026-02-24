@@ -64,8 +64,8 @@ async function main() {
     CONSOLE_PROJECT_ROOT: projectDir,
     CONSOLE_PORT: process.env.CONSOLE_PORT ?? "5174",
     VITE_PORT: process.env.VITE_PORT ?? "5173",
-    // Bind Vite to loopback only to match Playwright base_url expectations
-    VITE_HOST: process.env.VITE_HOST ?? "127.0.0.1",
+    // Bind Vite broadly so localhost/127/::1 work in CI browsers
+    VITE_HOST: process.env.VITE_HOST ?? "0.0.0.0",
     CONSOLE_BASE_URL:
       process.env.CONSOLE_BASE_URL ??
       `http://localhost:${process.env.VITE_PORT ?? "5173"}/`,
