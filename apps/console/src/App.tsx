@@ -1540,6 +1540,7 @@ export default function App() {
   }, [snapshot, focusedIssueId]);
 
   const filteredIssues = useMemo(() => {
+    // Use user-selected projects; fall back to all labels if none selected yet
     const projectFilterSet = enabledProjects ?? new Set(projectLabels);
     // Use non-deferred issues when search is active for immediate feedback
     const sourceIssues = issues;
