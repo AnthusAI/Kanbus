@@ -605,12 +605,6 @@ export default function App() {
     ? Object.keys(config.virtual_projects ?? {}).length > 0
     : false;
 
-  // Ensure project filter state is initialized once config/project labels are known
-  useEffect(() => {
-    if (projectLabels.length > 0 && enabledProjects === null) {
-      setEnabledProjects(new Set(projectLabels));
-    }
-  }, [projectLabels, enabledProjects]);
   const showAllTypes = route.typeFilter === "all";
 
   // Initialize collapsed columns from config (only once)
@@ -1475,6 +1469,13 @@ export default function App() {
     Object.keys(config.virtual_projects ?? {}).forEach((key) => labels.add(key));
     return Array.from(labels);
   }, [config]);
+
+  // Ensure project filter state is initialized once config/project labels are known
+  useEffect(() => {
+    if (projectLabels.length > 0 && enabledProjects === null) {
+      setEnabledProjects(new Set(projectLabels));
+    }
+  }, [projectLabels, enabledProjects]);
 
   // Track project labels to auto-enable any newly discovered projects (e.g., virtual projects added at runtime)
   const prevProjectLabelsRef = React.useRef<Set<string>>(new Set());
