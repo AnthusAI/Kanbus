@@ -4,7 +4,7 @@ frontend:
     preBuild:
       commands:
         - bash tools/run_amplify_ci.sh
-        - npx --yes --package @aws-amplify/cli@latest ampx generate outputs --branch $AWS_BRANCH --app-id $AWS_APP_ID --out-dir .
+        - npx --yes --package @aws-amplify/backend-cli@latest ampx generate outputs --branch $AWS_BRANCH --app-id $AWS_APP_ID --out-dir .
         # Build the shared UI package first
         - cd packages/ui && npm ci --prefer-offline --no-audit && npm run build && cd ../..
         # Install site dependencies
