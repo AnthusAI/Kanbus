@@ -1473,7 +1473,7 @@ export default function App() {
         labels.add(prefix);
       }
     });
-    return Array.from(labels);
+    return Array.from(labels).filter(Boolean);
   }, [config, issues]);
 
   // Ensure project filter state is initialized once config/project labels are known
@@ -1610,7 +1610,7 @@ export default function App() {
     if (!config) {
       return [];
     }
-    const projectFilterSet = enabledProjects ?? new Set(projectLabels);
+    const projectFilterSet = effectiveEnabledProjects ?? new Set(projectLabels);
     const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
