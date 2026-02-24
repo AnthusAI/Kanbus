@@ -390,6 +390,10 @@ function getIssueProjectLabel(issue: Issue, config: ProjectConfig | null): strin
     if (config.virtual_projects && Object.keys(config.virtual_projects).includes(prefix)) {
       return prefix;
     }
+    // Fall back to the observed prefix so metrics/filtering work even when virtual_projects are not configured
+    if (prefix) {
+      return prefix;
+    }
   }
   return config.project_key;
 }

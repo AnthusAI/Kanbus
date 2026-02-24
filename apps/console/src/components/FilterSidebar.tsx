@@ -99,7 +99,7 @@ export function FilterSidebar({
   onTypeChange,
   onTransitionEnd
 }: FilterSidebarProps) {
-  const hasProjects = projectLabels.length > 0;
+  const hasProjects = projectLabels.length > 1;
   const hasFocus = Boolean(focusedIssueLabel);
 
   return (
