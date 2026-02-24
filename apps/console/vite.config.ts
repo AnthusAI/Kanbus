@@ -4,8 +4,8 @@ import { resolvePortOrExit } from "./scripts/resolvePort";
 
 const vitePort = Number(process.env.VITE_PORT ?? "5173");
 const consolePort = Number(process.env.CONSOLE_PORT ?? "5174");
-// Use loopback by default; Playwright base_url uses localhost.
-const viteHost = process.env.VITE_HOST ?? "127.0.0.1";
+// Bind broadly so localhost resolves in CI (IPv4/IPv6)
+const viteHost = process.env.VITE_HOST ?? "0.0.0.0";
 
 export default defineConfig(async () => {
   const port = await resolvePortOrExit({
