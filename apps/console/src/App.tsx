@@ -604,6 +604,13 @@ export default function App() {
   const hasVirtualProjects = config
     ? Object.keys(config.virtual_projects ?? {}).length > 0
     : false;
+
+  // Ensure project filter state is initialized once config/project labels are known
+  useEffect(() => {
+    if (projectLabels.length > 0 && enabledProjects === null) {
+      setEnabledProjects(new Set(projectLabels));
+    }
+  }, [projectLabels, enabledProjects]);
   const showAllTypes = route.typeFilter === "all";
 
   // Initialize collapsed columns from config (only once)
@@ -1572,9 +1579,7 @@ export default function App() {
     }
 
     // Apply project filter
-    const shouldFilterProjects = projectLabels.length > 0
-      && effectiveEnabledProjects.size < projectLabels.length;
-    if (shouldFilterProjects) {
+    if (projectLabels.length > 0) {
       result = result.filter((issue) => {
         const label = getIssueProjectLabel(issue, config ?? null);
         return effectiveEnabledProjects.has(label);
@@ -1616,8 +1621,8 @@ export default function App() {
       result = result.filter((issue) => matchesSearchQuery(issue, searchQuery));
     }
 
-    const shouldApplyProjectFilter = projectLabels.length > 0;
-    if (shouldApplyProjectFilter) {
+    // Always apply project filter when project labels exist (enabledProjects defaults to all)
+    if (projectLabels.length > 0) {
       result = result.filter((issue) => {
         const label = getIssueProjectLabel(issue, config);
         return effectiveEnabledProjects.has(label);
