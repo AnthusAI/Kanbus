@@ -188,6 +188,35 @@ fn add_beads_dependency(world: &mut KanbusWorld, source: &str, target: &str, dep
     }
 }
 
+fn append_beads_issue_record(
+    world: &mut KanbusWorld,
+    identifier: &str,
+    status: &str,
+    updated_at: &str,
+) {
+    let path = beads_issues_path(world);
+    let mut records = load_beads_records(&path);
+    let mut object = serde_json::Map::new();
+    object.insert("id".to_string(), json!(identifier));
+    object.insert("title".to_string(), json!("Title"));
+    object.insert("issue_type".to_string(), json!("task"));
+    object.insert("status".to_string(), json!(status));
+    object.insert("priority".to_string(), json!(2));
+    object.insert("created_at".to_string(), json!(updated_at));
+    object.insert("updated_at".to_string(), json!(updated_at));
+    object.insert("dependencies".to_string(), Value::Array(Vec::new()));
+    object.insert("comments".to_string(), Value::Array(Vec::new()));
+    records.push(Value::Object(object));
+    fs::write(
+        &path,
+        records
+            .iter()
+            .map(|value| value.to_string() + "\n")
+            .collect::<String>(),
+    )
+    .expect("write beads issues");
+}
+
 #[given("a Beads fixture repository")]
 fn given_beads_fixture_repo(world: &mut KanbusWorld) {
     let temp_dir = TempDir::new().expect("tempdir");
@@ -211,6 +240,35 @@ fn given_beads_fixture_repo(world: &mut KanbusWorld) {
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
     world.last_beads_issue_id = None;
+}
+
+#[given(expr = "a beads issue {string} exists with status {string} and updated_at {string}")]
+fn given_beads_issue_exists_with_status_updated_at(
+    world: &mut KanbusWorld,
+    identifier: String,
+    status: String,
+    updated_at: String,
+) {
+    append_beads_issue_record(world, &identifier, &status, &updated_at);
+}
+
+#[then(expr = "beads issues.jsonl should contain exactly {int} records with id {string}")]
+fn then_beads_jsonl_contains_exactly(
+    world: &mut KanbusWorld,
+    count: i32,
+    identifier: String,
+) {
+    let path = beads_issues_path(world);
+    let records = load_beads_records(&path);
+    let matches = records
+        .iter()
+        .filter(|record| record.get("id").and_then(Value::as_str) == Some(identifier.as_str()))
+        .count();
+    assert_eq!(
+        matches,
+        count as usize,
+        "expected {count} records for {identifier}, found {matches}"
+    );
 }
 
 #[given(regex = r#"a kanbus issue "(?P<child>[^"]+)" exists with parent "(?P<parent_id>[^"]+)"$"#)]
