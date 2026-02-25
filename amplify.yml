@@ -3,7 +3,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - bash tools/run_amplify_ci.sh
+        # Skip full CI gate in Amplify; GitHub Actions handles CI.
         - |
           backend_count=$(
             aws amplify list-backend-environments --app-id "$AWS_APP_ID" --region "$AWS_REGION" --output json \
