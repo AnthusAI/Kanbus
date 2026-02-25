@@ -59,6 +59,7 @@ def load_beads_issues(root: Path) -> List[IssueData]:
         raise MigrationError("no issues.jsonl")
 
     records = _load_beads_records(issues_path)
+    records = _dedupe_beads_records(records, issues_path)
     configuration = _load_configuration_for_beads(root, records)
     record_by_id = {record["id"]: record for record in records}
     return [_convert_record(record, record_by_id, configuration) for record in records]
@@ -112,6 +113,7 @@ def migrate_from_beads(root: Path) -> MigrationResult:
     configuration = load_project_configuration(get_configuration_path(root))
 
     records = _load_beads_records(issues_path)
+    records = _dedupe_beads_records(records, issues_path)
     record_by_id = {record["id"]: record for record in records}
 
     for record in records:
@@ -132,6 +134,63 @@ def _load_beads_records(issues_path: Path) -> List[Dict[str, Any]]:
             raise MigrationError("missing id")
         records.append(record)
     return records
+
+
+def _dedupe_beads_records(
+    records: List[Dict[str, Any]], issues_path: Path
+) -> List[Dict[str, Any]]:
+    """Deduplicate Beads records by ID and rewrite issues.jsonl when resolved."""
+    indices_by_id: Dict[str, List[int]] = {}
+    for index, record in enumerate(records):
+        identifier = record.get("id")
+        if not identifier:
+            raise MigrationError("missing id")
+        indices_by_id.setdefault(identifier, []).append(index)
+
+    chosen_indices: Dict[str, int] = {}
+    for identifier, indices in indices_by_id.items():
+        if len(indices) == 1:
+            chosen_indices[identifier] = indices[0]
+            continue
+        group = [records[index] for index in indices]
+        first = group[0]
+        if all(record == first for record in group):
+            chosen_indices[identifier] = indices[-1]
+            continue
+        timestamps = [
+            (_parse_timestamp(records[index].get("updated_at"), "updated_at"), index)
+            for index in indices
+        ]
+        max_timestamp = max(timestamp for timestamp, _ in timestamps)
+        max_indices = [
+            index for timestamp, index in timestamps if timestamp == max_timestamp
+        ]
+        if len(max_indices) == 1:
+            chosen_indices[identifier] = max_indices[0]
+            continue
+        sizes = [
+            (len(json.dumps(records[index])), index)
+            for index in max_indices
+        ]
+        max_size = max(size for size, _ in sizes)
+        size_matches = [
+            index for size, index in sizes if size == max_size
+        ]
+        chosen_indices[identifier] = size_matches[-1]
+
+    deduped: List[Dict[str, Any]] = []
+    for index, record in enumerate(records):
+        identifier = record.get("id")
+        if not identifier:
+            raise MigrationError("missing id")
+        if chosen_indices.get(identifier) == index:
+            deduped.append(record)
+
+    if deduped != records:
+        with issues_path.open("w", encoding="utf-8") as handle:
+            for record in deduped:
+                handle.write(json.dumps(record) + "\n")
+    return deduped
 
 
 def _load_configuration_for_beads(
