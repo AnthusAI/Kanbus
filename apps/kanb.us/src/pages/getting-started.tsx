@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Layout, Section, Hero, CodeBlock } from "../components";
-import { Card, CardContent, CardHeader } from "@kanbus/ui";
+import { Card, CardContent } from "@kanbus/ui";
 
 const GettingStartedPage = () => {
   return (
@@ -13,36 +13,22 @@ const GettingStartedPage = () => {
 
       <div className="space-y-12">
         <Section
-          title="Download prebuilt binaries"
-          subtitle="Get the Rust CLI and console server for your platform."
+          title="Install with cargo"
+          subtitle="Cargo installs the preferred binaries, keeping the CLI and web console in sync."
         >
           <Card className="p-8 bg-card">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
               <p>
-                Download the latest release from GitHub Releases. Two binaries are available:
+                Cargo is the recommended installation path. It publishes two crates, <code>kbs</code> (CLI)
+                and <code>kbsc</code> (web console), so you can update them quickly across any Rust toolchain.
               </p>
-              <ul className="list-disc list-inside space-y-2">
-                <li><code>kanbusr</code> - High-performance CLI for managing issues</li>
-                <li><code>kanbus-console</code> - Web UI server with embedded frontend assets</li>
-              </ul>
-              <CodeBlock label="Download CLI (Linux x86_64)">
-{`curl -L -o kanbusr.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbusr-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf kanbusr.tar.gz
-chmod +x kanbusr
-./kanbusr --help`}
+              <CodeBlock label="Cargo (CLI)">
+{`cargo install kbs
+kbs --help`}
               </CodeBlock>
-              <CodeBlock label="Download Console Server (Linux x86_64)">
-{`curl -L -o kanbus-console.tar.gz https://github.com/AnthusAI/Kanbus/releases/download/v0.1.0/kanbus-console-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf kanbus-console.tar.gz
-chmod +x kanbus-console
-./kanbus-console
-# Opens web UI at http://127.0.0.1:5174/`}
-              </CodeBlock>
-              <p>
-                Optional: Create shortcuts <code>kbs</code> and <code>kbsc</code> by running the installer:
-              </p>
-              <CodeBlock label="Shortcuts (optional)">
-{`curl -sSL https://raw.githubusercontent.com/AnthusAI/Kanbus/main/rust/install-aliases.sh | bash`}
+              <CodeBlock label="Cargo (web console)">
+{`cargo install kbsc
+kbsc --help`}
               </CodeBlock>
             </CardContent>
           </Card>
@@ -50,37 +36,17 @@ chmod +x kanbus-console
 
         <Section
           title="Install with pip"
-          subtitle="Use the Python CLI for fast iteration and scripting."
+          subtitle="Use the Python CLI for rapid scripting or embedding Kanbus into Python workflows."
           variant="alt"
         >
           <Card className="p-8 bg-card">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
               <p>
-                Install Kanbus from PyPI and use the <code>kanbusr</code> command (a <code>kanbus</code> alias is also installed).
+                Install Kanbus from PyPI and run <code>kbs</code> (a <code>kanbus</code> alias is also available).
               </p>
               <CodeBlock label="Python">
-{`python -m pip install kanbusr
-kanbusr --help`}
-              </CodeBlock>
-            </CardContent>
-          </Card>
-        </Section>
-
-        <Section
-          title="Install with cargo"
-          subtitle="Rust installation is coming soon."
-        >
-          <Card className="p-8 bg-card">
-            <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
-              <div className="inline-flex items-center rounded-full bg-card-muted px-3 py-1 text-xs font-semibold text-muted">
-                Coming soon
-              </div>
-              <p>
-                We will publish <code>kanbusr</code> to crates.io once the registry
-                listing is ready.
-              </p>
-              <CodeBlock label="Cargo (coming soon)">
-{`cargo install kanbusr`}
+{`python -m pip install kbs
+kbs --help`}
               </CodeBlock>
             </CardContent>
           </Card>
@@ -88,8 +54,7 @@ kanbusr --help`}
 
         <Section
           title="Build from source"
-          subtitle="Clone the repo and run directly."
-          variant="alt"
+          subtitle="Clone the repo and build the Rust and Python binaries yourself."
         >
           <Card className="p-8 bg-card">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
@@ -100,12 +65,42 @@ cd Kanbus`}
               <CodeBlock label="Rust CLI">
 {`cd rust
 cargo build --release
-./target/release/kanbusr --help`}
+./target/release/kbs --help`}
+              </CodeBlock>
+              <CodeBlock label="Rust Console">
+{`./target/release/kbsc --help`}
               </CodeBlock>
               <CodeBlock label="Python CLI">
 {`cd python
 python -m pip install -e .
-kanbusr --help`}
+kbs --help`}
+              </CodeBlock>
+            </CardContent>
+          </Card>
+        </Section>
+
+        <Section
+          title="Download prebuilt binaries"
+          subtitle="Grab the kbs and kbsc releases from GitHub if you prefer standalone archives."
+          variant="alt"
+        >
+          <Card className="p-8 bg-card">
+            <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
+              <p>
+                Each release archive contains a single binary. Extract, mark executable, and run <code>kbs</code> or <code>kbsc</code>.
+              </p>
+              <CodeBlock label="Download CLI (Linux x86_64)">
+{`curl -L -o kbs.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kbs-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kbs.tar.gz
+chmod +x kbs
+./kbs --help`}
+              </CodeBlock>
+              <CodeBlock label="Download Console Server (Linux x86_64)">
+{`curl -L -o kbsc.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kbsc-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kbsc.tar.gz
+chmod +x kbsc
+./kbsc
+# Opens web UI at http://127.0.0.1:5174/`}
               </CodeBlock>
             </CardContent>
           </Card>
@@ -118,14 +113,14 @@ kanbusr --help`}
           <Card className="p-8 bg-card">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
               <p>
-                Run <code>kanbusr init</code> once in the repository root. It creates
+                Run <code>kbs init</code> once in the repository root. It creates
                 the <code>project/</code> directory and the repo-level
                 <code>.kanbus.yml</code> file.
               </p>
               <CodeBlock label="Initialize">
 {`cd your-repo
 git init
-kanbusr init`}
+kbs init`}
               </CodeBlock>
             </CardContent>
           </Card>
@@ -145,8 +140,8 @@ kanbusr init`}
                 assignee or time zone.
               </p>
               <CodeBlock label="Validate">
-{`kanbusr list
-kanbusr ready`}
+{`kbs list
+kbs ready`}
               </CodeBlock>
             </CardContent>
           </Card>
