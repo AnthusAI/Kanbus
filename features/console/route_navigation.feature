@@ -6,6 +6,11 @@ Feature: Console route navigation
     When I open the console route "/epics/"
     Then the "Epics" tab should be selected
 
+  Scenario: Root route renders issues without account/project
+    Given the console is open
+    When I open the console route "/"
+    Then I should see the issue "Observability overhaul"
+
   Scenario: Direct issues route selects issues tab
     Given the console is open
     When I open the console route "/issues/"
