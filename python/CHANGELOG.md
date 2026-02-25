@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v0.13.2 (2026-02-25)
+
+### Bug Fixes
+
+- **amplify**: Robust backend env guard
+  ([`cc2c350`](https://github.com/AnthusAI/Kanbus/commit/cc2c350f95fed61e7759677552a5e78a048a8da1))
+
+- **amplify**: Skip ampx without backend env
+  ([`05847f4`](https://github.com/AnthusAI/Kanbus/commit/05847f44220293e5e9b81c87b75d0c6b35e01d09))
+
+- **amplify**: Use backend-cli for ampx
+  ([`c1ebc1a`](https://github.com/AnthusAI/Kanbus/commit/c1ebc1aa17154a2225fc8625b5b66b84ae206e28))
+
+### Chores
+
+- **rust**: Update Cargo.lock
+  ([`2c8dbee`](https://github.com/AnthusAI/Kanbus/commit/2c8dbee94aef83862b393376aaa6df5242084c78))
+
+
 ## v0.13.1 (2026-02-24)
 
 ### Bug Fixes
