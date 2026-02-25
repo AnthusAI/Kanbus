@@ -1,8 +1,9 @@
 import {
   Bug,
-  BookOpen,
+  Bookmark,
   CheckSquare,
   ListChecks,
+  Zap,
   Rocket,
   Square,
   Tag,
@@ -13,15 +14,15 @@ import {
 export function getTypeIcon(type: string, status?: string) {
   if (type === "task" || type === "story") {
     const taskIcon = status === "closed" ? CheckSquare : Square;
-    return type === "task" ? taskIcon : BookOpen;
+    return type === "task" ? taskIcon : Bookmark;
   }
 
   const iconMap: Record<string, any> = {
     initiative: Rocket,
-    epic: ListChecks,
+    epic: Zap,
     "sub-task": CornerDownRight,
     bug: Bug,
-    story: BookOpen,
+    story: Bookmark,
     chore: Wrench
   };
 
