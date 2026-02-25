@@ -50,11 +50,16 @@ const FeaturesPage = () => {
           subtitle="Flexible tools that adapt to how you actually work."
           variant="alt"
         >
-          <div className="grid gap-6 md:grid-cols-1">
+          <div className="grid gap-6 md:grid-cols-2">
             <FeatureCard
               title="Local Tasks"
               description="Keep private tasks off git and promote them when they are ready to share. Perfect for scratchpad ideas, personal to-dos, or drafting complex tickets before they go public."
               href="/features/local-tasks"
+            />
+            <FeatureCard
+              title="Virtual Projects"
+              description="Aggregate issues from multiple repositories into a single view. Query, filter, and track work across your entire stack without context switching."
+              href="/features/virtual-projects"
             />
           </div>
         </Section>
