@@ -1,9 +1,19 @@
-import { Given, When, Then } from "@cucumber/cucumber";
+import { Given, When, Then, After } from "@cucumber/cucumber";
 import { expect } from "@playwright/test";
-import { writeFile, rm } from "fs/promises";
+import { writeFile, readFile, rm, mkdir, cp } from "fs/promises";
 import path from "path";
+import yaml from "js-yaml";
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
+const fixtureRoot = path.resolve(process.cwd(), "tests", "fixtures", "project");
+const consoleConfigPath = process.env.CONSOLE_CONFIG_PATH
+  ?? (projectRoot ? path.join(path.dirname(projectRoot), ".kanbus.yml") : null);
+const consolePort = process.env.CONSOLE_PORT ?? "5174";
+const consoleBaseUrl =
+  process.env.CONSOLE_BASE_URL ?? `http://localhost:${consolePort}/`;
+const consoleApiBase =
+  process.env.CONSOLE_API_BASE ?? `${consoleBaseUrl.replace(/\/+$/, "")}/api`;
+let issueCounter = 1;
 
 // Helper to ensure project root is available
 function requireProjectRoot() {
@@ -12,6 +22,97 @@ function requireProjectRoot() {
   }
   return projectRoot;
 }
+
+async function refreshConsoleSnapshot() {
+  const maxAttempts = 3;
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const issuesResponse = await fetch(`${consoleApiBase}/issues?refresh=1`);
+    if (issuesResponse.ok) {
+      return;
+    }
+    lastError = issuesResponse.status;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  throw new Error(`console issues request failed: ${lastError}`);
+}
+
+async function loadConsoleConfig() {
+  const response = await fetch(`${consoleApiBase}/config`);
+  if (!response.ok) {
+    throw new Error(`console config request failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function resolveProjectLabel(label) {
+  if (label !== "kbs") {
+    return label;
+  }
+  const config = await loadConsoleConfig();
+  return config.project_key ?? label;
+}
+
+async function reloadConsoleIfStale(world) {
+  if (!world.metricsStale) {
+    return;
+  }
+  await refreshConsoleSnapshot();
+  await world.page.reload({ waitUntil: "domcontentloaded" });
+  world.metricsStale = false;
+}
+
+async function openFilterSidebar(page) {
+  const panel = page.getByTestId("filter-sidebar");
+  const isOpen = (await panel.getAttribute("aria-hidden")) === "false";
+  if (!isOpen) {
+    await page.getByTestId("filter-button").click();
+    await expect(panel).toHaveAttribute("aria-hidden", "false");
+  }
+}
+
+async function closeFilterSidebar(page) {
+  const panel = page.getByTestId("filter-sidebar");
+  const isOpen = (await panel.getAttribute("aria-hidden")) === "false";
+  if (!isOpen) {
+    return;
+  }
+  await page.getByTestId("filter-sidebar-close").click();
+  await expect
+    .poll(async () => panel.getAttribute("aria-hidden"), { timeout: 8000 })
+    .toBe("true");
+}
+
+async function resetMetricsProjectRoot() {
+  const root = requireProjectRoot();
+  const repoRoot = path.dirname(root);
+  await rm(path.join(repoRoot, "project"), { recursive: true, force: true });
+  await rm(path.join(repoRoot, "project-local"), { recursive: true, force: true });
+  await rm(path.join(repoRoot, "virtual"), { recursive: true, force: true });
+  await cp(fixtureRoot, root, { recursive: true });
+  issueCounter = 1;
+}
+
+async function resetMetricsConfig() {
+  if (!consoleConfigPath) {
+    return;
+  }
+  const config = await loadKanbusConfigFile();
+  config.project_directory ??= "project";
+  config.project_key ??= "kanbus";
+  config.virtual_projects = {};
+  await saveKanbusConfigFile(config);
+}
+
+After(async function () {
+  if (!this.metricsDirty) {
+    return;
+  }
+  await resetMetricsConfig();
+  await resetMetricsProjectRoot();
+  this.metricsDirty = false;
+  this.metricsStale = false;
+});
 
 // Helper to build a metrics issue
 function buildMetricsIssue({
@@ -22,8 +123,11 @@ function buildMetricsIssue({
   project = "kbs"
 }) {
   const timestamp = new Date().toISOString();
+  const sanitizedProject = project.replace(/[^a-zA-Z0-9_-]/g, "");
+  const sequence = issueCounter++;
+  const defaultId = `${sanitizedProject}-${type}-${sequence}`;
   return {
-    id,
+    id: id ?? defaultId,
     title,
     description: "Generated for metrics test",
     type,
@@ -43,8 +147,40 @@ function buildMetricsIssue({
   };
 }
 
+async function loadKanbusConfigFile() {
+  if (!consoleConfigPath) {
+    return {};
+  }
+  try {
+    const contents = await readFile(consoleConfigPath, "utf-8");
+    return yaml.load(contents) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveKanbusConfigFile(config) {
+  if (!consoleConfigPath) {
+    return;
+  }
+  const contents = yaml.dump(config, { sortKeys: false });
+  await writeFile(consoleConfigPath, contents, "utf-8");
+}
+
+async function ensureVirtualProjectConfig(label) {
+  const config = await loadKanbusConfigFile();
+  config.project_directory ??= "project";
+  config.project_key ??= "kanbus";
+  config.virtual_projects = config.virtual_projects ?? {};
+  if (!config.virtual_projects[label]) {
+    config.virtual_projects[label] = { path: `virtual/${label}/project` };
+  }
+  await saveKanbusConfigFile(config);
+}
+
 When("I switch to the {string} view", async function (viewName) {
   const normalized = viewName.toLowerCase();
+  await reloadConsoleIfStale(this);
   await this.page.getByTestId(`view-toggle-${normalized}`).click();
 });
 
@@ -82,6 +218,8 @@ Then("the metrics toggle should include a chart icon", async function () {
 });
 
 Given("no issues exist in the console", async function () {
+  this.metricsDirty = true;
+  this.metricsStale = true;
   const root = requireProjectRoot();
   const repoRoot = path.dirname(root);
   
@@ -93,16 +231,17 @@ Given("no issues exist in the console", async function () {
   await rm(path.join(repoRoot, "virtual"), { recursive: true, force: true });
   
   // Re-create issues directories
-  const mkdir = require("fs/promises").mkdir;
   await mkdir(path.join(root, "issues"), { recursive: true });
 });
 
 Given(
   "a metrics issue {string} of type {string} with status {string} in project {string} from {string}",
   async function (title, type, status, projectLabel, source) {
+    this.metricsDirty = true;
+    this.metricsStale = true;
     const root = requireProjectRoot();
     const repoRoot = path.dirname(root);
-    const mkdir = require("fs/promises").mkdir;
+    const resolvedProject = await resolveProjectLabel(projectLabel);
     
     let issueDir;
     if (projectLabel === "kbs") {
@@ -112,6 +251,7 @@ Given(
             issueDir = path.join(root, "issues");
         }
     } else {
+        await ensureVirtualProjectConfig(projectLabel);
         // Virtual project
         if (source === "local") {
             issueDir = path.join(repoRoot, "virtual", projectLabel, "project-local", "issues");
@@ -122,8 +262,14 @@ Given(
     
     await mkdir(issueDir, { recursive: true });
     
-    const id = `${projectLabel}-${source}-${title.replace(/\s+/g, "-").toLowerCase()}`;
-    const issue = buildMetricsIssue({ id, title, type, status });
+    const id = `${resolvedProject}-${type}-${issueCounter}`;
+    const issue = buildMetricsIssue({
+      id,
+      title,
+      type,
+      status,
+      project: resolvedProject
+    });
     await writeFile(path.join(issueDir, `${id}.json`), JSON.stringify(issue, null, 2));
   }
 );
@@ -137,7 +283,8 @@ Then("the metrics status count for {string} should be {string}", async function 
 });
 
 Then("the metrics project count for {string} should be {string}", async function (project, count) {
-    await expect(this.page.getByTestId(`metrics-project-${project}`)).toHaveText(count);
+    const resolved = await resolveProjectLabel(project);
+    await expect(this.page.getByTestId(`metrics-project-${resolved}`)).toHaveText(count);
 });
 
 Then("the metrics scope count for {string} should be {string}", async function (scope, count) {
@@ -166,10 +313,34 @@ Then("the metrics chart should use category colors", async function () {
     expect(fill).toBeTruthy();
 });
 
+async function isFilterChecked(page, label) {
+  const panel = page.getByTestId("filter-sidebar");
+  const button = panel.getByRole("button", { name: label }).first();
+  const checkbox = button.locator("span").first();
+  const className = await checkbox.getAttribute("class");
+  return Boolean(className && className.includes("border-accent"));
+}
+
+async function setFilterChecked(page, label, desired) {
+  const panel = page.getByTestId("filter-sidebar");
+  const button = panel.getByRole("button", { name: label }).first();
+  const current = await isFilterChecked(page, label);
+  if (current !== desired) {
+    await button.click();
+  }
+}
+
 When("I select metrics project {string}", async function (project) {
-    // Re-use existing filter steps logic if possible, or implement direct click
-    // Assuming this refers to the sidebar filter
-    await this.page.getByTestId("filter-button").click();
-    await this.page.getByRole("button", { name: project }).click();
-    await this.page.getByTestId("filter-sidebar-close").click();
+  await reloadConsoleIfStale(this);
+  const resolved = await resolveProjectLabel(project);
+  await openFilterSidebar(this.page);
+  const section = this.page.getByTestId("filter-projects-section");
+  const buttons = section.getByRole("button");
+  await expect(buttons.first()).toBeVisible();
+  const count = await buttons.count();
+  for (let index = 0; index < count; index += 1) {
+    const label = (await buttons.nth(index).innerText()).trim();
+    await setFilterChecked(this.page, label, label === resolved);
+  }
+  await closeFilterSidebar(this.page);
 });

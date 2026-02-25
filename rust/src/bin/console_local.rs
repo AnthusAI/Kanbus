@@ -250,9 +250,7 @@ async fn main() {
     let (listener, port) = acquire_listener(bind_ip, desired_port).await;
 
     #[cfg(feature = "embed-assets")]
-    println!(
-        "Console backend listening on http://{bind_host}:{port} (embedded assets)"
-    );
+    println!("Console backend listening on http://{bind_host}:{port} (embedded assets)");
     #[cfg(not(feature = "embed-assets"))]
     {
         // Verify assets directory exists before starting server
@@ -278,10 +276,16 @@ fn resolve_bind_host(value: Option<String>) -> (IpAddr, String) {
     let raw = value.unwrap_or_else(|| fallback.to_string());
     let candidate = raw.trim();
     if candidate.is_empty() {
-        return (fallback.parse().expect("valid fallback ip"), fallback.to_string());
+        return (
+            fallback.parse().expect("valid fallback ip"),
+            fallback.to_string(),
+        );
     }
     if candidate.eq_ignore_ascii_case("localhost") {
-        return (fallback.parse().expect("valid localhost ip"), fallback.to_string());
+        return (
+            fallback.parse().expect("valid localhost ip"),
+            fallback.to_string(),
+        );
     }
     match candidate.parse::<IpAddr>() {
         Ok(ip) => (ip, candidate.to_string()),
@@ -290,7 +294,10 @@ fn resolve_bind_host(value: Option<String>) -> (IpAddr, String) {
                 "Warning: CONSOLE_HOST '{}' is invalid; defaulting to 127.0.0.1",
                 candidate
             );
-            (fallback.parse().expect("valid fallback ip"), fallback.to_string())
+            (
+                fallback.parse().expect("valid fallback ip"),
+                fallback.to_string(),
+            )
         }
     }
 }

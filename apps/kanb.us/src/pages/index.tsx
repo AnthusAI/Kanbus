@@ -79,13 +79,13 @@ const IndexPage = () => {
     <Layout>
       <Hero
         title="Track issues in your repository"
-        subtitle="where your agents can see it"
+        subtitle="...where your agents can participate."
         eyebrow="Kanbus"
         actions={
           <>
             <a
               href="/getting-started"
-              className="rounded-full bg-selected px-6 py-3 text-sm font-semibold text-background shadow-card hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selected transition-all"
+              className="rounded-full bg-selected px-6 py-3 text-sm font-semibold text-background shadow-none hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selected transition-all"
             >
               Get Started
             </a>
@@ -99,14 +99,16 @@ const IndexPage = () => {
         }
       />
 
-      <p className="text-lg leading-8 text-muted max-w-2xl mx-auto text-center">
-        Files are the database. Kanbus keeps your issues, plans, and code in one repository, without the complexity.
-        <span className="block mt-4 text-base text-muted/80">
+      <div className="mx-auto max-w-3xl px-6 lg:px-8 text-center pb-24">
+        <p className="text-xl leading-8 text-muted font-medium">
+          Kanbus brings project management to your source code. Treat issues as files, track work with Git, and let AI agents participate directly in your workflow without the complexity of external databases.
+        </p>
+        <p className="mt-6 text-base text-muted/80">
           Already using Beads? Get an instant Kanban board with zero migration.
-        </span>
-      </p>
+        </p>
+      </div>
 
-      <div className="space-y-12">
+      <div className="space-y-24">
         <Section
           title="Features"
           subtitle="Focused capabilities that make Kanbus practical for daily work."
@@ -259,19 +261,20 @@ const IndexPage = () => {
           <div className="grid gap-8 md:grid-cols-3">
             <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
               <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">Python CLI</h3>
+                <h3 className="text-xl font-bold text-foreground">Rust CLI</h3>
               </CardHeader>
               <CardContent className="p-0 text-muted leading-relaxed">
-                Easy to install via pip. Perfect for scripting, local workflows, and integrating with AI tools.
+                The preferred way to run Kanbus. High-performance binary for CI/CD pipelines and large repositories.
+                Install via Cargo or download a pre-built binary.
               </CardContent>
             </Card>
             <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
               <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">Rust CLI</h3>
+                <h3 className="text-xl font-bold text-foreground">Python CLI</h3>
               </CardHeader>
               <CardContent className="p-0 text-muted leading-relaxed">
-                High-performance binary for CI/CD pipelines and large repositories. 100% behavior parity with
-                the Python version.
+                Alternative implementation available via PyPi. Perfect for scripting, local workflows, and
+                integrating with Python-based AI tools.
               </CardContent>
             </Card>
             <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
