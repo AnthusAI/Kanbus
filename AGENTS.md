@@ -408,3 +408,4 @@ This project follows a standard Git Flow workflow:
 -   Always check which branch you are on (`git status`).
 -   If implementing a feature, ensure you branch from `dev`.
 -   If asked to switch branches, preserve uncommitted changes unless instructed otherwise.
+-   Do not create or amend commits without explicit user approval after they have reviewed the changes.
