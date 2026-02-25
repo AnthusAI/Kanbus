@@ -336,7 +336,12 @@ jobs:
       - name: Publish all platform packages
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: ./node_modules/.bin/vsce publish --packagePath *.vsix
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "VSCE_PAT not set; skipping VSCode Marketplace publish."
+            exit 0
+          fi
+          ./node_modules/.bin/vsce publish --packagePath *.vsix
         working-directory: apps/vscode
 
   rust-crate:

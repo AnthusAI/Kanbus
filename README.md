@@ -1,6 +1,7 @@
 # Kanbus
 
-**A tiny Jira clone for your repo.**
+**Track issues in your repository**
+where your agents can participate
 
 ![Python CI](https://raw.githubusercontent.com/AnthusAI/Kanbus/badges/python-ci.svg)
 ![Rust CI](https://raw.githubusercontent.com/AnthusAI/Kanbus/badges/rust-ci.svg)

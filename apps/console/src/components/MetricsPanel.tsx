@@ -8,7 +8,6 @@ import { buildStatusCategoryColorVariable } from "../utils/issue-colors";
 interface MetricsPanelProps {
   issues: Issue[];
   config: ProjectConfig;
-  hasVirtualProjects: boolean;
   hasLocalIssues: boolean;
   projectLabels: string[];
 }
@@ -71,7 +70,21 @@ function useElementSize<T extends HTMLElement>() {
 }
 
 function resolveIssueProjectLabel(issue: Issue, config: ProjectConfig): string {
-  return (issue.custom?.project_label as string) || config.project_key;
+  const explicit = issue.custom?.project_label as string | undefined;
+  if (explicit) {
+    return explicit;
+  }
+  const parts = issue.id.split("-");
+  if (parts.length > 1) {
+    const prefix = parts[0];
+    if (prefix === config.project_key) {
+      return config.project_key;
+    }
+    if (config.virtual_projects && Object.keys(config.virtual_projects).includes(prefix)) {
+      return prefix;
+    }
+  }
+  return config.project_key;
 }
 
 function resolveIssueScope(issue: Issue): "local" | "project" {
@@ -267,21 +280,38 @@ function MetricsChart({
             xScale={xScale}
             color={(key) => statusColors[key] ?? FALLBACK_COLOR}
           >
-            {(barStacks) =>
-              barStacks.map((barStack) =>
-                barStack.bars.map((bar) => (
-                  <rect
-                    key={`${barStack.key}-${bar.index}`}
-                    x={bar.x}
-                    y={bar.y}
-                    width={bar.width}
-                    height={bar.height}
-                    fill={bar.color}
-                    rx={6}
-                  />
-                ))
-              )
-            }
+            {(barStacks) => {
+              const grouped = new Map<string, { bar: typeof barStacks[number]["bars"][number]; status: string; }[]>();
+              barStacks.forEach((stack) => {
+                stack.bars.forEach((bar) => {
+                  const barData = (bar.bar as any)?.data ?? (bar as any)?.bar?.data;
+                  const type = barData?.type as string | undefined;
+                  if (!type || !bar.width || bar.width <= 0 || !bar.height || bar.height <= 0) {
+                    return;
+                  }
+                  const existing = grouped.get(type) ?? [];
+                  existing.push({ bar, status: stack.key });
+                  grouped.set(type, existing);
+                });
+              });
+
+              return Array.from(grouped.entries()).map(([type, bars]) => (
+                <g key={type} className="visx-bar-group" data-type={type}>
+                  {bars.map(({ bar, status }) => (
+                    <rect
+                      key={`${status}-${bar.index}`}
+                      x={bar.x}
+                      y={bar.y}
+                      width={bar.width}
+                      height={bar.height}
+                      fill={bar.color}
+                      rx={6}
+                      data-status={status}
+                    />
+                  ))}
+                </g>
+              ));
+            }}
           </BarStackHorizontal>
           {data.map((row) => {
             const y = yScale(row.type);
@@ -310,7 +340,6 @@ function MetricsChart({
 export function MetricsPanel({
   issues,
   config,
-  hasVirtualProjects,
   hasLocalIssues,
   projectLabels,
 }: MetricsPanelProps) {
@@ -326,7 +355,9 @@ export function MetricsPanel({
         <div className="metrics-summary">
           <div className="metrics-block">
             <div className="metrics-section-title">Total Issues</div>
-            <div className="metrics-total">{summary.total}</div>
+            <div className="metrics-total" data-testid="metrics-total-count">
+              {summary.total}
+            </div>
           </div>
           <div className="metrics-block">
             <div className="metrics-section-title">Status</div>
@@ -334,19 +365,29 @@ export function MetricsPanel({
               {summary.statusRows.map((row) => (
                 <div key={row.key} className="metrics-row">
                   <span className="metrics-row-label">{row.label}</span>
-                  <span className="metrics-row-value">{row.count}</span>
+                  <span
+                    className="metrics-row-value"
+                    data-testid={`metrics-status-${row.key}`}
+                  >
+                    {row.count}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
-          {hasVirtualProjects ? (
+          {projectLabels.length > 0 ? (
             <div className="metrics-block">
               <div className="metrics-section-title">Project</div>
               <div className="metrics-rows">
                 {summary.projectRows.map((row) => (
                   <div key={row.label} className="metrics-row">
                     <span className="metrics-row-label">{row.label}</span>
-                    <span className="metrics-row-value">{row.count}</span>
+                    <span
+                      className="metrics-row-value"
+                      data-testid={`metrics-project-${row.label}`}
+                    >
+                      {row.count}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -359,7 +400,12 @@ export function MetricsPanel({
                 {summary.scopeRows.map((row) => (
                   <div key={row.label} className="metrics-row">
                     <span className="metrics-row-label">{row.label}</span>
-                    <span className="metrics-row-value">{row.count}</span>
+                    <span
+                      className="metrics-row-value"
+                      data-testid={`metrics-scope-${row.label.toLowerCase()}`}
+                    >
+                      {row.count}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -377,7 +423,7 @@ export function MetricsPanel({
               statusColors={chart.statusColors}
             />
           </div>
-          <div className="metrics-legend">
+          <div className="metrics-legend" data-testid="metrics-chart-legend">
             {chart.legend.map((entry) => (
               <div key={entry.label} className="metrics-legend-item">
                 <span

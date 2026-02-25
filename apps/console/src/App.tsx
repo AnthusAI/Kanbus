@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   CheckCheck,
@@ -373,6 +373,31 @@ function resolveIssueByIdentifier(
   return { issue: matches[0], error: null };
 }
 
+function getIssueProjectLabel(issue: Issue, config: ProjectConfig | null): string {
+  if (!config) {
+    return issue.custom?.project_label as string || issue.id.split("-")[0];
+  }
+  const explicit = issue.custom?.project_label as string | undefined;
+  if (explicit) {
+    return explicit;
+  }
+  const parts = issue.id.split("-");
+  if (parts.length > 1) {
+    const prefix = parts[0];
+    if (prefix === config.project_key) {
+      return config.project_key;
+    }
+    if (config.virtual_projects && Object.keys(config.virtual_projects).includes(prefix)) {
+      return prefix;
+    }
+    // Fall back to the observed prefix so metrics/filtering work even when virtual_projects are not configured
+    if (prefix) {
+      return prefix;
+    }
+  }
+  return config.project_key;
+}
+
 function collectDescendants(issues: Issue[], parentId: string): Set<string> {
   const childrenByParent = new Map<string, string[]>();
   issues.forEach((issue) => {
@@ -559,9 +584,27 @@ export default function App() {
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   useAppearance();
   const config = snapshot?.config;
-  const issues = snapshot?.issues ?? [];
+  const issues = useMemo(() => {
+    const list = snapshot?.issues ?? [];
+    if (!list.length) return [];
+    const map = new Map<string, Issue>();
+    list.forEach((issue) => {
+      if (issue?.id) {
+        map.set(issue.id, issue);
+      }
+    });
+    return Array.from(map.values());
+  }, [snapshot?.issues]);
   const deferredIssues = useDeferredValue(issues);
   const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
+  const refreshSnapshot = useCallback(() => {
+    if (!apiBase) {
+      return;
+    }
+    fetchSnapshot(apiBase)
+      .then((data) => setSnapshot(data))
+      .catch((err) => console.warn("[snapshot] refresh failed", err));
+  }, [apiBase]);
   const showAllTypes = route.typeFilter === "all";
 
   // Initialize collapsed columns from config (only once)
@@ -1227,6 +1270,7 @@ export default function App() {
   };
 
   const handlePanelModeChange = (value: string) => {
+    refreshSnapshot();
     if (value === "metrics") {
       setPanelMode("metrics");
       return;
@@ -1368,10 +1412,6 @@ export default function App() {
     }
   };
 
-  const hasVirtualProjects = config
-    ? Object.keys(config.virtual_projects).length > 0
-    : false;
-
   const typeFilterOptions = useMemo(() => {
     const buildOption = (
       id: string,
@@ -1416,14 +1456,52 @@ export default function App() {
       buildOption("board", "Board", LayoutGrid),
       buildOption("metrics", "Metrics", BarChart3)
     ];
-  }, []);
+  }, [panelMode]);
 
   const projectLabels = useMemo(() => {
-    if (!config || !hasVirtualProjects) {
+    if (!config) {
       return [];
     }
-    return [config.project_key, ...Object.keys(config.virtual_projects)];
-  }, [config, hasVirtualProjects]);
+    const labels = new Set<string>();
+    if (config.project_key) {
+      labels.add(config.project_key);
+    }
+    Object.keys(config.virtual_projects ?? {}).forEach((key) => labels.add(key));
+    return Array.from(labels);
+  }, [config]);
+  const hasVirtualProjects = config
+    ? Object.keys(config.virtual_projects ?? {}).length > 0
+    : false;
+
+  // Ensure project filter state is initialized once config/project labels are known
+  useEffect(() => {
+    if (projectLabels.length > 0 && enabledProjects === null) {
+      setEnabledProjects(new Set(projectLabels));
+    }
+  }, [projectLabels, enabledProjects]);
+
+  // Track project labels to auto-enable any newly discovered projects (e.g., virtual projects added at runtime)
+  const prevProjectLabelsRef = React.useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (projectLabels.length === 0) {
+      return;
+    }
+    const prev = prevProjectLabelsRef.current;
+    const nextLabels = new Set(projectLabels);
+    const newlyAdded = projectLabels.filter((label) => !prev.has(label));
+
+    if (!enabledProjects || enabledProjects.size === 0) {
+      setEnabledProjects(new Set(projectLabels));
+    } else if (newlyAdded.length > 0) {
+      setEnabledProjects((prevEnabled) => {
+        const base = prevEnabled ? new Set(prevEnabled) : new Set<string>();
+        newlyAdded.forEach((label) => base.add(label));
+        return base;
+      });
+    }
+
+    prevProjectLabelsRef.current = nextLabels;
+  }, [projectLabels, enabledProjects]);
 
   const effectiveEnabledProjects = useMemo(() => {
     if (enabledProjects != null) {
@@ -1465,8 +1543,10 @@ export default function App() {
   }, [snapshot, focusedIssueId]);
 
   const filteredIssues = useMemo(() => {
+    // Use user-selected projects; fall back to all labels if none selected yet
+    const projectFilterSet = enabledProjects ?? new Set(projectLabels);
     // Use non-deferred issues when search is active for immediate feedback
-    const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
+    const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
 
@@ -1505,10 +1585,11 @@ export default function App() {
     }
 
     // Apply project filter
-    if (hasVirtualProjects && effectiveEnabledProjects.size < projectLabels.length) {
-      result = result.filter(
-        (issue) => effectiveEnabledProjects.has(issue.custom?.project_label as string)
-      );
+    if (projectLabels.length > 0) {
+      result = result.filter((issue) => {
+        const label = getIssueProjectLabel(issue, config ?? null);
+        return projectFilterSet.has(label);
+      });
     }
 
     // Apply local/shared source filter
@@ -1520,12 +1601,25 @@ export default function App() {
     }
 
     return result;
-  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects, showAllTypes]);
+  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, enabledProjects, projectLabels.length, showLocal, showShared, showAllTypes, config]);
 
   const metricsIssues = useMemo(() => {
-    const sourceIssues = searchQuery.trim() ? issues : deferredIssues;
+    if (!config) {
+      return [];
+    }
+    const projectFilterSet = effectiveEnabledProjects ?? new Set(projectLabels);
+    if (typeof window !== "undefined") {
+      console.info("[metrics-debug]", {
+        labels: projectLabels,
+        enabled: Array.from(projectFilterSet)
+      });
+    }
+    const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
+    if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+      console.info("[metrics] filter projects", Array.from(projectFilterSet), "issues", sourceIssues.length);
+    }
 
     if (focusedIssueId) {
       const ids = collectDescendants(sourceIssues, focusedIssueId);
@@ -1543,10 +1637,12 @@ export default function App() {
       result = result.filter((issue) => matchesSearchQuery(issue, searchQuery));
     }
 
-    if (hasVirtualProjects && effectiveEnabledProjects.size < projectLabels.length) {
-      result = result.filter(
-        (issue) => effectiveEnabledProjects.has(issue.custom?.project_label as string)
-      );
+    // Always apply project filter when project labels exist (enabledProjects defaults to all)
+    if (projectLabels.length > 0) {
+      result = result.filter((issue) => {
+        const label = getIssueProjectLabel(issue, config);
+        return projectFilterSet.has(label);
+      });
     }
 
     if (!showLocal) {
@@ -1557,7 +1653,7 @@ export default function App() {
     }
 
     return result;
-  }, [issues, deferredIssues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared, hasVirtualProjects]);
+  }, [config, issues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared]);
 
   const handleSelectIssue = (issue: Issue) => {
     if (route.basePath == null) {
@@ -1668,6 +1764,7 @@ export default function App() {
             value={panelMode}
             onChange={handlePanelModeChange}
             options={panelModeOptions}
+            testIdPrefix="view-toggle"
           />
         </div>
         <div className="flex-1 min-w-0 flex justify-end overflow-hidden gap-2">
@@ -1769,7 +1866,13 @@ export default function App() {
                 panelMode === "metrics" ? " view-track-metrics" : ""
               }`}
             >
-              <div className="view-panel">
+              <div
+                className="view-panel"
+                data-testid="board-view"
+                aria-hidden={panelMode !== "board"}
+                hidden={panelMode !== "board"}
+                style={{ display: panelMode === "board" ? undefined : "none" }}
+              >
             <div
               className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3 overflow-hidden${
                 detailMaximized ? " hidden" : ""
@@ -1897,13 +2000,20 @@ export default function App() {
                   onNavigateToDescendant={handleSelectIssue}
                 />
               </div>
-              <div className="view-panel">
-                <div className="layout-slot layout-slot-metrics h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3">
+              <div
+                className="view-panel"
+                style={{ display: panelMode === "metrics" ? undefined : "none" }}
+              >
+                <div
+                  className="layout-slot layout-slot-metrics h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3"
+                  data-testid="metrics-view"
+                  aria-hidden={panelMode !== "metrics"}
+                  hidden={panelMode !== "metrics"}
+                >
                   {config ? (
                     <MetricsPanel
                       issues={metricsIssues}
                       config={config}
-                      hasVirtualProjects={hasVirtualProjects}
                       hasLocalIssues={hasLocalIssues}
                       projectLabels={projectLabels}
                     />
@@ -1912,25 +2022,26 @@ export default function App() {
               </div>
             </div>
           </div>
-          <FilterSidebar
-            isOpen={sidebarPhase === "open" && activeSidebar === "filter"}
-            isVisible={
-              sidebarPhase !== "closed"
-              && (activeSidebar === "filter" || exitingSidebar === "filter")
-            }
-            animate={sidebarReady}
-            onTransitionEnd={handleSidebarTransitionEnd}
-            onClose={() => closeSidebar("filter")}
-            focusedIssueLabel={focusedIssueLabel}
-            onClearFocus={clearFocus}
-            projectLabels={projectLabels}
-            enabledProjects={effectiveEnabledProjects}
-            onToggleProject={handleToggleProject}
-            hasLocalIssues={hasLocalIssues}
-            showLocal={showLocal}
-            showShared={showShared}
-            onToggleLocal={() => setShowLocal((prev) => !prev)}
-            onToggleShared={() => setShowShared((prev) => !prev)}
+        <FilterSidebar
+          isOpen={sidebarPhase === "open" && activeSidebar === "filter"}
+          isVisible={
+            sidebarPhase !== "closed"
+            && (activeSidebar === "filter" || exitingSidebar === "filter")
+          }
+          animate={sidebarReady}
+          onTransitionEnd={handleSidebarTransitionEnd}
+          onClose={() => closeSidebar("filter")}
+          focusedIssueLabel={focusedIssueLabel}
+          onClearFocus={clearFocus}
+          projectLabels={projectLabels}
+          enabledProjects={effectiveEnabledProjects}
+          onToggleProject={handleToggleProject}
+          hasVirtualProjects={hasVirtualProjects}
+          hasLocalIssues={hasLocalIssues}
+          showLocal={showLocal}
+          showShared={showShared}
+          onToggleLocal={() => setShowLocal((prev) => !prev)}
+          onToggleShared={() => setShowShared((prev) => !prev)}
             typeOptions={typeFilterOptions}
             typeValue={typeFilterValue}
             onTypeChange={handleTypeFilterChange}
