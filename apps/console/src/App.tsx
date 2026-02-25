@@ -377,6 +377,14 @@ function getIssueProjectLabel(issue: Issue, config: ProjectConfig | null): strin
   if (!config) {
     return issue.custom?.project_label as string || issue.id.split("-")[0];
   }
+  // In single-project Beads compatibility mode (no virtual projects), treat all
+  // issues as belonging to the configured project key so they aren't filtered
+  // out by prefix mismatches in legacy Beads IDs (e.g., tskl-*).
+  const hasVirtuals = config.virtual_projects && Object.keys(config.virtual_projects).length > 0;
+  if (config.beads_compatibility && !hasVirtuals) {
+    return config.project_key;
+  }
+
   const explicit = issue.custom?.project_label as string | undefined;
   if (explicit) {
     return explicit;
