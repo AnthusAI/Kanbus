@@ -1136,6 +1136,82 @@ def _format_project_marker_error(error: ProjectMarkerError) -> str:
 
 
 @cli.group()
+def snyk() -> None:
+    """Snyk vulnerability synchronization commands."""
+
+
+@snyk.command(name="pull")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without writing files.",
+)
+@click.option(
+    "--min-severity",
+    default=None,
+    help="Override minimum severity (critical, high, medium, low).",
+)
+@click.option(
+    "--org-id",
+    default=None,
+    help="Override Snyk org ID.",
+)
+@click.option(
+    "--parent-epic",
+    default=None,
+    help="Override parent epic issue ID to attach bugs to.",
+)
+@click.pass_context
+def snyk_pull(
+    context: click.Context,
+    dry_run: bool,
+    min_severity: Optional[str],
+    org_id: Optional[str],
+    parent_epic: Optional[str],
+) -> None:
+    """Pull vulnerabilities from Snyk into Kanbus."""
+    from kanbus.snyk_sync import SnykSyncError, pull_from_snyk
+
+    root = Path.cwd()
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+
+    if configuration.snyk is None:
+        raise click.ClickException("no snyk configuration in .kanbus.yml")
+
+    snyk_config = configuration.snyk.model_copy(
+        update={
+            k: v
+            for k, v in {
+                "min_severity": min_severity,
+                "org_id": org_id,
+                "parent_epic": parent_epic,
+            }.items()
+            if v is not None
+        }
+    )
+
+    if dry_run:
+        click.echo("Dry run — no files will be written.\n")
+
+    try:
+        result = pull_from_snyk(root, snyk_config, configuration.project_key, dry_run)
+    except SnykSyncError as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(
+        f"pulled {result.pulled} new, updated {result.updated} existing, "
+        f"skipped {result.skipped} duplicates"
+    )
+
+
+@cli.group()
 def jira() -> None:
     """Jira synchronization commands."""
 

@@ -1,4 +1,9 @@
-.PHONY: check-python check-rust check-parity check-all fmt test
+.PHONY: build check-python check-rust check-parity check-all fmt test
+
+build:
+	cd packages/ui && npm install && npm run build
+	cd apps/console && npm install && npm run build
+	cd rust && cargo install --path .
 
 check-python:
 	cd python && black --check .
