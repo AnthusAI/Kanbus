@@ -4,8 +4,8 @@ export const getVideosBaseUrl = (): string | null => {
 
 export const getVideoSrc = (filename: string): string => {
   const base = getVideosBaseUrl();
-  if (!base) {
-    throw new Error("GATSBY_VIDEOS_BASE_URL is required to resolve video URLs.");
+  if (base) {
+    return `${base.replace(/\/$/, "")}/${filename}`;
   }
-  return `${base.replace(/\/$/, "")}/${filename}`;
+  return `/videos/${filename}`;
 };
