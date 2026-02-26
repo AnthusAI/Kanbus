@@ -10,10 +10,8 @@ import {
   Layers
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
-import { Board } from "@kanbus/ui";
-import { TaskDetailPanel } from "./components/TaskDetailPanel";
+import { Board, TaskDetailPanel, AnimatedSelector, type SelectorOption } from "@kanbus/ui";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
-import { AnimatedSelector, type SelectorOption } from "@kanbus/ui";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";

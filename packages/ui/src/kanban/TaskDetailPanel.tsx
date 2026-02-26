@@ -10,40 +10,125 @@ import {
 import gsap from "gsap";
 import mermaid from "mermaid";
 import plantumlEncoder from "plantuml-encoder";
-import type { Issue, ProjectConfig, IssueEvent } from "../types/issues";
-import { Board } from "@kanbus/ui";
+import { Board } from "./Board";
 import {
   buildIssueColorStyle,
-  buildStatusBadgeStyle,
-  formatIssueId,
-  getTypeIcon
-} from "@kanbus/ui";
-import { formatTimestamp } from "../utils/format-timestamp";
+  buildStatusBadgeStyle
+} from "./issue-colors";
+import { formatIssueId } from "./format-issue-id";
+import { getTypeIcon } from "./issue-icons";
+import type { KanbanConfig } from "./types";
+import { formatTimestamp } from "./format-timestamp";
 import { IconButton } from "./IconButton";
-import { useFlashEffect } from "../hooks/useFlashEffect";
-import { useTypingEffect } from "../hooks/useTypingEffect";
-import { fetchIssueEvents } from "../api/client";
+import { useFlashEffect } from "./useFlashEffect";
+import { useTypingEffect } from "./useTypingEffect";
+
+export type TaskDetailIssue = {
+  id: string;
+  title: string;
+  description?: string;
+  type: string;
+  status: string;
+  priority: number;
+  assignee?: string;
+  creator?: string;
+  parent?: string;
+  labels?: string[];
+  dependencies?: IssueDependency[];
+  comments?: IssueComment[];
+  created_at?: string;
+  updated_at?: string;
+  closed_at?: string;
+  custom?: Record<string, unknown>;
+};
+
+export type IssueEventType =
+  | "issue_created"
+  | "state_transition"
+  | "field_updated"
+  | "comment_added"
+  | "comment_updated"
+  | "comment_deleted"
+  | "dependency_added"
+  | "dependency_removed"
+  | "issue_deleted"
+  | "issue_localized"
+  | "issue_promoted";
+
+export type IssueEvent = {
+  schema_version: number;
+  event_id: string;
+  issue_id: string;
+  event_type: IssueEventType | string;
+  occurred_at: string;
+  actor_id: string;
+  payload: Record<string, unknown>;
+};
+
+export type IssueEventsResponse = {
+  issue_id: string;
+  events: IssueEvent[];
+  next_before?: string | null;
+};
+
+type IssueComment = {
+  id?: string;
+  author: string;
+  text: string;
+  created_at: string;
+};
+
+type IssueDependency = {
+  issue_id: string;
+  depends_on_id: string;
+  type: string;
+  created_at: string;
+  created_by: string;
+};
+
+type TaskDetailConfig = KanbanConfig & { time_zone?: string | null };
+
+async function fetchIssueEvents(
+  apiBase: string,
+  issueId: string,
+  options?: { before?: string | null; limit?: number }
+): Promise<IssueEventsResponse> {
+  const params = new URLSearchParams();
+  if (options?.limit) {
+    params.set("limit", String(options.limit));
+  }
+  if (options?.before) {
+    params.set("before", options.before);
+  }
+  const query = params.toString();
+  const url = query
+    ? `${apiBase}/issues/${issueId}/events?${query}`
+    : `${apiBase}/issues/${issueId}/events`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`issue events request failed: ${response.status}`);
+  }
+  return (await response.json()) as IssueEventsResponse;
+}
 
 const markdownRenderer = new marked.Renderer();
-markdownRenderer.link = (token: { href: string; title?: string | null; text: string }) => {
-  const safeTitle = token.title ? ` title="${token.title}"` : "";
-  return `<a href="${token.href}"${safeTitle} target="_blank" rel="noopener noreferrer">${token.text}</a>`;
+markdownRenderer.link = (href: string, title: string | null | undefined, text: string) => {
+  const safeTitle = title ? ` title="${title}"` : "";
+  return `<a href="${href}"${safeTitle} target="_blank" rel="noopener noreferrer">${text}</a>`;
 };
-markdownRenderer.code = (token: { text: string; lang?: string }) => {
-  if (token.lang === "mermaid") {
-    return `<div class="mermaid">${token.text}</div>`;
+markdownRenderer.code = (code: string, infostring: string | undefined) => {
+  if (infostring === "mermaid") {
+    return `<div class="mermaid">${code}</div>`;
   }
-  if (token.lang === "plantuml") {
-    // Encode PlantUML source - theme will be added dynamically on render
-    const encoded = encodeURIComponent(token.text);
+  if (infostring === "plantuml") {
+    const encoded = encodeURIComponent(code);
     return `<div class="plantuml-diagram" data-plantuml-source="${encoded}"></div>`;
   }
-  if (token.lang === "d2") {
-    // Encode D2 source for client-side rendering via our API
-    const encoded = encodeURIComponent(token.text);
+  if (infostring === "d2") {
+    const encoded = encodeURIComponent(code);
     return `<div class="d2-diagram" data-d2-source="${encoded}"></div>`;
   }
-  return `<pre><code class="language-${token.lang || ""}">${token.text}</code></pre>`;
+  return `<pre><code class="language-${infostring || ""}">${code}</code></pre>`;
 };
 
 marked.setOptions({
@@ -55,16 +140,17 @@ marked.setOptions({
 // Mermaid will be re-initialized with the current theme when rendering
 
 interface TaskDetailPanelProps {
-  task: Issue | null;
-  allIssues: Issue[];
+  task: TaskDetailIssue | null;
+  allIssues: TaskDetailIssue[];
   columns: string[];
   priorityLookup: Record<number, string>;
-  config?: ProjectConfig;
+  config?: TaskDetailConfig;
   apiBase: string;
   isOpen: boolean;
   isVisible: boolean;
   navDirection: "push" | "pop" | "none";
   widthPercent: number;
+  layout?: "fixed" | "auto";
   onClose: () => void;
   onToggleMaximize: () => void;
   isMaximized: boolean;
@@ -72,14 +158,14 @@ interface TaskDetailPanelProps {
   onFocus: (issueId: string) => void;
   focusedIssueId: string | null;
   focusedCommentId?: string | null;
-  onNavigateToDescendant?: (issue: Issue) => void;
+  onNavigateToDescendant?: (issue: TaskDetailIssue) => void;
 }
 
 interface DescendantLinkProps {
-  issue: Issue;
+  issue: TaskDetailIssue;
   depth: number;
   priorityName: string;
-  config?: ProjectConfig;
+  config?: TaskDetailConfig;
   onClick: () => void;
 }
 
@@ -168,6 +254,7 @@ export function TaskDetailPanel({
   isVisible,
   navDirection,
   widthPercent,
+  layout = "fixed",
   onClose,
   onToggleMaximize,
   isMaximized,
@@ -179,9 +266,9 @@ export function TaskDetailPanel({
 }: TaskDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const [displayTask, setDisplayTask] = useState<Issue | null>(task);
-  const [outgoingTask, setOutgoingTask] = useState<Issue | null>(null);
-  const [incomingTask, setIncomingTask] = useState<Issue | null>(null);
+  const [displayTask, setDisplayTask] = useState<TaskDetailIssue | null>(task);
+  const [outgoingTask, setOutgoingTask] = useState<TaskDetailIssue | null>(null);
+  const [incomingTask, setIncomingTask] = useState<TaskDetailIssue | null>(null);
   const [pagePhase, setPagePhase] = useState<"idle" | "ready" | "animating">("idle");
   const [pageDirection, setPageDirection] = useState<"push" | "pop">("push");
   const [panelOpenActive, setPanelOpenActive] = useState(false);
@@ -190,6 +277,22 @@ export function TaskDetailPanel({
   const [eventCursor, setEventCursor] = useState<string | null>(null);
   const [eventLoading, setEventLoading] = useState(false);
   const [eventError, setEventError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    console.log("[detail-panel] task", task?.id ?? null);
+  }, [task?.id]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const node = panelRef.current;
+    if (!node) return;
+    const id = window.requestAnimationFrame(() => {
+      const rect = node.getBoundingClientRect();
+      console.log("[detail-panel] rect", { width: rect.width, height: rect.height, layout });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [isVisible, task?.id, layout]);
 
   // Flash effects for real-time updates
   const statusFlashRef = useFlashEffect(task?.status, isOpen);
@@ -443,8 +546,7 @@ export function TaskDetailPanel({
     const isDark = document.documentElement.classList.contains("dark");
     mermaid.initialize({
       startOnLoad: false,
-      theme: isDark ? "dark" : "default",
-      suppressErrorRendering: true
+      theme: isDark ? "dark" : "default"
     });
 
     Promise.allSettled(
@@ -569,9 +671,9 @@ skinparam SequenceDividerFontColor white`
     });
   }, [displayTask]);
 
-  const detailTask = displayTask;
+  const detailTask = layout === "auto" ? task : displayTask;
 
-  const renderDetailContent = (taskToRender: Issue, withRef: boolean) => {
+  const renderDetailContent = (taskToRender: TaskDetailIssue, withRef: boolean) => {
     const priorityName = priorityLookup[taskToRender.priority] ?? "medium";
     const comments = taskToRender.comments ?? [];
     const createdAt = taskToRender.created_at;
@@ -629,7 +731,7 @@ skinparam SequenceDividerFontColor white`
         // Sort by hierarchy depth, then by creation date
         const getDepth = (id: string): number => {
           let depth = 0;
-          let current: Issue | undefined = allIssues.find(i => i.id === id);
+          let current: TaskDetailIssue | undefined = allIssues.find(i => i.id === id);
           while (current?.parent) {
             depth++;
             current = allIssues.find(i => i.id === current!.parent);
@@ -644,7 +746,7 @@ skinparam SequenceDividerFontColor white`
     // Calculate relative depth from the current task
     const getIssueDepth = (issueId: string): number => {
       let depth = 0;
-      let current: Issue | undefined = allIssues.find(i => i.id === issueId);
+      let current: TaskDetailIssue | undefined = allIssues.find(i => i.id === issueId);
       const visited = new Set<string>();
 
       while (current?.parent && !visited.has(current.id)) {
@@ -655,7 +757,7 @@ skinparam SequenceDividerFontColor white`
 
       // Calculate depth of the root task
       let rootDepth = 0;
-      let rootCurrent: Issue | undefined = taskToRender;
+      let rootCurrent: TaskDetailIssue | undefined = taskToRender;
       const rootVisited = new Set<string>();
 
       while (rootCurrent?.parent && !rootVisited.has(rootCurrent.id)) {
@@ -929,7 +1031,7 @@ skinparam SequenceDividerFontColor white`
   return (
     <div
       ref={panelRef}
-      className={`detail-column ${isVisible ? "detail-column-visible" : ""} ${
+      className={`detail-column detail-layout-${layout} ${isVisible ? "detail-column-visible" : ""} ${
         panelOpenActive ? "detail-column-open" : "detail-column-closing"
       } flex flex-col`}
       data-width={widthPercent}
@@ -940,7 +1042,9 @@ skinparam SequenceDividerFontColor white`
       }}
     >
       {detailTask ? (
-        pagePhase !== "idle" && outgoingTask && incomingTask ? (
+        layout === "auto" ? (
+          renderDetailContent(detailTask, true)
+        ) : pagePhase !== "idle" && outgoingTask && incomingTask ? (
           <div className="detail-page-stack">
             <div
               className={`detail-page outgoing ${pagePhase === "animating" ? "animating" : ""}`}
@@ -974,7 +1078,11 @@ skinparam SequenceDividerFontColor white`
         ) : (
           renderDetailContent(detailTask, true)
         )
-      ) : null}
+      ) : (
+        <div className="detail-open flex-1 flex items-center justify-center text-muted text-sm p-6">
+          Select an issue to view its details.
+        </div>
+      )}
     </div>
   );
 }
