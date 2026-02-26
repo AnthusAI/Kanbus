@@ -178,8 +178,11 @@ def pull_from_snyk(
                 try:
                     existing = read_issue_from_file(issue_path)
                     issue = issue.model_copy(update={"created_at": existing.created_at})
-                except Exception:
-                    pass
+                except Exception as exc:
+                    print(
+                        f"Warning: failed to read existing issue file '{issue_path}' "
+                        f"to preserve created_at: {exc}"
+                    )
 
             short_key = (
                 kanbus_id[: kanbus_id.find("-") + 7]
