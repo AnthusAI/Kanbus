@@ -133,10 +133,12 @@ pub fn pull_from_snyk(
             &issues_dir,
             project_key,
             target_file,
-            &epic_id,
-            file_priority,
+            &FileTaskContext {
+                epic_id: &epic_id,
+                priority: file_priority,
+                dry_run,
+            },
             &file_task_index,
-            dry_run,
             &mut all_existing,
         )?;
 
@@ -256,14 +258,18 @@ fn resolve_parent_epic(
 }
 
 /// Resolve or create a task for a manifest file under the epic.
+struct FileTaskContext<'a> {
+    epic_id: &'a str,
+    priority: i32,
+    dry_run: bool,
+}
+
 fn resolve_file_task(
     issues_dir: &Path,
     project_key: &str,
     target_file: &str,
-    epic_id: &str,
-    priority: i32,
+    ctx: &FileTaskContext<'_>,
     file_task_index: &BTreeMap<String, String>,
-    dry_run: bool,
     all_existing: &mut HashSet<String>,
 ) -> Result<String, KanbusError> {
     if let Some(id) = file_task_index.get(target_file) {
@@ -292,10 +298,10 @@ fn resolve_file_task(
         description: format!("Snyk vulnerabilities found in `{target_file}`."),
         issue_type: "task".to_string(),
         status: "open".to_string(),
-        priority,
+        priority: ctx.priority,
         assignee: None,
         creator: None,
-        parent: Some(epic_id.to_string()),
+        parent: Some(ctx.epic_id.to_string()),
         labels: vec!["security".to_string(), "snyk".to_string()],
         dependencies: Vec::new(),
         comments: Vec::new(),
@@ -308,7 +314,7 @@ fn resolve_file_task(
     let short_key = &task_id[..task_id.len().min(task_id.find('-').map_or(6, |i| i + 7))];
     println!("created  [task    ]  {short_key:<14}  \"{target_file}\"");
 
-    if !dry_run {
+    if !ctx.dry_run {
         let task_path = issue_path_for_identifier(issues_dir, &task_id);
         write_issue_to_file(&task, &task_path)?;
     }

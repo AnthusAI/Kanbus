@@ -87,7 +87,9 @@ def pull_from_snyk(
     vulns = _fetch_all_snyk_issues(snyk_config.org_id, token, min_priority)
 
     # Fetch enrichment data (fixedIn, description, cvssScore, etc.) from v1 API
-    enrichment = _fetch_v1_enrichment(snyk_config.org_id, token, list(project_map.keys()))
+    enrichment = _fetch_v1_enrichment(
+        snyk_config.org_id, token, list(project_map.keys())
+    )
 
     # Resolve or auto-create the parent epic
     all_existing: Set[str] = set(list_issue_identifiers(issues_dir))
@@ -142,10 +144,8 @@ def pull_from_snyk(
             issues_dir,
             project_key,
             target_file,
-            epic_id,
-            file_priority,
+            FileTaskContext(epic_id=epic_id, priority=file_priority, dry_run=dry_run),
             file_task_index,
-            dry_run,
             all_existing,
         )
 
@@ -252,14 +252,19 @@ def _resolve_parent_epic(
     return epic_id
 
 
+@dataclass
+class FileTaskContext:
+    epic_id: str
+    priority: int
+    dry_run: bool
+
+
 def _resolve_file_task(
     issues_dir: Path,
     project_key: str,
     target_file: str,
-    epic_id: str,
-    priority: int,
+    ctx: FileTaskContext,
     file_task_index: Dict[str, str],
-    dry_run: bool,
     all_existing: Set[str],
 ) -> str:
     """Resolve or create a task for a manifest file under the epic."""
@@ -283,10 +288,10 @@ def _resolve_file_task(
             "description": f"Snyk vulnerabilities found in `{target_file}`.",
             "type": "task",
             "status": "open",
-            "priority": priority,
+            "priority": ctx.priority,
             "assignee": None,
             "creator": None,
-            "parent": epic_id,
+            "parent": ctx.epic_id,
             "labels": ["security", "snyk"],
             "dependencies": [],
             "comments": [],
@@ -300,7 +305,7 @@ def _resolve_file_task(
     short_key = task_id[: task_id.find("-") + 7] if "-" in task_id else task_id[:6]
     print(f'created  [task    ]  {short_key:<14}  "{target_file}"')
 
-    if not dry_run:
+    if not ctx.dry_run:
         write_issue_to_file(task, _issue_path(issues_dir, task_id))
 
     return task_id
@@ -531,7 +536,9 @@ def _map_snyk_to_kanbus(
     if fixed_in:
         versions = ", ".join(fixed_in)
         if coord0.get("is_upgradeable"):
-            fix_advice = f"**Fix:** Upgrade `{pkg_name}` to version {versions} or later."
+            fix_advice = (
+                f"**Fix:** Upgrade `{pkg_name}` to version {versions} or later."
+            )
         else:
             fix_advice = f"**Fix:** Pin `{pkg_name}` to version {versions} or later."
     elif coord0.get("is_upgradeable"):
