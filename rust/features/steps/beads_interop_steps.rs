@@ -253,11 +253,7 @@ fn given_beads_issue_exists_with_status_updated_at(
 }
 
 #[then(expr = "beads issues.jsonl should contain exactly {int} records with id {string}")]
-fn then_beads_jsonl_contains_exactly(
-    world: &mut KanbusWorld,
-    count: i32,
-    identifier: String,
-) {
+fn then_beads_jsonl_contains_exactly(world: &mut KanbusWorld, count: i32, identifier: String) {
     let path = beads_issues_path(world);
     let records = load_beads_records(&path);
     let matches = records
@@ -265,8 +261,7 @@ fn then_beads_jsonl_contains_exactly(
         .filter(|record| record.get("id").and_then(Value::as_str) == Some(identifier.as_str()))
         .count();
     assert_eq!(
-        matches,
-        count as usize,
+        matches, count as usize,
         "expected {count} records for {identifier}, found {matches}"
     );
 }

@@ -108,6 +108,7 @@ const Layout = ({ children }: LayoutProps) => {
                 <li><a href="/features/vscode-plugin" className="text-muted hover:text-selected">VS Code Plugin</a></li>
                 <li><a href="/features/jira-sync" className="text-muted hover:text-selected">Jira Sync</a></li>
                 <li><a href="/features/local-tasks" className="text-muted hover:text-selected">Local Tasks</a></li>
+                <li><a href="/features/virtual-projects" className="text-muted hover:text-selected">Virtual Projects</a></li>
               </ul>
             </div>
             <div>

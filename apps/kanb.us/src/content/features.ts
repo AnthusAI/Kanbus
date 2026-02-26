@@ -22,6 +22,11 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
     href: "/features/local-tasks"
   },
   {
+    title: "Virtual Projects",
+    description: "Aggregate issues from multiple repositories into a single view.",
+    href: "/features/virtual-projects"
+  },
+  {
     title: "Beads Mode",
     description: "Seamless compatibility with existing Beads projects. Zero config required.",
     href: "/features/beads-compatibility"
