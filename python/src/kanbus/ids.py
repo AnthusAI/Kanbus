@@ -94,6 +94,34 @@ def format_issue_key(identifier: str, project_context: bool) -> str:
     return f"{truncated}{suffix}"
 
 
+def matches_issue_identifier(candidate: str, full_id: str) -> bool:
+    """
+    Check if a candidate identifier matches a full issue identifier.
+
+    Accepts full identifiers, project-context short ids, and abbreviated prefixes.
+
+    :param candidate: User-provided identifier value.
+    :type candidate: str
+    :param full_id: Full issue identifier from storage.
+    :type full_id: str
+    :return: True if the candidate matches the full identifier.
+    :rtype: bool
+    """
+    if candidate == full_id:
+        return True
+
+    if candidate == format_issue_key(full_id, project_context=False):
+        return True
+
+    if candidate == format_issue_key(full_id, project_context=True):
+        return True
+
+    if len(candidate) >= len(full_id):
+        return False
+
+    return full_id.startswith(candidate)
+
+
 def generate_issue_identifier(request: IssueIdentifierRequest) -> IssueIdentifierResult:
     """Generate a unique issue ID using a UUID.
 

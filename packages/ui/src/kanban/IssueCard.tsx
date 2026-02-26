@@ -40,7 +40,10 @@ export function IssueCard({
   const IssueTypeIcon = getTypeIcon(issue.type, issue.status);
   const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
   const motionStyle = getIssueMotionStyle(resolvedMotion, motionIndex);
-  const combinedStyle = { ...issueStyle, ...motionStyle };
+  const selectionStyle = isSelected
+    ? { boxShadow: "inset 0 0 0 6px var(--text-muted)" }
+    : undefined;
+  const combinedStyle = { ...issueStyle, ...motionStyle, ...selectionStyle };
 
   return (
     <div
@@ -51,6 +54,7 @@ export function IssueCard({
       data-type={issue.type}
       data-priority={priorityName}
       data-issue-id={issue.id}
+      data-selected={isSelected ? "true" : undefined}
       onClick={handleClick}
       role="button"
       tabIndex={0}

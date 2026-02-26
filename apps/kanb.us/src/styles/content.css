@@ -128,3 +128,12 @@
   line-height: 1.5;
   color: var(--text-primary);
 }
+
+/* Kanban Board Container */
+.kanban-snapshot-container {
+    background: var(--column);
+    border-radius: 1rem; /* rounded-2xl */
+    padding: 1rem; /* p-4 */
+    box-shadow: 0 10px 40px -18px rgba(0, 0, 0, 0.2); /* shadow-card */
+    overflow: hidden;
+}

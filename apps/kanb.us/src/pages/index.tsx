@@ -1,9 +1,17 @@
 import * as React from "react";
 import { Layout, Section, Hero } from "../components";
-import { Board, Card, CardContent, CardHeader } from "@kanbus/ui";
+import {
+  Board,
+  Card,
+  CardContent,
+  CardHeader,
+  TaskDetailPanel,
+  type TaskDetailIssue
+} from "@kanbus/ui";
 import { FEATURE_ENTRIES } from "../content/features";
 import { VIDEOS } from "../content/videos";
-import { getVideoSrc, getVideosBaseUrl } from "../lib/getVideoSrc";
+import { getVideoSrc } from "../lib/getVideoSrc";
+import "@kanbus/ui/styles/kanban.css"; // Explicit import
 
 const IndexPage = () => {
   const boardConfig = {
@@ -27,53 +35,120 @@ const IndexPage = () => {
       task: "blue",
       bug: "red",
       story: "yellow",
-      chore: "green"
+      chore: "green",
+      "sub-task": "violet"
     }
   };
   const boardColumns = boardConfig.statuses.map((status) => status.key);
-  const boardIssues = [
+  const boardIssues: TaskDetailIssue[] = [
     {
       id: "tsk-1a2b3c",
-      title: "Map release milestones",
+      title: "Calibrate flux capacitor",
+      description: "Tune the 1.21 gigawatt threshold so temporal jumps don't fry the time circuits.",
       type: "epic",
       status: "backlog",
-      priority: 2
+      priority: 2,
+      created_at: "2024-12-01T10:00:00Z",
+      updated_at: "2024-12-05T16:30:00Z",
+      comments: [
+        {
+          author: "Doc Brown",
+          text: "Remember to **shield** the time circuits before the next jump.",
+          created_at: "2024-12-02T09:15:00Z"
+        }
+      ]
     },
     {
       id: "tsk-4d5e6f",
-      title: "Wire notifications",
+      title: "Stabilize warp core coolant loop",
       type: "task",
       status: "in_progress",
       priority: 1,
-      assignee: "ryan"
+      assignee: "ryan",
+      description: "Balance dilithium regulation to keep the warp core within safety variance.",
+      created_at: "2025-01-04T08:00:00Z",
+      updated_at: "2025-01-05T15:45:00Z",
+      comments: [
+        {
+          author: "Geordi",
+          text: "Coolant injectors show **micro fractures**—recommend swapping before redline.",
+          created_at: "2025-01-04T12:00:00Z"
+        },
+        {
+          author: "Data",
+          text: "Projected efficiency gain: 11.3% once injector lattice is re-aligned.",
+          created_at: "2025-01-04T18:20:00Z"
+        }
+      ]
     },
     {
       id: "tsk-7g8h9i",
-      title: "Fix sync edge case",
+      title: "Diagnose tachyon scanner drift",
       type: "bug",
       status: "in_progress",
-      priority: 1
+      priority: 1,
+      description: "Isolate tachyon interference that's skewing long-range sensor readings.",
+      created_at: "2025-01-02T13:00:00Z"
     },
     {
       id: "tsk-0j1k2l",
-      title: "Ship static export",
+      title: "Ship holodeck safety interlocks",
       type: "task",
       status: "closed",
-      priority: 3
+      priority: 3,
+      description: "Package the holodeck override kit so safety interlocks deploy on load.",
+      created_at: "2024-11-15T17:00:00Z",
+      updated_at: "2024-11-18T09:00:00Z",
+      closed_at: "2024-11-20T14:45:00Z"
+    },
+    {
+      id: "tsk-1a2b3c-1",
+      title: "Align temporal coils for flux channel",
+      type: "sub-task",
+      status: "backlog",
+      priority: 3,
+      parent: "tsk-1a2b3c",
+      description: "Fine\u2011tune coil phasing to reduce chrono jitter before the next jump.",
+      created_at: "2024-12-03T10:30:00Z"
     }
   ];
+
   const priorityLookup = {
     1: "high",
     2: "medium",
     3: "low"
   };
 
+  const [collapsedColumns, setCollapsedColumns] = React.useState<Set<string>>(new Set());
+  const [selectedIssueId, setSelectedIssueId] = React.useState<string | null>(null);
+  const [focusedIssueId, setFocusedIssueId] = React.useState<string | null>(null);
+  const [isMaximized, setIsMaximized] = React.useState(false);
+  const selectedIssue =
+    boardIssues.find((issue) => issue.id === selectedIssueId) ?? null;
+
+  const toggleColumn = (column: string) => {
+    const next = new Set(collapsedColumns);
+    if (next.has(column)) {
+      next.delete(column);
+    } else {
+      next.add(column);
+    }
+    setCollapsedColumns(next);
+  };
+
+  const handleSelectIssue = (issue: TaskDetailIssue) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[homepage] select issue", issue.id);
+    }
+    setSelectedIssueId(issue.id === selectedIssueId ? null : issue.id);
+  };
+  const handleFocusIssue = (issueId: string) => {
+    setFocusedIssueId((prev) => (prev === issueId ? null : issueId));
+  };
+
   const introVideo = VIDEOS[0] ?? null;
-  const videosBaseUrl = getVideosBaseUrl();
-  const canRenderVideo = Boolean(introVideo && videosBaseUrl);
-  const introPoster =
-    canRenderVideo && introVideo?.poster ? getVideoSrc(introVideo.poster) : undefined;
-  const introSrc = canRenderVideo && introVideo ? getVideoSrc(introVideo.filename) : "";
+  const introPoster = introVideo?.poster ? getVideoSrc(introVideo.poster) : undefined;
+  const introSrc = introVideo ? getVideoSrc(introVideo.filename) : "";
 
   return (
     <Layout>
@@ -110,8 +185,76 @@ const IndexPage = () => {
 
       <div className="space-y-24">
         <Section
+          title="Realtime Kanban Board"
+          subtitle="The board you already use, rendered as a lightweight, shareable view."
+        >
+          <div className="kanban-snapshot-container">
+            <div className={`layout-frame gap-4 ${isMaximized ? "detail-maximized" : ""} flex flex-col lg:flex-row`}>
+              <div className="layout-slot layout-slot-board">
+                <Board
+                  columns={boardColumns}
+                  issues={boardIssues}
+                  priorityLookup={priorityLookup}
+                  config={boardConfig}
+                  onSelectIssue={handleSelectIssue}
+                  selectedIssueId={selectedIssueId}
+                  collapsedColumns={collapsedColumns}
+                  onToggleCollapse={toggleColumn}
+                  detailOpen={Boolean(selectedIssueId)}
+                />
+              </div>
+
+              <TaskDetailPanel
+                task={selectedIssue}
+                allIssues={boardIssues}
+                columns={boardColumns}
+                priorityLookup={priorityLookup}
+                config={boardConfig}
+                apiBase=""
+                isOpen={Boolean(selectedIssue)}
+                isVisible={Boolean(selectedIssue)}
+                navDirection="none"
+                widthPercent={42}
+                layout="auto"
+                onClose={() => setSelectedIssueId(null)}
+                onToggleMaximize={() => setIsMaximized((prev) => !prev)}
+                isMaximized={isMaximized}
+                onAfterClose={() => undefined}
+                onFocus={handleFocusIssue}
+                focusedIssueId={focusedIssueId}
+                onNavigateToDescendant={handleSelectIssue}
+              />
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          title="See it in action"
+          subtitle="A quick elevator pitch covering what Kanbus is and everything it can do."
+        >
+          <div className="max-w-4xl mx-auto">
+            <div className="rounded-2xl overflow-hidden shadow-card bg-card">
+              <video
+                controls
+                preload="metadata"
+                playsInline
+                src={introSrc}
+                poster={introPoster}
+                style={{
+                  width: "100%",
+                  display: "block",
+                  borderRadius: "14px",
+                  background: "rgba(0, 0, 0, 0.75)",
+                }}
+              />
+            </div>
+          </div>
+        </Section>
+
+        <Section
           title="Features"
           subtitle="Focused capabilities that make Kanbus practical for daily work."
+          variant="alt"
         >
           <div className="grid gap-6 md:grid-cols-2">
             {FEATURE_ENTRIES.map((feature) => (
@@ -126,54 +269,6 @@ const IndexPage = () => {
                 </Card>
               </a>
             ))}
-          </div>
-        </Section>
-
-        <Section
-          title="Intro video"
-          subtitle="A quick walkthrough of Canvas and how it ties issues to execution."
-          variant="alt"
-        >
-          <div className="grid gap-6 md:grid-cols-2 items-center">
-            <div className="space-y-3">
-              <h3 className="text-xl font-bold text-foreground">
-                {introVideo?.title}
-              </h3>
-              <p className="text-muted leading-relaxed">
-                {introVideo?.description}
-              </p>
-            </div>
-            <div className="rounded-2xl overflow-hidden shadow-card bg-card">
-              {canRenderVideo ? (
-                <video
-                  className="w-full h-full"
-                  controls
-                  preload="metadata"
-                  playsInline
-                  poster={introPoster}
-                  src={introSrc}
-                />
-              ) : (
-                <p className="p-8 text-muted text-sm text-center">
-                  Set GATSBY_VIDEOS_BASE_URL to enable the intro video preview.
-                </p>
-              )}
-            </div>
-          </div>
-        </Section>
-
-        <Section
-          title="Kanban snapshot"
-          subtitle="The board you already use, rendered as a lightweight, shareable view."
-        >
-          <div className="rounded-2xl bg-card p-4 shadow-card">
-            <Board
-              columns={boardColumns}
-              issues={boardIssues}
-              priorityLookup={priorityLookup}
-              config={boardConfig}
-              motion={{ mode: "static" }}
-            />
           </div>
         </Section>
 
