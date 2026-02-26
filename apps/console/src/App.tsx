@@ -25,6 +25,7 @@ import {
 } from "./api/client";
 import { installConsoleTelemetry } from "./utils/console-telemetry";
 import { matchesSearchQuery } from "./utils/issue-search";
+import { sortIssues, DEFAULT_SORT_PRESET, type SortPreset } from "./utils/issue-sort";
 import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
 
@@ -59,6 +60,7 @@ const SHOW_SHARED_STORAGE_KEY = "kanbus.console.showShared";
 const SHOW_TYPE_FILTER_TOOLBAR_KEY = "kanbus.console.showTypeFilterToolbar";
 const SHOW_INITIATIVES_IN_TYPE_FILTER_KEY = "kanbus.console.showInitiativesInTypeFilter";
 const PANEL_MODE_STORAGE_KEY = "kanbus.console.panelMode";
+const SORT_PRESET_STORAGE_KEY = "kanbus.console.sortPreset";
 
 function loadStoredEnabledProjects(): Set<string> | null {
   if (typeof window === "undefined") {
@@ -113,6 +115,23 @@ function loadStoredPanelMode(): PanelMode {
     return "metrics";
   }
   return "board";
+}
+
+function loadStoredSortPreset(): SortPreset {
+  if (typeof window === "undefined") {
+    return DEFAULT_SORT_PRESET;
+  }
+  const stored = window.localStorage.getItem(SORT_PRESET_STORAGE_KEY);
+  if (
+    stored === "created-asc" ||
+    stored === "created-desc" ||
+    stored === "updated-desc" ||
+    stored === "priority" ||
+    stored === "identifier"
+  ) {
+    return stored;
+  }
+  return DEFAULT_SORT_PRESET;
 }
 
 function loadStoredDetailWidth(): number {
@@ -582,6 +601,7 @@ export default function App() {
   const [showInitiativesInTypeFilter, setShowInitiativesInTypeFilter] = useState(() =>
     loadStoredBoolean(SHOW_INITIATIVES_IN_TYPE_FILTER_KEY, true)
   );
+  const [sortPreset, setSortPreset] = useState<SortPreset>(() => loadStoredSortPreset());
   const layoutFrameRef = React.useRef<HTMLDivElement | null>(null);
   const navActionRef = React.useRef<NavAction>("none");
   const wasDetailOpenRef = React.useRef(false);
@@ -891,6 +911,10 @@ export default function App() {
       String(showInitiativesInTypeFilter)
     );
   }, [showInitiativesInTypeFilter]);
+
+  useEffect(() => {
+    window.localStorage.setItem(SORT_PRESET_STORAGE_KEY, sortPreset);
+  }, [sortPreset]);
 
   useLayoutEffect(() => {
     const frame = layoutFrameRef.current;
@@ -1609,6 +1633,11 @@ export default function App() {
     return result;
   }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, enabledProjects, projectLabels.length, showLocal, showShared, showAllTypes, config]);
 
+  const sortedIssues = useMemo(
+    () => sortIssues(filteredIssues, sortPreset),
+    [filteredIssues, sortPreset]
+  );
+
   const metricsIssues = useMemo(() => {
     if (!config) {
       return [];
@@ -1887,7 +1916,7 @@ export default function App() {
               {!detailMaximized ? (
                 <Board
                   columns={columns}
-                  issues={filteredIssues}
+                  issues={sortedIssues}
                   priorityLookup={priorityLookup}
                   config={config}
                   onSelectIssue={handleSelectIssue}
@@ -2065,6 +2094,8 @@ export default function App() {
             showInitiativesInTypeFilter={showInitiativesInTypeFilter}
             onToggleShowTypeFilterToolbar={() => setShowTypeFilterToolbar((prev) => !prev)}
             onToggleShowInitiativesInTypeFilter={() => setShowInitiativesInTypeFilter((prev) => !prev)}
+            sortPreset={sortPreset}
+            onSortPresetChange={(value) => setSortPreset(value as SortPreset)}
           />
         </div>
       </div>
