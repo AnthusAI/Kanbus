@@ -11,6 +11,18 @@ documentation = "https://kanb.us/docs"
 keywords = ["kanbus", "task-management", "issue-tracker", "cli", "beads"]
 categories = ["command-line-utilities"]
 authors = ["Kanbus Contributors"]
+include = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "LICENSE",
+    "build.rs",
+    "src/**",
+    "tests/**",
+    "features/**",
+    "tools/**",
+    "embedded_assets/**",
+]
 
 [dependencies]
 clap = { version = "4.5.0", features = ["derive"] }
