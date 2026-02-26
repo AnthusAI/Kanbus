@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -332,8 +333,11 @@ def _detect_repo_from_git(root: Path) -> Optional[str]:
             return url[len("https://github.com/") :].removesuffix(".git")
         if url.startswith("git@github.com:"):
             return url[len("git@github.com:") :].removesuffix(".git")
-    except Exception:
-        pass
+    except Exception as exc:
+        # Best-effort detection; if git is unavailable or misconfigured, just return None.
+        logging.getLogger(__name__).debug(
+            "Failed to detect GitHub repo from git remote for %s: %s", root, exc
+        )
     return None
 
 
