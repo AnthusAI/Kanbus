@@ -256,8 +256,7 @@ fn dedupe_beads_records(
 
         let mut timestamps: Vec<(DateTime<Utc>, usize)> = Vec::new();
         for index in &indices {
-            let updated_at =
-                parse_timestamp(records[*index].get("updated_at"), "updated_at")?;
+            let updated_at = parse_timestamp(records[*index].get("updated_at"), "updated_at")?;
             timestamps.push((updated_at, *index));
         }
         let max_timestamp = timestamps

@@ -168,14 +168,9 @@ def _dedupe_beads_records(
         if len(max_indices) == 1:
             chosen_indices[identifier] = max_indices[0]
             continue
-        sizes = [
-            (len(json.dumps(records[index])), index)
-            for index in max_indices
-        ]
+        sizes = [(len(json.dumps(records[index])), index) for index in max_indices]
         max_size = max(size for size, _ in sizes)
-        size_matches = [
-            index for size, index in sizes if size == max_size
-        ]
+        size_matches = [index for size, index in sizes if size == max_size]
         chosen_indices[identifier] = size_matches[-1]
 
     deduped: List[Dict[str, Any]] = []
