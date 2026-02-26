@@ -10,6 +10,13 @@ Feature: Issue display
     And stdout should contain "open"
     And stdout should contain "task"
 
+  Scenario: Show issue using project-context short id
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists with title "Implement OAuth2 flow"
+    When I run "kanbus show aaa"
+    Then the command should succeed
+    And stdout should contain "Implement OAuth2 flow"
+
   Scenario: Show issue as JSON
     Given a Kanbus project with default configuration
     And an issue "kanbus-aaa" exists with title "Implement OAuth2 flow"

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::KanbusError;
 use crate::file_io::find_project_local_directory;
-use crate::ids::format_issue_key;
+use crate::ids::issue_identifier_matches;
 use crate::issue_files::{issue_path_for_identifier, read_issue_from_file};
 use crate::models::IssueData;
 use crate::project::discover_project_directories;
@@ -122,32 +122,10 @@ fn find_matching_issues(
 
         let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
-        if issue_matches(identifier, file_stem) {
+        if issue_identifier_matches(identifier, file_stem) {
             matches.push((file_stem.to_string(), path));
         }
     }
 
     Ok(matches)
-}
-
-/// Check if an abbreviated identifier matches a full identifier.
-///
-/// # Arguments
-/// * `abbreviated` - Abbreviated ID (e.g., "tskl-abcdef", "custom-uuid00").
-/// * `full_id` - Full ID (e.g., "tskl-abcdef2", "custom-uuid-0000001").
-///
-/// # Returns
-/// True if abbreviated ID matches the full ID.
-fn issue_matches(abbreviated: &str, full_id: &str) -> bool {
-    let abbreviated_formatted = format_issue_key(full_id, false);
-
-    if abbreviated == abbreviated_formatted {
-        return true;
-    }
-
-    if abbreviated.len() >= full_id.len() {
-        return false;
-    }
-
-    full_id.starts_with(abbreviated)
 }
