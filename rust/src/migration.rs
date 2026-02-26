@@ -118,19 +118,9 @@ pub fn load_beads_issue_by_id(root: &Path, identifier: &str) -> Result<IssueData
 /// # Returns
 /// True if abbreviated ID matches the full ID.
 fn issue_id_matches(abbreviated: &str, full_id: &str) -> bool {
-    use crate::ids::format_issue_key;
+    use crate::ids::issue_identifier_matches;
 
-    let abbreviated_formatted = format_issue_key(full_id, false);
-
-    if abbreviated == abbreviated_formatted {
-        return true;
-    }
-
-    if abbreviated.len() >= full_id.len() {
-        return false;
-    }
-
-    full_id.starts_with(abbreviated)
+    issue_identifier_matches(abbreviated, full_id)
 }
 
 /// Migrate Beads issues.jsonl into a Kanbus project.
