@@ -38,7 +38,7 @@ Chores that are purely about maintaining the project-management machinery (for e
 
 For complex work, break the plan into sub-tasks and file them under the parent task/bug/chore/epic as appropriate. Create one issue per concrete step in the plan. Do not put sub-tasks under stories; stories hold behavior specs, not implementation steps.
 
-Operational discipline: use the minimum commands needed. To inspect work, run `kanbusr list --status open --long` once to find the ID, then `kanbusr show <id>`. Do not guess IDs or spam multiple variants; if the ID is unknown, ask the user.
+Operational discipline: use the minimum commands needed. To inspect work, run `kbs list --status open --long` once to find the ID, then `kbs show <id>`. Do not guess IDs or spam multiple variants; if the ID is unknown, ask the user.
 
 Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
 

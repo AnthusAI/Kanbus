@@ -129,6 +129,17 @@ class JiraConfiguration(BaseModel):
     field_mappings: Dict[str, str] = Field(default_factory=dict)
 
 
+class SnykConfiguration(BaseModel):
+    """Snyk vulnerability synchronization configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    org_id: str
+    min_severity: str = "low"
+    parent_epic: Optional[str] = None
+    repo: Optional[str] = None
+
+
 class VirtualProjectConfig(BaseModel):
     """Configuration for a single virtual project."""
 
@@ -174,6 +185,8 @@ class ProjectConfiguration(BaseModel):
     :type beads_compatibility: bool
     :param jira: Optional Jira synchronization configuration.
     :type jira: Optional[JiraConfiguration]
+    :param snyk: Optional Snyk vulnerability synchronization configuration.
+    :type snyk: Optional[SnykConfiguration]
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -201,3 +214,4 @@ class ProjectConfiguration(BaseModel):
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False
     jira: Optional[JiraConfiguration] = None
+    snyk: Optional[SnykConfiguration] = None

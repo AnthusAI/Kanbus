@@ -250,6 +250,7 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         type_colors: BTreeMap::new(),
         beads_compatibility: false,
         jira: None,
+        snyk: None,
         transition_labels: BTreeMap::new(),
     };
     match get_workflow_for_issue_type(&configuration, &issue_type) {

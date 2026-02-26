@@ -70,6 +70,27 @@ fn default_jira_sync_direction() -> String {
     "pull".to_string()
 }
 
+/// Snyk vulnerability synchronization configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnykConfiguration {
+    /// Snyk organization ID (UUID from app.snyk.io/org/<slug>/manage/settings).
+    pub org_id: String,
+    /// Minimum severity to import: critical, high, medium, or low (default: low).
+    #[serde(default = "default_snyk_min_severity")]
+    pub min_severity: String,
+    /// Kanbus issue ID of the parent epic to attach imported bugs to.
+    #[serde(default)]
+    pub parent_epic: Option<String>,
+    /// GitHub repo slug to filter projects (e.g. "AnthusAI/Plexus").
+    /// If omitted, auto-detected from git remote origin.
+    #[serde(default)]
+    pub repo: Option<String>,
+}
+
+fn default_snyk_min_severity() -> String {
+    "low".to_string()
+}
+
 /// Configuration for a single virtual project.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VirtualProjectConfig {
@@ -113,6 +134,8 @@ pub struct ProjectConfiguration {
     pub beads_compatibility: bool,
     #[serde(default)]
     pub jira: Option<JiraConfiguration>,
+    #[serde(default)]
+    pub snyk: Option<SnykConfiguration>,
 }
 
 /// Status definition with display metadata.
