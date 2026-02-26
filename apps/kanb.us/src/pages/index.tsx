@@ -10,7 +10,7 @@ import {
 } from "@kanbus/ui";
 import { FEATURE_ENTRIES } from "../content/features";
 import { VIDEOS } from "../content/videos";
-import { getVideoSrc, getVideosBaseUrl } from "../lib/getVideoSrc";
+import { getVideoSrc } from "../lib/getVideoSrc";
 import "@kanbus/ui/styles/kanban.css"; // Explicit import
 
 const IndexPage = () => {
@@ -147,11 +147,8 @@ const IndexPage = () => {
   };
 
   const introVideo = VIDEOS[0] ?? null;
-  const videosBaseUrl = getVideosBaseUrl();
-  const canRenderVideo = Boolean(introVideo && videosBaseUrl);
-  const introPoster =
-    canRenderVideo && introVideo?.poster ? getVideoSrc(introVideo.poster) : undefined;
-  const introSrc = canRenderVideo && introVideo ? getVideoSrc(introVideo.filename) : "";
+  const introPoster = introVideo?.poster ? getVideoSrc(introVideo.poster) : undefined;
+  const introSrc = introVideo ? getVideoSrc(introVideo.filename) : "";
 
   return (
     <Layout>
@@ -237,25 +234,19 @@ const IndexPage = () => {
         >
           <div className="max-w-4xl mx-auto">
             <div className="rounded-2xl overflow-hidden shadow-card bg-card">
-              {canRenderVideo ? (
-                <video
-                  controls
-                  preload="metadata"
-                  playsInline
-                  src={introSrc}
-                  poster={introPoster}
-                  style={{
-                    width: "100%",
-                    display: "block",
-                    borderRadius: "14px",
-                    background: "rgba(0, 0, 0, 0.75)",
-                  }}
-                />
-              ) : (
-                <p className="p-8 text-muted text-sm text-center">
-                  Video will appear here once GATSBY_VIDEOS_BASE_URL is configured.
-                </p>
-              )}
+              <video
+                controls
+                preload="metadata"
+                playsInline
+                src={introSrc}
+                poster={introPoster}
+                style={{
+                  width: "100%",
+                  display: "block",
+                  borderRadius: "14px",
+                  background: "rgba(0, 0, 0, 0.75)",
+                }}
+              />
             </div>
           </div>
         </Section>
