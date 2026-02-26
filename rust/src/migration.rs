@@ -699,6 +699,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         type_colors: BTreeMap::new(),
         beads_compatibility: false,
         jira: None,
+        snyk: None,
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];
