@@ -10,7 +10,7 @@ use crate::event_history::{
     write_events_batch, EventRecord, EventType,
 };
 use crate::hierarchy::validate_parent_child_relationship;
-use crate::ids::{generate_issue_identifier, IssueIdentifierRequest};
+use crate::ids::{generate_issue_identifier, issue_identifier_matches, IssueIdentifierRequest};
 use crate::issue_files::{
     issue_path_for_identifier, list_issue_identifiers, read_issue_from_file, write_issue_to_file,
 };
@@ -230,10 +230,11 @@ fn find_duplicate_title(issues_dir: &Path, title: &str) -> Result<Option<String>
 
 /// Resolve an issue identifier from a user-provided value.
 ///
-/// Accepts a full id or a unique short id (`{project_key}-{prefix}` up to 6 chars).
+/// Accepts a full id, a unique short id (`{project_key}-{prefix}` up to 6 chars),
+/// or a project-context short id (no project key).
 pub fn resolve_issue_identifier(
     issues_dir: &Path,
-    project_key: &str,
+    _project_key: &str,
     candidate: &str,
 ) -> Result<String, KanbusError> {
     // First, try exact match on filename.
@@ -246,7 +247,7 @@ pub fn resolve_issue_identifier(
     let identifiers = list_issue_identifiers(issues_dir)?;
     let mut matches: Vec<String> = identifiers
         .into_iter()
-        .filter(|full_id| short_id_matches(candidate, project_key, full_id))
+        .filter(|full_id| issue_identifier_matches(candidate, full_id))
         .collect();
 
     match matches.len() {
@@ -256,27 +257,4 @@ pub fn resolve_issue_identifier(
             "ambiguous short id".to_string(),
         )),
     }
-}
-
-/// Determine whether a short identifier matches a full identifier.
-pub fn short_id_matches(candidate: &str, project_key: &str, full_id: &str) -> bool {
-    if !candidate.starts_with(project_key) {
-        return false;
-    }
-    let mut parts = candidate.splitn(2, '-');
-    let prefix_key = parts.next().unwrap_or("");
-    let prefix = parts.next().unwrap_or("");
-    if prefix_key != project_key {
-        return false;
-    }
-    if prefix.is_empty() || prefix.len() > 6 {
-        return false;
-    }
-    let mut full_parts = full_id.splitn(2, '-');
-    let full_key = full_parts.next().unwrap_or("");
-    let full_suffix = full_parts.next().unwrap_or("");
-    if full_key != project_key {
-        return false;
-    }
-    full_suffix.starts_with(prefix)
 }
