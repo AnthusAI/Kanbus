@@ -36,8 +36,12 @@
     "@radix-ui/react-scroll-area": "^1.1.2",
     "@radix-ui/react-tabs": "^1.1.2",
     "clsx": "^2.1.1",
+    "dompurify": "^3.2.4",
     "gsap": "^3.14.2",
     "lucide-react": "^0.468.0",
+    "marked": "^12.0.2",
+    "mermaid": "^10.9.1",
+    "plantuml-encoder": "^1.4.0",
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {

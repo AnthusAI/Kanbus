@@ -8,6 +8,12 @@ exports.onCreateWebpackConfig = ({ actions, stage }) => {
     }
   };
 
+  if (stage === "develop" || stage === "develop-html") {
+    config.watchOptions = {
+      ignored: ["**/public/**", "**/.cache/**"]
+    };
+  }
+
   if (stage === "build-html" || stage === "develop-html") {
     config.resolve.alias = {
       "@radix-ui/react-scroll-area": path.resolve(__dirname, "src/mocks/empty-module.js"),
@@ -19,7 +25,39 @@ exports.onCreateWebpackConfig = ({ actions, stage }) => {
   actions.setWebpackConfig(config);
 };
 
+function suppressVirtualModuleLoop() {
+  try {
+    const reduxPath = require.resolve("gatsby/dist/redux", {
+      paths: [__dirname],
+    });
+    const redux = require(reduxPath);
+    const emitter = redux.emitter;
+    if (!emitter || typeof emitter.emit !== "function") return;
+    const originalEmit = emitter.emit.bind(emitter);
+    emitter.emit = (eventName, payload) => {
+      if (eventName === "SOURCE_FILE_CHANGED" && payload != null) {
+        const pathStr =
+          typeof payload === "string"
+            ? payload
+            : payload?.file ?? payload?.payload?.file;
+        if (
+          pathStr &&
+          (String(pathStr).includes(".cache") ||
+            String(pathStr).includes("_this_is_virtual_fs_path_"))
+        ) {
+          return;
+        }
+      }
+      return originalEmit(eventName, payload);
+    };
+  } catch {
+    // ignore if resolve or patch fails
+  }
+}
+
 exports.onPreInit = () => {
+  suppressVirtualModuleLoop();
+
   if (process.env.GATSBY_VIDEOS_BASE_URL) {
     return;
   }
