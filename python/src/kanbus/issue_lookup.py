@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from kanbus.ids import matches_issue_identifier
 from kanbus.issue_files import list_issue_identifiers, read_issue_from_file
 from kanbus.models import IssueData
 from kanbus.project import (
@@ -49,6 +50,8 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
     if not project_dirs:
         raise IssueLookupError("project not initialized")
 
+    all_matches: list[tuple[str, Path, Path]] = []
+
     for project_dir in project_dirs:
         for issues_dir in _search_directories(project_dir):
             issue_path = issues_dir / f"{identifier}.json"
@@ -58,7 +61,21 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
                     issue=issue, issue_path=issue_path, project_dir=project_dir
                 )
 
-    raise IssueLookupError("not found")
+            matches = _find_matching_issues(issues_dir, identifier)
+            for full_id, path in matches:
+                all_matches.append((full_id, path, project_dir))
+
+    if not all_matches:
+        raise IssueLookupError("not found")
+    if len(all_matches) == 1:
+        _, issue_path, project_dir = all_matches[0]
+        issue = read_issue_from_file(issue_path)
+        return IssueLookupResult(
+            issue=issue, issue_path=issue_path, project_dir=project_dir
+        )
+
+    ids = ", ".join(full_id for full_id, _, _ in all_matches)
+    raise IssueLookupError(f"ambiguous identifier, matches: {ids}")
 
 
 def _search_directories(project_dir: Path) -> list[Path]:
@@ -70,10 +87,13 @@ def _search_directories(project_dir: Path) -> list[Path]:
     return dirs
 
 
-def resolve_issue_identifier(issues_dir: Path, project_key: str, candidate: str) -> str:
+def resolve_issue_identifier(
+    issues_dir: Path, _project_key: str, candidate: str
+) -> str:
     """Resolve a full issue identifier from a user-provided value.
 
-    Accepts a full identifier or a unique short identifier using the project key.
+    Accepts a full identifier, a unique short identifier using the project key,
+    or a project-context short identifier without the project key.
 
     :param issues_dir: Issues directory.
     :type issues_dir: Path
@@ -92,7 +112,7 @@ def resolve_issue_identifier(issues_dir: Path, project_key: str, candidate: str)
     matches = [
         identifier
         for identifier in list_issue_identifiers(issues_dir)
-        if _short_id_matches(candidate, project_key, identifier)
+        if matches_issue_identifier(candidate, identifier)
     ]
 
     if len(matches) == 1:
@@ -102,19 +122,9 @@ def resolve_issue_identifier(issues_dir: Path, project_key: str, candidate: str)
     raise IssueLookupError("ambiguous short id")
 
 
-def _short_id_matches(candidate: str, project_key: str, full_id: str) -> bool:
-    if not candidate.startswith(project_key):
-        return False
-    if "-" not in candidate:
-        return False
-    prefix_key, prefix = candidate.split("-", 1)
-    if prefix_key != project_key:
-        return False
-    if not prefix or len(prefix) > 6:
-        return False
-    if "-" not in full_id:
-        return False
-    full_key, full_suffix = full_id.split("-", 1)
-    if full_key != project_key:
-        return False
-    return full_suffix.startswith(prefix)
+def _find_matching_issues(issues_dir: Path, identifier: str) -> list[tuple[str, Path]]:
+    matches: list[tuple[str, Path]] = []
+    for full_id in list_issue_identifiers(issues_dir):
+        if matches_issue_identifier(identifier, full_id):
+            matches.append((full_id, issues_dir / f"{full_id}.json"))
+    return matches
