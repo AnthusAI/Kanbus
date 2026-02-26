@@ -469,8 +469,8 @@ def _build_snyk_key_index(existing_ids: Set[str], issues_dir: Path) -> Dict[str,
             snyk_key = issue.custom.get("snyk_key")
             if isinstance(snyk_key, str):
                 index[snyk_key] = identifier
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.warning("Failed to read issue file %s: %s", path, exc)
     return index
 
 
