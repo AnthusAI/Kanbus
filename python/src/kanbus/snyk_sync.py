@@ -485,8 +485,8 @@ def _build_file_task_index(existing_ids: Set[str], issues_dir: Path) -> Dict[str
                 target_file = issue.custom.get("snyk_target_file")
                 if isinstance(target_file, str):
                     index[target_file] = identifier
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.warning("Failed to read issue file %s: %s", path, exc)
     return index
 
 
