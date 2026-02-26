@@ -115,6 +115,11 @@ jobs:
           rm -rf rust/embedded_assets/console
           cp -R apps/console/dist rust/embedded_assets/console
 
+      - name: Verify console assets bundled for crate
+        run: |
+          test -f rust/embedded_assets/console/index.html
+          (cd rust && cargo package --locked --list) | grep -Eq '^embedded_assets/console/index.html$'
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
