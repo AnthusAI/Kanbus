@@ -1,0 +1,37 @@
+{
+  "totalQuantity": 2526.9,
+  "totalEstimatedCost": 0,
+  "totalActualCost": 0,
+  "byUnit": {
+    "chars": {
+      "quantity": 2348,
+      "estimatedCost": 0,
+      "actualCost": 0
+    },
+    "tokens": {
+      "quantity": 0,
+      "estimatedCost": 0,
+      "actualCost": 0
+    },
+    "seconds": {
+      "quantity": 178.9,
+      "estimatedCost": 0,
+      "actualCost": 0
+    },
+    "frames": {
+      "quantity": 0,
+      "estimatedCost": 0,
+      "actualCost": 0
+    },
+    "bytes": {
+      "quantity": 0,
+      "estimatedCost": 0,
+      "actualCost": 0
+    },
+    "gb-seconds": {
+      "quantity": 0,
+      "estimatedCost": 0,
+      "actualCost": 0
+    }
+  }
+}
