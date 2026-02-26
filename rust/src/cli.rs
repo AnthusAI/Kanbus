@@ -45,6 +45,7 @@ use crate::queries::{filter_issues, search_issues};
 use crate::rich_text_signals::{
     apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
 };
+use crate::snyk_sync::pull_from_snyk;
 use crate::users::get_current_user;
 use crate::wiki::{render_wiki_page, WikiRenderRequest};
 
@@ -278,6 +279,11 @@ enum Commands {
         #[command(subcommand)]
         command: JiraCommands,
     },
+    /// Snyk vulnerability synchronization commands.
+    Snyk {
+        #[command(subcommand)]
+        command: SnykCommands,
+    },
     /// Migrate Beads issues into Kanbus.
     Migrate,
     /// Run environment diagnostics.
@@ -408,6 +414,25 @@ enum JiraCommands {
         /// Show what would be done without writing any files.
         #[arg(long)]
         dry_run: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum SnykCommands {
+    /// Pull vulnerabilities from Snyk into Kanbus as bug issues.
+    Pull {
+        /// Show what would be done without writing any files.
+        #[arg(long)]
+        dry_run: bool,
+        /// Override minimum severity (critical, high, medium, low).
+        #[arg(long)]
+        min_severity: Option<String>,
+        /// Override Snyk org ID.
+        #[arg(long)]
+        org_id: Option<String>,
+        /// Override parent epic issue ID to attach bugs to.
+        #[arg(long)]
+        parent_epic: Option<String>,
     },
 }
 
@@ -1294,6 +1319,40 @@ fn execute_command(
                 Ok(Some(format!(
                     "pulled {} new, updated {} existing",
                     result.pulled, result.updated
+                )))
+            }
+        },
+        Commands::Snyk { command } => match command {
+            SnykCommands::Pull {
+                dry_run,
+                min_severity,
+                org_id,
+                parent_epic,
+            } => {
+                let config_path = get_configuration_path(root)?;
+                let configuration = load_project_configuration(&config_path)?;
+                let base_config = configuration.snyk.as_ref().ok_or_else(|| {
+                    KanbusError::Configuration("no snyk configuration in .kanbus.yml".to_string())
+                })?;
+                // Allow CLI flags to override .kanbus.yml values
+                let mut snyk_config = base_config.clone();
+                if let Some(sev) = min_severity {
+                    snyk_config.min_severity = sev;
+                }
+                if let Some(oid) = org_id {
+                    snyk_config.org_id = oid;
+                }
+                if parent_epic.is_some() {
+                    snyk_config.parent_epic = parent_epic;
+                }
+                if dry_run {
+                    println!("Dry run — no files will be written.\n");
+                }
+                let result =
+                    pull_from_snyk(root, &snyk_config, &configuration.project_key, dry_run)?;
+                Ok(Some(format!(
+                    "pulled {} new, updated {} existing, skipped {} duplicates",
+                    result.pulled, result.updated, result.skipped
                 )))
             }
         },
