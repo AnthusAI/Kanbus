@@ -31,8 +31,12 @@ statuses:
     name: Backlog
     category: To do
     collapsed: true
-  - key: open
+  - key: Discovery
     name: Discovery
+    category: To do
+    collapsed: false
+  - key: open
+    name: Ready
     category: To do
   - key: in_progress
     name: In Progress
