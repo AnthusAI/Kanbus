@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAppearance } from "../hooks/useAppearance";
 import { AnimatedSelector } from "@kanbus/ui";
+import { SORT_PRESETS, type SortPreset } from "../utils/issue-sort";
 import { RightSidebar } from "./RightSidebar";
 
 interface SettingsPanelProps {
@@ -20,6 +21,8 @@ interface SettingsPanelProps {
   showInitiativesInTypeFilter: boolean;
   onToggleShowTypeFilterToolbar: () => void;
   onToggleShowInitiativesInTypeFilter: () => void;
+  sortPreset: SortPreset;
+  onSortPresetChange: (value: string) => void;
   onTransitionEnd?: (event: React.TransitionEvent<HTMLDivElement>) => void;
 }
 
@@ -61,6 +64,8 @@ export function SettingsPanel({
   showInitiativesInTypeFilter,
   onToggleShowTypeFilterToolbar,
   onToggleShowInitiativesInTypeFilter,
+  sortPreset,
+  onSortPresetChange,
   onTransitionEnd
 }: SettingsPanelProps) {
   const { appearance, setMode, setTheme, setFont, setMotion } = useAppearance();
@@ -228,6 +233,22 @@ export function SettingsPanel({
               )
             }
           ]}
+        />
+      </div>
+
+      <div className="grid gap-3">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted">
+          Sort Order
+        </div>
+        <AnimatedSelector
+          name="sort"
+          value={sortPreset}
+          onChange={onSortPresetChange}
+          className="w-full"
+          options={SORT_PRESETS.map((preset) => ({
+            id: preset.id,
+            label: preset.label,
+          }))}
         />
       </div>
 

@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 
 use chrono::{DateTime, TimeZone, Utc};
@@ -49,6 +50,7 @@ pub fn load_beads_issues(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     }
 
     let records = load_beads_records(&issues_path)?;
+    let records = dedupe_beads_records(records, &issues_path)?;
     let configuration = build_beads_configuration(&records);
     let mut record_by_id: HashMap<String, Value> = HashMap::new();
     for record in &records {
@@ -116,19 +118,9 @@ pub fn load_beads_issue_by_id(root: &Path, identifier: &str) -> Result<IssueData
 /// # Returns
 /// True if abbreviated ID matches the full ID.
 fn issue_id_matches(abbreviated: &str, full_id: &str) -> bool {
-    use crate::ids::format_issue_key;
+    use crate::ids::issue_identifier_matches;
 
-    let abbreviated_formatted = format_issue_key(full_id, false);
-
-    if abbreviated == abbreviated_formatted {
-        return true;
-    }
-
-    if abbreviated.len() >= full_id.len() {
-        return false;
-    }
-
-    full_id.starts_with(abbreviated)
+    issue_identifier_matches(abbreviated, full_id)
 }
 
 /// Migrate Beads issues.jsonl into a Kanbus project.
@@ -169,6 +161,7 @@ pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, KanbusError> {
         load_project_configuration(&get_configuration_path(project_dir.as_path())?)?;
 
     let records = load_beads_records(&issues_path)?;
+    let records = dedupe_beads_records(records, &issues_path)?;
     let mut record_by_id: HashMap<String, Value> = HashMap::new();
     for record in &records {
         let identifier = record
@@ -206,6 +199,105 @@ fn load_beads_records(path: &Path) -> Result<Vec<Value>, KanbusError> {
         records.push(record);
     }
     Ok(records)
+}
+
+fn write_beads_records(path: &Path, records: &[Value]) -> Result<(), KanbusError> {
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(path)
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    for record in records {
+        let line =
+            serde_json::to_string(record).map_err(|error| KanbusError::Io(error.to_string()))?;
+        writeln!(file, "{}", line).map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    Ok(())
+}
+
+fn dedupe_beads_records(
+    records: Vec<Value>,
+    issues_path: &Path,
+) -> Result<Vec<Value>, KanbusError> {
+    let mut ids_by_index: Vec<String> = Vec::with_capacity(records.len());
+    let mut indices_by_id: HashMap<String, Vec<usize>> = HashMap::new();
+
+    for (index, record) in records.iter().enumerate() {
+        let identifier = record
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| KanbusError::IssueOperation("missing id".to_string()))?
+            .to_string();
+        ids_by_index.push(identifier.clone());
+        indices_by_id.entry(identifier).or_default().push(index);
+    }
+
+    let mut chosen_indices: HashMap<String, usize> = HashMap::new();
+    for (identifier, indices) in indices_by_id {
+        if indices.len() == 1 {
+            chosen_indices.insert(identifier, indices[0]);
+            continue;
+        }
+        let first = &records[indices[0]];
+        if indices.iter().all(|index| &records[*index] == first) {
+            chosen_indices.insert(identifier, *indices.last().expect("last index"));
+            continue;
+        }
+
+        let mut timestamps: Vec<(DateTime<Utc>, usize)> = Vec::new();
+        for index in &indices {
+            let updated_at = parse_timestamp(records[*index].get("updated_at"), "updated_at")?;
+            timestamps.push((updated_at, *index));
+        }
+        let max_timestamp = timestamps
+            .iter()
+            .map(|(timestamp, _)| *timestamp)
+            .max()
+            .expect("timestamp");
+        let max_indices: Vec<usize> = timestamps
+            .iter()
+            .filter(|(timestamp, _)| *timestamp == max_timestamp)
+            .map(|(_, index)| *index)
+            .collect();
+
+        if max_indices.len() == 1 {
+            chosen_indices.insert(identifier, max_indices[0]);
+            continue;
+        }
+
+        let mut size_matches: Vec<(usize, usize)> = Vec::new();
+        for index in &max_indices {
+            let text = serde_json::to_string(&records[*index])
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
+            size_matches.push((text.len(), *index));
+        }
+        let max_size = size_matches
+            .iter()
+            .map(|(size, _)| *size)
+            .max()
+            .expect("size");
+        let mut candidates: Vec<usize> = size_matches
+            .into_iter()
+            .filter(|(size, _)| *size == max_size)
+            .map(|(_, index)| index)
+            .collect();
+        let selected = candidates.pop().expect("candidate");
+        chosen_indices.insert(identifier, selected);
+    }
+
+    let mut deduped: Vec<Value> = Vec::new();
+    for (index, record) in records.iter().enumerate() {
+        let identifier = &ids_by_index[index];
+        if chosen_indices.get(identifier) == Some(&index) {
+            deduped.push(record.clone());
+        }
+    }
+
+    if deduped != records {
+        write_beads_records(issues_path, &deduped)?;
+    }
+
+    Ok(deduped)
 }
 
 fn convert_record(

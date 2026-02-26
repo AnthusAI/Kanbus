@@ -98,6 +98,36 @@ pub fn format_issue_key(identifier: &str, project_context: bool) -> String {
     }
 }
 
+/// Check if a candidate identifier matches a full issue identifier.
+///
+/// Accepts full identifiers, project-context short ids, and abbreviated prefixes.
+///
+/// # Arguments
+/// * `candidate` - User-provided identifier value.
+/// * `full_id` - Full issue identifier from storage.
+///
+/// # Returns
+/// True if the candidate matches the full identifier.
+pub fn issue_identifier_matches(candidate: &str, full_id: &str) -> bool {
+    if candidate == full_id {
+        return true;
+    }
+
+    if candidate == format_issue_key(full_id, false) {
+        return true;
+    }
+
+    if candidate == format_issue_key(full_id, true) {
+        return true;
+    }
+
+    if candidate.len() >= full_id.len() {
+        return false;
+    }
+
+    full_id.starts_with(candidate)
+}
+
 /// Generate a unique issue ID using a UUID.
 ///
 /// # Arguments

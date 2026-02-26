@@ -9,8 +9,8 @@ export type VideoEntry = {
 export const VIDEOS: VideoEntry[] = [
   {
     id: "intro",
-    title: "Intro to Canvas",
-    description: "What Canvas is and how it connects issues, plans, and execution.",
+    title: "Intro to Kanbus",
+    description: "A quick elevator pitch covering what Kanbus is, how files replace the database, why it's built for AI agents, and the three ways to use it.",
     filename: "intro.mp4",
     poster: "intro-poster.jpg"
   }
