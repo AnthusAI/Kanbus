@@ -117,6 +117,12 @@ type_colors:
 
 beads_compatibility: true
 
+# Snyk vulnerability synchronization (optional). Secrets go in .env, not here.
+# snyk:
+#   org_id: <uuid from app.snyk.io/org/<slug>/manage/settings>
+#   min_severity: high          # critical | high | medium | low (default: low)
+#   parent_epic: <kanbus-id>    # optional: attach imported bugs under this epic
+
 # Jira synchronization (optional). Secrets go in .env, not here.
 jira:
   url: https://equity.atlassian.net
