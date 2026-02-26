@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "segments": {
+    "src/videos/intro/env/development/segments/hook--hook--tts--89ca7c0661b8--1.wav": {
+      "key": "89ca7c0661b85f1a236f49ba8f8cd7f5ce16fda2c50ddaeaf18f702a49823390",
+      "durationSec": 10.35,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "hook",
+        "cueId": "hook",
+        "text": "What if your project tracker was just files in your repository? No SaaS login. No per-seat costs. No external database to maintain.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 10.35,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/hook--hook--tts--881d88183fbe--1.wav": {
+      "key": "881d88183fbe447c9235d40bfa72ee35c76e44e4fe824fd0dd2a7fac8f84ac13",
+      "durationSec": 10.6,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "hook",
+        "cueId": "hook",
+        "text": "Kanbus is a lightweight issue tracker that lives entirely in your Git repo. Issues, plans, and execution stay connected in one place—right next to your code.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 10.6,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/files--one_file--tts--5f28117a807c--1.wav": {
+      "key": "5f28117a807c450e5e27b2d0ef58d2012f9327ce42446528bcb4c1e61b96881b",
+      "durationSec": 9.9,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "files",
+        "cueId": "one_file",
+        "text": "Every issue is a single JSON file. Not one giant file that causes merge conflicts every time two people touch it—one file per issue.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 9.9,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/files--one_file--tts--acd1be396bd0--1.wav": {
+      "key": "acd1be396bd04ccd763ea4e9f9aa7c1875061f6c9297e5dbbdbc5f153aee77e2",
+      "durationSec": 14.85,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "files",
+        "cueId": "one_file",
+        "text": "That means your team and your AI agents can create, update, and close issues in parallel without stepping on each other. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 14.85,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/files--no_friction--tts--0679f1a72ee6--1.wav": {
+      "key": "0679f1a72ee6a953a70d1ebc09a4b24b56c363dd4905a15013e1b33f49ed8de5",
+      "durationSec": 10.7,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "files",
+        "cueId": "no_friction",
+        "text": "There's no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 10.7,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/agents--agent_native--tts--73f3c64366a9--1.wav": {
+      "key": "73f3c64366a9c310372238216214273976529b8271039c6094bdb099c430376b",
+      "durationSec": 11,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "agents",
+        "cueId": "agent_native",
+        "text": "Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 11,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/agents--agent_native--tts--9f9b177b1808--1.wav": {
+      "key": "9f9b177b1808ee5e11e1506101992e991ab18af1a9003d3ac3e017d26e449acd",
+      "durationSec": 8,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "agents",
+        "cueId": "agent_native",
+        "text": "No API keys. No web latency. Just native file and command-line access to the full project tracker.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 8,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/agents--wiki--tts--c9a1d63e6fdf--1.wav": {
+      "key": "c9a1d63e6fdfcae17ae146bca576a4bc9a98ba2c43de1518e0ba1e8376e37b02",
+      "durationSec": 16.7,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "agents",
+        "cueId": "wiki",
+        "text": "Kanbus also includes an integrated wiki with live templates. Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 16.7,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/sync--jira_sync--tts--c51dfff5e057--1.wav": {
+      "key": "c51dfff5e05770746cf62dbf7f5bf4759f66959398406e3b4df26afc345a7cbc",
+      "durationSec": 13.65,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "sync",
+        "cueId": "jira_sync",
+        "text": "Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 13.65,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/sync--local_tasks--tts--847107679a8f--1.wav": {
+      "key": "847107679a8fcfc0649afe27ff87e7f0b4b1759b7766e255b7ffccd38f8fc535",
+      "durationSec": 11.6,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "sync",
+        "cueId": "local_tasks",
+        "text": "And for your own work-in-progress, local tasks stay off Git until you're ready. Draft ideas, experiment, and promote tasks to the shared board when they're ready for the team.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 11.6,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/tools--implementations--tts--b52be85dae0e--1.wav": {
+      "key": "b52be85dae0e350715ad0628e903388192a81a6b4be63050fac012b7afaf676a",
+      "durationSec": 27.05,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "tools",
+        "cueId": "implementations",
+        "text": "Kanbus gives you three ways to work. A Python CLI that installs with pip—perfect for scripting and AI tool integrations. A Rust CLI for high-performance use in CI/CD pipelines and large repositories. And a web console: a single binary with an embedded React frontend. Download it, run it, and you have a full Kanban board—no configuration, no npm, no separate assets.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 27.05,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/tools--shared_store--tts--ac7475817553--1.wav": {
+      "key": "ac7475817553a28dfefb018be011f861781d15193fcdee4d2140cbd742f9c0e9",
+      "durationSec": 9.55,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "tools",
+        "cueId": "shared_store",
+        "text": "Multiple projects can even share a data store while keeping issues namespaced per project. Track work across codebases with centralized visibility.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 9.55,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/cta--cta--tts--215db7068055--1.wav": {
+      "key": "215db70680556c1bd77f92dd2ee8bf983b482f9e16a0bad03c4f59fc4c986cbe",
+      "durationSec": 10.45,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "cta",
+        "cueId": "cta",
+        "text": "Kanbus. A tiny Jira clone for your repo. Files are the database. Agents are first-class citizens. And everything stays in Git.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 10.45,
+        "trimEndSec": 0
+      }
+    },
+    "src/videos/intro/env/development/segments/cta--cta--tts--ed7e27f98a79--1.wav": {
+      "key": "ed7e27f98a792b309fca788a8cf46150bc7fd9ad5c2b8f976ab608ebe5b08e34",
+      "durationSec": 3.35,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "cta",
+        "cueId": "cta",
+        "text": "Visit kanb.us to get started.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 3.35,
+        "trimEndSec": 0
+      }
+    }
+  },
+  "sfx": {},
+  "music": {
+    "src/videos/intro/env/development/music/bed--v1--d223cd17a4e1.wav": {
+      "key": "d223cd17a4e1319c21c507b0bb124ca504d63990ce4cccb92683f7b5d582fa62",
+      "durationSec": 178.9,
+      "meta": {
+        "provider": "dry-run",
+        "clipId": "bed",
+        "variant": 0,
+        "prompt": "Clean, modern ambient background music, light percussion, warm bass, no vocals, professional tech product feel",
+        "durationSecHint": 178.9,
+        "format": "wav"
+      }
+    }
+  }
+}

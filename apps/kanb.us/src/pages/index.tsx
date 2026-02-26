@@ -1,9 +1,7 @@
 import * as React from "react";
-import { Layout, Section, Hero } from "../components";
+import { Layout, Section, Hero, VmlVideo } from "../components";
 import { Board, Card, CardContent, CardHeader } from "@kanbus/ui";
 import { FEATURE_ENTRIES } from "../content/features";
-import { VIDEOS } from "../content/videos";
-import { getVideoSrc } from "../lib/getVideoSrc";
 
 const IndexPage = () => {
   const boardConfig = {
@@ -94,8 +92,20 @@ const IndexPage = () => {
 
       <div className="space-y-12">
         <Section
+          title="See it in action"
+          subtitle="A quick elevator pitch covering what Kanbus is and everything it can do."
+        >
+          <div className="max-w-4xl mx-auto">
+            <div className="rounded-2xl overflow-hidden shadow-card bg-card">
+              <VmlVideo />
+            </div>
+          </div>
+        </Section>
+
+        <Section
           title="Features"
           subtitle="Focused capabilities that make Kanbus practical for daily work."
+          variant="alt"
         >
           <div className="grid gap-6 md:grid-cols-2">
             {FEATURE_ENTRIES.map((feature) => (
@@ -110,33 +120,6 @@ const IndexPage = () => {
                 </Card>
               </a>
             ))}
-          </div>
-        </Section>
-
-        <Section
-          title="Intro video"
-          subtitle="A quick walkthrough of Canvas and how it ties issues to execution."
-          variant="alt"
-        >
-          <div className="grid gap-6 md:grid-cols-2 items-center">
-            <div className="space-y-3">
-              <h3 className="text-xl font-bold text-foreground">
-                {VIDEOS[0]?.title}
-              </h3>
-              <p className="text-muted leading-relaxed">
-                {VIDEOS[0]?.description}
-              </p>
-            </div>
-            <div className="rounded-2xl overflow-hidden shadow-card bg-card">
-              <video
-                className="w-full h-full"
-                controls
-                preload="metadata"
-                playsInline
-                poster={VIDEOS[0]?.poster ? getVideoSrc(VIDEOS[0].poster) : undefined}
-                src={getVideoSrc(VIDEOS[0].filename)}
-              />
-            </div>
           </div>
         </Section>
 
