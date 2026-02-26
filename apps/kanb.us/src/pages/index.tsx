@@ -44,7 +44,7 @@ const IndexPage = () => {
     {
       id: "tsk-1a2b3c",
       title: "Calibrate flux capacitor",
-      description: "Tune the 1.21 gigawatt threshold so temporal jumps don’t fry the time circuits.",
+      description: "Tune the 1.21 gigawatt threshold so temporal jumps don't fry the time circuits.",
       type: "epic",
       status: "backlog",
       priority: 2,
@@ -87,7 +87,7 @@ const IndexPage = () => {
       type: "bug",
       status: "in_progress",
       priority: 1,
-      description: "Isolate tachyon interference that’s skewing long-range sensor readings.",
+      description: "Isolate tachyon interference that's skewing long-range sensor readings.",
       created_at: "2025-01-02T13:00:00Z"
     },
     {
@@ -108,7 +108,7 @@ const IndexPage = () => {
       status: "backlog",
       priority: 3,
       parent: "tsk-1a2b3c",
-      description: "Fine‑tune coil phasing to reduce chrono jitter before the next jump.",
+      description: "Fine\u2011tune coil phasing to reduce chrono jitter before the next jump.",
       created_at: "2024-12-03T10:30:00Z"
     }
   ];
@@ -232,8 +232,38 @@ const IndexPage = () => {
         </Section>
 
         <Section
+          title="See it in action"
+          subtitle="A quick elevator pitch covering what Kanbus is and everything it can do."
+        >
+          <div className="max-w-4xl mx-auto">
+            <div className="rounded-2xl overflow-hidden shadow-card bg-card">
+              {canRenderVideo ? (
+                <video
+                  controls
+                  preload="metadata"
+                  playsInline
+                  src={introSrc}
+                  poster={introPoster}
+                  style={{
+                    width: "100%",
+                    display: "block",
+                    borderRadius: "14px",
+                    background: "rgba(0, 0, 0, 0.75)",
+                  }}
+                />
+              ) : (
+                <p className="p-8 text-muted text-sm text-center">
+                  Video will appear here once GATSBY_VIDEOS_BASE_URL is configured.
+                </p>
+              )}
+            </div>
+          </div>
+        </Section>
+
+        <Section
           title="Features"
           subtitle="Focused capabilities that make Kanbus practical for daily work."
+          variant="alt"
         >
           <div className="grid gap-6 md:grid-cols-2">
             {FEATURE_ENTRIES.map((feature) => (
@@ -250,54 +280,6 @@ const IndexPage = () => {
             ))}
           </div>
         </Section>
-
-        {/* <Section
-          title="Intro video"
-          subtitle="A quick walkthrough of Canvas and how it ties issues to execution."
-          variant="alt"
-        >
-          <div className="grid gap-6 md:grid-cols-2 items-center">
-            <div className="space-y-3">
-              <h3 className="text-xl font-bold text-foreground">
-                {introVideo?.title}
-              </h3>
-              <p className="text-muted leading-relaxed">
-                {introVideo?.description}
-              </p>
-            </div>
-            <div className="rounded-2xl overflow-hidden shadow-card bg-card">
-              {canRenderVideo ? (
-                <video
-                  className="w-full h-full"
-                  controls
-                  preload="metadata"
-                  playsInline
-                  poster={introPoster}
-                  src={introSrc}
-                />
-              ) : (
-                <p className="p-8 text-muted text-sm text-center">
-                  Set GATSBY_VIDEOS_BASE_URL to enable the intro video preview.
-                </p>
-              )}
-            </div>
-          </div>
-        </Section> */}
-
-        {/* <Section
-          title="Realtime Kanban Board"
-          subtitle="The board you already use, rendered as a lightweight, shareable view."
-        >
-          <div className="rounded-2xl bg-card p-4 shadow-card">
-            <Board
-              columns={boardColumns}
-              issues={boardIssues}
-              priorityLookup={priorityLookup}
-              config={boardConfig}
-              motion={{ mode: "static" }}
-            />
-          </div>
-        </Section> */}
 
         <Section
           title="Files are the database"
