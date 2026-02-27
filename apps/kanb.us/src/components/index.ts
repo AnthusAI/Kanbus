@@ -3,3 +3,7 @@ export { default as Section } from "./Section";
 export { Hero } from "./Hero";
 export { default as CodeBlock } from "./CodeBlock";
 export { default as VmlVideo } from "./VmlVideo";
+export { AnimatedPictogram } from "./AnimatedPictogram";
+export { CodeUiSync } from "./CodeUiSync";
+export { HoverVideoPlayer } from "./HoverVideoPlayer";
+export { HeroPictogram } from "./HeroPictogram";

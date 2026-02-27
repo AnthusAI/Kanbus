@@ -16,6 +16,7 @@
   "dependencies": {
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.8",
+    "@formkit/auto-animate": "^0.9.0",
     "@kanbus/ui": "file:../../packages/ui",
     "@radix-ui/colors": "^3.0.0",
     "@radix-ui/react-scroll-area": "^1.1.2",
@@ -24,6 +25,7 @@
     "@types/dompurify": "^3.2.0",
     "clsx": "^2.1.1",
     "dompurify": "^3.3.1",
+    "framer-motion": "^12.34.3",
     "gatsby": "^5.13.0",
     "gatsby-plugin-postcss": "^6.16.0",
     "gsap": "^3.12.5",

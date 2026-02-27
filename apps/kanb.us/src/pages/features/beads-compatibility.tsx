@@ -16,7 +16,7 @@ const BeadsCompatibilityPage = () => {
           title="Instant Kanban Board"
           subtitle="Visualize your Beads issues immediately."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Zero Conversion Required</h3>
             </CardHeader>
@@ -39,7 +39,7 @@ const BeadsCompatibilityPage = () => {
           variant="alt"
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Bypass the Bottlenecks</h3>
               </CardHeader>
@@ -62,7 +62,7 @@ const BeadsCompatibilityPage = () => {
           title="Risk-Free Migration"
           subtitle="A smooth path forward."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Stay Flexible</h3>
             </CardHeader>

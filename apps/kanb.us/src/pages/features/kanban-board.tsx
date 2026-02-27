@@ -17,7 +17,7 @@ const KanbanBoardPage = () => {
           subtitle="Manage tasks visually with drag-and-drop simplicity."
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Drag & Drop Status Changes</h3>
               </CardHeader>
@@ -45,7 +45,7 @@ const KanbanBoardPage = () => {
           variant="alt"
         >
           <div className="grid gap-6 md:grid-cols-2">
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Filter by Assignee</h3>
               </CardHeader>
@@ -56,7 +56,7 @@ const KanbanBoardPage = () => {
                 </p>
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Type & Priority</h3>
               </CardHeader>
@@ -74,7 +74,7 @@ const KanbanBoardPage = () => {
           title="Instant Detail"
           subtitle="Edit issues without losing context."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Side-by-Side Editing</h3>
             </CardHeader>
@@ -94,7 +94,7 @@ const KanbanBoardPage = () => {
           subtitle="Get the same powerful board experience right inside your editor."
           variant="alt"
         >
-          <Card className="p-8 shadow-card bg-card">
+          <Card className="p-8 bg-card">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Integrated Development</h3>
             </CardHeader>

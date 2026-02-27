@@ -1,5 +1,21 @@
 /* Import Tailwind directly instead of full console globals */
 @import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-card-muted: var(--card-muted);
+  --color-frame: var(--frame);
+  --color-column: var(--column);
+  --color-foreground: var(--text-foreground);
+  --color-muted: var(--text-muted);
+  --color-selected: var(--text-selected);
+  --color-border: var(--border);
+  --color-region-alt: var(--region-alt);
+  --color-footer-bg: var(--footer-bg);
+  --shadow-card: var(--shadow-card);
+}
+
 @import "@kanbus/ui/styles/kanban.css"; /* Keep kanban specific styles */
 @import "./content.css";
 

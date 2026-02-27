@@ -17,7 +17,7 @@ const CoreManagementPage = () => {
           subtitle="Add tasks without leaving your terminal."
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">One Command to Start</h3>
               </CardHeader>
@@ -44,7 +44,7 @@ const CoreManagementPage = () => {
           variant="alt"
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">kanbus list</h3>
               </CardHeader>
@@ -69,7 +69,7 @@ const CoreManagementPage = () => {
           title="Hierarchy"
           subtitle="Organize work into Epics and break them down."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Parent-Child Relationships</h3>
             </CardHeader>
@@ -95,7 +95,7 @@ const CoreManagementPage = () => {
           variant="alt"
         >
           <div className="grid gap-6 md:grid-cols-2">
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Start & Stop</h3>
               </CardHeader>
@@ -107,7 +107,7 @@ const CoreManagementPage = () => {
                 <CodeBlock>{"kanbus start kanbus-x9y8z7"}</CodeBlock>
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Block & Close</h3>
               </CardHeader>
