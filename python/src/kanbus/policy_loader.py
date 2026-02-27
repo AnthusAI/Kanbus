@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from gherkin.parser import Parser
-from gherkin.pickles.compiler import Compiler
 
 if TYPE_CHECKING:
     from gherkin.ast import GherkinDocument

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -27,9 +28,6 @@ def _get_step_registry() -> StepRegistry:
     if _REGISTRY is None:
         _REGISTRY = StepRegistry()
     return _REGISTRY
-
-
-from dataclasses import dataclass
 
 
 @dataclass
