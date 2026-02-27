@@ -114,7 +114,7 @@ export function CodeUiSync() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                className="absolute inset-0 p-6 overflow-y-auto whitespace-pre text-foreground"
+                className="absolute inset-0 p-6 overflow-hidden whitespace-pre text-foreground"
               >
                 {JSON.stringify(FILES[activeIndex].issue, null, 2)}
               </motion.div>
@@ -124,22 +124,22 @@ export function CodeUiSync() {
       </div>
       
       {/* UI Board Visualization */}
-      <div className="flex-1 w-full max-w-sm flex flex-col justify-center">
-        <div className="bg-column p-4 rounded-xl relative overflow-hidden h-full flex flex-col justify-center">
+      <div className="flex-1 w-full max-w-xl md:max-w-sm flex flex-col justify-center">
+        <div className="bg-column p-4 md:p-6 rounded-xl relative overflow-hidden h-full min-h-[340px] flex flex-col justify-center">
           
           <div className="relative h-full w-full">
             {FILES.map((file, idx) => {
               const isActive = activeIndex === idx;
               
               // Calculate Y offset based on position relative to active item
-              // This creates a carousel/stacking effect
-              let yOffset = 0;
+              // This creates a carousel/stacking effect centered vertically
+              let yOffsetNum = 0;
               let scale = 1;
               let opacity = 1;
               let zIndex = 0;
               
               if (isActive) {
-                yOffset = 80;
+                yOffsetNum = 0;
                 scale = 1.05;
                 opacity = 1;
                 zIndex = 10;
@@ -148,12 +148,12 @@ export function CodeUiSync() {
                 const isPrevious = (idx === activeIndex - 1) || (activeIndex === 0 && idx === FILES.length - 1);
                 
                 if (isPrevious) {
-                  yOffset = 20;
+                  yOffsetNum = -90;
                   scale = 0.95;
                   opacity = 0.5;
                   zIndex = 5;
                 } else {
-                  yOffset = 190;
+                  yOffsetNum = 90;
                   scale = 0.95;
                   opacity = 0.5;
                   zIndex = 5;
@@ -164,13 +164,13 @@ export function CodeUiSync() {
                 <motion.div
                   key={file.filename}
                   animate={{
-                    y: yOffset,
+                    y: `calc(-50% + ${yOffsetNum}px)`,
                     scale,
                     opacity,
                     zIndex,
                   }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  className="absolute w-full left-0 right-0"
+                  className="absolute w-full left-0 top-1/2"
                 >
                   <IssueCard 
                     issue={file.issue as any}

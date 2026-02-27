@@ -241,10 +241,9 @@ const IndexPage = () => {
 
         <Section
           title="Realtime Kanban Board"
-          subtitle="The board you already use, rendered as a lightweight, shareable view."
-          variant="alt"
+          subtitle="The board updates in realtime when your agent makes changes, immediately."
         >
-          <div className="kanban-snapshot-container" ref={boardSectionRef}>
+          <div className="kanban-snapshot-container h-[550px]" ref={boardSectionRef}>
             <div className={`layout-frame gap-4 ${isMaximized ? "detail-maximized" : ""} flex flex-col lg:flex-row`}>
               <div className="layout-slot layout-slot-board">
                 <Board
