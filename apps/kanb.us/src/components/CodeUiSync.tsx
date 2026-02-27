@@ -165,7 +165,7 @@ export function CodeUiSync() {
               // This creates a carousel/stacking effect centered vertically
               let yOffsetNum = 0;
               let scale;
-              let opacity = 1;
+              let opacity;
               let zIndex = 0;
               
               if (isActive) {
