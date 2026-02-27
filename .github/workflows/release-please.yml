@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - dev
       - main
 
 permissions:
@@ -14,6 +13,7 @@ permissions:
 jobs:
   release-pr:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Release Please
         uses: google-github-actions/release-please-action@v4
