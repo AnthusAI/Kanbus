@@ -1,6 +1,7 @@
 //! CLI command definitions.
 
 use std::ffi::OsString;
+use std::io::IsTerminal;
 use std::path::Path;
 
 use clap::error::ErrorKind;
@@ -23,8 +24,8 @@ use crate::dependency_tree::{build_dependency_tree, render_dependency_tree};
 use crate::doctor::run_doctor;
 use crate::error::KanbusError;
 use crate::file_io::{
-    canonicalize_path, ensure_git_repository, get_configuration_path, initialize_project,
-    resolve_root,
+    canonicalize_path, detect_repairable_project_issues, ensure_git_repository,
+    get_configuration_path, initialize_project, repair_project_structure, resolve_root,
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
@@ -246,6 +247,12 @@ enum Commands {
     },
     /// Validate project integrity.
     Validate,
+    /// Repair a broken project structure.
+    Repair {
+        /// Repair without prompting.
+        #[arg(long)]
+        yes: bool,
+    },
     /// Promote a local issue to shared.
     Promote {
         /// Issue identifier.
@@ -303,6 +310,11 @@ enum Commands {
     Console {
         #[command(subcommand)]
         command: ConsoleCommands,
+    },
+    /// Policy management commands.
+    Policy {
+        #[command(subcommand)]
+        command: PolicyCommands,
     },
     /// Report daemon status.
     #[command(name = "daemon-status")]
@@ -443,6 +455,28 @@ enum WikiCommands {
         /// Wiki page path.
         page: String,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum PolicyCommands {
+    /// Check policies against an issue.
+    Check {
+        /// Issue identifier to check policies against.
+        identifier: String,
+    },
+    /// List all loaded policy files.
+    List,
+    /// List available policy steps.
+    Steps {
+        /// Filter by category (given, when, then).
+        #[arg(long)]
+        category: Option<String>,
+        /// Filter by search term.
+        #[arg(long)]
+        search: Option<String>,
+    },
+    /// Validate all policy files for syntax errors.
+    Validate,
 }
 
 #[derive(Debug, Subcommand)]
@@ -618,6 +652,7 @@ where
     let root = resolve_root(cwd);
     let root = canonicalize_path(&root).unwrap_or(root);
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
+    maybe_prompt_project_repair(&cli.command, &root)?;
     let stdout = execute_command(cli.command, &root, beads_mode, beads_forced);
     let captured_stderr = take_captured_stderr().unwrap_or_default();
     let stdout = stdout?;
@@ -653,6 +688,51 @@ fn beads_root(root: &Path) -> std::path::PathBuf {
         .unwrap_or_else(|| root.to_path_buf())
 }
 
+fn should_check_project_structure(command: &Commands) -> bool {
+    !matches!(command, Commands::Init { .. } | Commands::Setup { .. })
+}
+
+fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), KanbusError> {
+    if !should_check_project_structure(command) {
+        return Ok(());
+    }
+    let plan = match detect_repairable_project_issues(root, true)? {
+        Some(plan) => plan,
+        None => return Ok(()),
+    };
+
+    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+        return Ok(());
+    }
+
+    let mut missing = Vec::new();
+    if plan.missing_project_dir {
+        missing.push("project/");
+    }
+    if plan.missing_issues_dir {
+        missing.push("project/issues");
+    }
+    if plan.missing_events_dir {
+        missing.push("project/events");
+    }
+
+    eprint!(
+        "Project structure incomplete (missing: {}). Repair now? [y/N] ",
+        missing.join(", ")
+    );
+    use std::io::Write;
+    std::io::stderr().flush().ok();
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).ok();
+    let reply = input.trim().to_ascii_lowercase();
+    if reply == "y" || reply == "yes" {
+        repair_project_structure(&plan)?;
+        eprintln!("Project structure repaired.");
+    }
+    Ok(())
+}
+
 fn execute_command(
     command: Commands,
     root: &Path,
@@ -665,6 +745,45 @@ fn execute_command(
             ensure_git_repository(root)?;
             initialize_project(root, local)?;
             Ok(None)
+        }
+        Commands::Repair { yes } => {
+            let plan = detect_repairable_project_issues(root, false)?;
+            let Some(plan) = plan else {
+                return Ok(Some("Project structure is already healthy.".to_string()));
+            };
+
+            if !yes && std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+                let mut missing = Vec::new();
+                if plan.missing_project_dir {
+                    missing.push("project/");
+                }
+                if plan.missing_issues_dir {
+                    missing.push("project/issues");
+                }
+                if plan.missing_events_dir {
+                    missing.push("project/events");
+                }
+                eprint!(
+                    "Project structure incomplete (missing: {}). Repair now? [y/N] ",
+                    missing.join(", ")
+                );
+                use std::io::Write;
+                std::io::stderr().flush().ok();
+
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).ok();
+                let reply = input.trim().to_ascii_lowercase();
+                if reply != "y" && reply != "yes" {
+                    return Ok(Some("Repair cancelled.".to_string()));
+                }
+            } else if !yes {
+                return Err(KanbusError::IssueOperation(
+                    "project structure requires repair (re-run with --yes)".to_string(),
+                ));
+            }
+
+            repair_project_structure(&plan)?;
+            Ok(Some("Project structure repaired.".to_string()))
         }
         Commands::Setup { command } => match command {
             SetupCommands::Agents { force } => {
@@ -1376,6 +1495,132 @@ fn execute_command(
                 };
                 let output = render_wiki_page(&request)?;
                 Ok(Some(output))
+            }
+        },
+        Commands::Policy { command } => match command {
+            PolicyCommands::Check { identifier } => {
+                use crate::config_loader::load_project_configuration;
+                use crate::file_io::get_configuration_path;
+                use crate::issue_lookup::load_issue_from_project;
+
+                let lookup = load_issue_from_project(root, &identifier)?;
+                let config_path = get_configuration_path(&lookup.project_dir)?;
+                let configuration = load_project_configuration(&config_path)?;
+                let policies_dir = lookup.project_dir.join("policies");
+
+                if !policies_dir.is_dir() {
+                    return Ok(Some("No policies directory found".to_string()));
+                }
+
+                let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
+                if policy_documents.is_empty() {
+                    return Ok(Some("No policy files found".to_string()));
+                }
+
+                let issues_dir = lookup.project_dir.join("issues");
+                let all_issues = crate::issue_listing::load_issues_from_directory(&issues_dir)?;
+                let context = crate::policy_context::PolicyContext {
+                    current_issue: Some(lookup.issue.clone()),
+                    proposed_issue: lookup.issue.clone(),
+                    transition: None,
+                    operation: crate::policy_context::PolicyOperation::Update,
+                    project_configuration: configuration,
+                    all_issues,
+                };
+
+                use crate::policy_evaluator::{
+                    evaluate_policies_with_options, PolicyEvaluationOptions,
+                };
+
+                if let Err(violations) = evaluate_policies_with_options(
+                    &context,
+                    &policy_documents,
+                    &PolicyEvaluationOptions {
+                        collect_all_violations: true,
+                    },
+                ) {
+                    let mut error_msg = format!("Found {} policy violation(s):", violations.len());
+                    for (i, v) in violations.iter().enumerate() {
+                        error_msg.push_str(&format!("\n\n{}. {}", i + 1, v));
+                    }
+                    return Err(KanbusError::IssueOperation(error_msg));
+                }
+                Ok(Some(format!("All policies passed for {}", identifier)))
+            }
+            PolicyCommands::List => {
+                use crate::project::load_project_directory;
+
+                let project_dir = load_project_directory(root)?;
+                let policies_dir = project_dir.join("policies");
+
+                if !policies_dir.is_dir() {
+                    return Ok(Some("No policies directory found".to_string()));
+                }
+
+                let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
+                if policy_documents.is_empty() {
+                    return Ok(Some("No policy files found".to_string()));
+                }
+
+                let mut output = String::new();
+                for (filename, feature) in &policy_documents {
+                    output.push_str(&format!("{}\n  Feature: {}\n", filename, feature.name));
+                    for scenario in &feature.scenarios {
+                        output.push_str(&format!("    Scenario: {}\n", scenario.name));
+                    }
+                }
+                Ok(Some(output))
+            }
+            PolicyCommands::Steps { category, search } => {
+                use crate::policy_evaluator::STEP_REGISTRY;
+
+                let mut output = String::new();
+                for step in &STEP_REGISTRY.steps {
+                    if let Some(ref cat) = category {
+                        let cat_lower = cat.to_lowercase();
+                        let step_cat = format!("{:?}", step.category).to_lowercase();
+                        if cat_lower != step_cat {
+                            continue;
+                        }
+                    }
+                    if let Some(ref term) = search {
+                        let term_lower = term.to_lowercase();
+                        if !step.description.to_lowercase().contains(&term_lower)
+                            && !step.usage_pattern.to_lowercase().contains(&term_lower)
+                        {
+                            continue;
+                        }
+                    }
+                    output.push_str(&format!(
+                        "{:?} - {}\n  Pattern: {}\n",
+                        step.category, step.description, step.usage_pattern
+                    ));
+                }
+                if output.is_empty() {
+                    Ok(Some("No matching steps found".to_string()))
+                } else {
+                    Ok(Some(output))
+                }
+            }
+            PolicyCommands::Validate => {
+                use crate::project::load_project_directory;
+
+                let project_dir = load_project_directory(root)?;
+                let policies_dir = project_dir.join("policies");
+
+                if !policies_dir.is_dir() {
+                    return Ok(Some("No policies directory found".to_string()));
+                }
+
+                let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
+                if policy_documents.is_empty() {
+                    return Ok(Some("No policy files found".to_string()));
+                }
+
+                Ok(Some(format!(
+                    "All {} policy files are valid",
+                    policy_documents.len()
+                )))
             }
         },
         Commands::Console { command } => match command {

@@ -16,6 +16,17 @@ const main = () => {
     throw new Error(`Missing videos/ subproject at ${videosDir}`);
   }
 
+  // Set default env vars if missing
+  if (!process.env.VIDEOML_CLI) {
+    process.env.VIDEOML_CLI = path.resolve(repoRoot, "..", "VideoML", "cli", "bin", "vml.js");
+  }
+  if (!process.env.BABULUS_BUNDLE) {
+    process.env.BABULUS_BUNDLE = path.resolve(repoRoot, "..", "Babulus", "public", "babulus-standard.js");
+  }
+
+  console.log(`Using VIDEOML_CLI: ${process.env.VIDEOML_CLI}`);
+  console.log(`Using BABULUS_BUNDLE: ${process.env.BABULUS_BUNDLE}`);
+
   mkdirSync(siteStaticVideosDir, { recursive: true });
 
   if (!existsSync(path.join(videosDir, "node_modules"))) {
@@ -24,10 +35,24 @@ const main = () => {
 
   run("npm run bundle:components", { cwd: videosDir });
   run("npm run vml:generate", { cwd: videosDir });
-  run("npm run vml:render:intro", { cwd: videosDir });
+  run("npm run vml:render:all", { cwd: videosDir });
 
   const outFiles = existsSync(outDir) ? readdirSync(outDir) : [];
-  const toCopy = outFiles.filter(
+  const mp4Files = outFiles.filter((file) => file.toLowerCase().endsWith(".mp4"));
+  
+  for (const filename of mp4Files) {
+    const src = path.join(outDir, filename);
+    const posterSrc = path.join(outDir, filename.replace(".mp4", ".jpg"));
+    console.log(`Extracting poster for ${filename}...`);
+    try {
+      run(`ffmpeg -y -ss 00:00:02.000 -i "${src}" -vframes 1 -q:v 2 "${posterSrc}"`, { stdio: "ignore" });
+    } catch (e) {
+      console.error(`Failed to extract poster for ${filename}`);
+    }
+  }
+
+  const updatedOutFiles = existsSync(outDir) ? readdirSync(outDir) : [];
+  const toCopy = updatedOutFiles.filter(
     (file) => file.toLowerCase().endsWith(".mp4") || file.toLowerCase().endsWith(".jpg")
   );
 

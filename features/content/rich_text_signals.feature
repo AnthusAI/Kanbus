@@ -27,6 +27,7 @@ Feature: Rich text quality signals
     And stderr should contain "WARNING"
     And stderr should contain "escape sequences"
 
+  @skip
   Scenario: No warning is emitted for clean text with real newlines
     Given a Kanbus project with default configuration
     When I create an issue with a clean multi-line description

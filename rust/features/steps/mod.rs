@@ -30,6 +30,7 @@ pub mod local_issue_steps;
 pub mod maintenance_steps;
 pub mod migration_steps;
 pub mod output_steps;
+pub mod policy_steps;
 pub mod project_steps;
 pub mod pytest_migration_steps;
 pub mod query_steps;

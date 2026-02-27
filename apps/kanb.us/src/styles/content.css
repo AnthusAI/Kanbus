@@ -62,6 +62,33 @@
   font-weight: 600;
 }
 
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--blue-5);
+  color: var(--text-foreground);
+  font-weight: 600;
+  box-shadow: 0 0 20px -5px var(--blue-7);
+  transition: all 0.2s ease-in-out;
+}
+
+.cta-button:hover {
+  box-shadow: 0 0 30px -5px var(--blue-8);
+  transform: translateY(-1px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .cta-button {
+    background: var(--blue-8);
+    box-shadow: 0 0 20px -5px var(--blue-9);
+  }
+  .cta-button:hover {
+    box-shadow: 0 0 30px -5px var(--blue-9);
+  }
+}
+
 .button.secondary {
   background: var(--bg-surface-3);
   color: var(--text-primary);
@@ -134,6 +161,6 @@
     background: var(--column);
     border-radius: 1rem; /* rounded-2xl */
     padding: 1rem; /* p-4 */
-    box-shadow: 0 10px 40px -18px rgba(0, 0, 0, 0.2); /* shadow-card */
+    box-shadow: none; /* No shadow for flat design */
     overflow: hidden;
 }

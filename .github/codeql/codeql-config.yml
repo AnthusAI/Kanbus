@@ -1,0 +1,8 @@
+paths-ignore:
+  - ".codeql/**"
+  - ".codeql-tools/**"
+  - "node_modules/**"
+  - "**/dist/**"
+  - "rust/embedded_assets/console/assets/**"
+  - "videos/src/videos/*/env/**"
+  - "**/playwright/.cache/**"

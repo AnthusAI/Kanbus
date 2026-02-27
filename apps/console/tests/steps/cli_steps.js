@@ -127,10 +127,7 @@ When("I run {string}", async function (command) {
         const value = state.search_query ?? "";
         lastStdout = `${value}\n`;
       }
-    } else if (subcommand === "get") {
-      lastStderr = `unsupported console command: ${command}`;
-      lastExitCode = 1;
-    } else if (subcommand === "status") {
+    } else if (subcommand === "get" || subcommand === "status") {
       lastStderr = `unsupported console command: ${command}`;
       lastExitCode = 1;
     } else {

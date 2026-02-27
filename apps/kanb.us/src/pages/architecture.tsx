@@ -16,7 +16,7 @@ const ArchitecturePage = () => {
           title="Spec-Driven Design"
           subtitle="Gherkin features are treated as high-level source code."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Gherkin as Source Code</h3>
             </CardHeader>
@@ -38,7 +38,7 @@ const ArchitecturePage = () => {
           subtitle="A shared features directory keeps behavior in lockstep."
           variant="alt"
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">One Shared Features Folder</h3>
             </CardHeader>
@@ -59,7 +59,7 @@ const ArchitecturePage = () => {
           subtitle="Multiple languages, identical behavior."
         >
           <div className="grid gap-8 md:grid-cols-2">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Python</h3>
               </CardHeader>
@@ -68,7 +68,7 @@ const ArchitecturePage = () => {
                 fully constrained by the shared behavior specifications.
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Rust</h3>
               </CardHeader>
@@ -86,7 +86,7 @@ const ArchitecturePage = () => {
           variant="alt"
         >
           <div className="grid gap-8 md:grid-cols-2">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Feature Work Starts With Gherkin</h3>
               </CardHeader>
@@ -94,7 +94,7 @@ const ArchitecturePage = () => {
                 Every behavior change begins with a specification update. Code exists to satisfy specs, not the other way around.
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Parity Is Non-Negotiable</h3>
               </CardHeader>

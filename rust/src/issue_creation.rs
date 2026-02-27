@@ -143,6 +143,23 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         custom: std::collections::BTreeMap::new(),
     };
 
+    let policies_dir = project_dir.join("policies");
+    if policies_dir.is_dir() {
+        let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
+        if !policy_documents.is_empty() {
+            let all_issues = crate::issue_listing::load_issues_from_directory(&issues_dir)?;
+            let context = crate::policy_context::PolicyContext {
+                current_issue: None,
+                proposed_issue: issue.clone(),
+                transition: None,
+                operation: crate::policy_context::PolicyOperation::Create,
+                project_configuration: configuration.clone(),
+                all_issues,
+            };
+            crate::policy_evaluator::evaluate_policies(&context, &policy_documents)?;
+        }
+    }
+
     let issue_path = issue_path_for_identifier(&issues_dir, &issue.identifier);
     write_issue_to_file(&issue, &issue_path)?;
 

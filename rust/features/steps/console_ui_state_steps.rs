@@ -163,8 +163,10 @@ fn given_issue_exists_with_title(world: &mut KanbusWorld, identifier: String, ti
 
 #[given("the console server is not running")]
 fn given_console_server_not_running(_world: &mut KanbusWorld) {
-    // No-op: in the default test environment no console server is running.
-    // This step exists to make the scenario intent explicit.
+    let port = allocate_port();
+    let world = _world;
+    world.console_port = Some(port);
+    write_console_port_to_config(world, port);
 }
 
 // ---------------------------------------------------------------------------

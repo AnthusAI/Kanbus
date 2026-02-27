@@ -1,0 +1,55 @@
+<vml id="jira-sync" title="Jira Sync" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="Jira Sync" duration="5s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <animated-pictogram-video props='{"type": "jira"}' />
+    </layer>
+    <layer id="title" z="1">
+      <text-block props='{"text":"Jira Sync","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
+      <text-block props='{"text":"Pull Jira issues directly into your repository","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+    </layer>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="deep_dive" title="Jira Sync Deep Dive" duration="36s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"Jira Sync","x":960,"y":120}' />
+    </layer>
+    <layer id="subtitle" z="1">
+      <subtitle props='{"text":"Pull Jira issues directly into your repository","x":960,"y":200}' />
+    </layer>
+    <layer id="content" z="1">
+      <text-block props='{"text":"Full Context Offline","x":480,"y":400,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Run a single command to sync your entire project. Any agent that can read your source code can now read your Jira issues without API calls.","x":480,"y":540,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      
+      <text-block props='{"text":"Idempotent and Safe","x":480,"y":740,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs and ensuring no duplication.","x":480,"y":880,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <jira-sync-demo-video props='{"style":{"left": 960, "top": 300, "width": 800, "bottom": 0, "position": "absolute"}}' />
+    </layer>
+    <cue id="intro" label="Introduction">
+      <voice>Pull Jira issues into your repository so coding agents always have full context. No API calls, no MCP tools, just files.</voice>
+    </cue>
+    <cue id="sync" label="Sync">
+      <pause seconds="0.5s" />
+      <voice>Run a single command to sync your entire project. Kanbus fetches every issue and translates types, statuses, and priorities automatically.</voice>
+    </cue>
+    <cue id="idempotent" label="Idempotent">
+      <pause seconds="0.5s" />
+      <voice>Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs.</voice>
+    </cue>
+    <cue id="agents" label="Agents">
+      <pause seconds="0.5s" />
+      <voice>Any agent that can read your source code can now read your Jira issues. The context travels with your branch and survives offline.</voice>
+    </cue>
+  </scene>
+</vml>
