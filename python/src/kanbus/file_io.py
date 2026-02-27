@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import subprocess
 import json
+from dataclasses import dataclass
 from pathlib import Path
 import yaml
 
@@ -14,11 +15,24 @@ from kanbus.project_management_template import (
     DEFAULT_PROJECT_MANAGEMENT_TEMPLATE,
     DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
 )
-from kanbus.project import ensure_project_local_directory
+from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.project import (
+    ProjectMarkerError,
+    ensure_project_local_directory,
+    get_configuration_path,
+)
 
 
 class InitializationError(RuntimeError):
     """Raised when project initialization fails."""
+
+
+@dataclass
+class RepairPlan:
+    project_dir: Path
+    missing_project_dir: bool
+    missing_issues_dir: bool
+    missing_events_dir: bool
 
 
 def ensure_git_repository(root: Path) -> None:
@@ -64,7 +78,7 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
             yaml.safe_dump(DEFAULT_CONFIGURATION, sort_keys=False),
             encoding="utf-8",
         )
-    _write_project_guard_files(project_dir)
+    _write_project_guard_files_if_missing(project_dir)
     _write_tool_block_files(root)
     template_path = root / DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME
     if not template_path.exists():
@@ -92,6 +106,14 @@ def _write_project_guard_files(project_dir: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
+
+
+def _write_project_guard_files_if_missing(project_dir: Path) -> None:
+    agents_path = project_dir / "AGENTS.md"
+    do_not_edit = project_dir / "DO_NOT_EDIT"
+    if agents_path.exists() and do_not_edit.exists():
+        return
+    _write_project_guard_files(project_dir)
     do_not_edit = project_dir / "DO_NOT_EDIT"
     do_not_edit.write_text(
         "\n".join(
@@ -131,6 +153,59 @@ def _write_tool_block_files(root: Path) -> None:
             + "\n",
             encoding="utf-8",
         )
+
+
+def detect_repairable_project_issues(
+    root: Path, *, allow_uninitialized: bool
+) -> RepairPlan | None:
+    try:
+        config_path = get_configuration_path(root)
+    except ProjectMarkerError as error:
+        if allow_uninitialized:
+            return None
+        raise error
+    except ConfigurationError as error:
+        raise error
+
+    configuration = load_project_configuration(config_path)
+    project_dir = config_path.parent / configuration.project_directory
+    try:
+        project_dir_stat = project_dir.stat()
+    except FileNotFoundError:
+        project_dir_stat = None
+    missing_project_dir = project_dir_stat is None
+
+    missing_issues_dir = False
+    missing_events_dir = False
+    if not missing_project_dir:
+        try:
+            (project_dir / "issues").stat()
+        except FileNotFoundError:
+            missing_issues_dir = True
+        try:
+            (project_dir / "events").stat()
+        except FileNotFoundError:
+            missing_events_dir = True
+
+    if missing_project_dir or missing_issues_dir or missing_events_dir:
+        return RepairPlan(
+            project_dir=project_dir,
+            missing_project_dir=missing_project_dir,
+            missing_issues_dir=missing_issues_dir,
+            missing_events_dir=missing_events_dir,
+        )
+    return None
+
+
+def repair_project_structure(root: Path, plan: RepairPlan) -> None:
+    if plan.missing_project_dir:
+        plan.project_dir.mkdir(parents=True, exist_ok=True)
+    if plan.missing_issues_dir:
+        (plan.project_dir / "issues").mkdir(parents=True, exist_ok=True)
+    if plan.missing_events_dir:
+        (plan.project_dir / "events").mkdir(parents=True, exist_ok=True)
+    if plan.project_dir.exists():
+        _write_project_guard_files_if_missing(plan.project_dir)
 
     vscode_dir = root / ".vscode"
     vscode_dir.mkdir(parents=True, exist_ok=True)

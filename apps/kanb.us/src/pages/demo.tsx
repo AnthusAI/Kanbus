@@ -81,7 +81,7 @@ const DemoPage = () => {
           title="Kanban + video demo"
           subtitle="A focused page to validate the live Kanban component alongside the rendered intro video."
         >
-          <div className="rounded-2xl bg-card p-4 shadow-card">
+          <div className="rounded-2xl bg-card p-4">
             <Board
               columns={boardColumns}
               issues={boardIssues}
@@ -106,7 +106,7 @@ const DemoPage = () => {
                 {VIDEOS[0]?.description}
               </p>
             </div>
-            <div className="rounded-2xl overflow-hidden shadow-card bg-card">
+            <div className="rounded-2xl overflow-hidden bg-card">
               {canRenderVideo ? (
                 <video
                   className="w-full h-full"

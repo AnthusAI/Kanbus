@@ -1,0 +1,343 @@
+{
+  "scenes": [
+    {
+      "id": "hook",
+      "title": "Virtual Projects",
+      "startSec": 0,
+      "endSec": 5,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "animated-pictogram-video-0",
+              "type": "AnimatedPictogramVideo",
+              "props": {
+                "type": "virtual",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Virtual Projects",
+                "x": 960,
+                "y": 120,
+                "size": 64,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 1200,
+                "font": "sans",
+                "sceneStartSec": 0
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "Manage issues from multiple repositories in a single workspace",
+                "x": 960,
+                "y": 200,
+                "size": 36,
+                "weight": 400,
+                "align": "center",
+                "maxWidth": 1200,
+                "font": "serif",
+                "color": "var(--text-muted)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        }
+      ],
+      "cues": []
+    },
+    {
+      "id": "deep_dive",
+      "title": "Virtual Projects Deep Dive",
+      "startSec": 5.625,
+      "endSec": 35.625,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "title-0",
+              "type": "Title",
+              "props": {
+                "text": "Virtual Projects",
+                "x": 960,
+                "y": 120,
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "subtitle",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "subtitle-0",
+              "type": "Subtitle",
+              "props": {
+                "text": "Manage issues from multiple repositories in a single workspace",
+                "x": 960,
+                "y": 200,
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Unified Workflow",
+                "x": 480,
+                "y": 400,
+                "size": 36,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "sans",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace. Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack.",
+                "x": 480,
+                "y": 540,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 28,
+                "borderRadius": 16,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-2",
+              "type": "TextBlock",
+              "props": {
+                "text": "Shared or Local Configs",
+                "x": 480,
+                "y": 760,
+                "size": 36,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "sans",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-3",
+              "type": "TextBlock",
+              "props": {
+                "text": "Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically. Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow.",
+                "x": 480,
+                "y": 900,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 28,
+                "borderRadius": 16,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "virtual-projects-demo-video-0",
+              "type": "VirtualProjectsDemoVideo",
+              "props": {
+                "style": {
+                  "left": 960,
+                  "top": 300,
+                  "width": 800,
+                  "bottom": 0,
+                  "position": "absolute"
+                },
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "intro",
+          "label": "Introduction",
+          "startSec": 5.625,
+          "endSec": 11.443181818181818,
+          "text": "Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 5.625,
+              "endSec": 11.443181818181818,
+              "text": "Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "unified",
+          "label": "Unified Workflow",
+          "startSec": 11.443181818181818,
+          "endSec": 18.852272727272727,
+          "text": "Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 11.443181818181818,
+              "endSec": 11.943181818181818,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 11.943181818181818,
+              "endSec": 18.852272727272727,
+              "text": "Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "shared",
+          "label": "Shared Config",
+          "startSec": 18.852272727272727,
+          "endSec": 25.170454545454547,
+          "text": "Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 18.852272727272727,
+              "endSec": 19.352272727272727,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 19.352272727272727,
+              "endSec": 25.170454545454547,
+              "text": "Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "local",
+          "label": "Local Overrides",
+          "startSec": 25.170454545454547,
+          "endSec": 32.21590909090909,
+          "text": "Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 25.170454545454547,
+              "endSec": 25.670454545454547,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 25.670454545454547,
+              "endSec": 32.21590909090909,
+              "text": "Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "kind": "scene",
+      "sceneId": "hook",
+      "startSec": 0,
+      "endSec": 5
+    },
+    {
+      "kind": "transition",
+      "id": "push-1",
+      "startSec": 5,
+      "endSec": 5.625,
+      "effect": "slide",
+      "ease": "power2.inOut",
+      "props": {
+        "direction": "left"
+      },
+      "mode": "insert",
+      "fromSceneId": "hook",
+      "toSceneId": "deep_dive"
+    },
+    {
+      "kind": "scene",
+      "sceneId": "deep_dive",
+      "startSec": 5.625,
+      "endSec": 35.625
+    }
+  ],
+  "posterTimeSec": 2,
+  "fps": 24,
+  "meta": {
+    "fps": 24,
+    "width": 1920,
+    "height": 1080
+  }
+}

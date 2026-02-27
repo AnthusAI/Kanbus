@@ -1,0 +1,343 @@
+{
+  "scenes": [
+    {
+      "id": "hook",
+      "title": "Policy as Code",
+      "startSec": 0,
+      "endSec": 5,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "animated-pictogram-video-0",
+              "type": "AnimatedPictogramVideo",
+              "props": {
+                "type": "policy",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Policy as Code",
+                "x": 960,
+                "y": 120,
+                "size": 64,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 1200,
+                "font": "sans",
+                "sceneStartSec": 0
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "Define project rules using Gherkin BDD syntax",
+                "x": 960,
+                "y": 200,
+                "size": 36,
+                "weight": 400,
+                "align": "center",
+                "maxWidth": 1200,
+                "font": "serif",
+                "color": "var(--text-muted)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        }
+      ],
+      "cues": []
+    },
+    {
+      "id": "deep_dive",
+      "title": "Policy as Code",
+      "startSec": 5.625,
+      "endSec": 44.625,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "title-0",
+              "type": "Title",
+              "props": {
+                "text": "Policy as Code",
+                "x": 960,
+                "y": 120,
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "subtitle",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "subtitle-0",
+              "type": "Subtitle",
+              "props": {
+                "text": "Define project rules using Gherkin BDD syntax",
+                "x": 960,
+                "y": 200,
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Readable Specifications",
+                "x": 480,
+                "y": 400,
+                "size": 36,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "sans",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "Define project rules using Gherkin BDD syntax. No programming required, just clear, readable scenarios that express exactly what should happen.",
+                "x": 480,
+                "y": 540,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 28,
+                "borderRadius": 16,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-2",
+              "type": "TextBlock",
+              "props": {
+                "text": "Automatic Enforcement",
+                "x": 480,
+                "y": 760,
+                "size": 36,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "sans",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-3",
+              "type": "TextBlock",
+              "props": {
+                "text": "Policies run automatically on every issue create and update. When a policy fails, the operation is rejected with a clear error message showing exactly which rule was violated. Define your standards once, and they are enforced consistently across all interactions.",
+                "x": 480,
+                "y": 920,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 28,
+                "borderRadius": 16,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "policy-demo-video-0",
+              "type": "PolicyDemoVideo",
+              "props": {
+                "style": {
+                  "left": 960,
+                  "top": 300,
+                  "width": 800,
+                  "bottom": 0,
+                  "position": "absolute"
+                },
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "intro",
+          "label": "Introduction",
+          "startSec": 5.625,
+          "endSec": 10.352272727272727,
+          "text": "Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 5.625,
+              "endSec": 10.352272727272727,
+              "text": "Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "example_explanation",
+          "label": "Example Explanation",
+          "startSec": 10.352272727272727,
+          "endSec": 18.852272727272727,
+          "text": "Use familiar BDD syntax to describe your project rules. No programming required, just clear, readable scenarios that express exactly what should happen.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 10.352272727272727,
+              "endSec": 10.852272727272727,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 10.852272727272727,
+              "endSec": 18.852272727272727,
+              "text": "Use familiar BDD syntax to describe your project rules. No programming required, just clear, readable scenarios that express exactly what should happen."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "enforcement_explanation",
+          "label": "Enforcement Explanation",
+          "startSec": 18.852272727272727,
+          "endSec": 29.534090909090907,
+          "text": "Policies run automatically on every issue create and update. When a policy fails, the operation is rejected with a clear error message showing exactly which rule was violated.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 18.852272727272727,
+              "endSec": 19.352272727272727,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 19.352272727272727,
+              "endSec": 29.534090909090907,
+              "text": "Policies run automatically on every issue create and update. When a policy fails, the operation is rejected with a clear error message showing exactly which rule was violated."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "benefits_explanation",
+          "label": "Benefits Explanation",
+          "startSec": 29.534090909090907,
+          "endSec": 39.125,
+          "text": "Policies work the same whether a human or an AI agent is managing issues. Define your standards once, and they're enforced consistently across all interactions.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 29.534090909090907,
+              "endSec": 30.034090909090907,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 30.034090909090907,
+              "endSec": 39.125,
+              "text": "Policies work the same whether a human or an AI agent is managing issues. Define your standards once, and they're enforced consistently across all interactions."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "kind": "scene",
+      "sceneId": "hook",
+      "startSec": 0,
+      "endSec": 5
+    },
+    {
+      "kind": "transition",
+      "id": "push-1",
+      "startSec": 5,
+      "endSec": 5.625,
+      "effect": "slide",
+      "ease": "power2.inOut",
+      "props": {
+        "direction": "left"
+      },
+      "mode": "insert",
+      "fromSceneId": "hook",
+      "toSceneId": "deep_dive"
+    },
+    {
+      "kind": "scene",
+      "sceneId": "deep_dive",
+      "startSec": 5.625,
+      "endSec": 44.625
+    }
+  ],
+  "posterTimeSec": 2,
+  "fps": 24,
+  "meta": {
+    "fps": 24,
+    "width": 1920,
+    "height": 1080
+  }
+}

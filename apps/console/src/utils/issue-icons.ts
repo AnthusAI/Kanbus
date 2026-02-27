@@ -2,7 +2,6 @@ import {
   Bug,
   Bookmark,
   CheckSquare,
-  ListChecks,
   Zap,
   Rocket,
   Square,

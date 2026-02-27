@@ -9,8 +9,13 @@ import {
   type TaskDetailIssue
 } from "@kanbus/ui";
 import { FEATURE_ENTRIES } from "../content/features";
-import { VIDEOS } from "../content/videos";
+import { VIDEOS, getVideoById } from "../content/videos";
 import { getVideoSrc } from "../lib/getVideoSrc";
+import { AnimatedPictogram } from "../components/AnimatedPictogram";
+import { CodeUiSync } from "../components/CodeUiSync";
+import { HoverVideoPlayer } from "../components/HoverVideoPlayer";
+import { FullVideoPlayer } from "../components/FullVideoPlayer";
+import { useInView } from "framer-motion";
 import "@kanbus/ui/styles/kanban.css"; // Explicit import
 
 const IndexPage = () => {
@@ -119,12 +124,48 @@ const IndexPage = () => {
     3: "low"
   };
 
+  const [issues, setIssues] = React.useState<TaskDetailIssue[]>(boardIssues);
   const [collapsedColumns, setCollapsedColumns] = React.useState<Set<string>>(new Set());
   const [selectedIssueId, setSelectedIssueId] = React.useState<string | null>(null);
   const [focusedIssueId, setFocusedIssueId] = React.useState<string | null>(null);
   const [isMaximized, setIsMaximized] = React.useState(false);
+  
+  const boardSectionRef = React.useRef<HTMLDivElement>(null);
+  const isInView = useInView(boardSectionRef, { margin: "-200px" });
+
+  React.useEffect(() => {
+    if (!isInView) return;
+    
+    let moveCount = 0;
+    const interval = setInterval(() => {
+      setIssues(current => {
+        const newIssues = [...current];
+        const step = moveCount % 4;
+        
+        if (step === 0) {
+          // Reset
+          return boardIssues;
+        } else if (step === 1) {
+          const idx = newIssues.findIndex(i => i.id === "tsk-4d5e6f");
+          if (idx >= 0) newIssues[idx] = { ...newIssues[idx], status: "closed" };
+        } else if (step === 2) {
+          const idx = newIssues.findIndex(i => i.id === "tsk-1a2b3c");
+          if (idx >= 0) newIssues[idx] = { ...newIssues[idx], status: "in_progress" };
+        } else if (step === 3) {
+          const idx = newIssues.findIndex(i => i.id === "tsk-1a2b3c-1");
+          if (idx >= 0) newIssues[idx] = { ...newIssues[idx], status: "in_progress" };
+        }
+        
+        return newIssues;
+      });
+      moveCount++;
+    }, 2500);
+    
+    return () => clearInterval(interval);
+  }, [isInView]);
+
   const selectedIssue =
-    boardIssues.find((issue) => issue.id === selectedIssueId) ?? null;
+    issues.find((issue) => issue.id === selectedIssueId) ?? null;
 
   const toggleColumn = (column: string) => {
     const next = new Set(collapsedColumns);
@@ -155,20 +196,24 @@ const IndexPage = () => {
       <Hero
         title="Track issues in your repository"
         subtitle="...where your agents can participate."
-        eyebrow="Kanbus"
+        bottomPane={
+          <div className="w-full flex items-center justify-center">
+            <CodeUiSync />
+          </div>
+        }
         actions={
           <>
             <a
               href="/getting-started"
-              className="rounded-full bg-selected px-6 py-3 text-sm font-semibold text-background shadow-none hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selected transition-all"
+              className="cta-button px-6 py-3 text-sm transition-all hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               Get Started
             </a>
             <a
-              href="/philosophy"
+              href="/docs"
               className="text-sm font-semibold leading-6 text-foreground hover:text-selected transition-all"
             >
-              Learn More <span aria-hidden="true">→</span>
+              Read the Docs <span aria-hidden="true">→</span>
             </a>
           </>
         }
@@ -183,17 +228,26 @@ const IndexPage = () => {
         </p>
       </div>
 
-      <div className="space-y-24">
+      <div className="space-y-0">
+        <Section
+          title="Use Git as a Kanban bus"
+          subtitle="Synchronize multiple boards, CLI tools, and AI agents through your repository's commit history. The repo is the message bus."
+        >
+          <div className="w-full max-w-5xl mx-auto h-[600px]">
+            <AnimatedPictogram />
+          </div>
+        </Section>
+
         <Section
           title="Realtime Kanban Board"
-          subtitle="The board you already use, rendered as a lightweight, shareable view."
+          subtitle="The board updates in realtime when your agent makes changes, immediately."
         >
-          <div className="kanban-snapshot-container">
+          <div className="kanban-snapshot-container h-[550px]" ref={boardSectionRef}>
             <div className={`layout-frame gap-4 ${isMaximized ? "detail-maximized" : ""} flex flex-col lg:flex-row`}>
               <div className="layout-slot layout-slot-board">
                 <Board
                   columns={boardColumns}
-                  issues={boardIssues}
+                  issues={issues}
                   priorityLookup={priorityLookup}
                   config={boardConfig}
                   onSelectIssue={handleSelectIssue}
@@ -206,7 +260,7 @@ const IndexPage = () => {
 
               <TaskDetailPanel
                 task={selectedIssue}
-                allIssues={boardIssues}
+                allIssues={issues}
                 columns={boardColumns}
                 priorityLookup={priorityLookup}
                 config={boardConfig}
@@ -232,91 +286,50 @@ const IndexPage = () => {
           title="See it in action"
           subtitle="A quick elevator pitch covering what Kanbus is and everything it can do."
         >
-          <div className="max-w-4xl mx-auto">
-            <div className="rounded-2xl overflow-hidden shadow-card bg-card">
-              <video
-                controls
-                preload="metadata"
-                playsInline
-                src={introSrc}
-                poster={introPoster}
-                style={{
-                  width: "100%",
-                  display: "block",
-                  borderRadius: "14px",
-                  background: "rgba(0, 0, 0, 0.75)",
-                }}
-              />
-            </div>
+          <div className="w-full flex justify-center">
+            <FullVideoPlayer src={introSrc} poster={introPoster} videoId="intro" />
           </div>
         </Section>
 
         <Section
           title="Features"
           subtitle="Focused capabilities that make Kanbus practical for daily work."
-          variant="alt"
         >
           <div className="grid gap-6 md:grid-cols-2">
-            {FEATURE_ENTRIES.map((feature) => (
-              <a key={feature.href} href={feature.href} className="group">
-                <Card className="p-6 shadow-card transition-transform group-hover:-translate-y-1">
-                  <CardHeader className="p-0 mb-3">
-                    <h3 className="text-xl font-bold text-foreground">{feature.title}</h3>
-                  </CardHeader>
-                  <CardContent className="p-0 text-muted leading-relaxed">
-                    {feature.description}
-                  </CardContent>
-                </Card>
-              </a>
-            ))}
-          </div>
-        </Section>
-
-        <Section
-          title="Files are the database"
-          subtitle="Stop syncing your work to a separate silo. Kanbus stores everything in your Git repository."
-        >
-          <div className="grid gap-8 md:grid-cols-2">
-            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
-              <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">One File Per Issue</h3>
-              </CardHeader>
-              <CardContent className="p-0 text-muted leading-relaxed">
-                Other systems store everything in one big JSONL file, causing constant merge conflicts.
-                Kanbus creates a separate JSON file for each issue, so your team (and agents) can work
-                in parallel without blocking each other.
-              </CardContent>
-            </Card>
-            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
-              <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">No Friction</h3>
-              </CardHeader>
-              <CardContent className="p-0 text-muted leading-relaxed">
-                Git hooks should help you, not block you. There is no database server to maintain,
-                no background process to crash, and no complex synchronization logic. Each command scans
-                the project files directly.
-              </CardContent>
-            </Card>
-            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
-              <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">Collision-Free IDs</h3>
-              </CardHeader>
-              <CardContent className="p-0 text-muted leading-relaxed">
-                Kanbus assigns hash-based unique IDs to avoid collisions during concurrent edits.
-                Unlike hierarchical numbering schemes, hash IDs work safely when multiple agents
-                create child issues in parallel.
-              </CardContent>
-            </Card>
-            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
-              <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">Shared Datastore Support</h3>
-              </CardHeader>
-              <CardContent className="p-0 text-muted leading-relaxed">
-                Multiple projects can point to a shared data store while keeping project_key per issue
-                to prevent collisions. Track work across codebases with centralized visibility and
-                per-project namespacing.
-              </CardContent>
-            </Card>
+            {FEATURE_ENTRIES.map((feature) => {
+              const videoId = feature.href.split('/').pop() || "";
+              const featureVideo = getVideoById(videoId);
+              const poster = featureVideo?.poster ? getVideoSrc(featureVideo.poster) : undefined;
+              const src = featureVideo ? getVideoSrc(featureVideo.filename) : "";
+              
+              return (
+                <a key={feature.href} href={feature.href} className="group block">
+                  <div className="bg-card rounded-2xl overflow-hidden transition-all duration-300 group-hover:-translate-y-1 border border-border/50 group-hover:border-selected/30 group-hover:shadow-[0_0_20px_var(--glow-center)] h-full flex flex-col">
+                    {/* Flat Engineering Frame Header */}
+                    <div className="flex items-center gap-2 px-4 py-3 bg-column">
+                      <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
+                      <div className="ml-2 font-mono text-xs text-muted">kbs {videoId}</div>
+                    </div>
+                    {/* Video Placeholder / Content */}
+                    <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+                      <HoverVideoPlayer
+                        src={src}
+                        poster={poster}
+                      />
+                    </div>
+                    {/* Feature Text */}
+                    <div className="p-6 flex-1 flex flex-col">
+                      <h3 className="text-xl font-bold text-foreground mb-3">{feature.title}</h3>
+                      <p className="text-muted leading-relaxed flex-1">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
           </div>
         </Section>
 
@@ -326,7 +339,7 @@ const IndexPage = () => {
           variant="alt"
         >
           <div className="grid gap-8 md:grid-cols-2">
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">
                   Live Context for Agents
@@ -337,7 +350,7 @@ const IndexPage = () => {
                 Agents can read these docs to get up to speed instantly on any initiative.
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Full Graph Support</h3>
               </CardHeader>
@@ -354,7 +367,7 @@ const IndexPage = () => {
           subtitle="One behavior specification driving two complete CLIs, plus a web UI server."
         >
           <div className="grid gap-8 md:grid-cols-3">
-            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
+            <Card className="p-8 hover:-translate-y-1 transition-transform">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Rust CLI</h3>
               </CardHeader>
@@ -363,7 +376,7 @@ const IndexPage = () => {
                 Install via Cargo or download a pre-built binary.
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
+            <Card className="p-8 hover:-translate-y-1 transition-transform">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Python CLI</h3>
               </CardHeader>
@@ -372,7 +385,7 @@ const IndexPage = () => {
                 integrating with Python-based AI tools.
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card hover:-translate-y-1 transition-transform">
+            <Card className="p-8 hover:-translate-y-1 transition-transform">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Web Console</h3>
               </CardHeader>
@@ -390,7 +403,7 @@ const IndexPage = () => {
           variant="alt"
         >
           <div className="grid gap-8 md:grid-cols-3">
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Successor to Beads</h3>
               </CardHeader>
@@ -400,7 +413,7 @@ const IndexPage = () => {
                 terms to better leverage AI pre-training.
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Vs. Jira</h3>
               </CardHeader>
@@ -409,7 +422,7 @@ const IndexPage = () => {
                 to read and write tasks. And there are no per-seat costs—it's just your repo.
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Vs. Markdown</h3>
               </CardHeader>

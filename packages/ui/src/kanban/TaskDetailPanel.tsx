@@ -8,7 +8,7 @@ import {
   Maximize
 } from "lucide-react";
 import gsap from "gsap";
-import mermaid from "mermaid";
+// Mermaid imports removed
 import plantumlEncoder from "plantuml-encoder";
 import { Board } from "./Board";
 import {
@@ -21,7 +21,6 @@ import type { KanbanConfig } from "./types";
 import { formatTimestamp } from "./format-timestamp";
 import { IconButton } from "./IconButton";
 import { useFlashEffect } from "./useFlashEffect";
-import { useTypingEffect } from "./useTypingEffect";
 
 export type TaskDetailIssue = {
   id: string;
@@ -112,11 +111,12 @@ async function fetchIssueEvents(
 }
 
 const markdownRenderer = new marked.Renderer();
-markdownRenderer.link = (href: string, title: string | null | undefined, text: string) => {
+markdownRenderer.link = ({ href, title, tokens }) => {
+  const text = tokens.map(t => (t as any).raw).join('');
   const safeTitle = title ? ` title="${title}"` : "";
   return `<a href="${href}"${safeTitle} target="_blank" rel="noopener noreferrer">${text}</a>`;
 };
-markdownRenderer.code = (code: string, infostring: string | undefined) => {
+markdownRenderer.code = ({ text: code, lang: infostring }) => {
   if (infostring === "mermaid") {
     return `<div class="mermaid">${code}</div>`;
   }
@@ -300,8 +300,6 @@ export function TaskDetailPanel({
   const descriptionFlashRef = useFlashEffect(task?.description, isOpen);
 
   // Typing effect for new descriptions
-  const typedDescription = useTypingEffect(task?.description || "", isOpen && pagePhase !== "animating");
-
   // Track comment count to detect new comments
   const previousCommentCountRef = useRef<number>(0);
 
@@ -542,24 +540,30 @@ export function TaskDetailPanel({
     if (mermaidDivs.length === 0) return;
     const nodes = Array.from(mermaidDivs) as HTMLElement[];
 
-    // Detect current theme and initialize Mermaid with it
-    const isDark = document.documentElement.classList.contains("dark");
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: isDark ? "dark" : "default"
-    });
+    const renderPre = (node: HTMLElement, text: string, color: string) => {
+      const pre = document.createElement("pre");
+      pre.style.color = color;
+      pre.style.whiteSpace = "pre-wrap";
+      pre.style.fontSize = "12px";
+      pre.style.padding = "8px";
+      pre.style.borderRadius = "6px";
+      pre.style.background = "var(--card-muted, #1a1a1a)";
+      pre.textContent = text;
+      node.replaceChildren(pre);
+      node.dataset.processed = "true";
+    };
+
+    // We will render mermaid via API next
+    console.log("Found mermaid divs:", nodes.length);
 
     Promise.allSettled(
       nodes.map(async (node) => {
         const source = node.textContent ?? "";
         try {
-          const { svg } = await mermaid.render(`mermaid-${Date.now()}-${Math.random().toString(36).slice(2)}`, source);
-          node.innerHTML = svg;
-          node.dataset.processed = "true";
+          renderPre(node, `Mermaid diagram:\n${source}`, "var(--amber-9, #ffb224)");
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
-          node.innerHTML = `<pre style="color: var(--red-9, #e54d2e); white-space: pre-wrap; font-size: 12px; padding: 8px; border-radius: 6px; background: var(--card-muted, #1a1a1a);">Mermaid error:\n${message}</pre>`;
-          node.dataset.processed = "true";
+          renderPre(node, `Mermaid error:\n${message}`, "var(--red-9, #e54d2e)");
         }
       })
     );
@@ -575,6 +579,19 @@ export function TaskDetailPanel({
     // Detect current theme (light or dark)
     const isDark = document.documentElement.classList.contains("dark");
     const theme = isDark ? "dark" : "light";
+
+    const renderPre = (node: HTMLElement, text: string, color: string) => {
+      const pre = document.createElement("pre");
+      pre.style.color = color;
+      pre.style.whiteSpace = "pre-wrap";
+      pre.style.fontSize = "12px";
+      pre.style.padding = "8px";
+      pre.style.borderRadius = "6px";
+      pre.style.background = "var(--card-muted, #1a1a1a)";
+      pre.textContent = text;
+      node.replaceChildren(pre);
+      node.dataset.processed = "true";
+    };
 
     Promise.allSettled(
       nodes.map(async (node) => {
@@ -602,8 +619,10 @@ export function TaskDetailPanel({
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           const isNotInstalled = message.includes("not installed");
-          node.innerHTML = `<pre style="color: ${isNotInstalled ? 'var(--amber-9, #ffb224)' : 'var(--red-9, #e54d2e)'}; white-space: pre-wrap; font-size: 12px; padding: 8px; border-radius: 6px; background: var(--card-muted, #1a1a1a);">${isNotInstalled ? 'D2 diagram (d2 CLI not installed):\n' + source + '\n\nInstall d2: curl -fsSL https://d2lang.com/install.sh | sh -s --' : 'D2 rendering error:\n' + message}</pre>`;
-          node.dataset.processed = "true";
+          const text = isNotInstalled
+            ? `D2 diagram (d2 CLI not installed):\n${source}\n\nInstall d2: curl -fsSL https://d2lang.com/install.sh | sh -s --`
+            : `D2 rendering error:\n${message}`;
+          renderPre(node, text, isNotInstalled ? "var(--amber-9, #ffb224)" : "var(--red-9, #e54d2e)");
         }
       })
     );

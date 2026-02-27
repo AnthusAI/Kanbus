@@ -12,8 +12,10 @@ import click
 from kanbus import __version__
 from kanbus.file_io import (
     InitializationError,
+    detect_repairable_project_issues,
     ensure_git_repository,
     initialize_project,
+    repair_project_structure,
 )
 from kanbus.content_validation import ContentValidationError, validate_code_blocks
 from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
@@ -102,6 +104,40 @@ def cli(context: click.Context, beads_mode: bool) -> None:
     """
     resolved, forced = _resolve_beads_mode(context, beads_mode)
     context.obj = {"beads_mode": resolved, "beads_mode_forced": forced}
+    _maybe_prompt_project_repair(context)
+
+
+def _should_check_project_structure(context: click.Context) -> bool:
+    if context.invoked_subcommand is None:
+        return False
+    return context.invoked_subcommand not in {"init", "setup", "repair"}
+
+
+def _maybe_prompt_project_repair(context: click.Context) -> None:
+    if not _should_check_project_structure(context):
+        return
+    root = Path.cwd()
+    try:
+        plan = detect_repairable_project_issues(root, allow_uninitialized=True)
+    except PermissionError:
+        return
+    if plan is None:
+        return
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return
+    missing = []
+    if plan.missing_project_dir:
+        missing.append("project/")
+    if plan.missing_issues_dir:
+        missing.append("project/issues")
+    if plan.missing_events_dir:
+        missing.append("project/events")
+    prompt = (
+        f"Project structure incomplete (missing: {', '.join(missing)}). Repair now?"
+    )
+    if click.confirm(prompt, default=False):
+        repair_project_structure(root, plan)
+        click.echo("Project structure repaired.", err=True)
 
 
 @cli.group("setup")
@@ -144,6 +180,45 @@ def _maybe_run_setup_agents(root: Path) -> None:
         return
     if click.confirm('Run "kanbus setup agents" now?', default=False):
         ensure_agents_file(root, force=False)
+
+
+@cli.command("repair")
+@click.option("--yes", is_flag=True, default=False)
+def repair(yes: bool) -> None:
+    """Repair a broken project structure."""
+    root = Path.cwd()
+    try:
+        plan = detect_repairable_project_issues(root, allow_uninitialized=False)
+    except ProjectMarkerError as error:
+        raise click.ClickException(str(error)) from error
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+
+    if plan is None:
+        click.echo("Project structure is already healthy.")
+        return
+
+    if not yes:
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            raise click.ClickException(
+                "project structure requires repair (re-run with --yes)"
+            )
+        missing = []
+        if plan.missing_project_dir:
+            missing.append("project/")
+        if plan.missing_issues_dir:
+            missing.append("project/issues")
+        if plan.missing_events_dir:
+            missing.append("project/events")
+        prompt = (
+            f"Project structure incomplete (missing: {', '.join(missing)}). Repair now?"
+        )
+        if not click.confirm(prompt, default=False):
+            click.echo("Repair cancelled.")
+            return
+
+    repair_project_structure(root, plan)
+    click.echo("Project structure repaired.")
 
 
 @cli.command("create")
@@ -759,6 +834,170 @@ def render_wiki(page: str) -> None:
     except WikiError as error:
         raise click.ClickException(str(error)) from error
     click.echo(output)
+
+
+@cli.group("policy")
+def policy() -> None:
+    """Policy management commands."""
+
+
+@policy.command("check")
+@click.argument("identifier")
+def policy_check(identifier: str) -> None:
+    """Check policies against an issue.
+
+    :param identifier: Issue identifier to check policies against.
+    :type identifier: str
+    """
+    from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+    from kanbus.policy_loader import load_policies
+    from kanbus.policy_evaluator import (
+        evaluate_policies_with_options,
+        PolicyEvaluationOptions,
+    )
+    from kanbus.policy_context import PolicyContext, PolicyOperation
+    from kanbus.issue_listing import load_issues_from_directory
+    from kanbus.config_loader import load_project_configuration
+    from kanbus.project import get_configuration_path
+
+    root = Path.cwd()
+    try:
+        lookup = load_issue_from_project(root, identifier)
+        configuration = load_project_configuration(
+            get_configuration_path(lookup.project_dir)
+        )
+        policies_dir = lookup.project_dir / "policies"
+
+        if not policies_dir.is_dir():
+            click.echo("No policies directory found")
+            return
+
+        policy_documents = load_policies(policies_dir)
+        if not policy_documents:
+            click.echo("No policy files found")
+            return
+
+        issues_dir = lookup.project_dir / "issues"
+        all_issues = load_issues_from_directory(issues_dir)
+        context = PolicyContext(
+            current_issue=lookup.issue,
+            proposed_issue=lookup.issue,
+            transition=None,
+            operation=PolicyOperation.UPDATE,
+            project_configuration=configuration,
+            all_issues=all_issues,
+        )
+
+        violations = evaluate_policies_with_options(
+            context,
+            policy_documents,
+            PolicyEvaluationOptions(collect_all_violations=True),
+        )
+
+        if violations:
+            error_msg = [f"Found {len(violations)} policy violation(s):"]
+            for i, v in enumerate(violations):
+                error_msg.append(f"\n{i + 1}. {v}")
+            raise click.ClickException("\n".join(error_msg))
+
+        click.echo(f"All policies passed for {identifier}")
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@policy.command("list")
+def policy_list() -> None:
+    """List all loaded policy files."""
+    from kanbus.project import load_project_directory
+    from kanbus.policy_loader import load_policies
+
+    root = Path.cwd()
+    try:
+        project_dir = load_project_directory(root)
+        policies_dir = project_dir / "policies"
+
+        if not policies_dir.is_dir():
+            click.echo("No policies directory found")
+            return
+
+        policy_documents = load_policies(policies_dir)
+        if not policy_documents:
+            click.echo("No policy files found")
+            return
+
+        for filename, document in policy_documents:
+            click.echo(f"{filename}")
+            if document.feature:
+                click.echo(f"  Feature: {document.feature.name}")
+                for child in document.feature.children:
+                    if hasattr(child, "scenario") and child.scenario:
+                        click.echo(f"    Scenario: {child.scenario.name}")
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@policy.command("steps")
+@click.option("--category", help="Filter by category (given, when, then).")
+@click.option("--search", help="Filter by search term.")
+def policy_steps(category: str | None, search: str | None) -> None:
+    """List available policy steps.
+
+    :param category: Filter by category.
+    :type category: str | None
+    :param search: Filter by search term.
+    :type search: str | None
+    """
+    from kanbus.policy_evaluator import _get_step_registry
+
+    registry = _get_step_registry()
+    output = []
+
+    for step in registry.steps:
+        if category:
+            if category.lower() != step.category.value.lower():
+                continue
+        if search:
+            search_lower = search.lower()
+            if (
+                search_lower not in step.description.lower()
+                and search_lower not in step.usage_pattern.lower()
+            ):
+                continue
+        output.append(
+            f"{step.category.value} - {step.description}\n  Pattern: {step.usage_pattern}"
+        )
+
+    if not output:
+        click.echo("No matching steps found")
+    else:
+        click.echo("\n".join(output))
+
+
+@policy.command("validate")
+def policy_validate() -> None:
+    """Validate all policy files for syntax errors."""
+    from kanbus.project import load_project_directory
+    from kanbus.policy_loader import load_policies
+
+    root = Path.cwd()
+    try:
+        project_dir = load_project_directory(root)
+        policies_dir = project_dir / "policies"
+
+        if not policies_dir.is_dir():
+            click.echo("No policies directory found")
+            return
+
+        policy_documents = load_policies(policies_dir)
+        if not policy_documents:
+            click.echo("No policy files found")
+            return
+
+        click.echo(f"All {len(policy_documents)} policy files are valid")
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
 
 
 @cli.group("console")

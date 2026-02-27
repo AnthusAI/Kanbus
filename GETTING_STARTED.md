@@ -24,16 +24,16 @@ Kanbus provides two **completely equivalent** implementations: Python and Rust. 
   </div>
 </div>
 
-Python installs `kanbus` (with a `kanbusr` alias kept for compatibility). Rust installs `kanbus` with the same subcommands. You can switch between them at any time.
+Python installs `kanbus`. Rust installs `kbs` with the same subcommands. You can switch between them at any time.
 
 ## Prebuilt binaries
 
 GitHub Releases include prebuilt binaries for the Kanbus Rust CLI and the Rust console server:
 
-- `kanbus` (CLI)
-- `kanbus-console` (console server)
+- `kbs` (CLI)
+- `kbsc` (console server)
 
-Download the archive for your platform (for example `kanbusr-<target>.tar.gz` and `kanbus-console-<target>.tar.gz`), unzip it, and place the binary on your PATH.
+Download the archive for your platform (for example `kbs-<target>.tar.gz` and `kbsc-<target>.tar.gz`), unzip it, and place the binary on your PATH.
 
 ## Step 1: Initialize a project
 

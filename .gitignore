@@ -51,3 +51,24 @@ console.log
 
 # Test artifacts
 custom_assets/
+
+# VideoML cache and output
+.videoml/
+
+# Debug artifacts
+apps/kanb.us/*.html
+apps/kanb.us/*.png
+apps/kanb.us/*.txt
+apps/kanb.us/test-browser.js
+videos/test.wav
+
+# Agent scripts
+parse_transcripts.py
+recover_files.py
+search_history.py
+
+# CodeQL local artifacts
+.codeql/
+.codeql-dbs/
+.codeql-reports/
+.codeql-tools/

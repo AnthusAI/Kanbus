@@ -17,6 +17,8 @@ module.exports = {
         muted: "var(--text-muted)",
         selected: "var(--text-selected)",
         border: "var(--border)",
+        "region-alt": "var(--region-alt)",
+        "footer-bg": "var(--footer-bg)",
         "slate-1": "var(--slate-1)",
         "slate-2": "var(--slate-2)",
         "slate-3": "var(--slate-3)",
@@ -47,7 +49,7 @@ module.exports = {
         display: ["Inter", "SF Pro Text", "Helvetica Neue", "Arial", "sans-serif"]
       },
       boxShadow: {
-        card: "0 10px 40px -18px rgba(0, 0, 0, 0.2)"
+        card: "none"
       }
     },
   },

@@ -1,0 +1,55 @@
+<vml id="beads-compatibility" title="Beads Compatibility" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="Beads Compatibility" duration="5s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <animated-pictogram-video props='{"type": "beads"}' />
+    </layer>
+    <layer id="title" z="1">
+      <text-block props='{"text":"Beads Compatibility","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
+      <text-block props='{"text":"Instant Kanban board for your Beads projects","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+    </layer>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="deep_dive" title="Beads Compatibility Deep Dive" duration="34s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"Beads Compatibility","x":960,"y":120}' />
+    </layer>
+    <layer id="subtitle" z="1">
+      <subtitle props='{"text":"Instant Kanban board for your Beads projects","x":960,"y":200}' />
+    </layer>
+    <layer id="content" z="1">
+      <text-block props='{"text":"Instant Migration","x":480,"y":400,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Get an instant Kanban board for your existing Beads projects. Kanbus reads your existing Beads issue files directly. Just launch the console and get a fully interactive board immediately.","x":480,"y":540,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      
+      <text-block props='{"text":"Zero Conversion Required","x":480,"y":760,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Start using Kanbus features today without a big bang migration. Switch formats entirely only when it makes sense for your team. The high-performance Rust CLI operates directly on your data files with blazing speed.","x":480,"y":900,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <beads-demo-video props='{"style":{"left": 960, "top": 300, "width": 800, "bottom": 0, "position": "absolute"}}' />
+    </layer>
+    <cue id="intro" label="Introduction">
+      <voice>Get an instant Kanban board for your existing Beads projects. Zero conversion required.</voice>
+    </cue>
+    <cue id="viz" label="Visualization">
+      <pause seconds="0.5s" />
+      <voice>Kanbus reads your existing Beads issue files directly. Just launch the console and get a fully interactive board immediately.</voice>
+    </cue>
+    <cue id="cli" label="CLI">
+      <pause seconds="0.5s" />
+      <voice>Avoid SQLite syncing bottlenecks. The high-performance Rust CLI operates directly on your data files with blazing speed.</voice>
+    </cue>
+    <cue id="migrate" label="Migrate">
+      <pause seconds="0.5s" />
+      <voice>Start using Kanbus features today without a big bang migration. Switch formats entirely only when it makes sense for your team.</voice>
+    </cue>
+  </scene>
+</vml>
