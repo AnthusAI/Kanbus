@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 use std::io::{self, IsTerminal, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path as StdPath;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
