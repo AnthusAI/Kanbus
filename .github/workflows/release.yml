@@ -23,7 +23,9 @@ permissions:
 jobs:
   pypi-release:
     name: PyPI Release
-    if: ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') || github.event_name == 'workflow_dispatch' }}
+    # Release runs only when manually triggered. Direct pushes to main are blocked by branch protections,
+    # so we avoid automatic attempts that would fail and ask for a manual dispatch instead.
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.release_tag.outputs.tag }}
@@ -125,7 +127,7 @@ jobs:
 
   rust-binaries:
     needs: pypi-release
-    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.pypi_only != 'true') }}
+    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name == 'workflow_dispatch') && (github.event.inputs.pypi_only != 'true') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -194,7 +196,7 @@ jobs:
 
   console-server-binaries:
     needs: pypi-release
-    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.pypi_only != 'true') }}
+    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name == 'workflow_dispatch') && (github.event.inputs.pypi_only != 'true') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
