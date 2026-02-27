@@ -129,7 +129,9 @@ def _maybe_prompt_project_repair(context: click.Context) -> None:
         missing.append("project/issues")
     if plan.missing_events_dir:
         missing.append("project/events")
-    prompt = f"Project structure incomplete (missing: {', '.join(missing)}). Repair now?"
+    prompt = (
+        f"Project structure incomplete (missing: {', '.join(missing)}). Repair now?"
+    )
     if click.confirm(prompt, default=False):
         repair_project_structure(root, plan)
         click.echo("Project structure repaired.", err=True)

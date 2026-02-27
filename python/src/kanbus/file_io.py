@@ -16,7 +16,11 @@ from kanbus.project_management_template import (
     DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
 )
 from kanbus.config_loader import ConfigurationError, load_project_configuration
-from kanbus.project import ProjectMarkerError, ensure_project_local_directory, get_configuration_path
+from kanbus.project import (
+    ProjectMarkerError,
+    ensure_project_local_directory,
+    get_configuration_path,
+)
 
 
 class InitializationError(RuntimeError):
