@@ -23,20 +23,23 @@ pub fn load_policies(policies_dir: &Path) -> Result<Vec<(String, Feature)>, Kanb
 
     let mut features = Vec::new();
 
-    let entries = fs::read_dir(policies_dir)
-        .map_err(|error| KanbusError::Configuration(format!("failed to read policies directory: {error}")))?;
+    let entries = fs::read_dir(policies_dir).map_err(|error| {
+        KanbusError::Configuration(format!("failed to read policies directory: {error}"))
+    })?;
 
     for entry in entries {
-        let entry = entry
-            .map_err(|error| KanbusError::Configuration(format!("failed to read directory entry: {error}")))?;
+        let entry = entry.map_err(|error| {
+            KanbusError::Configuration(format!("failed to read directory entry: {error}"))
+        })?;
         let path = entry.path();
 
         if path.extension().and_then(|ext| ext.to_str()) != Some("policy") {
             continue;
         }
 
-        let feature = Feature::parse_path(&path, GherkinEnv::default())
-            .map_err(|error| KanbusError::Configuration(format!("failed to parse {}: {error}", path.display())))?;
+        let feature = Feature::parse_path(&path, GherkinEnv::default()).map_err(|error| {
+            KanbusError::Configuration(format!("failed to parse {}: {error}", path.display()))
+        })?;
 
         let file_name = path
             .file_name()

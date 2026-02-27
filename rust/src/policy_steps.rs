@@ -461,10 +461,7 @@ fn then_no_children_may_have_status(
     }
 }
 
-fn then_parent_must_have_status(
-    context: &PolicyContext,
-    captures: &regex::Captures,
-) -> StepResult {
+fn then_parent_must_have_status(context: &PolicyContext, captures: &regex::Captures) -> StepResult {
     let required_status = &captures[1];
 
     match context.parent_issue() {
@@ -518,7 +515,8 @@ fn then_title_must_match_pattern(
     captures: &regex::Captures,
 ) -> StepResult {
     let pattern_str = &captures[1];
-    let pattern = Regex::new(pattern_str).map_err(|error| format!("invalid regex pattern: {error}"))?;
+    let pattern =
+        Regex::new(pattern_str).map_err(|error| format!("invalid regex pattern: {error}"))?;
 
     if pattern.is_match(&context.issue().title) {
         Ok(StepOutcome::Pass)
@@ -540,7 +538,10 @@ fn given_custom_field_is_set(context: &PolicyContext, captures: &regex::Captures
     }
 }
 
-fn then_custom_field_must_be_set(context: &PolicyContext, captures: &regex::Captures) -> StepResult {
+fn then_custom_field_must_be_set(
+    context: &PolicyContext,
+    captures: &regex::Captures,
+) -> StepResult {
     let field = &captures[1];
     if context.issue().custom.contains_key(field) {
         Ok(StepOutcome::Pass)
@@ -561,7 +562,9 @@ fn then_custom_field_must_be(context: &PolicyContext, captures: &regex::Captures
             if value_str == expected {
                 Ok(StepOutcome::Pass)
             } else {
-                Err(format!("custom field \"{field}\" is \"{value_str}\" but must be \"{expected}\""))
+                Err(format!(
+                    "custom field \"{field}\" is \"{value_str}\" but must be \"{expected}\""
+                ))
             }
         }
         None => Err(format!("custom field \"{field}\" is not set")),

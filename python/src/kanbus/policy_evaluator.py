@@ -31,9 +31,11 @@ def _get_step_registry() -> StepRegistry:
 
 from dataclasses import dataclass
 
+
 @dataclass
 class PolicyEvaluationOptions:
     """Options for policy evaluation."""
+
     collect_all_violations: bool = False
 
 
@@ -48,18 +50,20 @@ def evaluate_policies(
     :type documents: list[tuple[str, GherkinDocument]]
     :raises PolicyViolationError: If any policy rule fails.
     """
-    violations = evaluate_policies_with_options(context, documents, PolicyEvaluationOptions())
+    violations = evaluate_policies_with_options(
+        context, documents, PolicyEvaluationOptions()
+    )
     if violations:
         raise violations[0]
 
 
 def evaluate_policies_with_options(
-    context: PolicyContext, 
+    context: PolicyContext,
     documents: list[tuple[str, GherkinDocument]],
     options: PolicyEvaluationOptions,
 ) -> list[PolicyViolationError]:
     """Evaluate all policies and optionally collect all violations.
-    
+
     :param context: Policy evaluation context.
     :type context: PolicyContext
     :param documents: List of tuples containing filename and parsed Gherkin document.

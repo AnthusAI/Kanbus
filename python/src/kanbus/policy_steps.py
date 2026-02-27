@@ -353,7 +353,9 @@ def then_issue_must_have_field(context: PolicyContext, match: re.Match) -> StepR
     return (StepOutcome.FAIL, f'issue does not have field "{field}" set')
 
 
-def then_issue_must_not_have_field(context: PolicyContext, match: re.Match) -> StepResult:
+def then_issue_must_not_have_field(
+    context: PolicyContext, match: re.Match
+) -> StepResult:
     """Assert field is not set."""
     field = match.group(1)
     issue = context.issue
@@ -493,7 +495,9 @@ def then_description_must_not_be_empty(
     return (StepOutcome.FAIL, "issue description is empty")
 
 
-def then_title_must_match_pattern(context: PolicyContext, match: re.Match) -> StepResult:
+def then_title_must_match_pattern(
+    context: PolicyContext, match: re.Match
+) -> StepResult:
     """Assert title matches pattern."""
     pattern_str = match.group(1)
     try:
@@ -518,7 +522,9 @@ def given_custom_field_is_set(context: PolicyContext, match: re.Match) -> StepRe
     return (StepOutcome.SKIP, None)
 
 
-def then_custom_field_must_be_set(context: PolicyContext, match: re.Match) -> StepResult:
+def then_custom_field_must_be_set(
+    context: PolicyContext, match: re.Match
+) -> StepResult:
     """Assert custom field is set."""
     field = match.group(1)
     if field in context.issue.custom:
@@ -530,14 +536,14 @@ def then_custom_field_must_be(context: PolicyContext, match: re.Match) -> StepRe
     """Assert custom field equals value."""
     field = match.group(1)
     expected_value = match.group(2)
-    
+
     if field not in context.issue.custom:
         return (StepOutcome.FAIL, f'custom field "{field}" is not set')
-        
+
     actual_value = str(context.issue.custom[field])
     if actual_value == expected_value:
         return (StepOutcome.PASS, None)
-        
+
     return (
         StepOutcome.FAIL,
         f'custom field "{field}" is "{actual_value}" but must be "{expected_value}"',
