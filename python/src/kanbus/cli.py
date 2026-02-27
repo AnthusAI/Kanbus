@@ -117,7 +117,10 @@ def _maybe_prompt_project_repair(context: click.Context) -> None:
     if not _should_check_project_structure(context):
         return
     root = Path.cwd()
-    plan = detect_repairable_project_issues(root, allow_uninitialized=True)
+    try:
+        plan = detect_repairable_project_issues(root, allow_uninitialized=True)
+    except PermissionError:
+        return
     if plan is None:
         return
     if not sys.stdin.isatty() or not sys.stdout.isatty():
