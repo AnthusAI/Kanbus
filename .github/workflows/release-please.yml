@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Release Please
-        uses: google-github-actions/release-please@v4
+        uses: google-github-actions/release-please-action@v4
         with:
           command: manifest
           token: ${{ secrets.GITHUB_TOKEN }}
