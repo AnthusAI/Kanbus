@@ -65,12 +65,12 @@
   --issue-accent-foreground: var(--text-foreground);
   --issue-accent-light: var(--slate-4);
   --issue-accent-muted-light: var(--slate-2);
-  --issue-accent-dark: var(--slate-11);
-  --issue-accent-muted-dark: var(--slate-6);
+  --issue-accent-dark: var(--slate-8); /* Darker for better contrast (was 11) */
+  --issue-accent-muted-dark: var(--slate-3); /* Darker for better contrast (was 6) */
   --issue-accent: var(--issue-accent-light);
   --issue-accent-muted: var(--issue-accent-muted-light);
   --issue-priority-bg-light: var(--slate-5);
-  --issue-priority-bg-dark: var(--slate-6);
+  --issue-priority-bg-dark: var(--slate-8); /* Darker for better contrast (was 6) */
   --issue-priority-bg: var(--issue-priority-bg-light);
 }
 
@@ -78,6 +78,14 @@
   --issue-accent: var(--issue-accent-dark);
   --issue-accent-muted: var(--issue-accent-muted-dark);
   --issue-priority-bg: var(--issue-priority-bg-dark);
+}
+
+@media (prefers-color-scheme: dark) {
+  .issue-card {
+    --issue-accent: var(--issue-accent-dark);
+    --issue-accent-muted: var(--issue-accent-muted-dark);
+    --issue-priority-bg: var(--issue-priority-bg-dark);
+  }
 }
 
 .kb-grid {
@@ -122,6 +130,23 @@
   cursor: pointer;
   overflow: hidden;
   position: relative;
+  /* Enforce layout if tailwind utility classes are missing */
+  padding: 12px;
+  grid-template-rows: auto 1fr;
+}
+
+.issue-card[data-selected="true"] {
+  box-shadow: inset 0 0 0 6px var(--text-muted);
+}
+
+.issue-accent-bar {
+    /* Enforce layout if tailwind utility classes are missing */
+    margin: -12px -12px 0 -12px;
+    width: calc(100% + 24px);
+    height: 28px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
 }
 
 .issue-card:focus-visible {
@@ -235,4 +260,340 @@
 
 .dark .status-badge {
   --status-badge-bg: var(--status-badge-bg-dark);
+}
+
+@media (prefers-color-scheme: dark) {
+  .status-badge {
+    --status-badge-bg: var(--status-badge-bg-dark);
+  }
+}
+
+/* Detail panel layout (shared) */
+.detail-column {
+  background: var(--card);
+  border-radius: 12px;
+  overflow-y: hidden;
+  overflow-x: visible;
+  height: 100%;
+  width: 0;
+  flex: 0 0 0;
+  transform: translateX(100%);
+  transition: transform var(--layout-transition, 0.25s) ease;
+  pointer-events: none;
+  position: relative;
+  z-index: 50;
+}
+
+.detail-column-visible {
+  width: var(--detail-width, 33%);
+  flex: 0 0 var(--detail-width, 33%);
+  max-width: 100%;
+}
+
+.detail-column-open {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.detail-column-closing {
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+.detail-layout-auto.detail-column {
+  height: auto;
+}
+
+.detail-layout-auto .detail-page-stack {
+  position: relative;
+  height: auto;
+  overflow: visible;
+}
+
+.detail-layout-auto .detail-page {
+  position: static;
+  height: auto;
+}
+
+.detail-scroll {
+  scrollbar-width: thin;
+}
+
+.detail-scroll::-webkit-scrollbar {
+  width: var(--scrollbar-size, 8px);
+}
+
+.detail-scroll::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.detail-scroll::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.detail-page-stack {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.detail-page {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.35s ease;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.detail-page.outgoing {
+  transform: translateX(0);
+  pointer-events: none;
+}
+
+.detail-page.incoming[data-dir="push"] {
+  transform: translate3d(100%, 0, 0);
+}
+
+.detail-page.incoming[data-dir="pop"] {
+  transform: translate3d(-100%, 0, 0);
+}
+
+.detail-page.incoming {
+  pointer-events: auto;
+}
+
+.detail-page.animating.incoming {
+  transform: translate3d(0, 0, 0);
+}
+
+.detail-page.animating.outgoing[data-dir="push"] {
+  transform: translate3d(-100%, 0, 0);
+}
+
+.detail-page.animating.outgoing[data-dir="pop"] {
+  transform: translate3d(100%, 0, 0);
+}
+
+html[data-motion="off"] .detail-column {
+  transition: none;
+}
+
+html[data-motion="reduced"] .detail-column {
+  transition-duration: 0.2s;
+}
+
+html[data-motion="reduced"] .detail-page {
+  transition-duration: 0.2s;
+}
+
+.detail-card {
+  background: var(--card);
+  border-radius: 12px;
+  display: grid;
+}
+
+.issue-description-markdown {
+  display: grid;
+  gap: 0.5rem;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.issue-description-markdown h1,
+.issue-description-markdown h2,
+.issue-description-markdown h3,
+.issue-description-markdown h4 {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.issue-description-markdown h1 {
+  font-size: 1.1rem;
+}
+
+.issue-description-markdown h2 {
+  font-size: 1rem;
+}
+
+.issue-description-markdown h3,
+.issue-description-markdown h4 {
+  font-size: 0.95rem;
+}
+
+.issue-description-markdown ul,
+.issue-description-markdown ol {
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.issue-description-markdown code {
+  background: var(--card-muted);
+  border-radius: 6px;
+  padding: 0.1rem 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.85em;
+}
+
+.issue-description-markdown pre {
+  background: var(--card-muted);
+  border-radius: 10px;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.issue-description-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.issue-description-markdown a {
+  color: var(--text-selected);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.issue-description-markdown blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+  color: var(--text-muted);
+}
+
+.detail-accent-bar {
+  position: relative;
+  z-index: 1;
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
+.detail-section {
+  display: grid;
+}
+
+.detail-comment {
+  background: var(--card);
+  border-radius: 12px;
+  display: grid;
+}
+
+.detail-comment.comment-highlight {
+  outline: 2px solid var(--accent, #6366f1);
+  outline-offset: 2px;
+  transition: outline-color 2.5s ease-out;
+}
+
+.detail-close-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.detail-open {
+  position: relative;
+}
+
+.layout-frame {
+  background: transparent;
+  border-radius: 12px;
+  --frame-padding: var(--app-padding, 0px);
+  --detail-width: 33%;
+  --sidebar-width: 360px;
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.layout-frame.detail-maximized .layout-slot-board {
+  display: none;
+}
+
+.layout-frame.detail-maximized .detail-column {
+  width: 100%;
+  flex: 1 1 auto;
+}
+
+.layout-slot {
+  background: var(--column);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  flex: 1 1 auto;
+}
+
+.layout-slot::-webkit-scrollbar,
+.detail-scroll::-webkit-scrollbar {
+  width: var(--scrollbar-size, 8px);
+}
+
+.layout-slot::-webkit-scrollbar-track,
+.detail-scroll::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.layout-slot::-webkit-scrollbar-thumb,
+.detail-scroll::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.layout-slot-board {
+  width: 100%;
+  height: 100%;
+}
+
+.layout-main {
+  display: flex;
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  transform: translateX(0);
+  transition: none;
+  will-change: transform;
+}
+
+@media (max-width: 768px) {
+  .detail-column-visible {
+    width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .detail-column-open {
+    width: 100%;
+    flex: 0 0 100%;
+  }
+}
+
+/* Descendant links */
+.descendant-link {
+  border-left: 2px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.descendant-link:hover {
+  border-left-color: var(--issue-accent-light, var(--text-muted));
+}
+
+.descendant-link:focus-visible {
+  outline: 2px solid var(--issue-accent-light);
+  outline-offset: 2px;
+  border-left-color: var(--issue-accent-light);
+}
+
+.descendant-link[data-status="closed"] .text-foreground {
+  text-decoration: line-through;
 }
