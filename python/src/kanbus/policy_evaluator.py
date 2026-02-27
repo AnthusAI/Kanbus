@@ -141,8 +141,6 @@ def evaluate_scenario(
             continue
 
         if outcome == StepOutcome.FAIL:
-            if scenario_skipped:
-                continue
             raise PolicyViolationError(
                 policy_file=policy_file,
                 scenario=scenario_name,
