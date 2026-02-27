@@ -15,9 +15,18 @@ class StepOutcome(str, Enum):
 
     PASS = "pass"
     SKIP = "skip"
+    FAIL = "fail"
 
 
 StepResult = tuple[StepOutcome, Optional[str]]
+
+
+class StepCategory(str, Enum):
+    """Category of a step."""
+
+    GIVEN = "Given"
+    WHEN = "When"
+    THEN = "Then"
 
 
 @dataclass
@@ -26,6 +35,10 @@ class StepDefinition:
 
     :param description: Human-readable description of what this step does.
     :type description: str
+    :param category: Step category (Given/When/Then).
+    :type category: StepCategory
+    :param usage_pattern: Human-readable usage pattern.
+    :type usage_pattern: str
     :param pattern: Regex pattern to match step text.
     :type pattern: re.Pattern
     :param handler: Handler function that evaluates the step.
@@ -33,6 +46,8 @@ class StepDefinition:
     """
 
     description: str
+    category: StepCategory
+    usage_pattern: str
     pattern: re.Pattern
     handler: Callable[[PolicyContext, re.Match], StepResult]
 
@@ -90,98 +105,157 @@ def build_step_definitions() -> list[StepDefinition]:
     return [
         StepDefinition(
             "Filter by issue type",
+            StepCategory.GIVEN,
+            'the issue type is "TYPE"',
             re.compile(r'^the issue type is "([^"]+)"$'),
             given_issue_type_is,
         ),
         StepDefinition(
             "Filter by label presence",
+            StepCategory.GIVEN,
+            'the issue has label "LABEL"',
             re.compile(r'^the issue has label "([^"]+)"$'),
             given_issue_has_label,
         ),
         StepDefinition(
             "Filter by parent presence",
+            StepCategory.GIVEN,
+            "the issue has a parent",
             re.compile(r"^the issue has a parent$"),
             given_issue_has_parent,
         ),
         StepDefinition(
             "Filter by priority",
+            StepCategory.GIVEN,
+            "the issue priority is N",
             re.compile(r"^the issue priority is (\d+)$"),
             given_issue_priority_is,
         ),
         StepDefinition(
             "Filter by transition target",
+            StepCategory.WHEN,
+            'transitioning to "STATUS"',
             re.compile(r'^transitioning to "([^"]+)"$'),
             when_transitioning_to,
         ),
         StepDefinition(
             "Filter by transition source",
+            StepCategory.WHEN,
+            'transitioning from "STATUS"',
             re.compile(r'^transitioning from "([^"]+)"$'),
             when_transitioning_from,
         ),
         StepDefinition(
             "Filter by specific transition",
+            StepCategory.WHEN,
+            'transitioning from "A" to "B"',
             re.compile(r'^transitioning from "([^"]+)" to "([^"]+)"$'),
             when_transitioning_from_to,
         ),
         StepDefinition(
             "Filter by create operation",
+            StepCategory.WHEN,
+            "creating an issue",
             re.compile(r"^creating an issue$"),
             when_creating_issue,
         ),
         StepDefinition(
             "Filter by close operation",
+            StepCategory.WHEN,
+            "closing an issue",
             re.compile(r"^closing an issue$"),
             when_closing_issue,
         ),
         StepDefinition(
             "Assert field is set",
+            StepCategory.THEN,
+            'the issue must have field "FIELD"',
             re.compile(r'^the issue must have field "([^"]+)"$'),
             then_issue_must_have_field,
         ),
         StepDefinition(
             "Assert field is not set",
+            StepCategory.THEN,
+            'the issue must not have field "FIELD"',
             re.compile(r'^the issue must not have field "([^"]+)"$'),
             then_issue_must_not_have_field,
         ),
         StepDefinition(
             "Assert field equals value",
+            StepCategory.THEN,
+            'the field "FIELD" must be "VALUE"',
             re.compile(r'^the field "([^"]+)" must be "([^"]+)"$'),
             then_field_must_be,
         ),
         StepDefinition(
             "Assert all children have status",
+            StepCategory.THEN,
+            'all child issues must have status "STATUS"',
             re.compile(r'^all child issues must have status "([^"]+)"$'),
             then_all_children_must_have_status,
         ),
         StepDefinition(
             "Assert no children have status",
+            StepCategory.THEN,
+            'no child issues may have status "STATUS"',
             re.compile(r'^no child issues may have status "([^"]+)"$'),
             then_no_children_may_have_status,
         ),
         StepDefinition(
             "Assert parent has status",
+            StepCategory.THEN,
+            'the parent issue must have status "STATUS"',
             re.compile(r'^the parent issue must have status "([^"]+)"$'),
             then_parent_must_have_status,
         ),
         StepDefinition(
             "Assert minimum label count",
+            StepCategory.THEN,
+            "the issue must have at least N labels",
             re.compile(r"^the issue must have at least (\d+) labels?$"),
             then_issue_must_have_at_least_n_labels,
         ),
         StepDefinition(
             "Assert has specific label",
+            StepCategory.THEN,
+            'the issue must have label "LABEL"',
             re.compile(r'^the issue must have label "([^"]+)"$'),
             then_issue_must_have_label,
         ),
         StepDefinition(
             "Assert description not empty",
+            StepCategory.THEN,
+            "the description must not be empty",
             re.compile(r"^the description must not be empty$"),
             then_description_must_not_be_empty,
         ),
         StepDefinition(
             "Assert title matches pattern",
+            StepCategory.THEN,
+            'the title must match pattern "REGEX"',
             re.compile(r'^the title must match pattern "([^"]+)"$'),
             then_title_must_match_pattern,
+        ),
+        StepDefinition(
+            "Filter by custom field presence",
+            StepCategory.GIVEN,
+            'the custom field "FIELD" is set',
+            re.compile(r'^the custom field "([^"]+)" is set$'),
+            given_custom_field_is_set,
+        ),
+        StepDefinition(
+            "Assert custom field is set",
+            StepCategory.THEN,
+            'the custom field "FIELD" must be set',
+            re.compile(r'^the custom field "([^"]+)" must be set$'),
+            then_custom_field_must_be_set,
+        ),
+        StepDefinition(
+            "Assert custom field equals value",
+            StepCategory.THEN,
+            'the custom field "FIELD" must be "VALUE"',
+            re.compile(r'^the custom field "([^"]+)" must be "([^"]+)"$'),
+            then_custom_field_must_be,
         ),
     ]
 
@@ -272,11 +346,11 @@ def then_issue_must_have_field(context: PolicyContext, match: re.Match) -> StepR
     }
 
     if field not in field_map:
-        return (StepOutcome.PASS, f"unknown field: {field}")
+        return (StepOutcome.FAIL, f"unknown field: {field}")
 
     if field_map[field]:
         return (StepOutcome.PASS, None)
-    return (StepOutcome.PASS, f'issue does not have field "{field}" set')
+    return (StepOutcome.FAIL, f'issue does not have field "{field}" set')
 
 
 def then_issue_must_not_have_field(context: PolicyContext, match: re.Match) -> StepResult:
@@ -291,11 +365,11 @@ def then_issue_must_not_have_field(context: PolicyContext, match: re.Match) -> S
     }
 
     if field not in field_map:
-        return (StepOutcome.PASS, f"unknown field: {field}")
+        return (StepOutcome.FAIL, f"unknown field: {field}")
 
     if not field_map[field]:
         return (StepOutcome.PASS, None)
-    return (StepOutcome.PASS, f'issue has field "{field}" set but should not')
+    return (StepOutcome.FAIL, f'issue has field "{field}" set but should not')
 
 
 def then_field_must_be(context: PolicyContext, match: re.Match) -> StepResult:
@@ -314,15 +388,15 @@ def then_field_must_be(context: PolicyContext, match: re.Match) -> StepResult:
     }
 
     if field not in field_map:
-        return (StepOutcome.PASS, f"unknown field: {field}")
+        return (StepOutcome.FAIL, f"unknown field: {field}")
 
     actual_value = field_map[field]
     if actual_value == expected_value:
         return (StepOutcome.PASS, None)
     if actual_value is None:
-        return (StepOutcome.PASS, f'field "{field}" is not set')
+        return (StepOutcome.FAIL, f'field "{field}" is not set')
     return (
-        StepOutcome.PASS,
+        StepOutcome.FAIL,
         f'field "{field}" is "{actual_value}" but must be "{expected_value}"',
     )
 
@@ -344,7 +418,7 @@ def then_all_children_must_have_status(
 
     ids = ", ".join(c.identifier for c in non_matching)
     return (
-        StepOutcome.PASS,
+        StepOutcome.FAIL,
         f'child issues {ids} do not have status "{required_status}"',
     )
 
@@ -363,7 +437,7 @@ def then_no_children_may_have_status(
 
     ids = ", ".join(c.identifier for c in matching)
     return (
-        StepOutcome.PASS,
+        StepOutcome.FAIL,
         f'child issues {ids} have status "{forbidden_status}" but should not',
     )
 
@@ -374,13 +448,13 @@ def then_parent_must_have_status(context: PolicyContext, match: re.Match) -> Ste
     parent = context.parent_issue()
 
     if parent is None:
-        return (StepOutcome.PASS, "issue has no parent")
+        return (StepOutcome.FAIL, "issue has no parent")
 
     if parent.status == required_status:
         return (StepOutcome.PASS, None)
 
     return (
-        StepOutcome.PASS,
+        StepOutcome.FAIL,
         f'parent issue {parent.identifier} has status "{parent.status}" '
         f'but must have status "{required_status}"',
     )
@@ -397,7 +471,7 @@ def then_issue_must_have_at_least_n_labels(
         return (StepOutcome.PASS, None)
 
     return (
-        StepOutcome.PASS,
+        StepOutcome.FAIL,
         f"issue has {actual_count} label(s) but must have at least {min_count}",
     )
 
@@ -407,7 +481,7 @@ def then_issue_must_have_label(context: PolicyContext, match: re.Match) -> StepR
     required_label = match.group(1)
     if required_label in context.issue.labels:
         return (StepOutcome.PASS, None)
-    return (StepOutcome.PASS, f'issue does not have label "{required_label}"')
+    return (StepOutcome.FAIL, f'issue does not have label "{required_label}"')
 
 
 def then_description_must_not_be_empty(
@@ -416,7 +490,7 @@ def then_description_must_not_be_empty(
     """Assert description not empty."""
     if context.issue.description.strip():
         return (StepOutcome.PASS, None)
-    return (StepOutcome.PASS, "issue description is empty")
+    return (StepOutcome.FAIL, "issue description is empty")
 
 
 def then_title_must_match_pattern(context: PolicyContext, match: re.Match) -> StepResult:
@@ -425,12 +499,46 @@ def then_title_must_match_pattern(context: PolicyContext, match: re.Match) -> St
     try:
         pattern = re.compile(pattern_str)
     except re.error as error:
-        return (StepOutcome.PASS, f"invalid regex pattern: {error}")
+        return (StepOutcome.FAIL, f"invalid regex pattern: {error}")
 
     if pattern.search(context.issue.title):
         return (StepOutcome.PASS, None)
 
     return (
-        StepOutcome.PASS,
+        StepOutcome.FAIL,
         f'title "{context.issue.title}" does not match pattern "{pattern_str}"',
+    )
+
+
+def given_custom_field_is_set(context: PolicyContext, match: re.Match) -> StepResult:
+    """Filter by custom field presence."""
+    field = match.group(1)
+    if field in context.issue.custom:
+        return (StepOutcome.PASS, None)
+    return (StepOutcome.SKIP, None)
+
+
+def then_custom_field_must_be_set(context: PolicyContext, match: re.Match) -> StepResult:
+    """Assert custom field is set."""
+    field = match.group(1)
+    if field in context.issue.custom:
+        return (StepOutcome.PASS, None)
+    return (StepOutcome.FAIL, f'custom field "{field}" is not set')
+
+
+def then_custom_field_must_be(context: PolicyContext, match: re.Match) -> StepResult:
+    """Assert custom field equals value."""
+    field = match.group(1)
+    expected_value = match.group(2)
+    
+    if field not in context.issue.custom:
+        return (StepOutcome.FAIL, f'custom field "{field}" is not set')
+        
+    actual_value = str(context.issue.custom[field])
+    if actual_value == expected_value:
+        return (StepOutcome.PASS, None)
+        
+    return (
+        StepOutcome.FAIL,
+        f'custom field "{field}" is "{actual_value}" but must be "{expected_value}"',
     )

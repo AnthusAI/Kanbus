@@ -776,7 +776,7 @@ def policy_check(identifier: str) -> None:
     """
     from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
     from kanbus.policy_loader import load_policies
-    from kanbus.policy_evaluator import evaluate_policies
+    from kanbus.policy_evaluator import evaluate_policies_with_options, PolicyEvaluationOptions
     from kanbus.policy_context import PolicyContext, PolicyOperation
     from kanbus.issue_listing import load_issues_from_directory
     from kanbus.config_loader import load_project_configuration
@@ -810,7 +810,18 @@ def policy_check(identifier: str) -> None:
             all_issues=all_issues,
         )
 
-        evaluate_policies(context, policy_documents)
+        violations = evaluate_policies_with_options(
+            context,
+            policy_documents,
+            PolicyEvaluationOptions(collect_all_violations=True),
+        )
+        
+        if violations:
+            error_msg = [f"Found {len(violations)} policy violation(s):"]
+            for i, v in enumerate(violations):
+                error_msg.append(f"\n{i + 1}. {v}")
+            raise click.ClickException("\n".join(error_msg))
+
         click.echo(f"All policies passed for {identifier}")
     except IssueLookupError as error:
         raise click.ClickException(str(error)) from error
@@ -847,6 +858,43 @@ def policy_list() -> None:
                         click.echo(f"    Scenario: {child.scenario.name}")
     except Exception as error:
         raise click.ClickException(str(error)) from error
+
+
+@policy.command("steps")
+@click.option("--category", help="Filter by category (given, when, then).")
+@click.option("--search", help="Filter by search term.")
+def policy_steps(category: str | None, search: str | None) -> None:
+    """List available policy steps.
+
+    :param category: Filter by category.
+    :type category: str | None
+    :param search: Filter by search term.
+    :type search: str | None
+    """
+    from kanbus.policy_evaluator import _get_step_registry
+
+    registry = _get_step_registry()
+    output = []
+
+    for step in registry.steps:
+        if category:
+            if category.lower() != step.category.value.lower():
+                continue
+        if search:
+            search_lower = search.lower()
+            if (
+                search_lower not in step.description.lower()
+                and search_lower not in step.usage_pattern.lower()
+            ):
+                continue
+        output.append(
+            f"{step.category.value} - {step.description}\n  Pattern: {step.usage_pattern}"
+        )
+
+    if not output:
+        click.echo("No matching steps found")
+    else:
+        click.echo("\n".join(output))
 
 
 @policy.command("validate")

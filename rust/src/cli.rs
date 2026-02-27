@@ -434,6 +434,15 @@ enum PolicyCommands {
     },
     /// List all loaded policy files.
     List,
+    /// List available policy steps.
+    Steps {
+        /// Filter by category (given, when, then).
+        #[arg(long)]
+        category: Option<String>,
+        /// Filter by search term.
+        #[arg(long)]
+        search: Option<String>,
+    },
     /// Validate all policy files for syntax errors.
     Validate,
 }
@@ -1368,7 +1377,21 @@ fn execute_command(
                     all_issues,
                 };
                 
-                crate::policy_evaluator::evaluate_policies(&context, &policy_documents)?;
+                use crate::policy_evaluator::{evaluate_policies_with_options, PolicyEvaluationOptions};
+                
+                if let Err(violations) = evaluate_policies_with_options(
+                    &context,
+                    &policy_documents,
+                    &PolicyEvaluationOptions {
+                        collect_all_violations: true,
+                    },
+                ) {
+                    let mut error_msg = format!("Found {} policy violation(s):", violations.len());
+                    for (i, v) in violations.iter().enumerate() {
+                        error_msg.push_str(&format!("\n\n{}. {}", i + 1, v));
+                    }
+                    return Err(KanbusError::IssueOperation(error_msg));
+                }
                 Ok(Some(format!("All policies passed for {}", identifier)))
             }
             PolicyCommands::List => {
@@ -1394,6 +1417,33 @@ fn execute_command(
                     }
                 }
                 Ok(Some(output))
+            }
+            PolicyCommands::Steps { category, search } => {
+                use crate::policy_evaluator::STEP_REGISTRY;
+                
+                let mut output = String::new();
+                for step in &STEP_REGISTRY.steps {
+                    if let Some(ref cat) = category {
+                        let cat_lower = cat.to_lowercase();
+                        let step_cat = format!("{:?}", step.category).to_lowercase();
+                        if cat_lower != step_cat {
+                            continue;
+                        }
+                    }
+                    if let Some(ref term) = search {
+                        let term_lower = term.to_lowercase();
+                        if !step.description.to_lowercase().contains(&term_lower) 
+                            && !step.usage_pattern.to_lowercase().contains(&term_lower) {
+                            continue;
+                        }
+                    }
+                    output.push_str(&format!("{:?} - {}\n  Pattern: {}\n", step.category, step.description, step.usage_pattern));
+                }
+                if output.is_empty() {
+                    Ok(Some("No matching steps found".to_string()))
+                } else {
+                    Ok(Some(output))
+                }
             }
             PolicyCommands::Validate => {
                 use crate::project::load_project_directory;

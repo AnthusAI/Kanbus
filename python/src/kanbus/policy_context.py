@@ -134,18 +134,21 @@ class PolicyViolationError(RuntimeError):
     :type failed_step: str
     :param message: Human-readable explanation.
     :type message: str
+    :param issue_id: Issue ID being evaluated.
+    :type issue_id: str
     """
 
     def __init__(
-        self, policy_file: str, scenario: str, failed_step: str, message: str
+        self, policy_file: str, scenario: str, failed_step: str, message: str, issue_id: str
     ) -> None:
         """Initialize policy violation error."""
         self.policy_file = policy_file
         self.scenario = scenario
         self.failed_step = failed_step
         self.message = message
+        self.issue_id = issue_id
         super().__init__(
-            f"policy violation in {policy_file}\n"
+            f"policy violation in {policy_file} for issue {issue_id}\n"
             f"  Scenario: {scenario}\n"
             f"  Failed: {failed_step}\n"
             f"  {message}"
