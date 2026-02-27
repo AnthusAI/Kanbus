@@ -1,6 +1,5 @@
 import * as React from "react";
 import { DocsLayout, CodeBlock } from "../../../components";
-import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { PageProps } from "gatsby";
 
 const DocsVirtualProjectsPage = ({ location }: PageProps) => {
