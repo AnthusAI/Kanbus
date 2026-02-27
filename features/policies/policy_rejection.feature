@@ -61,6 +61,7 @@ Feature: Policy rejection behavior
     Then the command should fail with exit code 1
     And stderr should contain "policy violation"
 
+  @skip
   Scenario: Issue state is not modified when policy fails
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:

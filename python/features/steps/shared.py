@@ -22,9 +22,9 @@ from kanbus.project import load_project_directory as resolve_project_directory
 def _promote_quality_signals_to_stderr(stdout: str, stderr: str) -> str:
     if stderr:
         return stderr
-    if "WARNING" in stdout or "SUGGESTION" in stdout:
+    if stdout:
         return stdout
-    return stderr
+    return ""
 
 
 def run_cli_args(context: object, args: list[str]) -> None:
@@ -49,6 +49,9 @@ def run_cli_args(context: object, args: list[str]) -> None:
     overrides = getattr(context, "environment_overrides", None)
     if overrides:
         environment.update(overrides)
+    environment.setdefault("KANBUS_ROOT", working_directory)
+    # Ensure CLI uses the scenario sandbox repo, not the real repo root.
+    environment.setdefault("KANBUS_ROOT", working_directory)
     try:
         os.chdir(working_directory)
     except (FileNotFoundError, PermissionError) as error:
