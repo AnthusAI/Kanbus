@@ -102,6 +102,14 @@ def then_issue_assignee_matches(
     assert issue.assignee == assignee
 
 
+@then('issue "{identifier}" should have title "{title}"')
+def then_issue_title_matches(context: object, identifier: str, title: str) -> None:
+    """Verify the issue title matches the expected value."""
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.title == title
+
+
 @then('issue "{identifier}" should have a closed_at timestamp')
 def then_issue_has_closed_at(context: object, identifier: str) -> None:
     project_dir = load_project_directory(context)

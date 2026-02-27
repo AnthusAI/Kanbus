@@ -20,6 +20,9 @@ def before_scenario(context: object, scenario: object) -> None:
     :param scenario: Behave scenario object.
     :type scenario: object
     """
+    if "skip" in getattr(scenario, "tags", []):
+        scenario.skip("Marked with @skip")
+        return
     context.temp_dir_object = TemporaryDirectory(dir="/tmp")
     context.temp_dir = context.temp_dir_object.name
     context.working_directory = None

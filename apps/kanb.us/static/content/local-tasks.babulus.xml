@@ -1,0 +1,26 @@
+<vml id="local-tasks" title="Local Tasks" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="gpt-4o-mini-tts" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="Hover Animation" duration="5s">
+    <layer id="background" z="-1">
+      <background props='{"color":"#fdfdfd"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <code-ui-sync-video />
+    </layer>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="deep_dive" title="Local Tasks Deep Dive" duration="10s">
+    <layer id="background" z="-1">
+      <background props='{"color":"#fdfdfd"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"Local Tasks","x":960,"y":150}' />
+    </layer>
+    <cue id="intro" label="Introduction">
+      <voice>Keep private tasks off git and promote them when they are ready to share.</voice>
+    </cue>
+  </scene>
+</vml>

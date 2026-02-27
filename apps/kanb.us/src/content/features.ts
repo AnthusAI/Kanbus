@@ -35,5 +35,11 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
     title: "VS Code Plugin",
     description: "Manage your project without leaving your code. Full Kanban board integration.",
     href: "/features/vscode-plugin"
+  },
+  {
+    title: "Policy as Code",
+    description: "Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically.",
+    href: "/features/policy-as-code",
+    eyebrow: "New"
   }
 ];

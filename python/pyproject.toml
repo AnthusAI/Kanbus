@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings",
     "requests",
     "behave",
+    "gherkin-official",
     "coverage",
     "ruff",
     "black==26.1.0",
