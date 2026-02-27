@@ -154,7 +154,7 @@ export function CodeUiSyncVideo() {
               const getTargetValues = (activeIdx: number) => {
                 let yOffsetNum = 0;
                 let scale = 1;
-                let opacity = 1;
+                let opacity = 0.5;
                 let zIndex = 0;
                 if (activeIdx === idx) {
                   yOffsetNum = 0;
