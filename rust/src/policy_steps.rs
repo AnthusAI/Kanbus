@@ -16,10 +16,22 @@ pub enum StepOutcome {
     Skip,
 }
 
+/// Category of a step.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepCategory {
+    Given,
+    When,
+    Then,
+}
+
 /// A single step definition with pattern and handler.
 pub struct StepDefinition {
     /// Human-readable description of what this step does.
     pub description: String,
+    /// Category (Given/When/Then).
+    pub category: StepCategory,
+    /// Human-readable usage pattern.
+    pub usage_pattern: String,
     /// Regex pattern to match step text.
     pub pattern: Regex,
     /// Handler function that evaluates the step.
@@ -30,11 +42,15 @@ impl StepDefinition {
     /// Create a new step definition.
     pub fn new(
         description: &str,
+        category: StepCategory,
+        usage_pattern: &str,
         pattern: &str,
         handler: fn(&PolicyContext, &regex::Captures) -> StepResult,
     ) -> Self {
         Self {
             description: description.to_string(),
+            category,
+            usage_pattern: usage_pattern.to_string(),
             pattern: Regex::new(pattern).expect("invalid step pattern regex"),
             handler,
         }
@@ -53,7 +69,7 @@ impl StepDefinition {
 
 /// Registry of all built-in step definitions.
 pub struct StepRegistry {
-    steps: Vec<StepDefinition>,
+    pub steps: Vec<StepDefinition>,
 }
 
 impl StepRegistry {
@@ -87,100 +103,159 @@ fn build_step_definitions() -> Vec<StepDefinition> {
         // Given steps (preconditions/filters)
         StepDefinition::new(
             "Filter by issue type",
+            StepCategory::Given,
+            "the issue type is \"TYPE\"",
             r#"^the issue type is "([^"]+)"$"#,
             given_issue_type_is,
         ),
         StepDefinition::new(
             "Filter by label presence",
+            StepCategory::Given,
+            "the issue has label \"LABEL\"",
             r#"^the issue has label "([^"]+)"$"#,
             given_issue_has_label,
         ),
         StepDefinition::new(
             "Filter by parent presence",
+            StepCategory::Given,
+            "the issue has a parent",
             r"^the issue has a parent$",
             given_issue_has_parent,
         ),
         StepDefinition::new(
             "Filter by priority",
+            StepCategory::Given,
+            "the issue priority is N",
             r"^the issue priority is (\d+)$",
             given_issue_priority_is,
+        ),
+        StepDefinition::new(
+            "Filter by custom field presence",
+            StepCategory::Given,
+            "the custom field \"FIELD\" is set",
+            r#"^the custom field "([^"]+)" is set$"#,
+            given_custom_field_is_set,
         ),
         // When steps (trigger conditions)
         StepDefinition::new(
             "Filter by transition target",
+            StepCategory::When,
+            "transitioning to \"STATUS\"",
             r#"^transitioning to "([^"]+)"$"#,
             when_transitioning_to,
         ),
         StepDefinition::new(
             "Filter by transition source",
+            StepCategory::When,
+            "transitioning from \"STATUS\"",
             r#"^transitioning from "([^"]+)"$"#,
             when_transitioning_from,
         ),
         StepDefinition::new(
             "Filter by specific transition",
+            StepCategory::When,
+            "transitioning from \"A\" to \"B\"",
             r#"^transitioning from "([^"]+)" to "([^"]+)"$"#,
             when_transitioning_from_to,
         ),
         StepDefinition::new(
             "Filter by create operation",
+            StepCategory::When,
+            "creating an issue",
             r"^creating an issue$",
             when_creating_issue,
         ),
         StepDefinition::new(
             "Filter by close operation",
+            StepCategory::When,
+            "closing an issue",
             r"^closing an issue$",
             when_closing_issue,
         ),
         // Then steps (assertions/policy rules)
         StepDefinition::new(
             "Assert field is set",
+            StepCategory::Then,
+            "the issue must have field \"FIELD\"",
             r#"^the issue must have field "([^"]+)"$"#,
             then_issue_must_have_field,
         ),
         StepDefinition::new(
             "Assert field is not set",
+            StepCategory::Then,
+            "the issue must not have field \"FIELD\"",
             r#"^the issue must not have field "([^"]+)"$"#,
             then_issue_must_not_have_field,
         ),
         StepDefinition::new(
             "Assert field equals value",
+            StepCategory::Then,
+            "the field \"FIELD\" must be \"VALUE\"",
             r#"^the field "([^"]+)" must be "([^"]+)"$"#,
             then_field_must_be,
         ),
         StepDefinition::new(
             "Assert all children have status",
+            StepCategory::Then,
+            "all child issues must have status \"STATUS\"",
             r#"^all child issues must have status "([^"]+)"$"#,
             then_all_children_must_have_status,
         ),
         StepDefinition::new(
             "Assert no children have status",
+            StepCategory::Then,
+            "no child issues may have status \"STATUS\"",
             r#"^no child issues may have status "([^"]+)"$"#,
             then_no_children_may_have_status,
         ),
         StepDefinition::new(
             "Assert parent has status",
+            StepCategory::Then,
+            "the parent issue must have status \"STATUS\"",
             r#"^the parent issue must have status "([^"]+)"$"#,
             then_parent_must_have_status,
         ),
         StepDefinition::new(
             "Assert minimum label count",
+            StepCategory::Then,
+            "the issue must have at least N labels",
             r"^the issue must have at least (\d+) labels?$",
             then_issue_must_have_at_least_n_labels,
         ),
         StepDefinition::new(
             "Assert has specific label",
+            StepCategory::Then,
+            "the issue must have label \"LABEL\"",
             r#"^the issue must have label "([^"]+)"$"#,
             then_issue_must_have_label,
         ),
         StepDefinition::new(
             "Assert description not empty",
+            StepCategory::Then,
+            "the description must not be empty",
             r"^the description must not be empty$",
             then_description_must_not_be_empty,
         ),
         StepDefinition::new(
             "Assert title matches pattern",
+            StepCategory::Then,
+            "the title must match pattern \"REGEX\"",
             r#"^the title must match pattern "([^"]+)"$"#,
             then_title_must_match_pattern,
+        ),
+        StepDefinition::new(
+            "Assert custom field is set",
+            StepCategory::Then,
+            "the custom field \"FIELD\" must be set",
+            r#"^the custom field "([^"]+)" must be set$"#,
+            then_custom_field_must_be_set,
+        ),
+        StepDefinition::new(
+            "Assert custom field equals value",
+            StepCategory::Then,
+            "the custom field \"FIELD\" must be \"VALUE\"",
+            r#"^the custom field "([^"]+)" must be "([^"]+)"$"#,
+            then_custom_field_must_be,
         ),
     ]
 }
@@ -453,5 +528,42 @@ fn then_title_must_match_pattern(
             context.issue().title,
             pattern_str
         ))
+    }
+}
+
+fn given_custom_field_is_set(context: &PolicyContext, captures: &regex::Captures) -> StepResult {
+    let field = &captures[1];
+    if context.issue().custom.contains_key(field) {
+        Ok(StepOutcome::Pass)
+    } else {
+        Ok(StepOutcome::Skip)
+    }
+}
+
+fn then_custom_field_must_be_set(context: &PolicyContext, captures: &regex::Captures) -> StepResult {
+    let field = &captures[1];
+    if context.issue().custom.contains_key(field) {
+        Ok(StepOutcome::Pass)
+    } else {
+        Err(format!("custom field \"{field}\" is not set"))
+    }
+}
+
+fn then_custom_field_must_be(context: &PolicyContext, captures: &regex::Captures) -> StepResult {
+    let field = &captures[1];
+    let expected = &captures[2];
+    match context.issue().custom.get(field) {
+        Some(value) => {
+            let value_str = match value {
+                serde_json::Value::String(s) => s.to_string(),
+                v => v.to_string(),
+            };
+            if value_str == expected {
+                Ok(StepOutcome::Pass)
+            } else {
+                Err(format!("custom field \"{field}\" is \"{value_str}\" but must be \"{expected}\""))
+            }
+        }
+        None => Err(format!("custom field \"{field}\" is not set")),
     }
 }

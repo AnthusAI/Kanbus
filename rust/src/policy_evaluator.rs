@@ -1,10 +1,20 @@
 //! Policy evaluation engine.
 
 use gherkin::{Feature, Step, StepType};
+use std::sync::LazyLock;
 
 use crate::error::KanbusError;
 use crate::policy_context::PolicyContext;
 use crate::policy_steps::{StepOutcome, StepRegistry};
+
+pub static STEP_REGISTRY: LazyLock<StepRegistry> = LazyLock::new(StepRegistry::new);
+
+/// Options for policy evaluation.
+#[derive(Debug, Clone, Default)]
+pub struct PolicyEvaluationOptions {
+    /// If true, collect all violations instead of stopping at the first one.
+    pub collect_all_violations: bool,
+}
 
 /// Evaluate all policies against the given context.
 ///
@@ -21,25 +31,44 @@ pub fn evaluate_policies(
     context: &PolicyContext,
     features: &[(String, Feature)],
 ) -> Result<(), KanbusError> {
-    let registry = StepRegistry::new();
+    evaluate_policies_with_options(context, features, &PolicyEvaluationOptions::default())
+        .map(|_| ())
+        .map_err(|mut errs| errs.remove(0))
+}
+
+/// Evaluate all policies and optionally collect all violations.
+pub fn evaluate_policies_with_options(
+    context: &PolicyContext,
+    features: &[(String, Feature)],
+    options: &PolicyEvaluationOptions,
+) -> Result<Vec<()>, Vec<KanbusError>> {
+    let mut violations = Vec::new();
 
     for (filename, feature) in features {
         for scenario in &feature.scenarios {
-            let result = evaluate_scenario(
+            match evaluate_scenario(
                 context,
-                &registry,
+                &STEP_REGISTRY,
                 filename,
                 &scenario.name,
                 &scenario.steps,
-            )?;
-
-            if result == ScenarioResult::Skipped {
-                continue;
+            ) {
+                Ok(ScenarioResult::Passed) | Ok(ScenarioResult::Skipped) => continue,
+                Err(err) => {
+                    violations.push(err);
+                    if !options.collect_all_violations {
+                        return Err(violations);
+                    }
+                }
             }
         }
     }
 
-    Ok(())
+    if violations.is_empty() {
+        Ok(vec![])
+    } else {
+        Err(violations)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -73,6 +102,7 @@ fn evaluate_scenario(
                     scenario: scenario_name.to_string(),
                     failed_step: format!("{step_keyword} {step_text}"),
                     message: format!("no matching step definition for: {step_text}"),
+                    issue_id: context.proposed_issue.identifier.clone(),
                 });
             }
         };
@@ -97,6 +127,7 @@ fn evaluate_scenario(
                     scenario: scenario_name.to_string(),
                     failed_step: format!("{step_keyword} {step_text}"),
                     message,
+                    issue_id: context.proposed_issue.identifier.clone(),
                 });
             }
         }

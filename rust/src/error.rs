@@ -31,6 +31,8 @@ pub enum KanbusError {
         failed_step: String,
         /// Human-readable explanation.
         message: String,
+        /// Issue ID being evaluated.
+        issue_id: String,
     },
 }
 
@@ -50,10 +52,11 @@ impl Display for KanbusError {
                 scenario,
                 failed_step,
                 message,
+                issue_id,
             } => {
                 write!(
                     formatter,
-                    "policy violation in {policy_file}\n  Scenario: {scenario}\n  Failed: {failed_step}\n  {message}"
+                    "policy violation in {policy_file} for issue {issue_id}\n  Scenario: {scenario}\n  Failed: {failed_step}\n  {message}"
                 )
             }
         }

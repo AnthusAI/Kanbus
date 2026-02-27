@@ -19,6 +19,24 @@ class ScenarioResult(str, Enum):
     SKIPPED = "skipped"
 
 
+_REGISTRY: StepRegistry | None = None
+
+
+def _get_step_registry() -> StepRegistry:
+    global _REGISTRY
+    if _REGISTRY is None:
+        _REGISTRY = StepRegistry()
+    return _REGISTRY
+
+
+from dataclasses import dataclass
+
+@dataclass
+class PolicyEvaluationOptions:
+    """Options for policy evaluation."""
+    collect_all_violations: bool = False
+
+
 def evaluate_policies(
     context: PolicyContext, documents: list[tuple[str, GherkinDocument]]
 ) -> None:
@@ -30,7 +48,29 @@ def evaluate_policies(
     :type documents: list[tuple[str, GherkinDocument]]
     :raises PolicyViolationError: If any policy rule fails.
     """
-    registry = StepRegistry()
+    violations = evaluate_policies_with_options(context, documents, PolicyEvaluationOptions())
+    if violations:
+        raise violations[0]
+
+
+def evaluate_policies_with_options(
+    context: PolicyContext, 
+    documents: list[tuple[str, GherkinDocument]],
+    options: PolicyEvaluationOptions,
+) -> list[PolicyViolationError]:
+    """Evaluate all policies and optionally collect all violations.
+    
+    :param context: Policy evaluation context.
+    :type context: PolicyContext
+    :param documents: List of tuples containing filename and parsed Gherkin document.
+    :type documents: list[tuple[str, GherkinDocument]]
+    :param options: Evaluation options.
+    :type options: PolicyEvaluationOptions
+    :return: List of policy violations.
+    :rtype: list[PolicyViolationError]
+    """
+    registry = _get_step_registry()
+    violations = []
 
     for filename, document in documents:
         if not document.feature:
@@ -41,12 +81,16 @@ def evaluate_policies(
                 continue
 
             scenario = child.scenario
-            result = evaluate_scenario(
-                context, registry, filename, scenario.name, scenario.steps
-            )
+            try:
+                evaluate_scenario(
+                    context, registry, filename, scenario.name, scenario.steps
+                )
+            except PolicyViolationError as error:
+                violations.append(error)
+                if not options.collect_all_violations:
+                    return violations
 
-            if result == ScenarioResult.SKIPPED:
-                continue
+    return violations
 
 
 def evaluate_scenario(
@@ -85,22 +129,25 @@ def evaluate_scenario(
                 scenario=scenario_name,
                 failed_step=f"{step_keyword} {step_text}",
                 message=f"no matching step definition for: {step_text}",
+                issue_id=context.proposed_issue.identifier,
             )
 
         step_def, match = found
         outcome, error_message = step_def.execute(context, match)
 
         if outcome == StepOutcome.PASS:
-            if error_message:
-                if scenario_skipped:
-                    continue
-                raise PolicyViolationError(
-                    policy_file=policy_file,
-                    scenario=scenario_name,
-                    failed_step=f"{step_keyword} {step_text}",
-                    message=error_message,
-                )
             continue
+
+        if outcome == StepOutcome.FAIL:
+            if scenario_skipped:
+                continue
+            raise PolicyViolationError(
+                policy_file=policy_file,
+                scenario=scenario_name,
+                failed_step=f"{step_keyword} {step_text}",
+                message=error_message or "step failed without explanation",
+                issue_id=context.proposed_issue.identifier,
+            )
 
         if outcome == StepOutcome.SKIP:
             if step_keyword in ("Given", "When"):
