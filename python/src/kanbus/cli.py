@@ -12,8 +12,10 @@ import click
 from kanbus import __version__
 from kanbus.file_io import (
     InitializationError,
+    detect_repairable_project_issues,
     ensure_git_repository,
     initialize_project,
+    repair_project_structure,
 )
 from kanbus.content_validation import ContentValidationError, validate_code_blocks
 from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
@@ -102,6 +104,35 @@ def cli(context: click.Context, beads_mode: bool) -> None:
     """
     resolved, forced = _resolve_beads_mode(context, beads_mode)
     context.obj = {"beads_mode": resolved, "beads_mode_forced": forced}
+    _maybe_prompt_project_repair(context)
+
+
+def _should_check_project_structure(context: click.Context) -> bool:
+    if context.invoked_subcommand is None:
+        return False
+    return context.invoked_subcommand not in {"init", "setup", "repair"}
+
+
+def _maybe_prompt_project_repair(context: click.Context) -> None:
+    if not _should_check_project_structure(context):
+        return
+    root = Path.cwd()
+    plan = detect_repairable_project_issues(root, allow_uninitialized=True)
+    if plan is None:
+        return
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return
+    missing = []
+    if plan.missing_project_dir:
+        missing.append("project/")
+    if plan.missing_issues_dir:
+        missing.append("project/issues")
+    if plan.missing_events_dir:
+        missing.append("project/events")
+    prompt = f"Project structure incomplete (missing: {', '.join(missing)}). Repair now?"
+    if click.confirm(prompt, default=False):
+        repair_project_structure(root, plan)
+        click.echo("Project structure repaired.", err=True)
 
 
 @cli.group("setup")
@@ -144,6 +175,45 @@ def _maybe_run_setup_agents(root: Path) -> None:
         return
     if click.confirm('Run "kanbus setup agents" now?', default=False):
         ensure_agents_file(root, force=False)
+
+
+@cli.command("repair")
+@click.option("--yes", is_flag=True, default=False)
+def repair(yes: bool) -> None:
+    """Repair a broken project structure."""
+    root = Path.cwd()
+    try:
+        plan = detect_repairable_project_issues(root, allow_uninitialized=False)
+    except ProjectMarkerError as error:
+        raise click.ClickException(str(error)) from error
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+
+    if plan is None:
+        click.echo("Project structure is already healthy.")
+        return
+
+    if not yes:
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            raise click.ClickException(
+                "project structure requires repair (re-run with --yes)"
+            )
+        missing = []
+        if plan.missing_project_dir:
+            missing.append("project/")
+        if plan.missing_issues_dir:
+            missing.append("project/issues")
+        if plan.missing_events_dir:
+            missing.append("project/events")
+        prompt = (
+            f"Project structure incomplete (missing: {', '.join(missing)}). Repair now?"
+        )
+        if not click.confirm(prompt, default=False):
+            click.echo("Repair cancelled.")
+            return
+
+    repair_project_structure(root, plan)
+    click.echo("Project structure repaired.")
 
 
 @cli.command("create")
