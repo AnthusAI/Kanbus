@@ -66,3 +66,9 @@ videos/test.wav
 parse_transcripts.py
 recover_files.py
 search_history.py
+
+# CodeQL local artifacts
+.codeql/
+.codeql-dbs/
+.codeql-reports/
+.codeql-tools/
