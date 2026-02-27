@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Layout, Section, Hero, FullVideoPlayer } from "../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
-import { VIDEOS, getVideoById } from "../../content/videos";
+import { getVideoById } from "../../content/videos";
 import { getVideoSrc } from "../../lib/getVideoSrc";
 
 const CoreManagementPage = () => {
