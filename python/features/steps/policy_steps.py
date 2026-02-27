@@ -6,6 +6,7 @@ from behave import given
 
 
 @given('a policy file "{filename}" with content')
+@given('a policy file "{filename}" with content:')
 def step_create_policy_file(context, filename: str) -> None:
     """Create a policy file with the given content."""
     policies_dir = context.project_dir / "policies"
