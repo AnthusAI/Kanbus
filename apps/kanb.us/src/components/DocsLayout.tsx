@@ -1,11 +1,19 @@
 import * as React from "react";
 import Layout from "./Layout";
 
-const sidebarLinks = [
+type SidebarLink = {
+  label: string;
+  href: string;
+  isHeader?: boolean;
+};
+
+const sidebarLinks: SidebarLink[] = [
   { label: "Overview", href: "/docs" },
   { label: "CLI Reference", href: "/docs/cli" },
   { label: "Configuration", href: "/docs/configuration" },
-  { label: "Directory Structure", href: "/docs/directory-structure" }
+  { label: "Directory Structure", href: "/docs/directory-structure" },
+  { label: "Features", href: "#", isHeader: true },
+  { label: "Policy as Code", href: "/docs/features/policy-as-code" }
 ];
 
 type DocsLayoutProps = {
@@ -24,6 +32,15 @@ const DocsLayout = ({ children, currentPath }: DocsLayoutProps) => {
             </h3>
             <ul className="space-y-2">
               {sidebarLinks.map((link) => {
+                if (link.isHeader) {
+                  return (
+                    <li key={link.label} className="pt-4">
+                      <h4 className="text-xs font-semibold text-muted tracking-wider uppercase px-3">
+                        {link.label}
+                      </h4>
+                    </li>
+                  );
+                }
                 // Determine if active. For overview, exact match, others prefix match
                 const isActive = currentPath === link.href || (link.href !== "/docs" && currentPath?.startsWith(link.href));
                 return (

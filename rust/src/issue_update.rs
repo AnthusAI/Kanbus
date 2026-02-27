@@ -203,6 +203,27 @@ pub fn update_issue(
     }
     updated_issue.updated_at = current_time;
 
+    let policies_dir = lookup.project_dir.join("policies");
+    if policies_dir.is_dir() {
+        let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
+        if !policy_documents.is_empty() {
+            let issues_dir = lookup.project_dir.join("issues");
+            let all_issues = crate::issue_listing::load_issues_from_directory(&issues_dir)?;
+            let context = crate::policy_context::PolicyContext {
+                current_issue: Some(before_issue.clone()),
+                proposed_issue: updated_issue.clone(),
+                transition: resolved_status.map(|s| crate::policy_context::StatusTransition {
+                    from: before_issue.status.clone(),
+                    to: s.to_string(),
+                }),
+                operation: crate::policy_context::PolicyOperation::Update,
+                project_configuration: configuration.clone(),
+                all_issues,
+            };
+            crate::policy_evaluator::evaluate_policies(&context, &policy_documents)?;
+        }
+    }
+
     write_issue_to_file(&updated_issue, &lookup.issue_path)?;
 
     let occurred_at = now_timestamp();

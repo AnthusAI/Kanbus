@@ -258,6 +258,17 @@ def _load_issues_from_directory(issues_dir: Path) -> List[IssueData]:
     return issues
 
 
+def load_issues_from_directory(issues_dir: Path) -> List[IssueData]:
+    """Load all issues from a directory.
+
+    :param issues_dir: Path to the issues directory.
+    :type issues_dir: Path
+    :return: List of issues.
+    :rtype: List[IssueData]
+    """
+    return _load_issues_from_directory(issues_dir)
+
+
 def _tag_issue_source(issue: IssueData, source: str) -> IssueData:
     custom = {**issue.custom, "source": source}
     return issue.model_copy(update={"custom": custom})
