@@ -254,7 +254,7 @@ fn tag_issue_project(issue: &mut IssueData, root: &Path, project_dir: &Path) {
     );
 }
 
-fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
+pub fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let mut issues = Vec::new();
     for entry in
         std::fs::read_dir(issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?

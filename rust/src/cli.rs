@@ -311,6 +311,11 @@ enum Commands {
         #[command(subcommand)]
         command: ConsoleCommands,
     },
+    /// Policy management commands.
+    Policy {
+        #[command(subcommand)]
+        command: PolicyCommands,
+    },
     /// Report daemon status.
     #[command(name = "daemon-status")]
     DaemonStatus,
@@ -450,6 +455,28 @@ enum WikiCommands {
         /// Wiki page path.
         page: String,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum PolicyCommands {
+    /// Check policies against an issue.
+    Check {
+        /// Issue identifier to check policies against.
+        identifier: String,
+    },
+    /// List all loaded policy files.
+    List,
+    /// List available policy steps.
+    Steps {
+        /// Filter by category (given, when, then).
+        #[arg(long)]
+        category: Option<String>,
+        /// Filter by search term.
+        #[arg(long)]
+        search: Option<String>,
+    },
+    /// Validate all policy files for syntax errors.
+    Validate,
 }
 
 #[derive(Debug, Subcommand)]
@@ -1468,6 +1495,132 @@ fn execute_command(
                 };
                 let output = render_wiki_page(&request)?;
                 Ok(Some(output))
+            }
+        },
+        Commands::Policy { command } => match command {
+            PolicyCommands::Check { identifier } => {
+                use crate::config_loader::load_project_configuration;
+                use crate::file_io::get_configuration_path;
+                use crate::issue_lookup::load_issue_from_project;
+
+                let lookup = load_issue_from_project(root, &identifier)?;
+                let config_path = get_configuration_path(&lookup.project_dir)?;
+                let configuration = load_project_configuration(&config_path)?;
+                let policies_dir = lookup.project_dir.join("policies");
+
+                if !policies_dir.is_dir() {
+                    return Ok(Some("No policies directory found".to_string()));
+                }
+
+                let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
+                if policy_documents.is_empty() {
+                    return Ok(Some("No policy files found".to_string()));
+                }
+
+                let issues_dir = lookup.project_dir.join("issues");
+                let all_issues = crate::issue_listing::load_issues_from_directory(&issues_dir)?;
+                let context = crate::policy_context::PolicyContext {
+                    current_issue: Some(lookup.issue.clone()),
+                    proposed_issue: lookup.issue.clone(),
+                    transition: None,
+                    operation: crate::policy_context::PolicyOperation::Update,
+                    project_configuration: configuration,
+                    all_issues,
+                };
+
+                use crate::policy_evaluator::{
+                    evaluate_policies_with_options, PolicyEvaluationOptions,
+                };
+
+                if let Err(violations) = evaluate_policies_with_options(
+                    &context,
+                    &policy_documents,
+                    &PolicyEvaluationOptions {
+                        collect_all_violations: true,
+                    },
+                ) {
+                    let mut error_msg = format!("Found {} policy violation(s):", violations.len());
+                    for (i, v) in violations.iter().enumerate() {
+                        error_msg.push_str(&format!("\n\n{}. {}", i + 1, v));
+                    }
+                    return Err(KanbusError::IssueOperation(error_msg));
+                }
+                Ok(Some(format!("All policies passed for {}", identifier)))
+            }
+            PolicyCommands::List => {
+                use crate::project::load_project_directory;
+
+                let project_dir = load_project_directory(root)?;
+                let policies_dir = project_dir.join("policies");
+
+                if !policies_dir.is_dir() {
+                    return Ok(Some("No policies directory found".to_string()));
+                }
+
+                let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
+                if policy_documents.is_empty() {
+                    return Ok(Some("No policy files found".to_string()));
+                }
+
+                let mut output = String::new();
+                for (filename, feature) in &policy_documents {
+                    output.push_str(&format!("{}\n  Feature: {}\n", filename, feature.name));
+                    for scenario in &feature.scenarios {
+                        output.push_str(&format!("    Scenario: {}\n", scenario.name));
+                    }
+                }
+                Ok(Some(output))
+            }
+            PolicyCommands::Steps { category, search } => {
+                use crate::policy_evaluator::STEP_REGISTRY;
+
+                let mut output = String::new();
+                for step in &STEP_REGISTRY.steps {
+                    if let Some(ref cat) = category {
+                        let cat_lower = cat.to_lowercase();
+                        let step_cat = format!("{:?}", step.category).to_lowercase();
+                        if cat_lower != step_cat {
+                            continue;
+                        }
+                    }
+                    if let Some(ref term) = search {
+                        let term_lower = term.to_lowercase();
+                        if !step.description.to_lowercase().contains(&term_lower)
+                            && !step.usage_pattern.to_lowercase().contains(&term_lower)
+                        {
+                            continue;
+                        }
+                    }
+                    output.push_str(&format!(
+                        "{:?} - {}\n  Pattern: {}\n",
+                        step.category, step.description, step.usage_pattern
+                    ));
+                }
+                if output.is_empty() {
+                    Ok(Some("No matching steps found".to_string()))
+                } else {
+                    Ok(Some(output))
+                }
+            }
+            PolicyCommands::Validate => {
+                use crate::project::load_project_directory;
+
+                let project_dir = load_project_directory(root)?;
+                let policies_dir = project_dir.join("policies");
+
+                if !policies_dir.is_dir() {
+                    return Ok(Some("No policies directory found".to_string()));
+                }
+
+                let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
+                if policy_documents.is_empty() {
+                    return Ok(Some("No policy files found".to_string()));
+                }
+
+                Ok(Some(format!(
+                    "All {} policy files are valid",
+                    policy_documents.len()
+                )))
             }
         },
         Commands::Console { command } => match command {

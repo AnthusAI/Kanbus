@@ -49,6 +49,8 @@ rust-embed = { version = "8.5", optional = true }
 reqwest = { version = "0.12", features = ["blocking", "json", "native-tls-vendored"] }
 native-tls = { version = "=0.2.16", features = ["vendored"] }
 tempfile = "3.10.1"
+gherkin = "0.14"
+regex = "1.10.4"
 
 [dev-dependencies]
 cucumber = "0.21"

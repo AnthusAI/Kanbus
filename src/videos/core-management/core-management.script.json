@@ -1,0 +1,343 @@
+{
+  "scenes": [
+    {
+      "id": "hook",
+      "title": "Core Management",
+      "startSec": 0,
+      "endSec": 5,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "animated-pictogram-video-0",
+              "type": "AnimatedPictogramVideo",
+              "props": {
+                "type": "cli",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Core Management",
+                "x": 960,
+                "y": 120,
+                "size": 64,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 1200,
+                "font": "sans",
+                "sceneStartSec": 0
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "The speed of the CLI, the structure of Jira",
+                "x": 960,
+                "y": 200,
+                "size": 36,
+                "weight": 400,
+                "align": "center",
+                "maxWidth": 1200,
+                "font": "serif",
+                "color": "var(--text-muted)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        }
+      ],
+      "cues": []
+    },
+    {
+      "id": "deep_dive",
+      "title": "Core Management Deep Dive",
+      "startSec": 5.625,
+      "endSec": 41.625,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "title-0",
+              "type": "Title",
+              "props": {
+                "text": "Core Management",
+                "x": 960,
+                "y": 120,
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "subtitle",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "subtitle-0",
+              "type": "Subtitle",
+              "props": {
+                "text": "The speed of the CLI, the structure of Jira",
+                "x": 960,
+                "y": 200,
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Instant Creation",
+                "x": 480,
+                "y": 400,
+                "size": 36,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "sans",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.",
+                "x": 480,
+                "y": 520,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 28,
+                "borderRadius": 16,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-2",
+              "type": "TextBlock",
+              "props": {
+                "text": "Seamless Workflow",
+                "x": 480,
+                "y": 720,
+                "size": 36,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "sans",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-3",
+              "type": "TextBlock",
+              "props": {
+                "text": "Find exactly what you need with powerful query filters. Group related tasks under Epics to track larger initiatives.",
+                "x": 480,
+                "y": 840,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 28,
+                "borderRadius": 16,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "cli-demo-video-0",
+              "type": "CliDemoVideo",
+              "props": {
+                "style": {
+                  "left": 960,
+                  "top": 300,
+                  "width": 800,
+                  "bottom": 0,
+                  "position": "absolute"
+                },
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "intro",
+          "label": "Introduction",
+          "startSec": 5.625,
+          "endSec": 11.806818181818182,
+          "text": "Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 5.625,
+              "endSec": 11.806818181818182,
+              "text": "Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "filter",
+          "label": "Filter",
+          "startSec": 11.806818181818182,
+          "endSec": 19.579545454545453,
+          "text": "Find exactly what you need with powerful query filters. List all open issues, or filter by status, priority, or assignee.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 11.806818181818182,
+              "endSec": 12.306818181818182,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 12.306818181818182,
+              "endSec": 19.579545454545453,
+              "text": "Find exactly what you need with powerful query filters. List all open issues, or filter by status, priority, or assignee."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "hierarchy",
+          "label": "Hierarchy",
+          "startSec": 19.579545454545453,
+          "endSec": 27.352272727272727,
+          "text": "Group related tasks under an Epic to track larger initiatives. Creating a child task automatically links it to the parent.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 19.579545454545453,
+              "endSec": 20.079545454545453,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 20.079545454545453,
+              "endSec": 27.352272727272727,
+              "text": "Group related tasks under an Epic to track larger initiatives. Creating a child task automatically links it to the parent."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "workflow",
+          "label": "Workflow",
+          "startSec": 27.352272727272727,
+          "endSec": 36.21590909090909,
+          "text": "Move an issue to In Progress and assign it to yourself in one move. Keep your project moving forward without leaving the terminal.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 27.352272727272727,
+              "endSec": 27.852272727272727,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 27.852272727272727,
+              "endSec": 36.21590909090909,
+              "text": "Move an issue to In Progress and assign it to yourself in one move. Keep your project moving forward without leaving the terminal."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "kind": "scene",
+      "sceneId": "hook",
+      "startSec": 0,
+      "endSec": 5
+    },
+    {
+      "kind": "transition",
+      "id": "push-1",
+      "startSec": 5,
+      "endSec": 5.625,
+      "effect": "slide",
+      "ease": "power2.inOut",
+      "props": {
+        "direction": "left"
+      },
+      "mode": "insert",
+      "fromSceneId": "hook",
+      "toSceneId": "deep_dive"
+    },
+    {
+      "kind": "scene",
+      "sceneId": "deep_dive",
+      "startSec": 5.625,
+      "endSec": 41.625
+    }
+  ],
+  "posterTimeSec": 2,
+  "fps": 24,
+  "meta": {
+    "fps": 24,
+    "width": 1920,
+    "height": 1080
+  }
+}

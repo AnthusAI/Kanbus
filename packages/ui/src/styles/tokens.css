@@ -33,6 +33,9 @@
   --radius-sm: 10px;
   --radius-md: 14px;
   --radius-lg: 20px;
+
+  --glow-center: rgba(255, 255, 255, 0.9);
+  --glow-edge: rgba(255, 255, 255, 0);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -52,6 +55,9 @@
 
     --danger-bg: var(--red-4);
     --danger-text: var(--red-11);
+
+    --glow-center: rgba(0, 0, 0, 0.5);
+    --glow-edge: rgba(0, 0, 0, 0);
   }
 }
 

@@ -5,11 +5,18 @@
   "description": "VideoML videos about Kanbus",
   "scripts": {
     "generate": "npm run vml:generate",
-    "render": "npm run vml:render:intro",
+    "render": "npm run vml:render:all",
     "bundle:components": "npx tsx scripts/bundle-browser-components.ts",
     "vml:generate": "node $VIDEOML_CLI generate content/",
-    "vml:render:intro": "node $VIDEOML_CLI render --script src/videos/intro/intro.script.json --timeline src/videos/intro/intro.timeline.json --audio public/videoml/intro.wav --frames out/frames/intro --out out/intro.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
-    "vml:render:all": "npm run vml:render:intro"
+    "vml:render:intro": "node $VIDEOML_CLI render --script ../src/videos/intro/intro.script.json --timeline ../src/videos/intro/intro.timeline.json --audio ../public/videoml/intro.wav --frames out/frames/intro --out out/intro.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
+    "vml:render:core-management": "node $VIDEOML_CLI render --script ../src/videos/core-management/core-management.script.json --timeline ../src/videos/core-management/core-management.timeline.json --audio ../public/videoml/core-management.wav --frames out/frames/core-management --out out/core-management.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
+    "vml:render:jira-sync": "node $VIDEOML_CLI render --script ../src/videos/jira-sync/jira-sync.script.json --timeline ../src/videos/jira-sync/jira-sync.timeline.json --audio ../public/videoml/jira-sync.wav --frames out/frames/jira-sync --out out/jira-sync.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
+    "vml:render:local-tasks": "node $VIDEOML_CLI render --script ../src/videos/local-tasks/local-tasks.script.json --timeline ../src/videos/local-tasks/local-tasks.timeline.json --audio ../public/videoml/local-tasks.wav --frames out/frames/local-tasks --out out/local-tasks.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
+    "vml:render:beads-compatibility": "node $VIDEOML_CLI render --script ../src/videos/beads-compatibility/beads-compatibility.script.json --timeline ../src/videos/beads-compatibility/beads-compatibility.timeline.json --audio ../public/videoml/beads-compatibility.wav --frames out/frames/beads-compatibility --out out/beads-compatibility.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
+    "vml:render:virtual-projects": "node $VIDEOML_CLI render --script ../src/videos/virtual-projects/virtual-projects.script.json --timeline ../src/videos/virtual-projects/virtual-projects.timeline.json --audio ../public/videoml/virtual-projects.wav --frames out/frames/virtual-projects --out out/virtual-projects.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
+    "vml:render:vscode-plugin": "node $VIDEOML_CLI render --script ../src/videos/vscode-plugin/vscode-plugin.script.json --timeline ../src/videos/vscode-plugin/vscode-plugin.timeline.json --audio ../public/videoml/vscode-plugin.wav --frames out/frames/vscode-plugin --out out/vscode-plugin.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
+    "vml:render:policy-as-code": "node $VIDEOML_CLI render --script ../src/videos/policy-as-code/policy-as-code.script.json --timeline ../src/videos/policy-as-code/policy-as-code.timeline.json --audio ../public/videoml/policy-as-code.wav --frames out/frames/policy-as-code --out out/policy-as-code.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
+    "vml:render:all": "npm run vml:render:intro && npm run vml:render:core-management && npm run vml:render:jira-sync && npm run vml:render:local-tasks && npm run vml:render:beads-compatibility && npm run vml:render:virtual-projects && npm run vml:render:vscode-plugin && npm run vml:render:policy-as-code"
   },
   "dependencies": {
     "@kanbus/ui": "file:../packages/ui",

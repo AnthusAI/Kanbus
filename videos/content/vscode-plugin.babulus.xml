@@ -1,0 +1,55 @@
+<vml id="vscode-plugin" title="VS Code Plugin" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="VS Code Plugin" duration="5s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <animated-pictogram-video props='{"type": "vscode"}' />
+    </layer>
+    <layer id="title" z="1">
+      <text-block props='{"text":"VS Code Integration","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
+      <text-block props='{"text":"The full Kanbus experience, embedded in your editor","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+    </layer>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="deep_dive" title="VS Code Plugin Deep Dive" duration="30s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"VS Code Integration","x":960,"y":120}' />
+    </layer>
+    <layer id="subtitle" z="1">
+      <subtitle props='{"text":"The full Kanbus experience, embedded in your editor","x":960,"y":200}' />
+    </layer>
+    <layer id="content" z="1">
+      <text-block props='{"text":"Zero Context Switching","x":480,"y":400,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab. Drag issues, edit details, and filter tasks while your code remains visible right next to it.","x":480,"y":540,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      
+      <text-block props='{"text":"Instant Access","x":480,"y":760,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details. The Kanbus extension is open source and available for free.","x":480,"y":880,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <vs-code-demo-video props='{"style":{"left": 960, "top": 300, "width": 800, "bottom": 0, "position": "absolute"}}' />
+    </layer>
+    <cue id="intro" label="Introduction">
+      <voice>Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab.</voice>
+    </cue>
+    <cue id="workflow" label="Workflow">
+      <pause seconds="0.5s" />
+      <voice>Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching.</voice>
+    </cue>
+    <cue id="access" label="Access">
+      <pause seconds="0.5s" />
+      <voice>Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details.</voice>
+    </cue>
+    <cue id="install" label="Install">
+      <pause seconds="0.5s" />
+      <voice>The Kanbus extension is open source and available for free. Install it from the Marketplace today.</voice>
+    </cue>
+  </scene>
+</vml>

@@ -21,6 +21,19 @@ pub enum KanbusError {
     IssueOperation(String),
     /// Protocol validation failed.
     ProtocolError(String),
+    /// Policy violation occurred.
+    PolicyViolation {
+        /// Path to the policy file.
+        policy_file: String,
+        /// Scenario name that failed.
+        scenario: String,
+        /// The specific step that failed.
+        failed_step: String,
+        /// Human-readable explanation.
+        message: String,
+        /// Issue ID being evaluated.
+        issue_id: String,
+    },
 }
 
 impl Display for KanbusError {
@@ -34,6 +47,18 @@ impl Display for KanbusError {
             KanbusError::InvalidHierarchy(message) => write!(formatter, "{message}"),
             KanbusError::IssueOperation(message) => write!(formatter, "{message}"),
             KanbusError::ProtocolError(message) => write!(formatter, "{message}"),
+            KanbusError::PolicyViolation {
+                policy_file,
+                scenario,
+                failed_step,
+                message,
+                issue_id,
+            } => {
+                write!(
+                    formatter,
+                    "policy violation in {policy_file} for issue {issue_id}\n  Scenario: {scenario}\n  Failed: {failed_step}\n  {message}"
+                )
+            }
         }
     }
 }

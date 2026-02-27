@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Copy, Check } from "lucide-react";
 
 type CodeBlockProps = {
   children: string;
@@ -43,25 +44,56 @@ const CodeBlock = ({ children, label }: CodeBlockProps) => {
     }
   };
 
+  const renderHighlighted = (code: string) => {
+    // Simple regex-based highlighter for our documentation blocks
+    // This isn't perfect but handles our shell scripts, YAML, and Gherkin reasonably well
+    const html = code
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // Comments
+      .replace(/^(#.*)$/gm, '<span class="text-muted opacity-70">$1</span>')
+      // Shell commands
+      .replace(/^(\$\s+)?(kanbus|kbs)(\s)/gm, '<span class="text-muted opacity-50">$1</span><span class="text-sky-400 font-bold">$2</span>$3')
+      // Feature / Scenario / Given / When / Then (Gherkin)
+      .replace(/^(Feature|Scenario|Given|When|Then|And|But)(:?)/gm, '<span class="text-indigo-400 font-bold">$1</span>$2')
+      // JSON keys
+      .replace(/"([^"]+)":/g, '<span class="text-sky-400">"$1"</span>:')
+      // Flags (e.g. --status)
+      .replace(/(--\w+[\w-]*)/g, '<span class="text-pink-400">$1</span>')
+      // Quoted strings
+      .replace(/("[^"]*")/g, '<span class="text-green-400">$1</span>');
+      
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  };
+
   return (
-    <div className="relative">
-      {label ? (
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {label}
+    <div className="rounded-xl overflow-hidden flex flex-col bg-background border border-border/50 hover:border-selected/30 hover:shadow-[0_0_15px_var(--glow-center)] transition-all duration-300">
+      <div className="flex items-center justify-between px-4 py-2 bg-column border-b border-border/50">
+        <div className="text-xs font-mono text-muted uppercase tracking-wider">
+          {label || ""}
         </div>
-      ) : null}
-      <button
-        type="button"
-        onClick={handleCopy}
-        className="absolute right-3 top-3 rounded-md border border-slate-200 bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-colors dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:text-white dark:hover:border-slate-500"
-      >
-        {copied ? "Copied" : "Copy"}
-      </button>
-      <pre className="block overflow-x-auto rounded-xl bg-slate-100 dark:bg-slate-800 p-6 text-sm text-slate-800 dark:text-slate-200 font-mono leading-relaxed border border-slate-200 dark:border-slate-700">
-        {children}
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted hover:text-foreground hover:bg-card-muted transition-colors"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3.5 h-3.5" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5" />
+              Copy
+            </>
+          )}
+        </button>
+      </div>
+      <pre className="block overflow-x-auto p-4 md:p-6 text-sm text-foreground font-mono leading-relaxed">
+        {renderHighlighted(children)}
       </pre>
     </div>
   );
 };
 
-export default CodeBlock;
+export { CodeBlock }
