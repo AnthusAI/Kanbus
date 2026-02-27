@@ -19,6 +19,19 @@ type TelemetryState = {
 
 const stateKey = "__kanbusConsoleTelemetryState";
 
+function generateSessionId(): string {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+  }
+  if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(12);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+  }
+  // Fallback: timestamp + random, still unique-ish but not crypto strong
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.slice(0, 16);
+}
+
 function getTelemetryState(): TelemetryState {
   const existing = (window as typeof window & Record<string, unknown>)[stateKey] as
     | TelemetryState
@@ -26,7 +39,7 @@ function getTelemetryState(): TelemetryState {
   if (existing) {
     return existing;
   }
-  const sessionId = Math.random().toString(36).slice(2, 10);
+  const sessionId = generateSessionId();
   const nextState: TelemetryState = {
     installed: false,
     endpoint: null,
