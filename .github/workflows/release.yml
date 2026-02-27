@@ -1,9 +1,8 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       pypi_only:
@@ -23,9 +22,8 @@ permissions:
 jobs:
   pypi-release:
     name: PyPI Release
-    # Release runs only when manually triggered. Direct pushes to main are blocked by branch protections,
-    # so we avoid automatic attempts that would fail and ask for a manual dispatch instead.
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    # Run on published release tags or manual dispatch.
+    if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.release_tag.outputs.tag }}
@@ -40,18 +38,14 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install release tooling
+      - name: Install build tooling
         run: |
           python -m pip install --upgrade pip
-          python -m pip install python-semantic-release build twine
+          python -m pip install build twine
 
-      - name: Create release tag
+      - name: Build artifacts
         working-directory: python
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: semantic-release version
+        run: python -m build
 
       - name: Check release artifacts
         id: release_ready
@@ -62,17 +56,6 @@ jobs:
           else
             echo "release_ready=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Publish release to GitHub
-        working-directory: python
-        if: ${{ steps.release_ready.outputs.release_ready == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: semantic-release publish
 
       - name: Publish release to PyPI
         working-directory: python
@@ -118,9 +101,7 @@ jobs:
           if [ -n "${{ github.event.inputs.rust_only }}" ]; then
             echo "tag=${{ github.event.inputs.rust_only }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ]; then
-            git fetch --tags
-            tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
-            echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
