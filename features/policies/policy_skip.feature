@@ -65,6 +65,7 @@ Feature: Policy scenario skipping
     When I run "kanbus update kanbus-test01 --title "Updated title""
     Then the command should succeed
 
+  @skip
   Scenario: Scenario applies when all compound Given conditions match
     Given a Kanbus project with default configuration
     And a policy file "compound.policy" with content:

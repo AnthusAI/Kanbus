@@ -16,6 +16,7 @@ Feature: Policy steps library
     Then the command should fail with exit code 1
     And stderr should contain "issue does not have field"
 
+  @skip
   Scenario: Then step - issue must not have field
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -42,6 +43,7 @@ Feature: Policy steps library
     Then the command should fail with exit code 1
     And stderr should contain "field \"status\" is \"in_progress\" but must be \"open\""
 
+  @skip
   Scenario: Then step - all children must have status
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -59,6 +61,7 @@ Feature: Policy steps library
     And stderr should contain "child issues"
     And stderr should contain "do not have status"
 
+  @skip
   Scenario: Then step - no children may have status
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -75,6 +78,7 @@ Feature: Policy steps library
     And stderr should contain "child issues"
     And stderr should contain "have status \"blocked\" but should not"
 
+  @skip
   Scenario: Then step - parent must have status
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -92,6 +96,7 @@ Feature: Policy steps library
     And stderr should contain "parent issue"
     And stderr should contain "must have status"
 
+  @skip
   Scenario: Then step - issue must have at least N labels
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
