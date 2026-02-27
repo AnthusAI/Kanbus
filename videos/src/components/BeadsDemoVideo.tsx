@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useCurrentFrame, useVideoConfig, spring, interpolate } from "../remotion-shim";
+import { useCurrentFrame, useVideoConfig, interpolate } from "../remotion-shim";
 import { IssueCard } from "@kanbus/ui";
 
 const boardConfig = {

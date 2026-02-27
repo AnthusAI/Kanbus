@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useCurrentFrame, useVideoConfig, interpolate, spring } from "../remotion-shim";
+import { useCurrentFrame, useVideoConfig, interpolate } from "../remotion-shim";
 
 export type PictogramType = "git" | "cli" | "jira" | "local" | "beads" | "virtual" | "vscode" | "policy";
 
@@ -13,10 +13,6 @@ export function AnimatedPictogramVideo({ type = "git", style }: { type?: Pictogr
   const pct = loopFrame / totalFrames;
 
   // Isometric helpers
-  const isoTransform = (x: number, y: number, z: number) => {
-    return `translate(${x}, ${y}) scale(1, 0.5) rotate(45) translate(${z}, 0)`;
-  };
-
   const Board = ({ y, opacity = 1, color = "var(--column)" }: { y: number; opacity?: number; color?: string }) => (
     <g transform={`translate(250, ${y}) scale(1, 0.5) rotate(45) translate(-100, -75)`} opacity={opacity}>
       {/* Board Base */}
@@ -318,7 +314,7 @@ export function AnimatedPictogramVideo({ type = "git", style }: { type?: Pictogr
     policy: { title: "Policy as Code", render: renderPolicy },
   };
 
-  const { title, render } = contentMap[type] || contentMap.git;
+  const { render } = contentMap[type] || contentMap.git;
 
   return (
     <div className="bg-card flex flex-col items-center justify-center p-8 overflow-hidden rounded-2xl min-h-[500px]" style={style || { width: "100%", height: "100%" }}>
@@ -338,4 +334,3 @@ export function AnimatedPictogramVideo({ type = "git", style }: { type?: Pictogr
     </div>
   );
 }
-

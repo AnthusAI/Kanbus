@@ -149,13 +149,13 @@ export function CodeUiSyncVideo() {
               // For simplicity, we just calculate the target state, and use spring for transition
               // The previous active index is (activeIndex - 1 + FILES.length) % FILES.length
               const prevActiveIndex = (activeIndex - 1 + FILES.length) % FILES.length;
-              const isPrevActive = prevActiveIndex === idx;
 
               const getTargetValues = (activeIdx: number) => {
                 let yOffsetNum = 0;
-                let scale;
+                let scale = 0.95;
                 let opacity = 0.5;
-                let zIndex = 0;
+                let zIndex = 5;
+
                 if (activeIdx === idx) {
                   yOffsetNum = 0;
                   scale = 1.05;
@@ -163,18 +163,9 @@ export function CodeUiSyncVideo() {
                   zIndex = 10;
                 } else {
                   const isPrevious = (idx === activeIdx - 1) || (activeIdx === 0 && idx === FILES.length - 1);
-                  if (isPrevious) {
-                    yOffsetNum = -90;
-                    scale = 0.95;
-                    opacity = 0.5;
-                    zIndex = 5;
-                  } else {
-                    yOffsetNum = 90;
-                    scale = 0.95;
-                    opacity = 0.5;
-                    zIndex = 5;
-                  }
+                  yOffsetNum = isPrevious ? -90 : 90;
                 }
+
                 return { yOffsetNum, scale, opacity, zIndex };
               };
 

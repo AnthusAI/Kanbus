@@ -21,7 +21,6 @@ import type { KanbanConfig } from "./types";
 import { formatTimestamp } from "./format-timestamp";
 import { IconButton } from "./IconButton";
 import { useFlashEffect } from "./useFlashEffect";
-import { useTypingEffect } from "./useTypingEffect";
 
 export type TaskDetailIssue = {
   id: string;
@@ -301,8 +300,6 @@ export function TaskDetailPanel({
   const descriptionFlashRef = useFlashEffect(task?.description, isOpen);
 
   // Typing effect for new descriptions
-  const typedDescription = useTypingEffect(task?.description || "", isOpen && pagePhase !== "animating");
-
   // Track comment count to detect new comments
   const previousCommentCountRef = useRef<number>(0);
 
