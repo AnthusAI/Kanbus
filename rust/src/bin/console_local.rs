@@ -273,7 +273,7 @@ async fn main() {
         .expect("server failure");
 }
 
-fn maybe_prompt_project_repair(root: &PathBuf) {
+fn maybe_prompt_project_repair(root: &Path) {
     let plan = match detect_repairable_project_issues(root, true) {
         Ok(Some(plan)) => plan,
         Ok(None) => return,
