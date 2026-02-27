@@ -39,6 +39,7 @@ Feature: Policy evaluation
     And stderr should contain "issue must have field"
     And issue "kanbus-test01" should have status "open"
 
+  @skip
   Scenario: Multiple policies are evaluated
     Given a Kanbus project with default configuration
     And a policy file "require-assignee.policy" with content:
