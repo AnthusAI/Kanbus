@@ -78,7 +78,7 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
             yaml.safe_dump(DEFAULT_CONFIGURATION, sort_keys=False),
             encoding="utf-8",
         )
-    _write_project_guard_files(project_dir)
+    _write_project_guard_files_if_missing(project_dir)
     _write_tool_block_files(root)
     template_path = root / DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME
     if not template_path.exists():
@@ -169,9 +169,23 @@ def detect_repairable_project_issues(
 
     configuration = load_project_configuration(config_path)
     project_dir = config_path.parent / configuration.project_directory
-    missing_project_dir = not project_dir.exists()
-    missing_issues_dir = not (project_dir / "issues").exists()
-    missing_events_dir = not (project_dir / "events").exists()
+    try:
+        project_dir_stat = project_dir.stat()
+    except FileNotFoundError:
+        project_dir_stat = None
+    missing_project_dir = project_dir_stat is None
+
+    missing_issues_dir = False
+    missing_events_dir = False
+    if not missing_project_dir:
+        try:
+            (project_dir / "issues").stat()
+        except FileNotFoundError:
+            missing_issues_dir = True
+        try:
+            (project_dir / "events").stat()
+        except FileNotFoundError:
+            missing_events_dir = True
 
     if missing_project_dir or missing_issues_dir or missing_events_dir:
         return RepairPlan(
