@@ -7,7 +7,7 @@ REPO_ROOT=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 
 CODEQL_VERSION="2.24.2"
 TOOLS_DIR="${REPO_ROOT}/.codeql-tools"
-CODEQL_BIN="${TOOLS_DIR}/codeql"
+CODEQL_BIN="${TOOLS_DIR}/codeql/codeql"
 WORK_DIR="${REPO_ROOT}/.codeql"
 REPORT_DIR="${WORK_DIR}/reports"
 
@@ -86,10 +86,16 @@ fetch_codeql() {
   curl -sSL "$url" -o "$tmp"
   tar -xzf "$tmp" -C "$TOOLS_DIR"
   rm -f "$tmp"
-  mv "$TOOLS_DIR"/codeql*/codeql "$CODEQL_BIN"
-  rm -rf "$TOOLS_DIR"/codeql*
-  chmod +x "$CODEQL_BIN"
-  CODEQL="$CODEQL_BIN"
+
+  # Bundle extracts to "$TOOLS_DIR/codeql/codeql"
+  EXTRACTED_BIN="$TOOLS_DIR"/codeql/codeql
+  if [[ ! -x "$EXTRACTED_BIN" ]]; then
+    err "Downloaded CodeQL bundle missing binary at $EXTRACTED_BIN"
+    exit 1
+  fi
+
+  chmod +x "$EXTRACTED_BIN"
+  CODEQL="$EXTRACTED_BIN"
   log "Downloaded CodeQL to $CODEQL"
 }
 
@@ -109,33 +115,52 @@ run_lang() {
   local lang=$1
   local db_dir="$WORK_DIR/db-${lang}"
   local sarif="$REPORT_DIR/${lang}-code-quality.sarif"
+  local lang_arg="$lang"
+  local query_pack="codeql/${lang}-queries"
+
+  if [[ "$lang" == "javascript-typescript" ]]; then
+    lang_arg="javascript"
+    query_pack="codeql/javascript-queries"
+  fi
 
   cleanup_db "$lang"
 
   log "Creating DB for ${lang}"
   "$CODEQL" database create "$db_dir" \
-    --language="$lang" \
+    --language="$lang_arg" \
     --source-root "$REPO_ROOT" \
     --overwrite \
     --threads=0 \
-    --db-cluster \
     --no-run-unnecessary-builds
 
   log "Analyzing ${lang}"
-  "$CODEQL" database analyze "$db_dir" "codeql/${lang}-queries" \
+  "$CODEQL" database analyze "$db_dir" "$query_pack" \
     --format=sarif-latest \
     --output "$sarif" \
     --threads=0 \
     --ram=6144 \
-    --analysis-kind=code-quality \
-    --download
+    --search-path "$TOOLS_DIR/codeql"
 
   log "Summary for ${lang}:"
-  "$CODEQL" database interpret-results "$db_dir" \
-    --format=summary \
-    --output - \
-    --sarif-add-baseline=false \
-    --quiet || true
+  python - <<'PY' "$sarif" || true
+import json, sys
+path = sys.argv[1]
+try:
+    with open(path) as f:
+        data = json.load(f)
+except Exception as exc:
+    print(f"Could not read {path}: {exc}")
+    sys.exit(0)
+counts = {}
+for run in data.get("runs", []):
+    for res in run.get("results", []):
+        level = res.get("level", "warning")
+        counts[level] = counts.get(level, 0) + 1
+total = sum(counts.values())
+for level in sorted(counts):
+    print(f"{level}: {counts[level]}")
+print(f"Total: {total}")
+PY
 
   echo "SARIF: $sarif"
 }
