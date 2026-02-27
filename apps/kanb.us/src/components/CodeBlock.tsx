@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Copy, Check } from "lucide-react";
 
 type CodeBlockProps = {
   children: string;
@@ -44,20 +45,30 @@ const CodeBlock = ({ children, label }: CodeBlockProps) => {
   };
 
   return (
-    <div className="relative">
-      {label ? (
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {label}
+    <div className="rounded-xl overflow-hidden flex flex-col bg-background">
+      <div className="flex items-center justify-between px-4 py-2 bg-column">
+        <div className="text-xs font-mono text-muted uppercase tracking-wider">
+          {label || ""}
         </div>
-      ) : null}
-      <button
-        type="button"
-        onClick={handleCopy}
-        className="absolute right-3 top-3 rounded-md border border-slate-200 bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-colors dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:text-white dark:hover:border-slate-500"
-      >
-        {copied ? "Copied" : "Copy"}
-      </button>
-      <pre className="block overflow-x-auto rounded-xl bg-slate-100 dark:bg-slate-800 p-6 text-sm text-slate-800 dark:text-slate-200 font-mono leading-relaxed border border-slate-200 dark:border-slate-700">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted hover:text-foreground hover:bg-card transition-colors"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3.5 h-3.5" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5" />
+              Copy
+            </>
+          )}
+        </button>
+      </div>
+      <pre className="block overflow-x-auto p-4 md:p-6 text-sm text-foreground font-mono leading-relaxed">
         {children}
       </pre>
     </div>
