@@ -183,6 +183,26 @@ def create_issue(
         custom={},
     )
 
+    policies_dir = project_dir / "policies"
+    if policies_dir.is_dir():
+        from kanbus.policy_loader import load_policies
+        from kanbus.policy_evaluator import evaluate_policies
+        from kanbus.policy_context import PolicyContext, PolicyOperation
+        from kanbus.issue_listing import load_issues_from_directory
+        
+        policy_documents = load_policies(policies_dir)
+        if policy_documents:
+            all_issues = load_issues_from_directory(issues_dir)
+            context = PolicyContext(
+                current_issue=None,
+                proposed_issue=issue,
+                transition=None,
+                operation=PolicyOperation.CREATE,
+                project_configuration=configuration,
+                all_issues=all_issues,
+            )
+            evaluate_policies(context, policy_documents)
+
     issue_path = issues_dir / f"{identifier}.json"
     write_issue_to_file(issue, issue_path)
 

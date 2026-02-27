@@ -1,0 +1,68 @@
+<vml id="policy-as-code" title="Policy as Code" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="gpt-4o-mini-tts" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="Policy Enforcement" duration="5s">
+    <layer id="background" z="-1">
+      <background props='{"color":"#fdfdfd"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <code-ui-sync-video />
+    </layer>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="overview" title="Policy as Code Overview" duration="12s">
+    <layer id="background" z="-1">
+      <background props='{"color":"#fdfdfd"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"Policy as Code","x":960,"y":150}' />
+    </layer>
+    <cue id="intro" label="Introduction">
+      <voice>Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically.</voice>
+    </cue>
+  </scene>
+
+  <transition id="push-2" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="example" title="Policy Example" duration="15s">
+    <layer id="background" z="-1">
+      <background props='{"color":"#fdfdfd"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"Write Policies in Gherkin","x":960,"y":150}' />
+    </layer>
+    <cue id="example_explanation" label="Example Explanation">
+      <voice>Use familiar BDD syntax to describe your project rules. No programming required, just clear, readable scenarios that express exactly what should happen.</voice>
+    </cue>
+  </scene>
+
+  <transition id="push-3" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="enforcement" title="Automatic Enforcement" duration="12s">
+    <layer id="background" z="-1">
+      <background props='{"color":"#fdfdfd"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"Automatic Enforcement","x":960,"y":150}' />
+    </layer>
+    <cue id="enforcement_explanation" label="Enforcement Explanation">
+      <voice>Policies run automatically on every issue create and update. When a policy fails, the operation is rejected with a clear error message showing exactly which rule was violated.</voice>
+    </cue>
+  </scene>
+
+  <transition id="push-4" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="benefits" title="Benefits" duration="10s">
+    <layer id="background" z="-1">
+      <background props='{"color":"#fdfdfd"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"Built for Teams and Agents","x":960,"y":150}' />
+    </layer>
+    <cue id="benefits_explanation" label="Benefits Explanation">
+      <voice>Policies work the same whether a human or an AI agent is managing issues. Define your standards once, and they're enforced consistently across all interactions.</voice>
+    </cue>
+  </scene>
+</vml>

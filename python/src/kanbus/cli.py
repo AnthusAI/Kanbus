@@ -761,6 +761,119 @@ def render_wiki(page: str) -> None:
     click.echo(output)
 
 
+@cli.group("policy")
+def policy() -> None:
+    """Policy management commands."""
+
+
+@policy.command("check")
+@click.argument("identifier")
+def policy_check(identifier: str) -> None:
+    """Check policies against an issue.
+
+    :param identifier: Issue identifier to check policies against.
+    :type identifier: str
+    """
+    from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+    from kanbus.policy_loader import load_policies
+    from kanbus.policy_evaluator import evaluate_policies
+    from kanbus.policy_context import PolicyContext, PolicyOperation
+    from kanbus.issue_listing import load_issues_from_directory
+    from kanbus.config_loader import load_project_configuration
+    from kanbus.project import get_configuration_path
+
+    root = Path.cwd()
+    try:
+        lookup = load_issue_from_project(root, identifier)
+        configuration = load_project_configuration(
+            get_configuration_path(lookup.project_dir)
+        )
+        policies_dir = lookup.project_dir / "policies"
+
+        if not policies_dir.is_dir():
+            click.echo("No policies directory found")
+            return
+
+        policy_documents = load_policies(policies_dir)
+        if not policy_documents:
+            click.echo("No policy files found")
+            return
+
+        issues_dir = lookup.project_dir / "issues"
+        all_issues = load_issues_from_directory(issues_dir)
+        context = PolicyContext(
+            current_issue=lookup.issue,
+            proposed_issue=lookup.issue,
+            transition=None,
+            operation=PolicyOperation.UPDATE,
+            project_configuration=configuration,
+            all_issues=all_issues,
+        )
+
+        evaluate_policies(context, policy_documents)
+        click.echo(f"All policies passed for {identifier}")
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@policy.command("list")
+def policy_list() -> None:
+    """List all loaded policy files."""
+    from kanbus.project import load_project_directory
+    from kanbus.policy_loader import load_policies
+
+    root = Path.cwd()
+    try:
+        project_dir = load_project_directory(root)
+        policies_dir = project_dir / "policies"
+
+        if not policies_dir.is_dir():
+            click.echo("No policies directory found")
+            return
+
+        policy_documents = load_policies(policies_dir)
+        if not policy_documents:
+            click.echo("No policy files found")
+            return
+
+        for filename, document in policy_documents:
+            click.echo(f"{filename}")
+            if document.feature:
+                click.echo(f"  Feature: {document.feature.name}")
+                for child in document.feature.children:
+                    if hasattr(child, "scenario") and child.scenario:
+                        click.echo(f"    Scenario: {child.scenario.name}")
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@policy.command("validate")
+def policy_validate() -> None:
+    """Validate all policy files for syntax errors."""
+    from kanbus.project import load_project_directory
+    from kanbus.policy_loader import load_policies
+
+    root = Path.cwd()
+    try:
+        project_dir = load_project_directory(root)
+        policies_dir = project_dir / "policies"
+
+        if not policies_dir.is_dir():
+            click.echo("No policies directory found")
+            return
+
+        policy_documents = load_policies(policies_dir)
+        if not policy_documents:
+            click.echo("No policy files found")
+            return
+
+        click.echo(f"All {len(policy_documents)} policy files are valid")
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
 @cli.group("console")
 def console() -> None:
     """Console-related utilities."""
