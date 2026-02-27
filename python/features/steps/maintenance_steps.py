@@ -84,6 +84,14 @@ def given_issues_directory_missing(context: object) -> None:
         shutil.rmtree(issues_dir)
 
 
+@given("the events directory is missing")
+def given_events_directory_missing(context: object) -> None:
+    project_dir = load_project_directory(context)
+    events_dir = project_dir / "events"
+    if events_dir.exists():
+        shutil.rmtree(events_dir)
+
+
 @given("an issue file contains invalid issue data")
 def given_issue_file_contains_invalid_issue_data(context: object) -> None:
     project_dir = load_project_directory(context)
@@ -186,3 +194,15 @@ def when_collect_workflow_statuses(context: object, issue_type: str) -> None:
 def then_workflow_status_collection_failed(context: object, message: str) -> None:
     errors = getattr(context, "workflow_status_errors", [])
     assert message in errors
+
+
+@then("the issues directory should exist")
+def then_issues_directory_should_exist(context: object) -> None:
+    project_dir = load_project_directory(context)
+    assert (project_dir / "issues").exists()
+
+
+@then("the events directory should exist")
+def then_events_directory_should_exist(context: object) -> None:
+    project_dir = load_project_directory(context)
+    assert (project_dir / "events").exists()

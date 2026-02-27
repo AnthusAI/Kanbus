@@ -20,6 +20,14 @@ pub struct ResolvedProject {
     pub project_dir: PathBuf,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepairPlan {
+    pub project_dir: PathBuf,
+    pub missing_project_dir: bool,
+    pub missing_issues_dir: bool,
+    pub missing_events_dir: bool,
+}
+
 fn should_force_canonicalize_failure() -> bool {
     std::env::var_os("KANBUS_TEST_CANONICALIZE_FAILURE").is_some()
 }
@@ -161,6 +169,15 @@ fn write_project_guard_files(project_dir: &Path) -> Result<(), KanbusError> {
     Ok(())
 }
 
+fn write_project_guard_files_if_missing(project_dir: &Path) -> Result<(), KanbusError> {
+    let agents_path = project_dir.join("AGENTS.md");
+    let do_not_edit = project_dir.join("DO_NOT_EDIT");
+    if !agents_path.exists() || !do_not_edit.exists() {
+        write_project_guard_files(project_dir)?;
+    }
+    Ok(())
+}
+
 fn write_tool_block_files(root: &Path) -> Result<(), KanbusError> {
     let cursorignore = root.join(".cursorignore");
     if !cursorignore.exists() {
@@ -246,6 +263,66 @@ pub fn load_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
     normalized.sort();
     normalized.dedup();
     filter_and_validate_projects(normalized)
+}
+
+pub fn detect_repairable_project_issues(
+    root: &Path,
+    allow_uninitialized: bool,
+) -> Result<Option<RepairPlan>, KanbusError> {
+    let config_path = match get_configuration_path(root) {
+        Ok(path) => path,
+        Err(KanbusError::IssueOperation(message)) if message == "project not initialized" => {
+            if allow_uninitialized {
+                return Ok(None);
+            }
+            return Err(KanbusError::IssueOperation(message));
+        }
+        Err(KanbusError::Io(message)) if message == "configuration path lookup failed" => {
+            if allow_uninitialized {
+                return Ok(None);
+            }
+            return Err(KanbusError::Io(message));
+        }
+        Err(error) => return Err(error),
+    };
+    let configuration = load_project_configuration(&config_path)?;
+    let base = config_path.parent().unwrap_or_else(|| Path::new(""));
+    let project_dir = base.join(&configuration.project_directory);
+    let missing_project_dir = !project_dir.exists();
+    let issues_dir = project_dir.join("issues");
+    let events_dir = project_dir.join("events");
+    let missing_issues_dir = !issues_dir.exists();
+    let missing_events_dir = !events_dir.exists();
+
+    if missing_project_dir || missing_issues_dir || missing_events_dir {
+        return Ok(Some(RepairPlan {
+            project_dir,
+            missing_project_dir,
+            missing_issues_dir,
+            missing_events_dir,
+        }));
+    }
+
+    Ok(None)
+}
+
+pub fn repair_project_structure(plan: &RepairPlan) -> Result<(), KanbusError> {
+    if plan.missing_project_dir {
+        std::fs::create_dir_all(&plan.project_dir)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    if plan.missing_issues_dir {
+        std::fs::create_dir_all(plan.project_dir.join("issues"))
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    if plan.missing_events_dir {
+        std::fs::create_dir_all(plan.project_dir.join("events"))
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    if plan.project_dir.exists() {
+        write_project_guard_files_if_missing(&plan.project_dir)?;
+    }
+    Ok(())
 }
 
 fn filter_and_validate_projects(normalized: Vec<PathBuf>) -> Result<PathBuf, KanbusError> {
