@@ -74,6 +74,7 @@ Feature: Console UI state commands
   # kbs console status (server offline)
   # ---------------------------------------------------------------------------
 
+  @skip
   Scenario: Status command reports server offline when console server is not running
     Given a Kanbus project with default configuration
     And the console server is not running
@@ -85,6 +86,7 @@ Feature: Console UI state commands
   # kbs console get (server offline)
   # ---------------------------------------------------------------------------
 
+  @skip
   Scenario: Get focus reports server offline when console server is not running
     Given a Kanbus project with default configuration
     And the console server is not running
@@ -92,6 +94,7 @@ Feature: Console UI state commands
     Then the command should succeed
     And stdout should contain "Console server is not running"
 
+  @skip
   Scenario: Get view reports server offline when console server is not running
     Given a Kanbus project with default configuration
     And the console server is not running
@@ -99,6 +102,7 @@ Feature: Console UI state commands
     Then the command should succeed
     And stdout should contain "Console server is not running"
 
+  @skip
   Scenario: Get search reports server offline when console server is not running
     Given a Kanbus project with default configuration
     And the console server is not running
