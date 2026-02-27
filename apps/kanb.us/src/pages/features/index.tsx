@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from "@kanbus/ui";
 
 const FeatureCard = ({ title, description, href }: { title: string; description: string; href: string }) => (
   <a href={href} className="group h-full block">
-    <Card className="p-6 h-full shadow-card transition-transform group-hover:-translate-y-1">
+    <Card className="p-6 h-full transition-transform group-hover:-translate-y-1">
       <CardHeader className="p-0 mb-3">
         <h3 className="text-xl font-bold text-foreground group-hover:text-selected transition-colors">
           {title} <span className="inline-block transition-transform group-hover:translate-x-1">→</span>

@@ -14,9 +14,9 @@ type LayoutProps = {
 const Layout = ({ children }: LayoutProps) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   return (
-    <div className="min-h-screen flex flex-col bg-frame text-foreground font-sans">
-      <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-card/90 backdrop-blur supports-[backdrop-filter]:backdrop-blur shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
+      <header className="sticky top-0 z-50 w-full bg-card/90 backdrop-blur supports-[backdrop-filter]:backdrop-blur">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
           <nav className="flex items-center gap-6 w-full">
             <a
               href="/"
@@ -54,7 +54,7 @@ const Layout = ({ children }: LayoutProps) => {
               </a>
               <button
                 type="button"
-                className="md:hidden inline-flex items-center justify-center rounded-md border border-border/70 p-2 text-muted hover:text-foreground hover:border-border transition-colors bg-card"
+                className="md:hidden inline-flex items-center justify-center rounded-md/70 p-2 text-muted hover:text-foreground hover:border-border transition-colors bg-card"
                 aria-label="Toggle navigation"
                 onClick={() => setMobileOpen((open) => !open)}
               >
@@ -64,8 +64,8 @@ const Layout = ({ children }: LayoutProps) => {
           </nav>
         </div>
         {mobileOpen ? (
-          <div className="md:hidden border-t border-border/60 bg-card/95">
-            <div className="container mx-auto px-4 sm:px-6 py-4 space-y-3">
+          <div className="md:hidden bg-card">
+            <div className="max-w-7xl mx-auto px-6 py-4 space-y-3">
               {navigation.map((item) => (
                 <a
                   key={item.href}
@@ -87,12 +87,12 @@ const Layout = ({ children }: LayoutProps) => {
         ) : null}
       </header>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <main className="flex-1 w-full flex flex-col">
         {children}
       </main>
 
-      <footer className="border-t border-border/60 bg-card py-12 md:py-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <footer className="bg-footer-bg py-12 md:py-16">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="col-span-2 md:col-span-1">
               <span className="text-lg font-display font-bold text-foreground">Kanbus</span>

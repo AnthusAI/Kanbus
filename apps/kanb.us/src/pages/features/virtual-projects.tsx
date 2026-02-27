@@ -16,7 +16,7 @@ const VirtualProjectsPage = () => {
           title="One View, Many Projects"
           subtitle="Don't context switch between repositories."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Unified Workflow</h3>
             </CardHeader>
@@ -44,7 +44,7 @@ const VirtualProjectsPage = () => {
           variant="alt"
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">For the Whole Team</h3>
               </CardHeader>
@@ -75,7 +75,7 @@ virtual_projects:
           subtitle="Private configurations for your personal workflow."
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">.kanbus.override.yml</h3>
               </CardHeader>

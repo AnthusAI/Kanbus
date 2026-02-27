@@ -17,7 +17,7 @@ const VSCodePluginPage = () => {
           subtitle="A dedicated Kanban board inside VS Code."
         >
           <div className="space-y-8">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Zero Context Switching</h3>
               </CardHeader>
@@ -26,7 +26,7 @@ const VSCodePluginPage = () => {
                   Open your project board in a VS Code tab. Drag issues, edit details, and filter tasks 
                   while your code remains visible in the next pane. No more alt-tabbing to the browser.
                 </p>
-                <div className="rounded-xl overflow-hidden shadow-lg border border-border/50 aspect-video bg-card/50 flex items-center justify-center">
+                <div className="rounded-xl overflow-hidden shadow-lg/50 aspect-video bg-card/50 flex items-center justify-center">
                   <span className="text-muted font-medium">Screenshot: Board in VS Code Tab</span>
                 </div>
               </CardContent>
@@ -40,7 +40,7 @@ const VSCodePluginPage = () => {
           variant="alt"
         >
           <div className="grid gap-6 md:grid-cols-2">
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Quick Access</h3>
               </CardHeader>
@@ -53,7 +53,7 @@ const VSCodePluginPage = () => {
                 </CodeBlock>
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card bg-card">
+            <Card className="p-8 bg-card">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">File Navigation</h3>
               </CardHeader>
@@ -71,9 +71,9 @@ const VSCodePluginPage = () => {
           title="Get Started"
           subtitle="Install from the Marketplace."
         >
-           <Card className="p-8 shadow-card">
+           <Card className="p-8">
             <div className="flex flex-col items-center text-center space-y-6">
-              <div className="rounded-xl overflow-hidden shadow-lg border border-border/50 aspect-[2/1] w-full max-w-lg bg-card/50 flex items-center justify-center">
+              <div className="rounded-xl overflow-hidden shadow-lg/50 aspect-[2/1] w-full max-w-lg bg-card/50 flex items-center justify-center">
                 <span className="text-muted font-medium">Screenshot: Extension Marketplace Page</span>
               </div>
               <p className="text-muted max-w-lg">
@@ -81,7 +81,7 @@ const VSCodePluginPage = () => {
               </p>
               <a 
                 href="#" 
-                className="rounded-full bg-selected px-6 py-3 text-sm font-semibold text-background shadow-card hover:brightness-95 transition-all"
+                className="rounded-full bg-selected px-6 py-3 text-sm font-semibold text-background hover:brightness-95 transition-all"
               >
                 Install for VS Code
               </a>

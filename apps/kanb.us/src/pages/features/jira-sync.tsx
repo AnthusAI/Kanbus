@@ -16,7 +16,7 @@ const JiraSyncPage = () => {
           title="Context Where Agents Can See It"
           subtitle="Coding agents work best when project context lives alongside code."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">From Jira to Files in One Command</h3>
             </CardHeader>
@@ -40,7 +40,7 @@ const JiraSyncPage = () => {
           variant="alt"
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">kanbus jira pull</h3>
               </CardHeader>
@@ -66,7 +66,7 @@ const JiraSyncPage = () => {
           subtitle="Add a jira block to .kanbus.yml—secrets stay in environment variables."
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">.kanbus.yml</h3>
               </CardHeader>
@@ -91,7 +91,7 @@ const JiraSyncPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Environment Variables</h3>
               </CardHeader>
@@ -115,7 +115,7 @@ JIRA_USER_EMAIL=you@yourcompany.com`}</CodeBlock>
           subtitle="Run the sync as often as you like—existing issues are updated, not duplicated."
           variant="alt"
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Safe to Re-run Anytime</h3>
             </CardHeader>
@@ -139,7 +139,7 @@ JIRA_USER_EMAIL=you@yourcompany.com`}</CodeBlock>
           title="What Your Agents See"
           subtitle="Plain JSON files that any tool can read."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">No Special Tooling Required</h3>
             </CardHeader>

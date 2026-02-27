@@ -16,7 +16,7 @@ const DocsPage = () => {
           title="Directory Structure"
           subtitle="Kanbus keeps everything in a dedicated folder in your repository root."
         >
-          <Card className="p-6 md:p-8 shadow-card">
+          <Card className="p-6 md:p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">project/ layout</h3>
             </CardHeader>
@@ -44,7 +44,7 @@ const DocsPage = () => {
           variant="alt"
         >
           <div className="grid gap-8 md:grid-cols-2">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Core Commands</h3>
               </CardHeader>
@@ -77,7 +77,7 @@ const DocsPage = () => {
               </ul>
               </CardContent>
             </Card>
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-3">
                 <h3 className="text-xl font-bold text-foreground">Workflow</h3>
               </CardHeader>
@@ -117,7 +117,7 @@ const DocsPage = () => {
           title="Configuration"
           subtitle="Customize Kanbus to fit your team's process."
         >
-          <Card className="p-8 shadow-card space-y-4">
+          <Card className="p-8 space-y-4">
             <CardHeader className="p-0 space-y-2">
               <h3 className="text-xl font-bold text-foreground">kanbus.yml</h3>
               <p className="text-muted leading-relaxed">

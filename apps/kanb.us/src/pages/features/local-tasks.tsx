@@ -16,7 +16,7 @@ const LocalTasksPage = () => {
           title="Private Work, Shared Repository"
           subtitle="Not every task belongs in version control."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Use Git's Own Rules</h3>
             </CardHeader>
@@ -42,7 +42,7 @@ const LocalTasksPage = () => {
           variant="alt"
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">kanbus create --local</h3>
               </CardHeader>
@@ -71,7 +71,7 @@ const LocalTasksPage = () => {
           subtitle="Focus on shared work, local work, or both."
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">Default: everything</h3>
               </CardHeader>
@@ -84,7 +84,7 @@ const LocalTasksPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">--no-local: shared only</h3>
               </CardHeader>
@@ -98,7 +98,7 @@ const LocalTasksPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">--local-only: your personal backlog</h3>
               </CardHeader>
@@ -119,7 +119,7 @@ const LocalTasksPage = () => {
           variant="alt"
         >
           <div className="space-y-6">
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">kanbus promote</h3>
               </CardHeader>
@@ -134,7 +134,7 @@ const LocalTasksPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 shadow-card">
+            <Card className="p-8">
               <CardHeader className="p-0 mb-4">
                 <h3 className="text-xl font-bold text-foreground">kanbus localize</h3>
               </CardHeader>
@@ -156,7 +156,7 @@ const LocalTasksPage = () => {
           title="How the .gitignore Works"
           subtitle="Kanbus manages the ignore entry for you."
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">Automatic and Idempotent</h3>
             </CardHeader>
@@ -185,7 +185,7 @@ const LocalTasksPage = () => {
           subtitle="Local tasks work with .beads projects too."
           variant="alt"
         >
-          <Card className="p-8 shadow-card">
+          <Card className="p-8">
             <CardHeader className="p-0 mb-4">
               <h3 className="text-xl font-bold text-foreground">A Separate Local File</h3>
             </CardHeader>
