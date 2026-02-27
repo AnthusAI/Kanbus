@@ -6,10 +6,11 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 
 CODEQL_VERSION="2.24.2"
-TOOLS_DIR="${REPO_ROOT}/.codeql-tools"
+TOOLS_DIR="${HOME}/.codeql-tools"
 CODEQL_BIN="${TOOLS_DIR}/codeql/codeql"
 WORK_DIR="${REPO_ROOT}/.codeql"
 REPORT_DIR="${WORK_DIR}/reports"
+CONFIG_FILE="${REPO_ROOT}/.github/codeql/codeql-config.yml"
 
 DEFAULT_LANGS="python,javascript-typescript"
 
@@ -116,25 +117,32 @@ run_lang() {
   local db_dir="$WORK_DIR/db-${lang}"
   local sarif="$REPORT_DIR/${lang}-code-quality.sarif"
   local lang_arg="$lang"
-  local query_pack="codeql/${lang}-queries"
+  local suite="codeql/${lang}-queries:codeql-suites/${lang}-code-quality.qls"
 
   if [[ "$lang" == "javascript-typescript" ]]; then
     lang_arg="javascript"
-    query_pack="codeql/javascript-queries"
+    suite="codeql/javascript-queries:codeql-suites/javascript-code-quality.qls"
   fi
 
   cleanup_db "$lang"
 
   log "Creating DB for ${lang}"
-  "$CODEQL" database create "$db_dir" \
-    --language="$lang_arg" \
-    --source-root "$REPO_ROOT" \
-    --overwrite \
-    --threads=0 \
+  create_opts=(
+    "$db_dir"
+    --language="$lang_arg"
+    --source-root "$REPO_ROOT"
+    --overwrite
+    --threads=0
     --no-run-unnecessary-builds
+  )
+  if [[ -f "$CONFIG_FILE" ]]; then
+    create_opts+=(--codescanning-config "$CONFIG_FILE")
+  fi
+
+  "$CODEQL" database create "${create_opts[@]}"
 
   log "Analyzing ${lang}"
-  "$CODEQL" database analyze "$db_dir" "$query_pack" \
+  "$CODEQL" database analyze "$db_dir" "$suite" \
     --format=sarif-latest \
     --output "$sarif" \
     --threads=0 \

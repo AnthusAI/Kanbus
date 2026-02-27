@@ -15,7 +15,7 @@ import { AnimatedPictogram } from "../components/AnimatedPictogram";
 import { CodeUiSync } from "../components/CodeUiSync";
 import { HoverVideoPlayer } from "../components/HoverVideoPlayer";
 import { FullVideoPlayer } from "../components/FullVideoPlayer";
-import { motion, useInView } from "framer-motion";
+import { useInView } from "framer-motion";
 import "@kanbus/ui/styles/kanban.css"; // Explicit import
 
 const IndexPage = () => {

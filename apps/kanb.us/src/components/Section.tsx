@@ -1,5 +1,4 @@
 import * as React from "react";
-import clsx from "clsx";
 
 type SectionProps = {
   title: string;

@@ -40,7 +40,6 @@ export function JiraSyncDemoVideo({ style }: { style?: React.CSSProperties }) {
 
   const stage1End = fps * 2;
   const stage2End = fps * 4;
-  const stage3End = fps * 6;
 
   // Stage 1: API sync
   const apiOpacity = interpolate(frame, [0, 10, stage1End - 10, stage1End], [0, 1, 1, 0]);

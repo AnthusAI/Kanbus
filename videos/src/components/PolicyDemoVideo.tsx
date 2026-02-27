@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useCurrentFrame, useVideoConfig, spring, interpolate } from "../remotion-shim";
+import { useCurrentFrame, useVideoConfig, interpolate } from "../remotion-shim";
 
 export function PolicyDemoVideo({ style }: { style?: React.CSSProperties }) {
   const frame = useCurrentFrame();
@@ -23,13 +23,6 @@ export function PolicyDemoVideo({ style }: { style?: React.CSSProperties }) {
 
   // Stage 3: Error
   const errorOpacity = interpolate(frame, [stage2End, stage2End + 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-
-  const gherkinCode = `Feature: Tasks require assignee
-
-  Scenario: Task must have assignee to start
-    Given the issue type is "task"
-    When transitioning to "in_progress"
-    Then the issue must have field "assignee"`;
 
   return (
     <div className="absolute flex flex-col md:flex-row gap-8 justify-center items-center p-8 h-[500px]" style={style || { inset: 0 }}>
