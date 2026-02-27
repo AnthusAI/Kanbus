@@ -164,7 +164,7 @@ export function CodeUiSync() {
               // Calculate Y offset based on position relative to active item
               // This creates a carousel/stacking effect centered vertically
               let yOffsetNum = 0;
-              let scale = 1;
+              let scale;
               let opacity = 1;
               let zIndex = 0;
               
