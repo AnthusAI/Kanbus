@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from behave import given, then, when
+from behave import given
 
 
 @given('a policy file "{filename}" with content')
