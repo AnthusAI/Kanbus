@@ -212,14 +212,18 @@ def update_issue(
         update_fields["parent"] = updated_parent
 
     updated_issue = updated_issue.model_copy(update=update_fields)
-    
+
     policies_dir = project_dir / "policies"
     if policies_dir.is_dir():
         from kanbus.policy_loader import load_policies
         from kanbus.policy_evaluator import evaluate_policies
-        from kanbus.policy_context import PolicyContext, PolicyOperation, StatusTransition
+        from kanbus.policy_context import (
+            PolicyContext,
+            PolicyOperation,
+            StatusTransition,
+        )
         from kanbus.issue_listing import load_issues_from_directory
-        
+
         policy_documents = load_policies(policies_dir)
         if policy_documents:
             issues_dir = project_dir / "issues"
@@ -227,16 +231,20 @@ def update_issue(
             context = PolicyContext(
                 current_issue=before_issue,
                 proposed_issue=updated_issue,
-                transition=StatusTransition(
-                    from_status=before_issue.status,
-                    to_status=resolved_status,
-                ) if resolved_status else None,
+                transition=(
+                    StatusTransition(
+                        from_status=before_issue.status,
+                        to_status=resolved_status,
+                    )
+                    if resolved_status
+                    else None
+                ),
                 operation=PolicyOperation.UPDATE,
                 project_configuration=configuration,
                 all_issues=all_issues,
             )
             evaluate_policies(context, policy_documents)
-    
+
     write_issue_to_file(updated_issue, lookup.issue_path)
     occurred_at = now_timestamp()
     actor_id = get_current_user()

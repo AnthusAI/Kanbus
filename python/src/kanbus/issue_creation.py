@@ -189,7 +189,7 @@ def create_issue(
         from kanbus.policy_evaluator import evaluate_policies
         from kanbus.policy_context import PolicyContext, PolicyOperation
         from kanbus.issue_listing import load_issues_from_directory
-        
+
         policy_documents = load_policies(policies_dir)
         if policy_documents:
             all_issues = load_issues_from_directory(issues_dir)

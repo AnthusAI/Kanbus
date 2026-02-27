@@ -104,9 +104,7 @@ class PolicyContext:
         :rtype: list[IssueData]
         """
         parent_id = self.proposed_issue.identifier
-        return [
-            issue for issue in self.all_issues if issue.parent == parent_id
-        ]
+        return [issue for issue in self.all_issues if issue.parent == parent_id]
 
     def parent_issue(self) -> Optional[IssueData]:
         """Get parent issue of the proposed issue.
@@ -139,7 +137,12 @@ class PolicyViolationError(RuntimeError):
     """
 
     def __init__(
-        self, policy_file: str, scenario: str, failed_step: str, message: str, issue_id: str
+        self,
+        policy_file: str,
+        scenario: str,
+        failed_step: str,
+        message: str,
+        issue_id: str,
     ) -> None:
         """Initialize policy violation error."""
         self.policy_file = policy_file

@@ -776,7 +776,10 @@ def policy_check(identifier: str) -> None:
     """
     from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
     from kanbus.policy_loader import load_policies
-    from kanbus.policy_evaluator import evaluate_policies_with_options, PolicyEvaluationOptions
+    from kanbus.policy_evaluator import (
+        evaluate_policies_with_options,
+        PolicyEvaluationOptions,
+    )
     from kanbus.policy_context import PolicyContext, PolicyOperation
     from kanbus.issue_listing import load_issues_from_directory
     from kanbus.config_loader import load_project_configuration
@@ -815,7 +818,7 @@ def policy_check(identifier: str) -> None:
             policy_documents,
             PolicyEvaluationOptions(collect_all_violations=True),
         )
-        
+
         if violations:
             error_msg = [f"Found {len(violations)} policy violation(s):"]
             for i, v in enumerate(violations):
