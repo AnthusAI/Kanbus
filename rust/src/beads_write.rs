@@ -854,19 +854,9 @@ pub fn update_beads_issue(
 /// # Returns
 /// True if abbreviated ID matches the full ID.
 fn issue_id_matches_beads(abbreviated: &str, full_id: &str) -> bool {
-    use crate::ids::format_issue_key;
+    use crate::ids::issue_identifier_matches;
 
-    let abbreviated_formatted = format_issue_key(full_id, false);
-
-    if abbreviated == abbreviated_formatted {
-        return true;
-    }
-
-    if abbreviated.len() >= full_id.len() {
-        return false;
-    }
-
-    full_id.starts_with(abbreviated)
+    issue_identifier_matches(abbreviated, full_id)
 }
 
 fn resolve_beads_index(records: &[Value], identifier: &str) -> Result<usize, KanbusError> {

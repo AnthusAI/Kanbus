@@ -998,10 +998,8 @@ html[data-motion="reduced"] .sidebar-column {
   color: var(--text-foreground);
 }
 
-html.light .issue-accent-priority {
-  --issue-priority-bg: var(--issue-priority-bg-light);
-}
-
-html.dark .issue-accent-priority {
+.dark .issue-accent-priority,
+[data-theme='dark'] .issue-accent-priority,
+@media (prefers-color-scheme: dark) {
   --issue-priority-bg: var(--issue-priority-bg-dark);
 }

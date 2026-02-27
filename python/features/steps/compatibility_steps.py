@@ -119,6 +119,41 @@ def given_beads_issue_exists(context: object, identifier: str) -> None:
         handle.write(json.dumps(record) + "\n")
 
 
+@given(
+    'a beads issue "{identifier}" exists with status "{status}" and updated_at "{updated_at}"'
+)
+def given_beads_issue_exists_with_status_updated_at(
+    context: object, identifier: str, status: str, updated_at: str
+) -> None:
+    issues_path = _issues_path(context)
+    record = {
+        "id": identifier,
+        "title": "Title",
+        "issue_type": "task",
+        "status": status,
+        "priority": 2,
+        "created_at": updated_at,
+        "updated_at": updated_at,
+        "dependencies": [],
+        "comments": [],
+    }
+    with issues_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record) + "\n")
+
+
+@then(
+    'beads issues.jsonl should contain exactly {count:d} records with id "{identifier}"'
+)
+def then_beads_jsonl_contains_exactly(
+    context: object, count: int, identifier: str
+) -> None:
+    records = _load_beads_records(_issues_path(context))
+    matches = [record for record in records if record.get("id") == identifier]
+    assert (
+        len(matches) == count
+    ), f"Expected {count} records for {identifier}, found {len(matches)}"
+
+
 def _issues_path(context: object) -> Path:
     return Path(context.working_directory) / ".beads" / "issues.jsonl"
 
