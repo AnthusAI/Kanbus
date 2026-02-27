@@ -63,6 +63,9 @@ def then_command_succeeds(context: object) -> None:
         print(f"Command failed with exit code {context.result.exit_code}")
         print(f"STDOUT: {context.result.stdout}")
         print(f"STDERR: {context.result.stderr}")
+        # Some commands may write only to the combined output stream.
+        if hasattr(context.result, "output"):
+            print(f"OUTPUT: {context.result.output}")
     assert context.result.exit_code == 0
 
 
