@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from gherkin.parser import Parser
+from types import SimpleNamespace
 
 if TYPE_CHECKING:
     from gherkin.ast import GherkinDocument
@@ -34,9 +35,21 @@ def load_policies(policies_dir: Path) -> list[tuple[str, GherkinDocument]]:
         try:
             content = policy_file.read_text(encoding="utf-8")
             document = parser.parse(content)
-            documents.append((policy_file.name, document))
+            documents.append((policy_file.name, _to_namespace(document)))
         except Exception as error:
             message = f"failed to parse {policy_file.name}: {error}"
             raise PolicyLoadError(message) from error
 
     return documents
+
+
+def _to_namespace(node: object) -> object:
+    """Recursively convert dictionaries returned by gherkin into attribute objects."""
+
+    if isinstance(node, dict):
+        return SimpleNamespace(
+            **{key: _to_namespace(value) for key, value in node.items()}
+        )
+    if isinstance(node, list):
+        return [_to_namespace(value) for value in node]
+    return node

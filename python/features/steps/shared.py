@@ -38,7 +38,7 @@ def run_cli_args(context: object, args: list[str]) -> None:
     :param args: List of CLI arguments (excluding the program name).
     :type args: list[str]
     """
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
 
     working_directory = getattr(context, "working_directory", None)
     if working_directory is None:
@@ -77,6 +77,8 @@ def run_cli_args(context: object, args: list[str]) -> None:
             stderr = ""
         if result.exit_code != 0 and not stderr:
             stderr = result.output
+            if not stderr and result.exception:
+                stderr = str(result.exception)
         stderr = _promote_quality_signals_to_stderr(stdout, stderr)
         context.result = SimpleNamespace(
             exit_code=result.exit_code,
@@ -96,7 +98,7 @@ def run_cli(context: object, command: str) -> None:
     :param command: Full command string.
     :type command: str
     """
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     args = shlex.split(command)[1:]
 
     working_directory = getattr(context, "working_directory", None)
@@ -136,6 +138,8 @@ def run_cli(context: object, command: str) -> None:
             stderr = ""
         if result.exit_code != 0 and not stderr:
             stderr = result.output
+            if not stderr and result.exception:
+                stderr = str(result.exception)
         stderr = _promote_quality_signals_to_stderr(stdout, stderr)
         context.result = SimpleNamespace(
             exit_code=result.exit_code,
@@ -157,7 +161,7 @@ def run_cli_with_input(context: object, command: str, input_text: str) -> None:
     :param input_text: Input to provide on stdin.
     :type input_text: str
     """
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     args = shlex.split(command)[1:]
 
     working_directory = getattr(context, "working_directory", None)
