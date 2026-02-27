@@ -195,9 +195,12 @@ def given_console_open(context: object) -> None:
 
 @given("the console server is not running")
 def given_console_server_not_running(context: object) -> None:
-    """No-op: default test environment has no console server running."""
+    """Ensure console_port points at an unused port without starting a server."""
+    working_directory = Path(context.working_directory)
+    port = _allocate_port()
+    _write_console_port_to_config(working_directory, port)
     context.console_server_process = None
-    context.console_server_port = None
+    context.console_server_port = port
 
 
 @given("the console server is running")

@@ -69,6 +69,15 @@ fn given_issues_directory_missing(world: &mut KanbusWorld) {
     }
 }
 
+#[given("the events directory is missing")]
+fn given_events_directory_missing(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let events_dir = project_dir.join("events");
+    if events_dir.exists() {
+        fs::remove_dir_all(&events_dir).expect("remove events dir");
+    }
+}
+
 #[given("an issue file contains invalid issue data")]
 fn given_issue_file_invalid_data(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
@@ -179,4 +188,16 @@ fn when_collect_workflow_statuses(world: &mut KanbusWorld, _issue_type: String) 
 #[then(expr = "workflow status collection should fail with {string}")]
 fn then_workflow_status_collection_failed(world: &mut KanbusWorld, message: String) {
     assert_eq!(world.workflow_error.as_deref(), Some(message.as_str()));
+}
+
+#[then("the issues directory should exist")]
+fn then_issues_directory_should_exist(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    assert!(project_dir.join("issues").exists());
+}
+
+#[then("the events directory should exist")]
+fn then_events_directory_should_exist(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    assert!(project_dir.join("events").exists());
 }

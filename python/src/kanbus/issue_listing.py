@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import List
 
@@ -93,6 +94,8 @@ def list_issues(
         return _apply_query(issues, status, issue_type, assignee, label, sort, search)
 
     project_dir = project_dirs[0]
+    if not os.access(project_dir, os.R_OK | os.X_OK):
+        raise IssueListingError("Permission denied")
     local_dir = None
     if include_local or local_only:
         local_dir = find_project_local_directory(project_dir)

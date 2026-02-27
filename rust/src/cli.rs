@@ -1,6 +1,7 @@
 //! CLI command definitions.
 
 use std::ffi::OsString;
+use std::io::IsTerminal;
 use std::path::Path;
 
 use clap::error::ErrorKind;
@@ -23,8 +24,8 @@ use crate::dependency_tree::{build_dependency_tree, render_dependency_tree};
 use crate::doctor::run_doctor;
 use crate::error::KanbusError;
 use crate::file_io::{
-    canonicalize_path, ensure_git_repository, get_configuration_path, initialize_project,
-    resolve_root,
+    canonicalize_path, detect_repairable_project_issues, ensure_git_repository,
+    get_configuration_path, initialize_project, repair_project_structure, resolve_root,
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
@@ -246,6 +247,12 @@ enum Commands {
     },
     /// Validate project integrity.
     Validate,
+    /// Repair a broken project structure.
+    Repair {
+        /// Repair without prompting.
+        #[arg(long)]
+        yes: bool,
+    },
     /// Promote a local issue to shared.
     Promote {
         /// Issue identifier.
@@ -618,6 +625,7 @@ where
     let root = resolve_root(cwd);
     let root = canonicalize_path(&root).unwrap_or(root);
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
+    maybe_prompt_project_repair(&cli.command, &root)?;
     let stdout = execute_command(cli.command, &root, beads_mode, beads_forced);
     let captured_stderr = take_captured_stderr().unwrap_or_default();
     let stdout = stdout?;
@@ -653,6 +661,51 @@ fn beads_root(root: &Path) -> std::path::PathBuf {
         .unwrap_or_else(|| root.to_path_buf())
 }
 
+fn should_check_project_structure(command: &Commands) -> bool {
+    !matches!(command, Commands::Init { .. } | Commands::Setup { .. })
+}
+
+fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), KanbusError> {
+    if !should_check_project_structure(command) {
+        return Ok(());
+    }
+    let plan = match detect_repairable_project_issues(root, true)? {
+        Some(plan) => plan,
+        None => return Ok(()),
+    };
+
+    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+        return Ok(());
+    }
+
+    let mut missing = Vec::new();
+    if plan.missing_project_dir {
+        missing.push("project/");
+    }
+    if plan.missing_issues_dir {
+        missing.push("project/issues");
+    }
+    if plan.missing_events_dir {
+        missing.push("project/events");
+    }
+
+    eprint!(
+        "Project structure incomplete (missing: {}). Repair now? [y/N] ",
+        missing.join(", ")
+    );
+    use std::io::Write;
+    std::io::stderr().flush().ok();
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).ok();
+    let reply = input.trim().to_ascii_lowercase();
+    if reply == "y" || reply == "yes" {
+        repair_project_structure(&plan)?;
+        eprintln!("Project structure repaired.");
+    }
+    Ok(())
+}
+
 fn execute_command(
     command: Commands,
     root: &Path,
@@ -665,6 +718,45 @@ fn execute_command(
             ensure_git_repository(root)?;
             initialize_project(root, local)?;
             Ok(None)
+        }
+        Commands::Repair { yes } => {
+            let plan = detect_repairable_project_issues(root, false)?;
+            let Some(plan) = plan else {
+                return Ok(Some("Project structure is already healthy.".to_string()));
+            };
+
+            if !yes && std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+                let mut missing = Vec::new();
+                if plan.missing_project_dir {
+                    missing.push("project/");
+                }
+                if plan.missing_issues_dir {
+                    missing.push("project/issues");
+                }
+                if plan.missing_events_dir {
+                    missing.push("project/events");
+                }
+                eprint!(
+                    "Project structure incomplete (missing: {}). Repair now? [y/N] ",
+                    missing.join(", ")
+                );
+                use std::io::Write;
+                std::io::stderr().flush().ok();
+
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).ok();
+                let reply = input.trim().to_ascii_lowercase();
+                if reply != "y" && reply != "yes" {
+                    return Ok(Some("Repair cancelled.".to_string()));
+                }
+            } else if !yes {
+                return Err(KanbusError::IssueOperation(
+                    "project structure requires repair (re-run with --yes)".to_string(),
+                ));
+            }
+
+            repair_project_structure(&plan)?;
+            Ok(Some("Project structure repaired.".to_string()))
         }
         Commands::Setup { command } => match command {
             SetupCommands::Agents { force } => {
