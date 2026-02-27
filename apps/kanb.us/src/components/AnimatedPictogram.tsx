@@ -29,9 +29,25 @@ export function AnimatedPictogram() {
   );
 
   return (
-    <div className="w-full h-full bg-card flex flex-col items-center justify-center p-8 overflow-hidden rounded-2xl min-h-[500px]">
-      <h3 className="font-mono text-sm text-muted mb-4 tracking-widest uppercase">Git Synchronization</h3>
-      <svg width="100%" height="450" viewBox="0 0 500 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <div className="w-full h-full bg-card flex flex-col items-center justify-center p-8 overflow-hidden rounded-2xl min-h-[500px] relative">
+      {/* Background glow to ground the 3D window */}
+      <div 
+        className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-[100%] pointer-events-none z-0"
+        style={{
+          background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
+        }}
+      />
+      <h3 className="font-mono text-sm text-muted mb-4 tracking-widest uppercase z-10">Git Synchronization</h3>
+      <svg width="100%" height="450" viewBox="0 0 500 350" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10">
+        <defs>
+          <radialGradient id="pictogram-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+            <stop offset="0%" stopColor="var(--glow-center)" />
+            <stop offset="100%" stopColor="var(--glow-edge)" />
+          </radialGradient>
+        </defs>
+        
+        {/* Ambient background glow / shadow */}
+        <ellipse cx="250" cy="150" rx="200" ry="140" fill="url(#pictogram-glow)" />
         
         {/* Connection Line (Git) */}
         <line x1="80" y1="40" x2="80" y2="280" stroke="var(--text-selected)" strokeWidth="2" strokeDasharray="4 4" />

@@ -82,12 +82,42 @@ export function CodeUiSync() {
     return () => clearInterval(interval);
   }, []);
 
+  const renderHighlightedJson = (issue: any) => {
+    const json = JSON.stringify(issue, null, 2);
+    const html = json
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        let cls = 'text-orange-400'; // number
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            cls = 'text-sky-400'; // key
+          } else {
+            cls = 'text-green-400'; // string
+          }
+        } else if (/true|false/.test(match)) {
+          cls = 'text-pink-400'; // boolean
+        } else if (/null/.test(match)) {
+          cls = 'text-muted'; // null
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+      });
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  };
+
   return (
     <div className="w-full flex flex-col md:flex-row gap-8 items-stretch justify-center relative">
+      {/* Background glow to ground the 3D window */}
+      <div 
+        className="absolute top-1/2 left-[25%] -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-[100%] pointer-events-none z-0"
+        style={{
+          background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
+        }}
+      />
+      
       {/* Code Window */}
-      <div className="flex-1 w-full max-w-xl">
-        <div className="bg-card rounded-xl font-mono text-sm leading-loose overflow-hidden shadow-2xl h-full flex flex-col">
-          <div className="text-muted flex items-center gap-4 bg-card-muted p-4 border-b border-border/20">
+      <div className="flex-1 w-full max-w-xl z-10">
+        <div className="bg-card rounded-xl font-mono text-sm leading-loose overflow-hidden shadow-2xl h-full flex flex-col border border-border/50">
+          <div className="text-muted flex items-center gap-4 bg-card-muted p-4 border-b border-border/50">
              <div className="flex gap-2">
                <span className="w-3 h-3 rounded-full bg-red-500/50"></span>
                <span className="w-3 h-3 rounded-full bg-yellow-500/50"></span>
@@ -97,7 +127,7 @@ export function CodeUiSync() {
                {FILES.map((file, idx) => (
                  <div 
                    key={file.filename}
-                   className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition-colors ${activeIndex === idx ? 'bg-background text-foreground shadow-sm' : 'text-muted hover:text-foreground cursor-pointer'}`}
+                   className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition-colors ${activeIndex === idx ? 'bg-background text-foreground shadow-sm border border-border/50' : 'text-muted hover:text-foreground cursor-pointer border border-transparent'}`}
                    onClick={() => setActiveIndex(idx)}
                  >
                    {file.filename.split('/')[1]}
@@ -106,7 +136,7 @@ export function CodeUiSync() {
              </div>
           </div>
           
-          <div className="relative h-[260px] p-6">
+          <div className="relative h-[260px] p-6 bg-background">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeIndex}
@@ -116,7 +146,7 @@ export function CodeUiSync() {
                 transition={{ duration: 0.2 }}
                 className="absolute inset-0 p-6 overflow-hidden whitespace-pre text-foreground"
               >
-                {JSON.stringify(FILES[activeIndex].issue, null, 2)}
+                {renderHighlightedJson(FILES[activeIndex].issue)}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -124,7 +154,7 @@ export function CodeUiSync() {
       </div>
       
       {/* UI Board Visualization */}
-      <div className="flex-1 w-full max-w-xl md:max-w-sm flex flex-col justify-center">
+      <div className="flex-1 w-full max-w-xl md:max-w-sm flex flex-col justify-center z-10">
         <div className="bg-column p-4 md:p-6 rounded-xl relative overflow-hidden h-full min-h-[340px] flex flex-col justify-center">
           
           <div className="relative h-full w-full">

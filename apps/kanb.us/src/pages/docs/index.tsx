@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Link } from "gatsby";
 import { DocsLayout } from "../../components";
 import { PageProps } from "gatsby";
 
@@ -11,6 +12,12 @@ const DocsIndexPage = ({ location }: PageProps) => {
           <p className="mt-4 text-xl text-muted leading-relaxed">
             Everything you need to know about the Kanbus file structure and CLI.
           </p>
+        </div>
+
+        <div className="mt-6">
+          <Link to="/features" className="text-muted hover:text-foreground transition-colors inline-flex items-center gap-1">
+            ← Back to Features
+          </Link>
         </div>
         
         <div className="prose prose-slate dark:prose-invert max-w-none text-muted leading-relaxed">

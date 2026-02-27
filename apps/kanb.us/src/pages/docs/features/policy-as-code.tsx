@@ -1,5 +1,5 @@
 import React from "react";
-import { DocsLayout } from "../../../components/DocsLayout";
+import { DocsLayout, CodeBlock } from "../../../components";
 
 const PolicyAsCodeDocsPage = () => {
   return (
@@ -22,23 +22,27 @@ const PolicyAsCodeDocsPage = () => {
         <p>
           Create a <code>policies/</code> directory in your project root (next to <code>.kanbus.yml</code>):
         </p>
-        <pre><code>{`project/
+        <CodeBlock>
+{`project/
 ├── .kanbus.yml
 ├── issues/
 └── policies/
     ├── require-assignee.policy
-    └── epic-workflow.policy`}</code></pre>
+    └── epic-workflow.policy`}
+        </CodeBlock>
 
         <h2>Policy File Format</h2>
         <p>
           Policy files use standard Gherkin syntax with <code>.policy</code> extension:
         </p>
-        <pre><code>{`Feature: Tasks require assignee
+        <CodeBlock>
+{`Feature: Tasks require assignee
 
   Scenario: Task must have assignee to start
     Given the issue type is "task"
     When transitioning to "in_progress"
-    Then the issue must have field "assignee"`}</code></pre>
+    Then the issue must have field "assignee"`}
+        </CodeBlock>
 
         <h3>Step Types</h3>
         <ul>
@@ -170,15 +174,18 @@ const PolicyAsCodeDocsPage = () => {
         <h2>Common Patterns</h2>
 
         <h3>Require Assignee for Active Work</h3>
-        <pre><code>{`Feature: Work assignment
+        <CodeBlock>
+{`Feature: Work assignment
 
   Scenario: In-progress tasks need assignee
     Given the issue type is "task"
     When transitioning to "in_progress"
-    Then the issue must have field "assignee"`}</code></pre>
+    Then the issue must have field "assignee"`}
+        </CodeBlock>
 
         <h3>Epic Completion Workflow</h3>
-        <pre><code>{`Feature: Epic lifecycle
+        <CodeBlock>
+{`Feature: Epic lifecycle
 
   Scenario: Epic requires all children closed
     Given the issue type is "epic"
@@ -187,10 +194,12 @@ const PolicyAsCodeDocsPage = () => {
 
   Scenario: Epic cannot have blocked children
     Given the issue type is "epic"
-    Then no child issues may have status "blocked"`}</code></pre>
+    Then no child issues may have status "blocked"`}
+        </CodeBlock>
 
         <h3>Bug Reporting Standards</h3>
-        <pre><code>{`Feature: Bug quality
+        <CodeBlock>
+{`Feature: Bug quality
 
   Scenario: Bugs need description
     Given the issue type is "bug"
@@ -205,40 +214,51 @@ const PolicyAsCodeDocsPage = () => {
     Given the issue type is "bug"
     Given the issue priority is 0
     When transitioning to "closed"
-    Then the issue must have label "reviewed"`}</code></pre>
+    Then the issue must have label "reviewed"`}
+        </CodeBlock>
 
         <h3>Parent-Child Coordination</h3>
-        <pre><code>{`Feature: Hierarchy rules
+        <CodeBlock>
+{`Feature: Hierarchy rules
 
   Scenario: Child cannot start before parent
     Given the issue has a parent
     When transitioning to "in_progress"
-    Then the parent issue must have status "in_progress"`}</code></pre>
+    Then the parent issue must have status "in_progress"`}
+        </CodeBlock>
 
         <h2>CLI Commands</h2>
 
         <h3>Check Policies</h3>
         <p>Test policies against a specific issue without modifying it:</p>
-        <pre><code>{`kbs policy check task-123`}</code></pre>
+        <CodeBlock>
+{`kbs policy check task-123`}
+        </CodeBlock>
 
         <h3>List Policies</h3>
         <p>Show all loaded policy files and their scenarios:</p>
-        <pre><code>{`kbs policy list`}</code></pre>
+        <CodeBlock>
+{`kbs policy list`}
+        </CodeBlock>
 
         <h3>Validate Policies</h3>
         <p>Check policy file syntax without running them:</p>
-        <pre><code>{`kbs policy validate`}</code></pre>
+        <CodeBlock>
+{`kbs policy validate`}
+        </CodeBlock>
 
         <h2>Error Messages</h2>
         <p>
           When a policy fails, Kanbus shows exactly which rule was violated:
         </p>
-        <pre><code>{`$ kbs update task-123 --status in_progress
+        <CodeBlock>
+{`$ kbs update task-123 --status in_progress
 
 Error: policy violation in require-assignee.policy
   Scenario: Task must have assignee to start
   Failed: Then the issue must have field "assignee"
-  issue does not have field "assignee" set`}</code></pre>
+  issue does not have field "assignee" set`}
+        </CodeBlock>
 
         <h2>Best Practices</h2>
 

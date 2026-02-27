@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DocsLayout } from "../../../components";
+import { DocsLayout, CodeBlock } from "../../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { PageProps } from "gatsby";
 
@@ -35,17 +35,13 @@ const DocsKanbanBoardPage = ({ location }: PageProps) => {
             Starting the Console
           </h2>
           <p>You can start the Kanban console easily from your terminal. It will open a local web server (usually at <code className="rounded bg-card-muted px-1.5 py-0.5 text-xs font-medium text-foreground">http://127.0.0.1:5174/</code>).</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`# If you are developing locally:
 ./dev.sh
 
 # Using the pre-compiled binary:
 kanbus console`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
 
           <h2 className="text-2xl font-display font-bold text-foreground tracking-tight mt-8 mb-4">
             UI Interactions
@@ -66,9 +62,7 @@ kanbus console`}
             CLI Console Helpers
           </h2>
           <p>Kanbus provides special CLI commands to interact with the console UI programmatically, which is exceptionally useful for automation or AI agents.</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`# Force the UI to focus/open a specific issue
 kanbus console focus <issue-id>
 
@@ -77,9 +71,7 @@ kanbus console reload
 
 # Check the active state/status of the console
 kanbus console status`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
         </div>
       </div>
     </DocsLayout>

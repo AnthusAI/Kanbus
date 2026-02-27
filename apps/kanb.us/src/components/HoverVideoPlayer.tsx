@@ -44,15 +44,14 @@ export function HoverVideoPlayer({ src, poster, className = "" }: HoverVideoPlay
         muted
         playsInline
         loop
-        className="w-full h-full object-cover transition-opacity duration-300"
-        style={{ opacity: isPlaying ? 1 : 0.8 }}
+        className={`w-full h-full object-cover transition-transform duration-700 ease-out ${isPlaying ? 'scale-[1.02]' : 'scale-100'}`}
       />
       {/* Play Icon Indicator overlay (optional, but requested flat non-distracting) */}
       <div 
-        className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-all duration-500 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}
       >
-        <div className="w-12 h-12 rounded-full bg-card/80 flex items-center justify-center backdrop-blur-sm">
-          <svg className="w-6 h-6 text-foreground ml-1" fill="currentColor" viewBox="0 0 24 24">
+        <div className="w-12 h-12 rounded-full bg-card shadow-[0_0_20px_var(--glow-center)] flex items-center justify-center border border-border/50">
+          <svg className="w-5 h-5 text-foreground ml-1 opacity-80" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z" />
           </svg>
         </div>

@@ -1,14 +1,27 @@
 import * as React from "react";
-import { Layout, Section, Hero, CodeBlock } from "../../components";
+import { Layout, Section, Hero, FullVideoPlayer } from "../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
+import { VIDEOS, getVideoById } from "../../content/videos";
+import { getVideoSrc } from "../../lib/getVideoSrc";
 
 const JiraSyncPage = () => {
+  const featureVideo = getVideoById("jira-sync");
+  const videoPoster = featureVideo?.poster ? getVideoSrc(featureVideo.poster) : undefined;
+  const videoSrc = featureVideo ? getVideoSrc(featureVideo.filename) : "";
+
   return (
     <Layout>
       <Hero
         title="Jira Sync"
         subtitle="Pull Jira issues into your repository so coding agents always have full context—no API calls, no MCP tools, just files."
         eyebrow="Integrations"
+        bottomPane={
+          videoSrc ? (
+            <div className="w-full flex justify-center mt-12 mb-8">
+              <FullVideoPlayer src={videoSrc} poster={videoPoster} videoId="jira-sync" />
+            </div>
+          ) : undefined
+        }
       />
 
       <div className="space-y-12">
@@ -39,75 +52,31 @@ const JiraSyncPage = () => {
           subtitle="Pull your entire Jira project with a single command."
           variant="alt"
         >
-          <div className="space-y-6">
-            <Card className="p-8">
-              <CardHeader className="p-0 mb-4">
-                <h3 className="text-xl font-bold text-foreground">kanbus jira pull</h3>
-              </CardHeader>
-              <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
-                <p>
-                  Run the pull command from any directory inside your repository. Kanbus reads your
-                  <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">.kanbus.yml</code>
-                  for the Jira connection details and fetches every issue in the configured project.
-                </p>
-                <CodeBlock label="Pull all issues">{"kanbus jira pull"}</CodeBlock>
-                <p>
-                  Use <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">--dry-run</code> to
-                  preview what would be written without touching any files.
-                </p>
-                <CodeBlock label="Preview without writing">{"kanbus jira pull --dry-run"}</CodeBlock>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="p-8">
+            <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
+              <p>
+                Run the pull command from any directory inside your repository. Kanbus reads your
+                configuration for the Jira connection details and fetches every issue in the configured project.
+                Use a preview flag to see what would be written without touching any files.
+              </p>
+            </CardContent>
+          </Card>
         </Section>
 
         <Section
           title="Configuration"
-          subtitle="Add a jira block to .kanbus.yml—secrets stay in environment variables."
+          subtitle="Add a jira block to your config—secrets stay in environment variables."
         >
-          <div className="space-y-6">
-            <Card className="p-8">
-              <CardHeader className="p-0 mb-4">
-                <h3 className="text-xl font-bold text-foreground">.kanbus.yml</h3>
-              </CardHeader>
-              <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
-                <p>
-                  Non-secret configuration lives in the committed
-                  <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">.kanbus.yml</code>
-                  file. The
-                  <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">type_mappings</code>
-                  field lets you translate Jira's issue type names to Kanbus types.
-                </p>
-                <CodeBlock label=".kanbus.yml">{`jira:
-  url: https://yourcompany.atlassian.net
-  project_key: AQA
-  sync_direction: pull
-  type_mappings:
-    Story: story
-    Bug: bug
-    Task: task
-    Workstream: epic
-    Sub-task: sub-task`}</CodeBlock>
-              </CardContent>
-            </Card>
-
-            <Card className="p-8">
-              <CardHeader className="p-0 mb-4">
-                <h3 className="text-xl font-bold text-foreground">Environment Variables</h3>
-              </CardHeader>
-              <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
-                <p>
-                  Your API token and email are read from environment variables and never written to disk.
-                  Add them to a
-                  <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">.env</code>
-                  file (already in <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">.gitignore</code>)
-                  or export them from your shell.
-                </p>
-                <CodeBlock label=".env">{`JIRA_API_TOKEN=your-atlassian-api-token
-JIRA_USER_EMAIL=you@yourcompany.com`}</CodeBlock>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="p-8">
+            <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
+              <p>
+                Non-secret configuration lives in the committed configuration file. The type mappings field lets you translate Jira's issue type names to Kanbus types, so Stories become stories, Bugs become bugs, and Workstreams become epics.
+              </p>
+              <p>
+                Your API token and email are read from environment variables and never written to disk. Add them to a local environment file or export them from your shell.
+              </p>
+            </CardContent>
+          </Card>
         </Section>
 
         <Section
@@ -121,15 +90,10 @@ JIRA_USER_EMAIL=you@yourcompany.com`}</CodeBlock>
             </CardHeader>
             <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
               <p>
-                Each synced issue stores the originating Jira key in a
-                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">custom.jira_key</code>
-                field. On subsequent pulls, Kanbus matches by that key and updates the existing file
-                in place—title, description, status, comments, and priority all stay current.
+                Each synced issue stores the originating Jira key internally. On subsequent pulls, Kanbus matches by that key and updates the existing file in place—title, description, status, comments, and priority all stay current.
               </p>
               <p>
-                Kanbus IDs assigned to pulled issues are stable across runs. Parent links are resolved
-                to local Kanbus identifiers, so your agents see the full hierarchy without knowing
-                anything about Jira's internal structure.
+                Kanbus IDs assigned to pulled issues are stable across runs. Parent links are resolved to local Kanbus identifiers, so your agents see the full hierarchy without knowing anything about Jira's internal structure.
               </p>
             </CardContent>
           </Card>
@@ -145,20 +109,31 @@ JIRA_USER_EMAIL=you@yourcompany.com`}</CodeBlock>
             </CardHeader>
             <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
               <p>
-                Synced issues land in
-                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">project/issues/</code>
-                as standard Kanbus JSON files. Any agent that can read your source files can read your
-                issues. Use
-                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">kanbus list</code>,
-                <code className="mx-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sm font-mono text-foreground">kanbus show</code>,
-                or just point an agent at the directory and tell it to read the files.
+                Synced issues land in the project directory as standard Kanbus JSON files. Any agent that can read your source files can read your issues. Use standard Kanbus commands to list or show issues, or just point an agent at the directory and tell it to read the files.
               </p>
-              <CodeBlock label="List all synced issues">{"kanbus list"}</CodeBlock>
               <p>
-                Because the issues are files in the repository, they travel with the branch, survive
-                offline work, and never require a network call during an agent session. The sync step
-                happens once; the context is available forever after.
+                Because the issues are files in the repository, they travel with the branch, survive offline work, and never require a network call during an agent session. The sync step happens once; the context is available forever after.
               </p>
+            </CardContent>
+          </Card>
+        </Section>
+
+        <Section
+          title="Learn More"
+          subtitle="Ready to set up Jira sync in your repository?"
+          variant="alt"
+        >
+          <Card className="p-8">
+            <CardContent className="p-0 text-center">
+              <p className="text-muted leading-relaxed mb-6">
+                See the complete documentation for step-by-step configuration, command reference, and advanced usage patterns.
+              </p>
+              <a 
+                href="/docs/features/jira-sync" 
+                className="cta-button px-6 py-3 text-sm transition-all hover:brightness-95"
+              >
+                Read the Documentation →
+              </a>
             </CardContent>
           </Card>
         </Section>

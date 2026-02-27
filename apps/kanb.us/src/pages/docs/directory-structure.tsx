@@ -1,5 +1,6 @@
 import * as React from "react";
 import { DocsLayout } from "../../components";
+import { CodeBlock } from "../../components/CodeBlock";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { PageProps } from "gatsby";
 
@@ -19,7 +20,7 @@ const DocsDirectoryStructurePage = ({ location }: PageProps) => {
             <h3 className="text-xl font-bold text-foreground">project/ layout</h3>
           </CardHeader>
           <CardContent className="p-0">
-            <pre className="block overflow-x-auto rounded-lg bg-card-muted p-4 text-sm text-foreground font-mono leading-relaxed">
+            <CodeBlock>
 {`project/
 ├── .kanbus/               # Hidden configuration and state
 │   ├── kanbus.yml         # Project-level configuration
@@ -31,7 +32,7 @@ const DocsDirectoryStructurePage = ({ location }: PageProps) => {
 └── wiki/                    # Planning documents
     ├── roadmap.md.j2        # Jinja2 template
     └── architecture.md      # Static markdown`}
-            </pre>
+            </CodeBlock>
           </CardContent>
         </Card>
       </div>

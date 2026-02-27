@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DocsLayout } from "../../../components";
+import { DocsLayout, CodeBlock } from "../../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { PageProps } from "gatsby";
 
@@ -33,9 +33,7 @@ const DocsJiraSyncPage = ({ location }: PageProps) => {
             Setup and Configuration
           </h2>
           <p>First, you need to tell Kanbus how to connect to your Jira instance. Add the <code>jira</code> configuration block to your <code>.kanbus.yml</code>:</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`# .kanbus.yml
 jira:
   url: https://yourcompany.atlassian.net
@@ -46,35 +44,25 @@ jira:
     Bug: bug
     Task: task
     Workstream: epic`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
 
           <p className="mt-6">Next, ensure your credentials are set via environment variables (in your shell or a <code>.env</code> file):</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`export JIRA_API_TOKEN=your-atlassian-api-token
 export JIRA_USER_EMAIL=you@yourcompany.com`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
 
           <h2 className="text-2xl font-display font-bold text-foreground tracking-tight mt-8 mb-4">
             Usage Workflow
           </h2>
           <p>Once configured, you can invoke the pull command to fetch your issues:</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`# Preview what will be pulled without writing files
 kanbus jira pull --dry-run
 
 # Execute the sync
 kanbus jira pull`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
 
           <p className="mt-4">
             Issues will be safely written to your <code>project/issues/</code> directory. Rerunning the command will update any existing issues (idempotent). You can view the newly synced issues instantly by running <code>kanbus list</code>.

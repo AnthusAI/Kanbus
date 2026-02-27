@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Menu, X } from "lucide-react";
+import { AnimatedKanbanIcon } from "./AnimatedKanbanIcon";
 
 const navigation = [
   { label: "Philosophy", href: "/philosophy" },
@@ -20,9 +21,12 @@ const Layout = ({ children }: LayoutProps) => {
           <nav className="flex items-center gap-6 w-full">
             <a
               href="/"
-              className="text-xl font-display font-bold tracking-tight text-foreground hover:text-selected transition-colors"
+              className="hover:text-selected hover:drop-shadow-[0_0_10px_var(--text-selected)] transition-all duration-300 flex items-baseline gap-[3px]"
             >
-              Kanbus
+              <span className="text-[25px] leading-none font-black tracking-[3px]" style={{ WebkitTextStroke: "1px currentColor" }}>
+                <span className="text-muted">KAN</span><span className="text-foreground">BUS</span>
+              </span>
+              <AnimatedKanbanIcon className="w-[19px] h-[19px]" />
             </a>
             <div className="ml-auto flex items-center gap-3">
               {navigation.map((item) => (
@@ -95,7 +99,12 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="col-span-2 md:col-span-1">
-              <span className="text-lg font-display font-bold text-foreground">Kanbus</span>
+              <a href="/" className="flex items-baseline gap-[3px] hover:text-selected hover:drop-shadow-[0_0_10px_var(--text-selected)] transition-all duration-300 w-fit">
+                <span className="text-[25px] leading-none font-black tracking-[3px]" style={{ WebkitTextStroke: "1px currentColor" }}>
+                  <span className="text-muted">KAN</span><span className="text-foreground">BUS</span>
+                </span>
+                <AnimatedKanbanIcon className="w-[19px] h-[19px]" />
+              </a>
               <p className="mt-4 text-sm text-muted">
                 Git-backed project management system. Files are the database.
               </p>

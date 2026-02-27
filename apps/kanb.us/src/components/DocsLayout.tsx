@@ -13,6 +13,13 @@ const sidebarLinks: SidebarLink[] = [
   { label: "Configuration", href: "/docs/configuration" },
   { label: "Directory Structure", href: "/docs/directory-structure" },
   { label: "Features", href: "#", isHeader: true },
+  { label: "Core Management", href: "/docs/features/core-management" },
+  { label: "Kanban Board", href: "/docs/features/kanban-board" },
+  { label: "Jira Sync", href: "/docs/features/jira-sync" },
+  { label: "Local Tasks", href: "/docs/features/local-tasks" },
+  { label: "Virtual Projects", href: "/docs/features/virtual-projects" },
+  { label: "Beads Mode", href: "/docs/features/beads-compatibility" },
+  { label: "VS Code Plugin", href: "/docs/features/vscode-plugin" },
   { label: "Policy as Code", href: "/docs/features/policy-as-code" }
 ];
 
@@ -47,10 +54,10 @@ const DocsLayout = ({ children, currentPath }: DocsLayoutProps) => {
                   <li key={link.href}>
                     <a
                       href={link.href}
-                      className={`block px-3 py-2 text-sm rounded-md transition-colors ${
+                      className={`block px-3 py-2 text-sm rounded-md transition-all border-l-2 ${
                         isActive
-                          ? "bg-card-muted text-foreground font-medium"
-                          : "text-muted hover:text-foreground hover:bg-card-muted/50"
+                          ? "bg-selected/10 text-selected font-medium border-selected"
+                          : "text-muted hover:text-foreground hover:bg-card-muted/50 border-transparent"
                       }`}
                     >
                       {link.label}

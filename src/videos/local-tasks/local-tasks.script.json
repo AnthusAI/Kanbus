@@ -1,0 +1,343 @@
+{
+  "scenes": [
+    {
+      "id": "hook",
+      "title": "Local Tasks",
+      "startSec": 0,
+      "endSec": 5,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "animated-pictogram-video-0",
+              "type": "AnimatedPictogramVideo",
+              "props": {
+                "type": "local",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Local Tasks",
+                "x": 960,
+                "y": 120,
+                "size": 64,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 1200,
+                "font": "sans",
+                "sceneStartSec": 0
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "Your Private Scratchpad",
+                "x": 960,
+                "y": 200,
+                "size": 36,
+                "weight": 400,
+                "align": "center",
+                "maxWidth": 1200,
+                "font": "serif",
+                "color": "var(--text-muted)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        }
+      ],
+      "cues": []
+    },
+    {
+      "id": "deep_dive",
+      "title": "Local Tasks Deep Dive",
+      "startSec": 5.625,
+      "endSec": 33.625,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "title-0",
+              "type": "Title",
+              "props": {
+                "text": "Local Tasks",
+                "x": 960,
+                "y": 120,
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "subtitle",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "subtitle-0",
+              "type": "Subtitle",
+              "props": {
+                "text": "Your Private Scratchpad",
+                "x": 960,
+                "y": 200,
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Private Scratchpad",
+                "x": 480,
+                "y": 400,
+                "size": 36,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "sans",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board. Local tasks give you a private workspace. Visible only to you, invisible to version control.",
+                "x": 480,
+                "y": 540,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 28,
+                "borderRadius": 16,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-2",
+              "type": "TextBlock",
+              "props": {
+                "text": "Promote With Ease",
+                "x": 480,
+                "y": 760,
+                "size": 36,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "sans",
+                "sceneStartSec": 5
+              }
+            },
+            {
+              "id": "text-block-3",
+              "type": "TextBlock",
+              "props": {
+                "text": "When your experiment turns into something real, promote it to the shared project with a single command. See everything together, or filter to hide your private scratchpad entirely.",
+                "x": 480,
+                "y": 880,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 600,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 28,
+                "borderRadius": 16,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "local-tasks-demo-video-0",
+              "type": "LocalTasksDemoVideo",
+              "props": {
+                "style": {
+                  "left": 960,
+                  "top": 300,
+                  "width": 800,
+                  "bottom": 0,
+                  "position": "absolute"
+                },
+                "sceneStartSec": 5
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "intro",
+          "label": "Introduction",
+          "startSec": 5.625,
+          "endSec": 11.806818181818182,
+          "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 5.625,
+              "endSec": 11.806818181818182,
+              "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "private",
+          "label": "Private",
+          "startSec": 11.806818181818182,
+          "endSec": 17.761363636363637,
+          "text": "Local tasks give you a private workspace. Visible only to you, invisible to version control.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 11.806818181818182,
+              "endSec": 12.306818181818182,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 12.306818181818182,
+              "endSec": 17.761363636363637,
+              "text": "Local tasks give you a private workspace. Visible only to you, invisible to version control."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "promote",
+          "label": "Promote",
+          "startSec": 17.761363636363637,
+          "endSec": 24.44318181818182,
+          "text": "When your experiment turns into something real, promote it to the shared project with a single command.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 17.761363636363637,
+              "endSec": 18.261363636363637,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 18.261363636363637,
+              "endSec": 24.44318181818182,
+              "text": "When your experiment turns into something real, promote it to the shared project with a single command."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "clean",
+          "label": "Clean",
+          "startSec": 24.44318181818182,
+          "endSec": 30.03409090909091,
+          "text": "See everything together, or filter to hide your private scratchpad entirely. It's your workspace.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 24.44318181818182,
+              "endSec": 24.94318181818182,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 24.94318181818182,
+              "endSec": 30.03409090909091,
+              "text": "See everything together, or filter to hide your private scratchpad entirely. It's your workspace."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "kind": "scene",
+      "sceneId": "hook",
+      "startSec": 0,
+      "endSec": 5
+    },
+    {
+      "kind": "transition",
+      "id": "push-1",
+      "startSec": 5,
+      "endSec": 5.625,
+      "effect": "slide",
+      "ease": "power2.inOut",
+      "props": {
+        "direction": "left"
+      },
+      "mode": "insert",
+      "fromSceneId": "hook",
+      "toSceneId": "deep_dive"
+    },
+    {
+      "kind": "scene",
+      "sceneId": "deep_dive",
+      "startSec": 5.625,
+      "endSec": 33.625
+    }
+  ],
+  "posterTimeSec": 2,
+  "fps": 24,
+  "meta": {
+    "fps": 24,
+    "width": 1920,
+    "height": 1080
+  }
+}

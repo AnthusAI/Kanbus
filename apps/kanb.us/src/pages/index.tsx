@@ -9,11 +9,12 @@ import {
   type TaskDetailIssue
 } from "@kanbus/ui";
 import { FEATURE_ENTRIES } from "../content/features";
-import { VIDEOS } from "../content/videos";
+import { VIDEOS, getVideoById } from "../content/videos";
 import { getVideoSrc } from "../lib/getVideoSrc";
 import { AnimatedPictogram } from "../components/AnimatedPictogram";
 import { CodeUiSync } from "../components/CodeUiSync";
 import { HoverVideoPlayer } from "../components/HoverVideoPlayer";
+import { FullVideoPlayer } from "../components/FullVideoPlayer";
 import { motion, useInView } from "framer-motion";
 import "@kanbus/ui/styles/kanban.css"; // Explicit import
 
@@ -195,7 +196,6 @@ const IndexPage = () => {
       <Hero
         title="Track issues in your repository"
         subtitle="...where your agents can participate."
-        eyebrow="Kanbus"
         bottomPane={
           <div className="w-full flex items-center justify-center">
             <CodeUiSync />
@@ -205,16 +205,15 @@ const IndexPage = () => {
           <>
             <a
               href="/getting-started"
-              style={{ backgroundColor: 'var(--text-foreground)', color: 'var(--background)' }}
-              className="rounded-full px-6 py-3 text-sm font-semibold shadow-none hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-all"
+              className="cta-button px-6 py-3 text-sm transition-all hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               Get Started
             </a>
             <a
-              href="/philosophy"
+              href="/docs"
               className="text-sm font-semibold leading-6 text-foreground hover:text-selected transition-all"
             >
-              Learn More <span aria-hidden="true">→</span>
+              Read the Docs <span aria-hidden="true">→</span>
             </a>
           </>
         }
@@ -284,37 +283,53 @@ const IndexPage = () => {
         </Section>
 
         <Section
+          title="See it in action"
+          subtitle="A quick elevator pitch covering what Kanbus is and everything it can do."
+        >
+          <div className="w-full flex justify-center">
+            <FullVideoPlayer src={introSrc} poster={introPoster} videoId="intro" />
+          </div>
+        </Section>
+
+        <Section
           title="Features"
           subtitle="Focused capabilities that make Kanbus practical for daily work."
         >
           <div className="grid gap-6 md:grid-cols-2">
-            {FEATURE_ENTRIES.map((feature) => (
-              <a key={feature.href} href={feature.href} className="group block">
-                <div className="bg-card rounded-2xl overflow-hidden transition-transform group-hover:-translate-y-1 h-full flex flex-col">
-                  {/* Flat Engineering Frame Header */}
-                  <div className="flex items-center gap-2 px-4 py-3 bg-column">
-                    <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
-                    <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
-                    <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
-                    <div className="ml-2 font-mono text-xs text-muted">kbs {feature.href.split('/').pop()}</div>
+            {FEATURE_ENTRIES.map((feature) => {
+              const videoId = feature.href.split('/').pop() || "";
+              const featureVideo = getVideoById(videoId);
+              const poster = featureVideo?.poster ? getVideoSrc(featureVideo.poster) : undefined;
+              const src = featureVideo ? getVideoSrc(featureVideo.filename) : "";
+              
+              return (
+                <a key={feature.href} href={feature.href} className="group block">
+                  <div className="bg-card rounded-2xl overflow-hidden transition-all duration-300 group-hover:-translate-y-1 border border-border/50 group-hover:border-selected/30 group-hover:shadow-[0_0_20px_var(--glow-center)] h-full flex flex-col">
+                    {/* Flat Engineering Frame Header */}
+                    <div className="flex items-center gap-2 px-4 py-3 bg-column">
+                      <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
+                      <div className="ml-2 font-mono text-xs text-muted">kbs {videoId}</div>
+                    </div>
+                    {/* Video Placeholder / Content */}
+                    <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+                      <HoverVideoPlayer
+                        src={src}
+                        poster={poster}
+                      />
+                    </div>
+                    {/* Feature Text */}
+                    <div className="p-6 flex-1 flex flex-col">
+                      <h3 className="text-xl font-bold text-foreground mb-3">{feature.title}</h3>
+                      <p className="text-muted leading-relaxed flex-1">
+                        {feature.description}
+                      </p>
+                    </div>
                   </div>
-                  {/* Video Placeholder / Content */}
-                  <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
-                    <HoverVideoPlayer
-                      src={introSrc} // Placeholder video until specific feature videos exist
-                      poster={introPoster}
-                    />
-                  </div>
-                  {/* Feature Text */}
-                  <div className="p-6 flex-1 flex flex-col">
-                    <h3 className="text-xl font-bold text-foreground mb-3">{feature.title}</h3>
-                    <p className="text-muted leading-relaxed flex-1">
-                      {feature.description}
-                    </p>
-                  </div>
-                </div>
-              </a>
-            ))}
+                </a>
+              );
+            })}
           </div>
         </Section>
 
