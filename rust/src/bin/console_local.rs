@@ -39,6 +39,7 @@ use kanbus::console_backend::{find_issue_matches, FileStore};
 use kanbus::console_ui_state::{load_state, save_state, ConsoleUiState};
 use kanbus::daemon_paths::get_console_state_path;
 use kanbus::event_history::{load_issue_events, EventRecord};
+use kanbus::file_io::{detect_repairable_project_issues, repair_project_structure};
 use kanbus::notification_events::{NotificationEvent, UiControlAction};
 
 #[cfg(feature = "embed-assets")]
@@ -86,6 +87,7 @@ async fn main() {
         .map(PathBuf::from)
         .or_else(|| root_override.clone())
         .unwrap_or_else(|| repo_root.clone());
+    maybe_prompt_project_repair(&data_root);
     let (bind_ip, bind_host) = resolve_bind_host(std::env::var("CONSOLE_HOST").ok());
 
     // Try to load console_port from project config
@@ -269,6 +271,49 @@ async fn main() {
     axum::serve(listener, app.into_make_service())
         .await
         .expect("server failure");
+}
+
+fn maybe_prompt_project_repair(root: &PathBuf) {
+    let plan = match detect_repairable_project_issues(root, true) {
+        Ok(Some(plan)) => plan,
+        Ok(None) => return,
+        Err(error) => {
+            eprintln!("{error}");
+            return;
+        }
+    };
+
+    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+        return;
+    }
+
+    let mut missing = Vec::new();
+    if plan.missing_project_dir {
+        missing.push("project/");
+    }
+    if plan.missing_issues_dir {
+        missing.push("project/issues");
+    }
+    if plan.missing_events_dir {
+        missing.push("project/events");
+    }
+
+    eprint!(
+        "Project structure incomplete (missing: {}). Repair now? [y/N] ",
+        missing.join(", ")
+    );
+    let _ = std::io::stderr().flush();
+
+    let mut input = String::new();
+    let _ = std::io::stdin().read_line(&mut input);
+    let reply = input.trim().to_ascii_lowercase();
+    if reply == "y" || reply == "yes" {
+        if let Err(error) = repair_project_structure(&plan) {
+            eprintln!("{error}");
+        } else {
+            eprintln!("Project structure repaired.");
+        }
+    }
 }
 
 fn resolve_bind_host(value: Option<String>) -> (IpAddr, String) {
