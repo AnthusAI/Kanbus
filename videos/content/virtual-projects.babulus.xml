@@ -1,0 +1,55 @@
+<vml id="virtual-projects" title="Virtual Projects" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="Virtual Projects" duration="5s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <animated-pictogram-video props='{"type": "virtual"}' />
+    </layer>
+    <layer id="title" z="1">
+      <text-block props='{"text":"Virtual Projects","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
+      <text-block props='{"text":"Manage issues from multiple repositories in a single workspace","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+    </layer>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="deep_dive" title="Virtual Projects Deep Dive" duration="30s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"Virtual Projects","x":960,"y":120}' />
+    </layer>
+    <layer id="subtitle" z="1">
+      <subtitle props='{"text":"Manage issues from multiple repositories in a single workspace","x":960,"y":200}' />
+    </layer>
+    <layer id="content" z="1">
+      <text-block props='{"text":"Unified Workflow","x":480,"y":400,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Don&apos;t context switch between repositories. Kanbus allows you to mount other projects into your current workspace. Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack.","x":480,"y":540,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      
+      <text-block props='{"text":"Shared or Local Configs","x":480,"y":760,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Add virtual projects to your team&apos;s configuration file, and everyone gets the same unified view automatically. Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow.","x":480,"y":900,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <virtual-projects-demo-video props='{"style":{"left": 960, "top": 300, "width": 800, "bottom": 0, "position": "absolute"}}' />
+    </layer>
+    <cue id="intro" label="Introduction">
+      <voice>Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace.</voice>
+    </cue>
+    <cue id="unified" label="Unified Workflow">
+      <pause seconds="0.5s" />
+      <voice>Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack.</voice>
+    </cue>
+    <cue id="shared" label="Shared Config">
+      <pause seconds="0.5s" />
+      <voice>Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically.</voice>
+    </cue>
+    <cue id="local" label="Local Overrides">
+      <pause seconds="0.5s" />
+      <voice>Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow.</voice>
+    </cue>
+  </scene>
+</vml>

@@ -1,0 +1,55 @@
+<vml id="core-management" title="Core Management" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="Core Management" duration="5s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <animated-pictogram-video props='{"type": "cli"}' />
+    </layer>
+    <layer id="title" z="1">
+      <text-block props='{"text":"Core Management","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
+      <text-block props='{"text":"The speed of the CLI, the structure of Jira","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+    </layer>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="deep_dive" title="Core Management Deep Dive" duration="36s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="title" z="1">
+      <title props='{"text":"Core Management","x":960,"y":120}' />
+    </layer>
+    <layer id="subtitle" z="1">
+      <subtitle props='{"text":"The speed of the CLI, the structure of Jira","x":960,"y":200}' />
+    </layer>
+    <layer id="content" z="1">
+      <text-block props='{"text":"Instant Creation","x":480,"y":400,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.","x":480,"y":520,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      
+      <text-block props='{"text":"Seamless Workflow","x":480,"y":720,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Find exactly what you need with powerful query filters. Group related tasks under Epics to track larger initiatives.","x":480,"y":840,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <cli-demo-video props='{"style":{"left": 960, "top": 300, "width": 800, "bottom": 0, "position": "absolute"}}' />
+    </layer>
+    <cue id="intro" label="Introduction">
+      <voice>Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.</voice>
+    </cue>
+    <cue id="filter" label="Filter">
+      <pause seconds="0.5s" />
+      <voice>Find exactly what you need with powerful query filters. List all open issues, or filter by status, priority, or assignee.</voice>
+    </cue>
+    <cue id="hierarchy" label="Hierarchy">
+      <pause seconds="0.5s" />
+      <voice>Group related tasks under an Epic to track larger initiatives. Creating a child task automatically links it to the parent.</voice>
+    </cue>
+    <cue id="workflow" label="Workflow">
+      <pause seconds="0.5s" />
+      <voice>Move an issue to In Progress and assign it to yourself in one move. Keep your project moving forward without leaving the terminal.</voice>
+    </cue>
+  </scene>
+</vml>

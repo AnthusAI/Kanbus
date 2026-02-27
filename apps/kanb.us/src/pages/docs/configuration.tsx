@@ -1,5 +1,6 @@
 import * as React from "react";
 import { DocsLayout } from "../../components";
+import { CodeBlock } from "../../components/CodeBlock";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { PageProps } from "gatsby";
 
@@ -23,7 +24,7 @@ const DocsConfigurationPage = ({ location }: PageProps) => {
             </p>
           </CardHeader>
           <CardContent className="p-0 mt-4">
-            <pre className="block overflow-x-auto rounded-lg bg-card-muted p-4 text-sm text-foreground font-mono leading-relaxed">
+            <CodeBlock>
 {`project:
   key: KANB
   name: Kanbus Project
@@ -39,7 +40,7 @@ workflow:
   todo: { type: initial }
   in_progress: { type: active }
   done: { type: final }`}
-            </pre>
+            </CodeBlock>
           </CardContent>
         </Card>
       </div>

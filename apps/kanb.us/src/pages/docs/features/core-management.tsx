@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DocsLayout } from "../../../components";
+import { DocsLayout, CodeBlock } from "../../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { PageProps } from "gatsby";
 
@@ -33,17 +33,13 @@ const DocsCoreManagementPage = ({ location }: PageProps) => {
             Creating Issues
           </h2>
           <p>You can create issues quickly and define relationships (like assigning an issue to an epic) from the command line:</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`# Create a top-level bug issue with high priority
 kanbus create "Fix login race condition" --type bug --priority high
 
 # Create a task underneath an existing epic/parent
 kanbus create "Implement backend API" --parent kanbus-a1b2c3`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
 
           <h2 className="text-2xl font-display font-bold text-foreground tracking-tight mt-8 mb-4">
             Listing and Filtering
@@ -51,9 +47,7 @@ kanbus create "Implement backend API" --parent kanbus-a1b2c3`}
           <p>
             You can list issues, which is especially powerful when using filters. Kanbus can show just the issues assigned to you, specific issue types, or issues in a certain status.
           </p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`# List high-priority bugs assigned to you
 kanbus list --type bug --priority high --assignee @me
 
@@ -62,9 +56,7 @@ kanbus list --status open
 
 # Output as JSON for machine parsing or scripting
 kanbus list --json`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
 
           <h2 className="text-2xl font-display font-bold text-foreground tracking-tight mt-8 mb-4">
             Updating the Workflow
@@ -72,9 +64,7 @@ kanbus list --json`}
           <p>
             When you're ready to start working on an issue, you can use the Kanbus CLI to update its status or assignee, moving it smoothly through your project's workflow.
           </p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`# Automatically move to an "in_progress" state and assign to yourself
 kanbus start kanbus-x9y8z7
 
@@ -83,9 +73,7 @@ kanbus update kanbus-x9y8z7 --status in_progress --assignee "you@example.com"
 
 # Close an issue and optionally leave a comment
 kanbus close kanbus-x9y8z7 --comment "Fixed via PR #42"`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
         </div>
       </div>
     </DocsLayout>

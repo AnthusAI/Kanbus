@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DocsLayout } from "../../../components";
+import { DocsLayout, CodeBlock } from "../../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { PageProps } from "gatsby";
 
@@ -35,38 +35,28 @@ const DocsVirtualProjectsPage = ({ location }: PageProps) => {
           <p>You can set up virtual projects at the team level via <code>.kanbus.yml</code>, or for your personal local setup using <code>.kanbus.override.yml</code>.</p>
           
           <h3 className="text-xl font-bold text-foreground mt-6 mb-2">Team Configuration (.kanbus.yml)</h3>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`project_key: app
 virtual_projects:
   api:
     path: ../backend-api
   ui:
     path: ../design-system`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
 
           <h3 className="text-xl font-bold text-foreground mt-6 mb-2">Personal Overrides (.kanbus.override.yml)</h3>
           <p>This file should be git-ignored. It additively merges with the main config.</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`virtual_projects:
   my_lib:
     path: ../experimental-lib`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
 
           <h2 className="text-2xl font-display font-bold text-foreground tracking-tight mt-8 mb-4">
             Usage
           </h2>
           <p>Once your paths are configured, your CLI commands automatically aggregate data.</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`# Lists issues from the primary project AND all virtual projects
 kanbus list
 
@@ -75,9 +65,7 @@ kanbus list --project api
 
 # You can combine project filters with standard filters
 kanbus list --status open --project api`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
           <p className="mt-4 text-sm italic">
             Note: Paths are relative to the repository root. Virtual project labels cannot match your main <code>project_key</code>. If a path is missing or invalid, Kanbus will fail with a clear descriptive error.
           </p>

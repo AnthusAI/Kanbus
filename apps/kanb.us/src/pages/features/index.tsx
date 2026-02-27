@@ -22,24 +22,24 @@ const FeaturesPage = () => {
     <Layout>
       <Hero
         title="Features"
-        subtitle="Focused capabilities for modern development workflows."
+        subtitle="Focused capabilities that make Kanbus practical for daily work."
         eyebrow="Key Capabilities"
       />
 
       <div className="space-y-20">
         <Section
           title="The Essentials"
-          subtitle="Everything you need to manage projects without leaving your terminal."
+          subtitle="The speed of the command line, the structure of Jira, and the simplicity of Markdown."
         >
           <div className="grid gap-6 md:grid-cols-2">
             <FeatureCard
               title="Core Management"
-              description="The speed of CLI, the structure of Jira. Create, track, and update tasks without leaving your terminal. Filter by status, priority, and assignee with powerful query commands."
+              description="The speed of the command line, the structure of Jira, and the simplicity of Markdown."
               href="/features/core-management"
             />
             <FeatureCard
               title="Kanban Board"
-              description="Visualize your workflow. Drag and drop issues, filter by status, and see the big picture in a modern, reactive interface."
+              description="Visualize your workflow in a modern, reactive interface. Drag and drop issues, filter by status, and see the big picture—all without leaving your browser."
               href="/features/kanban-board"
             />
           </div>
@@ -47,18 +47,18 @@ const FeaturesPage = () => {
 
         <Section
           title="Your Workflow, Your Way"
-          subtitle="Flexible tools that adapt to how you actually work."
+          subtitle="Keep personal work private, then share when ready. Aggregate issues across repositories."
           variant="alt"
         >
           <div className="grid gap-6 md:grid-cols-2">
             <FeatureCard
               title="Local Tasks"
-              description="Keep private tasks off git and promote them when they are ready to share. Perfect for scratchpad ideas, personal to-dos, or drafting complex tickets before they go public."
+              description="Keep personal or exploratory issues on your machine without committing them—then promote them to the shared project when they're ready."
               href="/features/local-tasks"
             />
             <FeatureCard
               title="Virtual Projects"
-              description="Aggregate issues from multiple repositories into a single view. Query, filter, and track work across your entire stack without context switching."
+              description="View and manage issues from multiple repositories in a single workspace."
               href="/features/virtual-projects"
             />
           </div>
@@ -66,25 +66,45 @@ const FeaturesPage = () => {
 
         <Section
           title="Connected & Compatible"
-          subtitle="Works with the tools and formats you already have."
+          subtitle="Integrate with Jira, Beads, and VS Code—no migration required."
         >
           <div className="grid gap-6 md:grid-cols-2">
             <FeatureCard
               title="Jira Sync"
-              description="Pull Jira issues into your repository so agents always have the full context. No API calls during agent sessions—just fast, local file access."
+              description="Pull Jira issues into your repository so coding agents always have full context—no API calls, no MCP tools, just files."
               href="/features/jira-sync"
             />
             <FeatureCard
               title="Beads Mode"
-              description="Seamless compatibility with existing Beads projects. Zero config required—Kanbus detects the format and adapts automatically."
+              description="Instant Kanban board for your existing Beads projects. No migration required."
               href="/features/beads-compatibility"
             />
             <FeatureCard
               title="VS Code Plugin"
-              description="Manage your project without leaving your code. Full Kanban board integration inside your editor."
+              description="Manage your project without leaving your code. The full Kanbus experience, embedded in your editor."
               href="/features/vscode-plugin"
             />
           </div>
+        </Section>
+
+        <Section
+          title="Documentation"
+          subtitle="Learn how to use each feature in detail."
+          variant="alt"
+        >
+          <Card className="p-8">
+            <CardContent className="p-0 text-center">
+              <p className="text-muted leading-relaxed mb-6">
+                Ready to dive deeper? Explore the complete documentation for CLI commands, configuration options, and advanced workflows.
+              </p>
+              <a
+                href="/docs"
+                className="cta-button px-6 py-3 text-sm transition-all hover:brightness-95"
+              >
+                View Documentation →
+              </a>
+            </CardContent>
+          </Card>
         </Section>
       </div>
     </Layout>

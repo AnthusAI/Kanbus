@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DocsLayout } from "../../../components";
+import { DocsLayout, CodeBlock } from "../../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { PageProps } from "gatsby";
 
@@ -35,25 +35,17 @@ const DocsBeadsCompatibilityPage = ({ location }: PageProps) => {
           
           <h3 className="text-xl font-bold text-foreground mt-6 mb-2">Option 1: One-Time CLI Flag</h3>
           <p>You can use the <code>--beads</code> flag on any command to temporarily run in compatibility mode.</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`kanbus --beads list
 kanbus --beads show bdx-epic
 kanbus --beads create "New issue" --parent bdx-epic`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
 
           <h3 className="text-xl font-bold text-foreground mt-6 mb-2">Option 2: Persistent Configuration</h3>
           <p>To avoid typing the flag constantly, enable it in your configuration files (<code>.kanbus.yml</code> or <code>project/config.yaml</code>):</p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`beads_compatibility: true`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
           <p className="mt-4">Once enabled, standard commands like <code>kanbus list</code> and <code>kanbus console</code> automatically read and write to <code>.beads/issues.jsonl</code>.</p>
 
           <h2 className="text-2xl font-display font-bold text-foreground tracking-tight mt-8 mb-4">
@@ -76,13 +68,9 @@ kanbus --beads create "New issue" --parent bdx-epic`}
           <p>
             If you decide you want to permanently move away from the JSONL format to the modern <code>project/issues/</code> directory structure, Kanbus provides a one-way migration tool:
           </p>
-          <Card className="p-4 bg-card-muted/30">
-            <CardContent className="p-0">
-              <pre className="text-sm font-mono text-foreground leading-relaxed overflow-x-auto whitespace-pre-wrap">
+          <CodeBlock label="Terminal">
 {`kanbus migrate`}
-              </pre>
-            </CardContent>
-          </Card>
+          </CodeBlock>
           <p className="mt-4 text-sm italic">
             Note: You can stay in Beads format indefinitely. However, certain new features like Local filtering (<code>--no-local</code>) are not supported while in beads mode.
           </p>

@@ -8,7 +8,7 @@ import {
   Maximize
 } from "lucide-react";
 import gsap from "gsap";
-import mermaid from "mermaid";
+// Mermaid imports removed
 import plantumlEncoder from "plantuml-encoder";
 import { Board } from "./Board";
 import {
@@ -112,11 +112,12 @@ async function fetchIssueEvents(
 }
 
 const markdownRenderer = new marked.Renderer();
-markdownRenderer.link = (href: string, title: string | null | undefined, text: string) => {
+markdownRenderer.link = ({ href, title, tokens }) => {
+  const text = tokens.map(t => (t as any).raw).join('');
   const safeTitle = title ? ` title="${title}"` : "";
   return `<a href="${href}"${safeTitle} target="_blank" rel="noopener noreferrer">${text}</a>`;
 };
-markdownRenderer.code = (code: string, infostring: string | undefined) => {
+markdownRenderer.code = ({ text: code, lang: infostring }) => {
   if (infostring === "mermaid") {
     return `<div class="mermaid">${code}</div>`;
   }
@@ -542,19 +543,14 @@ export function TaskDetailPanel({
     if (mermaidDivs.length === 0) return;
     const nodes = Array.from(mermaidDivs) as HTMLElement[];
 
-    // Detect current theme and initialize Mermaid with it
-    const isDark = document.documentElement.classList.contains("dark");
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: isDark ? "dark" : "default"
-    });
+    // We will render mermaid via API next
+    console.log("Found mermaid divs:", nodes.length);
 
     Promise.allSettled(
       nodes.map(async (node) => {
         const source = node.textContent ?? "";
         try {
-          const { svg } = await mermaid.render(`mermaid-${Date.now()}-${Math.random().toString(36).slice(2)}`, source);
-          node.innerHTML = svg;
+          node.innerHTML = `<pre style="color: var(--amber-9, #ffb224); white-space: pre-wrap; font-size: 12px; padding: 8px; border-radius: 6px; background: var(--card-muted, #1a1a1a);">Mermaid diagram:\n${source}</pre>`;
           node.dataset.processed = "true";
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);

@@ -38,9 +38,8 @@
     "clsx": "^2.1.1",
     "dompurify": "^3.2.4",
     "gsap": "^3.14.2",
-    "lucide-react": "^0.468.0",
-    "marked": "^12.0.2",
-    "mermaid": "^11.12.3",
+    "lucide-react": "^0.475.0",
+    "marked": "^17.0.3",
     "plantuml-encoder": "^1.4.0",
     "tailwind-merge": "^2.5.4"
   },

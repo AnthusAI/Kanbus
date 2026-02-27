@@ -12,6 +12,13 @@ type HeroProps = {
 export function Hero({ eyebrow, title, subtitle, actions, rightPane, bottomPane }: HeroProps): JSX.Element {
   return (
     <div className="relative isolate overflow-hidden py-16 sm:py-24">
+      <div 
+        className="absolute top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] rounded-[100%] pointer-events-none z-[-1]"
+        style={{
+          background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)",
+          opacity: 0.6
+        }}
+      />
       <div className={`mx-auto max-w-7xl px-6 lg:px-8 ${rightPane ? 'grid gap-12 items-center lg:grid-cols-2' : 'flex flex-col items-center text-center max-w-5xl'}`}>
         <div className={`flex flex-col ${rightPane ? 'items-start text-left' : 'items-center text-center w-full'}`}>
           {eyebrow && (

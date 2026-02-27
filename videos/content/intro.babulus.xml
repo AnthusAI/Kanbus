@@ -1,9 +1,9 @@
 <vml id="intro" title="Intro to Kanbus" fps="24" width="1920" height="1080" poster="24s">
-  <voiceover provider="openai" model="gpt-4o-mini-tts" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
 
   <scene id="hook" title="What is Kanbus?" duration="27s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="content" z="0">
@@ -35,11 +35,19 @@
 
   <scene id="files" title="Files Are the Database" duration="35s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="title" z="1">
-      <title props='{"text":"Files Are the Database","x":960,"y":150}' />
+      <title props='{"text":"Files Are the Database","x":960,"y":200}' />
+    </layer>
+
+    <layer id="content" z="1">
+      <text-block props='{"text":"One File Per Issue","x":480,"y":440,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Every issue is a single JSON file. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time.","x":480,"y":580,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      
+      <text-block props='{"text":"Zero Friction","x":1440,"y":440,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"There is no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly.","x":1440,"y":580,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
     </layer>
 
     <cue id="one_file" label="One File Per Issue">
@@ -58,11 +66,19 @@
 
   <scene id="agents" title="Built for AI Agents" duration="36s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="title" z="1">
-      <title props='{"text":"Built for AI Agents","x":960,"y":150}' />
+      <title props='{"text":"Built for AI Agents","x":960,"y":200}' />
+    </layer>
+
+    <layer id="content" z="1">
+      <text-block props='{"text":"Agent-Native CLI","x":480,"y":440,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would. No API keys. No web latency.","x":480,"y":600,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      
+      <text-block props='{"text":"Live Wiki Integration","x":1440,"y":440,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot.","x":1440,"y":600,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
     </layer>
 
     <cue id="agent_native" label="Agent-Native">
@@ -81,11 +97,19 @@
 
   <scene id="sync" title="Jira Sync and Local Tasks" duration="23s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="title" z="1">
-      <title props='{"text":"Connected, Not Isolated","x":960,"y":150}' />
+      <title props='{"text":"Connected, Not Isolated","x":960,"y":200}' />
+    </layer>
+
+    <layer id="content" z="1">
+      <text-block props='{"text":"Jira Sync","x":480,"y":440,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access.","x":480,"y":600,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      
+      <text-block props='{"text":"Local Tasks","x":1440,"y":440,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"For your own work-in-progress, local tasks stay off Git until you&apos;re ready. Draft ideas, experiment, and promote tasks to the shared board when they&apos;re ready for the team.","x":1440,"y":600,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
     </layer>
 
     <cue id="jira_sync" label="Jira Sync">
@@ -102,11 +126,19 @@
 
   <scene id="tools" title="Three Ways to Use It" duration="31s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="title" z="1">
-      <title props='{"text":"Three Ways to Use It","x":960,"y":150}' />
+      <title props='{"text":"Three Ways to Use It","x":960,"y":200}' />
+    </layer>
+
+    <layer id="content" z="1">
+      <text-block props='{"text":"Python &amp; Rust CLI","x":480,"y":440,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"Kanbus gives you three ways to work. A Python CLI that installs with pip—perfect for scripting and AI tool integrations. A Rust CLI for high-performance use in CI/CD pipelines and large repositories.","x":480,"y":600,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      
+      <text-block props='{"text":"Web Console","x":1440,"y":440,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
+      <text-block props='{"text":"A single binary with an embedded React frontend. Download it, run it, and you have a full Kanban board—no configuration, no npm, no separate assets. Track work across codebases with centralized visibility.","x":1440,"y":600,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
     </layer>
 
     <cue id="implementations" label="Implementations">
@@ -123,7 +155,7 @@
 
   <scene id="cta" title="Get Started" duration="14s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="title" z="1">
