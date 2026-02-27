@@ -2,12 +2,6 @@ import * as React from "react";
 import { motion } from "framer-motion";
 
 export function AnimatedPictogram() {
-  const transitionProps = {
-    duration: 3,
-    ease: "easeInOut",
-    repeat: Infinity,
-    times: [0, 0.2, 0.4, 0.8, 1] // Timing for each stage
-  };
 
   const Board = ({ y, opacity = 1 }: { y: number; opacity?: number }) => (
     <g transform={`translate(250, ${y}) scale(1, 0.5) rotate(45) translate(-100, -75)`} opacity={opacity}>
