@@ -224,13 +224,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 13.261375000000001,
+          "endSec": 13.0375,
           "text": "Pull Jira issues into your repository so coding agents always have full context. No API calls, no MCP tools, just files.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 13.261375000000001,
+              "endSec": 13.0375,
               "text": "Pull Jira issues into your repository so coding agents always have full context. No API calls, no MCP tools, just files."
             }
           ],
@@ -239,20 +239,20 @@
         {
           "id": "sync",
           "label": "Sync",
-          "startSec": 13.261375000000001,
-          "endSec": 21.034125000000003,
+          "startSec": 13.0375,
+          "endSec": 22.112499999999997,
           "text": "Run a single command to sync your entire project. Kanbus fetches every issue and translates types, statuses, and priorities automatically.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 13.261375000000001,
-              "endSec": 13.761375000000001,
+              "startSec": 13.0375,
+              "endSec": 13.5375,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 13.761375000000001,
-              "endSec": 21.034125000000003,
+              "startSec": 13.5375,
+              "endSec": 22.112499999999997,
               "text": "Run a single command to sync your entire project. Kanbus fetches every issue and translates types, statuses, and priorities automatically."
             }
           ],
@@ -261,20 +261,20 @@
         {
           "id": "idempotent",
           "label": "Idempotent",
-          "startSec": 21.034125000000003,
-          "endSec": 28.079583000000003,
+          "startSec": 22.112499999999997,
+          "endSec": 29.512499999999996,
           "text": "Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 21.034125000000003,
-              "endSec": 21.534125000000003,
+              "startSec": 22.112499999999997,
+              "endSec": 22.612499999999997,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 21.534125000000003,
-              "endSec": 28.079583000000003,
+              "startSec": 22.612499999999997,
+              "endSec": 29.512499999999996,
               "text": "Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs."
             }
           ],
@@ -283,20 +283,20 @@
         {
           "id": "agents",
           "label": "Agents",
-          "startSec": 28.079583000000003,
-          "endSec": 36.943250000000006,
+          "startSec": 29.512499999999996,
+          "endSec": 37.925,
           "text": "Any agent that can read your source code can now read your Jira issues. The context travels with your branch and survives offline.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 28.079583000000003,
-              "endSec": 28.579583000000003,
+              "startSec": 29.512499999999996,
+              "endSec": 30.012499999999996,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 28.579583000000003,
-              "endSec": 36.943250000000006,
+              "startSec": 30.012499999999996,
+              "endSec": 37.925,
               "text": "Any agent that can read your source code can now read your Jira issues. The context travels with your branch and survives offline."
             }
           ],

@@ -5,7 +5,7 @@
       "sceneId": "hook",
       "cueId": "hook",
       "startSec": 0,
-      "endSec": 18.354582999999998,
+      "endSec": 18.2875,
       "segments": [
         {
           "type": "pause",
@@ -16,27 +16,27 @@
         {
           "type": "tts",
           "startSec": 0.6,
-          "endSec": 8.6,
-          "text": "What if your project tracker was just files in your repository? No SaaS login. No per-seat costs. No external database to maintain.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/hook--hook--tts--699d376a0fc4--1.wav",
-          "durationSec": 8,
-          "rawDurationSec": 8,
+          "endSec": 8.4625,
+          "text": "Kanbus gives you an agent-ready CLI, a live Kanban board, Jira sync, and local tasks, all powered directly from repository files.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/hook--hook--tts--3f21f858a953--1.wav",
+          "durationSec": 7.8625,
+          "rawDurationSec": 7.8625,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 8.6,
-          "endSec": 8.9,
+          "startSec": 8.4625,
+          "endSec": 8.762500000000001,
           "seconds": 0.3
         },
         {
           "type": "tts",
-          "startSec": 8.9,
-          "endSec": 18.354582999999998,
-          "text": "Kanbus is a lightweight issue tracker that lives entirely in your Git repo. Issues, plans, and execution stay connected in one place—right next to your code.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/hook--hook--tts--703e2dfc17ad--1.wav",
-          "durationSec": 9.454583,
-          "rawDurationSec": 9.454583,
+          "startSec": 8.762500000000001,
+          "endSec": 18.2875,
+          "text": "You also get virtual projects, Beads compatibility, a VS Code plugin, an integrated wiki, and policy as code, so agents and humans can run the same workflow.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/hook--hook--tts--590cbd7ed960--1.wav",
+          "durationSec": 9.525,
+          "rawDurationSec": 9.525,
           "trimEndSec": 0
         }
       ]
@@ -46,32 +46,32 @@
       "sceneId": "files",
       "cueId": "one_file",
       "startSec": 27.5,
-      "endSec": 49.981874999999995,
+      "endSec": 50.099999999999994,
       "segments": [
         {
           "type": "tts",
           "startSec": 27.5,
-          "endSec": 36.227292,
+          "endSec": 35.7375,
           "text": "Every issue is a single JSON file. Not one giant file that causes merge conflicts every time two people touch it—one file per issue.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/files--one_file--tts--a9eecf9f9def--1.wav",
-          "durationSec": 8.727292,
-          "rawDurationSec": 8.727292,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/files--one_file--tts--688404b050a8--1.wav",
+          "durationSec": 8.2375,
+          "rawDurationSec": 8.2375,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 36.227292,
-          "endSec": 36.527291999999996,
+          "startSec": 35.7375,
+          "endSec": 36.037499999999994,
           "seconds": 0.3
         },
         {
           "type": "tts",
-          "startSec": 36.527291999999996,
-          "endSec": 49.981874999999995,
+          "startSec": 36.037499999999994,
+          "endSec": 50.099999999999994,
           "text": "That means your team and your AI agents can create, update, and close issues in parallel without stepping on each other. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/files--one_file--tts--bc1b4503ddfe--1.wav",
-          "durationSec": 13.454583,
-          "rawDurationSec": 13.454583,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/files--one_file--tts--a82420b44ae5--1.wav",
+          "durationSec": 14.0625,
+          "rawDurationSec": 14.0625,
           "trimEndSec": 0
         }
       ]
@@ -80,23 +80,23 @@
       "type": "tts",
       "sceneId": "files",
       "cueId": "no_friction",
-      "startSec": 49.981874999999995,
-      "endSec": 59.00916699999999,
+      "startSec": 50.099999999999994,
+      "endSec": 60.31249999999999,
       "segments": [
         {
           "type": "pause",
-          "startSec": 49.981874999999995,
-          "endSec": 50.28187499999999,
+          "startSec": 50.099999999999994,
+          "endSec": 50.39999999999999,
           "seconds": 0.3
         },
         {
           "type": "tts",
-          "startSec": 50.28187499999999,
-          "endSec": 59.00916699999999,
+          "startSec": 50.39999999999999,
+          "endSec": 60.31249999999999,
           "text": "There's no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/files--no_friction--tts--cd6a25c964cb--1.wav",
-          "durationSec": 8.727292,
-          "rawDurationSec": 8.727292,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/files--no_friction--tts--1668761d3f21--1.wav",
+          "durationSec": 9.9125,
+          "rawDurationSec": 9.9125,
           "trimEndSec": 0
         }
       ]
@@ -106,32 +106,32 @@
       "sceneId": "agents",
       "cueId": "agent_native",
       "startSec": 63,
-      "endSec": 79.66366599999999,
+      "endSec": 79.78750000000001,
       "segments": [
         {
           "type": "tts",
           "startSec": 63,
-          "endSec": 73.181833,
+          "endSec": 73.4625,
           "text": "Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/agents--agent_native--tts--2822657fddca--1.wav",
-          "durationSec": 10.181833,
-          "rawDurationSec": 10.181833,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/agents--agent_native--tts--ac783e5e0d62--1.wav",
+          "durationSec": 10.4625,
+          "rawDurationSec": 10.4625,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 73.181833,
-          "endSec": 73.481833,
+          "startSec": 73.4625,
+          "endSec": 73.7625,
           "seconds": 0.3
         },
         {
           "type": "tts",
-          "startSec": 73.481833,
-          "endSec": 79.66366599999999,
+          "startSec": 73.7625,
+          "endSec": 79.78750000000001,
           "text": "No API keys. No web latency. Just native file and command-line access to the full project tracker.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/agents--agent_native--tts--ac313f2a1801--1.wav",
-          "durationSec": 6.181833,
-          "rawDurationSec": 6.181833,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/agents--agent_native--tts--e2c2e9df1764--1.wav",
+          "durationSec": 6.025,
+          "rawDurationSec": 6.025,
           "trimEndSec": 0
         }
       ]
@@ -140,23 +140,23 @@
       "type": "tts",
       "sceneId": "agents",
       "cueId": "wiki",
-      "startSec": 79.66366599999999,
-      "endSec": 94.87279099999999,
+      "startSec": 79.78750000000001,
+      "endSec": 95.825,
       "segments": [
         {
           "type": "pause",
-          "startSec": 79.66366599999999,
-          "endSec": 79.96366599999999,
+          "startSec": 79.78750000000001,
+          "endSec": 80.0875,
           "seconds": 0.3
         },
         {
           "type": "tts",
-          "startSec": 79.96366599999999,
-          "endSec": 94.87279099999999,
+          "startSec": 80.0875,
+          "endSec": 95.825,
           "text": "Kanbus also includes an integrated wiki with live templates. Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/agents--wiki--tts--a3f46ec40ec3--1.wav",
-          "durationSec": 14.909125,
-          "rawDurationSec": 14.909125,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/agents--wiki--tts--85bfb07d8bd4--1.wav",
+          "durationSec": 15.7375,
+          "rawDurationSec": 15.7375,
           "trimEndSec": 0
         }
       ]
@@ -166,16 +166,16 @@
       "sceneId": "sync",
       "cueId": "jira_sync",
       "startSec": 99.5,
-      "endSec": 110.409125,
+      "endSec": 110.85,
       "segments": [
         {
           "type": "tts",
           "startSec": 99.5,
-          "endSec": 110.409125,
+          "endSec": 110.85,
           "text": "Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/sync--jira_sync--tts--9ffde98eb7b8--1.wav",
-          "durationSec": 10.909125,
-          "rawDurationSec": 10.909125,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/sync--jira_sync--tts--1f031dad57c6--1.wav",
+          "durationSec": 11.35,
+          "rawDurationSec": 11.35,
           "trimEndSec": 0
         }
       ]
@@ -184,23 +184,23 @@
       "type": "tts",
       "sceneId": "sync",
       "cueId": "local_tasks",
-      "startSec": 110.409125,
-      "endSec": 121.254583,
+      "startSec": 110.85,
+      "endSec": 121.87499999999999,
       "segments": [
         {
           "type": "pause",
-          "startSec": 110.409125,
-          "endSec": 110.709125,
+          "startSec": 110.85,
+          "endSec": 111.14999999999999,
           "seconds": 0.3
         },
         {
           "type": "tts",
-          "startSec": 110.709125,
-          "endSec": 121.254583,
+          "startSec": 111.14999999999999,
+          "endSec": 121.87499999999999,
           "text": "And for your own work-in-progress, local tasks stay off Git until you're ready. Draft ideas, experiment, and promote tasks to the shared board when they're ready for the team.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/sync--local_tasks--tts--b6b4db5c7a0f--1.wav",
-          "durationSec": 10.545458,
-          "rawDurationSec": 10.545458,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/sync--local_tasks--tts--90ddee9dd37c--1.wav",
+          "durationSec": 10.725,
+          "rawDurationSec": 10.725,
           "trimEndSec": 0
         }
       ]
@@ -210,16 +210,16 @@
       "sceneId": "tools",
       "cueId": "implementations",
       "startSec": 123,
-      "endSec": 145.181833,
+      "endSec": 145.7125,
       "segments": [
         {
           "type": "tts",
           "startSec": 123,
-          "endSec": 145.181833,
+          "endSec": 145.7125,
           "text": "Kanbus gives you three ways to work. A Python CLI that installs with pip—perfect for scripting and AI tool integrations. A Rust CLI for high-performance use in CI/CD pipelines and large repositories. And a web console: a single binary with an embedded React frontend. Download it, run it, and you have a full Kanban board—no configuration, no npm, no separate assets.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/tools--implementations--tts--8c7c58579801--1.wav",
-          "durationSec": 22.181833,
-          "rawDurationSec": 22.181833,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/tools--implementations--tts--41623a5a9d6b--1.wav",
+          "durationSec": 22.7125,
+          "rawDurationSec": 22.7125,
           "trimEndSec": 0
         }
       ]
@@ -228,23 +228,23 @@
       "type": "tts",
       "sceneId": "tools",
       "cueId": "shared_store",
-      "startSec": 145.181833,
-      "endSec": 153.118208,
+      "startSec": 145.7125,
+      "endSec": 155.28750000000002,
       "segments": [
         {
           "type": "pause",
-          "startSec": 145.181833,
-          "endSec": 145.48183300000002,
+          "startSec": 145.7125,
+          "endSec": 146.01250000000002,
           "seconds": 0.3
         },
         {
           "type": "tts",
-          "startSec": 145.48183300000002,
-          "endSec": 153.118208,
+          "startSec": 146.01250000000002,
+          "endSec": 155.28750000000002,
           "text": "Multiple projects can even share a data store while keeping issues namespaced per project. Track work across codebases with centralized visibility.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/tools--shared_store--tts--2fd027627080--1.wav",
-          "durationSec": 7.636375,
-          "rawDurationSec": 7.636375,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/tools--shared_store--tts--36a9bfc1d5cc--1.wav",
+          "durationSec": 9.275,
+          "rawDurationSec": 9.275,
           "trimEndSec": 0
         }
       ]
@@ -253,39 +253,39 @@
       "type": "tts",
       "sceneId": "cta",
       "cueId": "cta",
-      "startSec": 154.5,
-      "endSec": 164.754583,
+      "startSec": 155.78750000000002,
+      "endSec": 166.08750000000003,
       "segments": [
         {
           "type": "tts",
-          "startSec": 154.5,
-          "endSec": 162.136375,
+          "startSec": 155.78750000000002,
+          "endSec": 163.50000000000003,
           "text": "Kanbus. A tiny Jira clone for your repo. Files are the database. Agents are first-class citizens. And everything stays in Git.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/cta--cta--tts--16d2e6cfdb58--1.wav",
-          "durationSec": 7.636375,
-          "rawDurationSec": 7.636375,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/cta--cta--tts--ceb86812a037--1.wav",
+          "durationSec": 7.7125,
+          "rawDurationSec": 7.7125,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 162.136375,
-          "endSec": 162.436375,
+          "startSec": 163.50000000000003,
+          "endSec": 163.80000000000004,
           "seconds": 0.3
         },
         {
           "type": "tts",
-          "startSec": 162.436375,
-          "endSec": 164.254583,
+          "startSec": 163.80000000000004,
+          "endSec": 165.58750000000003,
           "text": "Visit kanb.us to get started.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/cta--cta--tts--19abbdcca53d--1.wav",
-          "durationSec": 1.818208,
-          "rawDurationSec": 1.818208,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/segments/cta--cta--tts--b377fc2faeea--1.wav",
+          "durationSec": 1.7875,
+          "rawDurationSec": 1.7875,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 164.254583,
-          "endSec": 164.754583,
+          "startSec": 165.58750000000003,
+          "endSec": 166.08750000000003,
           "seconds": 0.5
         }
       ]
@@ -298,115 +298,115 @@
         "kind": "narration",
         "clips": [
           {
-            "id": "hook--hook--tts--699d376a0fc4--1",
+            "id": "hook--hook--tts--3f21f858a953--1",
             "kind": "file",
             "startSec": 0.6,
-            "durationSec": 8,
-            "src": "/videoml/intro/env/development/segments/hook--hook--tts--699d376a0fc4--1.wav",
+            "durationSec": 7.8625,
+            "src": "/videoml/intro/env/development/segments/hook--hook--tts--3f21f858a953--1.wav",
             "volume": 1
           },
           {
-            "id": "hook--hook--tts--703e2dfc17ad--1",
+            "id": "hook--hook--tts--590cbd7ed960--1",
             "kind": "file",
-            "startSec": 8.9,
-            "durationSec": 9.454583,
-            "src": "/videoml/intro/env/development/segments/hook--hook--tts--703e2dfc17ad--1.wav",
+            "startSec": 8.762500000000001,
+            "durationSec": 9.525,
+            "src": "/videoml/intro/env/development/segments/hook--hook--tts--590cbd7ed960--1.wav",
             "volume": 1
           },
           {
-            "id": "files--one_file--tts--a9eecf9f9def--1",
+            "id": "files--one_file--tts--688404b050a8--1",
             "kind": "file",
             "startSec": 27.5,
-            "durationSec": 8.727292,
-            "src": "/videoml/intro/env/development/segments/files--one_file--tts--a9eecf9f9def--1.wav",
+            "durationSec": 8.2375,
+            "src": "/videoml/intro/env/development/segments/files--one_file--tts--688404b050a8--1.wav",
             "volume": 1
           },
           {
-            "id": "files--one_file--tts--bc1b4503ddfe--1",
+            "id": "files--one_file--tts--a82420b44ae5--1",
             "kind": "file",
-            "startSec": 36.527291999999996,
-            "durationSec": 13.454583,
-            "src": "/videoml/intro/env/development/segments/files--one_file--tts--bc1b4503ddfe--1.wav",
+            "startSec": 36.037499999999994,
+            "durationSec": 14.0625,
+            "src": "/videoml/intro/env/development/segments/files--one_file--tts--a82420b44ae5--1.wav",
             "volume": 1
           },
           {
-            "id": "files--no_friction--tts--cd6a25c964cb--1",
+            "id": "files--no_friction--tts--1668761d3f21--1",
             "kind": "file",
-            "startSec": 50.28187499999999,
-            "durationSec": 8.727292,
-            "src": "/videoml/intro/env/development/segments/files--no_friction--tts--cd6a25c964cb--1.wav",
+            "startSec": 50.39999999999999,
+            "durationSec": 9.9125,
+            "src": "/videoml/intro/env/development/segments/files--no_friction--tts--1668761d3f21--1.wav",
             "volume": 1
           },
           {
-            "id": "agents--agent_native--tts--2822657fddca--1",
+            "id": "agents--agent_native--tts--ac783e5e0d62--1",
             "kind": "file",
             "startSec": 63,
-            "durationSec": 10.181833,
-            "src": "/videoml/intro/env/development/segments/agents--agent_native--tts--2822657fddca--1.wav",
+            "durationSec": 10.4625,
+            "src": "/videoml/intro/env/development/segments/agents--agent_native--tts--ac783e5e0d62--1.wav",
             "volume": 1
           },
           {
-            "id": "agents--agent_native--tts--ac313f2a1801--1",
+            "id": "agents--agent_native--tts--e2c2e9df1764--1",
             "kind": "file",
-            "startSec": 73.481833,
-            "durationSec": 6.181833,
-            "src": "/videoml/intro/env/development/segments/agents--agent_native--tts--ac313f2a1801--1.wav",
+            "startSec": 73.7625,
+            "durationSec": 6.025,
+            "src": "/videoml/intro/env/development/segments/agents--agent_native--tts--e2c2e9df1764--1.wav",
             "volume": 1
           },
           {
-            "id": "agents--wiki--tts--a3f46ec40ec3--1",
+            "id": "agents--wiki--tts--85bfb07d8bd4--1",
             "kind": "file",
-            "startSec": 79.96366599999999,
-            "durationSec": 14.909125,
-            "src": "/videoml/intro/env/development/segments/agents--wiki--tts--a3f46ec40ec3--1.wav",
+            "startSec": 80.0875,
+            "durationSec": 15.7375,
+            "src": "/videoml/intro/env/development/segments/agents--wiki--tts--85bfb07d8bd4--1.wav",
             "volume": 1
           },
           {
-            "id": "sync--jira_sync--tts--9ffde98eb7b8--1",
+            "id": "sync--jira_sync--tts--1f031dad57c6--1",
             "kind": "file",
             "startSec": 99.5,
-            "durationSec": 10.909125,
-            "src": "/videoml/intro/env/development/segments/sync--jira_sync--tts--9ffde98eb7b8--1.wav",
+            "durationSec": 11.35,
+            "src": "/videoml/intro/env/development/segments/sync--jira_sync--tts--1f031dad57c6--1.wav",
             "volume": 1
           },
           {
-            "id": "sync--local_tasks--tts--b6b4db5c7a0f--1",
+            "id": "sync--local_tasks--tts--90ddee9dd37c--1",
             "kind": "file",
-            "startSec": 110.709125,
-            "durationSec": 10.545458,
-            "src": "/videoml/intro/env/development/segments/sync--local_tasks--tts--b6b4db5c7a0f--1.wav",
+            "startSec": 111.14999999999999,
+            "durationSec": 10.725,
+            "src": "/videoml/intro/env/development/segments/sync--local_tasks--tts--90ddee9dd37c--1.wav",
             "volume": 1
           },
           {
-            "id": "tools--implementations--tts--8c7c58579801--1",
+            "id": "tools--implementations--tts--41623a5a9d6b--1",
             "kind": "file",
             "startSec": 123,
-            "durationSec": 22.181833,
-            "src": "/videoml/intro/env/development/segments/tools--implementations--tts--8c7c58579801--1.wav",
+            "durationSec": 22.7125,
+            "src": "/videoml/intro/env/development/segments/tools--implementations--tts--41623a5a9d6b--1.wav",
             "volume": 1
           },
           {
-            "id": "tools--shared_store--tts--2fd027627080--1",
+            "id": "tools--shared_store--tts--36a9bfc1d5cc--1",
             "kind": "file",
-            "startSec": 145.48183300000002,
-            "durationSec": 7.636375,
-            "src": "/videoml/intro/env/development/segments/tools--shared_store--tts--2fd027627080--1.wav",
+            "startSec": 146.01250000000002,
+            "durationSec": 9.275,
+            "src": "/videoml/intro/env/development/segments/tools--shared_store--tts--36a9bfc1d5cc--1.wav",
             "volume": 1
           },
           {
-            "id": "cta--cta--tts--16d2e6cfdb58--1",
+            "id": "cta--cta--tts--ceb86812a037--1",
             "kind": "file",
-            "startSec": 154.5,
-            "durationSec": 7.636375,
-            "src": "/videoml/intro/env/development/segments/cta--cta--tts--16d2e6cfdb58--1.wav",
+            "startSec": 155.78750000000002,
+            "durationSec": 7.7125,
+            "src": "/videoml/intro/env/development/segments/cta--cta--tts--ceb86812a037--1.wav",
             "volume": 1
           },
           {
-            "id": "cta--cta--tts--19abbdcca53d--1",
+            "id": "cta--cta--tts--b377fc2faeea--1",
             "kind": "file",
-            "startSec": 162.436375,
-            "durationSec": 1.818208,
-            "src": "/videoml/intro/env/development/segments/cta--cta--tts--19abbdcca53d--1.wav",
+            "startSec": 163.80000000000004,
+            "durationSec": 1.7875,
+            "src": "/videoml/intro/env/development/segments/cta--cta--tts--b377fc2faeea--1.wav",
             "volume": 1
           }
         ]
@@ -425,18 +425,18 @@
             "variants": [
               {
                 "variant": 0,
-                "seed": 1424011276,
-                "path": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/music/bed--v1--d4e0b00b9e51.wav",
-                "durationSec": 168.5
+                "seed": 1919333895,
+                "path": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/music/bed--v1--f266b606849c.wav",
+                "durationSec": 169.78750000000002
               }
             ],
             "chosen": {
               "variant": 0,
-              "seed": 1424011276,
-              "path": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/music/bed--v1--d4e0b00b9e51.wav",
-              "durationSec": 168.5
+              "seed": 1919333895,
+              "path": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/intro/env/development/music/bed--v1--f266b606849c.wav",
+              "durationSec": 169.78750000000002
             },
-            "src": "/videoml/env/development/music/bed/bed--v1--d4e0b00b9e51.wav",
+            "src": "/videoml/env/development/music/bed/bed--v1--f266b606849c.wav",
             "playThrough": true,
             "volumeEnvelope": [
               {
@@ -452,11 +452,11 @@
                 "volume": 0.12
               },
               {
-                "atSec": 163.5,
+                "atSec": 164.78750000000002,
                 "volume": 0.12
               },
               {
-                "atSec": 166.5,
+                "atSec": 167.78750000000002,
                 "volume": 0.7
               }
             ]
