@@ -59,7 +59,7 @@ try {
 if (!bucket) {
   console.log("Searching for Amplify videos bucket...");
   try {
-    const bucketsOutput = execSync(`aws s3 ls --profile ${awsProfile} | grep -i videosbucket`, { encoding: "utf8" });
+    const bucketsOutput = execSync(`aws s3 ls --profile ${awsProfile} | grep -i video`, { encoding: "utf8" });
     const buckets = bucketsOutput
       .split("\n")
       .map((line) => line.trim())
