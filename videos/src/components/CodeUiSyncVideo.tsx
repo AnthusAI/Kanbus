@@ -74,18 +74,14 @@ export function CodeUiSyncVideo() {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Change every 4.5 seconds
   const intervalFrames = fps * 4.5;
   const activeIndex = Math.floor(frame / intervalFrames) % FILES.length;
   const transitionFrame = frame % intervalFrames;
 
-  // Animate the code block (opacity and y shift on change)
-  // Transition lasts 0.2s = 0.2 * fps frames
   const transitionDuration = fps * 0.2;
   const codeOpacityIn = interpolate(transitionFrame, [0, transitionDuration], [0, 1], { extrapolateRight: "clamp" });
   const codeYIn = interpolate(transitionFrame, [0, transitionDuration], [10, 0], { extrapolateRight: "clamp" });
-  
-  // Actually, we can use a spring for the board items as they shift
+
   const boardSpring = spring({
     frame: transitionFrame,
     fps,
@@ -96,34 +92,69 @@ export function CodeUiSyncVideo() {
   });
 
   return (
-    <div className="w-full flex flex-col md:flex-row gap-8 items-stretch justify-center relative p-8">
+    <div style={{
+      width: "100%",
+      display: "flex",
+      flexDirection: "row",
+      gap: "32px",
+      alignItems: "stretch",
+      justifyContent: "center",
+      position: "relative",
+      padding: "32px"
+    }}>
       {/* Code Window */}
-      <div className="flex-1 w-full max-w-xl">
-        <div className="bg-card rounded-xl font-mono text-sm leading-loose overflow-hidden shadow-2xl h-full flex flex-col">
-          <div className="text-muted flex items-center gap-4 bg-card-muted p-4 border-b border-border">
-             <div className="flex gap-2">
-               <span className="w-3 h-3 rounded-full bg-red-500/50"></span>
-               <span className="w-3 h-3 rounded-full bg-yellow-500/50"></span>
-               <span className="w-3 h-3 rounded-full bg-green-500/50"></span>
-             </div>
-             <div className="flex flex-1 gap-2 overflow-x-auto hide-scrollbar">
-               {FILES.map((file, idx) => (
-                 <div 
-                   key={file.filename}
-                   className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition-colors ${activeIndex === idx ? 'bg-background text-foreground shadow-sm' : 'text-muted'}`}
-                 >
-                   {file.filename.split('/')[1]}
-                 </div>
-               ))}
-             </div>
+      <div style={{ flex: 1, width: "100%", maxWidth: "576px" }}>
+        <div style={{
+          backgroundColor: "var(--card)",
+          borderRadius: "12px",
+          fontFamily: "monospace",
+          fontSize: "14px",
+          lineHeight: "2",
+          overflow: "hidden",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column"
+        }}>
+          {/* Tab bar */}
+          <div style={{
+            color: "var(--text-muted)",
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            backgroundColor: "var(--card-muted)",
+            padding: "16px",
+            borderBottom: "1px solid var(--border)"
+          }}>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <span style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: "rgba(239,68,68,0.5)", display: "inline-block" }} />
+              <span style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: "rgba(234,179,8,0.5)", display: "inline-block" }} />
+              <span style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: "rgba(34,197,94,0.5)", display: "inline-block" }} />
+            </div>
+            <div style={{ display: "flex", flex: 1, gap: "8px", overflowX: "auto" }}>
+              {FILES.map((file, idx) => (
+                <div
+                  key={file.filename}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    whiteSpace: "nowrap",
+                    backgroundColor: activeIndex === idx ? "var(--background)" : "transparent",
+                    color: activeIndex === idx ? "var(--text-foreground)" : "var(--text-muted)"
+                  }}
+                >
+                  {file.filename.split('/')[1]}
+                </div>
+              ))}
+            </div>
           </div>
-          
-          <div className="relative h-[260px] p-6">
+
+          <div style={{ position: "relative", height: "260px", padding: "24px" }}>
             <div
               style={{
                 position: "absolute",
                 inset: 0,
-                padding: "1.5rem",
+                padding: "24px",
                 overflow: "hidden",
                 whiteSpace: "pre",
                 color: "var(--foreground)",
@@ -136,18 +167,25 @@ export function CodeUiSyncVideo() {
           </div>
         </div>
       </div>
-      
+
       {/* UI Board Visualization */}
-      <div className="flex-1 w-full max-w-xl md:max-w-sm flex flex-col justify-center">
-        <div className="bg-column p-4 md:p-6 rounded-xl relative overflow-hidden h-full min-h-[340px] flex flex-col justify-center">
-          
-          <div className="relative h-full w-full">
+      <div style={{ flex: 1, width: "100%", maxWidth: "448px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{
+          backgroundColor: "var(--column)",
+          padding: "24px",
+          borderRadius: "12px",
+          position: "relative",
+          overflow: "hidden",
+          height: "100%",
+          minHeight: "340px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center"
+        }}>
+          <div style={{ position: "relative", height: "100%", width: "100%" }}>
             {FILES.map((file, idx) => {
               const isActive = activeIndex === idx;
-              
-              // We'll calculate the old states and new states to interpolate
-              // For simplicity, we just calculate the target state, and use spring for transition
-              // The previous active index is (activeIndex - 1 + FILES.length) % FILES.length
+
               const prevActiveIndex = (activeIndex - 1 + FILES.length) % FILES.length;
 
               const getTargetValues = (activeIdx: number) => {
@@ -175,8 +213,6 @@ export function CodeUiSyncVideo() {
               const currentY = interpolate(boardSpring, [0, 1], [oldState.yOffsetNum, newState.yOffsetNum]);
               const currentScale = interpolate(boardSpring, [0, 1], [oldState.scale, newState.scale]);
               const currentOpacity = interpolate(boardSpring, [0, 1], [oldState.opacity, newState.opacity]);
-
-              // Use new zIndex immediately
               const currentZIndex = newState.zIndex;
 
               return (
@@ -192,7 +228,7 @@ export function CodeUiSyncVideo() {
                     zIndex: currentZIndex,
                   }}
                 >
-                  <IssueCard 
+                  <IssueCard
                     issue={file.issue as any}
                     config={boardConfig as any}
                     priorityName={priorityLookup[file.issue.priority as keyof typeof priorityLookup]}

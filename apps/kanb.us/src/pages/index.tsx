@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Layout, Section, Hero } from "../components";
+import { Layout, Section, Hero, FeaturePictogram } from "../components";
 import {
   Board,
   Card,
@@ -194,13 +194,9 @@ const IndexPage = () => {
   return (
     <Layout>
       <Hero
-        title="Track issues in your repository"
-        subtitle="...where your agents can participate."
-        bottomPane={
-          <div className="w-full flex items-center justify-center">
-            <CodeUiSync />
-          </div>
-        }
+        title="A shared project notebook that lives with your code"
+        subtitle="Kanbus keeps tasks, decisions, and AI context in your repository so anyone can pick up where you left off."
+        rightPane={<CodeUiSync />}
         actions={
           <>
             <a
@@ -221,10 +217,11 @@ const IndexPage = () => {
 
       <div className="mx-auto max-w-3xl px-6 lg:px-8 text-center pb-24">
         <p className="text-xl leading-8 text-muted font-medium">
-          Kanbus brings project management to your source code. Treat issues as files, track work with Git, and let AI agents participate directly in your workflow without the complexity of external databases.
+          Think of it as a simple, Git-friendly way to keep project notes and to-dos. Each task is a small file in your
+          repo, so your tools always read the same source of truth even if you switch computers or assistants.
         </p>
         <p className="mt-6 text-base text-muted/80">
-          Already using Beads? Get an instant Kanban board with zero migration.
+          Already using Beads? Your existing data works.
         </p>
       </div>
 
@@ -233,14 +230,14 @@ const IndexPage = () => {
           title="Use Git as a Kanban bus"
           subtitle="Synchronize multiple boards, CLI tools, and AI agents through your repository's commit history. The repo is the message bus."
         >
-          <div className="w-full max-w-5xl mx-auto h-[600px]">
+          <div className="w-full max-w-5xl mx-auto h-auto">
             <AnimatedPictogram />
           </div>
         </Section>
 
         <Section
           title="Realtime Kanban Board"
-          subtitle="The board updates in realtime when your agent makes changes, immediately."
+          subtitle="Watch the board update in realtime as your agent makes changes."
         >
           <div className="kanban-snapshot-container h-[550px]" ref={boardSectionRef}>
             <div className={`layout-frame gap-4 ${isMaximized ? "detail-maximized" : ""} flex flex-col lg:flex-row`}>
@@ -283,8 +280,8 @@ const IndexPage = () => {
         </Section>
 
         <Section
-          title="See it in action"
-          subtitle="A quick elevator pitch covering what Kanbus is and everything it can do."
+          title="How it works"
+          subtitle="Watch how Kanbus integrates project management directly into your terminal, editor, and agent workflows."
         >
           <div className="w-full flex justify-center">
             <FullVideoPlayer src={introSrc} poster={introPoster} videoId="intro" />
@@ -303,25 +300,18 @@ const IndexPage = () => {
               const src = featureVideo ? getVideoSrc(featureVideo.filename) : "";
               
               return (
-                <a key={feature.href} href={feature.href} className="group block">
-                  <div className="bg-card rounded-2xl overflow-hidden transition-all duration-300 group-hover:-translate-y-1 border border-border/50 group-hover:border-selected/30 group-hover:shadow-[0_0_20px_var(--glow-center)] h-full flex flex-col">
-                    {/* Flat Engineering Frame Header */}
-                    <div className="flex items-center gap-2 px-4 py-3 bg-column">
-                      <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
-                      <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
-                      <div className="w-2.5 h-2.5 rounded-full bg-muted/40"></div>
-                      <div className="ml-2 font-mono text-xs text-muted">kbs {videoId}</div>
-                    </div>
-                    {/* Video Placeholder / Content */}
-                    <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
-                      <HoverVideoPlayer
-                        src={src}
-                        poster={poster}
-                      />
+                <a key={feature.href} href={feature.href} className="group block h-full">
+                  <div className="bg-card rounded-2xl p-6 md:p-8 h-full flex flex-col transition-all duration-300 group-hover:bg-card-muted/50 group-hover:shadow-lg">
+                    {/* Pictogram Placeholder / Content */}
+                    <div className="relative aspect-video flex items-center justify-center overflow-hidden mb-8 rounded-xl bg-background">
+                      <FeaturePictogram type={videoId} className="w-full h-full min-h-0" style={{ minHeight: "100%", borderRadius: 0 }} />
                     </div>
                     {/* Feature Text */}
-                    <div className="p-6 flex-1 flex flex-col">
-                      <h3 className="text-xl font-bold text-foreground mb-3">{feature.title}</h3>
+                    <div className="flex-1 flex flex-col">
+                      <h3 className="text-2xl font-bold text-foreground mb-3 group-hover:text-selected transition-colors flex items-center gap-2">
+                        {feature.title} 
+                        <span className="opacity-0 -translate-x-2 transition-all group-hover:opacity-100 group-hover:translate-x-0">→</span>
+                      </h3>
                       <p className="text-muted leading-relaxed flex-1">
                         {feature.description}
                       </p>
@@ -330,35 +320,6 @@ const IndexPage = () => {
                 </a>
               );
             })}
-          </div>
-        </Section>
-
-        <Section
-          title="Integrated Wiki"
-          subtitle="The forest vs the trees. Live planning documents that render real-time issue data."
-          variant="alt"
-        >
-          <div className="grid gap-8 md:grid-cols-2">
-            <Card className="p-8 bg-card">
-              <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">
-                  Live Context for Agents
-                </h3>
-              </CardHeader>
-              <CardContent className="p-0 text-muted leading-relaxed">
-                Use Jinja2 templates to inject live lists of open tasks directly into your planning docs.
-                Agents can read these docs to get up to speed instantly on any initiative.
-              </CardContent>
-            </Card>
-            <Card className="p-8 bg-card">
-              <CardHeader className="p-0 mb-3">
-                <h3 className="text-xl font-bold text-foreground">Full Graph Support</h3>
-              </CardHeader>
-              <CardContent className="p-0 text-muted leading-relaxed">
-                Define dependencies, blockers, and relationships between issues. We support a rich graph
-                of associations without the overhead of a graph database.
-              </CardContent>
-            </Card>
           </div>
         </Section>
 

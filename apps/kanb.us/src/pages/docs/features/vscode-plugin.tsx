@@ -23,7 +23,7 @@ const DocsVSCodePluginPage = ({ location }: PageProps) => {
           </a>
         </div>
 
-        <div className="prose prose-slate dark:prose-invert max-w-none text-muted leading-relaxed space-y-6">
+        <div className="prose prose-slate max-w-none text-muted leading-relaxed space-y-6">
           <p>
             The Kanbus VS Code extension brings the powerful Kanban board directly into your editor as a webview tab. This allows you to view and interact with your tasks completely in context with the code you are writing.
           </p>

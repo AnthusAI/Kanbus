@@ -14,7 +14,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "var(--background)",
+                "color": "#0f1115",
                 "sceneStartSec": 0
               }
             }
@@ -78,7 +78,7 @@
       "id": "deep_dive",
       "title": "Virtual Projects Deep Dive",
       "startSec": 5.625,
-      "endSec": 35.625,
+      "endSec": 36,
       "layers": [
         {
           "id": "background",
@@ -88,7 +88,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "var(--background)",
+                "color": "#0f1115",
                 "sceneStartSec": 5
               }
             }
@@ -224,13 +224,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 11.443181818181818,
+          "endSec": 12.7,
           "text": "Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 11.443181818181818,
+              "endSec": 12.7,
               "text": "Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace."
             }
           ],
@@ -239,20 +239,20 @@
         {
           "id": "unified",
           "label": "Unified Workflow",
-          "startSec": 11.443181818181818,
-          "endSec": 18.852272727272727,
+          "startSec": 12.7,
+          "endSec": 20.674999999999997,
           "text": "Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 11.443181818181818,
-              "endSec": 11.943181818181818,
+              "startSec": 12.7,
+              "endSec": 13.2,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 11.943181818181818,
-              "endSec": 18.852272727272727,
+              "startSec": 13.2,
+              "endSec": 20.674999999999997,
               "text": "Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack."
             }
           ],
@@ -261,20 +261,20 @@
         {
           "id": "shared",
           "label": "Shared Config",
-          "startSec": 18.852272727272727,
-          "endSec": 25.170454545454547,
+          "startSec": 20.674999999999997,
+          "endSec": 28.049999999999997,
           "text": "Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 18.852272727272727,
-              "endSec": 19.352272727272727,
+              "startSec": 20.674999999999997,
+              "endSec": 21.174999999999997,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 19.352272727272727,
-              "endSec": 25.170454545454547,
+              "startSec": 21.174999999999997,
+              "endSec": 28.049999999999997,
               "text": "Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically."
             }
           ],
@@ -283,20 +283,20 @@
         {
           "id": "local",
           "label": "Local Overrides",
-          "startSec": 25.170454545454547,
-          "endSec": 32.21590909090909,
+          "startSec": 28.049999999999997,
+          "endSec": 36,
           "text": "Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 25.170454545454547,
-              "endSec": 25.670454545454547,
+              "startSec": 28.049999999999997,
+              "endSec": 28.549999999999997,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 25.670454545454547,
-              "endSec": 32.21590909090909,
+              "startSec": 28.549999999999997,
+              "endSec": 36,
               "text": "Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow."
             }
           ],
@@ -330,7 +330,7 @@
       "kind": "scene",
       "sceneId": "deep_dive",
       "startSec": 5.625,
-      "endSec": 35.625
+      "endSec": 36
     }
   ],
   "posterTimeSec": 2,

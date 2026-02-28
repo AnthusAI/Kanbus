@@ -72,3 +72,7 @@ search_history.py
 .codeql-dbs/
 .codeql-reports/
 .codeql-tools/
+
+# AWS Amplify
+.amplify/
+amplify_outputs.json

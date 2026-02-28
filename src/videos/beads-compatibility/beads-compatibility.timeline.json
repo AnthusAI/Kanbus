@@ -5,16 +5,16 @@
       "sceneId": "deep_dive",
       "cueId": "intro",
       "startSec": 5.625,
-      "endSec": 10.352272727272727,
+      "endSec": 10.9,
       "segments": [
         {
           "type": "tts",
           "startSec": 5.625,
-          "endSec": 10.352272727272727,
+          "endSec": 10.9,
           "text": "Get an instant Kanban board for your existing Beads projects. Zero conversion required.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/beads-compatibility/env/development/segments/deep_dive--intro--tts--7bbf71f2b355--1.wav",
-          "durationSec": 4.727272727272727,
-          "rawDurationSec": 4.727272727272727,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/beads-compatibility/env/development/segments/deep_dive--intro--tts--de971f831dc5--1.wav",
+          "durationSec": 5.275,
+          "rawDurationSec": 5.275,
           "trimEndSec": 0
         }
       ]
@@ -23,23 +23,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "viz",
-      "startSec": 10.352272727272727,
-      "endSec": 17.761363636363637,
+      "startSec": 10.9,
+      "endSec": 19.2875,
       "segments": [
         {
           "type": "pause",
-          "startSec": 10.352272727272727,
-          "endSec": 10.852272727272727,
+          "startSec": 10.9,
+          "endSec": 11.4,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 10.852272727272727,
-          "endSec": 17.761363636363637,
+          "startSec": 11.4,
+          "endSec": 19.2875,
           "text": "Kanbus reads your existing Beads issue files directly. Just launch the console and get a fully interactive board immediately.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/beads-compatibility/env/development/segments/deep_dive--viz--tts--e800b393a7a7--1.wav",
-          "durationSec": 6.909090909090909,
-          "rawDurationSec": 6.909090909090909,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/beads-compatibility/env/development/segments/deep_dive--viz--tts--bfd99aa02148--1.wav",
+          "durationSec": 7.8875,
+          "rawDurationSec": 7.8875,
           "trimEndSec": 0
         }
       ]
@@ -48,23 +48,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "cli",
-      "startSec": 17.761363636363637,
-      "endSec": 24.44318181818182,
+      "startSec": 19.2875,
+      "endSec": 27.337500000000002,
       "segments": [
         {
           "type": "pause",
-          "startSec": 17.761363636363637,
-          "endSec": 18.261363636363637,
+          "startSec": 19.2875,
+          "endSec": 19.7875,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 18.261363636363637,
-          "endSec": 24.44318181818182,
+          "startSec": 19.7875,
+          "endSec": 27.337500000000002,
           "text": "Avoid SQLite syncing bottlenecks. The high-performance Rust CLI operates directly on your data files with blazing speed.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/beads-compatibility/env/development/segments/deep_dive--cli--tts--7506b9434183--1.wav",
-          "durationSec": 6.181818181818182,
-          "rawDurationSec": 6.181818181818182,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/beads-compatibility/env/development/segments/deep_dive--cli--tts--6f8765d53fd3--1.wav",
+          "durationSec": 7.55,
+          "rawDurationSec": 7.55,
           "trimEndSec": 0
         }
       ]
@@ -73,23 +73,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "migrate",
-      "startSec": 24.44318181818182,
-      "endSec": 32.57954545454545,
+      "startSec": 27.337500000000002,
+      "endSec": 35.8125,
       "segments": [
         {
           "type": "pause",
-          "startSec": 24.44318181818182,
-          "endSec": 24.94318181818182,
+          "startSec": 27.337500000000002,
+          "endSec": 27.837500000000002,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 24.94318181818182,
-          "endSec": 32.57954545454545,
+          "startSec": 27.837500000000002,
+          "endSec": 35.8125,
           "text": "Start using Kanbus features today without a big bang migration. Switch formats entirely only when it makes sense for your team.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/beads-compatibility/env/development/segments/deep_dive--migrate--tts--62cdb17e9973--1.wav",
-          "durationSec": 7.636363636363636,
-          "rawDurationSec": 7.636363636363636,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/beads-compatibility/env/development/segments/deep_dive--migrate--tts--b45a01e6256a--1.wav",
+          "durationSec": 7.975,
+          "rawDurationSec": 7.975,
           "trimEndSec": 0
         }
       ]
@@ -102,35 +102,35 @@
         "kind": "narration",
         "clips": [
           {
-            "id": "deep_dive--intro--tts--7bbf71f2b355--1",
+            "id": "deep_dive--intro--tts--de971f831dc5--1",
             "kind": "file",
             "startSec": 5.625,
-            "durationSec": 4.727272727272727,
-            "src": "/videoml/beads-compatibility/env/development/segments/deep_dive--intro--tts--7bbf71f2b355--1.wav",
+            "durationSec": 5.275,
+            "src": "/videoml/beads-compatibility/env/development/segments/deep_dive--intro--tts--de971f831dc5--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--viz--tts--e800b393a7a7--1",
+            "id": "deep_dive--viz--tts--bfd99aa02148--1",
             "kind": "file",
-            "startSec": 10.852272727272727,
-            "durationSec": 6.909090909090909,
-            "src": "/videoml/beads-compatibility/env/development/segments/deep_dive--viz--tts--e800b393a7a7--1.wav",
+            "startSec": 11.4,
+            "durationSec": 7.8875,
+            "src": "/videoml/beads-compatibility/env/development/segments/deep_dive--viz--tts--bfd99aa02148--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--cli--tts--7506b9434183--1",
+            "id": "deep_dive--cli--tts--6f8765d53fd3--1",
             "kind": "file",
-            "startSec": 18.261363636363637,
-            "durationSec": 6.181818181818182,
-            "src": "/videoml/beads-compatibility/env/development/segments/deep_dive--cli--tts--7506b9434183--1.wav",
+            "startSec": 19.7875,
+            "durationSec": 7.55,
+            "src": "/videoml/beads-compatibility/env/development/segments/deep_dive--cli--tts--6f8765d53fd3--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--migrate--tts--62cdb17e9973--1",
+            "id": "deep_dive--migrate--tts--b45a01e6256a--1",
             "kind": "file",
-            "startSec": 24.94318181818182,
-            "durationSec": 7.636363636363636,
-            "src": "/videoml/beads-compatibility/env/development/segments/deep_dive--migrate--tts--62cdb17e9973--1.wav",
+            "startSec": 27.837500000000002,
+            "durationSec": 7.975,
+            "src": "/videoml/beads-compatibility/env/development/segments/deep_dive--migrate--tts--b45a01e6256a--1.wav",
             "volume": 1
           }
         ]
