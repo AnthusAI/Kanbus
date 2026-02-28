@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Layout, Section, Hero, FullVideoPlayer, FeaturePictogram } from "../../components";
-import { Card, CardContent, CardHeader } from "@kanbus/ui";
+import { Card, CardContent } from "@kanbus/ui";
 import { VIDEOS, getVideoById } from "../../content/videos";
 import { getVideoSrc } from "../../lib/getVideoSrc";
 
