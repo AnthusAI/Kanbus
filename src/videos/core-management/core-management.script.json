@@ -224,13 +224,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 11.806833000000001,
+          "endSec": 12.525,
           "text": "Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 11.806833000000001,
+              "endSec": 12.525,
               "text": "Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line."
             }
           ],
@@ -239,20 +239,20 @@
         {
           "id": "filter",
           "label": "Filter",
-          "startSec": 11.806833000000001,
-          "endSec": 19.579583,
+          "startSec": 12.525,
+          "endSec": 20.4,
           "text": "Find exactly what you need with powerful query filters. List all open issues, or filter by status, priority, or assignee.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 11.806833000000001,
-              "endSec": 12.306833000000001,
+              "startSec": 12.525,
+              "endSec": 13.025,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 12.306833000000001,
-              "endSec": 19.579583,
+              "startSec": 13.025,
+              "endSec": 20.4,
               "text": "Find exactly what you need with powerful query filters. List all open issues, or filter by status, priority, or assignee."
             }
           ],
@@ -261,20 +261,20 @@
         {
           "id": "hierarchy",
           "label": "Hierarchy",
-          "startSec": 19.579583,
-          "endSec": 27.352333,
+          "startSec": 20.4,
+          "endSec": 28.474999999999998,
           "text": "Group related tasks under an Epic to track larger initiatives. Creating a child task automatically links it to the parent.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 19.579583,
-              "endSec": 20.079583,
+              "startSec": 20.4,
+              "endSec": 20.9,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 20.079583,
-              "endSec": 27.352333,
+              "startSec": 20.9,
+              "endSec": 28.474999999999998,
               "text": "Group related tasks under an Epic to track larger initiatives. Creating a child task automatically links it to the parent."
             }
           ],
@@ -283,20 +283,20 @@
         {
           "id": "workflow",
           "label": "Workflow",
-          "startSec": 27.352333,
-          "endSec": 36.216,
+          "startSec": 28.474999999999998,
+          "endSec": 36.8375,
           "text": "Move an issue to In Progress and assign it to yourself in one move. Keep your project moving forward without leaving the terminal.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 27.352333,
-              "endSec": 27.852333,
+              "startSec": 28.474999999999998,
+              "endSec": 28.974999999999998,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 27.852333,
-              "endSec": 36.216,
+              "startSec": 28.974999999999998,
+              "endSec": 36.8375,
               "text": "Move an issue to In Progress and assign it to yourself in one move. Keep your project moving forward without leaving the terminal."
             }
           ],
