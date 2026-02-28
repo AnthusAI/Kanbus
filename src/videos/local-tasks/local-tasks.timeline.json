@@ -5,16 +5,16 @@
       "sceneId": "deep_dive",
       "cueId": "intro",
       "startSec": 5.625,
-      "endSec": 11.806833000000001,
+      "endSec": 12.4625,
       "segments": [
         {
           "type": "tts",
           "startSec": 5.625,
-          "endSec": 11.806833000000001,
+          "endSec": 12.4625,
           "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/local-tasks/env/development/segments/deep_dive--intro--tts--789857ab6472--1.wav",
-          "durationSec": 6.181833,
-          "rawDurationSec": 6.181833,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/local-tasks/env/development/segments/deep_dive--intro--tts--92a448e918c3--1.wav",
+          "durationSec": 6.8375,
+          "rawDurationSec": 6.8375,
           "trimEndSec": 0
         }
       ]
@@ -23,23 +23,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "private",
-      "startSec": 11.806833000000001,
-      "endSec": 17.761416,
+      "startSec": 12.4625,
+      "endSec": 18.625,
       "segments": [
         {
           "type": "pause",
-          "startSec": 11.806833000000001,
-          "endSec": 12.306833000000001,
+          "startSec": 12.4625,
+          "endSec": 12.9625,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 12.306833000000001,
-          "endSec": 17.761416,
+          "startSec": 12.9625,
+          "endSec": 18.625,
           "text": "Local tasks give you a private workspace. Visible only to you, invisible to version control.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/local-tasks/env/development/segments/deep_dive--private--tts--a59a98e7bf28--1.wav",
-          "durationSec": 5.454583,
-          "rawDurationSec": 5.454583,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/local-tasks/env/development/segments/deep_dive--private--tts--61f19e45af77--1.wav",
+          "durationSec": 5.6625,
+          "rawDurationSec": 5.6625,
           "trimEndSec": 0
         }
       ]
@@ -48,23 +48,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "promote",
-      "startSec": 17.761416,
-      "endSec": 24.443249,
+      "startSec": 18.625,
+      "endSec": 25.5,
       "segments": [
         {
           "type": "pause",
-          "startSec": 17.761416,
-          "endSec": 18.261416,
+          "startSec": 18.625,
+          "endSec": 19.125,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 18.261416,
-          "endSec": 24.443249,
+          "startSec": 19.125,
+          "endSec": 25.5,
           "text": "When your experiment turns into something real, promote it to the shared project with a single command.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/local-tasks/env/development/segments/deep_dive--promote--tts--4a03b6ff021d--1.wav",
-          "durationSec": 6.181833,
-          "rawDurationSec": 6.181833,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/local-tasks/env/development/segments/deep_dive--promote--tts--39e1cf3476f9--1.wav",
+          "durationSec": 6.375,
+          "rawDurationSec": 6.375,
           "trimEndSec": 0
         }
       ]
@@ -73,23 +73,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "clean",
-      "startSec": 24.443249,
-      "endSec": 30.034166000000003,
+      "startSec": 25.5,
+      "endSec": 31.9875,
       "segments": [
         {
           "type": "pause",
-          "startSec": 24.443249,
-          "endSec": 24.943249,
+          "startSec": 25.5,
+          "endSec": 26,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 24.943249,
-          "endSec": 30.034166000000003,
+          "startSec": 26,
+          "endSec": 31.9875,
           "text": "See everything together, or filter to hide your private scratchpad entirely. It's your workspace.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/local-tasks/env/development/segments/deep_dive--clean--tts--179934fd0201--1.wav",
-          "durationSec": 5.090917,
-          "rawDurationSec": 5.090917,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/local-tasks/env/development/segments/deep_dive--clean--tts--3e1ec6ed01a6--1.wav",
+          "durationSec": 5.9875,
+          "rawDurationSec": 5.9875,
           "trimEndSec": 0
         }
       ]
@@ -102,35 +102,35 @@
         "kind": "narration",
         "clips": [
           {
-            "id": "deep_dive--intro--tts--789857ab6472--1",
+            "id": "deep_dive--intro--tts--92a448e918c3--1",
             "kind": "file",
             "startSec": 5.625,
-            "durationSec": 6.181833,
-            "src": "/videoml/local-tasks/env/development/segments/deep_dive--intro--tts--789857ab6472--1.wav",
+            "durationSec": 6.8375,
+            "src": "/videoml/local-tasks/env/development/segments/deep_dive--intro--tts--92a448e918c3--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--private--tts--a59a98e7bf28--1",
+            "id": "deep_dive--private--tts--61f19e45af77--1",
             "kind": "file",
-            "startSec": 12.306833000000001,
-            "durationSec": 5.454583,
-            "src": "/videoml/local-tasks/env/development/segments/deep_dive--private--tts--a59a98e7bf28--1.wav",
+            "startSec": 12.9625,
+            "durationSec": 5.6625,
+            "src": "/videoml/local-tasks/env/development/segments/deep_dive--private--tts--61f19e45af77--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--promote--tts--4a03b6ff021d--1",
+            "id": "deep_dive--promote--tts--39e1cf3476f9--1",
             "kind": "file",
-            "startSec": 18.261416,
-            "durationSec": 6.181833,
-            "src": "/videoml/local-tasks/env/development/segments/deep_dive--promote--tts--4a03b6ff021d--1.wav",
+            "startSec": 19.125,
+            "durationSec": 6.375,
+            "src": "/videoml/local-tasks/env/development/segments/deep_dive--promote--tts--39e1cf3476f9--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--clean--tts--179934fd0201--1",
+            "id": "deep_dive--clean--tts--3e1ec6ed01a6--1",
             "kind": "file",
-            "startSec": 24.943249,
-            "durationSec": 5.090917,
-            "src": "/videoml/local-tasks/env/development/segments/deep_dive--clean--tts--179934fd0201--1.wav",
+            "startSec": 26,
+            "durationSec": 5.9875,
+            "src": "/videoml/local-tasks/env/development/segments/deep_dive--clean--tts--3e1ec6ed01a6--1.wav",
             "volume": 1
           }
         ]
