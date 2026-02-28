@@ -224,13 +224,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 11.806833000000001,
+          "endSec": 12.4625,
           "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 11.806833000000001,
+              "endSec": 12.4625,
               "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board."
             }
           ],
@@ -239,20 +239,20 @@
         {
           "id": "private",
           "label": "Private",
-          "startSec": 11.806833000000001,
-          "endSec": 17.761416,
+          "startSec": 12.4625,
+          "endSec": 18.625,
           "text": "Local tasks give you a private workspace. Visible only to you, invisible to version control.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 11.806833000000001,
-              "endSec": 12.306833000000001,
+              "startSec": 12.4625,
+              "endSec": 12.9625,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 12.306833000000001,
-              "endSec": 17.761416,
+              "startSec": 12.9625,
+              "endSec": 18.625,
               "text": "Local tasks give you a private workspace. Visible only to you, invisible to version control."
             }
           ],
@@ -261,20 +261,20 @@
         {
           "id": "promote",
           "label": "Promote",
-          "startSec": 17.761416,
-          "endSec": 24.443249,
+          "startSec": 18.625,
+          "endSec": 25.5,
           "text": "When your experiment turns into something real, promote it to the shared project with a single command.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 17.761416,
-              "endSec": 18.261416,
+              "startSec": 18.625,
+              "endSec": 19.125,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 18.261416,
-              "endSec": 24.443249,
+              "startSec": 19.125,
+              "endSec": 25.5,
               "text": "When your experiment turns into something real, promote it to the shared project with a single command."
             }
           ],
@@ -283,20 +283,20 @@
         {
           "id": "clean",
           "label": "Clean",
-          "startSec": 24.443249,
-          "endSec": 30.034166000000003,
+          "startSec": 25.5,
+          "endSec": 31.9875,
           "text": "See everything together, or filter to hide your private scratchpad entirely. It's your workspace.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 24.443249,
-              "endSec": 24.943249,
+              "startSec": 25.5,
+              "endSec": 26,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 24.943249,
-              "endSec": 30.034166000000003,
+              "startSec": 26,
+              "endSec": 31.9875,
               "text": "See everything together, or filter to hide your private scratchpad entirely. It's your workspace."
             }
           ],
