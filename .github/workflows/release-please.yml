@@ -22,6 +22,7 @@ jobs:
           # GitHub Actions from creating PRs with the default GITHUB_TOKEN.
           # Falls back to GITHUB_TOKEN so manual dispatch still runs, but will
           # fail with a clear message if the PAT is missing.
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN != '' && secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          # Prefer PAT if provided; otherwise fall back to GitHub token (will fail if PR creation is blocked).
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
