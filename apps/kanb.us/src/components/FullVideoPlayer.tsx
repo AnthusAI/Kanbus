@@ -64,7 +64,7 @@ export function FullVideoPlayer({ src, poster, className = "", videoId }: FullVi
 
   return (
     <div 
-      className={`relative w-full max-w-5xl mx-auto rounded-2xl overflow-hidden shadow-2xl bg-black border border-[var(--border)] group ${className}`}
+      className={`relative w-full aspect-video max-w-5xl mx-auto rounded-2xl overflow-hidden shadow-2xl bg-black border border-[var(--border)] group ${className}`}
     >
       {/* Hidden button that appears on hover when not playing, or just top-right */}
       {videoId && process.env.NODE_ENV === "development" && (

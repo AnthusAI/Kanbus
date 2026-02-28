@@ -16,12 +16,15 @@ const Layout = ({ children }: LayoutProps) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
+      <style>{`
+        .footer-compact { line-height: 0.5; }
+      `}</style>
       <header className="sticky top-0 z-50 w-full bg-card/90 backdrop-blur supports-[backdrop-filter]:backdrop-blur">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
           <nav className="flex items-center gap-6 w-full">
             <a
               href="/"
-              className="hover:text-selected hover:drop-shadow-[0_0_10px_var(--text-selected)] transition-all duration-300 flex items-baseline gap-[3px]"
+              className="hover:text-selected hover:drop-shadow-[0_0_2px_rgba(var(--text-selected-rgb),0.4)] transition-all duration-300 flex items-baseline gap-[3px]"
             >
               <span className="text-[25px] leading-none font-black tracking-[3px]" style={{ WebkitTextStroke: "1px currentColor" }}>
                 <span className="text-muted">KAN</span><span className="text-foreground">BUS</span>
@@ -95,49 +98,47 @@ const Layout = ({ children }: LayoutProps) => {
         {children}
       </main>
 
-      <footer className="bg-footer-bg py-12 md:py-16">
+      <footer className="bg-footer-bg py-8 md:py-12">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="col-span-2 md:col-span-1">
-              <a href="/" className="flex items-baseline gap-[3px] hover:text-selected hover:drop-shadow-[0_0_10px_var(--text-selected)] transition-all duration-300 w-fit">
-                <span className="text-[25px] leading-none font-black tracking-[3px]" style={{ WebkitTextStroke: "1px currentColor" }}>
-                  <span className="text-muted">KAN</span><span className="text-foreground">BUS</span>
-                </span>
-                <AnimatedKanbanIcon className="w-[19px] h-[19px]" />
-              </a>
-              <p className="mt-4 text-sm text-muted">
-                Git-backed project management system. Files are the database.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">Features</h4>
-              <ul className="mt-4 space-y-3 text-sm">
-                <li><a href="/features/core-management" className="text-muted hover:text-selected">Core Management</a></li>
-                <li><a href="/features/kanban-board" className="text-muted hover:text-selected">Kanban Board</a></li>
-                <li><a href="/features/vscode-plugin" className="text-muted hover:text-selected">VS Code Plugin</a></li>
-                <li><a href="/features/jira-sync" className="text-muted hover:text-selected">Jira Sync</a></li>
-                <li><a href="/features/local-tasks" className="text-muted hover:text-selected">Local Tasks</a></li>
-                <li><a href="/features/virtual-projects" className="text-muted hover:text-selected">Virtual Projects</a></li>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-8 md:gap-y-6">
+            <div className="col-span-2 text-muted">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-y-0 gap-x-8 text-sm text-muted footer-compact">
+                <li className="font-semibold col-span-1 sm:col-span-2 opacity-75">Features</li>
+                <li><a href="/features/core-management" className="text-muted hover:text-selected block">Core Management</a></li>
+                <li><a href="/features/kanban-board" className="text-muted hover:text-selected block">Kanban Board</a></li>
+                <li><a href="/features/jira-sync" className="text-muted hover:text-selected block">Jira Sync</a></li>
+                <li><a href="/features/local-tasks" className="text-muted hover:text-selected block">Local Tasks</a></li>
+                <li><a href="/features/virtual-projects" className="text-muted hover:text-selected block">Virtual Projects</a></li>
+                <li><a href="/features/beads-compatibility" className="text-muted hover:text-selected block">Beads Mode</a></li>
+                <li><a href="/features/vscode-plugin" className="text-muted hover:text-selected block">VS Code Plugin</a></li>
+                <li><a href="/features/integrated-wiki" className="text-muted hover:text-selected block">Integrated Wiki</a></li>
+                <li><a href="/features/policy-as-code" className="text-muted hover:text-selected block">Policy as Code</a></li>
               </ul>
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">Reference</h4>
-              <ul className="mt-4 space-y-3 text-sm">
-                <li><a href="/architecture" className="text-muted hover:text-selected">Architecture</a></li>
-                <li><a href="/docs" className="text-muted hover:text-selected">Documentation</a></li>
-              </ul>
-            </div>
-            <div className="col-span-2 md:col-span-1 md:text-right">
-              <h4 className="text-sm font-semibold text-foreground">Community</h4>
-              <ul className="mt-4 space-y-3 text-sm">
-                <li><a href="https://github.com/AnthusAI/Kanbus" className="text-muted hover:text-selected">GitHub</a></li>
-              </ul>
-              <div className="mt-6 flex flex-col items-start md:items-end gap-2 text-sm text-muted">
-                <div className="flex items-center gap-2">
-                  <span>Free and open-source software</span>
+            
+            <div className="col-span-2 flex flex-col h-full text-muted">
+              <div className="grid grid-cols-2 gap-x-8">
+                <div className="col-span-1">
+                  <ul className="grid gap-y-0 text-sm text-muted footer-compact">
+                    <li className="font-semibold opacity-75">Reference</li>
+                    <li><a href="/architecture" className="text-muted hover:text-selected block">Architecture</a></li>
+                    <li><a href="/docs" className="text-muted hover:text-selected block">Documentation</a></li>
+                  </ul>
+                </div>
+                <div className="col-span-1 md:text-right">
+                  <ul className="grid gap-y-0 text-sm text-muted footer-compact">
+                    <li className="font-semibold opacity-75">Community</li>
+                    <li><a href="https://github.com/AnthusAI/Kanbus" className="text-muted hover:text-selected block md:inline-block">GitHub</a></li>
+                  </ul>
+                </div>
+              </div>
+              
+              <ul className="mt-auto grid gap-y-0 text-sm text-muted footer-compact">
+                <li className="flex items-center gap-2 justify-start md:justify-end">
+                  <span className="whitespace-nowrap">Free and open-source software</span>
                   <a
                     href="https://github.com/AnthusAI/Kanbus"
-                    className="text-muted hover:text-foreground transition-colors"
+                    className="text-muted hover:text-foreground transition-colors shrink-0"
                     aria-label="Kanbus on GitHub"
                   >
                     <svg
@@ -153,16 +154,16 @@ const Layout = ({ children }: LayoutProps) => {
                       />
                     </svg>
                   </a>
-                </div>
-                <div>
+                </li>
+                <li className="text-left md:text-right">
                   <a
                     href="https://anth.us/ryan/"
-                    className="text-muted hover:text-foreground transition-colors"
+                    className="text-muted hover:text-foreground transition-colors whitespace-nowrap block md:inline-block"
                   >
                     by Ryan Porter
                   </a>
-                </div>
-              </div>
+                </li>
+              </ul>
             </div>
           </div>
         </div>

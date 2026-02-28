@@ -5,16 +5,16 @@
       "sceneId": "deep_dive",
       "cueId": "intro",
       "startSec": 5.625,
-      "endSec": 11.443181818181818,
+      "endSec": 11.443208,
       "segments": [
         {
           "type": "tts",
           "startSec": 5.625,
-          "endSec": 11.443181818181818,
+          "endSec": 11.443208,
           "text": "Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/virtual-projects/env/development/segments/deep_dive--intro--tts--fda8376d1971--1.wav",
-          "durationSec": 5.818181818181818,
-          "rawDurationSec": 5.818181818181818,
+          "durationSec": 5.818208,
+          "rawDurationSec": 5.818208,
           "trimEndSec": 0
         }
       ]
@@ -23,23 +23,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "unified",
-      "startSec": 11.443181818181818,
-      "endSec": 18.852272727272727,
+      "startSec": 11.443208,
+      "endSec": 18.852333,
       "segments": [
         {
           "type": "pause",
-          "startSec": 11.443181818181818,
-          "endSec": 11.943181818181818,
+          "startSec": 11.443208,
+          "endSec": 11.943208,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 11.943181818181818,
-          "endSec": 18.852272727272727,
+          "startSec": 11.943208,
+          "endSec": 18.852333,
           "text": "Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/virtual-projects/env/development/segments/deep_dive--unified--tts--75086a637b34--1.wav",
-          "durationSec": 6.909090909090909,
-          "rawDurationSec": 6.909090909090909,
+          "durationSec": 6.909125,
+          "rawDurationSec": 6.909125,
           "trimEndSec": 0
         }
       ]
@@ -48,23 +48,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "shared",
-      "startSec": 18.852272727272727,
-      "endSec": 25.170454545454547,
+      "startSec": 18.852333,
+      "endSec": 25.170541,
       "segments": [
         {
           "type": "pause",
-          "startSec": 18.852272727272727,
-          "endSec": 19.352272727272727,
+          "startSec": 18.852333,
+          "endSec": 19.352333,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 19.352272727272727,
-          "endSec": 25.170454545454547,
+          "startSec": 19.352333,
+          "endSec": 25.170541,
           "text": "Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/virtual-projects/env/development/segments/deep_dive--shared--tts--aa7b35260633--1.wav",
-          "durationSec": 5.818181818181818,
-          "rawDurationSec": 5.818181818181818,
+          "durationSec": 5.818208,
+          "rawDurationSec": 5.818208,
           "trimEndSec": 0
         }
       ]
@@ -73,23 +73,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "local",
-      "startSec": 25.170454545454547,
-      "endSec": 32.21590909090909,
+      "startSec": 25.170541,
+      "endSec": 32.215999,
       "segments": [
         {
           "type": "pause",
-          "startSec": 25.170454545454547,
-          "endSec": 25.670454545454547,
+          "startSec": 25.170541,
+          "endSec": 25.670541,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 25.670454545454547,
-          "endSec": 32.21590909090909,
+          "startSec": 25.670541,
+          "endSec": 32.215999,
           "text": "Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/virtual-projects/env/development/segments/deep_dive--local--tts--a35aadc83e99--1.wav",
-          "durationSec": 6.545454545454545,
-          "rawDurationSec": 6.545454545454545,
+          "durationSec": 6.545458,
+          "rawDurationSec": 6.545458,
           "trimEndSec": 0
         }
       ]
@@ -105,31 +105,31 @@
             "id": "deep_dive--intro--tts--fda8376d1971--1",
             "kind": "file",
             "startSec": 5.625,
-            "durationSec": 5.818181818181818,
+            "durationSec": 5.818208,
             "src": "/videoml/virtual-projects/env/development/segments/deep_dive--intro--tts--fda8376d1971--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--unified--tts--75086a637b34--1",
             "kind": "file",
-            "startSec": 11.943181818181818,
-            "durationSec": 6.909090909090909,
+            "startSec": 11.943208,
+            "durationSec": 6.909125,
             "src": "/videoml/virtual-projects/env/development/segments/deep_dive--unified--tts--75086a637b34--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--shared--tts--aa7b35260633--1",
             "kind": "file",
-            "startSec": 19.352272727272727,
-            "durationSec": 5.818181818181818,
+            "startSec": 19.352333,
+            "durationSec": 5.818208,
             "src": "/videoml/virtual-projects/env/development/segments/deep_dive--shared--tts--aa7b35260633--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--local--tts--a35aadc83e99--1",
             "kind": "file",
-            "startSec": 25.670454545454547,
-            "durationSec": 6.545454545454545,
+            "startSec": 25.670541,
+            "durationSec": 6.545458,
             "src": "/videoml/virtual-projects/env/development/segments/deep_dive--local--tts--a35aadc83e99--1.wav",
             "volume": 1
           }

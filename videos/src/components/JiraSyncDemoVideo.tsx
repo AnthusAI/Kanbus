@@ -32,24 +32,15 @@ export function JiraSyncDemoVideo({ style }: { style?: React.CSSProperties }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Animation sequence
-  // 1. Show Jira API Logo/Icon -> Arrow -> Kanbus Logo
-  // 2. Command: kanbus jira sync
-  // 3. Output files generating
-  // 4. Show the issue cards appearing
-
   const stage1End = fps * 2;
   const stage2End = fps * 4;
 
-  // Stage 1: API sync
   const apiOpacity = interpolate(frame, [0, 10, stage1End - 10, stage1End], [0, 1, 1, 0]);
-  
-  // Stage 2: CLI Command
+
   const cmdOpacity = interpolate(frame, [stage1End, stage1End + 10, stage2End - 10, stage2End], [0, 1, 1, 0]);
   const cmdString = "kanbus jira sync";
   const cmdChars = Math.floor(interpolate(frame, [stage1End + 10, stage1End + fps], [0, cmdString.length], { extrapolateRight: "clamp" }));
 
-  // Stage 3: File generation
   const filesOpacity = interpolate(frame, [stage2End, stage2End + 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   const issues = [
@@ -59,55 +50,114 @@ export function JiraSyncDemoVideo({ style }: { style?: React.CSSProperties }) {
   ];
 
   return (
-    <div className="absolute flex justify-center items-center p-8 h-[500px]" style={style || { inset: 0 }}>
-      {/* Background glow to ground the 3D window */}
-      <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-[100%] pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
-        }}
-      />
-      
+    <div style={{
+      position: "absolute",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: "32px",
+      height: "500px",
+      ...(style || { inset: 0 })
+    }}>
+      {/* Background glow */}
+      <div style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "800px",
+        height: "400px",
+        borderRadius: "100%",
+        pointerEvents: "none",
+        background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
+      }} />
+
       {/* Stage 1: Sync Concept */}
-      <div 
-        className="absolute flex items-center gap-12 z-10"
-        style={{ opacity: apiOpacity }}
-      >
-        <div className="w-32 h-32 bg-[var(--column)] border-2 border-dashed border-[var(--text-selected)] rounded-2xl flex items-center justify-center shadow-2xl">
-          <span className="text-white font-bold text-2xl">Jira</span>
-        </div>
-        
-        <div className="text-4xl text-[var(--text-foreground)]">
-          <div className="animate-pulse">→</div>
+      <div style={{
+        position: "absolute",
+        display: "flex",
+        alignItems: "center",
+        gap: "48px",
+        zIndex: 10,
+        opacity: apiOpacity
+      }}>
+        <div style={{
+          width: "128px",
+          height: "128px",
+          backgroundColor: "var(--column)",
+          border: "2px dashed var(--text-selected)",
+          borderRadius: "16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)"
+        }}>
+          <span style={{ color: "#ffffff", fontWeight: "bold", fontSize: "24px" }}>Jira</span>
         </div>
 
-        <div className="w-32 h-32 bg-[var(--card)] rounded-2xl flex items-center justify-center shadow-2xl">
-          <span className="text-white font-bold text-2xl">Kanbus</span>
+        <div style={{ fontSize: "36px", color: "var(--text-foreground)" }}>
+          <div>→</div>
+        </div>
+
+        <div style={{
+          width: "128px",
+          height: "128px",
+          backgroundColor: "var(--card)",
+          borderRadius: "16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)"
+        }}>
+          <span style={{ color: "#ffffff", fontWeight: "bold", fontSize: "24px" }}>Kanbus</span>
         </div>
       </div>
 
       {/* Stage 2: CLI Sync */}
-      <div 
-        className="absolute w-full max-w-2xl bg-[var(--card)] rounded-xl overflow-hidden shadow-2xl font-mono text-lg z-10"
-        style={{ opacity: cmdOpacity }}
-      >
-        <div className="p-6 h-[100px] flex items-center text-green-400">
-          <span className="text-blue-400 mr-2">~</span>
-          <span className="text-pink-400 mr-2">❯</span>
-          <span className="text-white">
+      <div style={{
+        position: "absolute",
+        width: "100%",
+        maxWidth: "672px",
+        backgroundColor: "var(--card)",
+        borderRadius: "12px",
+        overflow: "hidden",
+        fontFamily: "monospace",
+        fontSize: "18px",
+        zIndex: 10,
+        opacity: cmdOpacity
+      }}>
+        <div style={{
+          padding: "24px",
+          height: "100px",
+          display: "flex",
+          alignItems: "center",
+          color: "#4ade80"
+        }}>
+          <span style={{ color: "#60a5fa", marginRight: "8px" }}>~</span>
+          <span style={{ color: "#f472b6", marginRight: "8px" }}>❯</span>
+          <span style={{ color: "#ffffff" }}>
             {cmdString.substring(0, Math.max(0, cmdChars))}
-            <span className="w-2.5 h-5 bg-white/70 inline-block ml-1 align-middle animate-pulse"></span>
+            <span style={{
+              width: "10px",
+              height: "20px",
+              backgroundColor: "rgba(255,255,255,0.7)",
+              display: "inline-block",
+              marginLeft: "4px",
+              verticalAlign: "middle"
+            }} />
           </span>
         </div>
       </div>
 
       {/* Stage 3: Cards Appeared */}
-      <div 
-        className="absolute flex gap-6 z-10"
-        style={{ opacity: filesOpacity }}
-      >
+      <div style={{
+        position: "absolute",
+        display: "flex",
+        gap: "24px",
+        zIndex: 10,
+        opacity: filesOpacity
+      }}>
         {issues.map((issue, idx) => {
-          // Cascade their appearance
           const delay = idx * (fps * 0.3);
           const cardSpring = spring({
             frame: Math.max(0, frame - stage2End - delay),
@@ -118,12 +168,11 @@ export function JiraSyncDemoVideo({ style }: { style?: React.CSSProperties }) {
           const opacity = interpolate(cardSpring, [0, 1], [0, 1]);
 
           return (
-            <div 
+            <div
               key={issue.id}
-              className="w-64"
-              style={{ transform: `translateY(${y}px)`, opacity }}
+              style={{ width: "256px", transform: `translateY(${y}px)`, opacity }}
             >
-              <IssueCard 
+              <IssueCard
                 issue={issue as any}
                 config={boardConfig as any}
                 priorityName={issue.priority === 1 ? "high" : "medium"}
@@ -133,7 +182,6 @@ export function JiraSyncDemoVideo({ style }: { style?: React.CSSProperties }) {
           );
         })}
       </div>
-
     </div>
   );
 }

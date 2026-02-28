@@ -8,7 +8,6 @@ const GettingStartedPage = () => {
       <Hero
         title="Getting Started"
         subtitle="Install the CLI and start managing work with Kanbus in minutes."
-        eyebrow="Quick Start"
       />
 
       <div className="space-y-12">

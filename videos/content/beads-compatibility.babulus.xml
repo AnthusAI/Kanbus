@@ -3,7 +3,7 @@
 
   <scene id="hook" title="Beads Compatibility" duration="5s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
     <layer id="visual" z="0">
       <animated-pictogram-video props='{"type": "beads"}' />
@@ -18,7 +18,7 @@
 
   <scene id="deep_dive" title="Beads Compatibility Deep Dive" duration="34s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
     <layer id="title" z="1">
       <title props='{"text":"Beads Compatibility","x":960,"y":120}' />

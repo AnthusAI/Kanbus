@@ -8,7 +8,6 @@ const ArchitecturePage = () => {
       <Hero
         title="Architecture"
         subtitle="Kanbus treats Gherkin as high-level source code and treats implementation code as generated artifacts."
-        eyebrow="System Design"
       />
 
       <div className="space-y-12">
