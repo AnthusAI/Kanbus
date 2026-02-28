@@ -194,13 +194,9 @@ const IndexPage = () => {
   return (
     <Layout>
       <Hero
-        title="Track issues in your repository"
-        subtitle="...where your agents can participate."
-        bottomPane={
-          <div className="w-full flex items-center justify-center">
-            <CodeUiSync />
-          </div>
-        }
+        title="A shared project notebook that lives with your code"
+        subtitle="Kanbus keeps tasks, decisions, and AI context in your repository so anyone can pick up where you left off."
+        rightPane={<CodeUiSync />}
         actions={
           <>
             <a
@@ -221,10 +217,11 @@ const IndexPage = () => {
 
       <div className="mx-auto max-w-3xl px-6 lg:px-8 text-center pb-24">
         <p className="text-xl leading-8 text-muted font-medium">
-          Kanbus brings project management to your source code. Treat issues as files, track work with Git, and let AI agents participate directly in your workflow without the complexity of external databases.
+          Think of it as a simple, Git-friendly way to keep project notes and to-dos. Each task is a small file in your
+          repo, so your tools always read the same source of truth even if you switch computers or assistants.
         </p>
         <p className="mt-6 text-base text-muted/80">
-          Already using Beads? Get an instant Kanban board with zero migration.
+          Already using Beads? Your existing data works.
         </p>
       </div>
 
