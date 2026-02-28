@@ -3,10 +3,14 @@ import { Menu, X } from "lucide-react";
 import { AnimatedKanbanIcon } from "./AnimatedKanbanIcon";
 
 const navigation = [
+  { label: "What Is This?", href: "/what-is-this" },
   { label: "Philosophy", href: "/philosophy" },
   { label: "Features", href: "/features" },
   { label: "Getting Started", href: "/getting-started" }
 ];
+
+// Desktop shows only first-class items; Philosophy stays available in mobile menu
+const desktopNavigation = navigation.filter((item) => item.label !== "Philosophy");
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -32,7 +36,7 @@ const Layout = ({ children }: LayoutProps) => {
               <AnimatedKanbanIcon className="w-[19px] h-[19px]" />
             </a>
             <div className="ml-auto flex items-center gap-3">
-              {navigation.map((item) => (
+              {desktopNavigation.map((item) => (
                 <a
                   key={item.href}
                   href={item.href}
@@ -121,8 +125,10 @@ const Layout = ({ children }: LayoutProps) => {
                 <div className="col-span-1">
                   <ul className="grid gap-y-0 text-sm text-muted footer-compact">
                     <li className="font-semibold opacity-75">Reference</li>
+                    <li><a href="/what-is-this" className="text-muted hover:text-selected block">What Is This?</a></li>
                     <li><a href="/architecture" className="text-muted hover:text-selected block">Architecture</a></li>
                     <li><a href="/docs" className="text-muted hover:text-selected block">Documentation</a></li>
+                    <li><a href="/philosophy" className="text-muted hover:text-selected block">Philosophy</a></li>
                   </ul>
                 </div>
                 <div className="col-span-1 md:text-right">
