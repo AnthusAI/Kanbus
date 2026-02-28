@@ -16,9 +16,13 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Release Please
-        uses: google-github-actions/release-please-action@v4
+        uses: googleapis/release-please-action@v4
         with:
           command: manifest
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Use a user PAT (RELEASE_PLEASE_TOKEN) because the repo blocks
+          # GitHub Actions from creating PRs with the default GITHUB_TOKEN.
+          # Falls back to GITHUB_TOKEN so manual dispatch still runs, but will
+          # fail with a clear message if the PAT is missing.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN != '' && secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
