@@ -3,7 +3,7 @@
 
   <scene id="hook" title="What is Kanbus?" duration="27s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
 
     <layer id="content" z="0">
@@ -25,9 +25,9 @@
 
     <cue id="hook" label="Hook">
       <pause seconds="0.6s" />
-      <voice>What if your project tracker was just files in your repository? No SaaS login. No per-seat costs. No external database to maintain.</voice>
+      <voice>Kanbus gives you an agent-ready CLI, a live Kanban board, Jira sync, and local tasks, all powered directly from repository files.</voice>
       <pause seconds="0.3s" />
-      <voice>Kanbus is a lightweight issue tracker that lives entirely in your Git repo. Issues, plans, and execution stay connected in one place—right next to your code.</voice>
+      <voice>You also get virtual projects, Beads compatibility, a VS Code plugin, an integrated wiki, and policy as code, so agents and humans can run the same workflow.</voice>
     </cue>
   </scene>
 
@@ -35,7 +35,7 @@
 
   <scene id="files" title="Files Are the Database" duration="35s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
 
     <layer id="title" z="1">
@@ -66,7 +66,7 @@
 
   <scene id="agents" title="Built for AI Agents" duration="36s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
 
     <layer id="title" z="1">
@@ -97,7 +97,7 @@
 
   <scene id="sync" title="Jira Sync and Local Tasks" duration="23s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
 
     <layer id="title" z="1">
@@ -126,7 +126,7 @@
 
   <scene id="tools" title="Three Ways to Use It" duration="31s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
 
     <layer id="title" z="1">
@@ -155,7 +155,7 @@
 
   <scene id="cta" title="Get Started" duration="14s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
 
     <layer id="title" z="1">

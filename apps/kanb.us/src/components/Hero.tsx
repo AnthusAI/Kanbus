@@ -19,7 +19,7 @@ export function Hero({ eyebrow, title, subtitle, actions, rightPane, bottomPane 
           opacity: 0.6
         }}
       />
-      <div className={`mx-auto max-w-7xl px-6 lg:px-8 ${rightPane ? 'grid gap-12 items-center lg:grid-cols-2' : 'flex flex-col items-center text-center max-w-5xl'}`}>
+      <div className={`mx-auto max-w-7xl px-6 lg:px-8 ${rightPane ? 'grid gap-12 items-center sm:grid-cols-2' : 'flex flex-col items-center text-center max-w-5xl'}`}>
         <div className={`flex flex-col ${rightPane ? 'items-start text-left' : 'items-center text-center w-full'}`}>
           {eyebrow && (
             <span className="mb-6 font-mono inline-flex items-center bg-selected/10 px-3 py-1 text-sm font-medium text-selected">
@@ -29,7 +29,7 @@ export function Hero({ eyebrow, title, subtitle, actions, rightPane, bottomPane 
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl mb-6">
             {title}
           </h1>
-          <p className="text-xl leading-8 text-muted font-medium max-w-2xl mx-auto">
+          <p className={`text-xl leading-8 text-muted font-medium max-w-2xl ${rightPane ? '' : 'mx-auto'}`}>
             {subtitle}
           </p>
           {actions && (

@@ -23,18 +23,17 @@ const FeaturesPage = () => {
       <Hero
         title="Features"
         subtitle="Focused capabilities that make Kanbus practical for daily work."
-        eyebrow="Key Capabilities"
       />
 
       <div className="space-y-20">
         <Section
           title="The Essentials"
-          subtitle="The speed of the command line, the structure of Jira, and the simplicity of Markdown."
+          subtitle="A CLI that agents can use, and a Kanban board for you to visualize work."
         >
           <div className="grid gap-6 md:grid-cols-2">
             <FeatureCard
-              title="Core Management"
-              description="The speed of the command line, the structure of Jira, and the simplicity of Markdown."
+              title="Agent-Ready CLI"
+              description="A fast, scriptable CLI tool that lets your coding agents read requirements, update statuses, and track issues natively."
               href="/features/core-management"
             />
             <FeatureCard
@@ -83,6 +82,25 @@ const FeaturesPage = () => {
               title="VS Code Plugin"
               description="Manage your project without leaving your code. The full Kanbus experience, embedded in your editor."
               href="/features/vscode-plugin"
+            />
+          </div>
+        </Section>
+
+        <Section
+          title="Documentation & Knowledge"
+          subtitle="Build living documentation that stays in sync with your project."
+          variant="alt"
+        >
+          <div className="grid gap-6 md:grid-cols-2">
+            <FeatureCard
+              title="Integrated Wiki"
+              description="Generate dynamic documentation from your issues. Tables, queries, and live data—all from Markdown."
+              href="/features/integrated-wiki"
+            />
+            <FeatureCard
+              title="Policy as Code"
+              description="Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically."
+              href="/features/policy-as-code"
             />
           </div>
         </Section>

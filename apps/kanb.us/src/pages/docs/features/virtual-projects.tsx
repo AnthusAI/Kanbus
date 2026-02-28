@@ -23,7 +23,7 @@ const DocsVirtualProjectsPage = ({ location }: PageProps) => {
           </a>
         </div>
 
-        <div className="prose prose-slate dark:prose-invert max-w-none text-muted leading-relaxed space-y-6">
+        <div className="prose prose-slate max-w-none text-muted leading-relaxed space-y-6">
           <p>
             If your system spans multiple repositories (like a frontend UI repo and a backend API repo), you shouldn't have to constantly switch directories to see what needs to be done. Kanbus Virtual Projects allow you to define links to sibling repositories so they all appear as one unified project.
           </p>

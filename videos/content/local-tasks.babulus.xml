@@ -3,7 +3,7 @@
 
   <scene id="hook" title="Local Tasks" duration="5s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
     <layer id="visual" z="0">
       <animated-pictogram-video props='{"type": "local"}' />
@@ -18,7 +18,7 @@
 
   <scene id="deep_dive" title="Local Tasks Deep Dive" duration="28s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
     <layer id="title" z="1">
       <title props='{"text":"Local Tasks","x":960,"y":120}' />

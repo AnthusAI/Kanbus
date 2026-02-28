@@ -14,7 +14,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "var(--background)",
+                "color": "#0f1115",
                 "sceneStartSec": 0
               }
             }
@@ -88,7 +88,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "var(--background)",
+                "color": "#0f1115",
                 "sceneStartSec": 5
               }
             }
@@ -224,13 +224,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 11.806818181818182,
+          "endSec": 11.65,
           "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 11.806818181818182,
+              "endSec": 11.65,
               "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab."
             }
           ],
@@ -239,20 +239,20 @@
         {
           "id": "workflow",
           "label": "Workflow",
-          "startSec": 11.806818181818182,
-          "endSec": 19.21590909090909,
+          "startSec": 11.65,
+          "endSec": 19.3375,
           "text": "Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 11.806818181818182,
-              "endSec": 12.306818181818182,
+              "startSec": 11.65,
+              "endSec": 12.15,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 12.306818181818182,
-              "endSec": 19.21590909090909,
+              "startSec": 12.15,
+              "endSec": 19.3375,
               "text": "Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching."
             }
           ],
@@ -261,20 +261,20 @@
         {
           "id": "access",
           "label": "Access",
-          "startSec": 19.21590909090909,
-          "endSec": 28.443181818181817,
+          "startSec": 19.3375,
+          "endSec": 28.1375,
           "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 19.21590909090909,
-              "endSec": 19.71590909090909,
+              "startSec": 19.3375,
+              "endSec": 19.8375,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 19.71590909090909,
-              "endSec": 28.443181818181817,
+              "startSec": 19.8375,
+              "endSec": 28.1375,
               "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details."
             }
           ],
@@ -283,20 +283,20 @@
         {
           "id": "install",
           "label": "Install",
-          "startSec": 28.443181818181817,
-          "endSec": 34.76136363636363,
+          "startSec": 28.1375,
+          "endSec": 34.7625,
           "text": "The Kanbus extension is open source and available for free. Install it from the Marketplace today.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 28.443181818181817,
-              "endSec": 28.943181818181817,
+              "startSec": 28.1375,
+              "endSec": 28.6375,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 28.943181818181817,
-              "endSec": 34.76136363636363,
+              "startSec": 28.6375,
+              "endSec": 34.7625,
               "text": "The Kanbus extension is open source and available for free. Install it from the Marketplace today."
             }
           ],

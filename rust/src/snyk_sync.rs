@@ -24,7 +24,25 @@ use crate::issue_files::{
 use crate::models::{IssueData, SnykConfiguration};
 
 const SNYK_API_BASE: &str = "https://api.snyk.io";
-const SNYK_API_VERSION: &str = "2024-10-15";
+const SNYK_API_VERSION: &str = "2025-11-05";
+const SNYK_INITIATIVE_TITLE: &str = "Snyk Vulnerability Remediation";
+const SNYK_DEP_EPIC_TITLE: &str = "Snyk Dependency Vulnerabilities";
+const SNYK_CODE_EPIC_TITLE: &str = "Snyk Code Vulnerabilities";
+type SourceLocation = (String, Option<i64>, Option<i64>, Option<i64>, Option<i64>);
+
+struct SnykEpicOptions {
+    include_dependency: bool,
+    include_code: bool,
+    dependency_priority: Option<i32>,
+    code_priority: Option<i32>,
+}
+
+struct SnykContext<'a> {
+    issues_dir: &'a Path,
+    project_key: &'a str,
+    dry_run: bool,
+    all_existing: &'a mut HashSet<String>,
+}
 
 /// Result of a Snyk pull operation.
 #[derive(Debug)]
@@ -68,7 +86,27 @@ pub fn pull_from_snyk(
     let project_map = fetch_snyk_projects(&snyk_config.org_id, &token, repo_filter.as_deref())?;
 
     // Fetch all vulnerabilities
-    let vulns = fetch_all_snyk_issues(&snyk_config.org_id, &token, min_priority)?;
+    let issue_types = ["package_vulnerability", "code"];
+    let vulns = fetch_all_snyk_issues(&snyk_config.org_id, &token, min_priority, &issue_types)?;
+
+    if std::env::var("KANBUS_SNYK_DEBUG").ok().as_deref() == Some("1") {
+        println!(
+            "debug: repo_filter={:?} projects={} issues={}",
+            repo_filter,
+            project_map.len(),
+            vulns.len()
+        );
+        if let Some((id, target)) = project_map.iter().next() {
+            println!("debug: sample_project_id={} target_file={}", id, target);
+        }
+        if let Some(issue) = vulns.first() {
+            let scan_id = issue["relationships"]["scan_item"]["data"]["id"]
+                .as_str()
+                .unwrap_or("");
+            let key = issue["attributes"]["key"].as_str().unwrap_or("");
+            println!("debug: sample_issue_key={} scan_item_id={}", key, scan_id);
+        }
+    }
 
     // Fetch enrichment data (fixedIn, description, cvssScore, etc.) from v1 API
     // per-project, keyed by snyk_key → enrichment map
@@ -78,22 +116,18 @@ pub fn pull_from_snyk(
         project_map.keys().cloned().collect(),
     )?;
 
-    // Resolve or auto-create the parent epic
+    // Resolve or auto-create the parent epic(s) after we know which categories exist.
     let mut all_existing = list_issue_identifiers(&issues_dir)?;
-    let epic_id = resolve_parent_epic(
-        &issues_dir,
-        project_key,
-        snyk_config.parent_epic.as_deref(),
-        dry_run,
-        &mut all_existing,
-    )?;
 
     // Build indexes for idempotency
     let snyk_key_index = build_snyk_key_index(&all_existing, &issues_dir);
     let file_task_index = build_file_task_index(&all_existing, &issues_dir);
 
     // Group vulnerabilities by target_file, deduplicating by (project_id, key).
-    let mut file_to_vulns: BTreeMap<String, Vec<&Value>> = BTreeMap::new();
+    let mut file_to_vulns: BTreeMap<(String, String), Vec<&Value>> = BTreeMap::new();
+    let mut has_code = false;
+    let mut has_dependency = false;
+    let mut category_priority: HashMap<String, i32> = HashMap::new();
     let mut seen_proj_key: HashMap<String, bool> = HashMap::new();
     for vuln in &vulns {
         let proj_id = vuln["relationships"]["scan_item"]["data"]["id"]
@@ -103,19 +137,66 @@ pub fn pull_from_snyk(
             Some(f) => f.clone(),
             None => continue, // skip issues not in filtered project set
         };
+        let issue_type = vuln["attributes"]["type"]
+            .as_str()
+            .unwrap_or("package_vulnerability");
+        let category = if issue_type == "code" {
+            has_code = true;
+            "code"
+        } else {
+            has_dependency = true;
+            "dependency"
+        };
+        let sev = vuln["attributes"]["effective_severity_level"]
+            .as_str()
+            .unwrap_or("low");
+        let priority = severity_to_priority(sev);
+        category_priority
+            .entry(category.to_string())
+            .and_modify(|current| {
+                if priority < *current {
+                    *current = priority;
+                }
+            })
+            .or_insert(priority);
         let key = vuln["attributes"]["key"].as_str().unwrap_or("");
         let dedup_key = format!("{proj_id}:{key}");
         if seen_proj_key.insert(dedup_key, true).is_some() {
             continue; // duplicate (project_id, key) pair
         }
-        file_to_vulns.entry(target_file).or_default().push(vuln);
+        file_to_vulns
+            .entry((category.to_string(), target_file))
+            .or_default()
+            .push(vuln);
     }
+
+    let mut ctx = SnykContext {
+        issues_dir: &issues_dir,
+        project_key,
+        dry_run,
+        all_existing: &mut all_existing,
+    };
+    let epic_ids = resolve_snyk_epics(
+        &mut ctx,
+        snyk_config.parent_epic.as_deref(),
+        &SnykEpicOptions {
+            include_dependency: has_dependency,
+            include_code: has_code,
+            dependency_priority: category_priority.get("dependency").cloned(),
+            code_priority: category_priority.get("code").cloned(),
+        },
+    )?;
 
     let mut pulled = 0usize;
     let mut updated = 0usize;
     let skipped = 0usize;
 
-    for (target_file, file_vulns) in &file_to_vulns {
+    for ((category, target_file), file_vulns) in &file_to_vulns {
+        let epic_id = epic_ids
+            .get(category)
+            .cloned()
+            .or_else(|| epic_ids.get("dependency").cloned())
+            .unwrap_or_else(|| epic_ids.values().next().cloned().unwrap_or_default());
         // Highest priority (lowest number) among this file's vulnerabilities
         let file_priority = file_vulns
             .iter()
@@ -133,6 +214,7 @@ pub fn pull_from_snyk(
             &issues_dir,
             project_key,
             target_file,
+            category,
             &FileTaskContext {
                 epic_id: &epic_id,
                 priority: file_priority,
@@ -162,7 +244,8 @@ pub fn pull_from_snyk(
             };
 
             let v1_data = enrichment.get(&snyk_key);
-            let mut issue = map_snyk_to_kanbus(vuln, &Some(task_id.clone()), v1_data, target_file)?;
+            let mut issue =
+                map_snyk_to_kanbus(vuln, &Some(task_id.clone()), v1_data, target_file, root)?;
             issue.identifier = kanbus_id.clone();
 
             // Preserve created_at for updates
@@ -257,6 +340,247 @@ fn resolve_parent_epic(
     Ok(epic_id)
 }
 
+fn resolve_snyk_epics(
+    ctx: &mut SnykContext<'_>,
+    configured_id: Option<&str>,
+    options: &SnykEpicOptions,
+) -> Result<HashMap<String, String>, KanbusError> {
+    let mut epics = HashMap::new();
+    if configured_id.is_some() {
+        let epic_id = resolve_parent_epic(
+            ctx.issues_dir,
+            ctx.project_key,
+            configured_id,
+            ctx.dry_run,
+            ctx.all_existing,
+        )?;
+        if options.include_dependency {
+            epics.insert("dependency".to_string(), epic_id.clone());
+        }
+        if options.include_code {
+            epics.insert("code".to_string(), epic_id.clone());
+        }
+        return Ok(epics);
+    }
+
+    if !options.include_dependency && !options.include_code {
+        return Ok(epics);
+    }
+
+    let initiative_id = resolve_snyk_initiative(
+        ctx.issues_dir,
+        ctx.project_key,
+        ctx.dry_run,
+        ctx.all_existing,
+    )?;
+    if options.include_dependency {
+        let dep_epic = resolve_snyk_epic(
+            ctx,
+            &initiative_id,
+            SNYK_DEP_EPIC_TITLE,
+            "dependency",
+            options.dependency_priority.unwrap_or(2),
+        )?;
+        epics.insert("dependency".to_string(), dep_epic);
+    }
+    if options.include_code {
+        let code_epic = resolve_snyk_epic(
+            ctx,
+            &initiative_id,
+            SNYK_CODE_EPIC_TITLE,
+            "code",
+            options.code_priority.unwrap_or(2),
+        )?;
+        epics.insert("code".to_string(), code_epic);
+    }
+    Ok(epics)
+}
+
+fn resolve_snyk_initiative(
+    issues_dir: &Path,
+    project_key: &str,
+    dry_run: bool,
+    all_existing: &mut HashSet<String>,
+) -> Result<String, KanbusError> {
+    if let Some(id) = find_existing_snyk_initiative(issues_dir, all_existing) {
+        return Ok(id);
+    }
+
+    let request = IssueIdentifierRequest {
+        title: SNYK_INITIATIVE_TITLE.to_string(),
+        existing_ids: all_existing.clone(),
+        prefix: project_key.to_string(),
+    };
+    let result = generate_issue_identifier(&request)?;
+    let initiative_id = result.identifier.clone();
+    all_existing.insert(initiative_id.clone());
+
+    let now = Utc::now();
+    let initiative = IssueData {
+        identifier: initiative_id.clone(),
+        title: SNYK_INITIATIVE_TITLE.to_string(),
+        description: "Track remediation of Snyk vulnerabilities.".to_string(),
+        issue_type: "initiative".to_string(),
+        status: "open".to_string(),
+        priority: 1,
+        assignee: None,
+        creator: None,
+        parent: None,
+        labels: vec!["security".to_string(), "snyk".to_string()],
+        dependencies: Vec::new(),
+        comments: Vec::new(),
+        created_at: now,
+        updated_at: now,
+        closed_at: None,
+        custom: BTreeMap::new(),
+    };
+
+    println!("created  [initiative]  {initiative_id:<14}  \"{SNYK_INITIATIVE_TITLE}\"");
+
+    if !dry_run {
+        let path = issue_path_for_identifier(issues_dir, &initiative_id);
+        write_issue_to_file(&initiative, &path)?;
+    }
+
+    Ok(initiative_id)
+}
+
+fn resolve_snyk_epic(
+    ctx: &mut SnykContext<'_>,
+    parent_initiative: &str,
+    title: &str,
+    category: &str,
+    priority: i32,
+) -> Result<String, KanbusError> {
+    if let Some(id) =
+        find_existing_snyk_epic(ctx.issues_dir, ctx.all_existing, title, parent_initiative)
+    {
+        let path = issue_path_for_identifier(ctx.issues_dir, &id);
+        if let Ok(mut issue) = read_issue_from_file(&path) {
+            if issue.priority != priority {
+                issue.priority = priority;
+                issue.updated_at = Utc::now();
+                if !ctx.dry_run {
+                    write_issue_to_file(&issue, &path)?;
+                }
+            }
+        }
+        return Ok(id);
+    }
+
+    let request = IssueIdentifierRequest {
+        title: title.to_string(),
+        existing_ids: ctx.all_existing.clone(),
+        prefix: ctx.project_key.to_string(),
+    };
+    let result = generate_issue_identifier(&request)?;
+    let epic_id = result.identifier.clone();
+    ctx.all_existing.insert(epic_id.clone());
+
+    let now = Utc::now();
+    let mut custom = BTreeMap::new();
+    custom.insert(
+        "snyk_category".to_string(),
+        serde_json::Value::String(category.to_string()),
+    );
+    let epic = IssueData {
+        identifier: epic_id.clone(),
+        title: title.to_string(),
+        description: "Security vulnerabilities imported from Snyk.".to_string(),
+        issue_type: "epic".to_string(),
+        status: "open".to_string(),
+        priority,
+        assignee: None,
+        creator: None,
+        parent: Some(parent_initiative.to_string()),
+        labels: vec![
+            "security".to_string(),
+            "snyk".to_string(),
+            category.to_string(),
+        ],
+        dependencies: Vec::new(),
+        comments: Vec::new(),
+        created_at: now,
+        updated_at: now,
+        closed_at: None,
+        custom,
+    };
+
+    println!("created  [epic    ]  {epic_id:<14}  \"{title}\"");
+
+    if !ctx.dry_run {
+        let epic_path = issue_path_for_identifier(ctx.issues_dir, &epic_id);
+        write_issue_to_file(&epic, &epic_path)?;
+    }
+
+    Ok(epic_id)
+}
+
+fn find_existing_snyk_initiative(
+    issues_dir: &Path,
+    all_existing: &HashSet<String>,
+) -> Option<String> {
+    let mut best_id: Option<String> = None;
+    let mut best_updated = None;
+
+    for id in all_existing {
+        let path = issue_path_for_identifier(issues_dir, id);
+        if let Ok(issue) = read_issue_from_file(&path) {
+            if issue.issue_type != "initiative" {
+                continue;
+            }
+            if issue.title != SNYK_INITIATIVE_TITLE {
+                continue;
+            }
+            if !issue.labels.iter().any(|l| l == "snyk") {
+                continue;
+            }
+            let updated = issue.updated_at;
+            if best_updated.is_none_or(|current| updated > current) {
+                best_updated = Some(updated);
+                best_id = Some(issue.identifier.clone());
+            }
+        }
+    }
+
+    best_id
+}
+
+fn find_existing_snyk_epic(
+    issues_dir: &Path,
+    all_existing: &HashSet<String>,
+    title: &str,
+    parent_initiative: &str,
+) -> Option<String> {
+    let mut best_id: Option<String> = None;
+    let mut best_updated = None;
+
+    for id in all_existing {
+        let path = issue_path_for_identifier(issues_dir, id);
+        if let Ok(issue) = read_issue_from_file(&path) {
+            if issue.issue_type != "epic" {
+                continue;
+            }
+            if issue.title != title {
+                continue;
+            }
+            if !issue.labels.iter().any(|l| l == "snyk") {
+                continue;
+            }
+            if issue.parent.as_deref() != Some(parent_initiative) {
+                continue;
+            }
+            let updated = issue.updated_at;
+            if best_updated.is_none_or(|current| updated > current) {
+                best_updated = Some(updated);
+                best_id = Some(issue.identifier.clone());
+            }
+        }
+    }
+
+    best_id
+}
+
 /// Resolve or create a task for a manifest file under the epic.
 struct FileTaskContext<'a> {
     epic_id: &'a str,
@@ -268,11 +592,52 @@ fn resolve_file_task(
     issues_dir: &Path,
     project_key: &str,
     target_file: &str,
+    category: &str,
     ctx: &FileTaskContext<'_>,
-    file_task_index: &BTreeMap<String, String>,
+    file_task_index: &BTreeMap<(String, String), String>,
     all_existing: &mut HashSet<String>,
 ) -> Result<String, KanbusError> {
-    if let Some(id) = file_task_index.get(target_file) {
+    if let Some(id) = file_task_index.get(&(category.to_string(), target_file.to_string())) {
+        if !ctx.dry_run {
+            let task_path = issue_path_for_identifier(issues_dir, id);
+            if let Ok(mut issue) = read_issue_from_file(&task_path) {
+                if issue.issue_type == "task" {
+                    let mut changed = false;
+                    if issue.parent.as_deref() != Some(ctx.epic_id) {
+                        issue.parent = Some(ctx.epic_id.to_string());
+                        changed = true;
+                    }
+                    if issue.priority != ctx.priority {
+                        issue.priority = ctx.priority;
+                        changed = true;
+                    }
+                    let target = serde_json::Value::String(target_file.to_string());
+                    if issue.custom.get("snyk_target_file") != Some(&target) {
+                        issue.custom.insert("snyk_target_file".to_string(), target);
+                        changed = true;
+                    }
+                    let cat = serde_json::Value::String(category.to_string());
+                    if issue.custom.get("snyk_category") != Some(&cat) {
+                        issue.custom.insert("snyk_category".to_string(), cat);
+                        changed = true;
+                    }
+                    if !issue.labels.iter().any(|l| l == "snyk") {
+                        issue.labels.push("snyk".to_string());
+                        changed = true;
+                    }
+                    if !issue.labels.iter().any(|l| l == "security") {
+                        issue.labels.push("security".to_string());
+                        changed = true;
+                    }
+                    if changed {
+                        issue.updated_at = Utc::now();
+                        write_issue_to_file(&issue, &task_path)?;
+                        let short_key = &id[..id.len().min(id.find('-').map_or(6, |i| i + 7))];
+                        println!("updated  [task    ]  {short_key:<14}  \"{target_file}\"");
+                    }
+                }
+            }
+        }
         return Ok(id.clone());
     }
 
@@ -290,6 +655,10 @@ fn resolve_file_task(
     custom.insert(
         "snyk_target_file".to_string(),
         serde_json::Value::String(target_file.to_string()),
+    );
+    custom.insert(
+        "snyk_category".to_string(),
+        serde_json::Value::String(category.to_string()),
     );
 
     let task = IssueData {
@@ -385,15 +754,34 @@ fn fetch_snyk_projects(
                 let name = project["attributes"]["name"].as_str().unwrap_or("");
                 // Filter by repo if specified
                 if let Some(ref p) = prefix {
-                    if !name.starts_with(p.as_str()) {
+                    let repo = p.trim_end_matches(':');
+                    let matches_repo = name == repo || name.starts_with(p.as_str());
+                    if std::env::var("KANBUS_SNYK_DEBUG").ok().as_deref() == Some("1")
+                        && (name.starts_with(repo) || name == repo)
+                    {
+                        println!(
+                            "debug: project name={:?} repo={:?} matches={}",
+                            name, repo, matches_repo
+                        );
+                    }
+                    if !matches_repo {
                         continue;
                     }
                 }
                 let target_file = project["attributes"]["target_file"]
                     .as_str()
+                    .filter(|value| !value.is_empty())
                     .or_else(|| project["attributes"]["name"].as_str())
                     .unwrap_or("")
                     .to_string();
+                if std::env::var("KANBUS_SNYK_DEBUG").ok().as_deref() == Some("1")
+                    && repo_filter == Some(name)
+                {
+                    println!(
+                        "debug: base_project id='{}' target_file='{}'",
+                        id, target_file
+                    );
+                }
                 if !id.is_empty() && !target_file.is_empty() {
                     map.insert(id, target_file);
                 }
@@ -459,12 +847,36 @@ fn fetch_all_snyk_issues(
     org_id: &str,
     token: &str,
     min_priority: i32,
+    issue_types: &[&str],
+) -> Result<Vec<Value>, KanbusError> {
+    let mut all_issues: Vec<Value> = Vec::new();
+
+    for issue_type in issue_types {
+        match fetch_snyk_issues_for_type(org_id, token, min_priority, issue_type) {
+            Ok(mut issues) => all_issues.append(&mut issues),
+            Err(err) => {
+                if *issue_type == "package_vulnerability" {
+                    return Err(err);
+                }
+                eprintln!("warning: failed to fetch Snyk issues type '{issue_type}': {err}");
+            }
+        }
+    }
+
+    Ok(all_issues)
+}
+
+fn fetch_snyk_issues_for_type(
+    org_id: &str,
+    token: &str,
+    min_priority: i32,
+    issue_type: &str,
 ) -> Result<Vec<Value>, KanbusError> {
     let client = reqwest::blocking::Client::new();
     let mut all_issues: Vec<Value> = Vec::new();
 
     let mut url = Some(format!(
-        "{SNYK_API_BASE}/rest/orgs/{org_id}/issues?version={SNYK_API_VERSION}&limit=100"
+        "{SNYK_API_BASE}/rest/orgs/{org_id}/issues?version={SNYK_API_VERSION}&limit=100&type={issue_type}"
     ));
 
     while let Some(current_url) = url {
@@ -534,14 +946,20 @@ fn build_snyk_key_index(
 fn build_file_task_index(
     existing_ids: &HashSet<String>,
     issues_dir: &Path,
-) -> BTreeMap<String, String> {
+) -> BTreeMap<(String, String), String> {
     let mut index = BTreeMap::new();
     for id in existing_ids {
         let path = issue_path_for_identifier(issues_dir, id);
         if let Ok(issue) = read_issue_from_file(&path) {
             if issue.issue_type == "task" {
                 if let Some(Value::String(target_file)) = issue.custom.get("snyk_target_file") {
-                    index.insert(target_file.clone(), id.clone());
+                    let category = issue
+                        .custom
+                        .get("snyk_category")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("dependency")
+                        .to_string();
+                    index.insert((category, target_file.clone()), id.clone());
                 }
             }
         }
@@ -558,6 +976,11 @@ fn vuln_key(issue: &Value) -> String {
 
 fn vuln_title(issue: &Value) -> String {
     let attrs = &issue["attributes"];
+    let issue_type = attrs["type"].as_str().unwrap_or("package_vulnerability");
+    if issue_type == "code" {
+        let title = attrs["title"].as_str().unwrap_or("Snyk Code issue");
+        return format!("[Snyk Code] {title}");
+    }
     let key = attrs["key"].as_str().unwrap_or("unknown");
     let pkg = attrs["coordinates"][0]["representations"][0]["dependency"]["package_name"]
         .as_str()
@@ -569,14 +992,112 @@ fn vuln_title(issue: &Value) -> String {
     }
 }
 
+fn extract_source_location(issue: &Value) -> Option<SourceLocation> {
+    let coords = issue["attributes"]["coordinates"].as_array()?;
+    for coord in coords {
+        let reps = coord["representations"].as_array()?;
+        if let Some(rep) = reps.iter().next() {
+            let loc = rep
+                .get("source_location")
+                .or_else(|| rep.get("sourceLocation"))?;
+            let file = loc.get("file").and_then(|v| v.as_str())?.to_string();
+
+            if let Some(region) = loc.get("region") {
+                let start = region.get("start").unwrap_or(region);
+                let end = region.get("end").unwrap_or(region);
+                let start_line = start.get("line").and_then(|v| v.as_i64());
+                let start_col = start.get("column").and_then(|v| v.as_i64());
+                let end_line = end.get("line").and_then(|v| v.as_i64());
+                let end_col = end.get("column").and_then(|v| v.as_i64());
+                return Some((file, start_line, start_col, end_line, end_col));
+            }
+
+            let line = loc.get("line").and_then(|v| v.as_i64());
+            let column = loc
+                .get("column")
+                .or_else(|| loc.get("col"))
+                .and_then(|v| v.as_i64());
+            return Some((file, line, column, None, None));
+        }
+    }
+    None
+}
+
+fn extract_classes(issue: &Value) -> Vec<String> {
+    issue["attributes"]["classes"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| {
+                    if let Some(s) = v.as_str() {
+                        return Some(s.to_string());
+                    }
+                    let id = v.get("id").and_then(|v| v.as_str());
+                    let source = v.get("source").and_then(|v| v.as_str());
+                    if let (Some(source), Some(id)) = (source, id) {
+                        Some(format!("{source}-{id}"))
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+const SNIPPET_CONTEXT: i64 = 2;
+const MAX_SNIPPET_LINES: i64 = 25;
+
+fn build_snippet(
+    repo_root: &Path,
+    file: &str,
+    start_line: Option<i64>,
+    end_line: Option<i64>,
+) -> Option<String> {
+    let start_line = start_line?;
+    let end_line = end_line.unwrap_or(start_line);
+    if start_line <= 0 || end_line <= 0 {
+        return None;
+    }
+
+    let path = repo_root.join(file);
+    let content = std::fs::read_to_string(path).ok()?;
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.is_empty() {
+        return None;
+    }
+
+    let total = lines.len() as i64;
+    let mut snippet_start = (start_line - SNIPPET_CONTEXT).max(1);
+    let mut snippet_end = (end_line + SNIPPET_CONTEXT).min(total);
+    if snippet_end - snippet_start + 1 > MAX_SNIPPET_LINES {
+        snippet_start = (start_line - SNIPPET_CONTEXT).max(1);
+        snippet_end = (snippet_start + MAX_SNIPPET_LINES - 1).min(total);
+    }
+
+    let mut body = String::new();
+    for line_no in snippet_start..=snippet_end {
+        let idx = (line_no - 1) as usize;
+        if let Some(line) = lines.get(idx) {
+            body.push_str(&format!("{:>4} | {}\n", line_no, line));
+        }
+    }
+
+    Some(format!(
+        "### Snippet ({file}:{snippet_start}-{snippet_end})\n```\n{body}```\n\n"
+    ))
+}
+
 /// Map a Snyk issue JSON object to a Kanbus IssueData sub-task.
 fn map_snyk_to_kanbus(
     issue: &Value,
     parent_task_id: &Option<String>,
     v1: Option<&Value>,
     target_file: &str,
+    repo_root: &Path,
 ) -> Result<IssueData, KanbusError> {
     let attrs = &issue["attributes"];
+    let issue_type = attrs["type"].as_str().unwrap_or("package_vulnerability");
 
     let snyk_key = attrs["key"].as_str().unwrap_or("").to_string();
     let severity = attrs["effective_severity_level"]
@@ -585,141 +1106,239 @@ fn map_snyk_to_kanbus(
         .to_string();
     let priority = severity_to_priority(&severity);
 
-    let pkg_name = attrs["coordinates"][0]["representations"][0]["dependency"]["package_name"]
-        .as_str()
-        .unwrap_or("");
-    let pkg_version = attrs["coordinates"][0]["representations"][0]["dependency"]
-        ["package_version"]
-        .as_str()
-        .unwrap_or("");
-
-    // Prefer v1 human-readable title over key
-    let vuln_title = v1
-        .and_then(|v| v["issueData"]["title"].as_str())
-        .unwrap_or(&snyk_key);
-
-    let title = if pkg_name.is_empty() {
-        format!("[Snyk] {snyk_key}")
-    } else {
-        format!("[Snyk] {snyk_key} in {pkg_name}@{pkg_version}")
-    };
-
-    let cves: Vec<&str> = attrs["problems"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter(|p| p["source"].as_str() == Some("NVD"))
-                .filter_map(|p| p["id"].as_str())
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let cve_line = if cves.is_empty() {
-        "No CVE assigned.".to_string()
-    } else {
-        cves.iter()
-            .map(|cve| format!("- [{cve}](https://nvd.nist.gov/vuln/detail/{cve})"))
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
-
-    let fixable = attrs["coordinates"][0]["is_fixable_snyk"]
-        .as_bool()
-        .unwrap_or(false);
-    let upgradeable = attrs["coordinates"][0]["is_upgradeable"]
-        .as_bool()
-        .unwrap_or(false);
-    let pinnable = attrs["coordinates"][0]["is_pinnable"]
-        .as_bool()
-        .unwrap_or(false);
-
-    // Get exact fixed version from v1 if available
-    let fixed_in: Vec<String> = v1
-        .and_then(|v| v["fixInfo"]["fixedIn"].as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str())
-                .map(|s| s.to_string())
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let fix_advice = if !fixed_in.is_empty() {
-        let versions = fixed_in.join(", ");
-        if upgradeable {
-            format!("**Fix:** Upgrade `{pkg_name}` to version {versions} or later.")
-        } else {
-            format!("**Fix:** Pin `{pkg_name}` to version {versions} or later.")
-        }
-    } else if upgradeable {
-        format!("**Fix:** Upgrade `{pkg_name}` to a patched version.")
-    } else if pinnable {
-        format!("**Fix:** Pin `{pkg_name}` to a patched version.")
-    } else if fixable {
-        "**Fix:** Snyk fix available — run `snyk fix`.".to_string()
-    } else {
-        "**Fix:** No automatic fix available. Review manually.".to_string()
-    };
-
-    // Extra metadata from v1
-    let cvss_score = v1
-        .and_then(|v| v["issueData"]["cvssScore"].as_f64())
-        .map(|s| format!("{s:.1}"))
-        .unwrap_or_default();
-    let exploit_maturity = v1
-        .and_then(|v| v["issueData"]["exploitMaturity"].as_str())
-        .unwrap_or_default();
-    let priority_score = v1
-        .and_then(|v| v["priorityScore"].as_i64())
-        .map(|s| s.to_string())
-        .unwrap_or_default();
-    let v1_description = v1
-        .and_then(|v| v["issueData"]["description"].as_str())
-        .unwrap_or_default();
-
-    let mut meta_lines = Vec::new();
-    if !cvss_score.is_empty() {
-        meta_lines.push(format!("**CVSS Score:** {cvss_score}"));
-    }
-    if !exploit_maturity.is_empty() && exploit_maturity != "no-known-exploit" {
-        meta_lines.push(format!("**Exploit Maturity:** {exploit_maturity}"));
-    }
-    if !priority_score.is_empty() {
-        meta_lines.push(format!("**Snyk Priority Score:** {priority_score}/1000"));
-    }
-    let meta_block = if meta_lines.is_empty() {
-        String::new()
-    } else {
-        format!("{}\n\n", meta_lines.join("  \n"))
-    };
-
-    let detail_block = if v1_description.is_empty() {
-        String::new()
-    } else {
-        format!("### Details\n{v1_description}\n\n")
-    };
-
-    let snyk_url = format!("https://security.snyk.io/vuln/{snyk_key}");
-
-    let description = format!(
-        "## {vuln_title}\n\n\
-         **Severity:** {severity}\n\
-         **Package:** {pkg_name}@{pkg_version}\n\
-         **File:** `{target_file}`\n\n\
-         {meta_block}\
-         ### CVEs\n{cve_line}\n\n\
-         {fix_advice}\n\n\
-         {detail_block}\
-         ### Reference\n- [Snyk advisory]({snyk_url})"
-    );
-
-    let now = Utc::now();
+    let description;
+    let title;
     let mut custom: BTreeMap<String, serde_json::Value> = BTreeMap::new();
-    custom.insert("snyk_key".to_string(), serde_json::Value::String(snyk_key));
+
+    custom.insert(
+        "snyk_key".to_string(),
+        serde_json::Value::String(snyk_key.clone()),
+    );
     custom.insert(
         "snyk_severity".to_string(),
-        serde_json::Value::String(severity),
+        serde_json::Value::String(severity.clone()),
     );
+    custom.insert(
+        "snyk_type".to_string(),
+        serde_json::Value::String(issue_type.to_string()),
+    );
+
+    if issue_type == "code" {
+        let issue_title = attrs["title"].as_str().unwrap_or(&snyk_key);
+        let description_text = attrs["description"].as_str().unwrap_or("");
+        let classes = extract_classes(issue);
+        let class_line = if classes.is_empty() {
+            String::new()
+        } else {
+            format!("**Classes:** {}\n", classes.join(", "))
+        };
+        let location = extract_source_location(issue);
+        let (file_line, loc_line) = if let Some((file, line, col, end_line, end_col)) = &location {
+            let mut loc = String::new();
+            if let Some(line) = line {
+                if let Some(col) = col {
+                    if let (Some(end_line), Some(end_col)) = (end_line, end_col) {
+                        loc = format!(
+                            "**Location:** line {line}, column {col} to line {end_line}, column {end_col}\n"
+                        );
+                    } else {
+                        loc = format!("**Location:** line {line}, column {col}\n");
+                    }
+                } else {
+                    loc = format!("**Location:** line {line}\n");
+                }
+            }
+            (format!("**File:** `{file}`\n"), loc)
+        } else {
+            (String::new(), String::new())
+        };
+
+        let snippet_block = if let Some((file, line, col, end_line, end_col)) = location {
+            let file_path = file.clone();
+            custom.insert(
+                "snyk_file".to_string(),
+                serde_json::Value::String(file_path.clone()),
+            );
+            if let Some(line) = line {
+                custom.insert(
+                    "snyk_line".to_string(),
+                    serde_json::Value::Number(line.into()),
+                );
+            }
+            if let Some(col) = col {
+                custom.insert(
+                    "snyk_column".to_string(),
+                    serde_json::Value::Number(col.into()),
+                );
+            }
+            if let Some(end_line) = end_line {
+                custom.insert(
+                    "snyk_end_line".to_string(),
+                    serde_json::Value::Number(end_line.into()),
+                );
+            }
+            if let Some(end_col) = end_col {
+                custom.insert(
+                    "snyk_end_column".to_string(),
+                    serde_json::Value::Number(end_col.into()),
+                );
+            }
+            build_snippet(repo_root, &file_path, line, end_line)
+                .or_else(|| build_snippet(repo_root, &file_path, line, line))
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+
+        title = format!("[Snyk Code] {issue_title}");
+        description = format!(
+            "## {issue_title}\n\n\
+             **Severity:** {severity}\n\
+             **Project:** `{target_file}`\n\
+             {file_line}\
+             {loc_line}\
+             {class_line}\
+             {snippet_block}\
+             **Issue Key:** {snyk_key}\n\n\
+             {details}\
+             **Fix:** Review and remediate in code.",
+            details = if description_text.is_empty() {
+                String::new()
+            } else {
+                format!("### Details\n{description_text}\n\n")
+            }
+        );
+    } else {
+        let pkg_name = attrs["coordinates"][0]["representations"][0]["dependency"]["package_name"]
+            .as_str()
+            .unwrap_or("");
+        let pkg_version = attrs["coordinates"][0]["representations"][0]["dependency"]
+            ["package_version"]
+            .as_str()
+            .unwrap_or("");
+
+        // Prefer v1 human-readable title over key
+        let vuln_title = v1
+            .and_then(|v| v["issueData"]["title"].as_str())
+            .unwrap_or(&snyk_key);
+
+        title = if pkg_name.is_empty() {
+            format!("[Snyk] {snyk_key}")
+        } else {
+            format!("[Snyk] {snyk_key} in {pkg_name}@{pkg_version}")
+        };
+
+        let cves: Vec<&str> = attrs["problems"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter(|p| p["source"].as_str() == Some("NVD"))
+                    .filter_map(|p| p["id"].as_str())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let cve_line = if cves.is_empty() {
+            "No CVE assigned.".to_string()
+        } else {
+            cves.iter()
+                .map(|cve| format!("- [{cve}](https://nvd.nist.gov/vuln/detail/{cve})"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+
+        let fixable = attrs["coordinates"][0]["is_fixable_snyk"]
+            .as_bool()
+            .unwrap_or(false);
+        let upgradeable = attrs["coordinates"][0]["is_upgradeable"]
+            .as_bool()
+            .unwrap_or(false);
+        let pinnable = attrs["coordinates"][0]["is_pinnable"]
+            .as_bool()
+            .unwrap_or(false);
+
+        // Get exact fixed version from v1 if available
+        let fixed_in: Vec<String> = v1
+            .and_then(|v| v["fixInfo"]["fixedIn"].as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let fix_advice = if !fixed_in.is_empty() {
+            let versions = fixed_in.join(", ");
+            if upgradeable {
+                format!("**Fix:** Upgrade `{pkg_name}` to version {versions} or later.")
+            } else {
+                format!("**Fix:** Pin `{pkg_name}` to version {versions} or later.")
+            }
+        } else if upgradeable {
+            format!("**Fix:** Upgrade `{pkg_name}` to a patched version.")
+        } else if pinnable {
+            format!("**Fix:** Pin `{pkg_name}` to a patched version.")
+        } else if fixable {
+            "**Fix:** Snyk fix available — run `snyk fix`.".to_string()
+        } else {
+            "**Fix:** No automatic fix available. Review manually.".to_string()
+        };
+
+        // Extra metadata from v1
+        let cvss_score = v1
+            .and_then(|v| v["issueData"]["cvssScore"].as_f64())
+            .map(|s| format!("{s:.1}"))
+            .unwrap_or_default();
+        let exploit_maturity = v1
+            .and_then(|v| v["issueData"]["exploitMaturity"].as_str())
+            .unwrap_or_default();
+        let priority_score = v1
+            .and_then(|v| v["priorityScore"].as_i64())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        let v1_description = v1
+            .and_then(|v| v["issueData"]["description"].as_str())
+            .unwrap_or_default();
+
+        let mut meta_lines = Vec::new();
+        if !cvss_score.is_empty() {
+            meta_lines.push(format!("**CVSS Score:** {cvss_score}"));
+        }
+        if !exploit_maturity.is_empty() && exploit_maturity != "no-known-exploit" {
+            meta_lines.push(format!("**Exploit Maturity:** {exploit_maturity}"));
+        }
+        if !priority_score.is_empty() {
+            meta_lines.push(format!("**Snyk Priority Score:** {priority_score}/1000"));
+        }
+        let meta_block = if meta_lines.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n\n", meta_lines.join("  \n"))
+        };
+
+        let detail_block = if v1_description.is_empty() {
+            String::new()
+        } else {
+            format!("### Details\n{v1_description}\n\n")
+        };
+
+        let snyk_url = format!("https://security.snyk.io/vuln/{snyk_key}");
+
+        description = format!(
+            "## {vuln_title}\n\n\
+             **Severity:** {severity}\n\
+             **Package:** {pkg_name}@{pkg_version}\n\
+             **File:** `{target_file}`\n\n\
+             {meta_block}\
+             ### CVEs\n{cve_line}\n\n\
+             {fix_advice}\n\n\
+             {detail_block}\
+             ### Reference\n- [Snyk advisory]({snyk_url})"
+        );
+    }
+
+    let now = Utc::now();
 
     Ok(IssueData {
         identifier: String::new(), // filled in by caller

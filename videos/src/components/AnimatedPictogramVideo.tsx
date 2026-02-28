@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useCurrentFrame, useVideoConfig, interpolate } from "../remotion-shim";
 
-export type PictogramType = "git" | "cli" | "jira" | "local" | "beads" | "virtual" | "vscode" | "policy";
+export type PictogramType = "git" | "cli" | "jira" | "local" | "beads" | "virtual" | "vscode" | "wiki" | "policy";
 
 export function AnimatedPictogramVideo({ type = "git", style }: { type?: PictogramType, style?: React.CSSProperties }) {
   const frame = useCurrentFrame();
@@ -281,23 +281,76 @@ export function AnimatedPictogramVideo({ type = "git", style }: { type?: Pictogr
   };
 
   const renderPolicy = () => {
+    // A checklist/clipboard checking off items
+    const cycle = (frame % (fps * 3)) / (fps * 3);
+    const drawCheck1 = interpolate(cycle, [0.1, 0.2], [0, 100], { extrapolateRight: "clamp", extrapolateLeft: "clamp" });
+    const drawCheck2 = interpolate(cycle, [0.4, 0.5], [0, 100], { extrapolateRight: "clamp", extrapolateLeft: "clamp" });
+    const drawCheck3 = interpolate(cycle, [0.7, 0.8], [0, 100], { extrapolateRight: "clamp", extrapolateLeft: "clamp" });
+
     return (
       <g>
         <Board y="150" />
         
-        {/* Shield / Lock */}
+        {/* Clipboard */}
         <g transform="translate(250, 150) scale(1, 0.5) rotate(45) translate(0, -20)">
-          <path d="M 0 0 L 20 -10 L 40 0 L 40 20 C 40 35 20 50 20 50 C 20 50 0 35 0 20 Z" fill="var(--danger-bg)" stroke="var(--danger-text)" strokeWidth="2" opacity="0.9" />
-          <path d="M 12 15 A 8 8 0 0 1 28 15 L 28 15" fill="none" stroke="var(--danger-text)" strokeWidth="3" />
-          <rect x="15" y="15" width="10" height="12" fill="var(--danger-text)" rx="2" />
-          <circle cx="20" cy="21" r="2" fill="var(--danger-bg)" />
+          {/* Clipboard Board */}
+          <rect width="70" height="90" fill="var(--card-muted)" rx="4" stroke="var(--border)" strokeWidth="2" />
+          {/* Clip */}
+          <rect x="25" y="-5" width="20" height="10" fill="var(--text-muted)" rx="2" />
+          
+          {/* Item 1 */}
+          <rect x="10" y="20" width="10" height="10" fill="var(--background)" stroke="var(--text-muted)" strokeWidth="1" rx="2" />
+          <line x1="28" y1="25" x2="60" y2="25" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+          <path d="M 12 25 L 14 28 L 18 22" fill="none" stroke="var(--text-selected)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="100" strokeDashoffset={100 - drawCheck1} />
+
+          {/* Item 2 */}
+          <rect x="10" y="40" width="10" height="10" fill="var(--background)" stroke="var(--text-muted)" strokeWidth="1" rx="2" />
+          <line x1="28" y1="45" x2="50" y2="45" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+          <path d="M 12 45 L 14 48 L 18 42" fill="none" stroke="var(--text-selected)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="100" strokeDashoffset={100 - drawCheck2} />
+
+          {/* Item 3 */}
+          <rect x="10" y="60" width="10" height="10" fill="var(--background)" stroke="var(--text-muted)" strokeWidth="1" rx="2" />
+          <line x1="28" y1="65" x2="55" y2="65" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+          <path d="M 12 65 L 14 68 L 18 62" fill="none" stroke="var(--text-selected)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="100" strokeDashoffset={100 - drawCheck3} />
+        </g>
+        
+        {/* Card connecting to checklist */}
+        <g transform="translate(250, 150) scale(1, 0.5) rotate(45) translate(-100, -75)">
+          <g transform={`translate(${interpolate(cycle, [0, 1], [15, 63])}, 65)`}>
+            <rect x="0" y="0" width="44" height="20" fill="var(--text-selected)" rx="2" />
+          </g>
+        </g>
+      </g>
+    );
+  };
+
+  const renderWiki = () => {
+    const cycle = (frame % (fps * 3)) / (fps * 3);
+    const cardY = interpolate(cycle, [0, 0.5, 1], [205, 165, 150]);
+
+    return (
+      <g>
+        <Board y="150" />
+
+        {/* Wiki document node */}
+        <g transform="translate(120, 225) scale(1, 0.5) rotate(45) translate(-45, -58)">
+          <path d="M 0 0 L 66 0 L 82 16 L 82 116 L 0 116 Z" fill="var(--background)" stroke="var(--border)" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M 66 0 L 66 16 L 82 16" fill="none" stroke="var(--border)" strokeWidth="2" strokeLinejoin="round" />
+          <line x1="12" y1="24" x2="58" y2="24" stroke="var(--text-selected)" strokeWidth="2" strokeLinecap="round" />
+          <line x1="12" y1="40" x2="68" y2="40" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+          <line x1="12" y1="56" x2="68" y2="56" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+          <line x1="12" y1="72" x2="54" y2="72" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+          <line x1="12" y1="88" x2="62" y2="88" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
         </g>
 
-        {/* Card blocked by shield */}
+        {/* Sync path from wiki to board */}
+        <path d="M 120 225 L 250 150" fill="none" stroke="var(--text-selected)" strokeWidth="2" strokeDasharray="5 5">
+          <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1s" repeatCount="indefinite" />
+        </path>
+
+        {/* Highlight card materializing on board */}
         <g transform="translate(250, 150) scale(1, 0.5) rotate(45) translate(-100, -75)">
-          <g transform={`translate(${interpolate(Math.sin(frame * 0.1), [-1, 1], [15, 60])}, 65)`}>
-            <rect x="0" y="0" width="44" height="20" fill="var(--danger-text)" rx="2" />
-          </g>
+          <rect x="15" y={cardY} width="44" height="20" fill="var(--text-selected)" rx="2" />
         </g>
       </g>
     );
@@ -311,13 +364,25 @@ export function AnimatedPictogramVideo({ type = "git", style }: { type?: Pictogr
     beads: { title: "Beads Compatibility", render: renderBeads },
     virtual: { title: "Virtual Projects", render: renderVirtual },
     vscode: { title: "VS Code Integration", render: renderVsCode },
+    wiki: { title: "Integrated Wiki", render: renderWiki },
     policy: { title: "Policy as Code", render: renderPolicy },
   };
 
   const { render } = contentMap[type] || contentMap.git;
 
   return (
-    <div className="bg-card flex flex-col items-center justify-center p-8 overflow-hidden rounded-2xl min-h-[500px]" style={style || { width: "100%", height: "100%" }}>
+    <div style={{
+      backgroundColor: "var(--card)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "32px",
+      overflow: "hidden",
+      borderRadius: "16px",
+      minHeight: "500px",
+      ...(style || { width: "100%", height: "100%" })
+    }}>
       <svg width="100%" height="450" viewBox="0 0 500 350" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <radialGradient id="pictogram-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">

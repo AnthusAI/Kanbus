@@ -9,4 +9,5 @@ export { CodeUiSync } from "./CodeUiSync";
 export { HoverVideoPlayer } from "./HoverVideoPlayer";
 export { HeroPictogram } from "./HeroPictogram";
 export { FullVideoPlayer } from "./FullVideoPlayer";
+export { FeaturePictogram } from "./FeaturePictogram";
 export { VmlPreviewPlayer } from "./VmlPreviewPlayer";

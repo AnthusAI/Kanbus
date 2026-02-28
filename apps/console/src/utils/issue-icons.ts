@@ -7,7 +7,9 @@ import {
   Square,
   Tag,
   Wrench,
-  CornerDownRight
+  CornerDownRight,
+  Circle,
+  CircleCheckBig
 } from "lucide-react";
 
 /**
@@ -22,11 +24,14 @@ export function getTypeIcon(type: string, status?: string) {
     return type === "task" ? taskIcon : Bookmark;
   }
 
+  if (type === "bug") {
+    return status === "closed" ? CircleCheckBig : Circle;
+  }
+
   const iconMap: Record<string, any> = {
     initiative: Rocket,
     epic: Zap,
     "sub-task": CornerDownRight,
-    bug: Bug,
     story: Bookmark,
     chore: Wrench
   };

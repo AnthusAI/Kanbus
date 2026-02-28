@@ -5,16 +5,16 @@
       "sceneId": "deep_dive",
       "cueId": "intro",
       "startSec": 5.625,
-      "endSec": 10.352272727272727,
+      "endSec": 12.175,
       "segments": [
         {
           "type": "tts",
           "startSec": 5.625,
-          "endSec": 10.352272727272727,
+          "endSec": 12.175,
           "text": "Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/policy-as-code/env/development/segments/deep_dive--intro--tts--3e9b4cddc363--1.wav",
-          "durationSec": 4.727272727272727,
-          "rawDurationSec": 4.727272727272727,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/policy-as-code/env/development/segments/deep_dive--intro--tts--1ee81c6dac60--1.wav",
+          "durationSec": 6.55,
+          "rawDurationSec": 6.55,
           "trimEndSec": 0
         }
       ]
@@ -23,23 +23,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "example_explanation",
-      "startSec": 10.352272727272727,
-      "endSec": 18.852272727272727,
+      "startSec": 12.175,
+      "endSec": 22.137500000000003,
       "segments": [
         {
           "type": "pause",
-          "startSec": 10.352272727272727,
-          "endSec": 10.852272727272727,
+          "startSec": 12.175,
+          "endSec": 12.675,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 10.852272727272727,
-          "endSec": 18.852272727272727,
+          "startSec": 12.675,
+          "endSec": 22.137500000000003,
           "text": "Use familiar BDD syntax to describe your project rules. No programming required, just clear, readable scenarios that express exactly what should happen.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/policy-as-code/env/development/segments/deep_dive--example_explanation--tts--965dde6fc0d1--1.wav",
-          "durationSec": 8,
-          "rawDurationSec": 8,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/policy-as-code/env/development/segments/deep_dive--example_explanation--tts--a0ae800a9bb9--1.wav",
+          "durationSec": 9.4625,
+          "rawDurationSec": 9.4625,
           "trimEndSec": 0
         }
       ]
@@ -48,23 +48,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "enforcement_explanation",
-      "startSec": 18.852272727272727,
-      "endSec": 29.534090909090907,
+      "startSec": 22.137500000000003,
+      "endSec": 33.612500000000004,
       "segments": [
         {
           "type": "pause",
-          "startSec": 18.852272727272727,
-          "endSec": 19.352272727272727,
+          "startSec": 22.137500000000003,
+          "endSec": 22.637500000000003,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 19.352272727272727,
-          "endSec": 29.534090909090907,
+          "startSec": 22.637500000000003,
+          "endSec": 33.612500000000004,
           "text": "Policies run automatically on every issue create and update. When a policy fails, the operation is rejected with a clear error message showing exactly which rule was violated.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/policy-as-code/env/development/segments/deep_dive--enforcement_explanation--tts--0e4d789d7c19--1.wav",
-          "durationSec": 10.181818181818182,
-          "rawDurationSec": 10.181818181818182,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/policy-as-code/env/development/segments/deep_dive--enforcement_explanation--tts--1f8943593ebc--1.wav",
+          "durationSec": 10.975,
+          "rawDurationSec": 10.975,
           "trimEndSec": 0
         }
       ]
@@ -73,23 +73,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "benefits_explanation",
-      "startSec": 29.534090909090907,
-      "endSec": 39.125,
+      "startSec": 33.612500000000004,
+      "endSec": 44.050000000000004,
       "segments": [
         {
           "type": "pause",
-          "startSec": 29.534090909090907,
-          "endSec": 30.034090909090907,
+          "startSec": 33.612500000000004,
+          "endSec": 34.112500000000004,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 30.034090909090907,
-          "endSec": 39.125,
+          "startSec": 34.112500000000004,
+          "endSec": 44.050000000000004,
           "text": "Policies work the same whether a human or an AI agent is managing issues. Define your standards once, and they're enforced consistently across all interactions.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/policy-as-code/env/development/segments/deep_dive--benefits_explanation--tts--fddb88d40720--1.wav",
-          "durationSec": 9.090909090909092,
-          "rawDurationSec": 9.090909090909092,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/policy-as-code/env/development/segments/deep_dive--benefits_explanation--tts--fcee79ff740d--1.wav",
+          "durationSec": 9.9375,
+          "rawDurationSec": 9.9375,
           "trimEndSec": 0
         }
       ]
@@ -102,35 +102,35 @@
         "kind": "narration",
         "clips": [
           {
-            "id": "deep_dive--intro--tts--3e9b4cddc363--1",
+            "id": "deep_dive--intro--tts--1ee81c6dac60--1",
             "kind": "file",
             "startSec": 5.625,
-            "durationSec": 4.727272727272727,
-            "src": "/videoml/policy-as-code/env/development/segments/deep_dive--intro--tts--3e9b4cddc363--1.wav",
+            "durationSec": 6.55,
+            "src": "/videoml/policy-as-code/env/development/segments/deep_dive--intro--tts--1ee81c6dac60--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--example_explanation--tts--965dde6fc0d1--1",
+            "id": "deep_dive--example_explanation--tts--a0ae800a9bb9--1",
             "kind": "file",
-            "startSec": 10.852272727272727,
-            "durationSec": 8,
-            "src": "/videoml/policy-as-code/env/development/segments/deep_dive--example_explanation--tts--965dde6fc0d1--1.wav",
+            "startSec": 12.675,
+            "durationSec": 9.4625,
+            "src": "/videoml/policy-as-code/env/development/segments/deep_dive--example_explanation--tts--a0ae800a9bb9--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--enforcement_explanation--tts--0e4d789d7c19--1",
+            "id": "deep_dive--enforcement_explanation--tts--1f8943593ebc--1",
             "kind": "file",
-            "startSec": 19.352272727272727,
-            "durationSec": 10.181818181818182,
-            "src": "/videoml/policy-as-code/env/development/segments/deep_dive--enforcement_explanation--tts--0e4d789d7c19--1.wav",
+            "startSec": 22.637500000000003,
+            "durationSec": 10.975,
+            "src": "/videoml/policy-as-code/env/development/segments/deep_dive--enforcement_explanation--tts--1f8943593ebc--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--benefits_explanation--tts--fddb88d40720--1",
+            "id": "deep_dive--benefits_explanation--tts--fcee79ff740d--1",
             "kind": "file",
-            "startSec": 30.034090909090907,
-            "durationSec": 9.090909090909092,
-            "src": "/videoml/policy-as-code/env/development/segments/deep_dive--benefits_explanation--tts--fddb88d40720--1.wav",
+            "startSec": 34.112500000000004,
+            "durationSec": 9.9375,
+            "src": "/videoml/policy-as-code/env/development/segments/deep_dive--benefits_explanation--tts--fcee79ff740d--1.wav",
             "volume": 1
           }
         ]

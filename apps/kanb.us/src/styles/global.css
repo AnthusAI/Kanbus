@@ -1,5 +1,6 @@
-/* Import Tailwind directly instead of full console globals */
 @import "tailwindcss";
+@import "@kanbus/ui/styles/kanban.css"; /* Keep kanban specific styles */
+@import "./content.css";
 
 @theme {
   --color-background: var(--background);
@@ -16,9 +17,6 @@
   --shadow-card: var(--shadow-card);
 }
 
-@import "@kanbus/ui/styles/kanban.css"; /* Keep kanban specific styles */
-@import "./content.css";
-
 /* --- START: Existing Marketing Site Styles --- */
 
 :root {
@@ -33,6 +31,7 @@
   --accent-1: var(--text-selected);
   --accent-2: var(--border);
   --accent-3: var(--card-muted);
+  --accent-blue: var(--blue-5);
 
   --radius-sm: 10px;
   --radius-md: 14px;
@@ -50,10 +49,14 @@
   --max-width: 1200px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-  }
+html {
+  color-scheme: light;
+  background: var(--background);
+}
+
+html.dark {
+  color-scheme: dark;
+  --accent-blue: var(--blue-8);
 }
 
 * {
@@ -70,9 +73,20 @@ body {
   line-height: 1.6;
 }
 
-html {
-  color-scheme: light dark;
-  background: var(--background);
+.pictogram {
+  --column: var(--gray-5);
+  --background: var(--gray-3);
+  --card: var(--gray-1);
+  --border: var(--gray-6);
+  --card-muted: var(--gray-4);
+}
+
+html.dark .pictogram {
+  --column: var(--gray-4);
+  --background: var(--gray-6);
+  --card: var(--gray-8);
+  --border: var(--gray-7);
+  --card-muted: var(--gray-5);
 }
 
 /* Rest of existing styles... */
