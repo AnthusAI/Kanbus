@@ -1,5 +1,5 @@
-<svg width="132.9" height="20" viewBox="0 0 1329 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="rust coverage: 72.3%">
-  <title>rust coverage: 72.3%</title>
+<svg width="132.9" height="20" viewBox="0 0 1329 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="rust coverage: 76.2%">
+  <title>rust coverage: 76.2%</title>
   <linearGradient id="a" x2="0" y2="100%">
     <stop offset="0" stop-opacity=".1" stop-color="#EEE"/>
     <stop offset="1" stop-opacity=".1"/>
@@ -13,8 +13,8 @@
   <g aria-hidden="true" fill="#fff" text-anchor="start" font-family="Verdana,DejaVu Sans,sans-serif" font-size="110">
     <text x="60" y="148" textLength="759" fill="#000" opacity="0.25">rust coverage</text>
     <text x="50" y="138" textLength="759">rust coverage</text>
-    <text x="914" y="148" textLength="370" fill="#000" opacity="0.25">72.3%</text>
-    <text x="904" y="138" textLength="370">72.3%</text>
+    <text x="914" y="148" textLength="370" fill="#000" opacity="0.25">76.2%</text>
+    <text x="904" y="138" textLength="370">76.2%</text>
   </g>
   
 </svg>
