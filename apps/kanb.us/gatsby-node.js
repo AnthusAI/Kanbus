@@ -4,7 +4,14 @@ const fs = require("fs");
 exports.onCreateWebpackConfig = ({ actions, stage }) => {
   const config = {
     resolve: {
-      modules: [path.resolve(__dirname, "node_modules")]
+      modules: [path.resolve(__dirname, "node_modules")],
+      alias: {
+        // Stub out VideoML player packages in environments where the real
+        // dependency isn't available (e.g., Amplify build). Components guard
+        // usage at runtime.
+        "@videoml/player/react": path.resolve(__dirname, "src/mocks/videoml-player.js"),
+        "@videoml/stdlib/dom": path.resolve(__dirname, "src/mocks/empty-module.js")
+      }
     }
   };
 
@@ -15,11 +22,11 @@ exports.onCreateWebpackConfig = ({ actions, stage }) => {
   }
 
   if (stage === "build-html" || stage === "develop-html") {
-    config.resolve.alias = {
+    Object.assign(config.resolve.alias, {
       "@radix-ui/react-scroll-area": path.resolve(__dirname, "src/mocks/empty-module.js"),
       "@radix-ui/react-tabs": path.resolve(__dirname, "src/mocks/empty-module.js"),
       gsap: path.resolve(__dirname, "src/mocks/empty-module.js")
-    };
+    });
   }
 
   actions.setWebpackConfig(config);
