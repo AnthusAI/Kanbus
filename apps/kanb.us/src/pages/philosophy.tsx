@@ -8,7 +8,6 @@ const PhilosophyPage = () => {
       <Hero
         title="Design Philosophy"
         subtitle="Kanbus is built on a set of core principles that prioritize developer experience, transparency, and longevity."
-        eyebrow="System Design"
       />
 
       <div className="space-y-12">

@@ -1,7 +1,7 @@
 import React from "react";
 import { Board } from "@kanbus/ui";
 import { KanbanVideoStyles } from "./KanbanVideoStyles";
-import { useCurrentFrame, useVideoConfig } from "remotion";
+import { useCurrentFrame, useVideoConfig } from "../remotion-shim";
 
 const boardConfig = {
   statuses: [

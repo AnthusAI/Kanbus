@@ -214,6 +214,26 @@ Kanbus/
 `-- .beads/                        # Project task database
 ```
 
+## Video Uploads
+
+The marketing website (`apps/kanb.us`) features rendered VideoML content that showcases Kanbus features. To render and upload videos:
+
+### Quick Reference
+
+```bash
+# Render videos from VideoML sources
+node scripts/render-videos.js
+
+# Upload to AWS S3
+node scripts/upload-videos.js --profile=anthus
+
+# Set environment variable and preview
+export GATSBY_VIDEOS_BASE_URL=https://your-bucket.s3.amazonaws.com/kanbus-feature-videos
+cd apps/kanb.us && npm run develop
+```
+
+For detailed instructions, see [VIDEOS_UPLOAD_GUIDE.md](VIDEOS_UPLOAD_GUIDE.md).
+
 ## Contributing
 
 We welcome contributions! Please:

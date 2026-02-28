@@ -23,7 +23,7 @@ export function AnimatedPictogram() {
   );
 
   return (
-    <div className="w-full h-full bg-card flex flex-col items-center justify-center p-8 overflow-hidden rounded-2xl min-h-[500px] relative">
+    <div className="w-full h-full bg-card flex flex-col items-center justify-center py-6 px-2 md:p-8 overflow-hidden rounded-2xl min-h-[400px] relative pictogram">
       {/* Background glow to ground the 3D window */}
       <div 
         className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-[100%] pointer-events-none z-0"
@@ -32,7 +32,7 @@ export function AnimatedPictogram() {
         }}
       />
       <h3 className="font-mono text-sm text-muted mb-4 tracking-widest uppercase z-10">Git Synchronization</h3>
-      <svg width="100%" height="450" viewBox="0 0 500 350" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10">
+      <svg width="100%" viewBox="55 0 335 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 h-auto max-h-[400px]">
         <defs>
           <radialGradient id="pictogram-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
             <stop offset="0%" stopColor="var(--glow-center)" />
@@ -44,11 +44,13 @@ export function AnimatedPictogram() {
         <ellipse cx="250" cy="150" rx="200" ry="140" fill="url(#pictogram-glow)" />
         
         {/* Connection Line (Git) */}
-        <line x1="80" y1="40" x2="80" y2="280" stroke="var(--text-selected)" strokeWidth="2" strokeDasharray="4 4" />
-        <text x="70" y="160" transform="rotate(-90 70 160)" textAnchor="middle" fill="var(--text-selected)" fontSize="12" fontFamily="monospace" fontWeight="bold" letterSpacing="2">GIT</text>
+        <line x1="80" y1="40" x2="80" y2="280" stroke="var(--accent-blue)" strokeWidth="2" strokeDasharray="4 4" />
+        <path d="M 75 45 L 80 40 L 85 45" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M 75 275 L 80 280 L 85 275" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <text x="70" y="160" transform="rotate(-90 70 160)" textAnchor="middle" fill="var(--accent-blue)" fontSize="12" fontFamily="monospace" fontWeight="bold" letterSpacing="2">GIT</text>
         
         {/* Layer 1 (Bottom) - Developer A */}
-        <g>
+        <g transform="translate(-15, 0) scale(1.15) translate(-35, -20)">
           <Board y="220" />
           {/* Scenario 1: New Item appearing */}
           <g transform="translate(250, 220) scale(1, 0.5) rotate(45) translate(-100, -75)">
@@ -62,7 +64,7 @@ export function AnimatedPictogram() {
                 times: [0, 0.045, 0.068, 0.955, 0.977, 1]
               }}
             >
-              <rect x="15" y="65" width="44" height="20" fill="var(--text-selected)" rx="2" />
+              <rect x="15" y="65" width="44" height="20" fill="var(--accent-blue)" rx="2" />
             </motion.g>
           </g>
           {/* Scenario 2: Existing right column card - Shifts down */}
@@ -90,13 +92,13 @@ export function AnimatedPictogram() {
                 times: [0, 0.750, 0.773, 0.955, 0.977, 1]
               }}
             >
-              <rect x="78" y="15" width="44" height="20" fill="var(--text-selected)" rx="2" />
+              <rect x="78" y="15" width="44" height="20" fill="var(--accent-blue)" rx="2" />
             </motion.g>
           </g>
         </g>
 
         {/* Layer 2 (Middle) - Web Console */}
-        <g>
+        <g transform="translate(-15, 0) scale(1.15) translate(-35, -20)">
           <Board y="150" />
           {/* Scenario 1: New Item appearing */}
           <g transform="translate(250, 150) scale(1, 0.5) rotate(45) translate(-100, -75)">
@@ -110,7 +112,7 @@ export function AnimatedPictogram() {
                 times: [0, 0.182, 0.205, 0.955, 0.977, 1]
               }}
             >
-              <rect x="15" y="65" width="44" height="20" fill="var(--text-selected)" rx="2" />
+              <rect x="15" y="65" width="44" height="20" fill="var(--accent-blue)" rx="2" />
             </motion.g>
           </g>
           {/* Scenario 2: Existing right column card - Shifts down */}
@@ -138,13 +140,13 @@ export function AnimatedPictogram() {
                 times: [0, 0.614, 0.636, 0.955, 0.977, 1]
               }}
             >
-              <rect x="78" y="15" width="44" height="20" fill="var(--text-selected)" rx="2" />
+              <rect x="78" y="15" width="44" height="20" fill="var(--accent-blue)" rx="2" />
             </motion.g>
           </g>
         </g>
 
         {/* Layer 3 (Top) - AI Agent */}
-        <g>
+        <g transform="translate(-15, 0) scale(1.15) translate(-35, -20)">
           <Board y="80" />
           {/* Scenario 1: New Item appearing */}
           <g transform="translate(250, 80) scale(1, 0.5) rotate(45) translate(-100, -75)">
@@ -158,7 +160,7 @@ export function AnimatedPictogram() {
                 times: [0, 0.318, 0.341, 0.955, 0.977, 1]
               }}
             >
-              <rect x="15" y="65" width="44" height="20" fill="var(--text-selected)" rx="2" />
+              <rect x="15" y="65" width="44" height="20" fill="var(--accent-blue)" rx="2" />
             </motion.g>
           </g>
           {/* Scenario 2: Existing right column card - Shifts down */}
@@ -186,7 +188,7 @@ export function AnimatedPictogram() {
                 times: [0, 0.477, 0.500, 0.955, 0.977, 1]
               }}
             >
-              <rect x="78" y="15" width="44" height="20" fill="var(--text-selected)" rx="2" />
+              <rect x="78" y="15" width="44" height="20" fill="var(--accent-blue)" rx="2" />
             </motion.g>
           </g>
         </g>
