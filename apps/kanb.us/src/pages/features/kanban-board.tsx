@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Layout, Section, Hero, FullVideoPlayer } from "../../components";
+import { Layout, Section, Hero, FullVideoPlayer, FeaturePictogram } from "../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { getVideoById } from "../../content/videos";
 import { getVideoSrc } from "../../lib/getVideoSrc";
@@ -14,13 +14,13 @@ const KanbanBoardPage = () => {
       <Hero
         title="Kanban Board"
         subtitle="Visualize your workflow in a modern, reactive interface. Drag and drop issues, filter by status, and see the big picture—all without leaving your browser."
-        eyebrow="Features"
+        rightPane={<FeaturePictogram type="kanban-board" />}
         bottomPane={
-          videoSrc ? (
-            <div className="w-full flex justify-center mt-12 mb-8">
+          <div className="w-full flex flex-col items-center justify-center mt-12 mb-8 gap-12">
+            {videoSrc ? (
               <FullVideoPlayer src={videoSrc} poster={videoPoster} videoId="kanban-board" />
-            </div>
-          ) : undefined
+            ) : null}
+          </div>
         }
       />
 

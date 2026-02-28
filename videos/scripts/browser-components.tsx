@@ -9,42 +9,47 @@ import { VirtualProjectsDemoVideo } from "../src/components/VirtualProjectsDemoV
 import { VsCodeDemoVideo } from "../src/components/VsCodeDemoVideo";
 import { PolicyDemoVideo } from "../src/components/PolicyDemoVideo";
 import { TextBlock } from "../src/components/TextBlock";
-
 // For the CLI renderer, window might be mocked, but we need to ensure Babulus exists
 if (typeof window !== "undefined") {
-  // Inject Kanbus CSS variables into the headless browser environment so 
-  // MP4 exports are styled nicely (defaulting to Dark Mode for the videos)
+  // Inject Kanbus CSS variables into the headless browser environment so
+  // MP4 exports are styled nicely (defaulting to Dark Mode for the videos).
+  // Skip injection when the site's CSS already provides the tokens (e.g., on
+  // the marketing site where commons.css is loaded).
   if (typeof document !== "undefined" && !document.getElementById("kanbus-tokens")) {
-    const style = document.createElement("style");
-    style.id = "kanbus-tokens";
-    style.textContent = `
-      :root {
-        --font-sans: "Inter", "SF Pro Text", "Helvetica Neue", "Arial", sans-serif;
-        --font-serif: "Source Serif 4", "Iowan Old Style", "Times New Roman", serif;
-        --font-mono: "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
-        --font-body: var(--font-sans);
+    const alreadyDefined = getComputedStyle(document.documentElement)
+      .getPropertyValue("--background").trim();
+    if (!alreadyDefined) {
+      const style = document.createElement("style");
+      style.id = "kanbus-tokens";
+      style.textContent = `
+        :root {
+          --font-sans: "Inter", "SF Pro Text", "Helvetica Neue", "Arial", sans-serif;
+          --font-serif: "Source Serif 4", "Iowan Old Style", "Times New Roman", serif;
+          --font-mono: "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
+          --font-body: var(--font-sans);
 
-        /* Console dark */
-        --background: #0f1115;
-        --card: #14171d;
-        --card-muted: #1e222b;
-        --card-outline: #262c36;
-        --frame: #0f1115;
-        --column: #1a1f28;
-        --text-foreground: #e7e9ee;
-        --text-muted: #9ca3af;
-        --text-selected: #7dd3fc;
-        --border: #262c36;
-        --shadow-card: none;
+          /* Console dark */
+          --background: #0f1115;
+          --card: #14171d;
+          --card-muted: #1e222b;
+          --card-outline: #262c36;
+          --frame: #0f1115;
+          --column: #1a1f28;
+          --text-foreground: #e7e9ee;
+          --text-muted: #9ca3af;
+          --text-selected: #7dd3fc;
+          --border: #262c36;
+          --shadow-card: none;
 
-        --danger-bg: #451a1d;
-        --danger-text: #fca5a5;
+          --danger-bg: #451a1d;
+          --danger-text: #fca5a5;
 
-        --glow-center: rgba(0, 0, 0, 0.5);
-        --glow-edge: rgba(0, 0, 0, 0);
-      }
-    `;
-    document.head.appendChild(style);
+          --glow-center: rgba(0, 0, 0, 0.5);
+          --glow-edge: rgba(0, 0, 0, 0);
+        }
+      `;
+      document.head.appendChild(style);
+    }
   }
 
   if (!(window as any).Babulus) {

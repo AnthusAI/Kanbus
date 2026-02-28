@@ -23,7 +23,7 @@ const DocsKanbanBoardPage = ({ location }: PageProps) => {
           </a>
         </div>
 
-        <div className="prose prose-slate dark:prose-invert max-w-none text-muted leading-relaxed space-y-6">
+        <div className="prose prose-slate max-w-none text-muted leading-relaxed space-y-6">
           <p>
             Sometimes you need a visual representation of your project state. Kanbus includes a fast, 
             local Kanban board interface powered by React and Rust. It reads directly from your local 

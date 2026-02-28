@@ -32,20 +32,12 @@ export function VirtualProjectsDemoVideo({ style }: { style?: React.CSSPropertie
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Animation timeline:
-  // 1. Show main repo
-  // 2. Show separate dependency repos sliding in
-  // 3. Command: kanbus list --all (or similar)
-  // 4. They all merge into one unified board/list
-
   const stage1End = fps * 2;
   const stage2End = fps * 4;
 
-  // Stage 1: Dependency Repos slide in
   const depsOpacity = interpolate(frame, [0, fps], [0, 1], { extrapolateRight: "clamp" });
   const depsY = interpolate(frame, [0, fps], [50, 0], { extrapolateRight: "clamp" });
 
-  // Stage 2: Merge into one
   const mergeProgress = spring({
     frame: Math.max(0, frame - stage1End),
     fps,
@@ -56,7 +48,6 @@ export function VirtualProjectsDemoVideo({ style }: { style?: React.CSSPropertie
   const dep1X = interpolate(mergeProgress, [0, 1], [200, 0]);
   const dep2X = interpolate(mergeProgress, [0, 1], [400, 0]);
 
-  // Stage 3: Fade out raw blocks, fade in unified board
   const boardOpacity = interpolate(frame, [stage2End, stage2End + fps], [0, 1], { extrapolateRight: "clamp" });
   const rawOpacity = interpolate(frame, [stage2End, stage2End + fps], [1, 0], { extrapolateRight: "clamp" });
 
@@ -66,58 +57,108 @@ export function VirtualProjectsDemoVideo({ style }: { style?: React.CSSPropertie
     { id: "LIB-99", title: "Fix memory leak in parser", type: "bug", priority: 1, status: "in_progress" },
   ];
 
+  const repoBoxStyle: React.CSSProperties = {
+    width: "192px",
+    height: "256px",
+    borderRadius: "12px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative"
+  };
+
   return (
-    <div className="absolute flex justify-center items-center p-8 h-[500px]" style={style || { inset: 0 }}>
-      {/* Background glow to ground the 3D window */}
-      <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-[100%] pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
-        }}
-      />
-      
+    <div style={{
+      position: "absolute",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: "32px",
+      height: "500px",
+      ...(style || { inset: 0 })
+    }}>
+      {/* Background glow */}
+      <div style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "800px",
+        height: "400px",
+        borderRadius: "100%",
+        pointerEvents: "none",
+        background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
+      }} />
+
       {/* Raw Repositories View */}
-      <div 
-        className="absolute inset-0 flex justify-center items-center gap-16"
-        style={{ opacity: rawOpacity }}
-      >
-        <div 
-          className="w-48 h-64 border border-blue-500/50 bg-blue-900/20 rounded-xl flex flex-col items-center justify-center relative"
-          style={{ transform: `translateX(${mainX}px)` }}
-        >
-          <div className="text-blue-400 font-mono font-bold mb-4">api-server/</div>
-          <div className="text-xs text-[var(--text-selected)] opacity-70">PROJ- API</div>
+      <div style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: "64px",
+        opacity: rawOpacity
+      }}>
+        <div style={{
+          ...repoBoxStyle,
+          border: "1px solid rgba(59,130,246,0.5)",
+          backgroundColor: "rgba(30,58,138,0.2)",
+          transform: `translateX(${mainX}px)`
+        }}>
+          <div style={{ color: "#60a5fa", fontFamily: "monospace", fontWeight: "bold", marginBottom: "16px" }}>api-server/</div>
+          <div style={{ fontSize: "12px", color: "var(--text-selected)", opacity: 0.7 }}>PROJ- API</div>
         </div>
 
-        <div 
-          className="w-48 h-64 border border-purple-500/50 bg-purple-900/20 rounded-xl flex flex-col items-center justify-center relative"
-          style={{ transform: `translateX(${dep1X}px)`, opacity: depsOpacity, translateY: `${depsY}px` }}
-        >
-          <div className="text-purple-400 font-mono font-bold mb-4">web-client/</div>
-          <div className="text-xs text-purple-500/70">PROJ- UI</div>
+        <div style={{
+          ...repoBoxStyle,
+          border: "1px solid rgba(168,85,247,0.5)",
+          backgroundColor: "rgba(88,28,135,0.2)",
+          transform: `translateX(${dep1X}px) translateY(${depsY}px)`,
+          opacity: depsOpacity
+        }}>
+          <div style={{ color: "#c084fc", fontFamily: "monospace", fontWeight: "bold", marginBottom: "16px" }}>web-client/</div>
+          <div style={{ fontSize: "12px", color: "rgba(168,85,247,0.7)" }}>PROJ- UI</div>
         </div>
 
-        <div 
-          className="w-48 h-64 border border-green-500/50 bg-green-900/20 rounded-xl flex flex-col items-center justify-center relative"
-          style={{ transform: `translateX(${dep2X}px)`, opacity: depsOpacity, translateY: `${depsY}px` }}
-        >
-          <div className="text-green-400 font-mono font-bold mb-4">core-lib/</div>
-          <div className="text-xs text-green-500/70">PROJ- LIB</div>
+        <div style={{
+          ...repoBoxStyle,
+          border: "1px solid rgba(34,197,94,0.5)",
+          backgroundColor: "rgba(20,83,45,0.2)",
+          transform: `translateX(${dep2X}px) translateY(${depsY}px)`,
+          opacity: depsOpacity
+        }}>
+          <div style={{ color: "#4ade80", fontFamily: "monospace", fontWeight: "bold", marginBottom: "16px" }}>core-lib/</div>
+          <div style={{ fontSize: "12px", color: "rgba(34,197,94,0.7)" }}>PROJ- LIB</div>
         </div>
       </div>
 
       {/* Unified Board View */}
-      <div 
-        className="absolute w-full max-w-4xl flex flex-col gap-4"
-        style={{ opacity: boardOpacity }}
-      >
-        <div className="text-center text-[var(--text-foreground)] font-mono mb-4 text-sm tracking-widest uppercase">
+      <div style={{
+        position: "absolute",
+        width: "100%",
+        maxWidth: "896px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        opacity: boardOpacity
+      }}>
+        <div style={{
+          textAlign: "center",
+          color: "var(--text-foreground)",
+          fontFamily: "monospace",
+          marginBottom: "16px",
+          fontSize: "14px",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase"
+        }}>
           Unified Workspace
         </div>
-        <div className="flex gap-6 justify-center">
+        <div style={{ display: "flex", gap: "24px", justifyContent: "center" }}>
           {issues.map((issue) => (
-            <div key={issue.id} className="w-64">
-              <IssueCard 
+            <div key={issue.id} style={{ width: "256px" }}>
+              <IssueCard
                 issue={issue as any}
                 config={boardConfig as any}
                 priorityName={issue.priority === 1 ? "high" : "medium"}
@@ -127,7 +168,6 @@ export function VirtualProjectsDemoVideo({ style }: { style?: React.CSSPropertie
           ))}
         </div>
       </div>
-
     </div>
   );
 }

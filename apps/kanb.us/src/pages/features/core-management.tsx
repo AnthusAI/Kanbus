@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Layout, Section, Hero, FullVideoPlayer } from "../../components";
+import { Layout, Section, Hero, FullVideoPlayer, FeaturePictogram } from "../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { getVideoById } from "../../content/videos";
 import { getVideoSrc } from "../../lib/getVideoSrc";
@@ -12,15 +12,15 @@ const CoreManagementPage = () => {
   return (
     <Layout>
       <Hero
-        title="Core Project Management"
-        subtitle="The speed of the command line, the structure of Jira, and the simplicity of Markdown."
-        eyebrow="Features"
+        title="Agent-Ready CLI"
+        subtitle="A fast, scriptable CLI tool that lets your coding agents read requirements, update statuses, and track issues natively."
+        rightPane={<FeaturePictogram type="core-management" />}
         bottomPane={
-          videoSrc ? (
-            <div className="w-full flex justify-center mt-12 mb-8">
+          <div className="w-full flex flex-col items-center justify-center mt-12 mb-8 gap-12">
+            {videoSrc ? (
               <FullVideoPlayer src={videoSrc} poster={videoPoster} videoId="core-management" />
-            </div>
-          ) : undefined
+            ) : null}
+          </div>
         }
       />
 

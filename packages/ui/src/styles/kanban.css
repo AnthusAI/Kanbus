@@ -80,14 +80,6 @@
   --issue-priority-bg: var(--issue-priority-bg-dark);
 }
 
-@media (prefers-color-scheme: dark) {
-  .issue-card {
-    --issue-accent: var(--issue-accent-dark);
-    --issue-accent-muted: var(--issue-accent-muted-dark);
-    --issue-priority-bg: var(--issue-priority-bg-dark);
-  }
-}
-
 .kb-grid {
   display: flex;
   align-items: stretch;
@@ -260,12 +252,6 @@
 
 .dark .status-badge {
   --status-badge-bg: var(--status-badge-bg-dark);
-}
-
-@media (prefers-color-scheme: dark) {
-  .status-badge {
-    --status-badge-bg: var(--status-badge-bg-dark);
-  }
 }
 
 /* Detail panel layout (shared) */

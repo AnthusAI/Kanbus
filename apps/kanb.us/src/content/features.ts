@@ -7,9 +7,14 @@ export type FeatureEntry = {
 
 export const FEATURE_ENTRIES: FeatureEntry[] = [
   {
-    title: "Core Management",
-    description: "The speed of CLI, the structure of Jira. Create, track, and update tasks without leaving your terminal.",
+    title: "Agent-Ready CLI",
+    description: "A fast, scriptable CLI tool that lets your coding agents read requirements, update statuses, and track issues natively.",
     href: "/features/core-management"
+  },
+  {
+    title: "Kanban Board",
+    description: "Visualize your workflow in a modern, reactive interface. Drag and drop issues, filter by status, and see the big picture.",
+    href: "/features/kanban-board"
   },
   {
     title: "Jira Sync",
@@ -35,6 +40,11 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
     title: "VS Code Plugin",
     description: "Manage your project without leaving your code. Full Kanban board integration.",
     href: "/features/vscode-plugin"
+  },
+  {
+    title: "Integrated Wiki",
+    description: "Generate dynamic documentation from your issues. Tables, queries, and live data—all from Markdown.",
+    href: "/features/integrated-wiki"
   },
   {
     title: "Policy as Code",

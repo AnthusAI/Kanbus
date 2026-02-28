@@ -52,7 +52,7 @@ export const AnimatedKanbanIcon = ({ className }: { className?: string }) => {
               duration: card.pos === 0 ? undefined : 0.6,
               ease: card.pos === 0 ? undefined : "easeInOut"
             }}
-            className={`absolute w-[8.5px] h-[8.5px] rounded-[2px] ${card.id % 4 === 0 ? 'bg-selected shadow-[0_0_6px_var(--text-selected)] z-10' : 'bg-muted'}`}
+            className={`absolute w-[8.5px] h-[8.5px] rounded-[2px] ${card.id % 4 === 0 ? 'bg-[var(--accent-blue)] shadow-[0_0_6px_var(--accent-blue)] z-10' : 'bg-muted'}`}
           />
         ))}
       </AnimatePresence>
