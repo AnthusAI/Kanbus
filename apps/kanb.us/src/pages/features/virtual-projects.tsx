@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Layout, Section, Hero, FullVideoPlayer } from "../../components";
+import { Layout, Section, Hero, FullVideoPlayer, FeaturePictogram } from "../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { VIDEOS, getVideoById } from "../../content/videos";
 import { getVideoSrc } from "../../lib/getVideoSrc";
@@ -14,13 +14,13 @@ const VirtualProjectsPage = () => {
       <Hero
         title="Virtual Projects"
         subtitle="View and manage issues from multiple repositories in a single workspace."
-        eyebrow="Features"
+        rightPane={<FeaturePictogram type="virtual-projects" />}
         bottomPane={
-          videoSrc ? (
-            <div className="w-full flex justify-center mt-12 mb-8">
+          <div className="w-full flex flex-col items-center justify-center mt-12 mb-8 gap-12">
+            {videoSrc ? (
               <FullVideoPlayer src={videoSrc} poster={videoPoster} videoId="virtual-projects" />
-            </div>
-          ) : undefined
+            ) : null}
+          </div>
         }
       />
 

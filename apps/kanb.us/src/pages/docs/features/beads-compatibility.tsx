@@ -24,7 +24,7 @@ const DocsBeadsCompatibilityPage = ({ location }: PageProps) => {
           </a>
         </div>
 
-        <div className="prose prose-slate dark:prose-invert max-w-none text-muted leading-relaxed space-y-6">
+        <div className="prose prose-slate max-w-none text-muted leading-relaxed space-y-6">
           <p>
             Kanbus provides built-in compatibility with the older <strong>Beads</strong> format (which stores issues as a single <code>.beads/issues.jsonl</code> file). You do not need to migrate your data to use the Kanbus CLI or the Kanban board interface.
           </p>

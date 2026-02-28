@@ -24,7 +24,7 @@ const DocsCoreManagementPage = ({ location }: PageProps) => {
           </a>
         </div>
 
-        <div className="prose prose-slate dark:prose-invert max-w-none text-muted leading-relaxed space-y-6">
+        <div className="prose prose-slate max-w-none text-muted leading-relaxed space-y-6">
           <p>
             Kanbus provides a fully-featured CLI for managing your issues, epics, and tasks. Because everything is stored as JSON files, your issues are always right alongside your code, meaning you can easily update them using straightforward terminal commands.
           </p>

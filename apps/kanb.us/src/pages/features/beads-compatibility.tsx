@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Layout, Section, Hero, FullVideoPlayer } from "../../components";
+import { Layout, Section, Hero, FullVideoPlayer, FeaturePictogram } from "../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { VIDEOS, getVideoById } from "../../content/videos";
 import { getVideoSrc } from "../../lib/getVideoSrc";
@@ -14,13 +14,13 @@ const BeadsCompatibilityPage = () => {
       <Hero
         title="Beads Compatibility"
         subtitle="Instant Kanban board for your existing Beads projects. No migration required."
-        eyebrow="Integrations"
+        rightPane={<FeaturePictogram type="beads-compatibility" />}
         bottomPane={
-          videoSrc ? (
-            <div className="w-full flex justify-center mt-12 mb-8">
+          <div className="w-full flex flex-col items-center justify-center mt-12 mb-8 gap-12">
+            {videoSrc ? (
               <FullVideoPlayer src={videoSrc} poster={videoPoster} videoId="beads-compatibility" />
-            </div>
-          ) : undefined
+            ) : null}
+          </div>
         }
       />
 

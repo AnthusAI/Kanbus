@@ -115,14 +115,9 @@ export function CodeUiSync() {
       />
       
       {/* Code Window */}
-      <div className="flex-1 w-full max-w-xl z-10">
+      <div className="flex-1 w-full md:max-w-md z-10">
         <div className="bg-card rounded-xl font-mono text-sm leading-loose overflow-hidden shadow-2xl h-full flex flex-col border border-border/50">
-          <div className="text-muted flex items-center gap-4 bg-card-muted p-4 border-b border-border/50">
-             <div className="flex gap-2">
-               <span className="w-3 h-3 rounded-full bg-red-500/50"></span>
-               <span className="w-3 h-3 rounded-full bg-yellow-500/50"></span>
-               <span className="w-3 h-3 rounded-full bg-green-500/50"></span>
-             </div>
+          <div className="text-muted flex items-center bg-card-muted px-3 py-2 border-b border-border/50">
              <div className="flex flex-1 gap-2 overflow-x-auto hide-scrollbar">
                {FILES.map((file, idx) => (
                  <div 
@@ -154,7 +149,7 @@ export function CodeUiSync() {
       </div>
       
       {/* UI Board Visualization */}
-      <div className="flex-1 w-full max-w-xl md:max-w-sm flex flex-col justify-center z-10">
+      <div className="flex-1 w-full max-w-xl md:max-w-lg flex flex-col justify-center z-10">
         <div className="bg-column p-4 md:p-6 rounded-xl relative overflow-hidden h-full min-h-[340px] flex flex-col justify-center">
           
           <div className="relative h-full w-full">

@@ -27,6 +27,21 @@ const main = () => {
   console.log(`Using VIDEOML_CLI: ${process.env.VIDEOML_CLI}`);
   console.log(`Using BABULUS_BUNDLE: ${process.env.BABULUS_BUNDLE}`);
 
+  if (!existsSync(process.env.VIDEOML_CLI)) {
+    throw new Error(
+      `VIDEOML_CLI not found at: ${process.env.VIDEOML_CLI}\n` +
+      `Set the VIDEOML_CLI environment variable to the path of the VideoML CLI entry point.`
+    );
+  }
+
+  if (!existsSync(process.env.BABULUS_BUNDLE)) {
+    throw new Error(
+      `BABULUS_BUNDLE not found at: ${process.env.BABULUS_BUNDLE}\n` +
+      `Set the BABULUS_BUNDLE environment variable to the path of babulus-standard.js.\n` +
+      `Example: export BABULUS_BUNDLE=/path/to/Babulus/public/babulus-standard.js`
+    );
+  }
+
   mkdirSync(siteStaticVideosDir, { recursive: true });
 
   if (!existsSync(path.join(videosDir, "node_modules"))) {
@@ -39,7 +54,22 @@ const main = () => {
 
   const outFiles = existsSync(outDir) ? readdirSync(outDir) : [];
   const mp4Files = outFiles.filter((file) => file.toLowerCase().endsWith(".mp4"));
-  
+
+  // Remux with faststart so browsers can play without downloading the full file.
+  // The moov atom must appear before mdat for instant playback and correct duration display.
+  for (const filename of mp4Files) {
+    const src = path.join(outDir, filename);
+    const tmp = src.replace(".mp4", "-faststart-tmp.mp4");
+    console.log(`Applying faststart to ${filename}...`);
+    try {
+      run(`ffmpeg -y -i "${src}" -c copy -movflags +faststart "${tmp}"`, { stdio: "ignore" });
+      require("node:fs").renameSync(tmp, src);
+    } catch (e) {
+      console.error(`Failed to apply faststart to ${filename}`);
+      if (existsSync(tmp)) require("node:fs").unlinkSync(tmp);
+    }
+  }
+
   for (const filename of mp4Files) {
     const src = path.join(outDir, filename);
     const posterSrc = path.join(outDir, filename.replace(".mp4", ".jpg"));
