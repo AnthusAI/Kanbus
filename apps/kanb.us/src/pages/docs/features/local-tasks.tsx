@@ -24,7 +24,7 @@ const DocsLocalTasksPage = ({ location }: PageProps) => {
           </a>
         </div>
 
-        <div className="prose prose-slate dark:prose-invert max-w-none text-muted leading-relaxed space-y-6">
+        <div className="prose prose-slate max-w-none text-muted leading-relaxed space-y-6">
           <p>
             Not every thought or task needs to be tracked on the shared team board. Kanbus allows you to create "Local Tasks" which are stored in a <code>project-local/</code> directory that is automatically ignored by Git. These are visible only to you on your machine.
           </p>

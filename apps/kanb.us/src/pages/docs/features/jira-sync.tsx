@@ -24,7 +24,7 @@ const DocsJiraSyncPage = ({ location }: PageProps) => {
           </a>
         </div>
 
-        <div className="prose prose-slate dark:prose-invert max-w-none text-muted leading-relaxed space-y-6">
+        <div className="prose prose-slate max-w-none text-muted leading-relaxed space-y-6">
           <p>
             If your organization uses Jira, you don't have to choose between corporate compliance and a fast developer experience. The Kanbus Jira Sync allows you to safely pull issues down to your local <code>project/issues/</code> directory as JSON files, enabling you to use the fast Kanbus CLI and UI for your daily work.
           </p>

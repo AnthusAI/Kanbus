@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Layout, Section, Hero, FullVideoPlayer } from "../../components";
+import { Layout, Section, Hero, FullVideoPlayer, FeaturePictogram } from "../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { VIDEOS, getVideoById } from "../../content/videos";
 import { getVideoSrc } from "../../lib/getVideoSrc";
@@ -14,13 +14,13 @@ const JiraSyncPage = () => {
       <Hero
         title="Jira Sync"
         subtitle="Pull Jira issues into your repository so coding agents always have full context—no API calls, no MCP tools, just files."
-        eyebrow="Integrations"
+        rightPane={<FeaturePictogram type="jira-sync" />}
         bottomPane={
-          videoSrc ? (
-            <div className="w-full flex justify-center mt-12 mb-8">
+          <div className="w-full flex flex-col items-center justify-center mt-12 mb-8 gap-12">
+            {videoSrc ? (
               <FullVideoPlayer src={videoSrc} poster={videoPoster} videoId="jira-sync" />
-            </div>
-          ) : undefined
+            ) : null}
+          </div>
         }
       />
 

@@ -3,14 +3,12 @@
 
   <scene id="hook" title="Policy as Code" duration="5s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
-    </layer>
-    <layer id="visual" z="0">
-      <animated-pictogram-video props='{"type": "policy"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
     <layer id="title" z="1">
-      <text-block props='{"text":"Policy as Code","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
-      <text-block props='{"text":"Define project rules using Gherkin BDD syntax","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+      <text-block props='{"text":"Policy as Code","x":960,"y":240,"size":72,"weight":800,"align":"center","maxWidth":1400,"font":"sans"}' />
+      <text-block props='{"text":"Define project rules using Gherkin BDD syntax","x":960,"y":360,"size":40,"weight":400,"align":"center","maxWidth":1400,"font":"serif","color":"var(--text-muted)"}' />
+      <text-block props='{"text":"Enforce workflows and standards automatically","x":960,"y":480,"size":36,"weight":400,"align":"center","maxWidth":1400,"font":"serif","color":"var(--text-muted)"}' />
     </layer>
   </scene>
 
@@ -18,23 +16,21 @@
 
   <scene id="deep_dive" title="Policy as Code" duration="39s">
     <layer id="background" z="-1">
-      <background props='{"color":"var(--background)"}' />
-    </layer>
-    <layer id="title" z="1">
-      <title props='{"text":"Policy as Code","x":960,"y":120}' />
-    </layer>
-    <layer id="subtitle" z="1">
-      <subtitle props='{"text":"Define project rules using Gherkin BDD syntax","x":960,"y":200}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
     <layer id="content" z="1">
-      <text-block props='{"text":"Readable Specifications","x":480,"y":400,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
-      <text-block props='{"text":"Define project rules using Gherkin BDD syntax. No programming required, just clear, readable scenarios that express exactly what should happen.","x":480,"y":540,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
+      <text-block props='{"text":"Policy as Code","x":960,"y":80,"size":56,"weight":800,"align":"center","maxWidth":1400,"font":"sans"}' />
       
-      <text-block props='{"text":"Automatic Enforcement","x":480,"y":760,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
-      <text-block props='{"text":"Policies run automatically on every issue create and update. When a policy fails, the operation is rejected with a clear error message showing exactly which rule was violated. Define your standards once, and they are enforced consistently across all interactions.","x":480,"y":920,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
-    </layer>
-    <layer id="visual" z="0">
-      <policy-demo-video props='{"style":{"left": 960, "top": 300, "width": 800, "bottom": 0, "position": "absolute"}}' />
+      <text-block props='{"text":"Readable Specifications","x":960,"y":220,"size":44,"weight":700,"align":"center","maxWidth":1400,"font":"sans"}' />
+      <text-block props='{"text":"Define project rules using Gherkin BDD syntax","x":960,"y":310,"size":32,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+      <text-block props='{"text":"No programming required, just clear scenarios","x":960,"y":370,"size":28,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+      
+      <text-block props='{"text":"Automatic Enforcement","x":960,"y":550,"size":44,"weight":700,"align":"center","maxWidth":1400,"font":"sans"}' />
+      <text-block props='{"text":"Policies run automatically on every issue","x":960,"y":640,"size":32,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+      <text-block props='{"text":"When a policy fails, operations are rejected with clear error messages","x":960,"y":700,"size":28,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+      
+      <text-block props='{"text":"Consistent Enforcement","x":960,"y":880,"size":44,"weight":700,"align":"center","maxWidth":1400,"font":"sans"}' />
+      <text-block props='{"text":"Works the same for humans and AI agents","x":960,"y":970,"size":32,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
     </layer>
     <cue id="intro" label="Introduction">
       <voice>Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically.</voice>

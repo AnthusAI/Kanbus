@@ -14,7 +14,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "var(--background)",
+                "color": "#0f1115",
                 "sceneStartSec": 0
               }
             }
@@ -88,7 +88,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "var(--background)",
+                "color": "#0f1115",
                 "sceneStartSec": 5
               }
             }
@@ -224,13 +224,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 11.806818181818182,
+          "endSec": 11.806833000000001,
           "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 11.806818181818182,
+              "endSec": 11.806833000000001,
               "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board."
             }
           ],
@@ -239,20 +239,20 @@
         {
           "id": "private",
           "label": "Private",
-          "startSec": 11.806818181818182,
-          "endSec": 17.761363636363637,
+          "startSec": 11.806833000000001,
+          "endSec": 17.761416,
           "text": "Local tasks give you a private workspace. Visible only to you, invisible to version control.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 11.806818181818182,
-              "endSec": 12.306818181818182,
+              "startSec": 11.806833000000001,
+              "endSec": 12.306833000000001,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 12.306818181818182,
-              "endSec": 17.761363636363637,
+              "startSec": 12.306833000000001,
+              "endSec": 17.761416,
               "text": "Local tasks give you a private workspace. Visible only to you, invisible to version control."
             }
           ],
@@ -261,20 +261,20 @@
         {
           "id": "promote",
           "label": "Promote",
-          "startSec": 17.761363636363637,
-          "endSec": 24.44318181818182,
+          "startSec": 17.761416,
+          "endSec": 24.443249,
           "text": "When your experiment turns into something real, promote it to the shared project with a single command.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 17.761363636363637,
-              "endSec": 18.261363636363637,
+              "startSec": 17.761416,
+              "endSec": 18.261416,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 18.261363636363637,
-              "endSec": 24.44318181818182,
+              "startSec": 18.261416,
+              "endSec": 24.443249,
               "text": "When your experiment turns into something real, promote it to the shared project with a single command."
             }
           ],
@@ -283,20 +283,20 @@
         {
           "id": "clean",
           "label": "Clean",
-          "startSec": 24.44318181818182,
-          "endSec": 30.03409090909091,
+          "startSec": 24.443249,
+          "endSec": 30.034166000000003,
           "text": "See everything together, or filter to hide your private scratchpad entirely. It's your workspace.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 24.44318181818182,
-              "endSec": 24.94318181818182,
+              "startSec": 24.443249,
+              "endSec": 24.943249,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 24.94318181818182,
-              "endSec": 30.03409090909091,
+              "startSec": 24.943249,
+              "endSec": 30.034166000000003,
               "text": "See everything together, or filter to hide your private scratchpad entirely. It's your workspace."
             }
           ],
