@@ -24,7 +24,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@types/dompurify": "^3.2.0",
     "@videoml/player": "^1.0.0",
-    "@videoml/stdlib": "file:../../../VideoML/stdlib",
+    "@videoml/stdlib": "^1.0.0",
     "@webcomponents/custom-elements": "^1.6.0",
     "clsx": "^2.1.1",
     "dompurify": "^3.3.1",
