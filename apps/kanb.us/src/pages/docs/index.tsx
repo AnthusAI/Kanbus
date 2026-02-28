@@ -20,7 +20,7 @@ const DocsIndexPage = ({ location }: PageProps) => {
           </Link>
         </div>
         
-        <div className="prose prose-slate dark:prose-invert max-w-none text-muted leading-relaxed">
+        <div className="prose prose-slate max-w-none text-muted leading-relaxed">
           <p>
             Kanbus is a Git-backed project management system. Instead of storing your issues, 
             epics, and tasks in a remote database, Kanbus stores them as JSON files directly in your 

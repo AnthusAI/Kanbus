@@ -62,6 +62,10 @@ exports.onPreInit = () => {
     return;
   }
 
+  if (process.env.NODE_ENV === "development") {
+    return;
+  }
+
   const outputsPath = path.resolve(__dirname, "../../amplify_outputs.json");
   if (!fs.existsSync(outputsPath)) {
     return;

@@ -26,7 +26,8 @@ async function bundle() {
       ".jpg": "dataurl",
       ".jpeg": "dataurl",
       ".gif": "dataurl",
-      ".svg": "dataurl"
+      ".svg": "dataurl",
+      ".css": "text"
     },
     minify: false,
     sourcemap: true
