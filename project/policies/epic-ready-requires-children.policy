@@ -1,0 +1,9 @@
+Feature: Epic readiness guardrail
+
+  Scenario: Epic must have child issues before moving to ready
+    Given the issue type is "epic"
+    When transitioning from "in_progress" to "open"
+    Then warn "Create at least one child story or task before moving an epic to ready."
+    Then explain "Epics represent milestones composed of multiple child issues."
+    Then suggest "If this is a single deliverable, represent it as a story or task instead of an epic."
+    Then the issue must have at least 1 child issue

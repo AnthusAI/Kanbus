@@ -85,8 +85,9 @@ def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool,
 @click.group()
 @click.version_option(__version__, prog_name="kanbus")
 @click.option("--beads", "beads_mode", is_flag=True, default=False)
+@click.option("--no-guidance", is_flag=True, default=False)
 @click.pass_context
-def cli(context: click.Context, beads_mode: bool) -> None:
+def cli(context: click.Context, beads_mode: bool, no_guidance: bool) -> None:
     """Kanbus issue tracker CLI.
 
     \b
@@ -103,7 +104,11 @@ def cli(context: click.Context, beads_mode: bool) -> None:
     Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial
     """
     resolved, forced = _resolve_beads_mode(context, beads_mode)
-    context.obj = {"beads_mode": resolved, "beads_mode_forced": forced}
+    context.obj = {
+        "beads_mode": resolved,
+        "beads_mode_forced": forced,
+        "no_guidance": no_guidance,
+    }
     _maybe_prompt_project_repair(context)
 
 
@@ -339,6 +344,7 @@ def create(
     )
     if quality_result:
         emit_signals(quality_result, "description", issue_id=result.issue.identifier)
+    _emit_policy_guidance(context, [result.issue], "create")
 
 
 @cli.command("show")
@@ -382,6 +388,7 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
     if as_json:
         payload = issue.model_dump(by_alias=True, mode="json")
         click.echo(json.dumps(payload, indent=2, sort_keys=False))
+        _emit_policy_guidance(context, [issue], "view")
         return
 
     click.echo(
@@ -391,6 +398,7 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
             project_context=False,
         )
     )
+    _emit_policy_guidance(context, [issue], "view")
 
 
 @cli.command("update")
@@ -406,7 +414,9 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
 @click.option("--set-labels", "set_labels")
 @click.option("--claim", is_flag=True, default=False)
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.pass_context
 def update(
+    context: click.Context,
     identifier: str,
     title: str | None,
     description: str | None,
@@ -441,8 +451,8 @@ def update(
     """
     root = Path.cwd()
     beads_mode = False
-    if click.get_current_context().obj:
-        beads_mode = bool(click.get_current_context().obj.get("beads_mode"))
+    if context.obj:
+        beads_mode = bool(context.obj.get("beads_mode"))
 
     # Check if beads_compatibility is enabled in config
     if not beads_mode:
@@ -505,7 +515,7 @@ def update(
     # Regular Kanbus mode
     try:
         final_assignee = assignee or (get_current_user() if claim else None)
-        update_issue(
+        updated_issue = update_issue(
             root=root,
             identifier=identifier,
             title=title.strip() if title else None,
@@ -529,11 +539,13 @@ def update(
         emit_signals(
             update_quality_result, "description", issue_id=identifier, is_update=True
         )
+    _emit_policy_guidance(context, [updated_issue], "update")
 
 
 @cli.command("close")
 @click.argument("identifier")
-def close(identifier: str) -> None:
+@click.pass_context
+def close(context: click.Context, identifier: str) -> None:
     """Close an issue.
 
     :param identifier: Issue identifier.
@@ -541,23 +553,26 @@ def close(identifier: str) -> None:
     """
     root = Path.cwd()
     try:
-        close_issue(root, identifier)
+        issue = close_issue(root, identifier)
     except IssueCloseError as error:
         raise click.ClickException(str(error)) from error
     formatted_identifier = format_issue_key(identifier, project_context=False)
     click.echo(f"Closed {formatted_identifier}")
+    _emit_policy_guidance(context, [issue], "close")
 
 
 @cli.command("delete")
 @click.argument("identifier")
-def delete(identifier: str) -> None:
+@click.pass_context
+def delete(context: click.Context, identifier: str) -> None:
     """Delete an issue.
 
     :param identifier: Issue identifier.
     :type identifier: str
     """
     root = Path.cwd()
-    beads_mode = bool(click.get_current_context().obj.get("beads_mode"))
+    beads_mode = bool(context.obj.get("beads_mode"))
+    issue_for_guidance: IssueData | None = None
 
     # Check if beads_compatibility is enabled in config
     if not beads_mode:
@@ -567,6 +582,13 @@ def delete(identifier: str) -> None:
                 beads_mode = True
         except (ConfigurationError, ProjectMarkerError):
             pass
+
+    if not beads_mode:
+        try:
+            lookup = load_issue_from_project(root, identifier)
+            issue_for_guidance = lookup.issue
+        except IssueLookupError:
+            issue_for_guidance = None
 
     if beads_mode:
         try:
@@ -580,6 +602,8 @@ def delete(identifier: str) -> None:
             raise click.ClickException(str(error)) from error
     formatted_identifier = format_issue_key(identifier, project_context=False)
     click.echo(f"Deleted {formatted_identifier}")
+    if issue_for_guidance is not None:
+        _emit_policy_guidance(context, [issue_for_guidance], "delete")
 
 
 @cli.command("promote")
@@ -805,6 +829,7 @@ def list_command(
             configuration=configuration,
         )
         click.echo(line)
+    _emit_policy_guidance(context, issues, "list")
 
 
 def _issue_sort_timestamp(issue: IssueData) -> float:
@@ -812,6 +837,34 @@ def _issue_sort_timestamp(issue: IssueData) -> float:
 
     timestamp = issue.closed_at or issue.updated_at or issue.created_at
     return timestamp.timestamp()
+
+
+def _emit_policy_guidance(
+    context: click.Context,
+    issues: list[IssueData],
+    operation: str,
+) -> None:
+    """Emit non-blocking policy guidance for the given issues."""
+    if not issues:
+        return
+    if not context.obj:
+        return
+    if context.obj.get("beads_mode"):
+        return
+    try:
+        from kanbus.policy_context import PolicyOperation
+        from kanbus.policy_guidance import emit_guidance_for_issues
+
+        policy_operation = PolicyOperation(operation)
+        emit_guidance_for_issues(
+            Path.cwd(),
+            issues,
+            policy_operation,
+            no_guidance=bool(context.obj.get("no_guidance", False)),
+        )
+    except Exception:
+        # Guidance hooks are intentionally non-blocking.
+        return
 
 
 @cli.group("wiki")
@@ -907,6 +960,54 @@ def policy_check(identifier: str) -> None:
         raise click.ClickException(str(error)) from error
 
 
+@policy.command("guide")
+@click.argument("identifier")
+def policy_guide(identifier: str) -> None:
+    """Run policy guidance against an issue without enforcing blocks."""
+    from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+    from kanbus.policy_context import PolicyOperation
+    from kanbus.policy_guidance import (
+        collect_guidance_for_issue,
+        sorted_deduped_guidance_items,
+    )
+
+    root = Path.cwd()
+    try:
+        lookup = load_issue_from_project(root, identifier)
+        report = collect_guidance_for_issue(
+            root=lookup.project_dir,
+            issue=lookup.issue,
+            operation=PolicyOperation.VIEW,
+        )
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+    if report.violations:
+        lines = [
+            f"Found {len(report.violations)} policy validation issue(s) while generating guidance:"
+        ]
+        for index, violation in enumerate(report.violations, start=1):
+            lines.append(f"\n{index}. {violation}")
+        raise click.ClickException("\n".join(lines))
+
+    items = sorted_deduped_guidance_items(report.guidance_items)
+    if not items:
+        click.echo(f"No guidance for {identifier}")
+        return
+
+    for item in items:
+        prefix = (
+            "GUIDANCE WARNING"
+            if item.severity.value == "warning"
+            else "GUIDANCE SUGGESTION"
+        )
+        click.echo(f"{prefix}: {item.message}", err=True)
+        for explanation in item.explanations:
+            click.echo(f"  Explanation: {explanation}", err=True)
+
+
 @policy.command("list")
 def policy_list() -> None:
     """List all loaded policy files."""
@@ -978,6 +1079,11 @@ def policy_steps(category: str | None, search: str | None) -> None:
 @policy.command("validate")
 def policy_validate() -> None:
     """Validate all policy files for syntax errors."""
+    from datetime import datetime, timezone
+
+    from kanbus.models import IssueData
+    from kanbus.policy_context import PolicyContext, PolicyOperation
+    from kanbus.policy_evaluator import validate_policy_documents
     from kanbus.project import load_project_directory
     from kanbus.policy_loader import load_policies
 
@@ -994,6 +1100,44 @@ def policy_validate() -> None:
         if not policy_documents:
             click.echo("No policy files found")
             return
+
+        configuration = load_project_configuration(get_configuration_path(project_dir))
+        now = datetime.now(timezone.utc)
+        validation_issue = IssueData(
+            id="kanbus-policy-validate",
+            title="Policy Validation Context",
+            description="",
+            type="task",
+            status=configuration.initial_status,
+            priority=configuration.default_priority,
+            assignee=None,
+            creator=None,
+            parent=None,
+            labels=[],
+            dependencies=[],
+            comments=[],
+            created_at=now,
+            updated_at=now,
+            closed_at=None,
+            custom={},
+        )
+        validation_context = PolicyContext(
+            current_issue=validation_issue,
+            proposed_issue=validation_issue,
+            transition=None,
+            operation=PolicyOperation.UPDATE,
+            project_configuration=configuration,
+            all_issues=[],
+        )
+        validation_violations = validate_policy_documents(
+            validation_context,
+            policy_documents,
+        )
+        if validation_violations:
+            lines = [f"Found {len(validation_violations)} policy validation issue(s):"]
+            for index, violation in enumerate(validation_violations, start=1):
+                lines.append(f"\n{index}. {violation}")
+            raise click.ClickException("\n".join(lines))
 
         click.echo(f"All {len(policy_documents)} policy files are valid")
     except Exception as error:
@@ -1309,6 +1453,7 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
         project_path = issue.custom.get("project_path")
         prefix = f"{project_path} " if project_path else ""
         click.echo(f"{prefix}{issue.identifier}")
+    _emit_policy_guidance(context, issues, "ready")
 
 
 @cli.command("doctor")

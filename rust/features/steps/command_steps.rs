@@ -70,7 +70,7 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
+            world.stderr = Some(output.stderr);
             record_kanbus_issue_id_if_created(world, &normalized);
             let no_daemon = std::env::var("KANBUS_NO_DAEMON")
                 .unwrap_or_default()

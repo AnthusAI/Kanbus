@@ -13,6 +13,12 @@ pub enum PolicyOperation {
     Close,
     /// Issue is being deleted.
     Delete,
+    /// Issue is being viewed.
+    View,
+    /// Issues are being listed.
+    List,
+    /// Ready issues are being listed.
+    Ready,
 }
 
 /// Status transition details.

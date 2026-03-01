@@ -3,304 +3,125 @@ import { DocsLayout, CodeBlock } from "../../../components";
 
 const PolicyAsCodeDocsPage = () => {
   return (
-    <DocsLayout title="Policy as Code" description="Enforce project rules automatically using Gherkin BDD syntax">
+    <DocsLayout title="Policy as Code" description="Guardrails plus kairotic guidance for Kanbus issue workflows">
       <div className="docs-content">
         <h1>Policy as Code</h1>
         <p className="lead">
-          Enforce project rules automatically using Gherkin BDD syntax. Define workflows, validations, 
-          and standards that apply to all issue operations.
+          Policy as Code combines strict guardrails with in-the-moment guidance so agents follow procedure reliably while staying fast.
         </p>
 
-        <h2>Overview</h2>
+        <h2>Kairos</h2>
         <p>
-          Policy as Code brings Git-style hooks to Kanbus issue management. Create <code>.policy</code> files 
-          using familiar Gherkin syntax to define rules that are automatically enforced on every issue create, 
-          update, and transition.
+          This feature is explicitly about <strong>kairos</strong>: delivering the right instruction at the right moment. Instead of relying on
+          a single upfront prompt and perfect model memory, Kanbus uses programmatic hooks to trigger guidance when context indicates it is
+          relevant.
         </p>
 
-        <h2>Getting Started</h2>
-        <p>
-          Create a <code>policies/</code> directory in your project root (next to <code>.kanbus.yml</code>):
-        </p>
+        <h2>File Layout</h2>
         <CodeBlock>
 {`project/
-├── .kanbus.yml
 ├── issues/
 └── policies/
-    ├── require-assignee.policy
-    └── epic-workflow.policy`}
+    ├── epic-ready.policy
+    └── list-guidance.policy`}
         </CodeBlock>
 
-        <h2>Policy File Format</h2>
-        <p>
-          Policy files use standard Gherkin syntax with <code>.policy</code> extension:
-        </p>
-        <CodeBlock>
-{`Feature: Tasks require assignee
-
-  Scenario: Task must have assignee to start
-    Given the issue type is "task"
-    When transitioning to "in_progress"
-    Then the issue must have field "assignee"`}
-        </CodeBlock>
-
-        <h3>Step Types</h3>
+        <h2>Core DSL</h2>
+        <h3>Filters</h3>
         <ul>
-          <li><strong>Given:</strong> Filter which issues this scenario applies to</li>
-          <li><strong>When:</strong> Filter by operation type or transition</li>
-          <li><strong>Then:</strong> Assert requirements that must be met</li>
+          <li><code>When creating an issue</code></li>
+          <li><code>When updating an issue</code></li>
+          <li><code>When deleting an issue</code></li>
+          <li><code>When viewing an issue</code></li>
+          <li><code>When listing issues</code></li>
+          <li><code>When listing ready issues</code></li>
+          <li><code>When transitioning to "STATUS"</code></li>
+          <li><code>When transitioning from "A" to "B"</code></li>
         </ul>
 
-        <h3>Scenario Skipping</h3>
-        <p>
-          If any <code>Given</code> or <code>When</code> step doesn't match, the entire scenario is skipped. 
-          This allows you to write targeted policies that only apply to specific situations.
-        </p>
+        <h3>Assertions</h3>
+        <ul>
+          <li><code>Then the issue must have field "FIELD"</code></li>
+          <li><code>Then the field "FIELD" must be "VALUE"</code></li>
+          <li><code>Then all child issues must have status "STATUS"</code></li>
+          <li><code>Then the issue must have at least N child issues</code></li>
+        </ul>
 
-        <h2>Built-in Steps</h2>
+        <h3>Guidance Steps</h3>
+        <ul>
+          <li><code>Then warn "TEXT"</code></li>
+          <li><code>Then suggest "TEXT"</code></li>
+          <li><code>Then explain "TEXT"</code> (attaches as an <code>Explanation:</code> line under the previous emitted item)</li>
+        </ul>
 
-        <h3>Given Steps (Filters)</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Step</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>the issue type is "TYPE"</code></td>
-              <td>Filter by issue type</td>
-            </tr>
-            <tr>
-              <td><code>the issue has label "LABEL"</code></td>
-              <td>Filter by label presence</td>
-            </tr>
-            <tr>
-              <td><code>the issue has a parent</code></td>
-              <td>Filter issues with parents</td>
-            </tr>
-            <tr>
-              <td><code>the issue priority is N</code></td>
-              <td>Filter by priority level</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h3>When Steps (Triggers)</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Step</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>transitioning to "STATUS"</code></td>
-              <td>Filter by target status</td>
-            </tr>
-            <tr>
-              <td><code>transitioning from "STATUS"</code></td>
-              <td>Filter by source status</td>
-            </tr>
-            <tr>
-              <td><code>transitioning from "A" to "B"</code></td>
-              <td>Filter specific transition</td>
-            </tr>
-            <tr>
-              <td><code>creating an issue</code></td>
-              <td>Filter create operations</td>
-            </tr>
-            <tr>
-              <td><code>closing an issue</code></td>
-              <td>Filter close operations</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h3>Then Steps (Assertions)</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Step</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>the issue must have field "FIELD"</code></td>
-              <td>Require field is set</td>
-            </tr>
-            <tr>
-              <td><code>the issue must not have field "FIELD"</code></td>
-              <td>Require field is not set</td>
-            </tr>
-            <tr>
-              <td><code>the field "FIELD" must be "VALUE"</code></td>
-              <td>Require specific value</td>
-            </tr>
-            <tr>
-              <td><code>all child issues must have status "STATUS"</code></td>
-              <td>Check all children</td>
-            </tr>
-            <tr>
-              <td><code>no child issues may have status "STATUS"</code></td>
-              <td>Forbid child status</td>
-            </tr>
-            <tr>
-              <td><code>the parent issue must have status "STATUS"</code></td>
-              <td>Check parent status</td>
-            </tr>
-            <tr>
-              <td><code>the issue must have at least N labels</code></td>
-              <td>Minimum label count</td>
-            </tr>
-            <tr>
-              <td><code>the issue must have label "LABEL"</code></td>
-              <td>Require specific label</td>
-            </tr>
-            <tr>
-              <td><code>the description must not be empty</code></td>
-              <td>Require description</td>
-            </tr>
-            <tr>
-              <td><code>the title must match pattern "REGEX"</code></td>
-              <td>Validate title format</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h2>Common Patterns</h2>
-
-        <h3>Require Assignee for Active Work</h3>
+        <h2>Example: Epic Ready Guardrail</h2>
         <CodeBlock>
-{`Feature: Work assignment
+{`Feature: Epic readiness guardrail
 
-  Scenario: In-progress tasks need assignee
-    Given the issue type is "task"
-    When transitioning to "in_progress"
-    Then the issue must have field "assignee"`}
-        </CodeBlock>
-
-        <h3>Epic Completion Workflow</h3>
-        <CodeBlock>
-{`Feature: Epic lifecycle
-
-  Scenario: Epic requires all children closed
+  Scenario: Epic needs child issues before ready
     Given the issue type is "epic"
-    When transitioning to "closed"
-    Then all child issues must have status "closed"
-
-  Scenario: Epic cannot have blocked children
-    Given the issue type is "epic"
-    Then no child issues may have status "blocked"`}
+    When transitioning to "ready"
+    Then the issue must have at least 1 child issues
+    Then explain "Epics represent milestones composed of multiple child issues."
+    Then warn "Create at least one child story or task before marking an epic ready."
+    Then suggest "If this is one deliverable, model it as a story or task instead of an epic."`}
         </CodeBlock>
 
-        <h3>Bug Reporting Standards</h3>
+        <h2>Example: List-Level Guidance</h2>
         <CodeBlock>
-{`Feature: Bug quality
+{`Feature: Planning loop reminders
 
-  Scenario: Bugs need description
-    Given the issue type is "bug"
-    When creating an issue
-    Then the description must not be empty
+  Scenario: Keep statuses current
+    When listing issues
+    Then suggest "Remember to reflect your current status in issue states as you work."
 
-  Scenario: Bugs need BUG prefix
-    Given the issue type is "bug"
-    Then the title must match pattern "^BUG-"
-
-  Scenario: High priority bugs need review
-    Given the issue type is "bug"
-    Given the issue priority is 0
-    When transitioning to "closed"
-    Then the issue must have label "reviewed"`}
+  Scenario: Ready queue semantics
+    When listing ready issues
+    Then warn "Ready means unblocked and actionable now."`}
         </CodeBlock>
 
-        <h3>Parent-Child Coordination</h3>
+        <h2>Output Behavior</h2>
+        <ul>
+          <li>Blocking paths print policy violation details first.</li>
+          <li>Guidance is emitted on stderr.</li>
+          <li>Guidance ordering is warnings first, then suggestions.</li>
+          <li>Explanations stay attached under their parent message.</li>
+        </ul>
+
         <CodeBlock>
-{`Feature: Hierarchy rules
-
-  Scenario: Child cannot start before parent
-    Given the issue has a parent
-    When transitioning to "in_progress"
-    Then the parent issue must have status "in_progress"`}
+{`GUIDANCE WARNING: Ready means unblocked and actionable now.
+GUIDANCE SUGGESTION: Remember to reflect your current status in issue states as you work.
+  Explanation: Keeping statuses current improves handoff reliability.`}
         </CodeBlock>
+
+        <h2>Hooks</h2>
+        <p>Guidance hooks run after successful:</p>
+        <ul>
+          <li><code>show</code></li>
+          <li><code>create</code></li>
+          <li><code>update</code></li>
+          <li><code>close</code></li>
+          <li><code>delete</code></li>
+          <li><code>list</code></li>
+          <li><code>ready</code></li>
+        </ul>
 
         <h2>CLI Commands</h2>
-
-        <h3>Check Policies</h3>
-        <p>Test policies against a specific issue without modifying it:</p>
         <CodeBlock>
-{`kbs policy check task-123`}
+{`kbs policy list
+kbs policy validate
+kbs policy check <issue-id>
+kbs policy guide <issue-id>
+
+kbs --no-guidance list
+KANBUS_NO_GUIDANCE=1 kbs show <issue-id>`}
         </CodeBlock>
 
-        <h3>List Policies</h3>
-        <p>Show all loaded policy files and their scenarios:</p>
-        <CodeBlock>
-{`kbs policy list`}
-        </CodeBlock>
-
-        <h3>Validate Policies</h3>
-        <p>Check policy file syntax without running them:</p>
-        <CodeBlock>
-{`kbs policy validate`}
-        </CodeBlock>
-
-        <h2>Error Messages</h2>
-        <p>
-          When a policy fails, Kanbus shows exactly which rule was violated:
-        </p>
-        <CodeBlock>
-{`$ kbs update task-123 --status in_progress
-
-Error: policy violation in require-assignee.policy
-  Scenario: Task must have assignee to start
-  Failed: Then the issue must have field "assignee"
-  issue does not have field "assignee" set`}
-        </CodeBlock>
-
-        <h2>Best Practices</h2>
-
-        <h3>One Policy Per File</h3>
-        <p>
-          Keep related scenarios together in a single file, but separate different concerns 
-          into different files for clarity.
-        </p>
-
-        <h3>Use Descriptive Names</h3>
-        <p>
-          Feature and scenario names appear in error messages. Make them clear and actionable.
-        </p>
-
-        <h3>Test Before Deploying</h3>
-        <p>
-          Use <code>kbs policy check</code> to test policies against existing issues before 
-          committing them to your repository.
-        </p>
-
-        <h3>Start Permissive</h3>
-        <p>
-          Begin with warnings or optional checks, then tighten policies as your team adapts.
-        </p>
-
-        <h2>Performance</h2>
-        <p>
-          Policy evaluation is fast:
-        </p>
+        <h2>Validation Rules</h2>
         <ul>
-          <li>Policies are only loaded when the <code>policies/</code> directory exists</li>
-          <li>Scenarios skip early when filters don't match</li>
-          <li>Native Gherkin parsing with minimal overhead</li>
-          <li>No external process spawning or network calls</li>
-        </ul>
-
-        <h2>Limitations</h2>
-        <ul>
-          <li>Policies cannot modify issues, only accept or reject operations</li>
-          <li>No custom step definitions (use built-in steps only)</li>
-          <li>Policies run synchronously, blocking the operation</li>
-          <li>No notification or logging hooks (only accept/reject)</li>
+          <li>Unknown steps fail validation.</li>
+          <li>Orphan <code>explain</code> steps fail validation and evaluation.</li>
+          <li>Policy parsing/validation errors are reported with file + scenario context.</li>
         </ul>
       </div>
     </DocsLayout>
