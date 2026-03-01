@@ -1,8 +1,8 @@
-"""Policy evaluation context."""
+"""Policy evaluation context and reporting types."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
@@ -16,6 +16,28 @@ class PolicyOperation(str, Enum):
     UPDATE = "update"
     CLOSE = "close"
     DELETE = "delete"
+    VIEW = "view"
+    LIST = "list"
+    READY = "ready"
+
+
+class GuidanceSeverity(str, Enum):
+    """Guidance item severity."""
+
+    WARNING = "warning"
+    SUGGESTION = "suggestion"
+
+
+@dataclass(frozen=True)
+class GuidanceItem:
+    """Non-blocking guidance emitted by policy evaluation."""
+
+    severity: GuidanceSeverity
+    message: str
+    explanations: list[str]
+    policy_file: str
+    scenario: str
+    step: str
 
 
 @dataclass
@@ -143,6 +165,8 @@ class PolicyViolationError(RuntimeError):
         failed_step: str,
         message: str,
         issue_id: str,
+        explanations: list[str] | None = None,
+        guidance_items: list[GuidanceItem] | None = None,
     ) -> None:
         """Initialize policy violation error."""
         self.policy_file = policy_file
@@ -150,9 +174,45 @@ class PolicyViolationError(RuntimeError):
         self.failed_step = failed_step
         self.message = message
         self.issue_id = issue_id
-        super().__init__(
-            f"policy violation in {policy_file} for issue {issue_id}\n"
-            f"  Scenario: {scenario}\n"
-            f"  Failed: {failed_step}\n"
-            f"  {message}"
+        self.explanations = explanations or []
+        self.guidance_items = guidance_items or []
+
+        lines = [
+            f"policy violation in {policy_file} for issue {issue_id}",
+            f"  Scenario: {scenario}",
+            f"  Failed: {failed_step}",
+            f"  {message}",
+        ]
+        for explanation in self.explanations:
+            lines.append(f"  Explanation: {explanation}")
+
+        ordered_guidance = sorted(
+            self.guidance_items,
+            key=lambda item: (
+                0 if item.severity == GuidanceSeverity.WARNING else 1,
+                item.policy_file,
+                item.scenario,
+                item.step,
+                item.message,
+            ),
         )
+        if ordered_guidance:
+            lines.append("  Guidance:")
+            for item in ordered_guidance:
+                prefix = (
+                    "GUIDANCE WARNING"
+                    if item.severity == GuidanceSeverity.WARNING
+                    else "GUIDANCE SUGGESTION"
+                )
+                lines.append(f"    {prefix}: {item.message}")
+                for explanation in item.explanations:
+                    lines.append(f"      Explanation: {explanation}")
+        super().__init__("\n".join(lines))
+
+
+@dataclass
+class PolicyEvaluationReport:
+    """Result of policy evaluation in enforcement or guidance mode."""
+
+    violations: list[PolicyViolationError] = field(default_factory=list)
+    guidance_items: list[GuidanceItem] = field(default_factory=list)

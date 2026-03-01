@@ -1,5 +1,5 @@
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 export type FeaturePictogramType = 
   | "core-management" 
@@ -13,6 +13,7 @@ export type FeaturePictogramType =
   | "policy-as-code";
 
 export function FeaturePictogram({ type, style, className }: { type: string, style?: React.CSSProperties, className?: string }) {
+  const prefersReducedMotion = useReducedMotion();
   const Board = ({ x = 250, y, opacity = 1, color = "var(--column)" }: { x?: number; y: number; opacity?: number; color?: string }) => (
     <g transform={`translate(${x}, ${y}) scale(1, 0.5) rotate(45) translate(-100, -75)`} opacity={opacity}>
       {/* Board Base */}
@@ -517,57 +518,95 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
   );
 
   const renderPolicyAsCode = () => {
-    const PolicyItem = ({ y, text, index }: { y: number, text: string, index: number }) => {
-      const checkTime = (index + 1) * 1; 
-      const t1 = checkTime / 8;
-      const t2 = (checkTime + 0.3) / 8;
-      const t3 = 7.0 / 8;
-      const t4 = 7.3 / 8;
-      
+    const SignFace = ({ symbol }: { symbol: "arrow" | "warning" | "stop" }) => {
+      if (symbol === "arrow") {
+        return (
+          <g>
+            <rect x="-20" y="-20" width="40" height="40" rx="6" fill="#1f8ef1" />
+            <path d="M-8 0h16M2-8l8 8-8 8" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+        );
+      }
+      if (symbol === "warning") {
+        return (
+          <g>
+            <path d="M0-22 20 16 -20 16Z" fill="#f59e0b" />
+            <path d="M0-9v12M0 9v0" fill="none" stroke="#111827" strokeWidth="3" strokeLinecap="round" />
+          </g>
+        );
+      }
       return (
-        <g transform={`translate(20, ${y})`}>
-          <motion.g
-            animate={{ opacity: [1, 1, 0, 0, 1, 1] }}
-            transition={{ duration: 8, repeat: Infinity, times: [0, t1, t2, t3, t4, 1], ease: "easeInOut" }}
-          >
-            {/* Lucide square */}
-            <rect width="18" height="18" x="3" y="3" rx="2" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </motion.g>
-          <motion.g
-            animate={{ opacity: [0, 0, 1, 1, 0, 0] }}
-            transition={{ duration: 8, repeat: Infinity, times: [0, t1, t2, t3, t4, 1], ease: "easeInOut" }}
-          >
-            {/* Lucide square-check-big */}
-            <path d="M21 10.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.5" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="m9 11 3 3L22 4" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </motion.g>
-          <text x="35" y="16" fill="var(--text-muted)" fontSize="16" className="tiny-text" fontFamily="'Tiny5', monospace">{text}</text>
+        <g>
+          <polygon points="-18,-24 18,-24 30,-12 30,12 18,24 -18,24 -30,12 -30,-12" fill="#ef4444" />
+          <rect x="-9" y="-2" width="18" height="4" rx="2" fill="#ffffff" />
         </g>
       );
     };
 
+    const AnimatedSign = ({
+      symbol,
+      laneOffset,
+      delay,
+    }: {
+      symbol: "arrow" | "warning" | "stop";
+      laneOffset: number;
+      delay: number;
+    }) => (
+      <motion.g
+        initial={{ x: 250 + laneOffset * 0.35, y: 74, scale: 0.3, opacity: 0 }}
+        animate={{
+          x: [250 + laneOffset * 0.35, 250 + laneOffset * 0.7, 250 + laneOffset],
+          y: [74, 150, 244],
+          scale: [0.3, 0.7, 1.25],
+          opacity: [0, 1, 0],
+        }}
+        transition={{ duration: 6.2, ease: "easeInOut", repeat: Infinity, delay }}
+      >
+        <rect x="-2" y="20" width="4" height="18" fill="var(--text-muted)" opacity={0.75} />
+        <SignFace symbol={symbol} />
+      </motion.g>
+    );
+
+    if (prefersReducedMotion) {
+      return (
+        <g transform="scale(1) translate(0, 0)">
+          <defs>
+            <linearGradient id="policy-gradient-static" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0f172a" />
+              <stop offset="100%" stopColor="#1e293b" />
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="500" height="300" fill="url(#policy-gradient-static)" rx="10" />
+          <path d="M150 290 250 90 350 290Z" fill="none" stroke="var(--text-muted)" strokeOpacity="0.25" strokeWidth="2" />
+          <g transform="translate(210,170) scale(0.65)"><SignFace symbol="arrow" /></g>
+          <g transform="translate(250,140) scale(0.85)"><SignFace symbol="warning" /></g>
+          <g transform="translate(300,210) scale(1.05)"><SignFace symbol="stop" /></g>
+        </g>
+      );
+    }
+
     return (
       <g transform="scale(1) translate(0, 0)">
         <defs>
-          <style>
-            {`
-              @import url('https://fonts.googleapis.com/css2?family=Tiny5&display=swap');
-              .tiny-text { font-family: 'Tiny5', monospace; }
-            `}
-          </style>
+          <linearGradient id="policy-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0f172a" />
+            <stop offset="100%" stopColor="#1e293b" />
+          </linearGradient>
         </defs>
-        
-        <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
-        <rect x="0" y="0" width="500" height="40" fill="var(--background)" rx="10" />
-        <text x="20" y="25" fill="var(--text-foreground)" fontSize="16" fontFamily="monospace">workflow.policy</text>
-        
-        <g transform="translate(20, 60)">
-          <PolicyItem y={0} text="Epic cannot transition to ready without at least 3 tasks" index={0} />
-          <PolicyItem y={45} text="PRs cannot be merged without passing CI tests" index={1} />
-          <PolicyItem y={90} text="Tasks in 'In Progress' must have an assignee" index={2} />
-          <PolicyItem y={135} text="Design tasks require a valid Figma link attached" index={3} />
-          <PolicyItem y={180} text="Bugs require clear steps to reproduce in description" index={4} />
-        </g>
+        <rect x="0" y="0" width="500" height="300" fill="url(#policy-gradient)" rx="10" />
+        <path d="M130 300 250 72 370 300" fill="none" stroke="var(--text-muted)" strokeOpacity="0.22" strokeWidth="2" />
+        <motion.path
+          d="M250 78 250 294"
+          stroke="var(--text-muted)"
+          strokeOpacity="0.2"
+          strokeWidth="2"
+          strokeDasharray="8 12"
+          animate={{ strokeDashoffset: [0, -40] }}
+          transition={{ duration: 3.2, repeat: Infinity, ease: "linear" }}
+        />
+        <AnimatedSign symbol="arrow" laneOffset={-58} delay={0} />
+        <AnimatedSign symbol="warning" laneOffset={0} delay={1.6} />
+        <AnimatedSign symbol="stop" laneOffset={58} delay={3.2} />
       </g>
     );
   };
