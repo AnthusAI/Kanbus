@@ -187,7 +187,11 @@ def create_issue(
     if policies_dir.is_dir():
         from kanbus.policy_loader import load_policies
         from kanbus.policy_evaluator import evaluate_policies
-        from kanbus.policy_context import PolicyContext, PolicyOperation
+        from kanbus.policy_context import (
+            PolicyContext,
+            PolicyOperation,
+            PolicyViolationError,
+        )
         from kanbus.issue_listing import load_issues_from_directory
 
         policy_documents = load_policies(policies_dir)
@@ -201,7 +205,10 @@ def create_issue(
                 project_configuration=configuration,
                 all_issues=all_issues,
             )
-            evaluate_policies(context, policy_documents)
+            try:
+                evaluate_policies(context, policy_documents)
+            except PolicyViolationError as error:
+                raise IssueCreationError(str(error)) from error
 
     issue_path = issues_dir / f"{identifier}.json"
     write_issue_to_file(issue, issue_path)

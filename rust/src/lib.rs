@@ -43,6 +43,7 @@ pub mod notification_events;
 pub mod notification_publisher;
 pub mod policy_context;
 pub mod policy_evaluator;
+pub mod policy_guidance;
 pub mod policy_loader;
 pub mod policy_steps;
 pub mod project;

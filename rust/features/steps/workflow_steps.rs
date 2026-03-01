@@ -7,7 +7,7 @@ use cucumber::{given, then, when};
 use serde_json::Value;
 
 use kanbus::file_io::load_project_directory;
-use kanbus::models::{IssueData, PriorityDefinition, ProjectConfiguration};
+use kanbus::models::{IssueData, PriorityDefinition, ProjectConfiguration, StatusDefinition};
 use kanbus::workflows::get_workflow_for_issue_type;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -33,14 +33,27 @@ fn read_issue_json(project_dir: &PathBuf, identifier: &str) -> Value {
     serde_json::from_str(&contents).expect("parse issue")
 }
 
-#[given(expr = "an issue {string} of type {string} with status {string}")]
-fn given_issue_with_type_and_status(
-    world: &mut KanbusWorld,
+fn parse_labels(labels_csv: &str) -> Vec<String> {
+    labels_csv
+        .split(',')
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
+        .collect()
+}
+
+fn write_issue_with_overrides(
+    project_dir: &PathBuf,
     identifier: String,
     issue_type: String,
     status: String,
+    title: String,
+    description: String,
+    parent: Option<String>,
+    labels: Vec<String>,
+    assignee: Option<String>,
+    priority: i32,
 ) {
-    let project_dir = load_project_dir(world);
     let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
     let closed_at = if status == "closed" {
         Some(timestamp)
@@ -49,15 +62,15 @@ fn given_issue_with_type_and_status(
     };
     let issue = IssueData {
         identifier,
-        title: "Title".to_string(),
-        description: "".to_string(),
+        title,
+        description,
         issue_type,
         status,
-        priority: 2,
-        assignee: None,
+        priority,
+        assignee,
         creator: None,
-        parent: None,
-        labels: Vec::new(),
+        parent,
+        labels,
         dependencies: Vec::new(),
         comments: Vec::new(),
         created_at: timestamp,
@@ -65,7 +78,170 @@ fn given_issue_with_type_and_status(
         closed_at,
         custom: std::collections::BTreeMap::new(),
     };
-    write_issue_file(&project_dir, &issue);
+    write_issue_file(project_dir, &issue);
+}
+
+#[given(expr = "an issue {string} of type {string} with status {string}")]
+fn given_issue_with_type_and_status(
+    world: &mut KanbusWorld,
+    identifier: String,
+    issue_type: String,
+    status: String,
+) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_overrides(
+        &project_dir,
+        identifier,
+        issue_type,
+        status,
+        "Title".to_string(),
+        "".to_string(),
+        None,
+        Vec::new(),
+        None,
+        2,
+    );
+}
+
+#[given(expr = "an issue {string} of type {string} with status {string} and description {string}")]
+fn given_issue_with_type_status_and_description(
+    world: &mut KanbusWorld,
+    identifier: String,
+    issue_type: String,
+    status: String,
+    description: String,
+) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_overrides(
+        &project_dir,
+        identifier,
+        issue_type,
+        status,
+        "Title".to_string(),
+        description,
+        None,
+        Vec::new(),
+        None,
+        2,
+    );
+}
+
+#[given(expr = "an issue {string} of type {string} with status {string} and title {string}")]
+fn given_issue_with_type_status_and_title(
+    world: &mut KanbusWorld,
+    identifier: String,
+    issue_type: String,
+    status: String,
+    title: String,
+) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_overrides(
+        &project_dir,
+        identifier,
+        issue_type,
+        status,
+        title,
+        "".to_string(),
+        None,
+        Vec::new(),
+        None,
+        2,
+    );
+}
+
+#[given(expr = "an issue {string} of type {string} with status {string} and assignee {string}")]
+fn given_issue_with_type_status_and_assignee(
+    world: &mut KanbusWorld,
+    identifier: String,
+    issue_type: String,
+    status: String,
+    assignee: String,
+) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_overrides(
+        &project_dir,
+        identifier,
+        issue_type,
+        status,
+        "Title".to_string(),
+        "".to_string(),
+        None,
+        Vec::new(),
+        Some(assignee),
+        2,
+    );
+}
+
+#[given(expr = "an issue {string} of type {string} with status {string} and labels {string}")]
+fn given_issue_with_type_status_and_labels(
+    world: &mut KanbusWorld,
+    identifier: String,
+    issue_type: String,
+    status: String,
+    labels_csv: String,
+) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_overrides(
+        &project_dir,
+        identifier,
+        issue_type,
+        status,
+        "Title".to_string(),
+        "".to_string(),
+        None,
+        parse_labels(&labels_csv),
+        None,
+        2,
+    );
+}
+
+#[given(expr = "an issue {string} of type {string} with status {string} and parent {string}")]
+fn given_issue_with_type_status_and_parent(
+    world: &mut KanbusWorld,
+    identifier: String,
+    issue_type: String,
+    status: String,
+    parent: String,
+) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_overrides(
+        &project_dir,
+        identifier,
+        issue_type,
+        status,
+        "Title".to_string(),
+        "".to_string(),
+        Some(parent),
+        Vec::new(),
+        None,
+        2,
+    );
+}
+
+#[given(
+    expr = "an issue {string} of type {string} with status {string} and priority {int} and description {string}"
+)]
+fn given_issue_with_type_status_priority_and_description(
+    world: &mut KanbusWorld,
+    identifier: String,
+    issue_type: String,
+    status: String,
+    priority: i32,
+    description: String,
+) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_overrides(
+        &project_dir,
+        identifier,
+        issue_type,
+        status,
+        "Title".to_string(),
+        description,
+        None,
+        Vec::new(),
+        None,
+        priority,
+    );
 }
 
 #[given(expr = "an issue {string} exists")]
@@ -210,6 +386,65 @@ fn then_issue_no_closed_at(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
     let issue = read_issue_json(&project_dir, &identifier);
     assert!(issue["closed_at"].is_null());
+}
+
+#[given(expr = "epic workflow allows transition from \"open\" to \"ready\"")]
+fn given_epic_workflow_allows_ready(world: &mut KanbusWorld) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let config_path = cwd.join(".kanbus.yml");
+    let contents = fs::read_to_string(&config_path).expect("read config");
+    let mut configuration: ProjectConfiguration =
+        serde_yaml::from_str(&contents).expect("parse config");
+
+    let epic_workflow = configuration
+        .workflows
+        .entry("epic".to_string())
+        .or_default();
+    let open_targets = epic_workflow.entry("open".to_string()).or_default();
+    if !open_targets.iter().any(|status| status == "ready") {
+        open_targets.push("ready".to_string());
+    }
+    epic_workflow.entry("ready".to_string()).or_insert_with(|| {
+        vec![
+            "in_progress".to_string(),
+            "open".to_string(),
+            "closed".to_string(),
+        ]
+    });
+
+    if !configuration
+        .statuses
+        .iter()
+        .any(|status| status.key == "ready")
+    {
+        configuration.statuses.push(StatusDefinition {
+            key: "ready".to_string(),
+            name: "Ready".to_string(),
+            category: "To do".to_string(),
+            color: None,
+            collapsed: false,
+        });
+    }
+
+    let epic_labels = configuration
+        .transition_labels
+        .entry("epic".to_string())
+        .or_default();
+    epic_labels
+        .entry("open".to_string())
+        .or_default()
+        .entry("ready".to_string())
+        .or_insert_with(|| "Mark ready".to_string());
+    epic_labels.entry("ready".to_string()).or_insert_with(|| {
+        BTreeMap::from([
+            ("in_progress".to_string(), "Start".to_string()),
+            ("open".to_string(), "Re-open".to_string()),
+            ("closed".to_string(), "Complete".to_string()),
+        ])
+    });
+
+    let serialized = serde_yaml::to_string(&configuration).expect("serialize config");
+    fs::write(config_path, serialized).expect("write config");
 }
 
 #[given("a configuration without a default workflow")]
