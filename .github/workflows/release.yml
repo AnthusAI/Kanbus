@@ -28,12 +28,14 @@ jobs:
     outputs:
       tag_name: v${{ github.event.inputs.version }}
       version: ${{ github.event.inputs.version }}
+      release_sha: ${{ steps.push_release.outputs.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
 
       - name: Validate version format
         run: |
@@ -47,13 +49,58 @@ jobs:
             exit 1
           fi
 
+      - name: Create release branch and bump versions
+        id: push_release
+        run: |
+          version="${{ github.event.inputs.version }}"
+
+          # Create or reset release branch from main
+          git checkout -B release
+
+          # Patch python/pyproject.toml
+          python3 - <<'PY' "$version"
+          import pathlib, re, sys
+          desired = sys.argv[1]
+          for path, pattern in [
+              (pathlib.Path("python/pyproject.toml"), r'(?m)^version\s*=\s*"([^"]*)"'),
+              (pathlib.Path("python/src/kanbus/__init__.py"), r'__version__\s*=\s*"([^"]*)"'),
+              (pathlib.Path("rust/Cargo.toml"), r'(?m)^version\s*=\s*"([^"]*)"'),
+          ]:
+              text = path.read_text()
+              match = re.search(pattern, text)
+              if match and match.group(1) != desired:
+                  new_text = re.sub(pattern, match.group(0).replace(match.group(1), desired), text, count=1)
+                  path.write_text(new_text)
+                  print(f"{path}: {match.group(1)} -> {desired}")
+          PY
+
+          # Update Cargo.lock
+          cd rust && cargo generate-lockfile && cd ..
+
+          # Commit version bump
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add python/pyproject.toml python/src/kanbus/__init__.py rust/Cargo.toml rust/Cargo.lock
+          git commit -m "chore: release $version"
+
+          # Push release branch (force to reset it each release)
+          git push --force origin release
+
+          # Output the SHA for downstream jobs
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag on release branch
+        run: |
+          version="${{ github.event.inputs.version }}"
+          git tag "v$version"
+          git push origin "v$version"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.event.inputs.version }}
           name: v${{ github.event.inputs.version }}
           generate_release_notes: true
-          target_commitish: main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -66,7 +113,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: release
           fetch-depth: 0
 
       - name: Set up Python
@@ -194,7 +241,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: release
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -269,7 +316,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: release
 
       - name: Build shared UI package
         run: |
@@ -347,7 +394,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: release
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -404,7 +451,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: release
           fetch-depth: 0
 
       - name: Set up Node.js
