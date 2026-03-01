@@ -369,6 +369,7 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
             if config.beads_compatibility:
                 beads_mode = True
         except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
             pass
 
     if beads_mode:
@@ -461,6 +462,7 @@ def update(
             if config.beads_compatibility:
                 beads_mode = True
         except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
             pass
 
     update_quality_result = None
@@ -581,6 +583,7 @@ def delete(context: click.Context, identifier: str) -> None:
             if config.beads_compatibility:
                 beads_mode = True
         except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
             pass
 
     if not beads_mode:
@@ -672,6 +675,7 @@ def comment(
             if config.beads_compatibility:
                 beads_mode = True
         except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
             pass
 
     # Handle body-file input
@@ -1402,6 +1406,7 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
             if config.beads_compatibility:
                 beads_mode = True
         except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
             pass
 
     if is_remove:
