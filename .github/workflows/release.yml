@@ -1,36 +1,72 @@
 name: Release
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
-      pypi_only:
-        description: "Run only the PyPI release job"
+      version:
+        description: "Release version (e.g. 0.14.0)"
+        required: true
+        type: string
+      skip_pypi:
+        description: "Skip PyPI publish"
         required: false
         type: boolean
-        default: true
-      rust_only:
-        description: "Publish Rust crate and binaries for an existing tag (skip PyPI)"
+        default: false
+      skip_rust:
+        description: "Skip Rust crate and binaries"
         required: false
-        type: string
-        default: ""
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
-  pypi-release:
-    name: PyPI Release
-    # Run on published release tags or manual dispatch.
-    if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
+  create-release:
+    name: Create GitHub Release
     runs-on: ubuntu-latest
     outputs:
-      release_tag: ${{ steps.release_tag.outputs.tag }}
+      tag_name: v${{ github.event.inputs.version }}
+      version: ${{ github.event.inputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate version format
+        run: |
+          version="${{ github.event.inputs.version }}"
+          if ! echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version must be in X.Y.Z format (got: $version)"
+            exit 1
+          fi
+          if git tag -l "v$version" | grep -q "v$version"; then
+            echo "::error::Tag v$version already exists"
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: v${{ github.event.inputs.version }}
+          generate_release_notes: true
+          target_commitish: main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  pypi-release:
+    name: PyPI Release
+    needs: create-release
+    if: ${{ !inputs.skip_pypi }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -42,6 +78,42 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install build twine
+
+      - name: Sync Python version to release tag
+        working-directory: python
+        run: |
+          tag_version="${{ needs.create-release.outputs.version }}"
+          python - <<'PY' "$tag_version"
+          import pathlib, re, sys
+
+          desired = sys.argv[1]
+
+          # Patch pyproject.toml
+          pyproject = pathlib.Path("pyproject.toml")
+          text = pyproject.read_text()
+          pattern = r'(?m)^version\s*=\s*"([^"]*)"'
+          match = re.search(pattern, text)
+          if not match:
+              print("version field not found in pyproject.toml")
+              sys.exit(1)
+          current = match.group(1)
+          if current != desired:
+              new_text = re.sub(pattern, f'version = "{desired}"', text, count=1)
+              pyproject.write_text(new_text)
+              print(f"pyproject.toml: {current} -> {desired}")
+          else:
+              print(f"pyproject.toml: already {current}")
+
+          # Patch __init__.py
+          init = pathlib.Path("src/kanbus/__init__.py")
+          text = init.read_text()
+          init_pattern = r'__version__\s*=\s*"([^"]*)"'
+          match = re.search(init_pattern, text)
+          if match and match.group(1) != desired:
+              new_text = re.sub(init_pattern, f'__version__ = "{desired}"', text, count=1)
+              init.write_text(new_text)
+              print(f"__init__.py: {match.group(1)} -> {desired}")
+          PY
 
       - name: Build artifacts
         working-directory: python
@@ -95,20 +167,9 @@ jobs:
               time.sleep(10)
           PY
 
-      - name: Capture release tag
-        id: release_tag
-        run: |
-          if [ -n "${{ github.event.inputs.rust_only }}" ]; then
-            echo "tag=${{ github.event.inputs.rust_only }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=" >> "$GITHUB_OUTPUT"
-          fi
-
   rust-binaries:
-    needs: pypi-release
-    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name == 'workflow_dispatch') && (github.event.inputs.pypi_only != 'true') }}
+    needs: [create-release, pypi-release]
+    if: ${{ !cancelled() && !inputs.skip_rust && (needs.pypi-release.result == 'success' || needs.pypi-release.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -132,6 +193,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -169,15 +232,15 @@ jobs:
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.pypi-release.outputs.release_tag }}
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: |
             dist/kbs-${{ matrix.target }}.${{ matrix.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   console-server-binaries:
-    needs: pypi-release
-    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name == 'workflow_dispatch') && (github.event.inputs.pypi_only != 'true') }}
+    needs: [create-release, pypi-release]
+    if: ${{ !cancelled() && !inputs.skip_rust && (needs.pypi-release.result == 'success' || needs.pypi-release.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -205,6 +268,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Build shared UI package
         run: |
@@ -267,7 +332,7 @@ jobs:
       - name: Upload console server assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.pypi-release.outputs.release_tag }}
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: |
             dist/kbsc-${{ matrix.target }}.${{ matrix.archive }}
         env:
@@ -275,12 +340,14 @@ jobs:
 
   vscode-extension:
     name: Publish VSCode Extension
-    needs: [pypi-release, console-server-binaries]
-    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.pypi_only != 'true') }}
+    needs: [create-release, console-server-binaries]
+    if: ${{ !cancelled() && !inputs.skip_rust && needs.console-server-binaries.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -328,8 +395,8 @@ jobs:
         working-directory: apps/vscode
 
   rust-crate:
-    needs: pypi-release
-    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.pypi_only != 'true') }}
+    needs: [create-release, pypi-release]
+    if: ${{ !cancelled() && !inputs.skip_rust && (needs.pypi-release.result == 'success' || needs.pypi-release.result == 'skipped') }}
     runs-on: ubuntu-latest
     env:
       CARGO_TERM_COLOR: always
@@ -337,6 +404,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -385,8 +453,7 @@ jobs:
       - name: Sync crate version to release tag
         working-directory: rust
         run: |
-          tag_version="${{ needs.pypi-release.outputs.release_tag }}"
-          tag_version="${tag_version#v}"
+          tag_version="${{ needs.create-release.outputs.version }}"
           python - <<'PY' "$tag_version"
           import pathlib, re, sys
 
@@ -433,8 +500,7 @@ jobs:
       - name: Check if crate version already exists
         id: crate_version_check
         run: |
-          version="${{ needs.pypi-release.outputs.release_tag }}"
-          version="${version#v}"
+          version="${{ needs.create-release.outputs.version }}"
           python - <<'PY' "$version"
           import json
           import os
