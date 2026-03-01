@@ -2,6 +2,41 @@
 
 <!-- version list -->
 
+## [0.14.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-py-0.13.2...kanbus-py-0.14.0) (2026-03-01)
+
+
+### Features
+
+* add console UI state commands with [@console](https://github.com/console) BDD integration tests ([084a302](https://github.com/AnthusAI/Kanbus/commit/084a30260b45423fde25c47eac0b3bfc51dd31cd))
+* add intuitive CLI aliases and enriched help for AI agents (Python + docs) ([e386083](https://github.com/AnthusAI/Kanbus/commit/e38608379677f9d456a2b0b29b29901483f1dbf8))
+* add kanbus jira pull command with BDD specs ([131c344](https://github.com/AnthusAI/Kanbus/commit/131c3446dd6088735a9ddd4f9cf4db219b1f78c9))
+* complete descendant display feature and PM updates ([4ad3227](https://github.com/AnthusAI/Kanbus/commit/4ad3227dfa52f7a785eafac09f7dd807ddd96aef))
+* **console:** implement metrics view with visual charts and gherkin steps ([b7bd5db](https://github.com/AnthusAI/Kanbus/commit/b7bd5db6c265203587412eb80cc672c0b3e4ec75))
+* **console:** restore metrics view ([3bd9a4e](https://github.com/AnthusAI/Kanbus/commit/3bd9a4ecd8ada2dcafba7cc2c9f9ec35abc0ed2b))
+* enhance Snyk sync functionality to support both package and code vulnerabilities ([84ced87](https://github.com/AnthusAI/Kanbus/commit/84ced875fbd617ccc335367c8ee56b1299bb785f))
+* Rich text quality signals (tskl-3ec) ([d562ffb](https://github.com/AnthusAI/Kanbus/commit/d562ffbd88c2d042a2cf9eba29248dcb4db7abe3))
+* Rich text quality signals + Git Flow standards (tskl-3ec) ([1111674](https://github.com/AnthusAI/Kanbus/commit/11116749eae735130a1497827343c1ead3fc2e4c))
+
+
+### Bug Fixes
+
+* align config validation tests ([fe3737a](https://github.com/AnthusAI/Kanbus/commit/fe3737a5814fe02d3d643e2116eb2d3baf181344))
+* align python version sources to v0.9.0 ([345eb3f](https://github.com/AnthusAI/Kanbus/commit/345eb3fe7e5488b266b2d4867e9cd883f4204d49))
+* apply black and ruff formatting to Python files ([b86df81](https://github.com/AnthusAI/Kanbus/commit/b86df81f882b9ac0d08d1323d92764828638d347))
+* behave policy scenarios ([af21f75](https://github.com/AnthusAI/Kanbus/commit/af21f75aa33494133ffd43f696f2e9b3283bfea3))
+* build kbsc without embed-assets for Python integration tests ([0c01429](https://github.com/AnthusAI/Kanbus/commit/0c014299c213a00ed95de5cec39993b83cbcc402))
+* **config:** accept legacy external_projects ([9b7a002](https://github.com/AnthusAI/Kanbus/commit/9b7a0029bf2d74e96c215b6757fe00543d718c6a))
+* **console:** fix failing console UI tests ([9067f09](https://github.com/AnthusAI/Kanbus/commit/9067f09b303a7098ae1f018b2df582d597056871))
+* quiet clippy and format python ([8d9f220](https://github.com/AnthusAI/Kanbus/commit/8d9f220da252e1fae472a2bb93a112994535d5b7))
+* reformat console_ui_steps.py with current black version ([79b258c](https://github.com/AnthusAI/Kanbus/commit/79b258c33fec3e5082d4de23a5c7bd43ec72debf))
+* restore ci coverage and clippy ([ee45943](https://github.com/AnthusAI/Kanbus/commit/ee45943012d799c2979f5c96e0df96be4c4dc3ff))
+* satisfy python lint ([ddf766c](https://github.com/AnthusAI/Kanbus/commit/ddf766ce95c7b77f0f5a66e5912ebe4fe0cc08a5))
+* **snyk_sync:** log warning instead of silently swallowing exceptions ([36a7312](https://github.com/AnthusAI/Kanbus/commit/36a73122fa3206840677de2347b6187463aa1e1c))
+* **snyk_sync:** reduce function argument count to satisfy linters ([f5ba153](https://github.com/AnthusAI/Kanbus/commit/f5ba153c80648e53102cdb2a1c634c11928ce35d))
+* stabilize code block validation tests ([1d1a68c](https://github.com/AnthusAI/Kanbus/commit/1d1a68cac28d83c59079e76f4e6d8c3a960afd66))
+* trigger python release ([f2b9ee1](https://github.com/AnthusAI/Kanbus/commit/f2b9ee1745a7cae815f217b204e053ee192cba6b))
+* unblock release by skipping flaky id format scenario ([fd8f375](https://github.com/AnthusAI/Kanbus/commit/fd8f375ae01883977922aef76cc622bb9d45ad18))
+
 ## v0.13.2 (2026-02-25)
 
 ### Bug Fixes
