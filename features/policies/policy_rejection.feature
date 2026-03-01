@@ -12,8 +12,9 @@ Feature: Policy rejection behavior
           Then the issue must have field "assignee"
       """
     And an issue "kanbus-test01" of type "task" with status "open"
-    When I run "kanbus update kanbus-test01 --title "Updated""
+    When I run "kanbus update kanbus-test01 --title Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "my-custom-rule.policy"
 
   Scenario: Error message includes scenario name
@@ -25,8 +26,9 @@ Feature: Policy rejection behavior
           Then the issue must have field "assignee"
       """
     And an issue "kanbus-test01" of type "task" with status "open"
-    When I run "kanbus update kanbus-test01 --title "Updated""
+    When I run "kanbus update kanbus-test01 --title Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "Very specific scenario name"
 
   Scenario: Error message includes failed step
@@ -38,8 +40,9 @@ Feature: Policy rejection behavior
           Then the issue must have field "assignee"
       """
     And an issue "kanbus-test01" of type "task" with status "open"
-    When I run "kanbus update kanbus-test01 --title "Updated""
+    When I run "kanbus update kanbus-test01 --title Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "Then the issue must have field \"assignee\""
 
   Scenario: First failing policy stops evaluation
@@ -57,11 +60,11 @@ Feature: Policy rejection behavior
           Then the description must not be empty
       """
     And an issue "kanbus-test01" of type "task" with status "open" and description ""
-    When I run "kanbus update kanbus-test01 --title "Updated""
+    When I run "kanbus update kanbus-test01 --title Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "policy violation"
 
-  @skip
   Scenario: Issue state is not modified when policy fails
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -71,7 +74,8 @@ Feature: Policy rejection behavior
           Then the issue must have field "assignee"
       """
     And an issue "kanbus-test01" of type "task" with status "open" and title "Original Title"
-    When I run "kanbus update kanbus-test01 --title "New Title""
+    When I run "kanbus update kanbus-test01 --title 'New Title'"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And issue "kanbus-test01" should have title "Original Title"
     And issue "kanbus-test01" should have status "open"

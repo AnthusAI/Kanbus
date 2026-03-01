@@ -41,6 +41,11 @@ fn write_stderr(message: &str) {
     }
 }
 
+/// Emit one line to stderr, honoring active capture in tests.
+pub fn emit_stderr_line(message: &str) {
+    write_stderr(message);
+}
+
 /// Result of applying quality signals to a text value.
 ///
 /// # Fields

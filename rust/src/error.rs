@@ -2,6 +2,15 @@
 
 use std::fmt::{self, Display, Formatter};
 
+/// Additional optional detail for policy violations.
+#[derive(Debug, Default)]
+pub struct PolicyViolationDetails {
+    /// Explanations attached by follow-up explain steps.
+    pub explanations: Vec<String>,
+    /// Guidance lines attached to this violation.
+    pub guidance: Vec<String>,
+}
+
 /// Errors returned by Kanbus operations.
 #[derive(Debug)]
 pub enum KanbusError {
@@ -24,15 +33,17 @@ pub enum KanbusError {
     /// Policy violation occurred.
     PolicyViolation {
         /// Path to the policy file.
-        policy_file: String,
+        policy_file: Box<str>,
         /// Scenario name that failed.
-        scenario: String,
+        scenario: Box<str>,
         /// The specific step that failed.
-        failed_step: String,
+        failed_step: Box<str>,
         /// Human-readable explanation.
-        message: String,
+        message: Box<str>,
         /// Issue ID being evaluated.
-        issue_id: String,
+        issue_id: Box<str>,
+        /// Optional expanded detail for rendering.
+        details: Box<PolicyViolationDetails>,
     },
 }
 
@@ -53,11 +64,22 @@ impl Display for KanbusError {
                 failed_step,
                 message,
                 issue_id,
+                details,
             } => {
                 write!(
                     formatter,
                     "policy violation in {policy_file} for issue {issue_id}\n  Scenario: {scenario}\n  Failed: {failed_step}\n  {message}"
-                )
+                )?;
+                for explanation in &details.explanations {
+                    write!(formatter, "\n  Explanation: {explanation}")?;
+                }
+                if !details.guidance.is_empty() {
+                    write!(formatter, "\n  Guidance:")?;
+                    for line in &details.guidance {
+                        write!(formatter, "\n    {line}")?;
+                    }
+                }
+                Ok(())
             }
         }
     }

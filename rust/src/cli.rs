@@ -4,6 +4,7 @@ use std::ffi::OsString;
 use std::io::IsTerminal;
 use std::path::Path;
 
+use chrono::Utc;
 use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 use std::collections::HashSet;
@@ -74,6 +75,9 @@ pub struct Cli {
     /// Enable Beads compatibility mode (read .beads/issues.jsonl).
     #[arg(long)]
     beads: bool,
+    /// Disable policy guidance hooks for this command.
+    #[arg(long = "no-guidance")]
+    no_guidance: bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -464,6 +468,11 @@ enum PolicyCommands {
         /// Issue identifier to check policies against.
         identifier: String,
     },
+    /// Run non-blocking policy guidance against an issue.
+    Guide {
+        /// Issue identifier to evaluate guidance against.
+        identifier: String,
+    },
     /// List all loaded policy files.
     List,
     /// List available policy steps.
@@ -652,8 +661,9 @@ where
     let root = resolve_root(cwd);
     let root = canonicalize_path(&root).unwrap_or(root);
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
+    let no_guidance = cli.no_guidance;
     maybe_prompt_project_repair(&cli.command, &root)?;
-    let stdout = execute_command(cli.command, &root, beads_mode, beads_forced);
+    let stdout = execute_command(cli.command, &root, beads_mode, beads_forced, no_guidance);
     let captured_stderr = take_captured_stderr().unwrap_or_default();
     let stdout = stdout?;
 
@@ -738,6 +748,7 @@ fn execute_command(
     root: &Path,
     beads_mode: bool,
     _beads_forced: bool,
+    no_guidance: bool,
 ) -> Result<Option<String>, KanbusError> {
     let root_for_beads = beads_root(root);
     match command {
@@ -903,6 +914,12 @@ fn execute_command(
             if let Some(ref qr) = quality_result {
                 emit_signals(qr, "description", Some(&issue.identifier), None, false);
             }
+            crate::policy_guidance::emit_guidance_for_issues(
+                root,
+                std::slice::from_ref(&issue),
+                crate::policy_context::PolicyOperation::Create,
+                no_guidance,
+            );
             Ok(Some(output))
         }
         Commands::Show { identifier, json } => {
@@ -935,15 +952,28 @@ fn execute_command(
             if json {
                 let payload =
                     serde_json::to_string_pretty(&issue).expect("failed to serialize issue");
+                if !beads_mode {
+                    crate::policy_guidance::emit_guidance_for_issues(
+                        root,
+                        std::slice::from_ref(&issue),
+                        crate::policy_context::PolicyOperation::View,
+                        no_guidance,
+                    );
+                }
                 return Ok(Some(payload));
             }
             let use_color = should_use_color();
-            Ok(Some(format_issue_for_display(
-                &issue,
-                configuration.as_ref(),
-                use_color,
-                false,
-            )))
+            let rendered =
+                format_issue_for_display(&issue, configuration.as_ref(), use_color, false);
+            if !beads_mode {
+                crate::policy_guidance::emit_guidance_for_issues(
+                    root,
+                    std::slice::from_ref(&issue),
+                    crate::policy_context::PolicyOperation::View,
+                    no_guidance,
+                );
+            }
+            Ok(Some(rendered))
         }
         Commands::Update {
             identifier,
@@ -1015,7 +1045,7 @@ fn execute_command(
                     set_labels.as_deref(),
                 )?;
             } else {
-                update_issue(
+                let updated_issue = update_issue(
                     root,
                     &identifier,
                     title_value,
@@ -1030,6 +1060,12 @@ fn execute_command(
                     set_labels.as_deref(),
                     parent.as_deref(),
                 )?;
+                crate::policy_guidance::emit_guidance_for_issues(
+                    root,
+                    &[updated_issue],
+                    crate::policy_context::PolicyOperation::Update,
+                    no_guidance,
+                );
             }
             let formatted_identifier = format_issue_key(&identifier, false);
             if let Some(ref qr) = update_quality_result {
@@ -1052,16 +1088,37 @@ fn execute_command(
                     None,
                 )?;
             } else {
-                close_issue(root, &identifier)?;
+                let closed_issue = close_issue(root, &identifier)?;
+                crate::policy_guidance::emit_guidance_for_issues(
+                    root,
+                    &[closed_issue],
+                    crate::policy_context::PolicyOperation::Close,
+                    no_guidance,
+                );
             }
             let formatted_identifier = format_issue_key(&identifier, false);
             Ok(Some(format!("Closed {}", formatted_identifier)))
         }
         Commands::Delete { identifier } => {
+            let issue_for_guidance = if beads_mode {
+                None
+            } else {
+                load_issue_from_project(root, &identifier)
+                    .ok()
+                    .map(|lookup| lookup.issue)
+            };
             if beads_mode {
                 delete_beads_issue(&root_for_beads, &identifier)?;
             } else {
                 delete_issue(root, &identifier)?;
+            }
+            if let Some(issue) = issue_for_guidance {
+                crate::policy_guidance::emit_guidance_for_issues(
+                    root,
+                    &[issue],
+                    crate::policy_context::PolicyOperation::Delete,
+                    no_guidance,
+                );
             }
             let formatted_identifier = format_issue_key(&identifier, false);
             Ok(Some(format!("Deleted {}", formatted_identifier)))
@@ -1291,6 +1348,12 @@ fn execute_command(
                     )
                 })
                 .collect::<Vec<_>>();
+            crate::policy_guidance::emit_guidance_for_issues(
+                root,
+                &issues,
+                crate::policy_context::PolicyOperation::List,
+                no_guidance,
+            );
             Ok(Some(lines.join("\n")))
         }
         Commands::Validate => {
@@ -1399,7 +1462,7 @@ fn execute_command(
             no_local,
             local_only,
         } => {
-            let issues = if beads_mode {
+            let issues: Vec<IssueData> = if beads_mode {
                 if local_only || no_local {
                     return Err(KanbusError::IssueOperation(
                         "beads mode does not support local filtering".to_string(),
@@ -1413,9 +1476,15 @@ fn execute_command(
                 list_ready_issues(root, !no_local, local_only)?
             };
             let mut lines = Vec::new();
-            for issue in issues {
-                lines.push(format_ready_line(&issue));
+            for issue in &issues {
+                lines.push(format_ready_line(issue));
             }
+            crate::policy_guidance::emit_guidance_for_issues(
+                root,
+                &issues,
+                crate::policy_context::PolicyOperation::Ready,
+                no_guidance,
+            );
             Ok(Some(lines.join("\n")))
         }
         Commands::Jira { command } => match command {
@@ -1537,6 +1606,7 @@ fn execute_command(
                     &policy_documents,
                     &PolicyEvaluationOptions {
                         collect_all_violations: true,
+                        ..PolicyEvaluationOptions::default()
                     },
                 ) {
                     let mut error_msg = format!("Found {} policy violation(s):", violations.len());
@@ -1546,6 +1616,52 @@ fn execute_command(
                     return Err(KanbusError::IssueOperation(error_msg));
                 }
                 Ok(Some(format!("All policies passed for {}", identifier)))
+            }
+            PolicyCommands::Guide { identifier } => {
+                use crate::issue_lookup::load_issue_from_project;
+                use crate::policy_context::PolicyOperation;
+                use crate::policy_guidance::{
+                    collect_guidance_for_issue, sorted_deduped_guidance_items,
+                };
+
+                let lookup = load_issue_from_project(root, &identifier)?;
+                let guide_root = lookup.project_dir.parent().unwrap_or(root);
+                let report =
+                    collect_guidance_for_issue(guide_root, &lookup.issue, PolicyOperation::View)?;
+
+                if !report.violations.is_empty() {
+                    let mut error_msg = format!(
+                        "Found {} policy validation issue(s) while generating guidance:",
+                        report.violations.len()
+                    );
+                    for (index, violation) in report.violations.iter().enumerate() {
+                        error_msg.push_str(&format!("\n\n{}. {}", index + 1, violation));
+                    }
+                    return Err(KanbusError::IssueOperation(error_msg));
+                }
+
+                let items = sorted_deduped_guidance_items(&report.guidance_items);
+                if items.is_empty() {
+                    return Ok(Some(format!("No guidance for {}", identifier)));
+                }
+                for item in items {
+                    let prefix =
+                        if item.severity == crate::policy_evaluator::GuidanceSeverity::Warning {
+                            "GUIDANCE WARNING"
+                        } else {
+                            "GUIDANCE SUGGESTION"
+                        };
+                    crate::rich_text_signals::emit_stderr_line(&format!(
+                        "{prefix}: {}",
+                        item.message
+                    ));
+                    for explanation in item.explanations {
+                        crate::rich_text_signals::emit_stderr_line(&format!(
+                            "  Explanation: {explanation}"
+                        ));
+                    }
+                }
+                Ok(None)
             }
             PolicyCommands::List => {
                 use crate::project::load_project_directory;
@@ -1603,6 +1719,8 @@ fn execute_command(
                 }
             }
             PolicyCommands::Validate => {
+                use crate::policy_context::{PolicyContext, PolicyOperation};
+                use crate::policy_evaluator::validate_policy_documents;
                 use crate::project::load_project_directory;
 
                 let project_dir = load_project_directory(root)?;
@@ -1615,6 +1733,48 @@ fn execute_command(
                 let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
                 if policy_documents.is_empty() {
                     return Ok(Some("No policy files found".to_string()));
+                }
+
+                let config_path = get_configuration_path(&project_dir)?;
+                let configuration = load_project_configuration(&config_path)?;
+                let now = Utc::now();
+                let validation_issue = IssueData {
+                    identifier: "kanbus-policy-validate".to_string(),
+                    title: "Policy Validation Context".to_string(),
+                    description: String::new(),
+                    issue_type: "task".to_string(),
+                    status: configuration.initial_status.clone(),
+                    priority: configuration.default_priority as i32,
+                    assignee: None,
+                    creator: None,
+                    parent: None,
+                    labels: Vec::new(),
+                    dependencies: Vec::new(),
+                    comments: Vec::new(),
+                    created_at: now,
+                    updated_at: now,
+                    closed_at: None,
+                    custom: std::collections::BTreeMap::new(),
+                };
+                let validation_context = PolicyContext {
+                    current_issue: Some(validation_issue.clone()),
+                    proposed_issue: validation_issue,
+                    transition: None,
+                    operation: PolicyOperation::Update,
+                    project_configuration: configuration,
+                    all_issues: Vec::new(),
+                };
+                let validation_violations =
+                    validate_policy_documents(&validation_context, &policy_documents);
+                if !validation_violations.is_empty() {
+                    let mut error_msg = format!(
+                        "Found {} policy validation issue(s):",
+                        validation_violations.len()
+                    );
+                    for (index, violation) in validation_violations.iter().enumerate() {
+                        error_msg.push_str(&format!("\n\n{}. {}", index + 1, violation));
+                    }
+                    return Err(KanbusError::IssueOperation(error_msg));
                 }
 
                 Ok(Some(format!(
