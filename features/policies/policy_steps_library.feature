@@ -12,11 +12,11 @@ Feature: Policy steps library
           Then the issue must have field "assignee"
       """
     And an issue "kanbus-test01" of type "task" with status "open"
-    When I run "kanbus update kanbus-test01 --title "Updated""
+    When I run "kanbus update kanbus-test01 --title Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "issue does not have field"
 
-  @skip
   Scenario: Then step - issue must not have field
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -26,8 +26,9 @@ Feature: Policy steps library
           Then the issue must not have field "assignee"
       """
     And an issue "kanbus-test01" of type "task" with status "open" and assignee "alice@example.com"
-    When I run "kanbus update kanbus-test01 --title "Updated""
+    When I run "kanbus update kanbus-test01 --title Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "issue has field"
 
   Scenario: Then step - field must be value
@@ -39,11 +40,11 @@ Feature: Policy steps library
           Then the field "status" must be "open"
       """
     And an issue "kanbus-test01" of type "task" with status "in_progress"
-    When I run "kanbus update kanbus-test01 --title "Updated""
+    When I run "kanbus update kanbus-test01 --title Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "field \"status\" is \"in_progress\" but must be \"open\""
 
-  @skip
   Scenario: Then step - all children must have status
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -58,10 +59,10 @@ Feature: Policy steps library
     And an issue "kanbus-task01" of type "task" with status "in_progress" and parent "kanbus-epic01"
     When I run "kanbus update kanbus-epic01 --status closed"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "child issues"
     And stderr should contain "do not have status"
 
-  @skip
   Scenario: Then step - no children may have status
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -73,12 +74,12 @@ Feature: Policy steps library
       """
     And an issue "kanbus-epic01" of type "epic" with status "in_progress"
     And an issue "kanbus-task01" of type "task" with status "blocked" and parent "kanbus-epic01"
-    When I run "kanbus update kanbus-epic01 --title "Updated""
+    When I run "kanbus update kanbus-epic01 --title Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "child issues"
     And stderr should contain "have status \"blocked\" but should not"
 
-  @skip
   Scenario: Then step - parent must have status
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -93,10 +94,10 @@ Feature: Policy steps library
     And an issue "kanbus-task01" of type "task" with status "open" and parent "kanbus-epic01"
     When I run "kanbus update kanbus-task01 --status in_progress"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "parent issue"
     And stderr should contain "must have status"
 
-  @skip
   Scenario: Then step - issue must have at least N labels
     Given a Kanbus project with default configuration
     And a policy file "test.policy" with content:
@@ -109,6 +110,7 @@ Feature: Policy steps library
     And an issue "kanbus-test01" of type "task" with status "in_progress" and labels "bug"
     When I run "kanbus update kanbus-test01 --status closed"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "has 1 label(s) but must have at least 2"
 
   Scenario: Then step - issue must have specific label
@@ -123,6 +125,7 @@ Feature: Policy steps library
     And an issue "kanbus-test01" of type "task" with status "in_progress"
     When I run "kanbus update kanbus-test01 --status closed"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "does not have label \"reviewed\""
 
   Scenario: Then step - description must not be empty
@@ -135,8 +138,9 @@ Feature: Policy steps library
           Then the description must not be empty
       """
     And an issue "kanbus-test01" of type "task" with status "open" and description ""
-    When I run "kanbus update kanbus-test01 --title "Updated""
+    When I run "kanbus update kanbus-test01 --title Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "description is empty"
 
   Scenario: Then step - title must match pattern
@@ -149,6 +153,7 @@ Feature: Policy steps library
           Then the title must match pattern "^BUG-"
       """
     And an issue "kanbus-bug01" of type "bug" with status "open" and title "Fix login issue"
-    When I run "kanbus update kanbus-bug01 --description "Updated""
+    When I run "kanbus update kanbus-bug01 --description Updated"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "does not match pattern"

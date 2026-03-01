@@ -220,6 +220,7 @@ def update_issue(
         from kanbus.policy_context import (
             PolicyContext,
             PolicyOperation,
+            PolicyViolationError,
             StatusTransition,
         )
         from kanbus.issue_listing import load_issues_from_directory
@@ -243,7 +244,10 @@ def update_issue(
                 project_configuration=configuration,
                 all_issues=all_issues,
             )
-            evaluate_policies(context, policy_documents)
+            try:
+                evaluate_policies(context, policy_documents)
+            except PolicyViolationError as error:
+                raise IssueUpdateError(str(error)) from error
 
     write_issue_to_file(updated_issue, lookup.issue_path)
     occurred_at = now_timestamp()

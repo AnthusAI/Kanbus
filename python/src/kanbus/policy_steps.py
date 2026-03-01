@@ -16,6 +16,9 @@ class StepOutcome(str, Enum):
     PASS = "pass"
     SKIP = "skip"
     FAIL = "fail"
+    WARN = "warn"
+    SUGGEST = "suggest"
+    EXPLAIN = "explain"
 
 
 StepResult = tuple[StepOutcome, Optional[str]]
@@ -167,6 +170,41 @@ def build_step_definitions() -> list[StepDefinition]:
             when_closing_issue,
         ),
         StepDefinition(
+            "Filter by update operation",
+            StepCategory.WHEN,
+            "updating an issue",
+            re.compile(r"^updating an issue$"),
+            when_updating_issue,
+        ),
+        StepDefinition(
+            "Filter by delete operation",
+            StepCategory.WHEN,
+            "deleting an issue",
+            re.compile(r"^deleting an issue$"),
+            when_deleting_issue,
+        ),
+        StepDefinition(
+            "Filter by view operation",
+            StepCategory.WHEN,
+            "viewing an issue",
+            re.compile(r"^viewing an issue$"),
+            when_viewing_issue,
+        ),
+        StepDefinition(
+            "Filter by list operation",
+            StepCategory.WHEN,
+            "listing issues",
+            re.compile(r"^listing issues$"),
+            when_listing_issues,
+        ),
+        StepDefinition(
+            "Filter by ready-list operation",
+            StepCategory.WHEN,
+            "listing ready issues",
+            re.compile(r"^listing ready issues$"),
+            when_listing_ready_issues,
+        ),
+        StepDefinition(
             "Assert field is set",
             StepCategory.THEN,
             'the issue must have field "FIELD"',
@@ -200,6 +238,13 @@ def build_step_definitions() -> list[StepDefinition]:
             'no child issues may have status "STATUS"',
             re.compile(r'^no child issues may have status "([^"]+)"$'),
             then_no_children_may_have_status,
+        ),
+        StepDefinition(
+            "Assert minimum child count",
+            StepCategory.THEN,
+            "the issue must have at least N child issues",
+            re.compile(r"^the issue must have at least (\d+) child issues?$"),
+            then_issue_must_have_at_least_n_child_issues,
         ),
         StepDefinition(
             "Assert parent has status",
@@ -256,6 +301,27 @@ def build_step_definitions() -> list[StepDefinition]:
             'the custom field "FIELD" must be "VALUE"',
             re.compile(r'^the custom field "([^"]+)" must be "([^"]+)"$'),
             then_custom_field_must_be,
+        ),
+        StepDefinition(
+            "Emit warning guidance",
+            StepCategory.THEN,
+            'warn "TEXT"',
+            re.compile(r'^warn "([^"]*)"$'),
+            then_warn,
+        ),
+        StepDefinition(
+            "Emit suggestion guidance",
+            StepCategory.THEN,
+            'suggest "TEXT"',
+            re.compile(r'^suggest "([^"]*)"$'),
+            then_suggest,
+        ),
+        StepDefinition(
+            "Attach explanation to previous item",
+            StepCategory.THEN,
+            'explain "TEXT"',
+            re.compile(r'^explain "([^"]*)"$'),
+            then_explain,
         ),
     ]
 
@@ -327,7 +393,45 @@ def when_creating_issue(context: PolicyContext, match: re.Match) -> StepResult:
 
 def when_closing_issue(context: PolicyContext, match: re.Match) -> StepResult:
     """Filter by close operation."""
-    if context.operation == PolicyOperation.CLOSE:
+    if context.operation == PolicyOperation.CLOSE or (
+        context.operation == PolicyOperation.UPDATE
+        and context.is_transitioning_to("closed")
+    ):
+        return (StepOutcome.PASS, None)
+    return (StepOutcome.SKIP, None)
+
+
+def when_updating_issue(context: PolicyContext, match: re.Match) -> StepResult:
+    """Filter by update operation."""
+    if context.operation == PolicyOperation.UPDATE:
+        return (StepOutcome.PASS, None)
+    return (StepOutcome.SKIP, None)
+
+
+def when_deleting_issue(context: PolicyContext, match: re.Match) -> StepResult:
+    """Filter by delete operation."""
+    if context.operation == PolicyOperation.DELETE:
+        return (StepOutcome.PASS, None)
+    return (StepOutcome.SKIP, None)
+
+
+def when_viewing_issue(context: PolicyContext, match: re.Match) -> StepResult:
+    """Filter by view operation."""
+    if context.operation == PolicyOperation.VIEW:
+        return (StepOutcome.PASS, None)
+    return (StepOutcome.SKIP, None)
+
+
+def when_listing_issues(context: PolicyContext, match: re.Match) -> StepResult:
+    """Filter by list operation."""
+    if context.operation == PolicyOperation.LIST:
+        return (StepOutcome.PASS, None)
+    return (StepOutcome.SKIP, None)
+
+
+def when_listing_ready_issues(context: PolicyContext, match: re.Match) -> StepResult:
+    """Filter by ready-list operation."""
+    if context.operation == PolicyOperation.READY:
         return (StepOutcome.PASS, None)
     return (StepOutcome.SKIP, None)
 
@@ -444,6 +548,20 @@ def then_no_children_may_have_status(
     )
 
 
+def then_issue_must_have_at_least_n_child_issues(
+    context: PolicyContext, match: re.Match
+) -> StepResult:
+    """Assert minimum child issue count."""
+    min_count = int(match.group(1))
+    actual_count = len(context.child_issues())
+    if actual_count >= min_count:
+        return (StepOutcome.PASS, None)
+    return (
+        StepOutcome.FAIL,
+        f"issue has {actual_count} child issue(s) but must have at least {min_count}",
+    )
+
+
 def then_parent_must_have_status(context: PolicyContext, match: re.Match) -> StepResult:
     """Assert parent has status."""
     required_status = match.group(1)
@@ -548,3 +666,18 @@ def then_custom_field_must_be(context: PolicyContext, match: re.Match) -> StepRe
         StepOutcome.FAIL,
         f'custom field "{field}" is "{actual_value}" but must be "{expected_value}"',
     )
+
+
+def then_warn(context: PolicyContext, match: re.Match) -> StepResult:
+    """Emit non-blocking warning guidance."""
+    return (StepOutcome.WARN, match.group(1))
+
+
+def then_suggest(context: PolicyContext, match: re.Match) -> StepResult:
+    """Emit non-blocking suggestion guidance."""
+    return (StepOutcome.SUGGEST, match.group(1))
+
+
+def then_explain(context: PolicyContext, match: re.Match) -> StepResult:
+    """Attach explanation text to the previously emitted item."""
+    return (StepOutcome.EXPLAIN, match.group(1))

@@ -14,6 +14,12 @@ pub enum StepOutcome {
     Pass,
     /// Step should be skipped (Given/When didn't match).
     Skip,
+    /// Emit a warning guidance message.
+    Warn(String),
+    /// Emit a suggestion guidance message.
+    Suggest(String),
+    /// Attach explanation text to a previously emitted item.
+    Explain(String),
 }
 
 /// Category of a step.
@@ -172,6 +178,41 @@ fn build_step_definitions() -> Vec<StepDefinition> {
             r"^closing an issue$",
             when_closing_issue,
         ),
+        StepDefinition::new(
+            "Filter by update operation",
+            StepCategory::When,
+            "updating an issue",
+            r"^updating an issue$",
+            when_updating_issue,
+        ),
+        StepDefinition::new(
+            "Filter by delete operation",
+            StepCategory::When,
+            "deleting an issue",
+            r"^deleting an issue$",
+            when_deleting_issue,
+        ),
+        StepDefinition::new(
+            "Filter by view operation",
+            StepCategory::When,
+            "viewing an issue",
+            r"^viewing an issue$",
+            when_viewing_issue,
+        ),
+        StepDefinition::new(
+            "Filter by list operation",
+            StepCategory::When,
+            "listing issues",
+            r"^listing issues$",
+            when_listing_issues,
+        ),
+        StepDefinition::new(
+            "Filter by ready-list operation",
+            StepCategory::When,
+            "listing ready issues",
+            r"^listing ready issues$",
+            when_listing_ready_issues,
+        ),
         // Then steps (assertions/policy rules)
         StepDefinition::new(
             "Assert field is set",
@@ -207,6 +248,13 @@ fn build_step_definitions() -> Vec<StepDefinition> {
             "no child issues may have status \"STATUS\"",
             r#"^no child issues may have status "([^"]+)"$"#,
             then_no_children_may_have_status,
+        ),
+        StepDefinition::new(
+            "Assert minimum child count",
+            StepCategory::Then,
+            "the issue must have at least N child issues",
+            r"^the issue must have at least (\d+) child issues?$",
+            then_issue_must_have_at_least_n_child_issues,
         ),
         StepDefinition::new(
             "Assert parent has status",
@@ -256,6 +304,27 @@ fn build_step_definitions() -> Vec<StepDefinition> {
             "the custom field \"FIELD\" must be \"VALUE\"",
             r#"^the custom field "([^"]+)" must be "([^"]+)"$"#,
             then_custom_field_must_be,
+        ),
+        StepDefinition::new(
+            "Emit warning guidance",
+            StepCategory::Then,
+            "warn \"TEXT\"",
+            r#"^warn "([^"]*)"$"#,
+            then_warn,
+        ),
+        StepDefinition::new(
+            "Emit suggestion guidance",
+            StepCategory::Then,
+            "suggest \"TEXT\"",
+            r#"^suggest "([^"]*)"$"#,
+            then_suggest,
+        ),
+        StepDefinition::new(
+            "Attach explanation to previous item",
+            StepCategory::Then,
+            "explain \"TEXT\"",
+            r#"^explain "([^"]*)"$"#,
+            then_explain,
         ),
     ]
 }
@@ -338,7 +407,54 @@ fn when_creating_issue(context: &PolicyContext, _captures: &regex::Captures) -> 
 
 fn when_closing_issue(context: &PolicyContext, _captures: &regex::Captures) -> StepResult {
     use crate::policy_context::PolicyOperation;
-    if context.operation == PolicyOperation::Close {
+    if context.operation == PolicyOperation::Close
+        || (context.operation == PolicyOperation::Update && context.is_transitioning_to("closed"))
+    {
+        Ok(StepOutcome::Pass)
+    } else {
+        Ok(StepOutcome::Skip)
+    }
+}
+
+fn when_updating_issue(context: &PolicyContext, _captures: &regex::Captures) -> StepResult {
+    use crate::policy_context::PolicyOperation;
+    if context.operation == PolicyOperation::Update {
+        Ok(StepOutcome::Pass)
+    } else {
+        Ok(StepOutcome::Skip)
+    }
+}
+
+fn when_deleting_issue(context: &PolicyContext, _captures: &regex::Captures) -> StepResult {
+    use crate::policy_context::PolicyOperation;
+    if context.operation == PolicyOperation::Delete {
+        Ok(StepOutcome::Pass)
+    } else {
+        Ok(StepOutcome::Skip)
+    }
+}
+
+fn when_viewing_issue(context: &PolicyContext, _captures: &regex::Captures) -> StepResult {
+    use crate::policy_context::PolicyOperation;
+    if context.operation == PolicyOperation::View {
+        Ok(StepOutcome::Pass)
+    } else {
+        Ok(StepOutcome::Skip)
+    }
+}
+
+fn when_listing_issues(context: &PolicyContext, _captures: &regex::Captures) -> StepResult {
+    use crate::policy_context::PolicyOperation;
+    if context.operation == PolicyOperation::List {
+        Ok(StepOutcome::Pass)
+    } else {
+        Ok(StepOutcome::Skip)
+    }
+}
+
+fn when_listing_ready_issues(context: &PolicyContext, _captures: &regex::Captures) -> StepResult {
+    use crate::policy_context::PolicyOperation;
+    if context.operation == PolicyOperation::Ready {
         Ok(StepOutcome::Pass)
     } else {
         Ok(StepOutcome::Skip)
@@ -461,6 +577,22 @@ fn then_no_children_may_have_status(
     }
 }
 
+fn then_issue_must_have_at_least_n_child_issues(
+    context: &PolicyContext,
+    captures: &regex::Captures,
+) -> StepResult {
+    let min_count: usize = captures[1].parse().map_err(|_| "invalid child count")?;
+    let actual_count = context.child_issues().len();
+
+    if actual_count >= min_count {
+        Ok(StepOutcome::Pass)
+    } else {
+        Err(format!(
+            "issue has {actual_count} child issue(s) but must have at least {min_count}"
+        ))
+    }
+}
+
 fn then_parent_must_have_status(context: &PolicyContext, captures: &regex::Captures) -> StepResult {
     let required_status = &captures[1];
 
@@ -569,4 +701,16 @@ fn then_custom_field_must_be(context: &PolicyContext, captures: &regex::Captures
         }
         None => Err(format!("custom field \"{field}\" is not set")),
     }
+}
+
+fn then_warn(_context: &PolicyContext, captures: &regex::Captures) -> StepResult {
+    Ok(StepOutcome::Warn(captures[1].to_string()))
+}
+
+fn then_suggest(_context: &PolicyContext, captures: &regex::Captures) -> StepResult {
+    Ok(StepOutcome::Suggest(captures[1].to_string()))
+}
+
+fn then_explain(_context: &PolicyContext, captures: &regex::Captures) -> StepResult {
+    Ok(StepOutcome::Explain(captures[1].to_string()))
 }
