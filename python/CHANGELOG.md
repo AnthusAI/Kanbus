@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## [0.15.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-py-0.14.0...kanbus-py-0.15.0) (2026-03-02)
+
+
+### Features
+
+* **cli:** add move command to change issue type with policy enforcement ([95ef383](https://github.com/AnthusAI/Kanbus/commit/95ef38359b314ce6d506519e30988456a6f0fad8))
+* **policy:** enforce epic entry guardrails and surface guidance as rules ([3b1389c](https://github.com/AnthusAI/Kanbus/commit/3b1389c6a8d507a60df47c58390fa01c0b2a2ca4))
+
+
+### Bug Fixes
+
+* **policy:** distinguish top-level scenarios from rule scenarios in policy list ([e8823c1](https://github.com/AnthusAI/Kanbus/commit/e8823c1219b09000202f45d3e272065bcfb9a343))
+* **policy:** enforce epic child guardrails in beads update path ([cc93452](https://github.com/AnthusAI/Kanbus/commit/cc9345220d471bd095abec85ed501d3fece85123))
+
 ## [0.14.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-py-0.13.2...kanbus-py-0.14.0) (2026-03-01)
 
 
