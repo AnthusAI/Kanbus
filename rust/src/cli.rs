@@ -1093,53 +1093,69 @@ fn execute_command(
                     proposed_issue.labels = labels;
                 }
                 if !no_validate {
-                    let project_dir = crate::project::load_project_directory(&root_for_beads)?;
-                    let config_path = get_configuration_path(&project_dir)?;
-                    let configuration = load_project_configuration(&config_path)?;
-                    if proposed_issue.status != before_issue.status {
-                        crate::workflows::validate_status_value(
-                            &configuration,
-                            &proposed_issue.issue_type,
-                            &proposed_issue.status,
-                        )?;
-                        crate::workflows::validate_status_transition(
-                            &configuration,
-                            &proposed_issue.issue_type,
-                            &before_issue.status,
-                            &proposed_issue.status,
-                        )?;
+                    let mut project_context = None;
+                    match get_configuration_path(&root_for_beads) {
+                        Ok(config_path) => {
+                            let configuration = load_project_configuration(&config_path)?;
+                            let project_dir =
+                                crate::project::load_project_directory(&root_for_beads)?;
+                            project_context = Some((project_dir, configuration));
+                        }
+                        Err(KanbusError::IssueOperation(message))
+                            if message == "project not initialized" => {}
+                        Err(error) => return Err(error),
                     }
-                    let policies_dir = project_dir.join("policies");
-                    if policies_dir.is_dir() {
-                        let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
-                        if !policy_documents.is_empty() {
-                            let mut all_issues = load_beads_issues(&root_for_beads)?;
-                            if let Some(existing_issue) = all_issues
-                                .iter_mut()
-                                .find(|issue| issue.identifier == proposed_issue.identifier)
-                            {
-                                *existing_issue = proposed_issue.clone();
-                            }
-                            let transition = if proposed_issue.status != before_issue.status {
-                                Some(crate::policy_context::StatusTransition {
-                                    from: before_issue.status.clone(),
-                                    to: proposed_issue.status.clone(),
-                                })
-                            } else {
-                                None
-                            };
-                            let policy_context = crate::policy_context::PolicyContext {
-                                current_issue: Some(before_issue.clone()),
-                                proposed_issue: proposed_issue.clone(),
-                                transition,
-                                operation: crate::policy_context::PolicyOperation::Update,
-                                project_configuration: configuration,
-                                all_issues,
-                            };
-                            crate::policy_evaluator::evaluate_policies(
-                                &policy_context,
-                                &policy_documents,
+
+                    if let Some((_, configuration)) = project_context.as_ref() {
+                        if proposed_issue.status != before_issue.status {
+                            crate::workflows::validate_status_value(
+                                configuration,
+                                &proposed_issue.issue_type,
+                                &proposed_issue.status,
                             )?;
+                            crate::workflows::validate_status_transition(
+                                configuration,
+                                &proposed_issue.issue_type,
+                                &before_issue.status,
+                                &proposed_issue.status,
+                            )?;
+                        }
+                    }
+
+                    if let Some((project_dir, configuration)) = project_context.as_ref() {
+                        let policies_dir = project_dir.join("policies");
+                        if policies_dir.is_dir() {
+                            let policy_documents =
+                                crate::policy_loader::load_policies(&policies_dir)?;
+                            if !policy_documents.is_empty() {
+                                let mut all_issues = load_beads_issues(&root_for_beads)?;
+                                if let Some(existing_issue) = all_issues
+                                    .iter_mut()
+                                    .find(|issue| issue.identifier == proposed_issue.identifier)
+                                {
+                                    *existing_issue = proposed_issue.clone();
+                                }
+                                let transition = if proposed_issue.status != before_issue.status {
+                                    Some(crate::policy_context::StatusTransition {
+                                        from: before_issue.status.clone(),
+                                        to: proposed_issue.status.clone(),
+                                    })
+                                } else {
+                                    None
+                                };
+                                let policy_context = crate::policy_context::PolicyContext {
+                                    current_issue: Some(before_issue.clone()),
+                                    proposed_issue: proposed_issue.clone(),
+                                    transition,
+                                    operation: crate::policy_context::PolicyOperation::Update,
+                                    project_configuration: configuration.clone(),
+                                    all_issues,
+                                };
+                                crate::policy_evaluator::evaluate_policies(
+                                    &policy_context,
+                                    &policy_documents,
+                                )?;
+                            }
                         }
                     }
                 }
