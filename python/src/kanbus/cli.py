@@ -1094,7 +1094,7 @@ def policy_list() -> None:
                 for child in document.feature.children:
                     scenario = getattr(child, "scenario", None)
                     if scenario:
-                        click.echo(f"    Rule: {scenario.name}")
+                        click.echo(f"    Scenario: {scenario.name}")
                         continue
                     rule = getattr(child, "rule", None)
                     if not rule:
