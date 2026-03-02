@@ -98,7 +98,7 @@ def emit_guidance_for_issues(
                     severity=GuidanceSeverity.WARNING,
                     message=(
                         "Guidance policy error "
-                        f"({violation.policy_file} / {violation.scenario}): {violation.message}"
+                        f"({violation.policy_file} / Rule: {violation.scenario}): {violation.message}"
                     ),
                     explanations=[
                         'Explanation: Run "kbs policy validate" to fix this policy definition.'

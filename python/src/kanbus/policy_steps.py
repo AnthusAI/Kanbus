@@ -135,6 +135,13 @@ def build_step_definitions() -> list[StepDefinition]:
             given_issue_priority_is,
         ),
         StepDefinition(
+            "Filter by issue status",
+            StepCategory.GIVEN,
+            'the issue status is "STATUS"',
+            re.compile(r'^the issue status is "([^"]+)"$'),
+            given_issue_status_is,
+        ),
+        StepDefinition(
             "Filter by transition target",
             StepCategory.WHEN,
             'transitioning to "STATUS"',
@@ -353,6 +360,14 @@ def given_issue_priority_is(context: PolicyContext, match: re.Match) -> StepResu
     """Filter by priority."""
     priority = int(match.group(1))
     if context.issue.priority == priority:
+        return (StepOutcome.PASS, None)
+    return (StepOutcome.SKIP, None)
+
+
+def given_issue_status_is(context: PolicyContext, match: re.Match) -> StepResult:
+    """Filter by issue status."""
+    expected_status = match.group(1)
+    if context.issue.status == expected_status:
         return (StepOutcome.PASS, None)
     return (StepOutcome.SKIP, None)
 

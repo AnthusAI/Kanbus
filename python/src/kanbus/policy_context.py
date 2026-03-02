@@ -179,7 +179,7 @@ class PolicyViolationError(RuntimeError):
 
         lines = [
             f"policy violation in {policy_file} for issue {issue_id}",
-            f"  Scenario: {scenario}",
+            f"  Rule: {scenario}",
             f"  Failed: {failed_step}",
             f"  {message}",
         ]

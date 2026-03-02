@@ -260,6 +260,13 @@ def then_issue_title_matches(context: object, identifier: str, title: str) -> No
     assert issue.title == title
 
 
+@then('issue "{identifier}" should have type "{issue_type}"')
+def then_issue_type_matches(context: object, identifier: str, issue_type: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.issue_type == issue_type
+
+
 @then('issue "{identifier}" should have a closed_at timestamp')
 def then_issue_has_closed_at(context: object, identifier: str) -> None:
     project_dir = load_project_directory(context)
@@ -274,26 +281,30 @@ def then_issue_no_closed_at(context: object, identifier: str) -> None:
     assert issue.closed_at is None
 
 
-@given('epic workflow allows transition from "open" to "ready"')
-def given_epic_workflow_allows_ready(context: object) -> None:
-    """Extend epic workflow and statuses to include ready transitions."""
+@given(
+    r'epic workflow allows transition from "(?P<from_status>[^"]+)" to "(?P<to_status>[^"]+)"'
+)
+def given_epic_workflow_allows_transition(
+    context: object, from_status: str, to_status: str
+) -> None:
+    """Extend epic workflow and statuses to include the requested transition."""
     project_dir = load_project_directory(context)
     config_path = project_dir.parent / ".kanbus.yml"
     payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
 
     workflows = payload.setdefault("workflows", {})
     epic_workflow = workflows.setdefault("epic", {})
-    open_targets = epic_workflow.setdefault("open", [])
-    if "ready" not in open_targets:
-        open_targets.append("ready")
-    epic_workflow.setdefault("ready", ["in_progress", "open", "closed"])
+    from_targets = epic_workflow.setdefault(from_status, [])
+    if to_status not in from_targets:
+        from_targets.append(to_status)
 
     statuses = payload.setdefault("statuses", [])
-    if not any(status.get("key") == "ready" for status in statuses):
+    if not any(status.get("key") == to_status for status in statuses):
+        display_name = to_status.replace("_", " ").title()
         statuses.append(
             {
-                "key": "ready",
-                "name": "Ready",
+                "key": to_status,
+                "name": display_name,
                 "category": "To do",
                 "collapsed": False,
             }
@@ -301,17 +312,33 @@ def given_epic_workflow_allows_ready(context: object) -> None:
 
     transition_labels = payload.setdefault("transition_labels", {})
     epic_labels = transition_labels.setdefault("epic", {})
-    epic_open_labels = epic_labels.setdefault("open", {})
-    epic_open_labels.setdefault("ready", "Mark ready")
-    ready_labels = epic_labels.setdefault("ready", {})
-    ready_labels.setdefault("in_progress", "Start")
-    ready_labels.setdefault("open", "Re-open")
-    ready_labels.setdefault("closed", "Complete")
+    from_labels = epic_labels.setdefault(from_status, {})
+    from_labels.setdefault(to_status, f"Move to {to_status.replace('_', ' ')}")
 
     config_path.write_text(
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",
     )
+
+
+@given('epic workflow allows transition from "open" to "ready"')
+def given_epic_open_to_ready(context: object) -> None:
+    given_epic_workflow_allows_transition(context, "open", "ready")
+
+
+@given('epic workflow allows transition from "blocked" to "ready"')
+def given_epic_blocked_to_ready(context: object) -> None:
+    given_epic_workflow_allows_transition(context, "blocked", "ready")
+
+
+@given('epic workflow allows transition from "open" to "in_progress"')
+def given_epic_open_to_in_progress(context: object) -> None:
+    given_epic_workflow_allows_transition(context, "open", "in_progress")
+
+
+@given('epic workflow allows transition from "blocked" to "in_progress"')
+def given_epic_blocked_to_in_progress(context: object) -> None:
+    given_epic_workflow_allows_transition(context, "blocked", "in_progress")
 
 
 @given("a configuration without a default workflow")
