@@ -1736,7 +1736,7 @@ fn execute_command(
                 for (filename, feature) in &policy_documents {
                     output.push_str(&format!("{}\n  Feature: {}\n", filename, feature.name));
                     for scenario in &feature.scenarios {
-                        output.push_str(&format!("    Rule: {}\n", scenario.name));
+                        output.push_str(&format!("    Scenario: {}\n", scenario.name));
                     }
                     for rule in &feature.rules {
                         for scenario in &rule.scenarios {

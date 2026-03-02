@@ -3,11 +3,14 @@ Feature: Policy CLI commands
   I want dedicated CLI commands for policy discovery and validation
   So that I can inspect and verify policy behavior directly
 
-  Scenario: Policy list shows loaded files and rules
+  Scenario: Policy list shows loaded files and distinguishes scenarios from rules
     Given a Kanbus project with default configuration
     And a policy file "sample.policy" with content:
       """
       Feature: Sample policy
+
+        Scenario: Legacy top-level requirement
+          Then the issue must have field "status"
 
         Rule: Assignment requirements
           Scenario: Require assignee
@@ -17,6 +20,7 @@ Feature: Policy CLI commands
     Then the command should succeed
     And stdout should contain "sample.policy"
     And stdout should contain "Feature: Sample policy"
+    And stdout should contain "Scenario: Legacy top-level requirement"
     And stdout should contain "Rule: Assignment requirements / Require assignee"
 
   Scenario: Policy validate passes for valid syntax
