@@ -74,8 +74,8 @@ body {
 }
 
 .pictogram {
-  --column: var(--gray-6);
-  --background: var(--gray-4);
+  --column: var(--gray-5);
+  --background: var(--gray-3);
   --card: var(--gray-1);
   --border: var(--gray-6);
   --card-muted: var(--gray-4);
