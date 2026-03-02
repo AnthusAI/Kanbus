@@ -26,7 +26,7 @@ jobs:
           - language: javascript-typescript
             build-mode: none
           - language: rust
-            build-mode: manual
+            build-mode: none
 
     steps:
       - name: Checkout repository
@@ -40,11 +40,11 @@ jobs:
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Set up Rust toolchain
-        if: matrix.language == 'rust'
+        if: matrix.language == 'rust' && matrix.build-mode == 'manual'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build Rust project for CodeQL
-        if: matrix.language == 'rust'
+        if: matrix.language == 'rust' && matrix.build-mode == 'manual'
         run: |
           cd rust
           cargo build --workspace --all-targets --locked
