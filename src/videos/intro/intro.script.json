@@ -1,10 +1,10 @@
 {
   "scenes": [
     {
-      "id": "hook",
-      "title": "What is Kanbus?",
+      "id": "opening",
+      "title": "Kanban Overview and Git Synchronization",
       "startSec": 0,
-      "endSec": 27,
+      "endSec": 28.0625,
       "layers": [
         {
           "id": "background",
@@ -28,6 +28,7 @@
               "id": "intro-scene-0",
               "type": "IntroScene",
               "props": {
+                "mode": "opening",
                 "sceneStartSec": 0
               }
             }
@@ -36,35 +37,63 @@
       ],
       "cues": [
         {
-          "id": "hook",
-          "label": "Hook",
+          "id": "overview",
+          "label": "Kanban Overview",
           "startSec": 0,
-          "endSec": 18.2875,
-          "text": "Kanbus gives you an agent-ready CLI, a live Kanban board, Jira sync, and local tasks, all powered directly from repository files. You also get virtual projects, Beads compatibility, a VS Code plugin, an integrated wiki, and policy as code, so agents and humans can run the same workflow.",
+          "endSec": 14.1125,
+          "text": "Kanbus is a high-level, accessible way to run Kanban directly from your repository. You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use.",
           "segments": [
             {
               "type": "pause",
               "startSec": 0,
-              "endSec": 0.6,
-              "durationSec": 0.6
+              "endSec": 0.4,
+              "durationSec": 0.4
             },
             {
               "type": "tts",
-              "startSec": 0.6,
-              "endSec": 8.4625,
-              "text": "Kanbus gives you an agent-ready CLI, a live Kanban board, Jira sync, and local tasks, all powered directly from repository files."
+              "startSec": 0.4,
+              "endSec": 5.4625,
+              "text": "Kanbus is a high-level, accessible way to run Kanban directly from your repository."
             },
             {
               "type": "pause",
-              "startSec": 8.4625,
-              "endSec": 8.762500000000001,
-              "durationSec": 0.3
+              "startSec": 5.4625,
+              "endSec": 5.6625000000000005,
+              "durationSec": 0.2
             },
             {
               "type": "tts",
-              "startSec": 8.762500000000001,
-              "endSec": 18.2875,
-              "text": "You also get virtual projects, Beads compatibility, a VS Code plugin, an integrated wiki, and policy as code, so agents and humans can run the same workflow."
+              "startSec": 5.6625000000000005,
+              "endSec": 14.1125,
+              "text": "You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "git_bus",
+          "label": "Git Synchronization",
+          "startSec": 14.1125,
+          "endSec": 28.0625,
+          "text": "Git synchronization is the core idea: use Git as the bus for Kanban boards. Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 14.1125,
+              "endSec": 18.762500000000003,
+              "text": "Git synchronization is the core idea: use Git as the bus for Kanban boards."
+            },
+            {
+              "type": "pause",
+              "startSec": 18.762500000000003,
+              "endSec": 18.962500000000002,
+              "durationSec": 0.2
+            },
+            {
+              "type": "tts",
+              "startSec": 18.962500000000002,
+              "endSec": 28.0625,
+              "text": "Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects."
             }
           ],
           "bullets": []
@@ -72,10 +101,10 @@
       ]
     },
     {
-      "id": "files",
-      "title": "Files Are the Database",
-      "startSec": 27.5,
-      "endSec": 62.5,
+      "id": "feature-tour",
+      "title": "Feature Tour",
+      "startSec": 28.5625,
+      "endSec": 51.5625,
       "layers": [
         {
           "id": "background",
@@ -86,95 +115,21 @@
               "type": "Background",
               "props": {
                 "color": "#0f1115",
-                "sceneStartSec": 27
-              }
-            }
-          ]
-        },
-        {
-          "id": "title",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "title-0",
-              "type": "Title",
-              "props": {
-                "text": "Files Are the Database",
-                "x": 960,
-                "y": 200,
-                "sceneStartSec": 27
+                "sceneStartSec": 28.0625
               }
             }
           ]
         },
         {
           "id": "content",
-          "zIndex": 1,
+          "zIndex": 0,
           "components": [
             {
-              "id": "text-block-0",
-              "type": "TextBlock",
+              "id": "intro-scene-0",
+              "type": "IntroScene",
               "props": {
-                "text": "One File Per Issue",
-                "x": 480,
-                "y": 440,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 27
-              }
-            },
-            {
-              "id": "text-block-1",
-              "type": "TextBlock",
-              "props": {
-                "text": "Every issue is a single JSON file. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time.",
-                "x": 480,
-                "y": 580,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 27
-              }
-            },
-            {
-              "id": "text-block-2",
-              "type": "TextBlock",
-              "props": {
-                "text": "Zero Friction",
-                "x": 1440,
-                "y": 440,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 27
-              }
-            },
-            {
-              "id": "text-block-3",
-              "type": "TextBlock",
-              "props": {
-                "text": "There is no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly.",
-                "x": 1440,
-                "y": 580,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 27
+                "mode": "feature-list",
+                "sceneStartSec": 28.0625
               }
             }
           ]
@@ -182,513 +137,29 @@
       ],
       "cues": [
         {
-          "id": "one_file",
-          "label": "One File Per Issue",
-          "startSec": 27.5,
-          "endSec": 50.099999999999994,
-          "text": "Every issue is a single JSON file. Not one giant file that causes merge conflicts every time two people touch it—one file per issue. That means your team and your AI agents can create, update, and close issues in parallel without stepping on each other. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time.",
+          "id": "feature_list",
+          "label": "Feature Tour",
+          "startSec": 28.5625,
+          "endSec": 44.9625,
+          "text": "From there, pick the capabilities you need: an agent-ready CLI, Jira synchronization, local tasks, virtual projects, and Beads compatibility. You also get a VS Code plugin, an integrated wiki, and policy as code so humans and agents operate from one shared workflow.",
           "segments": [
             {
               "type": "tts",
-              "startSec": 27.5,
-              "endSec": 35.7375,
-              "text": "Every issue is a single JSON file. Not one giant file that causes merge conflicts every time two people touch it—one file per issue."
+              "startSec": 28.5625,
+              "endSec": 37.05,
+              "text": "From there, pick the capabilities you need: an agent-ready CLI, Jira synchronization, local tasks, virtual projects, and Beads compatibility."
             },
             {
               "type": "pause",
-              "startSec": 35.7375,
-              "endSec": 36.037499999999994,
-              "durationSec": 0.3
+              "startSec": 37.05,
+              "endSec": 37.25,
+              "durationSec": 0.2
             },
             {
               "type": "tts",
-              "startSec": 36.037499999999994,
-              "endSec": 50.099999999999994,
-              "text": "That means your team and your AI agents can create, update, and close issues in parallel without stepping on each other. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time."
-            }
-          ],
-          "bullets": []
-        },
-        {
-          "id": "no_friction",
-          "label": "No Friction",
-          "startSec": 50.099999999999994,
-          "endSec": 60.31249999999999,
-          "text": "There's no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly.",
-          "segments": [
-            {
-              "type": "pause",
-              "startSec": 50.099999999999994,
-              "endSec": 50.39999999999999,
-              "durationSec": 0.3
-            },
-            {
-              "type": "tts",
-              "startSec": 50.39999999999999,
-              "endSec": 60.31249999999999,
-              "text": "There's no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly."
-            }
-          ],
-          "bullets": []
-        }
-      ]
-    },
-    {
-      "id": "agents",
-      "title": "Built for AI Agents",
-      "startSec": 63,
-      "endSec": 99,
-      "layers": [
-        {
-          "id": "background",
-          "zIndex": -1,
-          "components": [
-            {
-              "id": "background-0",
-              "type": "Background",
-              "props": {
-                "color": "#0f1115",
-                "sceneStartSec": 62
-              }
-            }
-          ]
-        },
-        {
-          "id": "title",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "title-0",
-              "type": "Title",
-              "props": {
-                "text": "Built for AI Agents",
-                "x": 960,
-                "y": 200,
-                "sceneStartSec": 62
-              }
-            }
-          ]
-        },
-        {
-          "id": "content",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "text-block-0",
-              "type": "TextBlock",
-              "props": {
-                "text": "Agent-Native CLI",
-                "x": 480,
-                "y": 440,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 62
-              }
-            },
-            {
-              "id": "text-block-1",
-              "type": "TextBlock",
-              "props": {
-                "text": "Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would. No API keys. No web latency.",
-                "x": 480,
-                "y": 600,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 62
-              }
-            },
-            {
-              "id": "text-block-2",
-              "type": "TextBlock",
-              "props": {
-                "text": "Live Wiki Integration",
-                "x": 1440,
-                "y": 440,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 62
-              }
-            },
-            {
-              "id": "text-block-3",
-              "type": "TextBlock",
-              "props": {
-                "text": "Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot.",
-                "x": 1440,
-                "y": 600,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 62
-              }
-            }
-          ]
-        }
-      ],
-      "cues": [
-        {
-          "id": "agent_native",
-          "label": "Agent-Native",
-          "startSec": 63,
-          "endSec": 79.78750000000001,
-          "text": "Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would. No API keys. No web latency. Just native file and command-line access to the full project tracker.",
-          "segments": [
-            {
-              "type": "tts",
-              "startSec": 63,
-              "endSec": 73.4625,
-              "text": "Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would."
-            },
-            {
-              "type": "pause",
-              "startSec": 73.4625,
-              "endSec": 73.7625,
-              "durationSec": 0.3
-            },
-            {
-              "type": "tts",
-              "startSec": 73.7625,
-              "endSec": 79.78750000000001,
-              "text": "No API keys. No web latency. Just native file and command-line access to the full project tracker."
-            }
-          ],
-          "bullets": []
-        },
-        {
-          "id": "wiki",
-          "label": "Live Wiki",
-          "startSec": 79.78750000000001,
-          "endSec": 95.825,
-          "text": "Kanbus also includes an integrated wiki with live templates. Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot.",
-          "segments": [
-            {
-              "type": "pause",
-              "startSec": 79.78750000000001,
-              "endSec": 80.0875,
-              "durationSec": 0.3
-            },
-            {
-              "type": "tts",
-              "startSec": 80.0875,
-              "endSec": 95.825,
-              "text": "Kanbus also includes an integrated wiki with live templates. Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot."
-            }
-          ],
-          "bullets": []
-        }
-      ]
-    },
-    {
-      "id": "sync",
-      "title": "Jira Sync and Local Tasks",
-      "startSec": 99.5,
-      "endSec": 122.5,
-      "layers": [
-        {
-          "id": "background",
-          "zIndex": -1,
-          "components": [
-            {
-              "id": "background-0",
-              "type": "Background",
-              "props": {
-                "color": "#0f1115",
-                "sceneStartSec": 98
-              }
-            }
-          ]
-        },
-        {
-          "id": "title",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "title-0",
-              "type": "Title",
-              "props": {
-                "text": "Connected, Not Isolated",
-                "x": 960,
-                "y": 200,
-                "sceneStartSec": 98
-              }
-            }
-          ]
-        },
-        {
-          "id": "content",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "text-block-0",
-              "type": "TextBlock",
-              "props": {
-                "text": "Jira Sync",
-                "x": 480,
-                "y": 440,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 98
-              }
-            },
-            {
-              "id": "text-block-1",
-              "type": "TextBlock",
-              "props": {
-                "text": "Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access.",
-                "x": 480,
-                "y": 600,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 98
-              }
-            },
-            {
-              "id": "text-block-2",
-              "type": "TextBlock",
-              "props": {
-                "text": "Local Tasks",
-                "x": 1440,
-                "y": 440,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 98
-              }
-            },
-            {
-              "id": "text-block-3",
-              "type": "TextBlock",
-              "props": {
-                "text": "For your own work-in-progress, local tasks stay off Git until you're ready. Draft ideas, experiment, and promote tasks to the shared board when they're ready for the team.",
-                "x": 1440,
-                "y": 600,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 98
-              }
-            }
-          ]
-        }
-      ],
-      "cues": [
-        {
-          "id": "jira_sync",
-          "label": "Jira Sync",
-          "startSec": 99.5,
-          "endSec": 110.85,
-          "text": "Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access.",
-          "segments": [
-            {
-              "type": "tts",
-              "startSec": 99.5,
-              "endSec": 110.85,
-              "text": "Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access."
-            }
-          ],
-          "bullets": []
-        },
-        {
-          "id": "local_tasks",
-          "label": "Local Tasks",
-          "startSec": 110.85,
-          "endSec": 121.87499999999999,
-          "text": "And for your own work-in-progress, local tasks stay off Git until you're ready. Draft ideas, experiment, and promote tasks to the shared board when they're ready for the team.",
-          "segments": [
-            {
-              "type": "pause",
-              "startSec": 110.85,
-              "endSec": 111.14999999999999,
-              "durationSec": 0.3
-            },
-            {
-              "type": "tts",
-              "startSec": 111.14999999999999,
-              "endSec": 121.87499999999999,
-              "text": "And for your own work-in-progress, local tasks stay off Git until you're ready. Draft ideas, experiment, and promote tasks to the shared board when they're ready for the team."
-            }
-          ],
-          "bullets": []
-        }
-      ]
-    },
-    {
-      "id": "tools",
-      "title": "Three Ways to Use It",
-      "startSec": 123,
-      "endSec": 155.28750000000002,
-      "layers": [
-        {
-          "id": "background",
-          "zIndex": -1,
-          "components": [
-            {
-              "id": "background-0",
-              "type": "Background",
-              "props": {
-                "color": "#0f1115",
-                "sceneStartSec": 121
-              }
-            }
-          ]
-        },
-        {
-          "id": "title",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "title-0",
-              "type": "Title",
-              "props": {
-                "text": "Three Ways to Use It",
-                "x": 960,
-                "y": 200,
-                "sceneStartSec": 121
-              }
-            }
-          ]
-        },
-        {
-          "id": "content",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "text-block-0",
-              "type": "TextBlock",
-              "props": {
-                "text": "Python & Rust CLI",
-                "x": 480,
-                "y": 440,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 121
-              }
-            },
-            {
-              "id": "text-block-1",
-              "type": "TextBlock",
-              "props": {
-                "text": "Kanbus gives you three ways to work. A Python CLI that installs with pip—perfect for scripting and AI tool integrations. A Rust CLI for high-performance use in CI/CD pipelines and large repositories.",
-                "x": 480,
-                "y": 600,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 121
-              }
-            },
-            {
-              "id": "text-block-2",
-              "type": "TextBlock",
-              "props": {
-                "text": "Web Console",
-                "x": 1440,
-                "y": 440,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 121
-              }
-            },
-            {
-              "id": "text-block-3",
-              "type": "TextBlock",
-              "props": {
-                "text": "A single binary with an embedded React frontend. Download it, run it, and you have a full Kanban board—no configuration, no npm, no separate assets. Track work across codebases with centralized visibility.",
-                "x": 1440,
-                "y": 600,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 121
-              }
-            }
-          ]
-        }
-      ],
-      "cues": [
-        {
-          "id": "implementations",
-          "label": "Implementations",
-          "startSec": 123,
-          "endSec": 145.7125,
-          "text": "Kanbus gives you three ways to work. A Python CLI that installs with pip—perfect for scripting and AI tool integrations. A Rust CLI for high-performance use in CI/CD pipelines and large repositories. And a web console: a single binary with an embedded React frontend. Download it, run it, and you have a full Kanban board—no configuration, no npm, no separate assets.",
-          "segments": [
-            {
-              "type": "tts",
-              "startSec": 123,
-              "endSec": 145.7125,
-              "text": "Kanbus gives you three ways to work. A Python CLI that installs with pip—perfect for scripting and AI tool integrations. A Rust CLI for high-performance use in CI/CD pipelines and large repositories. And a web console: a single binary with an embedded React frontend. Download it, run it, and you have a full Kanban board—no configuration, no npm, no separate assets."
-            }
-          ],
-          "bullets": []
-        },
-        {
-          "id": "shared_store",
-          "label": "Shared Datastore",
-          "startSec": 145.7125,
-          "endSec": 155.28750000000002,
-          "text": "Multiple projects can even share a data store while keeping issues namespaced per project. Track work across codebases with centralized visibility.",
-          "segments": [
-            {
-              "type": "pause",
-              "startSec": 145.7125,
-              "endSec": 146.01250000000002,
-              "durationSec": 0.3
-            },
-            {
-              "type": "tts",
-              "startSec": 146.01250000000002,
-              "endSec": 155.28750000000002,
-              "text": "Multiple projects can even share a data store while keeping issues namespaced per project. Track work across codebases with centralized visibility."
+              "startSec": 37.25,
+              "endSec": 44.9625,
+              "text": "You also get a VS Code plugin, an integrated wiki, and policy as code so humans and agents operate from one shared workflow."
             }
           ],
           "bullets": []
@@ -698,8 +169,8 @@
     {
       "id": "cta",
       "title": "Get Started",
-      "startSec": 155.78750000000002,
-      "endSec": 169.78750000000002,
+      "startSec": 52.0625,
+      "endSec": 62.0625,
       "layers": [
         {
           "id": "background",
@@ -710,23 +181,21 @@
               "type": "Background",
               "props": {
                 "color": "#0f1115",
-                "sceneStartSec": 153.28750000000002
+                "sceneStartSec": 51.0625
               }
             }
           ]
         },
         {
-          "id": "title",
-          "zIndex": 1,
+          "id": "content",
+          "zIndex": 0,
           "components": [
             {
-              "id": "title-0",
-              "type": "Title",
+              "id": "intro-scene-0",
+              "type": "IntroScene",
               "props": {
-                "text": "Get Started",
-                "x": 960,
-                "y": 150,
-                "sceneStartSec": 153.28750000000002
+                "mode": "cta",
+                "sceneStartSec": 51.0625
               }
             }
           ]
@@ -736,33 +205,27 @@
         {
           "id": "cta",
           "label": "Get Started",
-          "startSec": 155.78750000000002,
-          "endSec": 166.08750000000003,
-          "text": "Kanbus. A tiny Jira clone for your repo. Files are the database. Agents are first-class citizens. And everything stays in Git. Visit kanb.us to get started.",
+          "startSec": 52.0625,
+          "endSec": 59.462500000000006,
+          "text": "Get started at kanb.us. Install Kanbus, connect your repository, and run the same board workflow for humans and AI agents.",
           "segments": [
             {
               "type": "tts",
-              "startSec": 155.78750000000002,
-              "endSec": 163.50000000000003,
-              "text": "Kanbus. A tiny Jira clone for your repo. Files are the database. Agents are first-class citizens. And everything stays in Git."
+              "startSec": 52.0625,
+              "endSec": 53.3875,
+              "text": "Get started at kanb.us."
             },
             {
               "type": "pause",
-              "startSec": 163.50000000000003,
-              "endSec": 163.80000000000004,
-              "durationSec": 0.3
+              "startSec": 53.3875,
+              "endSec": 53.587500000000006,
+              "durationSec": 0.2
             },
             {
               "type": "tts",
-              "startSec": 163.80000000000004,
-              "endSec": 165.58750000000003,
-              "text": "Visit kanb.us to get started."
-            },
-            {
-              "type": "pause",
-              "startSec": 165.58750000000003,
-              "endSec": 166.08750000000003,
-              "durationSec": 0.5
+              "startSec": 53.587500000000006,
+              "endSec": 59.462500000000006,
+              "text": "Install Kanbus, connect your repository, and run the same board workflow for humans and AI agents."
             }
           ],
           "bullets": []
@@ -773,112 +236,52 @@
   "timeline": [
     {
       "kind": "scene",
-      "sceneId": "hook",
+      "sceneId": "opening",
       "startSec": 0,
-      "endSec": 27
+      "endSec": 28.0625
     },
     {
       "kind": "transition",
       "id": "push-1",
-      "startSec": 27,
-      "endSec": 27.5,
+      "startSec": 28.0625,
+      "endSec": 28.5625,
       "effect": "slide",
       "ease": "power2.inOut",
       "props": {
         "direction": "left"
       },
       "mode": "insert",
-      "fromSceneId": "hook",
-      "toSceneId": "files"
+      "fromSceneId": "opening",
+      "toSceneId": "feature-tour"
     },
     {
       "kind": "scene",
-      "sceneId": "files",
-      "startSec": 27.5,
-      "endSec": 62.5
+      "sceneId": "feature-tour",
+      "startSec": 28.5625,
+      "endSec": 51.5625
     },
     {
       "kind": "transition",
       "id": "push-2",
-      "startSec": 62.5,
-      "endSec": 63,
+      "startSec": 51.5625,
+      "endSec": 52.0625,
       "effect": "slide",
       "ease": "power2.inOut",
       "props": {
         "direction": "left"
       },
       "mode": "insert",
-      "fromSceneId": "files",
-      "toSceneId": "agents"
-    },
-    {
-      "kind": "scene",
-      "sceneId": "agents",
-      "startSec": 63,
-      "endSec": 99
-    },
-    {
-      "kind": "transition",
-      "id": "push-3",
-      "startSec": 99,
-      "endSec": 99.5,
-      "effect": "slide",
-      "ease": "power2.inOut",
-      "props": {
-        "direction": "left"
-      },
-      "mode": "insert",
-      "fromSceneId": "agents",
-      "toSceneId": "sync"
-    },
-    {
-      "kind": "scene",
-      "sceneId": "sync",
-      "startSec": 99.5,
-      "endSec": 122.5
-    },
-    {
-      "kind": "transition",
-      "id": "push-4",
-      "startSec": 122.5,
-      "endSec": 123,
-      "effect": "slide",
-      "ease": "power2.inOut",
-      "props": {
-        "direction": "left"
-      },
-      "mode": "insert",
-      "fromSceneId": "sync",
-      "toSceneId": "tools"
-    },
-    {
-      "kind": "scene",
-      "sceneId": "tools",
-      "startSec": 123,
-      "endSec": 155.28750000000002
-    },
-    {
-      "kind": "transition",
-      "id": "push-5",
-      "startSec": 155.28750000000002,
-      "endSec": 155.78750000000002,
-      "effect": "slide",
-      "ease": "power2.inOut",
-      "props": {
-        "direction": "left"
-      },
-      "mode": "insert",
-      "fromSceneId": "tools",
+      "fromSceneId": "feature-tour",
       "toSceneId": "cta"
     },
     {
       "kind": "scene",
       "sceneId": "cta",
-      "startSec": 155.78750000000002,
-      "endSec": 169.78750000000002
+      "startSec": 52.0625,
+      "endSec": 62.0625
     }
   ],
-  "posterTimeSec": 24,
+  "posterTimeSec": 18,
   "fps": 24,
   "meta": {
     "fps": 24,
