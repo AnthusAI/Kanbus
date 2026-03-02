@@ -47,6 +47,7 @@ pub fn update_issue(
     remove_labels: &[String],
     set_labels: Option<&str>,
     parent: Option<&str>,
+    issue_type: Option<&str>,
 ) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let before_issue = lookup.issue.clone();
@@ -57,6 +58,10 @@ pub fn update_issue(
     let current_time = Utc::now();
 
     let mut resolved_status = if claim { Some("in_progress") } else { status };
+    let mut resolved_type = issue_type.map(str::trim).filter(|value| !value.is_empty());
+    if resolved_type == Some(updated_issue.issue_type.as_str()) {
+        resolved_type = None;
+    }
 
     let mut updated_title: Option<String> = None;
     if let Some(new_title) = title {
@@ -149,14 +154,64 @@ pub fn update_issue(
                 crate::hierarchy::validate_parent_child_relationship(
                     &configuration,
                     &parent_issue.issue_type,
-                    &updated_issue.issue_type,
+                    resolved_type.unwrap_or(&updated_issue.issue_type),
                 )?;
             }
             updated_parent = Some(resolved_parent);
         }
     }
 
+    if validate {
+        if let Some(new_type) = resolved_type {
+            let is_known = configuration
+                .hierarchy
+                .iter()
+                .chain(configuration.types.iter())
+                .any(|entry| entry == new_type);
+            if !is_known {
+                return Err(KanbusError::IssueOperation(
+                    "unknown issue type".to_string(),
+                ));
+            }
+
+            let issues_dir = lookup.project_dir.join("issues");
+
+            if let Some(parent_identifier) = updated_issue.parent.as_deref() {
+                let parent_path = issues_dir.join(format!("{parent_identifier}.json"));
+                if !parent_path.exists() {
+                    return Err(KanbusError::IssueOperation("not found".to_string()));
+                }
+                let parent_issue = read_issue_from_file(&parent_path)?;
+                crate::hierarchy::validate_parent_child_relationship(
+                    &configuration,
+                    &parent_issue.issue_type,
+                    new_type,
+                )?;
+            }
+
+            for entry in
+                fs::read_dir(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?
+            {
+                let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
+                let child_path = entry.path();
+                if child_path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                    continue;
+                }
+                let child_issue = read_issue_from_file(&child_path)?;
+                if child_issue.parent.as_deref() != Some(updated_issue.identifier.as_str()) {
+                    continue;
+                }
+                crate::hierarchy::validate_parent_child_relationship(
+                    &configuration,
+                    new_type,
+                    &child_issue.issue_type,
+                )?;
+            }
+        }
+    }
+
     if resolved_status.is_none()
+        && resolved_type.is_none()
         && updated_title.is_none()
         && updated_description.is_none()
         && updated_assignee.is_none()
@@ -171,16 +226,20 @@ pub fn update_issue(
 
     if let Some(new_status) = resolved_status {
         if validate {
-            validate_status_value(&configuration, &updated_issue.issue_type, new_status)?;
+            let type_for_validation = resolved_type.unwrap_or(&updated_issue.issue_type);
+            validate_status_value(&configuration, type_for_validation, new_status)?;
             validate_status_transition(
                 &configuration,
-                &updated_issue.issue_type,
+                type_for_validation,
                 &updated_issue.status,
                 new_status,
             )?;
         }
         updated_issue = apply_transition_side_effects(&updated_issue, new_status, current_time);
         updated_issue.status = new_status.to_string();
+    }
+    if let Some(new_type) = resolved_type {
+        updated_issue.issue_type = new_type.to_string();
     }
 
     if let Some(new_title) = updated_title {
@@ -259,6 +318,9 @@ pub fn update_issue(
     }
     if parent.is_some() {
         fields_changed.push("parent".to_string());
+    }
+    if resolved_type.is_some() {
+        fields_changed.push("type".to_string());
     }
     let _ = publish_notification(
         root,
