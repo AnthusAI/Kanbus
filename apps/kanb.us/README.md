@@ -16,9 +16,26 @@ lists the follow-up tasks captured in Beads epic `tskl-0lb`.
 
 ## Video previews
 
-Set `GATSBY_VIDEOS_BASE_URL` to point at a local or CDN-backed videos folder.
-For local previews, you can use `GATSBY_VIDEOS_BASE_URL=/videos` and copy
-rendered MP4/JPG assets into `apps/kanb.us/static/videos`.
+Kanbus supports two explicit video preview modes:
+
+1. Local-first preview (recommended while iterating):
+   - Render and copy videos locally:
+     - `node scripts/render-videos.js`
+   - Run the site with local static assets:
+     - `npm run dev:videos:local`
+   - This resolves video URLs to `/videos/*` from `apps/kanb.us/static/videos`.
+
+2. Production parity preview:
+   - `npm run dev:videos:prod`
+   - This resolves video URLs to:
+     - `https://dmhqusv90xmye.cloudfront.net/kanbus-feature-videos/*`
+
+Production publish is gated and requires local verification plus an explicit
+confirmation:
+
+```bash
+scripts/publish-production-videos.sh --confirm-local-preview
+```
 
 ## Deployment
 
