@@ -238,9 +238,15 @@ function MetricsChart({
   statusColors: Record<string, string>;
 }) {
   const { ref, width, height } = useElementSize<HTMLDivElement>();
-  const margin = { top: 8, right: 16, bottom: 16, left: 120 };
+  const compact = width > 0 && width < 420;
+  const margin = {
+    top: 8,
+    right: compact ? 10 : 16,
+    bottom: 16,
+    left: compact ? 88 : 120,
+  };
   const minHeight = Math.max(220, data.length * 36 + margin.top + margin.bottom);
-  const chartWidth = Math.max(width, 320);
+  const chartWidth = Math.max(width, 1);
   const chartHeight = Math.max(height, minHeight);
 
   if (!data.length) {

@@ -36,11 +36,11 @@ fn load_issue(project_dir: &PathBuf, identifier: &str) -> IssueData {
     serde_json::from_str(&contents).expect("parse issue")
 }
 
-#[then("issue \"kanbus-aaa\" should have title \"New Title\"")]
-fn then_issue_has_title(world: &mut KanbusWorld) {
+#[then(expr = "issue {string} should have title {string}")]
+fn then_issue_has_title(world: &mut KanbusWorld, identifier: String, title: String) {
     let project_dir = load_project_dir(world);
-    let issue = load_issue(&project_dir, "kanbus-aaa");
-    assert_eq!(issue.title, "New Title");
+    let issue = load_issue(&project_dir, &identifier);
+    assert_eq!(issue.title, title);
 }
 
 #[then("issue \"kanbus-aaa\" should have description \"Updated description\"")]

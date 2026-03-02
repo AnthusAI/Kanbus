@@ -48,6 +48,7 @@ Feature: Policy scenario skipping
     And an issue "kanbus-test01" of type "task" with status "open"
     When I run "kanbus update kanbus-test01 --status in_progress"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "policy violation"
 
   Scenario: Multiple Given conditions all must match
@@ -62,10 +63,9 @@ Feature: Policy scenario skipping
           Then the description must not be empty
       """
     And an issue "kanbus-test01" of type "task" with status "open" and priority 2 and description ""
-    When I run "kanbus update kanbus-test01 --title "Updated title""
+    When I run "kanbus update kanbus-test01 --title 'Updated title'"
     Then the command should succeed
 
-  @skip
   Scenario: Scenario applies when all compound Given conditions match
     Given a Kanbus project with default configuration
     And a policy file "compound.policy" with content:
@@ -78,7 +78,8 @@ Feature: Policy scenario skipping
           Then the description must not be empty
       """
     And an issue "kanbus-test01" of type "task" with status "open" and priority 1 and description ""
-    When I run "kanbus update kanbus-test01 --title "Updated title""
+    When I run "kanbus update kanbus-test01 --title 'Updated title'"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "policy violation"
     And stderr should contain "description is empty"

@@ -51,6 +51,7 @@ def update_issue(
     remove_labels: Optional[list[str]] = None,
     set_labels: Optional[list[str]] = None,
     parent: Optional[str] = None,
+    issue_type: Optional[str] = None,
 ) -> IssueData:
     """Update an issue and persist it to disk.
 
@@ -96,6 +97,12 @@ def update_issue(
     resolved_status = status
     if claim:
         resolved_status = "in_progress"
+    resolved_type = issue_type.strip() if issue_type is not None else None
+    if resolved_type == "":
+        resolved_type = None
+
+    if resolved_type is not None and resolved_type == updated_issue.issue_type:
+        resolved_type = None
 
     if title is not None:
         normalized_title = title.strip()
@@ -159,14 +166,48 @@ def update_issue(
                     validate_parent_child_relationship(
                         configuration,
                         parent_issue.issue_type,
-                        updated_issue.issue_type,
+                        resolved_type or updated_issue.issue_type,
                     )
                 except InvalidHierarchyError as error:
                     raise IssueUpdateError(str(error)) from error
             updated_parent = resolved_parent
 
+    if validate and resolved_type is not None:
+        valid_types = configuration.hierarchy + configuration.types
+        if resolved_type not in valid_types:
+            raise IssueUpdateError("unknown issue type")
+
+        issues_dir = project_dir / "issues"
+
+        if updated_issue.parent:
+            parent_issue = read_issue_from_file(
+                issues_dir / f"{updated_issue.parent}.json"
+            )
+            try:
+                validate_parent_child_relationship(
+                    configuration,
+                    parent_issue.issue_type,
+                    resolved_type,
+                )
+            except InvalidHierarchyError as error:
+                raise IssueUpdateError(str(error)) from error
+
+        for child_path in issues_dir.glob("*.json"):
+            child = read_issue_from_file(child_path)
+            if child.parent != updated_issue.identifier:
+                continue
+            try:
+                validate_parent_child_relationship(
+                    configuration,
+                    resolved_type,
+                    child.issue_type,
+                )
+            except InvalidHierarchyError as error:
+                raise IssueUpdateError(str(error)) from error
+
     if (
         resolved_status is None
+        and resolved_type is None
         and title is None
         and description is None
         and assignee is None
@@ -180,11 +221,13 @@ def update_issue(
         if validate:
             try:
                 validate_status_value(
-                    configuration, updated_issue.issue_type, resolved_status
+                    configuration,
+                    resolved_type or updated_issue.issue_type,
+                    resolved_status,
                 )
                 validate_status_transition(
                     configuration,
-                    updated_issue.issue_type,
+                    resolved_type or updated_issue.issue_type,
                     updated_issue.status,
                     resolved_status,
                 )
@@ -210,6 +253,8 @@ def update_issue(
         update_fields["labels"] = labels
     if updated_parent is not None:
         update_fields["parent"] = updated_parent
+    if resolved_type is not None:
+        update_fields["issue_type"] = resolved_type
 
     updated_issue = updated_issue.model_copy(update=update_fields)
 
@@ -220,6 +265,7 @@ def update_issue(
         from kanbus.policy_context import (
             PolicyContext,
             PolicyOperation,
+            PolicyViolationError,
             StatusTransition,
         )
         from kanbus.issue_listing import load_issues_from_directory
@@ -243,7 +289,10 @@ def update_issue(
                 project_configuration=configuration,
                 all_issues=all_issues,
             )
-            evaluate_policies(context, policy_documents)
+            try:
+                evaluate_policies(context, policy_documents)
+            except PolicyViolationError as error:
+                raise IssueUpdateError(str(error)) from error
 
     write_issue_to_file(updated_issue, lookup.issue_path)
     occurred_at = now_timestamp()

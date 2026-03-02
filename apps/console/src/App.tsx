@@ -1902,11 +1902,11 @@ export default function App() {
               }`}
             >
               <div
-                className="view-panel"
+                className={`view-panel ${
+                  panelMode === "board" ? "view-panel-active" : "view-panel-inactive"
+                }`}
                 data-testid="board-view"
                 aria-hidden={panelMode !== "board"}
-                hidden={panelMode !== "board"}
-                style={{ display: panelMode === "board" ? undefined : "none" }}
               >
             <div
               className={`layout-slot layout-slot-board h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3 overflow-hidden${
@@ -2036,14 +2036,14 @@ export default function App() {
                 />
               </div>
               <div
-                className="view-panel"
-                style={{ display: panelMode === "metrics" ? undefined : "none" }}
+                className={`view-panel ${
+                  panelMode === "metrics" ? "view-panel-active" : "view-panel-inactive"
+                }`}
+                data-testid="metrics-view"
+                aria-hidden={panelMode !== "metrics"}
               >
                 <div
-                  className="layout-slot layout-slot-metrics h-full p-0 min-[321px]:p-1 sm:p-2 md:p-3"
-                  data-testid="metrics-view"
-                  aria-hidden={panelMode !== "metrics"}
-                  hidden={panelMode !== "metrics"}
+                  className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
                 >
                   {config ? (
                     <MetricsPanel

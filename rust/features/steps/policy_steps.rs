@@ -7,6 +7,7 @@ use cucumber::{gherkin, given};
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
 #[given(expr = r#"a policy file {string} with content"#)]
+#[given(expr = r#"a policy file {string} with content:"#)]
 async fn create_policy_file(world: &mut KanbusWorld, step: &gherkin::Step, filename: String) {
     let working_dir = world
         .working_directory

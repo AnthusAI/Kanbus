@@ -819,19 +819,48 @@ html[data-motion="reduced"] .sidebar-column {
   align-items: stretch;
 }
 
+.view-panel-active {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.view-panel-inactive {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .metrics-panel {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
+  min-height: 100%;
   gap: 1rem;
-  padding: 0.25rem;
+  padding: 0.25rem 0.25rem 1.25rem;
 }
 
 .metrics-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
+  height: auto;
+  align-content: start;
+}
+
+.layout-slot-metrics {
   height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+}
+
+@media (max-width: 959px) {
+  .layout-slot-metrics {
+    overflow-y: auto;
+    padding-bottom: 1.5rem;
+  }
+
+  .layout-slot-metrics .metrics-grid {
+    padding-bottom: 0.75rem;
+  }
 }
 
 .metrics-summary {
@@ -892,6 +921,8 @@ html[data-motion="reduced"] .sidebar-column {
   flex-direction: column;
   min-height: 240px;
   gap: 0.75rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .metrics-chart-header {
@@ -903,11 +934,15 @@ html[data-motion="reduced"] .sidebar-column {
 .metrics-chart-body {
   flex: 1 1 auto;
   min-height: 220px;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 .metrics-chart-frame {
   width: 100%;
   height: 100%;
+  min-width: 0;
 }
 
 .metrics-axis-label {
@@ -920,6 +955,8 @@ html[data-motion="reduced"] .sidebar-column {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 0.75rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .metrics-legend-item {
@@ -930,6 +967,8 @@ html[data-motion="reduced"] .sidebar-column {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.16em;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .metrics-legend-swatch {
@@ -940,6 +979,7 @@ html[data-motion="reduced"] .sidebar-column {
 
 .metrics-legend-label {
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 .metrics-empty {

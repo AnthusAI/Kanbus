@@ -1,5 +1,5 @@
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 export type FeaturePictogramType = 
   | "core-management" 
@@ -10,9 +10,11 @@ export type FeaturePictogramType =
   | "virtual-projects" 
   | "vscode-plugin" 
   | "integrated-wiki" 
-  | "policy-as-code";
+  | "policy-as-code"
+  | "agile-metrics";
 
 export function FeaturePictogram({ type, style, className }: { type: string, style?: React.CSSProperties, className?: string }) {
+  const prefersReducedMotion = useReducedMotion();
   const Board = ({ x = 250, y, opacity = 1, color = "var(--column)" }: { x?: number; y: number; opacity?: number; color?: string }) => (
     <g transform={`translate(${x}, ${y}) scale(1, 0.5) rotate(45) translate(-100, -75)`} opacity={opacity}>
       {/* Board Base */}
@@ -517,60 +519,128 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
   );
 
   const renderPolicyAsCode = () => {
-    const PolicyItem = ({ y, text, index }: { y: number, text: string, index: number }) => {
-      const checkTime = (index + 1) * 1; 
-      const t1 = checkTime / 8;
-      const t2 = (checkTime + 0.3) / 8;
-      const t3 = 7.0 / 8;
-      const t4 = 7.3 / 8;
-      
+    const SignFace = ({ symbol }: { symbol: "arrow" | "warning" | "stop" }) => {
+      if (symbol === "arrow") {
+        return (
+          <g>
+            <rect x="-20" y="-20" width="40" height="40" rx="6" fill="#1f8ef1" />
+            <path d="M-8 0h16M2-8l8 8-8 8" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+        );
+      }
+      if (symbol === "warning") {
+        return (
+          <g>
+            <path d="M0-22 20 16 -20 16Z" fill="#f59e0b" />
+            <path d="M0-9v12M0 9v0" fill="none" stroke="#111827" strokeWidth="3" strokeLinecap="round" />
+          </g>
+        );
+      }
       return (
-        <g transform={`translate(20, ${y})`}>
-          <motion.g
-            animate={{ opacity: [1, 1, 0, 0, 1, 1] }}
-            transition={{ duration: 8, repeat: Infinity, times: [0, t1, t2, t3, t4, 1], ease: "easeInOut" }}
-          >
-            {/* Lucide square */}
-            <rect width="18" height="18" x="3" y="3" rx="2" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </motion.g>
-          <motion.g
-            animate={{ opacity: [0, 0, 1, 1, 0, 0] }}
-            transition={{ duration: 8, repeat: Infinity, times: [0, t1, t2, t3, t4, 1], ease: "easeInOut" }}
-          >
-            {/* Lucide square-check-big */}
-            <path d="M21 10.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.5" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="m9 11 3 3L22 4" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </motion.g>
-          <text x="35" y="16" fill="var(--text-muted)" fontSize="16" className="tiny-text" fontFamily="'Tiny5', monospace">{text}</text>
+        <g>
+          <polygon points="-18,-24 18,-24 30,-12 30,12 18,24 -18,24 -30,12 -30,-12" fill="#ef4444" />
+          <rect x="-9" y="-2" width="18" height="4" rx="2" fill="#ffffff" />
         </g>
       );
     };
 
+    const AnimatedSign = ({
+      symbol,
+      laneOffset,
+      delay,
+    }: {
+      symbol: "arrow" | "warning" | "stop";
+      laneOffset: number;
+      delay: number;
+    }) => (
+      <motion.g
+        initial={{ x: 250 + laneOffset * 0.35, y: 74, scale: 0.3, opacity: 0 }}
+        animate={{
+          x: [250 + laneOffset * 0.35, 250 + laneOffset * 0.7, 250 + laneOffset],
+          y: [74, 150, 244],
+          scale: [0.3, 0.7, 1.25],
+          opacity: [0, 1, 0],
+        }}
+        transition={{ duration: 6.2, ease: "easeInOut", repeat: Infinity, delay }}
+      >
+        <rect x="-2" y="20" width="4" height="18" fill="var(--text-muted)" opacity={0.75} />
+        <SignFace symbol={symbol} />
+      </motion.g>
+    );
+
+    if (prefersReducedMotion) {
+      return (
+        <g transform="scale(1) translate(0, 0)">
+          <defs>
+            <linearGradient id="policy-gradient-static" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0f172a" />
+              <stop offset="100%" stopColor="#1e293b" />
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="500" height="300" fill="url(#policy-gradient-static)" rx="10" />
+          <path d="M150 290 250 90 350 290Z" fill="none" stroke="var(--text-muted)" strokeOpacity="0.25" strokeWidth="2" />
+          <g transform="translate(210,170) scale(0.65)"><SignFace symbol="arrow" /></g>
+          <g transform="translate(250,140) scale(0.85)"><SignFace symbol="warning" /></g>
+          <g transform="translate(300,210) scale(1.05)"><SignFace symbol="stop" /></g>
+        </g>
+      );
+    }
+
     return (
       <g transform="scale(1) translate(0, 0)">
         <defs>
-          <style>
-            {`
-              @import url('https://fonts.googleapis.com/css2?family=Tiny5&display=swap');
-              .tiny-text { font-family: 'Tiny5', monospace; }
-            `}
-          </style>
+          <linearGradient id="policy-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0f172a" />
+            <stop offset="100%" stopColor="#1e293b" />
+          </linearGradient>
         </defs>
-        
-        <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
-        <rect x="0" y="0" width="500" height="40" fill="var(--background)" rx="10" />
-        <text x="20" y="25" fill="var(--text-foreground)" fontSize="16" fontFamily="monospace">workflow.policy</text>
-        
-        <g transform="translate(20, 60)">
-          <PolicyItem y={0} text="Epic cannot transition to ready without at least 3 tasks" index={0} />
-          <PolicyItem y={45} text="PRs cannot be merged without passing CI tests" index={1} />
-          <PolicyItem y={90} text="Tasks in 'In Progress' must have an assignee" index={2} />
-          <PolicyItem y={135} text="Design tasks require a valid Figma link attached" index={3} />
-          <PolicyItem y={180} text="Bugs require clear steps to reproduce in description" index={4} />
-        </g>
+        <rect x="0" y="0" width="500" height="300" fill="url(#policy-gradient)" rx="10" />
+        <path d="M130 300 250 72 370 300" fill="none" stroke="var(--text-muted)" strokeOpacity="0.22" strokeWidth="2" />
+        <motion.path
+          d="M250 78 250 294"
+          stroke="var(--text-muted)"
+          strokeOpacity="0.2"
+          strokeWidth="2"
+          strokeDasharray="8 12"
+          animate={{ strokeDashoffset: [0, -40] }}
+          transition={{ duration: 3.2, repeat: Infinity, ease: "linear" }}
+        />
+        <AnimatedSign symbol="arrow" laneOffset={-58} delay={0} />
+        <AnimatedSign symbol="warning" laneOffset={0} delay={1.6} />
+        <AnimatedSign symbol="stop" laneOffset={58} delay={3.2} />
       </g>
     );
   };
+
+  const renderAgileMetrics = () => (
+    <g transform="scale(1) translate(0, 0)">
+      <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
+      <rect x="24" y="20" width="148" height="120" fill="var(--card)" rx="10" />
+      <rect x="188" y="20" width="288" height="120" fill="var(--card)" rx="10" />
+      <rect x="24" y="156" width="452" height="124" fill="var(--card)" rx="10" />
+
+      <text x="40" y="48" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">TOTAL ISSUES</text>
+      <text x="40" y="96" fill="var(--text-foreground)" fontSize="34" fontWeight="700" fontFamily="monospace">124</text>
+
+      <text x="204" y="48" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">STATUS</text>
+      <g transform="translate(204, 62)">
+        <rect x="0" y="0" width="220" height="12" rx="6" fill="var(--background)" />
+        <rect x="0" y="0" width="90" height="12" rx="6" fill="var(--accent-blue)" />
+        <rect x="90" y="0" width="72" height="12" rx="0" fill="var(--accent-yellow)" />
+        <rect x="162" y="0" width="58" height="12" rx="6" fill="var(--accent-green)" />
+      </g>
+
+      <text x="40" y="182" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">ISSUES BY TYPE</text>
+      <line x1="48" y1="264" x2="448" y2="264" stroke="var(--background)" strokeWidth="2" />
+      <line x1="48" y1="176" x2="48" y2="264" stroke="var(--background)" strokeWidth="2" />
+
+      <rect x="96" width="36" y="214" height="50" rx="4" fill="var(--accent-blue)" />
+      <rect x="168" width="36" y="198" height="66" rx="4" fill="var(--accent-yellow)" />
+      <rect x="240" width="36" y="184" height="80" rx="4" fill="var(--accent-green)" />
+      <rect x="312" width="36" y="208" height="56" rx="4" fill="var(--accent-red)" />
+      <rect x="384" width="36" y="220" height="44" rx="4" fill="var(--text-muted)" />
+    </g>
+  );
 
   const renders: Record<string, () => React.ReactNode> = {
     "core-management": renderCli,
@@ -582,6 +652,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
     "vscode-plugin": renderVsCodePlugin,
     "integrated-wiki": renderIntegratedWiki,
     "policy-as-code": renderPolicyAsCode,
+    "agile-metrics": renderAgileMetrics,
   };
 
   const renderContent = renders[type] || renderCli;
@@ -595,7 +666,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
           background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
         }}
       />
-      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" ? "none" : "xMidYMid meet"}>
+      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" || type === "agile-metrics" ? "none" : "xMidYMid meet"}>
         <defs>
           <radialGradient id="feature-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
             <stop offset="0%" stopColor="var(--glow-center)" />
@@ -604,7 +675,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         </defs>
         
         {/* Ambient background glow / shadow */}
-        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && (
+        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && type !== "agile-metrics" && (
           <ellipse cx="250" cy="150" rx="200" ry="140" fill="url(#feature-glow)" />
         )}
         
