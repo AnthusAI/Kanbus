@@ -240,7 +240,7 @@
           "id": "sync",
           "label": "Sync",
           "startSec": 13.0375,
-          "endSec": 22.112499999999997,
+          "endSec": 22.075,
           "text": "Run a single command to sync your entire project. Kanbus fetches every issue and translates types, statuses, and priorities automatically.",
           "segments": [
             {
@@ -252,7 +252,7 @@
             {
               "type": "tts",
               "startSec": 13.5375,
-              "endSec": 22.112499999999997,
+              "endSec": 22.075,
               "text": "Run a single command to sync your entire project. Kanbus fetches every issue and translates types, statuses, and priorities automatically."
             }
           ],
@@ -261,20 +261,20 @@
         {
           "id": "idempotent",
           "label": "Idempotent",
-          "startSec": 22.112499999999997,
-          "endSec": 29.512499999999996,
+          "startSec": 22.075,
+          "endSec": 29.45,
           "text": "Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 22.112499999999997,
-              "endSec": 22.612499999999997,
+              "startSec": 22.075,
+              "endSec": 22.575,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 22.612499999999997,
-              "endSec": 29.512499999999996,
+              "startSec": 22.575,
+              "endSec": 29.45,
               "text": "Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs."
             }
           ],
@@ -283,20 +283,20 @@
         {
           "id": "agents",
           "label": "Agents",
-          "startSec": 29.512499999999996,
-          "endSec": 37.925,
+          "startSec": 29.45,
+          "endSec": 38.125,
           "text": "Any agent that can read your source code can now read your Jira issues. The context travels with your branch and survives offline.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 29.512499999999996,
-              "endSec": 30.012499999999996,
+              "startSec": 29.45,
+              "endSec": 29.95,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 30.012499999999996,
-              "endSec": 37.925,
+              "startSec": 29.95,
+              "endSec": 38.125,
               "text": "Any agent that can read your source code can now read your Jira issues. The context travels with your branch and survives offline."
             }
           ],

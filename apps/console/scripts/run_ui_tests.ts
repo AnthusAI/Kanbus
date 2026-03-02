@@ -59,6 +59,11 @@ async function main() {
     "utf-8"
   );
 
+  const kanbusPython = process.env.KANBUS_PYTHON ?? "python3";
+  const kanbusPythonArgs =
+    process.env.KANBUS_PYTHON_ARGS ??
+    (kanbusPython === "conda" ? "run -n py311 python" : " ");
+
   const env = {
     ...process.env,
     CONSOLE_PROJECT_ROOT: projectDir,
@@ -70,7 +75,8 @@ async function main() {
     CONSOLE_API_BASE:
       process.env.CONSOLE_API_BASE ??
       `http://localhost:${process.env.CONSOLE_PORT ?? "5174"}/api`,
-    KANBUS_PYTHON: process.env.KANBUS_PYTHON ?? "python3",
+    KANBUS_PYTHON: kanbusPython,
+    KANBUS_PYTHON_ARGS: kanbusPythonArgs,
     KANBUS_PYTHONPATH: process.env.KANBUS_PYTHONPATH ?? pythonPath
   };
   const vitePort = env.VITE_PORT ?? "5173";

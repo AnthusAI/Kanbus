@@ -1,6 +1,7 @@
 //! Policy evaluation engine.
 
 use gherkin::{Feature, Step, StepType};
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
@@ -118,13 +119,13 @@ pub fn evaluate_policies_report(
     }
 
     for (filename, feature) in features {
-        for scenario in &feature.scenarios {
+        for (rule_name, steps) in iter_policy_units(feature) {
             let scenario_report = evaluate_scenario(
                 context,
                 &STEP_REGISTRY,
                 filename,
-                &scenario.name,
-                &scenario.steps,
+                rule_name.as_ref(),
+                steps,
                 options.mode,
             );
 
@@ -152,14 +153,14 @@ pub fn validate_policy_documents(
     let mut violations = Vec::new();
 
     for (filename, feature) in features {
-        for scenario in &feature.scenarios {
-            for (index, step) in scenario.steps.iter().enumerate() {
+        for (rule_name, steps) in iter_policy_units(feature) {
+            for (index, step) in steps.iter().enumerate() {
                 let step_text = step.value.trim();
                 let step_keyword = step_keyword(step.ty);
                 if STEP_REGISTRY.find_step(step_text).is_none() {
                     violations.push(policy_violation(
                         filename,
-                        &scenario.name,
+                        rule_name.as_ref(),
                         &format!("{step_keyword} {step_text}"),
                         &format!("no matching step definition for: {step_text}"),
                         &context.proposed_issue.identifier,
@@ -176,7 +177,7 @@ pub fn validate_policy_documents(
                 if index == 0 {
                     violations.push(policy_violation(
                         filename,
-                        &scenario.name,
+                        rule_name.as_ref(),
                         &format!("{step_keyword} {step_text}"),
                         "orphan explain step: explain must follow an emitted error, warning, or suggestion",
                         &context.proposed_issue.identifier,
@@ -186,12 +187,12 @@ pub fn validate_policy_documents(
                     continue;
                 }
 
-                let previous = &scenario.steps[index - 1];
+                let previous = &steps[index - 1];
                 let previous_text = previous.value.trim();
                 if !matches!(previous.ty, StepType::Then) || is_explain_step(previous_text) {
                     violations.push(policy_violation(
                         filename,
-                        &scenario.name,
+                        rule_name.as_ref(),
                         &format!("{step_keyword} {step_text}"),
                         "orphan explain step: explain must immediately follow a non-explain Then step",
                         &context.proposed_issue.identifier,
@@ -204,6 +205,24 @@ pub fn validate_policy_documents(
     }
 
     violations
+}
+
+fn iter_policy_units(feature: &Feature) -> impl Iterator<Item = (Cow<'_, str>, &[Step])> {
+    let top = feature.scenarios.iter().map(|scenario| {
+        (
+            Cow::Borrowed(scenario.name.as_str()),
+            scenario.steps.as_slice(),
+        )
+    });
+    let nested = feature.rules.iter().flat_map(|rule| {
+        rule.scenarios.iter().map(move |scenario| {
+            (
+                Cow::Owned(format!("{} / {}", rule.name, scenario.name)),
+                scenario.steps.as_slice(),
+            )
+        })
+    });
+    top.chain(nested)
 }
 
 #[derive(Debug)]

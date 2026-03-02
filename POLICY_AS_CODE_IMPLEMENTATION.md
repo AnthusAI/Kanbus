@@ -27,7 +27,7 @@ This completion includes:
   - enforcement mode (blocking)
   - guidance mode (non-blocking)
 - Added structured report output:
-  - violations + guidance items with severity, source file/scenario/step, and explanations.
+  - violations + guidance items with severity, source file/rule/step, and explanations.
 - Enforced orphan `explain` validation.
 
 ### Runtime behavior and hooks

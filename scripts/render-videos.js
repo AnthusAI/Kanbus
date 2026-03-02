@@ -196,6 +196,15 @@ const removeStaleVideoAssets = () => {
   }
 };
 
+const ensureAliasAsset = (targetPath, sourcePath) => {
+  if (existsSync(targetPath)) return;
+  if (!existsSync(sourcePath)) {
+    throw new Error(`Missing source alias asset: ${sourcePath}`);
+  }
+  copyFileSync(sourcePath, targetPath);
+  console.log(`Created alias asset: ${path.basename(targetPath)} <- ${path.basename(sourcePath)}`);
+};
+
 const main = () => {
   if (!existsSync(videosDir)) {
     throw new Error(`Missing videos/ subproject at ${videosDir}`);
@@ -321,6 +330,10 @@ const main = () => {
       throw new Error(`Failed to extract poster for ${filename}`);
     }
   }
+
+  ensureAliasAsset(path.join(outDir, "intro-poster.jpg"), path.join(outDir, "intro.jpg"));
+  ensureAliasAsset(path.join(outDir, "kanban-board.mp4"), path.join(outDir, "core-management.mp4"));
+  ensureAliasAsset(path.join(outDir, "kanban-board.jpg"), path.join(outDir, "core-management.jpg"));
 
   const updatedOutFiles = existsSync(outDir) ? readdirSync(outDir) : [];
   const toCopy = updatedOutFiles.filter(

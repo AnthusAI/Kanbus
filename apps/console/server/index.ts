@@ -27,6 +27,10 @@ if (!projectRoot) {
 const repoRoot = path.dirname(projectRoot);
 const execFileAsync = promisify(execFile);
 const kanbusPython = process.env.KANBUS_PYTHON ?? null;
+const kanbusPythonArgs = (process.env.KANBUS_PYTHON_ARGS ?? "")
+  .split(/\s+/)
+  .map((value) => value.trim())
+  .filter(Boolean);
 const pythonPath = process.env.KANBUS_PYTHONPATH
   ? path.resolve(repoRoot, process.env.KANBUS_PYTHONPATH)
   : null;
@@ -83,7 +87,7 @@ function logConsoleEvent(
 async function runSnapshot(): Promise<IssuesSnapshot> {
   const command = kanbusPython ?? "kanbus";
   const args = kanbusPython
-    ? ["-m", "kanbus.cli", "console", "snapshot"]
+    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "console", "snapshot"]
     : ["console", "snapshot"];
   const { stdout } = await execFileAsync(command, args, {
     cwd: repoRoot,
@@ -202,6 +206,41 @@ apiRouter.get("/events", async (req, res) => {
   req.on("close", () => {
     sseClients.delete(res);
     logConsoleEvent("sse-client-disconnected", { clients: sseClients.size });
+  });
+});
+
+// Realtime stream alias used by the web client.
+apiRouter.get("/events/realtime", async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+  res.write("retry: 1000\n\n");
+
+  sseClients.add(res);
+  logConsoleEvent("sse-client-connected", {
+    clients: sseClients.size,
+    stream: "realtime"
+  });
+
+  try {
+    const snapshot = await getSnapshot();
+    res.write(`data: ${JSON.stringify(snapshot)}\n\n`);
+  } catch (error) {
+    res.write(
+      `data: ${JSON.stringify({
+        error: (error as Error).message,
+        updated_at: new Date().toISOString()
+      })}\n\n`
+    );
+  }
+
+  req.on("close", () => {
+    sseClients.delete(res);
+    logConsoleEvent("sse-client-disconnected", {
+      clients: sseClients.size,
+      stream: "realtime"
+    });
   });
 });
 

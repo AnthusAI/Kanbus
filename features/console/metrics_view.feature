@@ -18,6 +18,12 @@ Feature: Console metrics view
     And the board view should be inactive
     And the metrics toggle should select "Metrics"
 
+  Scenario: Metrics view stays in viewport after switch
+    Given the console is open
+    When I switch to the "Metrics" view
+    Then the metrics view should be active
+    And the metrics view should intersect the viewport
+
   Scenario: Switching back to board view
     Given the console is open
     And I switch to the "Metrics" view

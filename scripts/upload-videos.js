@@ -5,14 +5,10 @@ const path = require("node:path");
 const repoRoot = path.resolve(__dirname, "..");
 const outDir = path.join(repoRoot, "videos", "out");
 const amplifyOutputsPath = path.join(repoRoot, "amplify_outputs.json");
+const targetsConfigPath = path.join(repoRoot, "config", "video-deploy.targets.json");
 
-// Parse arguments
-let awsProfile = process.env.AWS_PROFILE || "anthus";
-let bucket = process.env.VIDEOS_BUCKET;
-const prefix = process.env.VIDEOS_PREFIX || "videos";
-const cacheControl = process.env.VIDEOS_CACHE_CONTROL || "public,max-age=300";
-let dryRun = "";
 const AUDIO_VALIDATION_PREFIX = "AUDIO_VALIDATION_FAILED";
+const cacheControl = process.env.VIDEOS_CACHE_CONTROL || "public,max-age=300";
 
 const loadAmplifyVideoOutputs = () => {
   if (!existsSync(amplifyOutputsPath)) return null;
@@ -27,19 +23,98 @@ const loadAmplifyVideoOutputs = () => {
   }
 };
 
-const amplifyVideoOutputs = loadAmplifyVideoOutputs();
-
-for (const arg of process.argv.slice(2)) {
-  if (arg.startsWith("--profile=")) {
-    awsProfile = arg.split("=")[1];
-  } else if (arg === "--profile" && process.argv.indexOf(arg) + 1 < process.argv.length) {
-    awsProfile = process.argv[process.argv.indexOf(arg) + 1];
-  } else if (arg === "--dry-run") {
-    dryRun = "--dryrun";
+const loadDeployTarget = (targetName) => {
+  if (!existsSync(targetsConfigPath)) {
+    throw new Error(
+      `Target config not found at ${targetsConfigPath}. ` +
+        "Create config/video-deploy.targets.json or pass VIDEOS_BUCKET and VIDEOS_PREFIX explicitly."
+    );
   }
-}
 
-// Helper to list assets
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(targetsConfigPath, "utf8"));
+  } catch {
+    throw new Error(`Target config at ${targetsConfigPath} is not valid JSON.`);
+  }
+
+  const target = parsed?.[targetName];
+  if (!target) {
+    const available = Object.keys(parsed || {});
+    throw new Error(
+      `Unknown upload target '${targetName}'. ` +
+        (available.length > 0 ? `Available targets: ${available.join(", ")}` : "No targets are configured.")
+    );
+  }
+
+  const requiredKeys = [
+    "awsProfile",
+    "bucket",
+    "primaryPrefix",
+    "mirrorPrefix",
+    "cloudfrontDomain",
+    "cloudfrontDistributionId",
+  ];
+  const missing = requiredKeys.filter((key) => !target[key]);
+  if (missing.length > 0) {
+    throw new Error(
+      `Target '${targetName}' is missing required keys: ${missing.join(", ")} in ${targetsConfigPath}`
+    );
+  }
+
+  return target;
+};
+
+const parseArgs = (argv) => {
+  const result = {
+    dryRun: false,
+    target: null,
+    profileArg: null,
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--dry-run") {
+      result.dryRun = true;
+      continue;
+    }
+
+    if (arg.startsWith("--profile=")) {
+      result.profileArg = arg.slice("--profile=".length);
+      continue;
+    }
+
+    if (arg === "--profile") {
+      const value = argv[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --profile");
+      }
+      result.profileArg = value;
+      i += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--target=")) {
+      result.target = arg.slice("--target=".length);
+      continue;
+    }
+
+    if (arg === "--target") {
+      const value = argv[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --target");
+      }
+      result.target = value;
+      i += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option: ${arg}`);
+  }
+
+  return result;
+};
+
 const listAssets = (dir) => {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
@@ -143,128 +218,185 @@ const validateMp4Audio = (assetPath) => {
   };
 };
 
-// Validate videos directory
-const assets = listAssets(outDir);
-if (assets.length === 0) {
-  console.error(`Error: No .mp4 or .jpg files found in ${outDir}`);
-  console.error("Run 'node scripts/render-videos.js' first to generate videos.");
-  process.exit(1);
-}
+const findLegacyBucket = (awsProfile) => {
+  console.log("Searching for Amplify videos bucket...");
+  try {
+    const bucketsOutput = execSync(`aws s3 ls --profile ${awsProfile} | grep -i videosbucket`, {
+      encoding: "utf8",
+    });
+    const buckets = bucketsOutput
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => line.split(/\s+/).pop())
+      .filter(Boolean);
 
-const mp4Assets = assets.filter((assetPath) => assetPath.toLowerCase().endsWith(".mp4"));
-for (const mp4Path of mp4Assets) {
-  const validation = validateMp4Audio(mp4Path);
-  if (!validation.valid) {
-    console.error(
-      `${AUDIO_VALIDATION_PREFIX} file=${mp4Path} failures=${validation.failures.join("|")} ` +
-      `bytes=${validation.bytes} duration_sec=${validation.durationSec.toFixed(3)} ` +
-      `streams=${validation.streams} activity_ratio=${validation.activityRatio.toFixed(4)}`
-    );
-    console.error(`${AUDIO_VALIDATION_PREFIX} upload_aborted=true`);
+    if (buckets.length === 0) {
+      return null;
+    }
+
+    return buckets[0];
+  } catch {
+    return null;
+  }
+};
+
+const main = () => {
+  let parsedArgs;
+  try {
+    parsedArgs = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
     process.exit(1);
   }
-}
 
-console.log("Kanbus Video Upload");
-console.log("===================");
-console.log("");
-console.log(`Videos to upload: ${assets.length} files`);
-console.log(`AWS Profile: ${awsProfile}`);
-console.log(`S3 Prefix: ${prefix}`);
-console.log("");
+  const assets = listAssets(outDir);
+  if (assets.length === 0) {
+    console.error(`Error: No .mp4 or .jpg files found in ${outDir}`);
+    console.error("Run 'node scripts/render-videos.js' first to generate videos.");
+    process.exit(1);
+  }
 
-// Verify AWS credentials
-try {
-  execSync(`aws sts get-caller-identity --profile ${awsProfile}`, { stdio: "pipe" });
-} catch (error) {
-  console.error(`Error: Cannot authenticate with AWS profile '${awsProfile}'`);
-  console.error("Check your AWS configuration and try again.");
-  process.exit(1);
-}
+  const mp4Assets = assets.filter((assetPath) => assetPath.toLowerCase().endsWith(".mp4"));
+  for (const mp4Path of mp4Assets) {
+    const validation = validateMp4Audio(mp4Path);
+    if (!validation.valid) {
+      console.error(
+        `${AUDIO_VALIDATION_PREFIX} file=${mp4Path} failures=${validation.failures.join("|")} ` +
+          `bytes=${validation.bytes} duration_sec=${validation.durationSec.toFixed(3)} ` +
+          `streams=${validation.streams} activity_ratio=${validation.activityRatio.toFixed(4)}`
+      );
+      console.error(`${AUDIO_VALIDATION_PREFIX} upload_aborted=true`);
+      process.exit(1);
+    }
+  }
 
-// Auto-discover bucket if not specified
-if (!bucket) {
-  if (amplifyVideoOutputs?.bucketName) {
-    bucket = amplifyVideoOutputs.bucketName;
-    console.log(`Using Amplify outputs bucket: ${bucket}`);
-  } else {
-    console.log("Searching for Amplify videos bucket...");
+  let targetConfig = null;
+  if (parsedArgs.target) {
     try {
-      const bucketsOutput = execSync(`aws s3 ls --profile ${awsProfile} | grep -i videosbucket`, { encoding: "utf8" });
-      const buckets = bucketsOutput
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => line.split(/\s+/).pop())
-        .filter(Boolean);
+      targetConfig = loadDeployTarget(parsedArgs.target);
+    } catch (error) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    }
+  }
 
-      if (buckets.length === 0) {
-        console.error("Error: No Amplify videos buckets found");
+  const amplifyVideoOutputs = loadAmplifyVideoOutputs();
+
+  let awsProfile = parsedArgs.profileArg || process.env.AWS_PROFILE || targetConfig?.awsProfile || "anthus";
+  let bucket = process.env.VIDEOS_BUCKET || targetConfig?.bucket || null;
+  let prefix = process.env.VIDEOS_PREFIX || targetConfig?.primaryPrefix || "videos";
+
+  console.log("Kanbus Video Upload");
+  console.log("===================");
+  console.log("");
+  console.log(`Videos to upload: ${assets.length} files`);
+  if (parsedArgs.target) {
+    console.log(`Deploy target: ${parsedArgs.target}`);
+  }
+  console.log(`AWS Profile: ${awsProfile}`);
+  console.log(`S3 Prefix: ${prefix}`);
+  console.log("");
+
+  try {
+    execSync(`aws sts get-caller-identity --profile ${awsProfile}`, { stdio: "pipe" });
+  } catch {
+    console.error(`Error: Cannot authenticate with AWS profile '${awsProfile}'`);
+    console.error("Check your AWS configuration and try again.");
+    process.exit(1);
+  }
+
+  if (!bucket) {
+    if (parsedArgs.target) {
+      console.error(
+        `Error: Could not resolve bucket for target '${parsedArgs.target}'. ` +
+          "Set VIDEOS_BUCKET or configure bucket in config/video-deploy.targets.json."
+      );
+      process.exit(1);
+    }
+
+    if (amplifyVideoOutputs?.bucketName) {
+      bucket = amplifyVideoOutputs.bucketName;
+      console.log(`Using Amplify outputs bucket: ${bucket}`);
+    } else {
+      const discovered = findLegacyBucket(awsProfile);
+      if (!discovered) {
+        console.error("Error: Could not find Amplify videos bucket");
         console.error("Tip: Set VIDEOS_BUCKET environment variable to specify a bucket explicitly");
         process.exit(1);
       }
 
-      bucket = buckets[0];
+      bucket = discovered;
       console.warn(`Warning: auto-discovered bucket via list fallback: ${bucket}`);
       console.warn(`Warning: ${amplifyOutputsPath} not found or missing custom.videosBucketName`);
-    } catch (error) {
-      console.error("Error: Could not find Amplify videos bucket");
-      console.error("Tip: Set VIDEOS_BUCKET environment variable to specify a bucket explicitly");
-      process.exit(1);
     }
   }
-}
 
-try {
-  execSync(`aws s3api head-bucket --bucket ${bucket} --profile ${awsProfile}`, { stdio: "pipe" });
-} catch (error) {
-  console.error(`Error: Cannot access bucket '${bucket}' using profile '${awsProfile}'`);
-  process.exit(1);
-}
+  if (!prefix || !prefix.trim()) {
+    console.error("Error: Missing VIDEOS_PREFIX. Set VIDEOS_PREFIX or configure target primaryPrefix.");
+    process.exit(1);
+  }
 
-console.log("");
+  try {
+    execSync(`aws s3api head-bucket --bucket ${bucket} --profile ${awsProfile}`, { stdio: "pipe" });
+  } catch {
+    console.error(`Error: Cannot access bucket '${bucket}' using profile '${awsProfile}'`);
+    process.exit(1);
+  }
 
-const destination = `s3://${bucket}/${prefix.replace(/\/$/, "")}/`;
+  const destination = `s3://${bucket}/${prefix.replace(/\/$/, "")}/`;
+  const dryRunArg = parsedArgs.dryRun ? "--dryrun" : "";
 
-if (dryRun) {
-  console.log("DRY RUN: Showing what would be uploaded");
+  if (parsedArgs.dryRun) {
+    console.log("DRY RUN: Showing what would be uploaded");
+    console.log("");
+  }
+
   console.log("");
-}
+  console.log(`Uploading to: ${destination}`);
+  console.log("");
 
-console.log(`Uploading to: ${destination}`);
-console.log("");
+  const cmd = [
+    "aws s3 sync",
+    `\"${outDir}\"`,
+    `\"${destination}\"`,
+    `--profile ${awsProfile}`,
+    '--exclude "*"',
+    '--include "*.mp4"',
+    '--include "*.jpg"',
+    `--cache-control \"${cacheControl}\"`,
+    dryRunArg,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-const cmd = [
-  "aws s3 sync",
-  `"${outDir}"`,
-  `"${destination}"`,
-  `--profile ${awsProfile}`,
-  "--exclude \"*\"",
-  "--include \"*.mp4\"",
-  "--include \"*.jpg\"",
-  `--cache-control \"${cacheControl}\"`,
-  dryRun
-]
-  .filter(Boolean)
-  .join(" ");
+  execSync(cmd, { stdio: "inherit" });
 
-execSync(cmd, { stdio: "inherit" });
+  console.log("");
+  console.log("Upload complete!");
+  console.log("");
+  console.log("Next steps:");
 
-console.log("");
-console.log("Upload complete!");
-console.log("");
-console.log("Next steps:");
-const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, "");
-console.log("1. Set environment variable for local preview:");
-console.log(`   export GATSBY_VIDEOS_BASE_URL=https://${bucket}.s3.amazonaws.com/${normalizedPrefix}`);
-console.log("");
-console.log("2. Recommended: use the Amplify CDN URL:");
-if (amplifyVideoOutputs?.cdnUrl) {
-  const baseCdn = amplifyVideoOutputs.cdnUrl.replace(/\/+$/g, "");
-  console.log(`   export GATSBY_VIDEOS_BASE_URL=${baseCdn}/${normalizedPrefix}`);
-} else {
-  console.log(`   export GATSBY_VIDEOS_BASE_URL=https://<cloudfront-domain>/${normalizedPrefix}`);
-}
-console.log("");
-console.log("3. Run the web app:");
-console.log("   cd apps/kanb.us && npm run develop");
+  const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, "");
+  console.log("1. Set environment variable for local preview:");
+  console.log(`   export GATSBY_VIDEOS_BASE_URL=https://${bucket}.s3.amazonaws.com/${normalizedPrefix}`);
+  console.log("");
+  console.log("2. Recommended: use the CDN URL:");
+
+  const targetCdnUrl = targetConfig?.cloudfrontDomain
+    ? `https://${targetConfig.cloudfrontDomain}`
+    : amplifyVideoOutputs?.cdnUrl;
+
+  if (targetCdnUrl) {
+    const baseCdn = targetCdnUrl.replace(/\/+$/g, "");
+    console.log(`   export GATSBY_VIDEOS_BASE_URL=${baseCdn}/${normalizedPrefix}`);
+  } else {
+    console.log("   export GATSBY_VIDEOS_BASE_URL=https://<cloudfront-domain>/<videos-prefix>");
+  }
+
+  console.log("");
+  console.log("3. Run the web app:");
+  console.log("   cd apps/kanb.us && npm run develop");
+};
+
+main();

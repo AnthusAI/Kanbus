@@ -68,7 +68,7 @@ impl Display for KanbusError {
             } => {
                 write!(
                     formatter,
-                    "policy violation in {policy_file} for issue {issue_id}\n  Scenario: {scenario}\n  Failed: {failed_step}\n  {message}"
+                    "policy violation in {policy_file} for issue {issue_id}\n  Rule: {scenario}\n  Failed: {failed_step}\n  {message}"
                 )?;
                 for explanation in &details.explanations {
                     write!(formatter, "\n  Explanation: {explanation}")?;

@@ -106,20 +106,13 @@ def evaluate_policies_report(
             return report
 
     for filename, document in documents:
-        if not document.feature:
-            continue
-
-        for child in document.feature.children:
-            if not hasattr(child, "scenario") or not child.scenario:
-                continue
-
-            scenario = child.scenario
+        for rule_name, steps in _iter_policy_rule_units(document):
             scenario_report = evaluate_scenario(
                 context=context,
                 registry=registry,
                 policy_file=filename,
-                scenario_name=scenario.name,
-                steps=scenario.steps,
+                scenario_name=rule_name,
+                steps=steps,
                 mode=options.mode,
             )
             report.guidance_items.extend(scenario_report.guidance_items)
@@ -142,13 +135,8 @@ def validate_policy_documents(
     registry = _get_step_registry()
 
     for filename, document in documents:
-        if not document.feature:
-            continue
-        for child in document.feature.children:
-            if not hasattr(child, "scenario") or not child.scenario:
-                continue
-            scenario = child.scenario
-            for index, step in enumerate(scenario.steps):
+        for rule_name, steps in _iter_policy_rule_units(document):
+            for index, step in enumerate(steps):
                 step_text = step.text.strip()
                 step_keyword = step.keyword.strip()
                 if registry.find_step(step_text) is None:
@@ -156,7 +144,7 @@ def validate_policy_documents(
                         _policy_structure_violation(
                             context=context,
                             policy_file=filename,
-                            scenario_name=scenario.name,
+                            scenario_name=rule_name,
                             failed_step=f"{step_keyword} {step_text}",
                             message=f"no matching step definition for: {step_text}",
                         )
@@ -171,14 +159,14 @@ def validate_policy_documents(
                         _policy_structure_violation(
                             context=context,
                             policy_file=filename,
-                            scenario_name=scenario.name,
+                            scenario_name=rule_name,
                             failed_step=f"{step_keyword} {step_text}",
                             message="orphan explain step: explain must follow an emitted error, warning, or suggestion",
                         )
                     )
                     continue
 
-                previous = scenario.steps[index - 1]
+                previous = steps[index - 1]
                 previous_text = previous.text.strip()
                 previous_keyword = previous.keyword.strip()
                 if previous_keyword != "Then" or _is_explain_step(previous_text):
@@ -186,7 +174,7 @@ def validate_policy_documents(
                         _policy_structure_violation(
                             context=context,
                             policy_file=filename,
-                            scenario_name=scenario.name,
+                            scenario_name=rule_name,
                             failed_step=f"{step_keyword} {step_text}",
                             message="orphan explain step: explain must immediately follow a non-explain Then step",
                         )
@@ -359,3 +347,33 @@ def evaluate_scenario(
 
 def _is_explain_step(step_text: str) -> bool:
     return step_text.startswith('explain "') and step_text.endswith('"')
+
+
+def _iter_policy_rule_units(
+    document: GherkinDocument,
+) -> list[tuple[str, list[Step]]]:
+    """Return top-level and nested policy rule units.
+
+    Supports both legacy top-level scenarios and scenarios nested under Rule blocks.
+    """
+    if not document.feature:
+        return []
+
+    units: list[tuple[str, list[Step]]] = []
+    for child in document.feature.children:
+        scenario = getattr(child, "scenario", None)
+        if scenario:
+            units.append((scenario.name, scenario.steps))
+            continue
+
+        rule = getattr(child, "rule", None)
+        if not rule:
+            continue
+
+        for rule_child in getattr(rule, "children", []):
+            nested = getattr(rule_child, "scenario", None)
+            if not nested:
+                continue
+            units.append((f"{rule.name} / {nested.name}", nested.steps))
+
+    return units
