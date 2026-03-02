@@ -520,7 +520,11 @@ def update(
             ]
 
         if not no_validate:
-            from kanbus.policy_context import PolicyContext, PolicyOperation, StatusTransition
+            from kanbus.policy_context import (
+                PolicyContext,
+                PolicyOperation,
+                StatusTransition,
+            )
             from kanbus.policy_evaluator import evaluate_policies
             from kanbus.policy_loader import load_policies
             from kanbus.project import load_project_directory
