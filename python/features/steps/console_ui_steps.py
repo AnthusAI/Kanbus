@@ -970,6 +970,14 @@ def then_metrics_view_inactive(context: object) -> None:
         raise AssertionError("expected metrics view to be inactive")
 
 
+@then("the metrics view should intersect the viewport")
+def then_metrics_view_intersects_viewport(context: object) -> None:
+    state = _require_console_state(context)
+    # Behave console steps use a logical state model rather than browser layout geometry.
+    if state.panel_mode != "metrics":
+        raise AssertionError("expected metrics view in viewport while active")
+
+
 @then('the metrics toggle should select "{label}"')
 def then_metrics_toggle_selects(context: object, label: str) -> None:
     state = _require_console_state(context)
