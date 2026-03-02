@@ -12,7 +12,7 @@ WORK_DIR="${REPO_ROOT}/.codeql"
 REPORT_DIR="${WORK_DIR}/reports"
 CONFIG_FILE="${REPO_ROOT}/.github/codeql/codeql-config.yml"
 
-DEFAULT_LANGS="python,javascript-typescript"
+DEFAULT_LANGS="python,javascript-typescript,rust"
 
 usage() {
   cat <<'EOF'
@@ -21,7 +21,7 @@ Run CodeQL code-quality analysis locally (mirrors GitHub "Code Quality" check)
 Usage: tools/run_codeql_local.sh [options]
 
 Options:
-  --lang "py,js"   Comma-separated languages (default: python,javascript-typescript)
+  --lang "py,js"   Comma-separated languages (default: python,javascript-typescript,rust)
   --keep-db         Reuse existing databases instead of recreating
   --keep-reports    Do not delete prior SARIF reports before running
   --no-fail         Exit 0 even if findings exist
@@ -118,10 +118,14 @@ run_lang() {
   local sarif="$REPORT_DIR/${lang}-code-quality.sarif"
   local lang_arg="$lang"
   local suite="codeql/${lang}-queries:codeql-suites/${lang}-code-quality.qls"
+  local build_command=""
 
   if [[ "$lang" == "javascript-typescript" ]]; then
     lang_arg="javascript"
     suite="codeql/javascript-queries:codeql-suites/javascript-code-quality.qls"
+  elif [[ "$lang" == "rust" ]]; then
+    suite="codeql/rust-queries:codeql-suites/rust-code-quality.qls"
+    build_command="cd rust && cargo build --workspace --all-targets --locked"
   fi
 
   cleanup_db "$lang"
@@ -137,6 +141,9 @@ run_lang() {
   )
   if [[ -f "$CONFIG_FILE" ]]; then
     create_opts+=(--codescanning-config "$CONFIG_FILE")
+  fi
+  if [[ -n "$build_command" ]]; then
+    create_opts+=(--command "$build_command")
   fi
 
   "$CODEQL" database create "${create_opts[@]}"
