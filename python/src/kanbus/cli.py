@@ -95,6 +95,7 @@ def cli(context: click.Context, beads_mode: bool, no_guidance: bool) -> None:
       kbs list                           list all issues
       kbs create "Fix bug" --type bug    create an issue
       kbs update <id> --status done      update an issue
+      kbs move <id> epic                 change issue type
       kbs comment <id> "Note"            add a comment
       kbs close <id>                     close an issue
 
@@ -561,6 +562,60 @@ def close(context: click.Context, identifier: str) -> None:
     formatted_identifier = format_issue_key(identifier, project_context=False)
     click.echo(f"Closed {formatted_identifier}")
     _emit_policy_guidance(context, [issue], "close")
+
+
+@cli.command("move")
+@click.argument("identifier")
+@click.argument("issue_type")
+@click.option("--status")
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.pass_context
+def move(
+    context: click.Context,
+    identifier: str,
+    issue_type: str,
+    status: str | None,
+    no_validate: bool,
+) -> None:
+    """Move an issue to a different issue type."""
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
+            pass
+
+    if beads_mode:
+        raise click.ClickException("move is not supported in beads mode")
+
+    try:
+        updated_issue = update_issue(
+            root=root,
+            identifier=identifier,
+            title=None,
+            description=None,
+            status=status,
+            assignee=None,
+            claim=False,
+            validate=not no_validate,
+            priority=None,
+            add_labels=None,
+            remove_labels=None,
+            set_labels=None,
+            parent=None,
+            issue_type=issue_type,
+        )
+    except IssueUpdateError as error:
+        raise click.ClickException(str(error)) from error
+
+    formatted_identifier = format_issue_key(identifier, project_context=False)
+    click.echo(f"Moved {formatted_identifier} to type {updated_issue.issue_type}")
+    _emit_policy_guidance(context, [updated_issue], "update")
 
 
 @cli.command("delete")
@@ -1037,8 +1092,18 @@ def policy_list() -> None:
             if document.feature:
                 click.echo(f"  Feature: {document.feature.name}")
                 for child in document.feature.children:
-                    if hasattr(child, "scenario") and child.scenario:
-                        click.echo(f"    Scenario: {child.scenario.name}")
+                    scenario = getattr(child, "scenario", None)
+                    if scenario:
+                        click.echo(f"    Rule: {scenario.name}")
+                        continue
+                    rule = getattr(child, "rule", None)
+                    if not rule:
+                        continue
+                    for rule_child in getattr(rule, "children", []):
+                        nested = getattr(rule_child, "scenario", None)
+                        if not nested:
+                            continue
+                        click.echo(f"    Rule: {rule.name} / {nested.name}")
     except Exception as error:
         raise click.ClickException(str(error)) from error
 

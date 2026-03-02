@@ -64,6 +64,7 @@ use crate::wiki::{render_wiki_page, WikiRenderRequest};
   kbs create \"Release v1\" --type epic --parent <id>
   kbs show <id>                                show issue details
   kbs update <id> --status in_progress         update status
+  kbs move <id> epic                           change issue type
   kbs comment <id> \"Progress note\"             add a comment
   kbs close <id>                               close an issue
 
@@ -179,6 +180,19 @@ enum Commands {
         /// Claim the issue.
         #[arg(long)]
         claim: bool,
+        /// Bypass validation checks.
+        #[arg(long = "no-validate")]
+        no_validate: bool,
+    },
+    /// Move an issue to a different issue type.
+    Move {
+        /// Issue identifier.
+        identifier: String,
+        /// Target issue type.
+        issue_type: String,
+        /// Optional status override while moving.
+        #[arg(long)]
+        status: Option<String>,
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
@@ -1059,6 +1073,7 @@ fn execute_command(
                     &remove_labels,
                     set_labels.as_deref(),
                     parent.as_deref(),
+                    None,
                 )?;
                 crate::policy_guidance::emit_guidance_for_issues(
                     root,
@@ -1072,6 +1087,45 @@ fn execute_command(
                 emit_signals(qr, "description", Some(&identifier), None, true);
             }
             Ok(Some(format!("Updated {}", formatted_identifier)))
+        }
+        Commands::Move {
+            identifier,
+            issue_type,
+            status,
+            no_validate,
+        } => {
+            if beads_mode {
+                return Err(KanbusError::IssueOperation(
+                    "move is not supported in beads mode".to_string(),
+                ));
+            }
+            let moved_issue = update_issue(
+                root,
+                &identifier,
+                None,
+                None,
+                status.as_deref(),
+                None,
+                None,
+                false,
+                !no_validate,
+                &[],
+                &[],
+                None,
+                None,
+                Some(&issue_type),
+            )?;
+            crate::policy_guidance::emit_guidance_for_issues(
+                root,
+                std::slice::from_ref(&moved_issue),
+                crate::policy_context::PolicyOperation::Update,
+                no_guidance,
+            );
+            let formatted_identifier = format_issue_key(&identifier, false);
+            Ok(Some(format!(
+                "Moved {} to type {}",
+                formatted_identifier, moved_issue.issue_type
+            )))
         }
         Commands::Close { identifier } => {
             if beads_mode {
@@ -1682,7 +1736,15 @@ fn execute_command(
                 for (filename, feature) in &policy_documents {
                     output.push_str(&format!("{}\n  Feature: {}\n", filename, feature.name));
                     for scenario in &feature.scenarios {
-                        output.push_str(&format!("    Scenario: {}\n", scenario.name));
+                        output.push_str(&format!("    Rule: {}\n", scenario.name));
+                    }
+                    for rule in &feature.rules {
+                        for scenario in &rule.scenarios {
+                            output.push_str(&format!(
+                                "    Rule: {} / {}\n",
+                                rule.name, scenario.name
+                            ));
+                        }
                     }
                 }
                 Ok(Some(output))
