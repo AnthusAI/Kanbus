@@ -194,6 +194,20 @@ Then("the metrics view should be active", async function () {
   await expect(this.page.getByTestId("metrics-view")).toBeVisible();
 });
 
+Then("the metrics view should intersect the viewport", async function () {
+  const metricsView = this.page.getByTestId("metrics-view");
+  const box = await metricsView.boundingBox();
+  expect(box).not.toBeNull();
+  const viewport = this.page.viewportSize();
+  expect(viewport).toBeTruthy();
+  const intersectsViewport =
+    box.x < viewport.width
+    && box.x + box.width > 0
+    && box.y < viewport.height
+    && box.y + box.height > 0;
+  expect(intersectsViewport).toBe(true);
+});
+
 Then("the metrics view should be inactive", async function () {
   await expect(this.page.getByTestId("view-toggle-metrics")).toHaveAttribute("data-active", "false");
   await expect(this.page.getByTestId("metrics-view")).not.toBeVisible();
