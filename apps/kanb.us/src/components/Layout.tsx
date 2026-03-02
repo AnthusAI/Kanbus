@@ -117,6 +117,7 @@ const Layout = ({ children }: LayoutProps) => {
                 <li><a href="/features/vscode-plugin" className="text-muted hover:text-selected block">VS Code Plugin</a></li>
                 <li><a href="/features/integrated-wiki" className="text-muted hover:text-selected block">Integrated Wiki</a></li>
                 <li><a href="/features/policy-as-code" className="text-muted hover:text-selected block">Policy as Code</a></li>
+                <li><a href="/features/agile-metrics" className="text-muted hover:text-selected block">Agile Metrics</a></li>
               </ul>
             </div>
             

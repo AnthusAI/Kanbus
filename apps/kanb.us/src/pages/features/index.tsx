@@ -102,6 +102,11 @@ const FeaturesPage = () => {
               description="Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically."
               href="/features/policy-as-code"
             />
+            <FeatureCard
+              title="Agile Metrics"
+              description="Track filter-aware totals and breakdowns by status, type, project, and scope from a dedicated metrics panel."
+              href="/features/agile-metrics"
+            />
           </div>
         </Section>
 

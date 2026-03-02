@@ -10,7 +10,8 @@ export type FeaturePictogramType =
   | "virtual-projects" 
   | "vscode-plugin" 
   | "integrated-wiki" 
-  | "policy-as-code";
+  | "policy-as-code"
+  | "agile-metrics";
 
 export function FeaturePictogram({ type, style, className }: { type: string, style?: React.CSSProperties, className?: string }) {
   const prefersReducedMotion = useReducedMotion();
@@ -611,6 +612,36 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
     );
   };
 
+  const renderAgileMetrics = () => (
+    <g transform="scale(1) translate(0, 0)">
+      <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
+      <rect x="24" y="20" width="148" height="120" fill="var(--card)" rx="10" />
+      <rect x="188" y="20" width="288" height="120" fill="var(--card)" rx="10" />
+      <rect x="24" y="156" width="452" height="124" fill="var(--card)" rx="10" />
+
+      <text x="40" y="48" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">TOTAL ISSUES</text>
+      <text x="40" y="96" fill="var(--text-foreground)" fontSize="34" fontWeight="700" fontFamily="monospace">124</text>
+
+      <text x="204" y="48" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">STATUS</text>
+      <g transform="translate(204, 62)">
+        <rect x="0" y="0" width="220" height="12" rx="6" fill="var(--background)" />
+        <rect x="0" y="0" width="90" height="12" rx="6" fill="var(--accent-blue)" />
+        <rect x="90" y="0" width="72" height="12" rx="0" fill="var(--accent-yellow)" />
+        <rect x="162" y="0" width="58" height="12" rx="6" fill="var(--accent-green)" />
+      </g>
+
+      <text x="40" y="182" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">ISSUES BY TYPE</text>
+      <line x1="48" y1="264" x2="448" y2="264" stroke="var(--background)" strokeWidth="2" />
+      <line x1="48" y1="176" x2="48" y2="264" stroke="var(--background)" strokeWidth="2" />
+
+      <rect x="96" width="36" y="214" height="50" rx="4" fill="var(--accent-blue)" />
+      <rect x="168" width="36" y="198" height="66" rx="4" fill="var(--accent-yellow)" />
+      <rect x="240" width="36" y="184" height="80" rx="4" fill="var(--accent-green)" />
+      <rect x="312" width="36" y="208" height="56" rx="4" fill="var(--accent-red)" />
+      <rect x="384" width="36" y="220" height="44" rx="4" fill="var(--text-muted)" />
+    </g>
+  );
+
   const renders: Record<string, () => React.ReactNode> = {
     "core-management": renderCli,
     "kanban-board": renderKanbanBoard,
@@ -621,6 +652,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
     "vscode-plugin": renderVsCodePlugin,
     "integrated-wiki": renderIntegratedWiki,
     "policy-as-code": renderPolicyAsCode,
+    "agile-metrics": renderAgileMetrics,
   };
 
   const renderContent = renders[type] || renderCli;
@@ -634,7 +666,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
           background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
         }}
       />
-      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" ? "none" : "xMidYMid meet"}>
+      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" || type === "agile-metrics" ? "none" : "xMidYMid meet"}>
         <defs>
           <radialGradient id="feature-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
             <stop offset="0%" stopColor="var(--glow-center)" />
@@ -643,7 +675,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         </defs>
         
         {/* Ambient background glow / shadow */}
-        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && (
+        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && type !== "agile-metrics" && (
           <ellipse cx="250" cy="150" rx="200" ry="140" fill="url(#feature-glow)" />
         )}
         

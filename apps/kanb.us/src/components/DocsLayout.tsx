@@ -20,7 +20,8 @@ const sidebarLinks: SidebarLink[] = [
   { label: "Virtual Projects", href: "/docs/features/virtual-projects" },
   { label: "Beads Mode", href: "/docs/features/beads-compatibility" },
   { label: "VS Code Plugin", href: "/docs/features/vscode-plugin" },
-  { label: "Policy as Code", href: "/docs/features/policy-as-code" }
+  { label: "Policy as Code", href: "/docs/features/policy-as-code" },
+  { label: "Agile Metrics", href: "/docs/features/agile-metrics" }
 ];
 
 type DocsLayoutProps = {

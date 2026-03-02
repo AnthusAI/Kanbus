@@ -51,5 +51,10 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
     description: "Combine hard guardrails with kairotic, in-the-moment guidance so agents follow procedure without losing flow.",
     href: "/features/policy-as-code",
     eyebrow: "New"
+  },
+  {
+    title: "Agile Metrics",
+    description: "Track filter-aware issue counts and status/type breakdowns in a focused metrics view built into the Kanbus console.",
+    href: "/features/agile-metrics"
   }
 ];
