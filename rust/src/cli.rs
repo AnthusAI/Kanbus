@@ -64,6 +64,7 @@ use crate::wiki::{render_wiki_page, WikiRenderRequest};
   kbs create \"Release v1\" --type epic --parent <id>
   kbs show <id>                                show issue details
   kbs update <id> --status in_progress         update status
+  kbs move <id> epic                           change issue type
   kbs comment <id> \"Progress note\"             add a comment
   kbs close <id>                               close an issue
 
@@ -179,6 +180,19 @@ enum Commands {
         /// Claim the issue.
         #[arg(long)]
         claim: bool,
+        /// Bypass validation checks.
+        #[arg(long = "no-validate")]
+        no_validate: bool,
+    },
+    /// Move an issue to a different issue type.
+    Move {
+        /// Issue identifier.
+        identifier: String,
+        /// Target issue type.
+        issue_type: String,
+        /// Optional status override while moving.
+        #[arg(long)]
+        status: Option<String>,
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
@@ -1032,6 +1046,119 @@ fn execute_command(
                         "parent update not supported in beads mode".to_string(),
                     ));
                 }
+                let before_issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
+                let mut proposed_issue = before_issue.clone();
+                if let Some(new_status) = status.as_deref() {
+                    proposed_issue.status = new_status.to_string();
+                }
+                if let Some(new_priority) = priority {
+                    proposed_issue.priority = i32::from(new_priority);
+                }
+                if let Some(new_title) = title_value {
+                    proposed_issue.title = new_title.to_string();
+                }
+                if let Some(new_description) = final_description_value {
+                    proposed_issue.description = new_description.to_string();
+                }
+                if let Some(new_assignee) = assignee_value.as_deref() {
+                    proposed_issue.assignee = Some(new_assignee.to_string());
+                }
+                if set_labels.is_some() || !add_labels.is_empty() || !remove_labels.is_empty() {
+                    let mut labels = if let Some(value) = set_labels.as_deref() {
+                        value
+                            .split(',')
+                            .map(|label| label.trim().to_string())
+                            .filter(|label| !label.is_empty())
+                            .collect::<Vec<_>>()
+                    } else {
+                        proposed_issue.labels.clone()
+                    };
+                    for label in &add_labels {
+                        let trimmed = label.trim();
+                        if !trimmed.is_empty()
+                            && !labels
+                                .iter()
+                                .any(|existing| existing.eq_ignore_ascii_case(trimmed))
+                        {
+                            labels.push(trimmed.to_string());
+                        }
+                    }
+                    if !remove_labels.is_empty() {
+                        labels.retain(|label| {
+                            !remove_labels
+                                .iter()
+                                .any(|to_remove| label.eq_ignore_ascii_case(to_remove.trim()))
+                        });
+                    }
+                    proposed_issue.labels = labels;
+                }
+                if !no_validate {
+                    let mut project_context = None;
+                    match get_configuration_path(&root_for_beads) {
+                        Ok(config_path) => {
+                            let configuration = load_project_configuration(&config_path)?;
+                            let project_dir =
+                                crate::project::load_project_directory(&root_for_beads)?;
+                            project_context = Some((project_dir, configuration));
+                        }
+                        Err(KanbusError::IssueOperation(message))
+                            if message == "project not initialized" => {}
+                        Err(error) => return Err(error),
+                    }
+
+                    if let Some((_, configuration)) = project_context.as_ref() {
+                        if proposed_issue.status != before_issue.status {
+                            crate::workflows::validate_status_value(
+                                configuration,
+                                &proposed_issue.issue_type,
+                                &proposed_issue.status,
+                            )?;
+                            crate::workflows::validate_status_transition(
+                                configuration,
+                                &proposed_issue.issue_type,
+                                &before_issue.status,
+                                &proposed_issue.status,
+                            )?;
+                        }
+                    }
+
+                    if let Some((project_dir, configuration)) = project_context.as_ref() {
+                        let policies_dir = project_dir.join("policies");
+                        if policies_dir.is_dir() {
+                            let policy_documents =
+                                crate::policy_loader::load_policies(&policies_dir)?;
+                            if !policy_documents.is_empty() {
+                                let mut all_issues = load_beads_issues(&root_for_beads)?;
+                                if let Some(existing_issue) = all_issues
+                                    .iter_mut()
+                                    .find(|issue| issue.identifier == proposed_issue.identifier)
+                                {
+                                    *existing_issue = proposed_issue.clone();
+                                }
+                                let transition = if proposed_issue.status != before_issue.status {
+                                    Some(crate::policy_context::StatusTransition {
+                                        from: before_issue.status.clone(),
+                                        to: proposed_issue.status.clone(),
+                                    })
+                                } else {
+                                    None
+                                };
+                                let policy_context = crate::policy_context::PolicyContext {
+                                    current_issue: Some(before_issue.clone()),
+                                    proposed_issue: proposed_issue.clone(),
+                                    transition,
+                                    operation: crate::policy_context::PolicyOperation::Update,
+                                    project_configuration: configuration.clone(),
+                                    all_issues,
+                                };
+                                crate::policy_evaluator::evaluate_policies(
+                                    &policy_context,
+                                    &policy_documents,
+                                )?;
+                            }
+                        }
+                    }
+                }
                 update_beads_issue(
                     &root_for_beads,
                     &identifier,
@@ -1059,6 +1186,7 @@ fn execute_command(
                     &remove_labels,
                     set_labels.as_deref(),
                     parent.as_deref(),
+                    None,
                 )?;
                 crate::policy_guidance::emit_guidance_for_issues(
                     root,
@@ -1072,6 +1200,45 @@ fn execute_command(
                 emit_signals(qr, "description", Some(&identifier), None, true);
             }
             Ok(Some(format!("Updated {}", formatted_identifier)))
+        }
+        Commands::Move {
+            identifier,
+            issue_type,
+            status,
+            no_validate,
+        } => {
+            if beads_mode {
+                return Err(KanbusError::IssueOperation(
+                    "move is not supported in beads mode".to_string(),
+                ));
+            }
+            let moved_issue = update_issue(
+                root,
+                &identifier,
+                None,
+                None,
+                status.as_deref(),
+                None,
+                None,
+                false,
+                !no_validate,
+                &[],
+                &[],
+                None,
+                None,
+                Some(&issue_type),
+            )?;
+            crate::policy_guidance::emit_guidance_for_issues(
+                root,
+                std::slice::from_ref(&moved_issue),
+                crate::policy_context::PolicyOperation::Update,
+                no_guidance,
+            );
+            let formatted_identifier = format_issue_key(&identifier, false);
+            Ok(Some(format!(
+                "Moved {} to type {}",
+                formatted_identifier, moved_issue.issue_type
+            )))
         }
         Commands::Close { identifier } => {
             if beads_mode {
@@ -1683,6 +1850,14 @@ fn execute_command(
                     output.push_str(&format!("{}\n  Feature: {}\n", filename, feature.name));
                     for scenario in &feature.scenarios {
                         output.push_str(&format!("    Scenario: {}\n", scenario.name));
+                    }
+                    for rule in &feature.rules {
+                        for scenario in &rule.scenarios {
+                            output.push_str(&format!(
+                                "    Rule: {} / {}\n",
+                                rule.name, scenario.name
+                            ));
+                        }
                     }
                 }
                 Ok(Some(output))

@@ -40,13 +40,19 @@ const PolicyAsCodePage = () => {
               <CodeBlock>
 {`Feature: Epic readiness guardrail
 
-  Scenario: Epic needs child issues before ready
-    Given the issue type is "epic"
-    When transitioning to "ready"
-    Then the issue must have at least 1 child issues
-    Then explain "Epics represent milestones composed of multiple child issues."
-    Then warn "Create at least one child story or task before marking an epic ready."
-    Then suggest "If this is one deliverable, model it as a story or task instead of an epic."`}
+  Rule: Entry transitions require decomposition
+    Scenario: Epic entering ready must have children
+      Given the issue type is "epic"
+      When transitioning to "ready"
+      Then the issue must have at least 1 child issues
+
+  Rule: Epic decomposition coaching
+    Scenario: Epic creation reminder
+      Given the issue type is "epic"
+      When creating an issue
+      Then warn "Create at least one child story or task before moving an epic to ready."
+      Then explain "Epics represent milestones composed of multiple child issues."
+      Then suggest "If this is one deliverable, model it as a story or task instead of an epic."`}
               </CodeBlock>
             </CardContent>
           </Card>
@@ -87,13 +93,14 @@ const PolicyAsCodePage = () => {
               <CodeBlock>
 {`Feature: List guidance
 
-  Scenario: Status hygiene reminder
-    When listing issues
-    Then suggest "Remember to reflect your current status in issue states as you work."
+  Rule: Planning loop reminders
+    Scenario: Status hygiene reminder
+      When listing issues
+      Then suggest "Remember to reflect your current status in issue states as you work."
 
-  Scenario: Ready queue reminder
-    When listing ready issues
-    Then warn "Ready means unblocked and actionable now."`}
+    Scenario: Ready queue reminder
+      When listing ready issues
+      Then warn "Ready means unblocked and actionable now."`}
               </CodeBlock>
             </CardContent>
           </Card>

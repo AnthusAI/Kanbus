@@ -256,16 +256,10 @@ pub fn pull_from_snyk(
                 }
             }
 
-            let short_key = &kanbus_id[..kanbus_id
-                .len()
-                .min(kanbus_id.find('-').map_or(6, |i| i + 7))];
             let severity = vuln["attributes"]["effective_severity_level"]
                 .as_str()
                 .unwrap_or("?");
-            println!(
-                "{action}  [{severity:<8}]  {short_key:<14}  \"{}\"",
-                issue.title
-            );
+            println!("{action}  [{severity:<8}]  \"{}\"", issue.title);
 
             if !dry_run {
                 write_issue_to_file(&issue, &issue_path)?;
@@ -330,7 +324,7 @@ fn resolve_parent_epic(
         custom: BTreeMap::new(),
     };
 
-    println!("created  [epic    ]  {epic_id:<14}  \"Snyk Vulnerabilities\"");
+    println!("created  [epic    ]  \"Snyk Vulnerabilities\"");
 
     if !dry_run {
         let epic_path = issue_path_for_identifier(issues_dir, &epic_id);
@@ -435,7 +429,7 @@ fn resolve_snyk_initiative(
         custom: BTreeMap::new(),
     };
 
-    println!("created  [initiative]  {initiative_id:<14}  \"{SNYK_INITIATIVE_TITLE}\"");
+    println!("created  [initiative]  \"{SNYK_INITIATIVE_TITLE}\"");
 
     if !dry_run {
         let path = issue_path_for_identifier(issues_dir, &initiative_id);
@@ -506,7 +500,7 @@ fn resolve_snyk_epic(
         custom,
     };
 
-    println!("created  [epic    ]  {epic_id:<14}  \"{title}\"");
+    println!("created  [epic    ]  \"{title}\"");
 
     if !ctx.dry_run {
         let epic_path = issue_path_for_identifier(ctx.issues_dir, &epic_id);
@@ -680,8 +674,7 @@ fn resolve_file_task(
         custom,
     };
 
-    let short_key = &task_id[..task_id.len().min(task_id.find('-').map_or(6, |i| i + 7))];
-    println!("created  [task    ]  {short_key:<14}  \"{target_file}\"");
+    println!("created  [task    ]  \"{target_file}\"");
 
     if !ctx.dry_run {
         let task_path = issue_path_for_identifier(issues_dir, &task_id);

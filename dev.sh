@@ -53,9 +53,47 @@ VITE_HOST="${VITE_HOST:-$CONSOLE_HOST}"
 
 CONSOLE_PROJECT_ROOT="${CONSOLE_PROJECT_ROOT:-$REPO_ROOT/project}"
 KANBUS_PYTHONPATH="${KANBUS_PYTHONPATH:-$REPO_ROOT/python/src}"
-KANBUS_PYTHON="${KANBUS_PYTHON:-python}"
+KANBUS_PYTHON="${KANBUS_PYTHON:-conda}"
+KANBUS_PYTHON_ARGS="${KANBUS_PYTHON_ARGS:-run -n py311 python}"
 
-export VITE_PORT CONSOLE_PORT VITE_HOST CONSOLE_HOST CONSOLE_PROJECT_ROOT KANBUS_PYTHONPATH KANBUS_PYTHON
+export VITE_PORT CONSOLE_PORT VITE_HOST CONSOLE_HOST CONSOLE_PROJECT_ROOT KANBUS_PYTHONPATH KANBUS_PYTHON KANBUS_PYTHON_ARGS
+
+port_owner() {
+  _port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$_port" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1 " (pid " $2 ")"}'
+    return
+  fi
+  echo ""
+}
+
+find_free_port() {
+  _start_port="$1"
+  _label="$2"
+  _port="$_start_port"
+  while [ "$_port" -le 65535 ]; do
+    _owner="$(port_owner "$_port")"
+    if [ -z "$_owner" ]; then
+      if [ "$_port" != "$_start_port" ]; then
+        echo "NOTICE: ${_label} port ${_start_port} is in use; using ${_port} instead." >&2
+      fi
+      echo "$_port"
+      return 0
+    fi
+    _port=$((_port + 1))
+  done
+
+  echo "ERROR: Could not find a free ${_label} port starting at ${_start_port}" >&2
+  return 1
+}
+
+# Auto-select free ports up front so we don't boot partially and confuse API routing.
+VITE_PORT="$(find_free_port "$VITE_PORT" "Vite")" || exit 1
+if [ "$CONSOLE_PORT" = "$VITE_PORT" ]; then
+  CONSOLE_PORT=$((CONSOLE_PORT + 1))
+fi
+CONSOLE_PORT="$(find_free_port "$CONSOLE_PORT" "Console API")" || exit 1
+export VITE_PORT CONSOLE_PORT
 
 echo "═══════════════════════════════════════════════════════════════"
 echo "Kanbus Development Server (Watch Mode)"
