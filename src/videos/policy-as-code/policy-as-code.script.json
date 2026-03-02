@@ -248,13 +248,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 10.352292,
+          "endSec": 12.175,
           "text": "Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 10.352292,
+              "endSec": 12.175,
               "text": "Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically."
             }
           ],
@@ -263,20 +263,20 @@
         {
           "id": "example_explanation",
           "label": "Example Explanation",
-          "startSec": 10.352292,
-          "endSec": 18.852292,
+          "startSec": 12.175,
+          "endSec": 22.137500000000003,
           "text": "Use familiar BDD syntax to describe your project rules. No programming required, just clear, readable scenarios that express exactly what should happen.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 10.352292,
-              "endSec": 10.852292,
+              "startSec": 12.175,
+              "endSec": 12.675,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 10.852292,
-              "endSec": 18.852292,
+              "startSec": 12.675,
+              "endSec": 22.137500000000003,
               "text": "Use familiar BDD syntax to describe your project rules. No programming required, just clear, readable scenarios that express exactly what should happen."
             }
           ],
@@ -285,20 +285,20 @@
         {
           "id": "enforcement_explanation",
           "label": "Enforcement Explanation",
-          "startSec": 18.852292,
-          "endSec": 29.534124999999996,
+          "startSec": 22.137500000000003,
+          "endSec": 33.612500000000004,
           "text": "Policies run automatically on every issue create and update. When a policy fails, the operation is rejected with a clear error message showing exactly which rule was violated.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 18.852292,
-              "endSec": 19.352292,
+              "startSec": 22.137500000000003,
+              "endSec": 22.637500000000003,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 19.352292,
-              "endSec": 29.534124999999996,
+              "startSec": 22.637500000000003,
+              "endSec": 33.612500000000004,
               "text": "Policies run automatically on every issue create and update. When a policy fails, the operation is rejected with a clear error message showing exactly which rule was violated."
             }
           ],
@@ -307,20 +307,20 @@
         {
           "id": "benefits_explanation",
           "label": "Benefits Explanation",
-          "startSec": 29.534124999999996,
-          "endSec": 39.12504199999999,
+          "startSec": 33.612500000000004,
+          "endSec": 44.050000000000004,
           "text": "Policies work the same whether a human or an AI agent is managing issues. Define your standards once, and they're enforced consistently across all interactions.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 29.534124999999996,
-              "endSec": 30.034124999999996,
+              "startSec": 33.612500000000004,
+              "endSec": 34.112500000000004,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 30.034124999999996,
-              "endSec": 39.12504199999999,
+              "startSec": 34.112500000000004,
+              "endSec": 44.050000000000004,
               "text": "Policies work the same whether a human or an AI agent is managing issues. Define your standards once, and they're enforced consistently across all interactions."
             }
           ],

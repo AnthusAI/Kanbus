@@ -1,12 +1,13 @@
 export function formatIssueId(value: string): string {
-  const dashIndex = value.indexOf("-");
+  const normalized = value.trim().replace(/\.$/, "");
+  const dashIndex = normalized.indexOf("-");
   if (dashIndex <= 0) {
-    return value;
+    return normalized;
   }
-  const prefix = value.slice(0, dashIndex);
-  const remainder = value.slice(dashIndex + 1);
+  const prefix = normalized.slice(0, dashIndex).toUpperCase();
+  const remainder = normalized.slice(dashIndex + 1);
   if (!remainder) {
-    return value;
+    return normalized;
   }
   return `${prefix}-${remainder.slice(0, 6)}`;
 }

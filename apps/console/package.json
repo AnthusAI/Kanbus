@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite --strictPort",
-    "dev:server": "CONSOLE_PROJECT_ROOT=${CONSOLE_PROJECT_ROOT:-../../project} KANBUS_PYTHONPATH=${KANBUS_PYTHONPATH:-../../python/src} KANBUS_PYTHON=${KANBUS_PYTHON:-python3} tsx watch server/index.ts",
+    "dev:server": "CONSOLE_PROJECT_ROOT=${CONSOLE_PROJECT_ROOT:-../../project} KANBUS_PYTHONPATH=${KANBUS_PYTHONPATH:-../../python/src} KANBUS_PYTHON=${KANBUS_PYTHON:-conda} KANBUS_PYTHON_ARGS=${KANBUS_PYTHON_ARGS:-run -n py311 python} tsx watch server/index.ts",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",

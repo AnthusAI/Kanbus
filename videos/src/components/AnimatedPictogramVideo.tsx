@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useCurrentFrame, useVideoConfig, interpolate } from "../remotion-shim";
 
-export type PictogramType = "git" | "cli" | "jira" | "local" | "beads" | "virtual" | "vscode" | "policy";
+export type PictogramType = "git" | "cli" | "jira" | "local" | "beads" | "virtual" | "vscode" | "wiki" | "policy";
 
 export function AnimatedPictogramVideo({ type = "git", style }: { type?: PictogramType, style?: React.CSSProperties }) {
   const frame = useCurrentFrame();
@@ -324,6 +324,38 @@ export function AnimatedPictogramVideo({ type = "git", style }: { type?: Pictogr
     );
   };
 
+  const renderWiki = () => {
+    const cycle = (frame % (fps * 3)) / (fps * 3);
+    const cardY = interpolate(cycle, [0, 0.5, 1], [205, 165, 150]);
+
+    return (
+      <g>
+        <Board y="150" />
+
+        {/* Wiki document node */}
+        <g transform="translate(120, 225) scale(1, 0.5) rotate(45) translate(-45, -58)">
+          <path d="M 0 0 L 66 0 L 82 16 L 82 116 L 0 116 Z" fill="var(--background)" stroke="var(--border)" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M 66 0 L 66 16 L 82 16" fill="none" stroke="var(--border)" strokeWidth="2" strokeLinejoin="round" />
+          <line x1="12" y1="24" x2="58" y2="24" stroke="var(--text-selected)" strokeWidth="2" strokeLinecap="round" />
+          <line x1="12" y1="40" x2="68" y2="40" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+          <line x1="12" y1="56" x2="68" y2="56" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+          <line x1="12" y1="72" x2="54" y2="72" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+          <line x1="12" y1="88" x2="62" y2="88" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" />
+        </g>
+
+        {/* Sync path from wiki to board */}
+        <path d="M 120 225 L 250 150" fill="none" stroke="var(--text-selected)" strokeWidth="2" strokeDasharray="5 5">
+          <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1s" repeatCount="indefinite" />
+        </path>
+
+        {/* Highlight card materializing on board */}
+        <g transform="translate(250, 150) scale(1, 0.5) rotate(45) translate(-100, -75)">
+          <rect x="15" y={cardY} width="44" height="20" fill="var(--text-selected)" rx="2" />
+        </g>
+      </g>
+    );
+  };
+
   const contentMap: Record<PictogramType, { title: string, render: () => React.ReactNode }> = {
     git: { title: "Git Synchronization", render: renderGit },
     cli: { title: "Core Management", render: renderCli },
@@ -332,6 +364,7 @@ export function AnimatedPictogramVideo({ type = "git", style }: { type?: Pictogr
     beads: { title: "Beads Compatibility", render: renderBeads },
     virtual: { title: "Virtual Projects", render: renderVirtual },
     vscode: { title: "VS Code Integration", render: renderVsCode },
+    wiki: { title: "Integrated Wiki", render: renderWiki },
     policy: { title: "Policy as Code", render: renderPolicy },
   };
 

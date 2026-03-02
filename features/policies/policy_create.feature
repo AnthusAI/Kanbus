@@ -29,6 +29,7 @@ Feature: Policy evaluation on issue creation
       """
     When I run "kanbus create \"Test Issue\""
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "policy violation"
     And stderr should contain "description is empty"
 
@@ -45,6 +46,7 @@ Feature: Policy evaluation on issue creation
       """
     When I run "kanbus create \"Fix login\" --type bug"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "does not match pattern"
 
   Scenario: Policy passes for different type

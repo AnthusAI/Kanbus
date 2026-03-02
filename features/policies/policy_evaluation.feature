@@ -34,12 +34,12 @@ Feature: Policy evaluation
     And an issue "kanbus-test01" of type "task" with status "open"
     When I run "kanbus update kanbus-test01 --status in_progress"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "policy violation"
     And stderr should contain "require-assignee.policy"
     And stderr should contain "issue must have field"
     And issue "kanbus-test01" should have status "open"
 
-  @skip
   Scenario: Multiple policies are evaluated
     Given a Kanbus project with default configuration
     And a policy file "require-assignee.policy" with content:
@@ -62,6 +62,7 @@ Feature: Policy evaluation
     And an issue "kanbus-test01" of type "task" with status "open" and description ""
     When I run "kanbus update kanbus-test01 --status in_progress --assignee alice@example.com"
     Then the command should fail with exit code 1
+    And stderr should not contain "Traceback"
     And stderr should contain "policy violation"
     And stderr should contain "require-description.policy"
     And stderr should contain "description is empty"
