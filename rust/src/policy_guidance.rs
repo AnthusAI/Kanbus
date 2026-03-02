@@ -105,7 +105,7 @@ pub fn emit_guidance_for_issues(
                     collected.push(GuidanceItem {
                         severity: GuidanceSeverity::Warning,
                         message: format!(
-                            "Guidance policy error ({policy_file} / {scenario}): {message}"
+                            "Guidance policy error ({policy_file} / Rule: {scenario}): {message}"
                         ),
                         explanations: vec![
                             "Run \"kbs policy validate\" to fix this policy definition."

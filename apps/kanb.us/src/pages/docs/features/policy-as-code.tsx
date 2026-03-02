@@ -37,6 +37,7 @@ const PolicyAsCodeDocsPage = () => {
           <li><code>When listing ready issues</code></li>
           <li><code>When transitioning to "STATUS"</code></li>
           <li><code>When transitioning from "A" to "B"</code></li>
+          <li><code>Given the issue status is "STATUS"</code></li>
         </ul>
 
         <h3>Assertions</h3>
@@ -58,26 +59,33 @@ const PolicyAsCodeDocsPage = () => {
         <CodeBlock>
 {`Feature: Epic readiness guardrail
 
-  Scenario: Epic needs child issues before ready
-    Given the issue type is "epic"
-    When transitioning to "ready"
-    Then the issue must have at least 1 child issues
-    Then explain "Epics represent milestones composed of multiple child issues."
-    Then warn "Create at least one child story or task before marking an epic ready."
-    Then suggest "If this is one deliverable, model it as a story or task instead of an epic."`}
+  Rule: Entry transitions require decomposition
+    Scenario: Epic entering ready must have children
+      Given the issue type is "epic"
+      When transitioning to "ready"
+      Then the issue must have at least 1 child issues
+
+  Rule: Epic decomposition coaching
+    Scenario: Epic creation reminder
+      Given the issue type is "epic"
+      When creating an issue
+      Then warn "Create at least one child story or task before moving an epic to ready."
+      Then explain "Epics represent milestones composed of multiple child issues."
+      Then suggest "If this is one deliverable, model it as a story or task instead of an epic."`}
         </CodeBlock>
 
         <h2>Example: List-Level Guidance</h2>
         <CodeBlock>
 {`Feature: Planning loop reminders
 
-  Scenario: Keep statuses current
-    When listing issues
-    Then suggest "Remember to reflect your current status in issue states as you work."
+  Rule: List and ready reminders
+    Scenario: Keep statuses current
+      When listing issues
+      Then suggest "Remember to reflect your current status in issue states as you work."
 
-  Scenario: Ready queue semantics
-    When listing ready issues
-    Then warn "Ready means unblocked and actionable now."`}
+    Scenario: Ready queue semantics
+      When listing ready issues
+      Then warn "Ready means unblocked and actionable now."`}
         </CodeBlock>
 
         <h2>Output Behavior</h2>
@@ -121,7 +129,7 @@ KANBUS_NO_GUIDANCE=1 kbs show <issue-id>`}
         <ul>
           <li>Unknown steps fail validation.</li>
           <li>Orphan <code>explain</code> steps fail validation and evaluation.</li>
-          <li>Policy parsing/validation errors are reported with file + scenario context.</li>
+          <li>Policy parsing/validation errors are reported with file + rule context.</li>
         </ul>
       </div>
     </DocsLayout>

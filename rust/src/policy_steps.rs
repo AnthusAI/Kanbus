@@ -136,6 +136,13 @@ fn build_step_definitions() -> Vec<StepDefinition> {
             given_issue_priority_is,
         ),
         StepDefinition::new(
+            "Filter by issue status",
+            StepCategory::Given,
+            "the issue status is \"STATUS\"",
+            r#"^the issue status is "([^"]+)"$"#,
+            given_issue_status_is,
+        ),
+        StepDefinition::new(
             "Filter by custom field presence",
             StepCategory::Given,
             "the custom field \"FIELD\" is set",
@@ -360,6 +367,15 @@ fn given_issue_has_parent(context: &PolicyContext, _captures: &regex::Captures) 
 fn given_issue_priority_is(context: &PolicyContext, captures: &regex::Captures) -> StepResult {
     let priority: i32 = captures[1].parse().map_err(|_| "invalid priority")?;
     if context.issue().priority == priority {
+        Ok(StepOutcome::Pass)
+    } else {
+        Ok(StepOutcome::Skip)
+    }
+}
+
+fn given_issue_status_is(context: &PolicyContext, captures: &regex::Captures) -> StepResult {
+    let expected_status = &captures[1];
+    if context.issue().status == expected_status {
         Ok(StepOutcome::Pass)
     } else {
         Ok(StepOutcome::Skip)

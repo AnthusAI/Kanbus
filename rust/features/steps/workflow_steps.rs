@@ -374,6 +374,13 @@ fn then_issue_assignee_matches(world: &mut KanbusWorld, identifier: String, assi
     assert_eq!(issue["assignee"], assignee);
 }
 
+#[then(expr = "issue {string} should have type {string}")]
+fn then_issue_type_matches(world: &mut KanbusWorld, identifier: String, issue_type: String) {
+    let project_dir = load_project_dir(world);
+    let issue = read_issue_json(&project_dir, &identifier);
+    assert_eq!(issue["type"], issue_type);
+}
+
 #[then(expr = "issue {string} should have a closed_at timestamp")]
 fn then_issue_has_closed_at(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
@@ -388,8 +395,12 @@ fn then_issue_no_closed_at(world: &mut KanbusWorld, identifier: String) {
     assert!(issue["closed_at"].is_null());
 }
 
-#[given(expr = "epic workflow allows transition from \"open\" to \"ready\"")]
-fn given_epic_workflow_allows_ready(world: &mut KanbusWorld) {
+#[given(expr = "epic workflow allows transition from {string} to {string}")]
+fn given_epic_workflow_allows_transition(
+    world: &mut KanbusWorld,
+    from_status: String,
+    to_status: String,
+) {
     let cwd = world.working_directory.as_ref().expect("cwd");
     let config_path = cwd.join(".kanbus.yml");
     let contents = fs::read_to_string(&config_path).expect("read config");
@@ -400,26 +411,32 @@ fn given_epic_workflow_allows_ready(world: &mut KanbusWorld) {
         .workflows
         .entry("epic".to_string())
         .or_default();
-    let open_targets = epic_workflow.entry("open".to_string()).or_default();
-    if !open_targets.iter().any(|status| status == "ready") {
-        open_targets.push("ready".to_string());
+    let from_targets = epic_workflow.entry(from_status.clone()).or_default();
+    if !from_targets.iter().any(|status| status == &to_status) {
+        from_targets.push(to_status.clone());
     }
-    epic_workflow.entry("ready".to_string()).or_insert_with(|| {
-        vec![
-            "in_progress".to_string(),
-            "open".to_string(),
-            "closed".to_string(),
-        ]
-    });
 
     if !configuration
         .statuses
         .iter()
-        .any(|status| status.key == "ready")
+        .any(|status| status.key == to_status)
     {
+        let display_name = to_status.replace('_', " ");
         configuration.statuses.push(StatusDefinition {
-            key: "ready".to_string(),
-            name: "Ready".to_string(),
+            key: to_status.clone(),
+            name: display_name
+                .split_whitespace()
+                .map(|word| {
+                    let mut chars = word.chars();
+                    match chars.next() {
+                        Some(first) => {
+                            format!("{}{}", first.to_uppercase(), chars.as_str().to_lowercase())
+                        }
+                        None => String::new(),
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
             category: "To do".to_string(),
             color: None,
             collapsed: false,
@@ -431,17 +448,10 @@ fn given_epic_workflow_allows_ready(world: &mut KanbusWorld) {
         .entry("epic".to_string())
         .or_default();
     epic_labels
-        .entry("open".to_string())
+        .entry(from_status)
         .or_default()
-        .entry("ready".to_string())
-        .or_insert_with(|| "Mark ready".to_string());
-    epic_labels.entry("ready".to_string()).or_insert_with(|| {
-        BTreeMap::from([
-            ("in_progress".to_string(), "Start".to_string()),
-            ("open".to_string(), "Re-open".to_string()),
-            ("closed".to_string(), "Complete".to_string()),
-        ])
-    });
+        .entry(to_status.clone())
+        .or_insert_with(|| format!("Move to {}", to_status.replace('_', " ")));
 
     let serialized = serde_yaml::to_string(&configuration).expect("serialize config");
     fs::write(config_path, serialized).expect("write config");
