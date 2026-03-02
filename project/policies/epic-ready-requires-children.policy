@@ -3,7 +3,7 @@ Feature: Epic entry guardrails
   Rule: Entry transitions require decomposition
     Scenario: Epic entering ready must have children
       Given the issue type is "epic"
-      When transitioning to "ready"
+      When transitioning to "open"
       Then the issue must have at least 1 child issue
 
     Scenario: Epic entering in_progress must have children
@@ -14,7 +14,7 @@ Feature: Epic entry guardrails
   Rule: Active-state bypass prevention
     Scenario: Epic in ready must have children
       Given the issue type is "epic"
-      Given the issue status is "ready"
+      Given the issue status is "open"
       When updating an issue
       Then the issue must have at least 1 child issue
 

@@ -1046,6 +1046,103 @@ fn execute_command(
                         "parent update not supported in beads mode".to_string(),
                     ));
                 }
+                let before_issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
+                let mut proposed_issue = before_issue.clone();
+                if let Some(new_status) = status.as_deref() {
+                    proposed_issue.status = new_status.to_string();
+                }
+                if let Some(new_priority) = priority {
+                    proposed_issue.priority = i32::from(new_priority);
+                }
+                if let Some(new_title) = title_value {
+                    proposed_issue.title = new_title.to_string();
+                }
+                if let Some(new_description) = final_description_value {
+                    proposed_issue.description = new_description.to_string();
+                }
+                if let Some(new_assignee) = assignee_value.as_deref() {
+                    proposed_issue.assignee = Some(new_assignee.to_string());
+                }
+                if set_labels.is_some() || !add_labels.is_empty() || !remove_labels.is_empty() {
+                    let mut labels = if let Some(value) = set_labels.as_deref() {
+                        value
+                            .split(',')
+                            .map(|label| label.trim().to_string())
+                            .filter(|label| !label.is_empty())
+                            .collect::<Vec<_>>()
+                    } else {
+                        proposed_issue.labels.clone()
+                    };
+                    for label in &add_labels {
+                        let trimmed = label.trim();
+                        if !trimmed.is_empty()
+                            && !labels
+                                .iter()
+                                .any(|existing| existing.eq_ignore_ascii_case(trimmed))
+                        {
+                            labels.push(trimmed.to_string());
+                        }
+                    }
+                    if !remove_labels.is_empty() {
+                        labels.retain(|label| {
+                            !remove_labels
+                                .iter()
+                                .any(|to_remove| label.eq_ignore_ascii_case(to_remove.trim()))
+                        });
+                    }
+                    proposed_issue.labels = labels;
+                }
+                if !no_validate {
+                    let project_dir = crate::project::load_project_directory(&root_for_beads)?;
+                    let config_path = get_configuration_path(&project_dir)?;
+                    let configuration = load_project_configuration(&config_path)?;
+                    if proposed_issue.status != before_issue.status {
+                        crate::workflows::validate_status_value(
+                            &configuration,
+                            &proposed_issue.issue_type,
+                            &proposed_issue.status,
+                        )?;
+                        crate::workflows::validate_status_transition(
+                            &configuration,
+                            &proposed_issue.issue_type,
+                            &before_issue.status,
+                            &proposed_issue.status,
+                        )?;
+                    }
+                    let policies_dir = project_dir.join("policies");
+                    if policies_dir.is_dir() {
+                        let policy_documents = crate::policy_loader::load_policies(&policies_dir)?;
+                        if !policy_documents.is_empty() {
+                            let mut all_issues = load_beads_issues(&root_for_beads)?;
+                            if let Some(existing_issue) = all_issues
+                                .iter_mut()
+                                .find(|issue| issue.identifier == proposed_issue.identifier)
+                            {
+                                *existing_issue = proposed_issue.clone();
+                            }
+                            let transition = if proposed_issue.status != before_issue.status {
+                                Some(crate::policy_context::StatusTransition {
+                                    from: before_issue.status.clone(),
+                                    to: proposed_issue.status.clone(),
+                                })
+                            } else {
+                                None
+                            };
+                            let policy_context = crate::policy_context::PolicyContext {
+                                current_issue: Some(before_issue.clone()),
+                                proposed_issue: proposed_issue.clone(),
+                                transition,
+                                operation: crate::policy_context::PolicyOperation::Update,
+                                project_configuration: configuration,
+                                all_issues,
+                            };
+                            crate::policy_evaluator::evaluate_policies(
+                                &policy_context,
+                                &policy_documents,
+                            )?;
+                        }
+                    }
+                }
                 update_beads_issue(
                     &root_for_beads,
                     &identifier,

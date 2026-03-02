@@ -41,7 +41,12 @@ from kanbus.issue_listing import IssueListingError, list_issues
 from kanbus.queries import QueryError
 from kanbus.daemon_client import DaemonClientError, request_shutdown, request_status
 from kanbus.users import get_current_user
-from kanbus.migration import MigrationError, load_beads_issue, migrate_from_beads
+from kanbus.migration import (
+    MigrationError,
+    load_beads_issue,
+    load_beads_issues,
+    migrate_from_beads,
+)
 from kanbus.doctor import DoctorError, run_doctor
 from kanbus.maintenance import (
     ProjectStatsError,
@@ -486,9 +491,86 @@ def update(
     if set_labels:
         parsed_set_labels = [label.strip() for label in set_labels.split(",")]
 
+    final_assignee = assignee or (get_current_user() if claim else None)
+
     if beads_mode:
         if parent is not None:
             raise click.ClickException("parent update not supported in beads mode")
+        before_issue = load_beads_issue(root, identifier)
+        proposed_issue = before_issue.model_copy(deep=True)
+        if status is not None:
+            proposed_issue.status = status
+        if title:
+            proposed_issue.title = title.strip()
+        if description:
+            proposed_issue.description = description.strip()
+        if priority is not None:
+            proposed_issue.priority = priority
+        if final_assignee is not None:
+            proposed_issue.assignee = final_assignee
+        if parsed_set_labels is not None:
+            proposed_issue.labels = list(parsed_set_labels)
+        if add_labels:
+            for label in add_labels:
+                if label not in proposed_issue.labels:
+                    proposed_issue.labels.append(label)
+        if remove_labels:
+            proposed_issue.labels = [
+                label for label in proposed_issue.labels if label not in remove_labels
+            ]
+
+        if not no_validate:
+            from kanbus.policy_context import PolicyContext, PolicyOperation, StatusTransition
+            from kanbus.policy_evaluator import evaluate_policies
+            from kanbus.policy_loader import load_policies
+            from kanbus.project import load_project_directory
+            from kanbus.workflows import (
+                validate_status_transition,
+                validate_status_value,
+            )
+
+            project_dir = load_project_directory(root)
+            configuration = load_project_configuration(
+                get_configuration_path(project_dir)
+            )
+
+            if proposed_issue.status != before_issue.status:
+                validate_status_value(
+                    configuration, proposed_issue.issue_type, proposed_issue.status
+                )
+                validate_status_transition(
+                    configuration,
+                    proposed_issue.issue_type,
+                    before_issue.status,
+                    proposed_issue.status,
+                )
+
+            policies_dir = project_dir / "policies"
+            if policies_dir.is_dir():
+                policy_documents = load_policies(policies_dir)
+                if policy_documents:
+                    all_issues = load_beads_issues(root)
+                    for index, existing_issue in enumerate(all_issues):
+                        if existing_issue.identifier == proposed_issue.identifier:
+                            all_issues[index] = proposed_issue
+                            break
+                    context = PolicyContext(
+                        current_issue=before_issue,
+                        proposed_issue=proposed_issue,
+                        transition=(
+                            StatusTransition(
+                                from_status=before_issue.status,
+                                to_status=proposed_issue.status,
+                            )
+                            if proposed_issue.status != before_issue.status
+                            else None
+                        ),
+                        operation=PolicyOperation.UPDATE,
+                        project_configuration=configuration,
+                        all_issues=all_issues,
+                    )
+                    evaluate_policies(context, policy_documents)
+
         try:
             update_beads_issue(
                 root,
@@ -497,7 +579,7 @@ def update(
                 title=title.strip() if title else None,
                 description=description.strip() if description else None,
                 priority=priority,
-                assignee=assignee,
+                assignee=final_assignee,
                 add_labels=list(add_labels) if add_labels else None,
                 remove_labels=list(remove_labels) if remove_labels else None,
                 set_labels=parsed_set_labels,
@@ -517,7 +599,6 @@ def update(
 
     # Regular Kanbus mode
     try:
-        final_assignee = assignee or (get_current_user() if claim else None)
         updated_issue = update_issue(
             root=root,
             identifier=identifier,
