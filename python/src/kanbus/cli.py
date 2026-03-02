@@ -533,12 +533,19 @@ def update(
                 validate_status_value,
             )
 
-            project_dir = load_project_directory(root)
-            configuration = load_project_configuration(
-                get_configuration_path(project_dir)
-            )
+            project_dir: Path | None = None
+            configuration = None
+            try:
+                project_dir = load_project_directory(root)
+                configuration = load_project_configuration(
+                    get_configuration_path(project_dir)
+                )
+            except (ProjectMarkerError, ConfigurationError):
+                # Beads mode can operate without an initialized Kanbus project.
+                project_dir = None
+                configuration = None
 
-            if proposed_issue.status != before_issue.status:
+            if configuration and proposed_issue.status != before_issue.status:
                 validate_status_value(
                     configuration, proposed_issue.issue_type, proposed_issue.status
                 )
@@ -549,8 +556,8 @@ def update(
                     proposed_issue.status,
                 )
 
-            policies_dir = project_dir / "policies"
-            if policies_dir.is_dir():
+            policies_dir = project_dir / "policies" if project_dir else None
+            if policies_dir and policies_dir.is_dir() and configuration:
                 policy_documents = load_policies(policies_dir)
                 if policy_documents:
                     all_issues = load_beads_issues(root)
