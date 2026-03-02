@@ -1,7 +1,7 @@
 Feature: Epic entry guardrails
 
   Rule: Entry transitions require decomposition
-    Scenario: Epic entering ready must have children
+    Scenario: Epic entering open must have children
       Given the issue type is "epic"
       When transitioning to "open"
       Then the issue must have at least 1 child issue
@@ -12,7 +12,7 @@ Feature: Epic entry guardrails
       Then the issue must have at least 1 child issue
 
   Rule: Active-state bypass prevention
-    Scenario: Epic in ready must have children
+    Scenario: Epic in open must have children
       Given the issue type is "epic"
       Given the issue status is "open"
       When updating an issue
@@ -28,6 +28,6 @@ Feature: Epic entry guardrails
     Scenario: Epic creation reminder
       Given the issue type is "epic"
       When creating an issue
-      Then warn "Create at least one child story or task before moving an epic to ready."
+      Then warn "Create at least one child story or task before moving an epic to open."
       Then explain "Epics represent milestones composed of multiple child issues."
       Then suggest "If this is a single deliverable, represent it as a story or task instead of an epic."
