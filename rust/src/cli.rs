@@ -262,6 +262,9 @@ enum Commands {
         /// Plain, non-colorized output for machine parsing.
         #[arg(long)]
         porcelain: bool,
+        /// Show full issue keys even in single-project context.
+        #[arg(long = "full-ids")]
+        full_ids: bool,
     },
     /// Validate project integrity.
     Validate,
@@ -1435,6 +1438,7 @@ fn execute_command(
             no_local,
             local_only,
             porcelain,
+            full_ids,
         } => {
             let issues = if beads_mode {
                 if local_only || no_local {
@@ -1490,7 +1494,7 @@ fn execute_command(
                     Err(error) => return Err(error),
                 }
             };
-            let project_context = if beads_mode {
+            let project_context = if beads_mode || full_ids {
                 false
             } else {
                 !issues
