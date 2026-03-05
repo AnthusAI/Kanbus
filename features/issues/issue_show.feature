@@ -16,6 +16,7 @@ Feature: Issue display
     When I run "kanbus show aaa"
     Then the command should succeed
     And stdout should contain "Implement OAuth2 flow"
+    And stdout should contain "ID: kanbus-aaa"
 
   Scenario: Show issue as JSON
     Given a Kanbus project with default configuration

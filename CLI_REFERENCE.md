@@ -113,6 +113,7 @@ Filters:
 - `--parent <id>` Filter by parent issue
 - `--sort <field>` Sort by field (prefix `-` for descending)
 - `--limit <n>` Limit number of results
+- `--full-ids` Show full issue keys even in single-project context
 
 Example:
 

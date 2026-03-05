@@ -896,6 +896,13 @@ def comment(
     default=False,
     help="Plain, non-colorized output for machine parsing.",
 )
+@click.option(
+    "--full-ids",
+    "full_ids",
+    is_flag=True,
+    default=False,
+    help="Show full issue keys even in single-project context.",
+)
 @click.pass_context
 def list_command(
     context: click.Context,
@@ -910,6 +917,7 @@ def list_command(
     local_only: bool,
     limit: int,
     porcelain: bool,
+    full_ids: bool,
 ) -> None:
     """List issues in the current project.
 
@@ -965,7 +973,7 @@ def list_command(
     # In regular mode, use project_context if all issues are from same project
     project_context = (
         False
-        if beads_mode
+        if beads_mode or full_ids
         else not any(issue.custom.get("project_path") for issue in issues)
     )
     widths = (
