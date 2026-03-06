@@ -52,8 +52,13 @@ def given_workspace_with_duplicate_fragments(context: object) -> None:
     (beta_project / "issues").mkdir(parents=True, exist_ok=True)
     write_default_kanbus_config(alpha_repo, project_key="alpha")
     write_default_kanbus_config(beta_repo, project_key="beta")
-    write_issue_file(alpha_project, build_issue("alpha-aaaaaa", "Alpha task", "task", "open", None, []))
-    write_issue_file(beta_project, build_issue("beta-aaaaaa", "Beta task", "task", "open", None, []))
+    write_issue_file(
+        alpha_project,
+        build_issue("alpha-aaaaaa", "Alpha task", "task", "open", None, []),
+    )
+    write_issue_file(
+        beta_project, build_issue("beta-aaaaaa", "Beta task", "task", "open", None, [])
+    )
     context.working_directory = root
 
 
