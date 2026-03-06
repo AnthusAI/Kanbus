@@ -325,7 +325,7 @@ enum Commands {
         command: SnykCommands,
     },
     /// GitHub security synchronization commands.
-    #[command(name = "github-security", alias = "ghsec")]
+    #[command(name = "github", visible_alias = "gh")]
     GithubSecurity {
         #[command(subcommand)]
         command: GithubSecurityCommands,

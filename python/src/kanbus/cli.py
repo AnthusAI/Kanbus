@@ -1912,9 +1912,14 @@ def jira_pull(context: click.Context, dry_run: bool) -> None:
     click.echo(f"pulled {result.pulled} new, updated {result.updated} existing")
 
 
-@cli.group(name="github-security")
+@cli.group(name="github")
 def github_security() -> None:
     """GitHub security synchronization commands."""
+
+
+@cli.group(name="gh")
+def github_security_short() -> None:
+    """Alias for GitHub security synchronization commands."""
 
 
 @github_security.group()
@@ -1922,35 +1927,12 @@ def dependabot() -> None:
     """Dependabot synchronization commands."""
 
 
-@dependabot.command(name="pull")
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    default=False,
-    help="Show what would be done without writing files.",
-)
-@click.option(
-    "--repo",
-    default=None,
-    help="Override GitHub repository slug (owner/repo).",
-)
-@click.option(
-    "--min-severity",
-    default=None,
-    help="Override minimum severity (critical, high, medium, low).",
-)
-@click.option(
-    "--state",
-    default=None,
-    help="Override Dependabot alert state filter.",
-)
-@click.option(
-    "--parent-epic",
-    default=None,
-    help="Override parent epic issue ID to attach findings to.",
-)
-@click.pass_context
-def github_dependabot_pull(
+@github_security_short.group(name="dependabot")
+def dependabot_short() -> None:
+    """Dependabot synchronization commands."""
+
+
+def _run_github_dependabot_pull(
     context: click.Context,
     dry_run: bool,
     repo: Optional[str],
@@ -2030,6 +2012,100 @@ def github_dependabot_pull(
     click.echo(
         f"pulled {result.pulled} new, updated {result.updated} existing, "
         f"skipped {result.skipped} duplicates"
+    )
+
+
+@dependabot.command(name="pull")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without writing files.",
+)
+@click.option(
+    "--repo",
+    default=None,
+    help="Override GitHub repository slug (owner/repo).",
+)
+@click.option(
+    "--min-severity",
+    default=None,
+    help="Override minimum severity (critical, high, medium, low).",
+)
+@click.option(
+    "--state",
+    default=None,
+    help="Override Dependabot alert state filter.",
+)
+@click.option(
+    "--parent-epic",
+    default=None,
+    help="Override parent epic issue ID to attach findings to.",
+)
+@click.pass_context
+def github_dependabot_pull(
+    context: click.Context,
+    dry_run: bool,
+    repo: Optional[str],
+    min_severity: Optional[str],
+    state: Optional[str],
+    parent_epic: Optional[str],
+) -> None:
+    """Pull Dependabot alerts from GitHub into Kanbus."""
+    _run_github_dependabot_pull(
+        context,
+        dry_run=dry_run,
+        repo=repo,
+        min_severity=min_severity,
+        state=state,
+        parent_epic=parent_epic,
+    )
+
+
+@dependabot_short.command(name="pull")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without writing files.",
+)
+@click.option(
+    "--repo",
+    default=None,
+    help="Override GitHub repository slug (owner/repo).",
+)
+@click.option(
+    "--min-severity",
+    default=None,
+    help="Override minimum severity (critical, high, medium, low).",
+)
+@click.option(
+    "--state",
+    default=None,
+    help="Override Dependabot alert state filter.",
+)
+@click.option(
+    "--parent-epic",
+    default=None,
+    help="Override parent epic issue ID to attach findings to.",
+)
+@click.pass_context
+def github_dependabot_pull_short(
+    context: click.Context,
+    dry_run: bool,
+    repo: Optional[str],
+    min_severity: Optional[str],
+    state: Optional[str],
+    parent_epic: Optional[str],
+) -> None:
+    """Pull Dependabot alerts from GitHub into Kanbus."""
+    _run_github_dependabot_pull(
+        context,
+        dry_run=dry_run,
+        repo=repo,
+        min_severity=min_severity,
+        state=state,
+        parent_epic=parent_epic,
     )
 
 

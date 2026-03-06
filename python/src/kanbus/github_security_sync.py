@@ -12,7 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set
 
 import requests
 
@@ -822,12 +822,22 @@ def _build_beads_task_index(issues: List[IssueData]) -> Dict[str, str]:
 def _resolve_beads_initiative(
     root: Path, issues: List[IssueData], dry_run: bool
 ) -> str:
-    for issue in issues:
-        if (
+    existing = _latest_beads_match(
+        issues,
+        lambda issue: (
             issue.issue_type == "initiative"
             and issue.title == GITHUB_SECURITY_INITIATIVE_TITLE
-        ):
-            return issue.identifier
+            and "github" in issue.labels
+        ),
+    ) or _latest_beads_match(
+        issues,
+        lambda issue: (
+            issue.issue_type == "initiative"
+            and issue.title == GITHUB_SECURITY_INITIATIVE_TITLE
+        ),
+    )
+    if existing:
+        return existing
     print(f'created  [initiative]  "{GITHUB_SECURITY_INITIATIVE_TITLE}"')
     if dry_run:
         return "would-create-initiative"
@@ -856,18 +866,26 @@ def _resolve_beads_epic(
     root: Path,
     issues: List[IssueData],
     configured_id: Optional[str],
-    initiative_id: str,
+    _initiative_id: str,
     dry_run: bool,
 ) -> str:
     if configured_id and any(issue.identifier == configured_id for issue in issues):
         return configured_id
-    for issue in issues:
-        if (
+    existing = _latest_beads_match(
+        issues,
+        lambda issue: (
             issue.issue_type == "epic"
             and issue.title == GITHUB_DEPENDABOT_EPIC_TITLE
-            and issue.parent == initiative_id
-        ):
-            return issue.identifier
+            and "dependabot" in issue.labels
+        ),
+    ) or _latest_beads_match(
+        issues,
+        lambda issue: (
+            issue.issue_type == "epic" and issue.title == GITHUB_DEPENDABOT_EPIC_TITLE
+        ),
+    )
+    if existing:
+        return existing
     print(f'created  [epic    ]  "{GITHUB_DEPENDABOT_EPIC_TITLE}"')
     if dry_run:
         return "would-create-epic"
@@ -890,6 +908,16 @@ def _resolve_beads_epic(
         set_labels=["security", "github", "dependabot"],
     )
     return created.identifier
+
+
+def _latest_beads_match(
+    issues: List[IssueData], predicate: Callable[[IssueData], bool]
+) -> Optional[str]:
+    matches = [issue for issue in issues if predicate(issue)]
+    if not matches:
+        return None
+    matches.sort(key=lambda issue: issue.updated_at)
+    return matches[-1].identifier
 
 
 def _resolve_beads_task(
