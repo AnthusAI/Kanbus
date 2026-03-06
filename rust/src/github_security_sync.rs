@@ -225,7 +225,10 @@ pub fn pull_dependabot_from_github_beads(
 
     let mut grouped: BTreeMap<String, Vec<&Value>> = BTreeMap::new();
     for alert in &filtered_alerts {
-        grouped.entry(task_target_key(alert)).or_default().push(alert);
+        grouped
+            .entry(task_target_key(alert))
+            .or_default()
+            .push(alert);
     }
 
     let mut pulled = 0usize;
@@ -997,8 +1000,7 @@ fn build_beads_task_index(issues: &[IssueData]) -> BTreeMap<String, String> {
         if issue.issue_type != "task" {
             continue;
         }
-        if let Some(rest) = find_marker_value(&issue.description, "kanbus-gh-target:dependabot|")
-        {
+        if let Some(rest) = find_marker_value(&issue.description, "kanbus-gh-target:dependabot|") {
             let parts: Vec<&str> = rest.split('|').collect();
             if parts.len() == 2 {
                 index.insert(parts[1].to_string(), issue.identifier.clone());
@@ -1013,13 +1015,16 @@ fn resolve_beads_initiative(
     issues: &[IssueData],
     dry_run: bool,
 ) -> Result<String, KanbusError> {
-    if let Some(existing) = issues
-        .iter()
-        .find(|issue| {
+    if let Some(existing) = latest_beads_match(issues, |issue| {
+        issue.issue_type == "initiative"
+            && issue.title == GITHUB_SECURITY_INITIATIVE_TITLE
+            && issue.labels.iter().any(|label| label == "github")
+    })
+    .or_else(|| {
+        latest_beads_match(issues, |issue| {
             issue.issue_type == "initiative" && issue.title == GITHUB_SECURITY_INITIATIVE_TITLE
         })
-        .map(|issue| issue.identifier.clone())
-    {
+    }) {
         return Ok(existing);
     }
     println!("created  [initiative]  \"{GITHUB_SECURITY_INITIATIVE_TITLE}\"");
@@ -1064,15 +1069,16 @@ fn resolve_beads_epic(
             return Ok(id.to_string());
         }
     }
-    if let Some(existing) = issues
-        .iter()
-        .find(|issue| {
-            issue.issue_type == "epic"
-                && issue.title == GITHUB_DEPENDABOT_EPIC_TITLE
-                && issue.parent.as_deref() == Some(initiative_id)
+    if let Some(existing) = latest_beads_match(issues, |issue| {
+        issue.issue_type == "epic"
+            && issue.title == GITHUB_DEPENDABOT_EPIC_TITLE
+            && issue.labels.iter().any(|label| label == "dependabot")
+    })
+    .or_else(|| {
+        latest_beads_match(issues, |issue| {
+            issue.issue_type == "epic" && issue.title == GITHUB_DEPENDABOT_EPIC_TITLE
         })
-        .map(|issue| issue.identifier.clone())
-    {
+    }) {
         return Ok(existing);
     }
     println!("created  [epic    ]  \"{GITHUB_DEPENDABOT_EPIC_TITLE}\"");
@@ -1103,6 +1109,17 @@ fn resolve_beads_epic(
         Some("security,github,dependabot"),
     )?;
     Ok(created.identifier)
+}
+
+fn latest_beads_match(
+    issues: &[IssueData],
+    predicate: impl Fn(&IssueData) -> bool,
+) -> Option<String> {
+    issues
+        .iter()
+        .filter(|issue| predicate(issue))
+        .max_by_key(|issue| issue.updated_at)
+        .map(|issue| issue.identifier.clone())
 }
 
 fn resolve_beads_task(
