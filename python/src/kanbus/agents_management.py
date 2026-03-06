@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import click
-from jinja2 import Environment
+from jinja2 import DictLoader, Environment, select_autoescape
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.models import ProjectConfiguration
@@ -122,9 +122,18 @@ def build_project_management_text(root: Path) -> str:
     else:
         template_text = template_path.read_text(encoding="utf-8")
     context = _build_project_management_context(configuration)
-    environment = Environment(autoescape=False)
+    environment = Environment(
+        loader=DictLoader({"project_management_template.md": template_text}),
+        autoescape=select_autoescape(
+            enabled_extensions=("html", "htm", "xml"),
+            default_for_string=False,
+            default=False,
+        ),
+    )
     try:
-        return environment.from_string(template_text).render(context)
+        return environment.get_template("project_management_template.md").render(
+            context
+        )
     except Exception as error:
         raise click.ClickException(str(error)) from error
 
