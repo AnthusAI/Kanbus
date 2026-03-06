@@ -1,4 +1,4 @@
-const { execSync } = require("node:child_process");
+const { execFileSync } = require("node:child_process");
 const { existsSync, readdirSync, readFileSync, statSync } = require("node:fs");
 const path = require("node:path");
 
@@ -9,6 +9,20 @@ const targetsConfigPath = path.join(repoRoot, "config", "video-deploy.targets.js
 
 const AUDIO_VALIDATION_PREFIX = "AUDIO_VALIDATION_FAILED";
 const cacheControl = process.env.VIDEOS_CACHE_CONTROL || "public,max-age=300";
+const AWS_PROFILE_PATTERN = /^[A-Za-z0-9._-]+$/;
+const S3_BUCKET_PATTERN = /^(?!.*\.\.)(?!.*\.-)(?!.*-\.)[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+
+const ensureAwsProfile = (profile) => {
+  if (!AWS_PROFILE_PATTERN.test(profile)) {
+    throw new Error(`Invalid AWS profile '${profile}'. Allowed characters: letters, numbers, '.', '_' and '-'.`);
+  }
+};
+
+const ensureS3Bucket = (bucket) => {
+  if (!S3_BUCKET_PATTERN.test(bucket)) {
+    throw new Error(`Invalid S3 bucket '${bucket}'.`);
+  }
+};
 
 const loadAmplifyVideoOutputs = () => {
   if (!existsSync(amplifyOutputsPath)) return null;
@@ -123,8 +137,9 @@ const listAssets = (dir) => {
 };
 
 const probeAudioStreamCount = (assetPath) => {
-  const output = execSync(
-    `ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 \"${assetPath}\"`,
+  const output = execFileSync(
+    "ffprobe",
+    ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", assetPath],
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
   ).trim();
   if (!output) return 0;
@@ -135,8 +150,9 @@ const probeAudioStreamCount = (assetPath) => {
 };
 
 const probeDurationSec = (assetPath) => {
-  const output = execSync(
-    `ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 \"${assetPath}\"`,
+  const output = execFileSync(
+    "ffprobe",
+    ["-v", "error", "-show_entries", "format=duration", "-of", "default=nk=1:nw=1", assetPath],
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
   ).trim();
   const value = Number((output.split("\n")[0] || "0").trim());
@@ -180,8 +196,9 @@ const validateMp4Audio = (assetPath) => {
   if (streams > 0) {
     try {
       const probeFor = Math.max(0.25, Math.min(6, durationSec || 6));
-      const pcm = execSync(
-        `ffmpeg -v error -t ${probeFor} -i \"${assetPath}\" -ac 1 -ar 44100 -f s16le pipe:1`,
+      const pcm = execFileSync(
+        "ffmpeg",
+        ["-v", "error", "-t", String(probeFor), "-i", assetPath, "-ac", "1", "-ar", "44100", "-f", "s16le", "pipe:1"],
         { encoding: "buffer", maxBuffer: 50 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] }
       );
       if (!pcm || pcm.length < 2) {
@@ -220,14 +237,16 @@ const validateMp4Audio = (assetPath) => {
 
 const findLegacyBucket = (awsProfile) => {
   console.log("Searching for Amplify videos bucket...");
+  ensureAwsProfile(awsProfile);
   try {
-    const bucketsOutput = execSync(`aws s3 ls --profile ${awsProfile} | grep -i videosbucket`, {
+    const bucketsOutput = execFileSync("aws", ["s3", "ls", "--profile", awsProfile], {
       encoding: "utf8",
     });
     const buckets = bucketsOutput
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean)
+      .filter((line) => line.toLowerCase().includes("videosbucket"))
       .map((line) => line.split(/\s+/).pop())
       .filter(Boolean);
 
@@ -286,6 +305,7 @@ const main = () => {
   let awsProfile = parsedArgs.profileArg || process.env.AWS_PROFILE || targetConfig?.awsProfile || "anthus";
   let bucket = process.env.VIDEOS_BUCKET || targetConfig?.bucket || null;
   let prefix = process.env.VIDEOS_PREFIX || targetConfig?.primaryPrefix || "videos";
+  ensureAwsProfile(awsProfile);
 
   console.log("Kanbus Video Upload");
   console.log("===================");
@@ -299,7 +319,7 @@ const main = () => {
   console.log("");
 
   try {
-    execSync(`aws sts get-caller-identity --profile ${awsProfile}`, { stdio: "pipe" });
+    execFileSync("aws", ["sts", "get-caller-identity", "--profile", awsProfile], { stdio: "pipe" });
   } catch {
     console.error(`Error: Cannot authenticate with AWS profile '${awsProfile}'`);
     console.error("Check your AWS configuration and try again.");
@@ -337,8 +357,10 @@ const main = () => {
     process.exit(1);
   }
 
+  ensureS3Bucket(bucket);
+
   try {
-    execSync(`aws s3api head-bucket --bucket ${bucket} --profile ${awsProfile}`, { stdio: "pipe" });
+    execFileSync("aws", ["s3api", "head-bucket", "--bucket", bucket, "--profile", awsProfile], { stdio: "pipe" });
   } catch {
     console.error(`Error: Cannot access bucket '${bucket}' using profile '${awsProfile}'`);
     process.exit(1);
@@ -356,21 +378,27 @@ const main = () => {
   console.log(`Uploading to: ${destination}`);
   console.log("");
 
-  const cmd = [
-    "aws s3 sync",
-    `\"${outDir}\"`,
-    `\"${destination}\"`,
-    `--profile ${awsProfile}`,
-    '--exclude "*"',
-    '--include "*.mp4"',
-    '--include "*.jpg"',
-    `--cache-control \"${cacheControl}\"`,
-    dryRunArg,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const syncArgs = [
+    "s3",
+    "sync",
+    outDir,
+    destination,
+    "--profile",
+    awsProfile,
+    "--exclude",
+    "*",
+    "--include",
+    "*.mp4",
+    "--include",
+    "*.jpg",
+    "--cache-control",
+    cacheControl,
+  ];
+  if (dryRunArg) {
+    syncArgs.push(dryRunArg);
+  }
 
-  execSync(cmd, { stdio: "inherit" });
+  execFileSync("aws", syncArgs, { stdio: "inherit" });
 
   console.log("");
   console.log("Upload complete!");

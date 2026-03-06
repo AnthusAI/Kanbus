@@ -12,7 +12,13 @@ export type {
   KanbanConfig,
   KanbanStatusDefinition,
   KanbanCategoryDefinition,
-  KanbanPriorityDefinition
+  KanbanPriorityDefinition,
+  KanbanSortPreset,
+  KanbanSortField,
+  KanbanSortDirection,
+  KanbanSortFieldRule,
+  KanbanSortRule,
+  KanbanSortOrder
 } from "./types";
 export type { TaskDetailIssue, IssueEvent, IssueEventsResponse } from "./TaskDetailPanel";
 export type { KanbanMotionConfig, KanbanMotionMode } from "./motion";

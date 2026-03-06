@@ -46,6 +46,7 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
         {"name": "In progress", "color": "blue"},
         {"name": "Done", "color": "green"},
     ],
+    "sort_order": {},
     "statuses": [
         {"key": "backlog", "name": "Backlog", "category": "To do", "collapsed": True},
         {"key": "open", "name": "Discovery", "category": "To do", "collapsed": False},

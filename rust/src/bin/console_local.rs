@@ -36,8 +36,7 @@ use tokio_stream::wrappers::IntervalStream;
 use tower_http::cors::{Any, CorsLayer};
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
-use kanbus::console_ui_state::{load_state, save_state, ConsoleUiState};
-use kanbus::daemon_paths::get_console_state_path;
+use kanbus::console_ui_state::{load_state, save_state, state_path, ConsoleUiState};
 use kanbus::event_history::{load_issue_events, EventRecord};
 use kanbus::file_io::{detect_repairable_project_issues, repair_project_structure};
 use kanbus::notification_events::{NotificationEvent, UiControlAction};
@@ -61,8 +60,6 @@ struct AppState {
     notification_tx: broadcast::Sender<NotificationEvent>,
     /// Cache of the last URL route pushed to clients, for CLI query commands.
     ui_state: Arc<tokio::sync::RwLock<ConsoleUiState>>,
-    /// Path to the persisted console state JSON file.
-    state_file_path: PathBuf,
 }
 
 #[derive(Debug, Deserialize)]
@@ -145,13 +142,13 @@ async fn main() {
     let telemetry_log = open_telemetry_log(&repo_root);
 
     // Load persisted console UI state (or start with empty state)
-    let state_file_path = get_console_state_path(&data_root).unwrap_or_else(|_| {
+    let state_file_path = state_path(&data_root).unwrap_or_else(|_| {
         data_root
             .join(".kanbus")
             .join(".cache")
             .join("console_state.json")
     });
-    let initial_ui_state = load_state(&state_file_path).unwrap_or_default();
+    let initial_ui_state = load_state(&data_root).unwrap_or_default();
     eprintln!("Console UI state loaded from {}", state_file_path.display());
 
     let state = AppState {
@@ -163,7 +160,6 @@ async fn main() {
         telemetry_log,
         notification_tx,
         ui_state: Arc::new(tokio::sync::RwLock::new(initial_ui_state)),
-        state_file_path,
     };
     let _assets_root = state.assets_root.clone();
 
@@ -786,7 +782,7 @@ async fn update_ui_state_from_event(state: &AppState, event: &NotificationEvent)
     }
     if changed {
         let ui_state = state.ui_state.read().await;
-        if let Err(e) = save_state(&state.state_file_path, &ui_state) {
+        if let Err(e) = save_state(&state.base_root, &ui_state) {
             eprintln!("Warning: failed to persist console UI state: {}", e);
         }
     }

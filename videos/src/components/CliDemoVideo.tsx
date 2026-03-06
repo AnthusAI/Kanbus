@@ -1,22 +1,31 @@
 import * as React from "react";
 import { useCurrentFrame, useVideoConfig, interpolate } from "../remotion-shim";
 
-const COMMANDS = [
+type CommandStep = {
+  cmd: string;
+  output: string;
+};
+
+const COMMANDS: CommandStep[] = [
   {
     cmd: "kanbus create \"Implement auth flow\"",
-    output: "Created epic PROJ-1a2b3c: Implement auth flow"
+    output:
+      "Created epic PROJ-1a2b3c: Implement auth flow\nType: epic\nParent: none\nStatus: open"
   },
   {
     cmd: "kanbus create --parent PROJ-1a2b3c \"Add OAuth login\"",
-    output: "Created task PROJ-4d5e6f: Add OAuth login"
+    output:
+      "Created task PROJ-4d5e6f: Add OAuth login\nType: task\nParent: PROJ-1a2b3c\nStatus: open"
   },
   {
     cmd: "kanbus update PROJ-4d5e6f --status in_progress",
-    output: "Updated PROJ-4d5e6f: status = in_progress"
+    output:
+      "Updated PROJ-4d5e6f: status = in_progress\nIssue: PROJ-4d5e6f\nFrom: open\nTo: in_progress"
   },
   {
     cmd: "kanbus list --status in_progress",
-    output: "PROJ-4d5e6f: Add OAuth login [In Progress]"
+    output:
+      "PROJ-4d5e6f: Add OAuth login [In Progress]\nFilter: status = in_progress\nResult count: 1\nMatch: PROJ-4d5e6f"
   }
 ];
 
@@ -29,9 +38,10 @@ export function CliDemoVideo({ style }: { style?: React.CSSProperties }) {
   const transitionFrame = frame % intervalFrames;
 
   const typeDuration = fps * 1.5;
+  const activeCommand = COMMANDS[activeIndex];
   const charsToShow = Math.min(
-    COMMANDS[activeIndex].cmd.length,
-    Math.floor(interpolate(transitionFrame, [0, typeDuration], [0, COMMANDS[activeIndex].cmd.length], { extrapolateRight: "clamp" }))
+    activeCommand.cmd.length,
+    Math.floor(interpolate(transitionFrame, [0, typeDuration], [0, activeCommand.cmd.length], { extrapolateRight: "clamp" }))
   );
 
   const showOutput = transitionFrame > typeDuration + (fps * 0.2);
@@ -101,7 +111,14 @@ export function CliDemoVideo({ style }: { style?: React.CSSProperties }) {
                   <span style={{ color: "#f472b6" }}>❯</span>
                   <span style={{ color: "#ffffff" }}>{COMMANDS[activeIndex - 1].cmd}</span>
                 </div>
-                <div style={{ color: "#d4d4d4", marginTop: "4px", paddingLeft: "24px" }}>
+                <div
+                  style={{
+                    color: "#d4d4d4",
+                    marginTop: "4px",
+                    paddingLeft: "24px",
+                    whiteSpace: "pre-line",
+                  }}
+                >
                   {COMMANDS[activeIndex - 1].output}
                 </div>
               </div>
@@ -113,7 +130,7 @@ export function CliDemoVideo({ style }: { style?: React.CSSProperties }) {
                 <span style={{ color: "#60a5fa" }}>~</span>
                 <span style={{ color: "#f472b6" }}>❯</span>
                 <span style={{ color: "#ffffff" }}>
-                  {COMMANDS[activeIndex].cmd.substring(0, charsToShow)}
+                  {activeCommand.cmd.substring(0, charsToShow)}
                   {transitionFrame < typeDuration + (fps * 0.5) && (
                     <span style={{
                       width: "10px",
@@ -128,8 +145,16 @@ export function CliDemoVideo({ style }: { style?: React.CSSProperties }) {
               </div>
 
               {/* Output */}
-              <div style={{ color: "#d4d4d4", marginTop: "8px", paddingLeft: "24px", opacity: outputOpacity }}>
-                {COMMANDS[activeIndex].output}
+              <div
+                style={{
+                  color: "#d4d4d4",
+                  marginTop: "8px",
+                  paddingLeft: "24px",
+                  opacity: outputOpacity,
+                  whiteSpace: "pre-line",
+                }}
+              >
+                {activeCommand.output}
               </div>
             </div>
           </div>

@@ -469,6 +469,59 @@ def given_invalid_config_workflow_statuses(context: object) -> None:
 
 
 @given(
+    "a Kanbus repository with a .kanbus.yml file containing valid sort_order presets"
+)
+def given_valid_sort_order_presets(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["sort_order"] = {
+        "open": "priority-first",
+        "categories": {
+            "To do": "fifo",
+        },
+    }
+    (repository / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given(
+    "a Kanbus repository with a .kanbus.yml file containing an invalid sort_order preset"
+)
+def given_invalid_sort_order_preset(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["sort_order"] = {
+        "open": "newest-first",
+    }
+    (repository / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given(
+    "a Kanbus repository with a .kanbus.yml file containing an invalid sort_order raw rule"
+)
+def given_invalid_sort_order_raw_rule(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["sort_order"] = {
+        "open": [
+            {"field": "rank", "direction": "up"},
+        ]
+    }
+    (repository / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given(
     "a Kanbus repository with a .kanbus.yml file containing a bright white status color"
 )
 def given_repo_with_bright_white_status_color(context: object) -> None:
@@ -589,6 +642,21 @@ def then_time_zone_should_match(context: object, time_zone: str) -> None:
 @then('the configuration should have virtual project "{label}"')
 def then_configuration_has_virtual_project(context: object, label: str) -> None:
     assert label in context.configuration.virtual_projects
+
+
+@then('the sort_order for status "{status}" should be preset "{preset}"')
+def then_sort_order_status_preset(context: object, status: str, preset: str) -> None:
+    assert context.configuration.sort_order.get(status) == preset
+
+
+@then('the sort_order for category "{category}" should be preset "{preset}"')
+def then_sort_order_category_preset(
+    context: object,
+    category: str,
+    preset: str,
+) -> None:
+    categories = context.configuration.sort_order.get("categories") or {}
+    assert categories.get(category) == preset
 
 
 # Configuration standardization steps
