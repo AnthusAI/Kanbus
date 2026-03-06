@@ -30,10 +30,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@9792ccaef0455e446c567163589397e8c3ac2e0d # v3
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -41,7 +41,7 @@ jobs:
 
       - name: Set up Rust toolchain
         if: matrix.language == 'rust' && matrix.build-mode == 'manual'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
 
       - name: Build Rust project for CodeQL
         if: matrix.language == 'rust' && matrix.build-mode == 'manual'
@@ -50,4 +50,4 @@ jobs:
           cargo build --workspace --all-targets --locked
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@9792ccaef0455e446c567163589397e8c3ac2e0d # v3
