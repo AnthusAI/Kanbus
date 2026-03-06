@@ -50,6 +50,40 @@ function writeConsoleLog(entry: Record<string, unknown>): void {
   consoleLogStream.write(`${JSON.stringify(entry)}\n`);
 }
 
+function classifyContentType(rawType: unknown): "json" | "text" | "other" | "unknown" {
+  if (typeof rawType !== "string") {
+    return "unknown";
+  }
+  const normalized = rawType.toLowerCase();
+  if (normalized.includes("application/json")) {
+    return "json";
+  }
+  if (normalized.includes("text/plain")) {
+    return "text";
+  }
+  return "other";
+}
+
+function classifyContentLength(rawLength: unknown): "empty" | "small" | "medium" | "large" | "unknown" {
+  if (typeof rawLength !== "string") {
+    return "unknown";
+  }
+  const parsed = Number.parseInt(rawLength, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return "unknown";
+  }
+  if (parsed === 0) {
+    return "empty";
+  }
+  if (parsed <= 1024) {
+    return "small";
+  }
+  if (parsed <= 65536) {
+    return "medium";
+  }
+  return "large";
+}
+
 writeConsoleLog({
   type: "startup",
   at: new Date().toISOString(),
@@ -267,8 +301,8 @@ apiRouter.post(
     writeConsoleLog({
       type: "telemetry-received",
       at: new Date().toISOString(),
-      contentType: req.headers["content-type"] ?? null,
-      contentLength: req.headers["content-length"] ?? null
+      contentType: classifyContentType(req.headers["content-type"]),
+      contentLength: classifyContentLength(req.headers["content-length"])
     });
     let parsed: Record<string, unknown> = {};
     if (typeof req.body === "string" && req.body.length > 0) {
@@ -285,7 +319,11 @@ apiRouter.post(
       received_at: new Date().toISOString()
     };
     broadcastTelemetry(payload);
-    writeConsoleLog({ type: "telemetry", payload });
+    writeConsoleLog({
+      type: "telemetry",
+      at: new Date().toISOString(),
+      payloadCaptured: false
+    });
     res.status(204).end();
   }
 );

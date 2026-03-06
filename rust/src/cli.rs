@@ -2,6 +2,7 @@
 
 use std::ffi::OsString;
 use std::io::IsTerminal;
+use std::io::Write;
 use std::path::Path;
 
 use chrono::Utc;
@@ -41,7 +42,9 @@ use crate::issue_transfer::{localize_issue, promote_issue};
 use crate::issue_update::update_issue;
 use crate::jira_sync::pull_from_jira;
 use crate::maintenance::{collect_project_stats, validate_project};
-use crate::migration::{load_beads_issue_by_id, load_beads_issues, migrate_from_beads};
+use crate::migration::{
+    load_beads_issue_by_id, load_beads_issue_from_workspace, load_beads_issues, migrate_from_beads,
+};
 use crate::models::IssueData;
 use crate::queries::{filter_issues, search_issues};
 use crate::rich_text_signals::{
@@ -145,6 +148,9 @@ enum Commands {
         /// Emit JSON output.
         #[arg(long)]
         json: bool,
+        /// Project root to scope lookup (directory containing .kanbus.yml).
+        #[arg(long = "project-root")]
+        project_root: Option<std::path::PathBuf>,
     },
     /// Update an issue.
     Update {
@@ -183,6 +189,11 @@ enum Commands {
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
+    },
+    /// Bulk issue operations.
+    Bulk {
+        #[command(subcommand)]
+        command: BulkCommands,
     },
     /// Move an issue to a different issue type.
     Move {
@@ -262,6 +273,9 @@ enum Commands {
         /// Plain, non-colorized output for machine parsing.
         #[arg(long)]
         porcelain: bool,
+        /// Show full issue keys even in single-project context.
+        #[arg(long = "full-ids")]
+        full_ids: bool,
     },
     /// Validate project integrity.
     Validate,
@@ -606,6 +620,31 @@ enum CommentCommands {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum BulkCommands {
+    /// Update multiple issues selected by IDs and/or filters.
+    Update {
+        /// Explicit issue identifiers (repeatable).
+        #[arg(long = "id")]
+        ids: Vec<String>,
+        /// Restrict matches to issue type.
+        #[arg(long = "where-type")]
+        where_type: Option<String>,
+        /// Restrict matches to issue status.
+        #[arg(long = "where-status")]
+        where_status: Option<String>,
+        /// Set status on matched issues.
+        #[arg(long = "set-status")]
+        set_status: Option<String>,
+        /// Set assignee on matched issues.
+        #[arg(long = "set-assignee")]
+        set_assignee: Option<String>,
+        /// Bypass validation checks.
+        #[arg(long = "no-validate")]
+        no_validate: bool,
+    },
+}
+
 /// Output produced by a CLI command.
 #[derive(Debug, Default)]
 pub struct CommandOutput {
@@ -630,10 +669,18 @@ where
 {
     let output = run_from_args_with_output(args, cwd)?;
     if !output.stdout.is_empty() {
-        println!("{}", output.stdout);
+        let mut stdout = std::io::stdout();
+        stdout
+            .write_all(output.stdout.as_bytes())
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        stdout.flush().ok();
     }
     if !output.stderr.is_empty() {
-        eprint!("{}", output.stderr);
+        let mut stderr = std::io::stderr();
+        stderr
+            .write_all(output.stderr.as_bytes())
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        stderr.flush().ok();
     }
     Ok(())
 }
@@ -936,9 +983,15 @@ fn execute_command(
             );
             Ok(Some(output))
         }
-        Commands::Show { identifier, json } => {
+        Commands::Show {
+            identifier,
+            json,
+            project_root,
+        } => {
+            let lookup_root = project_root.as_deref().unwrap_or(root);
+            let beads_root_for_show = beads_root(lookup_root);
             let (issue, configuration) = if beads_mode {
-                let mut beads_issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
+                let mut beads_issue = load_beads_issue_by_id(&beads_root_for_show, &identifier)?;
                 // Normalize comment ids for display consistency
                 let (normalized, _) = crate::issue_comment::ensure_comment_ids(&beads_issue);
                 beads_issue = normalized;
@@ -951,17 +1004,37 @@ fn execute_command(
 
                 (beads_issue, None)
             } else {
-                let lookup = load_issue_from_project(root, &identifier)?;
-                let configuration = load_project_configuration(&get_configuration_path(
-                    lookup.project_dir.as_path(),
-                )?)?;
-                let mut issue = ensure_issue_comment_ids(root, &identifier)?;
-                if configuration.beads_compatibility {
-                    if let Ok(beads_issue) = load_beads_issue_by_id(&root_for_beads, &identifier) {
-                        issue = merge_issue_views(beads_issue, issue);
+                match load_issue_from_project(lookup_root, &identifier) {
+                    Ok(lookup) => {
+                        let configuration = load_project_configuration(&get_configuration_path(
+                            lookup.project_dir.as_path(),
+                        )?)?;
+                        let mut issue = ensure_issue_comment_ids(lookup_root, &identifier)?;
+                        if configuration.beads_compatibility {
+                            if let Ok(beads_issue) =
+                                load_beads_issue_by_id(&beads_root_for_show, &identifier)
+                            {
+                                issue = merge_issue_views(beads_issue, issue);
+                            }
+                        }
+                        (issue, Some(configuration))
                     }
+                    Err(KanbusError::IssueOperation(message)) if message == "not found" => {
+                        let Some((issue, beads_root)) =
+                            load_beads_issue_from_workspace(lookup_root, &identifier)?
+                        else {
+                            return Err(KanbusError::IssueOperation("not found".to_string()));
+                        };
+                        let configuration_path = beads_root.join(".kanbus.yml");
+                        let configuration = if configuration_path.is_file() {
+                            load_project_configuration(&configuration_path).ok()
+                        } else {
+                            None
+                        };
+                        (issue, configuration)
+                    }
+                    Err(error) => return Err(error),
                 }
-                (issue, Some(configuration))
             };
             if json {
                 let payload =
@@ -1240,6 +1313,105 @@ fn execute_command(
                 formatted_identifier, moved_issue.issue_type
             )))
         }
+        Commands::Bulk { command } => match command {
+            BulkCommands::Update {
+                ids,
+                where_type,
+                where_status,
+                set_status,
+                set_assignee,
+                no_validate,
+            } => {
+                if beads_mode {
+                    return Err(KanbusError::IssueOperation(
+                        "bulk update is not supported in beads mode".to_string(),
+                    ));
+                }
+                if ids.is_empty() && where_type.is_none() && where_status.is_none() {
+                    return Err(KanbusError::IssueOperation(
+                        "bulk update requires at least one selector (--id, --where-type, or --where-status)".to_string(),
+                    ));
+                }
+                if set_status.is_none() && set_assignee.is_none() {
+                    return Err(KanbusError::IssueOperation(
+                        "bulk update requires at least one setter (--set-status or --set-assignee)"
+                            .to_string(),
+                    ));
+                }
+
+                let mut selected = Vec::new();
+                let mut seen = HashSet::new();
+
+                for identifier in &ids {
+                    let updated_issue = update_issue(
+                        root,
+                        identifier,
+                        None,
+                        None,
+                        set_status.as_deref(),
+                        set_assignee.as_deref(),
+                        None,
+                        false,
+                        !no_validate,
+                        &[],
+                        &[],
+                        None,
+                        None,
+                        None,
+                    )?;
+                    if seen.insert(updated_issue.identifier.clone()) {
+                        selected.push(updated_issue);
+                    }
+                }
+
+                if where_type.is_some() || where_status.is_some() {
+                    let filtered = list_issues(
+                        root,
+                        where_status.as_deref(),
+                        where_type.as_deref(),
+                        None,
+                        None,
+                        None,
+                        None,
+                        &[],
+                        true,
+                        false,
+                    )?;
+                    for issue in filtered {
+                        if !seen.insert(issue.identifier.clone()) {
+                            continue;
+                        }
+                        let updated_issue = update_issue(
+                            root,
+                            &issue.identifier,
+                            None,
+                            None,
+                            set_status.as_deref(),
+                            set_assignee.as_deref(),
+                            None,
+                            false,
+                            !no_validate,
+                            &[],
+                            &[],
+                            None,
+                            None,
+                            None,
+                        )?;
+                        selected.push(updated_issue);
+                    }
+                }
+
+                if !selected.is_empty() {
+                    crate::policy_guidance::emit_guidance_for_issues(
+                        root,
+                        &selected,
+                        crate::policy_context::PolicyOperation::Update,
+                        no_guidance,
+                    );
+                }
+                Ok(Some(format!("Updated {} issue(s)", selected.len())))
+            }
+        },
         Commands::Close { identifier } => {
             if beads_mode {
                 update_beads_issue(
@@ -1435,6 +1607,7 @@ fn execute_command(
             no_local,
             local_only,
             porcelain,
+            full_ids,
         } => {
             let issues = if beads_mode {
                 if local_only || no_local {
@@ -1490,7 +1663,7 @@ fn execute_command(
                     Err(error) => return Err(error),
                 }
             };
-            let project_context = if beads_mode {
+            let project_context = if beads_mode || full_ids {
                 false
             } else {
                 !issues

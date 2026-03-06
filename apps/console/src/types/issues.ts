@@ -19,6 +19,31 @@ export interface PriorityDefinition {
   color?: string | null;
 }
 
+export type SortPreset =
+  | "fifo"
+  | "priority-first"
+  | "recently-updated";
+
+export type SortField =
+  | "priority"
+  | "created_at"
+  | "updated_at"
+  | "id";
+
+export type SortDirection = "asc" | "desc";
+
+export interface SortFieldRule {
+  field: SortField;
+  direction: SortDirection;
+}
+
+export type SortRule = SortPreset | SortFieldRule[];
+
+export interface SortOrder {
+  categories?: Record<string, SortRule>;
+  [statusKey: string]: SortRule | Record<string, SortRule> | undefined;
+}
+
 export interface ProjectConfig {
   project_directory: string;
   virtual_projects: Record<string, { path: string }>;
@@ -34,6 +59,7 @@ export interface ProjectConfig {
   time_zone?: string | null;
   statuses: StatusDefinition[];
   categories: CategoryDefinition[];
+  sort_order?: SortOrder;
   type_colors: Record<string, string>;
   beads_compatibility: boolean;
 }

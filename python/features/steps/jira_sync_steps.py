@@ -141,6 +141,7 @@ def _parse_issues_table(context: object) -> List[Dict[str, Any]]:
     return issues
 
 
+@given("a fake Jira server is running with issues")
 @given("a fake Jira server is running with issues:")
 def given_fake_jira_server(context: object) -> None:
     """Start a fake Jira HTTP server with the issues from the table.

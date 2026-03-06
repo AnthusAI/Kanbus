@@ -9,6 +9,19 @@ Feature: Issue list formatting
     When I run "kanbus list --porcelain"
     Then stdout should contain the line "T | child | parent | open | P2 | Title"
 
+  Scenario: List can force full issue keys in single-project context
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-0123456789ab" exists
+    When I run "kanbus list --full-ids"
+    Then stdout should contain "kanbus-012345"
+
+  Scenario: Default list output remains token-efficient
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-0123456789ab" exists
+    When I run "kanbus list"
+    Then stdout should contain "012345"
+    And stdout should not contain "kanbus-012345"
+
   Scenario: List formatting applies default colors
     Given a Kanbus project with default configuration
     And issues for list color coverage exist

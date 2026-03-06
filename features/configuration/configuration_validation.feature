@@ -56,3 +56,26 @@ Feature: Configuration validation
     When the configuration is loaded
     Then the command should fail with exit code 1
     And stderr should contain "references undefined status"
+
+  Scenario: Valid sort_order presets are accepted
+    Given a Kanbus repository with a .kanbus.yml file containing valid sort_order presets
+    When the configuration is loaded
+    Then the command should succeed
+    And the sort_order for status "open" should be preset "priority-first"
+    And the sort_order for category "To do" should be preset "fifo"
+
+  Scenario: Invalid sort_order preset is rejected
+    Given a Kanbus repository with a .kanbus.yml file containing an invalid sort_order preset
+    When the configuration is loaded
+    Then the command should fail with exit code 1
+    And stderr should contain "sort_order.open has invalid preset"
+    And stderr should contain "valid presets: fifo, priority-first, recently-updated"
+
+  Scenario: Invalid sort_order raw rule is rejected
+    Given a Kanbus repository with a .kanbus.yml file containing an invalid sort_order raw rule
+    When the configuration is loaded
+    Then the command should fail with exit code 1
+    And stderr should contain "sort_order.open[0] has invalid field"
+    And stderr should contain "valid fields: priority, created_at, updated_at, id"
+    And stderr should contain "sort_order.open[0] has invalid direction"
+    And stderr should contain "valid directions: asc, desc"

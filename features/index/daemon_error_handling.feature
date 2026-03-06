@@ -28,7 +28,7 @@ Feature: Daemon error handling
     Then the daemon request should fail with "daemon disabled"
 
   Scenario: Daemon status fails when multiple projects found
-    Given a repository with nested project directories
+    Given a workspace with nested Kanbus projects
     And daemon mode is enabled
     When I run "kanbus daemon-status"
     Then the command should fail with exit code 1

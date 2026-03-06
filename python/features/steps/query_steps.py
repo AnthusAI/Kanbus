@@ -160,6 +160,7 @@ def when_list_issues_directly_after_configuration_failure(context: object) -> No
                 local_only=False,
                 limit=50,
                 porcelain=False,
+                full_ids=False,
             )
         except click.ClickException as error:
             context.result = SimpleNamespace(

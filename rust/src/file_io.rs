@@ -28,6 +28,33 @@ pub struct RepairPlan {
     pub missing_events_dir: bool,
 }
 
+const WORKSPACE_IGNORE_DIRS: [&str; 11] = [
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "project",
+    "project-local",
+    "target",
+];
+
+const LEGACY_DISCOVERY_IGNORE_DIRS: [&str; 10] = [
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "project-local",
+    "target",
+];
+
 fn should_force_canonicalize_failure() -> bool {
     std::env::var_os("KANBUS_TEST_CANONICALIZE_FAILURE").is_some()
 }
@@ -125,19 +152,9 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), KanbusE
 ///
 /// # Returns
 ///
-/// The root path used for initialization. Walks up from cwd to find .kanbus.yml.
+/// The root path used for initialization.
 pub fn resolve_root(cwd: &Path) -> PathBuf {
-    let mut current = cwd;
-    loop {
-        let config_path = current.join(".kanbus.yml");
-        if config_path.exists() {
-            return current.to_path_buf();
-        }
-        match current.parent() {
-            Some(parent) => current = parent,
-            None => return cwd.to_path_buf(), // Fallback to cwd if not found
-        }
-    }
+    cwd.to_path_buf()
 }
 
 fn write_project_guard_files(project_dir: &Path) -> Result<(), KanbusError> {
@@ -443,14 +460,16 @@ fn ensure_gitignore_entry(root: &Path, entry: &str) -> Result<(), KanbusError> {
 /// Returns `KanbusError` if configuration or dotfile paths are invalid.
 pub fn discover_kanbus_projects(root: &Path) -> Result<Vec<PathBuf>, KanbusError> {
     let mut projects = Vec::new();
-    if let Some(config_path) = find_configuration_file(root)? {
-        let configuration = load_project_configuration(&config_path)?;
-        let resolved = resolve_project_directories(
-            config_path.parent().unwrap_or_else(|| Path::new("")),
-            &configuration,
-        )?;
-        projects.extend(resolved.into_iter().map(|rp| rp.project_dir));
+    let config_path = root.join(".kanbus.yml");
+    if !config_path.is_file() {
+        return Ok(projects);
     }
+    let configuration = load_project_configuration(&config_path)?;
+    let resolved = resolve_project_directories(
+        config_path.parent().unwrap_or_else(|| Path::new("")),
+        &configuration,
+    )?;
+    projects.extend(resolved.into_iter().map(|rp| rp.project_dir));
     Ok(projects)
 }
 
@@ -473,29 +492,13 @@ pub fn resolve_labeled_projects(root: &Path) -> Result<Vec<ResolvedProject>, Kan
 }
 
 fn find_configuration_file(root: &Path) -> Result<Option<PathBuf>, KanbusError> {
-    let git_root = find_git_root(root);
-    let mut current = root
-        .canonicalize()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
-    loop {
-        let candidate = current.join(".kanbus.yml");
+    let mut current = Some(root);
+    while let Some(dir) = current {
+        let candidate = dir.join(".kanbus.yml");
         if candidate.is_file() {
             return Ok(Some(candidate));
         }
-        if let Some(root) = &git_root {
-            if &current == root {
-                break;
-            }
-        }
-        let parent = match current.parent() {
-            Some(parent) => parent.to_path_buf(),
-            None => break,
-        };
-        #[cfg(windows)]
-        if parent == current {
-            break;
-        }
-        current = parent;
+        current = dir.parent();
     }
     Ok(None)
 }
@@ -549,49 +552,191 @@ pub(crate) fn is_path_ignored(path: &Path, base: &Path, ignore_paths: &[String])
     false
 }
 
-fn find_git_root(root: &Path) -> Option<PathBuf> {
-    let output = Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .current_dir(root)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let path = PathBuf::from(stdout);
-    path.is_dir().then_some(path)
-}
-
 pub(crate) fn discover_project_directories(
     root: &Path,
     projects: &mut Vec<PathBuf>,
 ) -> Result<(), KanbusError> {
-    for entry in std::fs::read_dir(root).map_err(|error| KanbusError::Io(error.to_string()))? {
-        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
+    let config_path = root.join(".kanbus.yml");
+    if config_path.is_file() {
+        let configuration = load_project_configuration(&config_path)?;
+        let resolved = resolve_project_directories(
+            config_path.parent().unwrap_or_else(|| Path::new("")),
+            &configuration,
+        )?;
+        for rp in resolved {
+            if !rp.project_dir.is_dir() {
+                return Err(KanbusError::IssueOperation(format!(
+                    "kanbus path not found: {}",
+                    rp.project_dir.display()
+                )));
+            }
+            projects.push(rp.project_dir);
         }
-        let name = path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .unwrap_or("");
-        if name == "project" {
-            projects.push(path);
-            continue;
+        return Ok(());
+    }
+
+    let workspace_configs = discover_workspace_config_paths(root)?;
+    for config_path in workspace_configs {
+        let configuration = match load_project_configuration(&config_path) {
+            Ok(configuration) => configuration,
+            Err(_) => continue,
+        };
+        let resolved = match resolve_project_directories(
+            config_path.parent().unwrap_or_else(|| Path::new("")),
+            &configuration,
+        ) {
+            Ok(resolved) => resolved,
+            Err(_) => continue,
+        };
+        for rp in resolved {
+            if rp.project_dir.is_dir() {
+                projects.push(rp.project_dir);
+            }
         }
-        if name == "project-local" {
-            continue;
-        }
-        let nested_project = path.join("project");
-        if nested_project.is_dir() {
-            projects.push(nested_project);
-        }
-        // Avoid recursing into every subdirectory; doing so pulls in fixture
-        // projects (e.g., apps/console/tests/fixtures/project) that are not real
-        // Kanbus workspaces and can break commands with incomplete data.
-        // Additional projects must be declared explicitly via configuration.
+    }
+
+    if projects.is_empty() {
+        discover_legacy_project_directories(root, projects)?;
     }
     Ok(())
+}
+
+fn discover_legacy_project_directories(
+    root: &Path,
+    projects: &mut Vec<PathBuf>,
+) -> Result<(), KanbusError> {
+    if root.is_dir() {
+        if let Some(name) = root.file_name().and_then(|value| value.to_str()) {
+            if name == "project" {
+                projects.push(root.to_path_buf());
+            }
+        }
+    }
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        let entries = match std::fs::read_dir(&current) {
+            Ok(entries) => entries,
+            Err(error) => {
+                if current == root {
+                    return Err(KanbusError::Io(error.to_string()));
+                }
+                continue;
+            }
+        };
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) => {
+                    if current == root {
+                        return Err(KanbusError::Io(error.to_string()));
+                    }
+                    continue;
+                }
+            };
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+                continue;
+            }
+            let name = path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or("");
+            if name == "project" {
+                projects.push(path);
+                continue;
+            }
+            if LEGACY_DISCOVERY_IGNORE_DIRS.contains(&name) {
+                continue;
+            }
+            stack.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn discover_workspace_config_paths(root: &Path) -> Result<Vec<PathBuf>, KanbusError> {
+    let mut configs = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        let entries = match std::fs::read_dir(&current) {
+            Ok(entries) => entries,
+            Err(error) => {
+                if current == root {
+                    return Err(KanbusError::Io(error.to_string()));
+                }
+                continue;
+            }
+        };
+
+        let config_path = current.join(".kanbus.yml");
+        if config_path.is_file() {
+            configs.push(config_path);
+        }
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) => {
+                    if current == root {
+                        return Err(KanbusError::Io(error.to_string()));
+                    }
+                    continue;
+                }
+            };
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+                continue;
+            }
+            let name = path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or("");
+            if WORKSPACE_IGNORE_DIRS.contains(&name) {
+                continue;
+            }
+            stack.push(path);
+        }
+    }
+    configs.sort();
+    Ok(configs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_configuration_path;
+    use crate::error::KanbusError;
+    use std::fs;
+
+    #[test]
+    fn configuration_path_is_discovered_in_parent_directories() {
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        let root = tempdir.path();
+        let nested = root.join("project").join("issues");
+        fs::create_dir_all(&nested).expect("create nested path");
+        fs::write(root.join(".kanbus.yml"), "project_key: kbs\n").expect("write config");
+
+        let found = get_configuration_path(&nested).expect("configuration should resolve upward");
+
+        assert_eq!(found, root.join(".kanbus.yml"));
+    }
+
+    #[test]
+    fn configuration_path_reports_uninitialized_when_missing() {
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        let nested = tempdir.path().join("project").join("issues");
+        fs::create_dir_all(&nested).expect("create nested path");
+
+        let error = get_configuration_path(&nested).expect_err("missing config should fail");
+        assert!(matches!(
+            error,
+            KanbusError::IssueOperation(message) if message == "project not initialized"
+        ));
+    }
 }
