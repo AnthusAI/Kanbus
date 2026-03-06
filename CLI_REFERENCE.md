@@ -182,6 +182,18 @@ Add a comment to an issue.
 kanbus comment <id> <text>
 ```
 
+## Synchronization
+
+### `kanbus github-security dependabot pull`
+
+Pull Dependabot alerts from GitHub Security into Kanbus.
+
+```bash
+kanbus github-security dependabot pull [--dry-run] [--repo <owner/repo>] [--min-severity <critical|high|medium|low>] [--state <open|fixed|dismissed|auto_dismissed>] [--parent-epic <id>]
+```
+
+Requires `GITHUB_TOKEN` or `GH_TOKEN`.
+
 ## Wiki
 
 ### `kanbus wiki render`

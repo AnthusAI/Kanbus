@@ -1912,6 +1912,114 @@ def jira_pull(context: click.Context, dry_run: bool) -> None:
     click.echo(f"pulled {result.pulled} new, updated {result.updated} existing")
 
 
+@cli.group(name="github-security")
+def github_security() -> None:
+    """GitHub security synchronization commands."""
+
+
+@github_security.group()
+def dependabot() -> None:
+    """Dependabot synchronization commands."""
+
+
+@dependabot.command(name="pull")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without writing files.",
+)
+@click.option(
+    "--repo",
+    default=None,
+    help="Override GitHub repository slug (owner/repo).",
+)
+@click.option(
+    "--min-severity",
+    default=None,
+    help="Override minimum severity (critical, high, medium, low).",
+)
+@click.option(
+    "--state",
+    default=None,
+    help="Override Dependabot alert state filter.",
+)
+@click.option(
+    "--parent-epic",
+    default=None,
+    help="Override parent epic issue ID to attach findings to.",
+)
+def github_dependabot_pull(
+    dry_run: bool,
+    repo: Optional[str],
+    min_severity: Optional[str],
+    state: Optional[str],
+    parent_epic: Optional[str],
+) -> None:
+    """Pull Dependabot alerts from GitHub into Kanbus."""
+    from kanbus.github_security_sync import (
+        DependabotPullResult,
+        GithubSecuritySyncError,
+        pull_dependabot_from_github,
+    )
+    from kanbus.models import DependabotConfiguration, GithubSecurityConfiguration
+
+    root = Path.cwd()
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+
+    github_security_config = (
+        configuration.github_security
+        or GithubSecurityConfiguration(
+            repo=None,
+            dependabot=None,
+        )
+    )
+    dependabot_config = github_security_config.dependabot or DependabotConfiguration()
+
+    if repo is not None:
+        github_security_config = github_security_config.model_copy(
+            update={"repo": repo}
+        )
+    if min_severity is not None:
+        dependabot_config = dependabot_config.model_copy(
+            update={"min_severity": min_severity}
+        )
+    if state is not None:
+        dependabot_config = dependabot_config.model_copy(update={"state": state})
+    if parent_epic is not None:
+        dependabot_config = dependabot_config.model_copy(
+            update={"parent_epic": parent_epic}
+        )
+
+    github_security_config = github_security_config.model_copy(
+        update={"dependabot": dependabot_config}
+    )
+
+    if dry_run:
+        click.echo("Dry run — no files will be written.\n")
+
+    try:
+        result: DependabotPullResult = pull_dependabot_from_github(
+            root,
+            github_security_config,
+            configuration.project_key,
+            dry_run,
+        )
+    except GithubSecuritySyncError as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(
+        f"pulled {result.pulled} new, updated {result.updated} existing, "
+        f"skipped {result.skipped} duplicates"
+    )
+
+
 @cli.command("issues", hidden=True)
 @click.pass_context
 def issues_alias(context: click.Context) -> None:

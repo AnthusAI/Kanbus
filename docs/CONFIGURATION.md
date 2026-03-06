@@ -135,3 +135,19 @@ priority_import_aliases:
   P3: low
 priority_accept_unmapped: false
 ```
+
+## Optional sync sections
+
+```yaml
+github_security:
+  repo: owner/repo
+  dependabot:
+    min_severity: low
+    state: open
+    parent_epic: kanbus-abc123
+```
+
+- `github_security.repo` is optional; if omitted, Kanbus auto-detects from `git remote origin`.
+- `github_security.dependabot.min_severity` defaults to `low`.
+- `github_security.dependabot.state` defaults to `open`.
+- `github_security.dependabot.parent_epic` is optional.
