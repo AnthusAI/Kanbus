@@ -66,6 +66,27 @@ async function saveKanbusConfig(config) {
   await writeFile(consoleConfigPath, contents);
 }
 
+function parseRawSortRule(rawRule) {
+  return rawRule
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [field, direction, ...rest] = entry.split(/\s+/);
+      if (!field || !direction || rest.length > 0) {
+        throw new Error(`Invalid raw sort rule segment: ${entry}`);
+      }
+      return { field, direction };
+    });
+}
+
+async function normalizeConsoleConfigForBoardTests() {
+  const config = await loadKanbusConfig();
+  ensureProjectKey(config);
+  config.virtual_projects = {};
+  return config;
+}
+
 function ensureProjectKey(config) {
   if (!config.project_key) {
     config.project_key = "kanbus";
@@ -151,6 +172,17 @@ async function ensureBaseProject() {
   return { projectDir: projectRoot, localDir };
 }
 
+async function resetIssueDirectories() {
+  if (!projectRoot) {
+    throw new Error("CONSOLE_PROJECT_ROOT is required for project setup");
+  }
+  const repoRoot = path.join(projectRoot, "..");
+  await rm(path.join(projectRoot, "issues"), { recursive: true, force: true });
+  await mkdir(path.join(projectRoot, "issues"), { recursive: true });
+  await rm(path.join(repoRoot, "project-local"), { recursive: true, force: true });
+  await rm(path.join(repoRoot, "virtual"), { recursive: true, force: true });
+}
+
 async function openFilterSidebar(page) {
   const panel = page.getByTestId("filter-sidebar");
   const isOpen = (await panel.getAttribute("aria-hidden")) === "false";
@@ -229,6 +261,82 @@ function normalizeTimestamp(value) {
 
 Given("the console is open", async function () {
   await expect(this.page.getByTestId("open-settings")).toBeVisible();
+});
+
+Given("the Kanbus configuration has no sort_order rules", async function () {
+  const config = await normalizeConsoleConfigForBoardTests();
+  delete config.sort_order;
+  await saveKanbusConfig(config);
+});
+
+Given(
+  "the Kanbus configuration sets sort_order for category {string} to preset {string}",
+  async function (categoryName, preset) {
+    const config = await normalizeConsoleConfigForBoardTests();
+    const sortOrder = (config.sort_order && typeof config.sort_order === "object")
+      ? { ...config.sort_order }
+      : {};
+    const categories = (sortOrder.categories && typeof sortOrder.categories === "object")
+      ? { ...sortOrder.categories }
+      : {};
+    categories[categoryName] = preset;
+    sortOrder.categories = categories;
+    config.sort_order = sortOrder;
+    await saveKanbusConfig(config);
+  }
+);
+
+Given(
+  "the Kanbus configuration sets sort_order for status {string} to preset {string}",
+  async function (status, preset) {
+    const config = await normalizeConsoleConfigForBoardTests();
+    const sortOrder = (config.sort_order && typeof config.sort_order === "object")
+      ? { ...config.sort_order }
+      : {};
+    sortOrder[status] = preset;
+    config.sort_order = sortOrder;
+    await saveKanbusConfig(config);
+  }
+);
+
+Given(
+  "the Kanbus configuration sets raw sort_order for status {string} to {string}",
+  async function (status, rawRule) {
+    const config = await normalizeConsoleConfigForBoardTests();
+    const sortOrder = (config.sort_order && typeof config.sort_order === "object")
+      ? { ...config.sort_order }
+      : {};
+    sortOrder[status] = parseRawSortRule(rawRule);
+    config.sort_order = sortOrder;
+    await saveKanbusConfig(config);
+  }
+);
+
+Given("the console has only these issues:", async function (table) {
+  if (!projectRoot) {
+    throw new Error("CONSOLE_PROJECT_ROOT is required for issue setup");
+  }
+  await resetIssueDirectories();
+  const config = await normalizeConsoleConfigForBoardTests();
+  await saveKanbusConfig(config);
+
+  const rows = table.hashes();
+  for (const row of rows) {
+    const issue = buildIssue({
+      id: row.id,
+      title: row.title,
+      type: row.type || "task",
+      status: row.status || "open",
+      priority: row.priority ? Number.parseInt(row.priority, 10) : 2
+    });
+    issue.created_at = row.created_at || issue.created_at;
+    issue.updated_at = row.updated_at || issue.updated_at;
+    issue.closed_at = row.closed_at || null;
+    await writeIssueInDir(path.join(projectRoot, "issues"), issue);
+  }
+
+  await refreshConsoleSnapshot();
+  await this.page.reload({ waitUntil: "domcontentloaded" });
 });
 
 Given("the console is open with virtual projects configured", async function () {
@@ -668,6 +776,30 @@ Then("I should see the issue {string}", async function (title) {
 Then("I should not see the issue {string}", async function (title) {
   await expect(issueCardLocator(this.page, title)).toHaveCount(0);
 });
+
+Then(
+  "the {string} column should list issues in order {string}",
+  async function (columnKey, expectedOrder) {
+    const expectedTitles = expectedOrder
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const column = this.page.locator(`.kb-column[data-column-key="${columnKey}"]`).first();
+    await expect(column).toBeVisible();
+
+    if (await column.locator(".kb-column-header").count() === 0) {
+      await column.click();
+      await expect(column.locator(".kb-column-header")).toHaveCount(1);
+    }
+
+    const titleLocator = column.locator(".issue-card h3");
+    await expect
+      .poll(async () => titleLocator.count(), { timeout: 10000 })
+      .toBe(expectedTitles.length);
+    const actualTitles = (await titleLocator.allTextContents()).map((value) => value.trim());
+    expect(actualTitles).toEqual(expectedTitles);
+  }
+);
 
 Then("the {string} tab should be selected", async function (tabName) {
   const resolved = tabName === "Tasks" ? "Issues" : tabName;

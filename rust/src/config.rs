@@ -235,6 +235,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
             },
         ],
         categories,
+        sort_order: BTreeMap::new(),
         type_colors: BTreeMap::from([
             ("initiative".to_string(), "bright_blue".to_string()),
             ("epic".to_string(), "magenta".to_string()),
