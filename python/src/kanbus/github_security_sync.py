@@ -22,6 +22,8 @@ from kanbus.issue_files import (
     read_issue_from_file,
     write_issue_to_file,
 )
+from kanbus.beads_write import create_beads_issue, update_beads_issue
+from kanbus.migration import load_beads_issues
 from kanbus.models import (
     DependabotConfiguration,
     GithubSecurityConfiguration,
@@ -157,6 +159,130 @@ def pull_dependabot_from_github(
             if not dry_run:
                 write_issue_to_file(issue, issue_path)
 
+            if action == "updated":
+                result.updated += 1
+            else:
+                result.pulled += 1
+
+    return result
+
+
+def pull_dependabot_from_github_beads(
+    root: Path,
+    github_security_config: GithubSecurityConfiguration,
+    dry_run: bool = False,
+) -> DependabotPullResult:
+    """Pull Dependabot alerts from GitHub and create/update Beads issues."""
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if not token:
+        raise GithubSecuritySyncError(
+            "GITHUB_TOKEN or GH_TOKEN environment variable is not set"
+        )
+
+    dependabot_config = github_security_config.dependabot or DependabotConfiguration()
+    _validate_state(dependabot_config.state)
+    min_priority = _severity_to_priority(dependabot_config.min_severity)
+
+    repo = github_security_config.repo or _detect_repo_from_git(root)
+    if not repo:
+        raise GithubSecuritySyncError(
+            "could not determine GitHub repository slug "
+            "(use --repo or github_security.repo)"
+        )
+
+    alerts = _fetch_dependabot_alerts(repo, token, dependabot_config.state)
+    alerts = [
+        alert
+        for alert in alerts
+        if _severity_to_priority(_alert_severity(alert)) <= min_priority
+    ]
+
+    existing_issues = load_beads_issues(root)
+    alert_index = _build_beads_alert_index(existing_issues)
+    task_index = _build_beads_task_index(existing_issues)
+
+    initiative_id = _resolve_beads_initiative(root, existing_issues, dry_run)
+    parent_epic = _resolve_beads_epic(
+        root,
+        existing_issues,
+        dependabot_config.parent_epic,
+        initiative_id,
+        dry_run,
+    )
+
+    grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for alert in alerts:
+        grouped[_task_target_key(alert)].append(alert)
+
+    result = DependabotPullResult()
+    runtime_alert_index = dict(alert_index)
+    runtime_task_index = dict(task_index)
+
+    for target_key, alerts_for_target in sorted(grouped.items()):
+        task_id = _resolve_beads_task(
+            root=root,
+            repository=repo,
+            target_key=target_key,
+            parent_epic=parent_epic,
+            priority=_min_priority(alerts_for_target),
+            dry_run=dry_run,
+            task_index=runtime_task_index,
+        )
+
+        for alert in alerts_for_target:
+            alert_number = _alert_number(alert)
+            if alert_number <= 0:
+                continue
+
+            index_key = f"{repo}#{alert_number}"
+            existing_id = runtime_alert_index.get(index_key)
+            title = _dependabot_alert_title(alert)
+            description = _map_dependabot_to_beads_description(alert, repo)
+            severity = _alert_severity(alert)
+
+            if existing_id:
+                if not dry_run:
+                    update_beads_issue(
+                        root=root,
+                        identifier=existing_id,
+                        status="open",
+                        title=title,
+                        description=description,
+                        priority=_severity_to_priority(severity),
+                        set_labels=["security", "github", "dependabot"],
+                    )
+                action = "updated"
+                issue_id = existing_id
+            else:
+                action = "pulled "
+                if dry_run:
+                    issue_id = "would-create"
+                else:
+                    created = create_beads_issue(
+                        root=root,
+                        title=title,
+                        issue_type="sub-task",
+                        priority=_severity_to_priority(severity),
+                        assignee=None,
+                        parent=task_id,
+                        description=description,
+                    )
+                    update_beads_issue(
+                        root=root,
+                        identifier=created.identifier,
+                        status="open",
+                        title=title,
+                        description=description,
+                        priority=_severity_to_priority(severity),
+                        set_labels=["security", "github", "dependabot"],
+                    )
+                    issue_id = created.identifier
+                    runtime_alert_index[index_key] = issue_id
+
+            short_key = (
+                issue_id[: issue_id.find("-") + 7] if "-" in issue_id else issue_id
+            )
+            print(f'{action}  [{severity:<8}]  {short_key:<14}  "{title}"')
             if action == "updated":
                 result.updated += 1
             else:
@@ -639,3 +765,212 @@ def _extract_repo_slug(remote: str) -> Optional[str]:
 
 def _issue_path(issues_dir: Path, identifier: str) -> Path:
     return issues_dir / f"{identifier}.json"
+
+
+def _metadata_marker_alert(repository: str, alert_number: int) -> str:
+    return f"kanbus-gh-alert:dependabot|{repository}|{alert_number}"
+
+
+def _metadata_marker_target(repository: str, target_key: str) -> str:
+    return f"kanbus-gh-target:dependabot|{repository}|{target_key}"
+
+
+def _append_marker(description: str, marker: str) -> str:
+    return f"{description}\n\n<!-- {marker} -->"
+
+
+def _extract_marker(description: str, prefix: str) -> Optional[str]:
+    for line in description.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("<!-- ") and stripped.endswith(" -->"):
+            inner = stripped.removeprefix("<!-- ").removesuffix(" -->").strip()
+            if inner.startswith(prefix):
+                return inner[len(prefix) :]
+    return None
+
+
+def _build_beads_alert_index(issues: List[IssueData]) -> Dict[str, str]:
+    index: Dict[str, str] = {}
+    for issue in issues:
+        marker = _extract_marker(issue.description or "", "kanbus-gh-alert:dependabot|")
+        if not marker:
+            continue
+        parts = marker.split("|", 1)
+        if len(parts) != 2:
+            continue
+        index[f"{parts[0]}#{parts[1]}"] = issue.identifier
+    return index
+
+
+def _build_beads_task_index(issues: List[IssueData]) -> Dict[str, str]:
+    index: Dict[str, str] = {}
+    for issue in issues:
+        if issue.issue_type != "task":
+            continue
+        marker = _extract_marker(
+            issue.description or "", "kanbus-gh-target:dependabot|"
+        )
+        if not marker:
+            continue
+        parts = marker.split("|", 1)
+        if len(parts) != 2:
+            continue
+        index[parts[1]] = issue.identifier
+    return index
+
+
+def _resolve_beads_initiative(
+    root: Path, issues: List[IssueData], dry_run: bool
+) -> str:
+    for issue in issues:
+        if (
+            issue.issue_type == "initiative"
+            and issue.title == GITHUB_SECURITY_INITIATIVE_TITLE
+        ):
+            return issue.identifier
+    print(f'created  [initiative]  "{GITHUB_SECURITY_INITIATIVE_TITLE}"')
+    if dry_run:
+        return "would-create-initiative"
+    created = create_beads_issue(
+        root=root,
+        title=GITHUB_SECURITY_INITIATIVE_TITLE,
+        issue_type="initiative",
+        priority=1,
+        assignee=None,
+        parent=None,
+        description="Track remediation of GitHub security findings.",
+    )
+    update_beads_issue(
+        root=root,
+        identifier=created.identifier,
+        status="open",
+        title=GITHUB_SECURITY_INITIATIVE_TITLE,
+        description="Track remediation of GitHub security findings.",
+        priority=1,
+        set_labels=["security", "github"],
+    )
+    return created.identifier
+
+
+def _resolve_beads_epic(
+    root: Path,
+    issues: List[IssueData],
+    configured_id: Optional[str],
+    initiative_id: str,
+    dry_run: bool,
+) -> str:
+    if configured_id and any(issue.identifier == configured_id for issue in issues):
+        return configured_id
+    for issue in issues:
+        if (
+            issue.issue_type == "epic"
+            and issue.title == GITHUB_DEPENDABOT_EPIC_TITLE
+            and issue.parent == initiative_id
+        ):
+            return issue.identifier
+    print(f'created  [epic    ]  "{GITHUB_DEPENDABOT_EPIC_TITLE}"')
+    if dry_run:
+        return "would-create-epic"
+    created = create_beads_issue(
+        root=root,
+        title=GITHUB_DEPENDABOT_EPIC_TITLE,
+        issue_type="epic",
+        priority=1,
+        assignee=None,
+        parent=initiative_id,
+        description="Dependabot alerts imported from GitHub Security.",
+    )
+    update_beads_issue(
+        root=root,
+        identifier=created.identifier,
+        status="open",
+        title=GITHUB_DEPENDABOT_EPIC_TITLE,
+        description="Dependabot alerts imported from GitHub Security.",
+        priority=1,
+        set_labels=["security", "github", "dependabot"],
+    )
+    return created.identifier
+
+
+def _resolve_beads_task(
+    root: Path,
+    repository: str,
+    target_key: str,
+    parent_epic: str,
+    priority: int,
+    dry_run: bool,
+    task_index: Dict[str, str],
+) -> str:
+    title = f"{repository}:{target_key}"
+    description = _append_marker(
+        f"Dependabot alerts for `{target_key}`.",
+        _metadata_marker_target(repository, target_key),
+    )
+
+    existing = task_index.get(target_key)
+    if existing:
+        if not dry_run:
+            update_beads_issue(
+                root=root,
+                identifier=existing,
+                status="open",
+                title=title,
+                description=description,
+                priority=priority,
+                set_labels=["security", "github", "dependabot"],
+            )
+        return existing
+
+    print(f'created  [task    ]  "{title}"')
+    if dry_run:
+        synthetic = f"would-create-task-{target_key}"
+        task_index[target_key] = synthetic
+        return synthetic
+
+    created = create_beads_issue(
+        root=root,
+        title=title,
+        issue_type="task",
+        priority=priority,
+        assignee=None,
+        parent=parent_epic,
+        description=description,
+    )
+    update_beads_issue(
+        root=root,
+        identifier=created.identifier,
+        status="open",
+        title=title,
+        description=description,
+        priority=priority,
+        set_labels=["security", "github", "dependabot"],
+    )
+    task_index[target_key] = created.identifier
+    return created.identifier
+
+
+def _map_dependabot_to_beads_description(alert: Dict[str, Any], repo: str) -> str:
+    number = _alert_number(alert)
+    package = _alert_package(alert)
+    severity = _alert_severity(alert)
+    state = _alert_state(alert)
+    manifest_path = _alert_manifest(alert)
+    ecosystem = _alert_ecosystem(alert)
+    advisory = alert.get("security_advisory") or {}
+    summary = advisory.get("summary") or "Dependabot alert"
+    description = advisory.get("description") or ""
+    html_url = alert.get("html_url") or ""
+    body = (
+        f"## {summary}\n\n"
+        f"**Provider:** GitHub Dependabot\n"
+        f"**Repository:** `{repo}`\n"
+        f"**Alert Number:** {number}\n"
+        f"**Severity:** {severity}\n"
+        f"**State:** {state}\n"
+        f"**Package:** `{package}`\n"
+        f"**Ecosystem:** `{ecosystem}`\n"
+        f"**Manifest:** `{manifest_path}`\n\n"
+        f"### Advisory\n{description}\n\n"
+        f"### Reference\n- {html_url}"
+    )
+    return _append_marker(body, _metadata_marker_alert(repo, number))

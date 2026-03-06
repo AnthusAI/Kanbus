@@ -1949,7 +1949,9 @@ def dependabot() -> None:
     default=None,
     help="Override parent epic issue ID to attach findings to.",
 )
+@click.pass_context
 def github_dependabot_pull(
+    context: click.Context,
     dry_run: bool,
     repo: Optional[str],
     min_severity: Optional[str],
@@ -1961,6 +1963,7 @@ def github_dependabot_pull(
         DependabotPullResult,
         GithubSecuritySyncError,
         pull_dependabot_from_github,
+        pull_dependabot_from_github_beads,
     )
     from kanbus.models import DependabotConfiguration, GithubSecurityConfiguration
 
@@ -1972,6 +1975,9 @@ def github_dependabot_pull(
         raise click.ClickException(_format_project_marker_error(error)) from error
     except ConfigurationError as error:
         raise click.ClickException(str(error)) from error
+
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    root_for_beads = config_path.parent
 
     github_security_config = (
         configuration.github_security
@@ -2005,12 +2011,19 @@ def github_dependabot_pull(
         click.echo("Dry run — no files will be written.\n")
 
     try:
-        result: DependabotPullResult = pull_dependabot_from_github(
-            root,
-            github_security_config,
-            configuration.project_key,
-            dry_run,
-        )
+        if beads_mode:
+            result = pull_dependabot_from_github_beads(
+                root_for_beads,
+                github_security_config,
+                dry_run,
+            )
+        else:
+            result = pull_dependabot_from_github(
+                root,
+                github_security_config,
+                configuration.project_key,
+                dry_run,
+            )
     except GithubSecuritySyncError as error:
         raise click.ClickException(str(error)) from error
 

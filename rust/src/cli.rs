@@ -29,7 +29,7 @@ use crate::file_io::{
     canonicalize_path, detect_repairable_project_issues, ensure_git_repository,
     get_configuration_path, initialize_project, repair_project_structure, resolve_root,
 };
-use crate::github_security_sync::pull_dependabot_from_github;
+use crate::github_security_sync::{pull_dependabot_from_github, pull_dependabot_from_github_beads};
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
 use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
@@ -1962,12 +1962,20 @@ fn execute_command(
                         println!("Dry run — no files will be written.\n");
                     }
 
-                    let result = pull_dependabot_from_github(
-                        root,
-                        &github_security_config,
-                        &configuration.project_key,
-                        dry_run,
-                    )?;
+                    let result = if beads_mode {
+                        pull_dependabot_from_github_beads(
+                            &root_for_beads,
+                            &github_security_config,
+                            dry_run,
+                        )?
+                    } else {
+                        pull_dependabot_from_github(
+                            root,
+                            &github_security_config,
+                            &configuration.project_key,
+                            dry_run,
+                        )?
+                    };
                     Ok(Some(format!(
                         "pulled {} new, updated {} existing, skipped {} duplicates",
                         result.pulled, result.updated, result.skipped

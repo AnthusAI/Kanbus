@@ -9,12 +9,14 @@ use std::path::Path;
 use chrono::Utc;
 use serde_json::Value;
 
+use crate::beads_write::{create_beads_issue, update_beads_issue};
 use crate::error::KanbusError;
 use crate::file_io::load_project_directory;
 use crate::ids::{generate_issue_identifier, IssueIdentifierRequest};
 use crate::issue_files::{
     issue_path_for_identifier, list_issue_identifiers, read_issue_from_file, write_issue_to_file,
 };
+use crate::migration::load_beads_issues;
 use crate::models::{GithubSecurityConfiguration, IssueData};
 
 const GITHUB_API_BASE: &str = "https://api.github.com";
@@ -154,6 +156,162 @@ pub fn pull_dependabot_from_github(
             if !dry_run {
                 write_issue_to_file(&issue, &issue_path)?;
             }
+
+            if action == "updated" {
+                updated += 1;
+            } else {
+                pulled += 1;
+            }
+        }
+    }
+
+    Ok(DependabotPullResult {
+        pulled,
+        updated,
+        skipped,
+    })
+}
+
+/// Pull Dependabot alerts from GitHub and create/update Beads issues.
+pub fn pull_dependabot_from_github_beads(
+    root: &Path,
+    github_security_config: &GithubSecurityConfiguration,
+    dry_run: bool,
+) -> Result<DependabotPullResult, KanbusError> {
+    let token = std::env::var("GITHUB_TOKEN")
+        .or_else(|_| std::env::var("GH_TOKEN"))
+        .map_err(|_| {
+            KanbusError::Configuration(
+                "GITHUB_TOKEN or GH_TOKEN environment variable is not set".to_string(),
+            )
+        })?;
+
+    let dependabot_config = github_security_config
+        .dependabot
+        .clone()
+        .unwrap_or_default();
+    let repo = github_security_config
+        .repo
+        .clone()
+        .or_else(|| detect_repo_from_git(root))
+        .ok_or_else(|| {
+            KanbusError::Configuration(
+                "could not determine GitHub repository slug (use --repo or github_security.repo)"
+                    .to_string(),
+            )
+        })?;
+
+    validate_dependabot_state(&dependabot_config.state)?;
+    let min_priority = severity_to_priority(&dependabot_config.min_severity);
+
+    let alerts = fetch_dependabot_alerts(&repo, &token, &dependabot_config.state)?;
+    let filtered_alerts: Vec<Value> = alerts
+        .into_iter()
+        .filter(|alert| severity_to_priority(&alert_severity(alert)) <= min_priority)
+        .collect();
+
+    let existing_issues = load_beads_issues(root)?;
+    let alert_index = build_beads_alert_index(&existing_issues);
+    let task_index = build_beads_task_index(&existing_issues);
+
+    let initiative_id = resolve_beads_initiative(root, &existing_issues, dry_run)?;
+    let parent_epic = resolve_beads_epic(
+        root,
+        &existing_issues,
+        dependabot_config.parent_epic.as_deref(),
+        &initiative_id,
+        dry_run,
+    )?;
+
+    let mut grouped: BTreeMap<String, Vec<&Value>> = BTreeMap::new();
+    for alert in &filtered_alerts {
+        grouped.entry(task_target_key(alert)).or_default().push(alert);
+    }
+
+    let mut pulled = 0usize;
+    let mut updated = 0usize;
+    let skipped = 0usize;
+    let mut runtime_alert_index = alert_index.clone();
+    let mut runtime_task_index = task_index.clone();
+
+    for (target_key, alerts_for_target) in grouped {
+        let task_id = resolve_beads_task(
+            root,
+            &repo,
+            &target_key,
+            &parent_epic,
+            min_priority_for_alerts(&alerts_for_target),
+            dry_run,
+            &mut runtime_task_index,
+        )?;
+
+        for alert in alerts_for_target {
+            let alert_number = alert_number(alert);
+            if alert_number <= 0 {
+                continue;
+            }
+            let index_key = format!("{repo}#{alert_number}");
+            let existing_kanbus_id = runtime_alert_index.get(&index_key).cloned();
+
+            let title = dependabot_alert_title(alert);
+            let description = map_dependabot_to_beads_description(alert, &repo);
+            let priority_u8 = priority_to_u8(severity_to_priority(&alert_severity(alert)))?;
+
+            let (kanbus_id, action) = if let Some(id) = existing_kanbus_id {
+                if !dry_run {
+                    let add_labels: Vec<String> = Vec::new();
+                    let remove_labels: Vec<String> = Vec::new();
+                    update_beads_issue(
+                        root,
+                        &id,
+                        Some("open"),
+                        Some(priority_u8),
+                        Some(&title),
+                        Some(&description),
+                        None,
+                        &add_labels,
+                        &remove_labels,
+                        Some("security,github,dependabot"),
+                    )?;
+                }
+                (id, "updated")
+            } else if dry_run {
+                ("would-create".to_string(), "pulled ")
+            } else {
+                let created = create_beads_issue(
+                    root,
+                    &title,
+                    Some("sub-task"),
+                    Some(priority_u8),
+                    None,
+                    Some(&task_id),
+                    Some(&description),
+                )?;
+                let add_labels: Vec<String> = Vec::new();
+                let remove_labels: Vec<String> = Vec::new();
+                let created_id = created.identifier.clone();
+                update_beads_issue(
+                    root,
+                    &created_id,
+                    Some("open"),
+                    Some(priority_u8),
+                    Some(&title),
+                    Some(&description),
+                    None,
+                    &add_labels,
+                    &remove_labels,
+                    Some("security,github,dependabot"),
+                )?;
+                runtime_alert_index.insert(index_key.clone(), created_id.clone());
+                (created_id, "pulled ")
+            };
+
+            let severity = alert_severity(alert);
+            println!(
+                "{action}  [{severity:<8}]  {:<14}  \"{}\"",
+                short_key(&kanbus_id),
+                title
+            );
 
             if action == "updated" {
                 updated += 1;
@@ -784,6 +942,274 @@ fn severity_to_priority(severity: &str) -> i32 {
         "medium" => 2,
         _ => 3,
     }
+}
+
+fn priority_to_u8(priority: i32) -> Result<u8, KanbusError> {
+    u8::try_from(priority)
+        .map_err(|_| KanbusError::IssueOperation(format!("invalid priority '{priority}'")))
+}
+
+fn metadata_marker_alert(repository: &str, alert_number: i64) -> String {
+    format!("kanbus-gh-alert:dependabot|{repository}|{alert_number}")
+}
+
+fn metadata_marker_target(repository: &str, target_key: &str) -> String {
+    format!("kanbus-gh-target:dependabot|{repository}|{target_key}")
+}
+
+fn append_marker(description: &str, marker: &str) -> String {
+    format!("{description}\n\n<!-- {marker} -->")
+}
+
+fn find_marker_value(description: &str, prefix: &str) -> Option<String> {
+    for line in description.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("<!-- ") && trimmed.ends_with(" -->") {
+            let inner = trimmed
+                .trim_start_matches("<!-- ")
+                .trim_end_matches(" -->")
+                .trim();
+            if let Some(rest) = inner.strip_prefix(prefix) {
+                return Some(rest.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn build_beads_alert_index(issues: &[IssueData]) -> BTreeMap<String, String> {
+    let mut index = BTreeMap::new();
+    for issue in issues {
+        if let Some(rest) = find_marker_value(&issue.description, "kanbus-gh-alert:dependabot|") {
+            let parts: Vec<&str> = rest.split('|').collect();
+            if parts.len() == 2 {
+                let key = format!("{}#{}", parts[0], parts[1]);
+                index.insert(key, issue.identifier.clone());
+            }
+        }
+    }
+    index
+}
+
+fn build_beads_task_index(issues: &[IssueData]) -> BTreeMap<String, String> {
+    let mut index = BTreeMap::new();
+    for issue in issues {
+        if issue.issue_type != "task" {
+            continue;
+        }
+        if let Some(rest) = find_marker_value(&issue.description, "kanbus-gh-target:dependabot|")
+        {
+            let parts: Vec<&str> = rest.split('|').collect();
+            if parts.len() == 2 {
+                index.insert(parts[1].to_string(), issue.identifier.clone());
+            }
+        }
+    }
+    index
+}
+
+fn resolve_beads_initiative(
+    root: &Path,
+    issues: &[IssueData],
+    dry_run: bool,
+) -> Result<String, KanbusError> {
+    if let Some(existing) = issues
+        .iter()
+        .find(|issue| {
+            issue.issue_type == "initiative" && issue.title == GITHUB_SECURITY_INITIATIVE_TITLE
+        })
+        .map(|issue| issue.identifier.clone())
+    {
+        return Ok(existing);
+    }
+    println!("created  [initiative]  \"{GITHUB_SECURITY_INITIATIVE_TITLE}\"");
+    if dry_run {
+        return Ok("would-create-initiative".to_string());
+    }
+    let created = create_beads_issue(
+        root,
+        GITHUB_SECURITY_INITIATIVE_TITLE,
+        Some("initiative"),
+        Some(1),
+        None,
+        None,
+        Some("Track remediation of GitHub security findings."),
+    )?;
+    let add_labels: Vec<String> = Vec::new();
+    let remove_labels: Vec<String> = Vec::new();
+    update_beads_issue(
+        root,
+        &created.identifier,
+        Some("open"),
+        Some(1),
+        Some(GITHUB_SECURITY_INITIATIVE_TITLE),
+        Some("Track remediation of GitHub security findings."),
+        None,
+        &add_labels,
+        &remove_labels,
+        Some("security,github"),
+    )?;
+    Ok(created.identifier)
+}
+
+fn resolve_beads_epic(
+    root: &Path,
+    issues: &[IssueData],
+    configured_id: Option<&str>,
+    initiative_id: &str,
+    dry_run: bool,
+) -> Result<String, KanbusError> {
+    if let Some(id) = configured_id {
+        if issues.iter().any(|issue| issue.identifier == id) {
+            return Ok(id.to_string());
+        }
+    }
+    if let Some(existing) = issues
+        .iter()
+        .find(|issue| {
+            issue.issue_type == "epic"
+                && issue.title == GITHUB_DEPENDABOT_EPIC_TITLE
+                && issue.parent.as_deref() == Some(initiative_id)
+        })
+        .map(|issue| issue.identifier.clone())
+    {
+        return Ok(existing);
+    }
+    println!("created  [epic    ]  \"{GITHUB_DEPENDABOT_EPIC_TITLE}\"");
+    if dry_run {
+        return Ok("would-create-epic".to_string());
+    }
+    let created = create_beads_issue(
+        root,
+        GITHUB_DEPENDABOT_EPIC_TITLE,
+        Some("epic"),
+        Some(1),
+        None,
+        Some(initiative_id),
+        Some("Dependabot alerts imported from GitHub Security."),
+    )?;
+    let add_labels: Vec<String> = Vec::new();
+    let remove_labels: Vec<String> = Vec::new();
+    update_beads_issue(
+        root,
+        &created.identifier,
+        Some("open"),
+        Some(1),
+        Some(GITHUB_DEPENDABOT_EPIC_TITLE),
+        Some("Dependabot alerts imported from GitHub Security."),
+        None,
+        &add_labels,
+        &remove_labels,
+        Some("security,github,dependabot"),
+    )?;
+    Ok(created.identifier)
+}
+
+fn resolve_beads_task(
+    root: &Path,
+    repository: &str,
+    target_key: &str,
+    parent_epic: &str,
+    priority: i32,
+    dry_run: bool,
+    task_index: &mut BTreeMap<String, String>,
+) -> Result<String, KanbusError> {
+    if let Some(existing) = task_index.get(target_key) {
+        if !dry_run {
+            let title = format!("{repository}:{target_key}");
+            let description = append_marker(
+                &format!("Dependabot alerts for `{target_key}`."),
+                &metadata_marker_target(repository, target_key),
+            );
+            let add_labels: Vec<String> = Vec::new();
+            let remove_labels: Vec<String> = Vec::new();
+            update_beads_issue(
+                root,
+                existing,
+                Some("open"),
+                Some(priority_to_u8(priority)?),
+                Some(&title),
+                Some(&description),
+                None,
+                &add_labels,
+                &remove_labels,
+                Some("security,github,dependabot"),
+            )?;
+        }
+        return Ok(existing.clone());
+    }
+    let title = format!("{repository}:{target_key}");
+    println!("created  [task    ]  \"{title}\"");
+    if dry_run {
+        let synthetic = format!("would-create-task-{target_key}");
+        task_index.insert(target_key.to_string(), synthetic.clone());
+        return Ok(synthetic);
+    }
+    let description = append_marker(
+        &format!("Dependabot alerts for `{target_key}`."),
+        &metadata_marker_target(repository, target_key),
+    );
+    let created = create_beads_issue(
+        root,
+        &title,
+        Some("task"),
+        Some(priority_to_u8(priority)?),
+        None,
+        Some(parent_epic),
+        Some(&description),
+    )?;
+    let add_labels: Vec<String> = Vec::new();
+    let remove_labels: Vec<String> = Vec::new();
+    update_beads_issue(
+        root,
+        &created.identifier,
+        Some("open"),
+        Some(priority_to_u8(priority)?),
+        Some(&title),
+        Some(&description),
+        None,
+        &add_labels,
+        &remove_labels,
+        Some("security,github,dependabot"),
+    )?;
+    task_index.insert(target_key.to_string(), created.identifier.clone());
+    Ok(created.identifier)
+}
+
+fn map_dependabot_to_beads_description(alert: &Value, repo: &str) -> String {
+    let number = alert_number(alert);
+    let package_name = alert_package_name(alert);
+    let severity = alert_severity(alert);
+    let state = alert_state(alert);
+    let advisory_summary = alert["security_advisory"]["summary"]
+        .as_str()
+        .unwrap_or("Dependabot alert")
+        .to_string();
+    let advisory_description = alert["security_advisory"]["description"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let html_url = alert["html_url"].as_str().unwrap_or("").to_string();
+    let manifest_path = alert_manifest_path(alert);
+    let ecosystem = alert_ecosystem(alert);
+
+    let description = format!(
+        "## {advisory_summary}\n\n\
+         **Provider:** GitHub Dependabot\n\
+         **Repository:** `{repo}`\n\
+         **Alert Number:** {number}\n\
+         **Severity:** {severity}\n\
+         **State:** {state}\n\
+         **Package:** `{package_name}`\n\
+         **Ecosystem:** `{ecosystem}`\n\
+         **Manifest:** `{manifest_path}`\n\n\
+         ### Advisory\n\
+         {advisory_description}\n\n\
+         ### Reference\n\
+         - {html_url}"
+    );
+
+    append_marker(&description, &metadata_marker_alert(repo, number))
 }
 
 fn detect_repo_from_git(root: &Path) -> Option<String> {
