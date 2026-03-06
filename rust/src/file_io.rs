@@ -42,6 +42,19 @@ const WORKSPACE_IGNORE_DIRS: [&str; 11] = [
     "target",
 ];
 
+const LEGACY_DISCOVERY_IGNORE_DIRS: [&str; 10] = [
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "project-local",
+    "target",
+];
+
 fn should_force_canonicalize_failure() -> bool {
     std::env::var_os("KANBUS_TEST_CANONICALIZE_FAILURE").is_some()
 }
@@ -579,6 +592,67 @@ pub(crate) fn discover_project_directories(
             if rp.project_dir.is_dir() {
                 projects.push(rp.project_dir);
             }
+        }
+    }
+
+    if projects.is_empty() {
+        discover_legacy_project_directories(root, projects)?;
+    }
+    Ok(())
+}
+
+fn discover_legacy_project_directories(
+    root: &Path,
+    projects: &mut Vec<PathBuf>,
+) -> Result<(), KanbusError> {
+    if root.is_dir() {
+        if let Some(name) = root.file_name().and_then(|value| value.to_str()) {
+            if name == "project" {
+                projects.push(root.to_path_buf());
+            }
+        }
+    }
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        let entries = match std::fs::read_dir(&current) {
+            Ok(entries) => entries,
+            Err(error) => {
+                if current == root {
+                    return Err(KanbusError::Io(error.to_string()));
+                }
+                continue;
+            }
+        };
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) => {
+                    if current == root {
+                        return Err(KanbusError::Io(error.to_string()));
+                    }
+                    continue;
+                }
+            };
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+                continue;
+            }
+            let name = path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or("");
+            if name == "project" {
+                projects.push(path);
+                continue;
+            }
+            if LEGACY_DISCOVERY_IGNORE_DIRS.contains(&name) {
+                continue;
+            }
+            stack.push(path);
         }
     }
     Ok(())

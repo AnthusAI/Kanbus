@@ -1325,7 +1325,8 @@ fn execute_command(
                 }
                 if set_status.is_none() && set_assignee.is_none() {
                     return Err(KanbusError::IssueOperation(
-                        "bulk update requires at least one setter (--set-status or --set-assignee)".to_string(),
+                        "bulk update requires at least one setter (--set-status or --set-assignee)"
+                            .to_string(),
                     ));
                 }
 

@@ -45,8 +45,9 @@ def run_doctor(root: Path) -> DoctorResult:
         raise DoctorError(str(error)) from error
 
     try:
-        load_project_configuration(get_configuration_path(project_dir))
-    except ConfigurationError as error:
+        configuration_path = get_configuration_path(root)
+        load_project_configuration(configuration_path)
+    except (ConfigurationError, ProjectMarkerError) as error:
         raise DoctorError(str(error)) from error
 
     return DoctorResult(project_dir=project_dir)

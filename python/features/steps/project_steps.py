@@ -62,7 +62,9 @@ def given_repo_multiple_projects(context: object) -> None:
     write_default_kanbus_config(beta_repo)
 
 
-@given("a repository with a .kanbus.yml file and a project directory that cannot be canonicalized")
+@given(
+    "a repository with a .kanbus.yml file and a project directory that cannot be canonicalized"
+)
 def given_repo_project_cannot_canonicalize(context: object) -> None:
     root = _create_repo(context, "canonicalize-failure")
     project_dir = root / "project"

@@ -22,6 +22,7 @@ class ResolvedProject:
 class ProjectMarkerError(RuntimeError):
     """Raised when project discovery fails."""
 
+
 WORKSPACE_IGNORE_DIRS = {
     ".git",
     ".mypy_cache",
@@ -32,6 +33,19 @@ WORKSPACE_IGNORE_DIRS = {
     "dist",
     "node_modules",
     "project",
+    "project-local",
+    "target",
+}
+
+LEGACY_DISCOVERY_IGNORE_DIRS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
     "project-local",
     "target",
 }
@@ -67,6 +81,8 @@ def discover_project_directories(root: Path) -> List[Path]:
         for project_dir in resolved:
             if project_dir.is_dir():
                 project_dirs.append(project_dir)
+    if not project_dirs:
+        project_dirs.extend(_discover_legacy_project_directories(root))
     return _normalize_project_directories(project_dirs)
 
 
@@ -146,7 +162,9 @@ def _resolve_project_directories_from_config(config_path: Path) -> List[Path]:
     except RuntimeError as error:
         raise ProjectMarkerError(str(error)) from error
     project_dirs = _resolve_project_directories(config_path.parent, configuration)
-    return _apply_ignore_paths_for_config(config_path.parent, configuration, project_dirs)
+    return _apply_ignore_paths_for_config(
+        config_path.parent, configuration, project_dirs
+    )
 
 
 def _apply_ignore_paths_for_config(
@@ -189,6 +207,33 @@ def _discover_workspace_config_paths(root: Path) -> List[Path]:
     return sorted(configs, key=lambda item: str(item))
 
 
+def _discover_legacy_project_directories(root: Path) -> List[Path]:
+    projects: List[Path] = []
+    if root.is_dir() and root.name == "project":
+        projects.append(root)
+    stack = [root]
+    while stack:
+        current = stack.pop()
+        try:
+            entries = list(current.iterdir())
+        except OSError as error:
+            if current == root:
+                raise ProjectMarkerError(str(error)) from error
+            continue
+        for entry in entries:
+            if not entry.is_dir():
+                continue
+            if entry.is_symlink():
+                continue
+            if entry.name == "project":
+                projects.append(entry)
+                continue
+            if entry.name in LEGACY_DISCOVERY_IGNORE_DIRS:
+                continue
+            stack.append(entry)
+    return projects
+
+
 def _normalize_project_directories(paths: Iterable[Path]) -> List[Path]:
     normalized: List[Path] = []
     seen: set[Path] = set()
@@ -222,9 +267,15 @@ def _resolve_path(path: Path) -> Path:
 
 
 def _find_configuration_file(root: Path) -> Optional[Path]:
-    candidate = root / ".kanbus.yml"
-    if candidate.is_file():
-        return candidate
+    current: Optional[Path] = root
+    while current is not None:
+        candidate = current / ".kanbus.yml"
+        if candidate.is_file():
+            return candidate
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
     return None
 
 
@@ -253,7 +304,9 @@ def load_project_directory(root: Path) -> Path:
         except RuntimeError as error:
             raise ProjectMarkerError(str(error)) from error
         primary = marker.parent / configuration.project_directory
-        filtered = _apply_ignore_paths_for_config(marker.parent, configuration, [primary])
+        filtered = _apply_ignore_paths_for_config(
+            marker.parent, configuration, [primary]
+        )
         if not filtered:
             raise ProjectMarkerError("project not initialized")
         return _normalize_project_directories(filtered)[0]

@@ -468,7 +468,9 @@ def given_invalid_config_workflow_statuses(context: object) -> None:
     )
 
 
-@given("a Kanbus repository with a .kanbus.yml file containing valid sort_order presets")
+@given(
+    "a Kanbus repository with a .kanbus.yml file containing valid sort_order presets"
+)
 def given_valid_sort_order_presets(context: object) -> None:
     initialize_default_project(context)
     repository = Path(context.working_directory)
@@ -485,7 +487,9 @@ def given_valid_sort_order_presets(context: object) -> None:
     )
 
 
-@given("a Kanbus repository with a .kanbus.yml file containing an invalid sort_order preset")
+@given(
+    "a Kanbus repository with a .kanbus.yml file containing an invalid sort_order preset"
+)
 def given_invalid_sort_order_preset(context: object) -> None:
     initialize_default_project(context)
     repository = Path(context.working_directory)
@@ -499,7 +503,9 @@ def given_invalid_sort_order_preset(context: object) -> None:
     )
 
 
-@given("a Kanbus repository with a .kanbus.yml file containing an invalid sort_order raw rule")
+@given(
+    "a Kanbus repository with a .kanbus.yml file containing an invalid sort_order raw rule"
+)
 def given_invalid_sort_order_raw_rule(context: object) -> None:
     initialize_default_project(context)
     repository = Path(context.working_directory)

@@ -363,17 +363,15 @@ fn validate_sort_rule(path: &str, value: &Value, errors: &mut Vec<String>) {
                 continue;
             };
             if key_text != "field" && key_text != "direction" {
-                errors.push(format!(
-                    "{path}[{index}] has unsupported key '{key_text}'"
-                ));
+                errors.push(format!("{path}[{index}] has unsupported key '{key_text}'"));
             }
         }
 
         let field = mapping
-            .get(&Value::String("field".to_string()))
+            .get(Value::String("field".to_string()))
             .and_then(Value::as_str);
         let direction = mapping
-            .get(&Value::String("direction".to_string()))
+            .get(Value::String("direction".to_string()))
             .and_then(Value::as_str);
 
         match field {
