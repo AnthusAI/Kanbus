@@ -13,10 +13,52 @@ from types import SimpleNamespace
 from typing import Iterable
 
 from click.testing import CliRunner
+import yaml
 
 from kanbus.cli import cli
 from kanbus.models import IssueData
 from kanbus.project import load_project_directory as resolve_project_directory
+
+
+def write_default_kanbus_config(
+    root: Path,
+    *,
+    project_directory: str = "project",
+    project_key: str = "kanbus",
+    virtual_projects: dict | None = None,
+    ignore_paths: list[str] | None = None,
+) -> None:
+    """Write a default .kanbus.yml config for test fixtures."""
+    payload = {
+        "project_directory": project_directory,
+        "virtual_projects": virtual_projects or {},
+        "project_key": project_key,
+        "hierarchy": ["initiative", "epic", "task", "sub-task"],
+        "types": ["bug", "story", "chore"],
+        "workflows": {
+            "default": {
+                "backlog": ["open", "closed"],
+                "open": ["in_progress", "closed", "backlog"],
+                "in_progress": ["open", "blocked", "closed"],
+                "blocked": ["in_progress", "closed"],
+                "closed": ["open"],
+            }
+        },
+        "initial_status": "open",
+        "priorities": {
+            0: {"name": "critical", "color": "red"},
+            1: {"name": "high", "color": "bright_red"},
+            2: {"name": "medium", "color": "yellow"},
+            3: {"name": "low", "color": "blue"},
+            4: {"name": "trivial", "color": "white"},
+        },
+        "default_priority": 2,
+    }
+    if ignore_paths:
+        payload["ignore_paths"] = ignore_paths
+    (root / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False), encoding="utf-8"
+    )
 
 
 def _promote_quality_signals_to_stderr(stdout: str, stderr: str) -> str:

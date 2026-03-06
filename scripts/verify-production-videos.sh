@@ -4,33 +4,58 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-AWS_PROFILE="${AWS_PROFILE:-anthus}"
-VIDEOS_PREFIX="${VIDEOS_PREFIX:-videos}"
-MIRROR_PREFIX="${MIRROR_PREFIX:-kanbus-feature-videos}"
+TARGETS_CONFIG="${VIDEO_DEPLOY_TARGETS_CONFIG:-${ROOT_DIR}/config/video-deploy.targets.json}"
+VIDEO_DEPLOY_TARGET="${VIDEO_DEPLOY_TARGET:-production}"
+AMPLIFY_OUTPUTS="${AMPLIFY_OUTPUTS:-${ROOT_DIR}/amplify_outputs.json}"
+
+TARGET_AWS_PROFILE=""
+TARGET_BUCKET=""
+TARGET_PRIMARY_PREFIX=""
+TARGET_MIRROR_PREFIX=""
+TARGET_CLOUDFRONT_DOMAIN=""
+
+if [ -f "$TARGETS_CONFIG" ]; then
+  TARGET_AWS_PROFILE="$(jq -r --arg t "$VIDEO_DEPLOY_TARGET" '.[$t].awsProfile // empty' "$TARGETS_CONFIG")"
+  TARGET_BUCKET="$(jq -r --arg t "$VIDEO_DEPLOY_TARGET" '.[$t].bucket // empty' "$TARGETS_CONFIG")"
+  TARGET_PRIMARY_PREFIX="$(jq -r --arg t "$VIDEO_DEPLOY_TARGET" '.[$t].primaryPrefix // empty' "$TARGETS_CONFIG")"
+  TARGET_MIRROR_PREFIX="$(jq -r --arg t "$VIDEO_DEPLOY_TARGET" '.[$t].mirrorPrefix // empty' "$TARGETS_CONFIG")"
+  TARGET_CLOUDFRONT_DOMAIN="$(jq -r --arg t "$VIDEO_DEPLOY_TARGET" '.[$t].cloudfrontDomain // empty' "$TARGETS_CONFIG")"
+fi
+
+AMPLIFY_BUCKET=""
+AMPLIFY_CDN_BASE=""
+if [ -f "$AMPLIFY_OUTPUTS" ]; then
+  AMPLIFY_BUCKET="$(jq -r '.custom.videosBucketName // empty' "$AMPLIFY_OUTPUTS")"
+  AMPLIFY_CDN_BASE="$(jq -r '.custom.videosCdnUrl // empty' "$AMPLIFY_OUTPUTS")"
+fi
+
+AWS_PROFILE="${AWS_PROFILE:-${TARGET_AWS_PROFILE:-anthus}}"
+VIDEOS_PREFIX="${VIDEOS_PREFIX:-${TARGET_PRIMARY_PREFIX:-videos}}"
+MIRROR_PREFIX="${MIRROR_PREFIX:-${TARGET_MIRROR_PREFIX:-kanbus-feature-videos}}"
 VERIFY_MIRROR="${VERIFY_MIRROR:-1}"
 VERIFY_REWRITE="${VERIFY_REWRITE:-1}"
 AMPLIFY_APP_ID="${AMPLIFY_APP_ID:-d2h5foxy5ng19a}"
 PROD_BASE_URL="${PROD_BASE_URL:-https://kanb.us}"
-AMPLIFY_OUTPUTS="${ROOT_DIR}/amplify_outputs.json"
 
-if [ ! -f "$AMPLIFY_OUTPUTS" ]; then
-  echo "VERIFY_FAILED: missing ${AMPLIFY_OUTPUTS}" >&2
-  exit 1
+VIDEOS_BUCKET="${VIDEOS_BUCKET:-${TARGET_BUCKET:-$AMPLIFY_BUCKET}}"
+if [ -n "${VIDEOS_CDN_BASE:-}" ]; then
+  RESOLVED_CDN_BASE="$VIDEOS_CDN_BASE"
+elif [ -n "$TARGET_CLOUDFRONT_DOMAIN" ]; then
+  RESOLVED_CDN_BASE="https://${TARGET_CLOUDFRONT_DOMAIN}"
+else
+  RESOLVED_CDN_BASE="$AMPLIFY_CDN_BASE"
 fi
-
-VIDEOS_BUCKET="${VIDEOS_BUCKET:-$(jq -r '.custom.videosBucketName // empty' "$AMPLIFY_OUTPUTS")}"
-VIDEOS_CDN_BASE="${VIDEOS_CDN_BASE:-$(jq -r '.custom.videosCdnUrl // empty' "$AMPLIFY_OUTPUTS")}"
+VIDEOS_CDN_BASE="${RESOLVED_CDN_BASE%/}"
 
 if [ -z "$VIDEOS_BUCKET" ] || [ "$VIDEOS_BUCKET" = "null" ]; then
-  echo "VERIFY_FAILED: missing videos bucket (set VIDEOS_BUCKET or custom.videosBucketName)" >&2
+  echo "VERIFY_FAILED: missing videos bucket (set VIDEOS_BUCKET or configure ${TARGETS_CONFIG})" >&2
   exit 1
 fi
 
 if [ -z "$VIDEOS_CDN_BASE" ] || [ "$VIDEOS_CDN_BASE" = "null" ]; then
-  echo "VERIFY_FAILED: missing videos CDN base (set VIDEOS_CDN_BASE or custom.videosCdnUrl)" >&2
+  echo "VERIFY_FAILED: missing videos CDN base (set VIDEOS_CDN_BASE or configure ${TARGETS_CONFIG})" >&2
   exit 1
 fi
-VIDEOS_CDN_BASE="${VIDEOS_CDN_BASE%/}"
 
 EXPECTED_ASSETS="$(node - <<'NODE'
 const fs = require("fs");
@@ -58,6 +83,7 @@ run_with_timeout() {
 
 echo "Production Video Verification"
 echo "============================="
+echo "TARGET: ${VIDEO_DEPLOY_TARGET}"
 echo "AWS_PROFILE: ${AWS_PROFILE}"
 echo "VIDEOS_BUCKET: ${VIDEOS_BUCKET}"
 echo "VIDEOS_PREFIX: ${VIDEOS_PREFIX}"

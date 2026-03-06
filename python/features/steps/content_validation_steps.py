@@ -19,13 +19,16 @@ from kanbus.content_validation import (
 
 @given('external validator "{tool}" is not available')
 def given_external_validator_not_available(context: object, tool: str) -> None:
-    """Mark an external validator as not available.
+    """Force an external validator to appear missing on PATH."""
+    if not hasattr(context, "original_shutil_which"):
+        context.original_shutil_which = shutil.which
 
-    In test environments, these tools are typically not installed,
-    so this step is essentially a no-op. The validation code checks
-    for the tool on PATH and skips silently if not found.
-    """
-    _ = tool
+    def fake_which(name: str) -> str | None:
+        if name == tool:
+            return None
+        return context.original_shutil_which(name)
+
+    shutil.which = fake_which
 
 
 @given('external validator "{tool}" is available and returns success')
@@ -87,6 +90,7 @@ def given_external_validator_timeout(context: object, tool: str) -> None:
     subprocess.run = fake_run
 
 
+@when("I create an issue with description containing")
 @when("I create an issue with description containing:")
 def when_create_with_description(context: object) -> None:
     description = context.text.strip()
@@ -97,6 +101,7 @@ def when_create_with_description(context: object) -> None:
     )
 
 
+@when("I create an issue with --no-validate and description containing")
 @when("I create an issue with --no-validate and description containing:")
 def when_create_no_validate_with_description(context: object) -> None:
     description = context.text.strip()
@@ -107,6 +112,7 @@ def when_create_no_validate_with_description(context: object) -> None:
     )
 
 
+@when('I comment on "{identifier}" with text containing')
 @when('I comment on "{identifier}" with text containing:')
 def when_comment_with_text(context: object, identifier: str) -> None:
     text = context.text.strip()
@@ -117,6 +123,7 @@ def when_comment_with_text(context: object, identifier: str) -> None:
     run_cli(context, f"kanbus comment {identifier} {quoted_text}")
 
 
+@when('I comment on "{identifier}" with --no-validate and text containing')
 @when('I comment on "{identifier}" with --no-validate and text containing:')
 def when_comment_no_validate_with_text(context: object, identifier: str) -> None:
     text = context.text.strip()
@@ -127,6 +134,7 @@ def when_comment_no_validate_with_text(context: object, identifier: str) -> None
     run_cli(context, f"kanbus comment {identifier} --no-validate {quoted_text}")
 
 
+@when('I update "{identifier}" with description containing')
 @when('I update "{identifier}" with description containing:')
 def when_update_with_description(context: object, identifier: str) -> None:
     description = context.text.strip()
@@ -137,6 +145,7 @@ def when_update_with_description(context: object, identifier: str) -> None:
     )
 
 
+@when("I validate code blocks directly")
 @when("I validate code blocks directly:")
 def when_validate_code_blocks_directly(context: object) -> None:
     text = context.text.strip()
@@ -159,6 +168,7 @@ def then_code_block_validation_fails(context: object, message: str) -> None:
     assert message in str(error)
 
 
+@when('I validate external tool "{tool}" directly with content')
 @when('I validate external tool "{tool}" directly with content:')
 def when_validate_external_tool_directly(context: object, tool: str) -> None:
     block = CodeBlock(language=tool, content=context.text.strip(), start_line=1)

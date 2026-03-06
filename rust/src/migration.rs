@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, TimeZone, Utc};
 use serde_json::Value;
@@ -109,6 +109,63 @@ pub fn load_beads_issue_by_id(root: &Path, identifier: &str) -> Result<IssueData
     }
 }
 
+/// Load a Beads issue by identifier across a workspace.
+///
+/// # Arguments
+/// * `root` - Workspace root path.
+/// * `identifier` - Issue identifier to locate.
+///
+/// # Errors
+/// Returns `KanbusError::IssueOperation` if ambiguous matches are found.
+pub fn load_beads_issue_from_workspace(
+    root: &Path,
+    identifier: &str,
+) -> Result<Option<(IssueData, PathBuf)>, KanbusError> {
+    let mut project_dirs = Vec::new();
+    discover_project_directories(root, &mut project_dirs)?;
+    if project_dirs.is_empty() {
+        return Ok(None);
+    }
+
+    let mut beads_roots: HashSet<PathBuf> = HashSet::new();
+    for project_dir in project_dirs {
+        if let Some(beads_root) = find_beads_root_for_project_dir(&project_dir) {
+            beads_roots.insert(beads_root);
+        }
+    }
+
+    let mut matches: Vec<(IssueData, PathBuf)> = Vec::new();
+    for beads_root in beads_roots {
+        if !beads_root.join(".beads").is_dir() {
+            continue;
+        }
+        let issues = match load_beads_issues(&beads_root) {
+            Ok(issues) => issues,
+            Err(_) => continue,
+        };
+        for issue in issues {
+            if issue_id_matches(identifier, &issue.identifier) {
+                matches.push((issue, beads_root.clone()));
+            }
+        }
+    }
+
+    match matches.len() {
+        0 => Ok(None),
+        1 => Ok(Some(matches.remove(0))),
+        _ => {
+            let ids: Vec<String> = matches
+                .into_iter()
+                .map(|(issue, _)| issue.identifier)
+                .collect();
+            Err(KanbusError::IssueOperation(format!(
+                "ambiguous identifier, matches: {}",
+                ids.join(", ")
+            )))
+        }
+    }
+}
+
 /// Check if an abbreviated identifier matches a full identifier.
 ///
 /// # Arguments
@@ -121,6 +178,18 @@ fn issue_id_matches(abbreviated: &str, full_id: &str) -> bool {
     use crate::ids::issue_identifier_matches;
 
     issue_identifier_matches(abbreviated, full_id)
+}
+
+fn find_beads_root_for_project_dir(project_dir: &Path) -> Option<PathBuf> {
+    let mut current = Some(project_dir);
+    while let Some(dir) = current {
+        let config_path = dir.join(".kanbus.yml");
+        if config_path.is_file() {
+            return Some(dir.to_path_buf());
+        }
+        current = dir.parent();
+    }
+    None
 }
 
 /// Migrate Beads issues.jsonl into a Kanbus project.
@@ -788,6 +857,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         time_zone: None,
         statuses,
         categories,
+        sort_order: BTreeMap::new(),
         type_colors: BTreeMap::new(),
         beads_compatibility: false,
         jira: None,

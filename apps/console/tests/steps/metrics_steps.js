@@ -14,6 +14,21 @@ const consoleBaseUrl =
 const consoleApiBase =
   process.env.CONSOLE_API_BASE ?? `${consoleBaseUrl.replace(/\/+$/, "")}/api`;
 let issueCounter = 1;
+const SAFE_PATH_SEGMENT = /^[A-Za-z0-9_-]+$/;
+
+function assertSafePathSegment(value, label) {
+  if (!SAFE_PATH_SEGMENT.test(value)) {
+    throw new Error(`Unsafe ${label}: ${value}`);
+  }
+  return value;
+}
+
+function assertKnownSource(value) {
+  if (value !== "local" && value !== "shared") {
+    throw new Error(`Unsupported source: ${value}`);
+  }
+  return value;
+}
 
 // Helper to ensure project root is available
 function requireProjectRoot() {
@@ -101,6 +116,7 @@ async function resetMetricsConfig() {
   config.project_directory ??= "project";
   config.project_key ??= "kanbus";
   config.virtual_projects = {};
+  delete config.sort_order;
   await saveKanbusConfigFile(config);
 }
 
@@ -255,22 +271,24 @@ Given(
     this.metricsStale = true;
     const root = requireProjectRoot();
     const repoRoot = path.dirname(root);
-    const resolvedProject = await resolveProjectLabel(projectLabel);
+    const safeProjectLabel = assertSafePathSegment(projectLabel, "project label");
+    const safeSource = assertKnownSource(source);
+    const resolvedProject = await resolveProjectLabel(safeProjectLabel);
     
     let issueDir;
-    if (projectLabel === "kbs") {
-        if (source === "local") {
+    if (safeProjectLabel === "kbs") {
+        if (safeSource === "local") {
             issueDir = path.join(repoRoot, "project-local", "issues");
         } else {
             issueDir = path.join(root, "issues");
         }
     } else {
-        await ensureVirtualProjectConfig(projectLabel);
+        await ensureVirtualProjectConfig(safeProjectLabel);
         // Virtual project
-        if (source === "local") {
-            issueDir = path.join(repoRoot, "virtual", projectLabel, "project-local", "issues");
+        if (safeSource === "local") {
+            issueDir = path.join(repoRoot, "virtual", safeProjectLabel, "project-local", "issues");
         } else {
-            issueDir = path.join(repoRoot, "virtual", projectLabel, "project", "issues");
+            issueDir = path.join(repoRoot, "virtual", safeProjectLabel, "project", "issues");
         }
     }
     

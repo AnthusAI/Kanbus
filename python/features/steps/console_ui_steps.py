@@ -11,6 +11,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import cmp_to_key
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -154,6 +155,8 @@ class ConsoleIssue:
     status: str = "open"
     project: str = "kbs"
     source: str = "shared"
+    identifier: str | None = None
+    priority: int = 2
 
 
 @dataclass
@@ -1026,6 +1029,222 @@ def given_no_issues_exist(context: object) -> None:
     state.issues = []
     _ensure_console_project_state(context)
     context.console_issue_projects = {}
+
+
+@given("the Kanbus configuration has no sort_order rules")
+def given_console_no_sort_rules(context: object) -> None:
+    context.console_sort_order = {}
+
+
+@given(
+    'the Kanbus configuration sets sort_order for category "{category}" to preset "{preset}"'
+)
+def given_console_category_sort_preset(
+    context: object, category: str, preset: str
+) -> None:
+    sort_order = _ensure_console_sort_order(context)
+    categories = sort_order.setdefault("categories", {})
+    categories[category] = preset
+
+
+@given(
+    'the Kanbus configuration sets sort_order for status "{status}" to preset "{preset}"'
+)
+def given_console_status_sort_preset(context: object, status: str, preset: str) -> None:
+    sort_order = _ensure_console_sort_order(context)
+    sort_order[status] = preset
+
+
+@given(
+    'the Kanbus configuration sets raw sort_order for status "{status}" to "{rule_text}"'
+)
+def given_console_status_raw_sort_rule(
+    context: object, status: str, rule_text: str
+) -> None:
+    sort_order = _ensure_console_sort_order(context)
+    sort_order[status] = _parse_raw_sort_rule(rule_text)
+
+
+@given("the console has only these issues:")
+def given_console_has_only_these_issues(context: object) -> None:
+    state = _require_console_state(context)
+    rows = getattr(context, "table", None)
+    if rows is None:
+        raise AssertionError("expected issue table")
+    issues: list[ConsoleIssue] = []
+    for row in rows:
+        issues.append(
+            ConsoleIssue(
+                identifier=row["id"],
+                title=row["title"],
+                issue_type="task",
+                status=row["status"],
+                priority=int(row["priority"]),
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+            )
+        )
+    state.issues = issues
+
+
+@then('the "{status}" column should list issues in order "{titles}"')
+def then_console_column_order(context: object, status: str, titles: str) -> None:
+    actual = _column_issue_titles(context, status)
+    expected = [title.strip() for title in titles.split(",")]
+    if actual != expected:
+        raise AssertionError(f"expected {status} order {expected}, got {actual}")
+
+
+_DONE_CATEGORY = "Done"
+_STATUS_CATEGORIES = {
+    "backlog": "To do",
+    "open": "To do",
+    "in_progress": "In progress",
+    "blocked": "In progress",
+    "closed": "Done",
+}
+_SORT_PRESETS: dict[str, list[tuple[str, str]]] = {
+    "fifo": [("created_at", "asc"), ("id", "asc")],
+    "priority-first": [
+        ("priority", "asc"),
+        ("created_at", "asc"),
+        ("id", "asc"),
+    ],
+    "recently-updated": [("updated_at", "desc"), ("id", "asc")],
+}
+_DONE_SORT_FIELDS = [("updated_at", "desc"), ("id", "asc")]
+
+
+def _ensure_console_sort_order(context: object) -> dict:
+    sort_order = getattr(context, "console_sort_order", None)
+    if not isinstance(sort_order, dict):
+        sort_order = {}
+        context.console_sort_order = sort_order
+    return sort_order
+
+
+def _parse_raw_sort_rule(rule_text: str) -> list[dict[str, str]]:
+    rules: list[dict[str, str]] = []
+    for part in rule_text.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        pieces = token.split()
+        if len(pieces) != 2:
+            continue
+        field, direction = pieces[0], pieces[1]
+        rules.append({"field": field, "direction": direction})
+    return rules
+
+
+def _normalize_sort_rule(rule: object) -> list[tuple[str, str]]:
+    if isinstance(rule, str):
+        return list(_SORT_PRESETS.get(rule, _SORT_PRESETS["fifo"]))
+    fields: list[tuple[str, str]] = []
+    if isinstance(rule, list):
+        for item in rule:
+            if not isinstance(item, dict):
+                continue
+            field = item.get("field")
+            direction = item.get("direction")
+            if field not in {"priority", "created_at", "updated_at", "id"}:
+                continue
+            if direction not in {"asc", "desc"}:
+                continue
+            fields.append((field, direction))
+    if not fields:
+        return list(_SORT_PRESETS["fifo"])
+    if not any(field == "id" for field, _ in fields):
+        fields.append(("id", "asc"))
+    return fields
+
+
+def _resolve_column_sort_fields(context: object, status: str) -> list[tuple[str, str]]:
+    category = _STATUS_CATEGORIES.get(status, "")
+    if category == _DONE_CATEGORY:
+        return list(_DONE_SORT_FIELDS)
+
+    sort_order = _ensure_console_sort_order(context)
+    status_rule = sort_order.get(status)
+    category_rule = None
+    categories = sort_order.get("categories")
+    if isinstance(categories, dict):
+        category_rule = categories.get(category)
+    rule = status_rule if status_rule is not None else category_rule
+    if rule is None:
+        return list(_SORT_PRESETS["fifo"])
+    return _normalize_sort_rule(rule)
+
+
+def _parse_iso8601(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _issue_sort_id(issue: ConsoleIssue) -> str:
+    return issue.identifier or issue.title
+
+
+def _compare_values(left: object, right: object) -> int:
+    if left < right:
+        return -1
+    if left > right:
+        return 1
+    return 0
+
+
+def _compare_issue_field(
+    left: ConsoleIssue, right: ConsoleIssue, field: str, direction: str
+) -> int:
+    if field == "priority":
+        result = _compare_values(left.priority, right.priority)
+        return -result if direction == "desc" else result
+
+    if field == "id":
+        result = _compare_values(_issue_sort_id(left), _issue_sort_id(right))
+        return -result if direction == "desc" else result
+
+    left_time = _parse_iso8601(getattr(left, field, None))
+    right_time = _parse_iso8601(getattr(right, field, None))
+    if left_time is None and right_time is None:
+        return 0
+    if left_time is None:
+        return 1
+    if right_time is None:
+        return -1
+    result = _compare_values(left_time, right_time)
+    return -result if direction == "desc" else result
+
+
+def _compare_column_issues(
+    left: ConsoleIssue, right: ConsoleIssue, fields: list[tuple[str, str]]
+) -> int:
+    for sort_field, direction in fields:
+        result = _compare_issue_field(left, right, sort_field, direction)
+        if result != 0:
+            return result
+    return 0
+
+
+def _column_issue_titles(context: object, status: str) -> list[str]:
+    state = _require_console_state(context)
+    fields = _resolve_column_sort_fields(context, status)
+    column_issues = [
+        issue
+        for issue in state.issues
+        if issue.issue_type == "task"
+        and issue.parent_title is None
+        and issue.status == status
+    ]
+    ordered = sorted(
+        column_issues,
+        key=cmp_to_key(lambda left, right: _compare_column_issues(left, right, fields)),
+    )
+    return [issue.title for issue in ordered]
 
 
 @then('the metrics total should be "{count}"')

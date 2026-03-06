@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -183,6 +183,8 @@ class ProjectConfiguration(BaseModel):
     :type type_colors: Dict[str, str]
     :param beads_compatibility: Default Beads compatibility mode.
     :type beads_compatibility: bool
+    :param sort_order: Optional status/category sort rules for console columns.
+    :type sort_order: Dict[str, object]
     :param jira: Optional Jira synchronization configuration.
     :type jira: Optional[JiraConfiguration]
     :param snyk: Optional Snyk vulnerability synchronization configuration.
@@ -211,6 +213,7 @@ class ProjectConfiguration(BaseModel):
     time_zone: Optional[str] = Field(default=None, min_length=1)
     statuses: List[StatusDefinition] = Field(default_factory=list)
     categories: List[CategoryDefinition] = Field(default_factory=list)
+    sort_order: Dict[str, Any] = Field(default_factory=dict)
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False
     jira: Optional[JiraConfiguration] = None

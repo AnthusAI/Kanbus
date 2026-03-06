@@ -34,6 +34,7 @@ fn given_external_validator_times_out(world: &mut KanbusWorld, tool: String) {
     ensure_tool_stub(world, &tool, "sleep 1\n");
 }
 
+#[when("I create an issue with description containing")]
 #[when("I create an issue with description containing:")]
 fn when_create_with_description(world: &mut KanbusWorld, step: &Step) {
     let description = step.docstring().expect("docstring").trim().to_string();
@@ -65,6 +66,7 @@ fn when_create_with_description(world: &mut KanbusWorld, step: &Step) {
     }
 }
 
+#[when("I create an issue with --no-validate and description containing")]
 #[when("I create an issue with --no-validate and description containing:")]
 fn when_create_no_validate_with_description(world: &mut KanbusWorld, step: &Step) {
     let description = step.docstring().expect("docstring").trim().to_string();
@@ -97,6 +99,7 @@ fn when_create_no_validate_with_description(world: &mut KanbusWorld, step: &Step
     }
 }
 
+#[when(expr = "I comment on {string} with text containing")]
 #[when(expr = "I comment on {string} with text containing:")]
 fn when_comment_with_text(world: &mut KanbusWorld, step: &Step, identifier: String) {
     let text = step.docstring().expect("docstring").trim().to_string();
@@ -127,6 +130,7 @@ fn when_comment_with_text(world: &mut KanbusWorld, step: &Step, identifier: Stri
     }
 }
 
+#[when(expr = "I comment on {string} with --no-validate and text containing")]
 #[when(expr = "I comment on {string} with --no-validate and text containing:")]
 fn when_comment_no_validate_with_text(world: &mut KanbusWorld, step: &Step, identifier: String) {
     let text = step.docstring().expect("docstring").trim().to_string();
@@ -158,6 +162,7 @@ fn when_comment_no_validate_with_text(world: &mut KanbusWorld, step: &Step, iden
     }
 }
 
+#[when(expr = "I update {string} with description containing")]
 #[when(expr = "I update {string} with description containing:")]
 fn when_update_with_description(world: &mut KanbusWorld, step: &Step, identifier: String) {
     let description = step.docstring().expect("docstring").trim().to_string();
@@ -188,6 +193,7 @@ fn when_update_with_description(world: &mut KanbusWorld, step: &Step, identifier
     }
 }
 
+#[when("I validate code blocks directly")]
 #[when("I validate code blocks directly:")]
 fn when_validate_code_blocks_directly(world: &mut KanbusWorld, step: &Step) {
     let text = step.docstring().expect("docstring").trim();
@@ -197,6 +203,7 @@ fn when_validate_code_blocks_directly(world: &mut KanbusWorld, step: &Step) {
     }
 }
 
+#[when(expr = "I validate external tool {string} directly with content")]
 #[when(expr = "I validate external tool {string} directly with content:")]
 fn when_validate_external_tool_directly(world: &mut KanbusWorld, tool: String, step: &Step) {
     let content = step.docstring().expect("docstring").trim().to_string();

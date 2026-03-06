@@ -637,6 +637,106 @@ def update(
     _emit_policy_guidance(context, [updated_issue], "update")
 
 
+@cli.group("bulk")
+def bulk() -> None:
+    """Bulk issue operations."""
+
+
+@bulk.command("update")
+@click.option("--id", "ids", multiple=True)
+@click.option("--where-type", "where_type")
+@click.option("--where-status", "where_status")
+@click.option("--set-status", "set_status")
+@click.option("--set-assignee", "set_assignee")
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.pass_context
+def bulk_update(
+    context: click.Context,
+    ids: tuple[str, ...],
+    where_type: str | None,
+    where_status: str | None,
+    set_status: str | None,
+    set_assignee: str | None,
+    no_validate: bool,
+) -> None:
+    """Update multiple issues selected by IDs and/or filters."""
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        raise click.ClickException("bulk update is not supported in beads mode")
+    if not ids and where_type is None and where_status is None:
+        raise click.ClickException(
+            "bulk update requires at least one selector (--id, --where-type, or --where-status)"
+        )
+    if set_status is None and set_assignee is None:
+        raise click.ClickException(
+            "bulk update requires at least one setter (--set-status or --set-assignee)"
+        )
+
+    updated: list[IssueData] = []
+    seen: set[str] = set()
+
+    for identifier in ids:
+        try:
+            issue = update_issue(
+                root=root,
+                identifier=identifier,
+                title=None,
+                description=None,
+                status=set_status,
+                assignee=set_assignee,
+                claim=False,
+                validate=not no_validate,
+                priority=None,
+                add_labels=None,
+                remove_labels=None,
+                set_labels=None,
+                parent=None,
+            )
+        except IssueUpdateError as error:
+            raise click.ClickException(str(error)) from error
+        if issue.identifier not in seen:
+            seen.add(issue.identifier)
+            updated.append(issue)
+
+    if where_type is not None or where_status is not None:
+        try:
+            matching = list_issues(
+                root=root,
+                status=where_status,
+                issue_type=where_type,
+            )
+        except IssueListingError as error:
+            raise click.ClickException(str(error)) from error
+        for issue in matching:
+            if issue.identifier in seen:
+                continue
+            try:
+                updated_issue = update_issue(
+                    root=root,
+                    identifier=issue.identifier,
+                    title=None,
+                    description=None,
+                    status=set_status,
+                    assignee=set_assignee,
+                    claim=False,
+                    validate=not no_validate,
+                    priority=None,
+                    add_labels=None,
+                    remove_labels=None,
+                    set_labels=None,
+                    parent=None,
+                )
+            except IssueUpdateError as error:
+                raise click.ClickException(str(error)) from error
+            seen.add(updated_issue.identifier)
+            updated.append(updated_issue)
+
+    click.echo(f"Updated {len(updated)} issue(s)")
+    if updated:
+        _emit_policy_guidance(context, updated, "update")
+
+
 @cli.command("close")
 @click.argument("identifier")
 @click.pass_context
@@ -896,6 +996,13 @@ def comment(
     default=False,
     help="Plain, non-colorized output for machine parsing.",
 )
+@click.option(
+    "--full-ids",
+    "full_ids",
+    is_flag=True,
+    default=False,
+    help="Show full issue keys even in single-project context.",
+)
 @click.pass_context
 def list_command(
     context: click.Context,
@@ -910,6 +1017,7 @@ def list_command(
     local_only: bool,
     limit: int,
     porcelain: bool,
+    full_ids: bool,
 ) -> None:
     """List issues in the current project.
 
@@ -965,7 +1073,7 @@ def list_command(
     # In regular mode, use project_context if all issues are from same project
     project_context = (
         False
-        if beads_mode
+        if beads_mode or full_ids
         else not any(issue.custom.get("project_path") for issue in issues)
     )
     widths = (

@@ -20,6 +20,7 @@ def before_scenario(context: object, scenario: object) -> None:
     :param scenario: Behave scenario object.
     :type scenario: object
     """
+    context._unset_env_vars = []
     if "skip" in getattr(scenario, "tags", []):
         scenario.skip("Marked with @skip")
         return

@@ -12,6 +12,10 @@ from pydantic import ValidationError
 from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.models import ProjectConfiguration
 
+SORT_PRESETS = ("fifo", "priority-first", "recently-updated")
+SORT_FIELDS = ("priority", "created_at", "updated_at", "id")
+SORT_DIRECTIONS = ("asc", "desc")
+
 
 class ConfigurationError(RuntimeError):
     """Raised when configuration validation fails."""
@@ -197,6 +201,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     # Validate statuses
     if not configuration.statuses:
         errors.append("statuses must not be empty")
+        _validate_sort_order(configuration, errors)
         return errors
 
     # Validate status categories
@@ -246,6 +251,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     # Validate transition labels
     if not configuration.transition_labels:
         errors.append("transition_labels must not be empty")
+        _validate_sort_order(configuration, errors)
         return errors
 
     for workflow_name, workflow in configuration.workflows.items():
@@ -278,7 +284,84 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
                     f"transition_labels references invalid from-status '{labeled_from}' in workflow '{workflow_name}'"
                 )
 
+    _validate_sort_order(configuration, errors)
+
     return errors
+
+
+def _validate_sort_order(
+    configuration: ProjectConfiguration,
+    errors: List[str],
+) -> None:
+    if not configuration.sort_order:
+        return
+
+    categories = configuration.sort_order.get("categories")
+    if categories is not None:
+        if not isinstance(categories, dict):
+            errors.append("sort_order.categories must be a mapping")
+            return
+        for category, rule in categories.items():
+            if not isinstance(category, str):
+                errors.append("sort_order.categories keys must be strings")
+                continue
+            _validate_sort_rule(f"sort_order.categories.{category}", rule, errors)
+
+    for status, rule in configuration.sort_order.items():
+        if status == "categories":
+            continue
+        _validate_sort_rule(f"sort_order.{status}", rule, errors)
+
+
+def _validate_sort_rule(path: str, value: object, errors: List[str]) -> None:
+    if isinstance(value, str):
+        if value not in SORT_PRESETS:
+            errors.append(
+                f"{path} has invalid preset '{value}' "
+                f"(valid presets: {', '.join(SORT_PRESETS)})"
+            )
+        return
+
+    if not isinstance(value, list):
+        errors.append(f"{path} must be a preset string or a list of field rules")
+        return
+
+    if not value:
+        errors.append(f"{path} must not be an empty list")
+        return
+
+    for index, rule in enumerate(value):
+        if not isinstance(rule, dict):
+            errors.append(f"{path}[{index}] must be an object with field/direction")
+            continue
+
+        for key in rule.keys():
+            if not isinstance(key, str):
+                errors.append(f"{path}[{index}] contains a non-string key")
+                continue
+            if key not in {"field", "direction"}:
+                errors.append(f"{path}[{index}] has unsupported key '{key}'")
+
+        field = rule.get("field")
+        direction = rule.get("direction")
+
+        if isinstance(field, str):
+            if field not in SORT_FIELDS:
+                errors.append(
+                    f"{path}[{index}] has invalid field '{field}' "
+                    f"(valid fields: {', '.join(SORT_FIELDS)})"
+                )
+        else:
+            errors.append(f"{path}[{index}] is missing 'field'")
+
+        if isinstance(direction, str):
+            if direction not in SORT_DIRECTIONS:
+                errors.append(
+                    f"{path}[{index}] has invalid direction '{direction}' "
+                    f"(valid directions: {', '.join(SORT_DIRECTIONS)})"
+                )
+        else:
+            errors.append(f"{path}[{index}] is missing 'direction'")
 
 
 def _normalize_virtual_projects(data: dict) -> None:

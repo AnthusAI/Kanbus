@@ -708,6 +708,32 @@ fn then_configuration_has_virtual_project(world: &mut KanbusWorld, label: String
     );
 }
 
+#[then(expr = "the sort_order for status {string} should be preset {string}")]
+fn then_sort_order_status_preset(world: &mut KanbusWorld, status: String, preset: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    let value = configuration
+        .sort_order
+        .get(&status)
+        .and_then(Value::as_str)
+        .expect("status preset");
+    assert_eq!(value, preset);
+}
+
+#[then(expr = "the sort_order for category {string} should be preset {string}")]
+fn then_sort_order_category_preset(world: &mut KanbusWorld, category: String, preset: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    let categories = configuration
+        .sort_order
+        .get("categories")
+        .and_then(Value::as_mapping)
+        .expect("sort_order.categories mapping");
+    let value = categories
+        .get(&Value::String(category))
+        .and_then(Value::as_str)
+        .expect("category preset");
+    assert_eq!(value, preset);
+}
+
 #[given(expr = "a Kanbus project with a file {string} containing a valid configuration")]
 fn given_project_with_valid_config_file(world: &mut KanbusWorld, filename: String) {
     initialize_project(world);
@@ -906,6 +932,80 @@ fn given_repo_with_workflow_statuses_not_in_list(world: &mut KanbusWorld) {
             Value::String("statuses".to_string()),
             Value::Sequence(statuses),
         );
+    });
+}
+
+#[given("a Kanbus repository with a .kanbus.yml file containing valid sort_order presets")]
+fn given_repo_with_valid_sort_order_presets(world: &mut KanbusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        let sort_order = Value::Mapping(
+            vec![
+                (
+                    Value::String("open".to_string()),
+                    Value::String("priority-first".to_string()),
+                ),
+                (
+                    Value::String("categories".to_string()),
+                    Value::Mapping(
+                        vec![(
+                            Value::String("To do".to_string()),
+                            Value::String("fifo".to_string()),
+                        )]
+                        .into_iter()
+                        .collect(),
+                    ),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        );
+        mapping.insert(Value::String("sort_order".to_string()), sort_order);
+    });
+}
+
+#[given("a Kanbus repository with a .kanbus.yml file containing an invalid sort_order preset")]
+fn given_repo_with_invalid_sort_order_preset(world: &mut KanbusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        let sort_order = Value::Mapping(
+            vec![(
+                Value::String("open".to_string()),
+                Value::String("newest-first".to_string()),
+            )]
+            .into_iter()
+            .collect(),
+        );
+        mapping.insert(Value::String("sort_order".to_string()), sort_order);
+    });
+}
+
+#[given("a Kanbus repository with a .kanbus.yml file containing an invalid sort_order raw rule")]
+fn given_repo_with_invalid_sort_order_raw_rule(world: &mut KanbusWorld) {
+    initialize_project(world);
+    update_config_file(world, |mapping| {
+        let sort_order = Value::Mapping(
+            vec![(
+                Value::String("open".to_string()),
+                Value::Sequence(vec![Value::Mapping(
+                    vec![
+                        (
+                            Value::String("field".to_string()),
+                            Value::String("rank".to_string()),
+                        ),
+                        (
+                            Value::String("direction".to_string()),
+                            Value::String("up".to_string()),
+                        ),
+                    ]
+                    .into_iter()
+                    .collect(),
+                )]),
+            )]
+            .into_iter()
+            .collect(),
+        );
+        mapping.insert(Value::String("sort_order".to_string()), sort_order);
     });
 }
 
