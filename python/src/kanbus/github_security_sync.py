@@ -7,6 +7,7 @@ issues under a managed hierarchy.
 from __future__ import annotations
 
 import os
+import logging
 import subprocess
 from collections import defaultdict
 from dataclasses import dataclass
@@ -34,6 +35,7 @@ GITHUB_API_BASE = "https://api.github.com"
 GITHUB_API_VERSION = "2022-11-28"
 GITHUB_SECURITY_INITIATIVE_TITLE = "GitHub Security Remediation"
 GITHUB_DEPENDABOT_EPIC_TITLE = "GitHub Dependabot Alerts"
+LOGGER = logging.getLogger(__name__)
 
 
 class GithubSecuritySyncError(RuntimeError):
@@ -148,7 +150,11 @@ def pull_dependabot_from_github(
                     existing = read_issue_from_file(issue_path)
                     issue = issue.model_copy(update={"created_at": existing.created_at})
                 except Exception:
-                    pass
+                    # Keep pull flow best-effort; continue while surfacing failure details.
+                    LOGGER.exception(
+                        "Failed to preserve created_at from existing issue at %s",
+                        issue_path,
+                    )
 
             severity = _alert_severity(alert)
             short_key = (
