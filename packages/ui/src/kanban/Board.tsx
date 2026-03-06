@@ -21,6 +21,33 @@ interface BoardProps {
   motion?: KanbanMotionConfig;
 }
 
+function parseIssueTimestamp(issue: KanbanIssue): number {
+  const parsed = Date.parse(issue.updated_at ?? "");
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+}
+
+function compareRecentFirst(a: KanbanIssue, b: KanbanIssue): number {
+  const aTimestamp = parseIssueTimestamp(a);
+  const bTimestamp = parseIssueTimestamp(b);
+  if (aTimestamp < bTimestamp) return 1;
+  if (aTimestamp > bTimestamp) return -1;
+  if (a.id < b.id) return -1;
+  if (a.id > b.id) return 1;
+  return 0;
+}
+
+function isDoneColumn(column: string, config?: KanbanConfig): boolean {
+  const doneNames = new Set(["done", "closed", "complete", "completed", "resolved"]);
+  const status = config?.statuses.find((item) => item.key === column);
+  if (status?.category) {
+    const normalizedCategory = status.category.trim().toLowerCase();
+    if (doneNames.has(normalizedCategory)) {
+      return true;
+    }
+  }
+  return doneNames.has(column.trim().toLowerCase());
+}
+
 function BoardComponent({
   columns,
   issues,
@@ -78,13 +105,16 @@ function BoardComponent({
     <div ref={setBoardRef} className="kb-grid gap-2">
       {columns.map((column) => {
         const columnIssues = issues.filter((issue) => issue.status === column);
+        const orderedIssues = isDoneColumn(column, config)
+          ? [...columnIssues].sort(compareRecentFirst)
+          : columnIssues;
         const displayTitle =
           config?.statuses.find((status) => status.key === column)?.name ?? column;
         return (
           <BoardColumn
             key={column}
             title={displayTitle}
-            issues={columnIssues}
+            issues={orderedIssues}
             priorityLookup={priorityLookup}
             config={config}
             onSelectIssue={onSelectIssue}
