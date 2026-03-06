@@ -149,7 +149,7 @@ pub fn pull_dependabot_from_github(
             let severity = alert_severity(alert);
             println!(
                 "{action}  [{severity:<8}]  {:<14}  \"{}\"",
-                short_key(&kanbus_id),
+                format!("alert#{alert_number}"),
                 issue.title
             );
 
@@ -260,7 +260,7 @@ pub fn pull_dependabot_from_github_beads(
             let description = map_dependabot_to_beads_description(alert, &repo);
             let priority_u8 = priority_to_u8(severity_to_priority(&alert_severity(alert)))?;
 
-            let (kanbus_id, action) = if let Some(id) = existing_kanbus_id {
+            let action = if let Some(id) = existing_kanbus_id {
                 if !dry_run {
                     let add_labels: Vec<String> = Vec::new();
                     let remove_labels: Vec<String> = Vec::new();
@@ -277,9 +277,9 @@ pub fn pull_dependabot_from_github_beads(
                         Some("security,github,dependabot"),
                     )?;
                 }
-                (id, "updated")
+                "updated"
             } else if dry_run {
-                ("would-create".to_string(), "pulled ")
+                "pulled "
             } else {
                 let created = create_beads_issue(
                     root,
@@ -306,13 +306,13 @@ pub fn pull_dependabot_from_github_beads(
                     Some("security,github,dependabot"),
                 )?;
                 runtime_alert_index.insert(index_key.clone(), created_id.clone());
-                (created_id, "pulled ")
+                "pulled "
             };
 
             let severity = alert_severity(alert);
             println!(
                 "{action}  [{severity:<8}]  {:<14}  \"{}\"",
-                short_key(&kanbus_id),
+                format!("alert#{alert_number}"),
                 title
             );
 
@@ -555,11 +555,7 @@ fn resolve_manifest_task(
                 if changed {
                     issue.updated_at = Utc::now();
                     write_issue_to_file(&issue, &path)?;
-                    println!(
-                        "updated  [task    ]  {:<14}  \"{}\"",
-                        short_key(existing_id),
-                        issue.title
-                    );
+                    println!("updated  [task    ]  \"{}\"", issue.title);
                 }
             }
         }
@@ -928,14 +924,6 @@ fn dependabot_alert_title(alert: &Value) -> String {
         .as_str()
         .unwrap_or("dependabot-alert");
     format!("[Dependabot] {advisory} in {package} #{number}")
-}
-
-fn short_key(identifier: &str) -> String {
-    if let Some(index) = identifier.find('-') {
-        identifier[..identifier.len().min(index + 7)].to_string()
-    } else {
-        identifier[..identifier.len().min(6)].to_string()
-    }
 }
 
 fn severity_to_priority(severity: &str) -> i32 {

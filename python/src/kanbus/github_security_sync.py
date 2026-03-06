@@ -157,10 +157,9 @@ def pull_dependabot_from_github(
                     )
 
             severity = _alert_severity(alert)
-            short_key = (
-                kanbus_id[: kanbus_id.find("-") + 7] if "-" in kanbus_id else kanbus_id
+            print(
+                f'{action}  [{severity:<8}]  {"alert#" + str(alert_number):<14}  "{issue.title}"'
             )
-            print(f'{action}  [{severity:<8}]  {short_key:<14}  "{issue.title}"')
 
             if not dry_run:
                 write_issue_to_file(issue, issue_path)
@@ -258,11 +257,10 @@ def pull_dependabot_from_github_beads(
                         set_labels=["security", "github", "dependabot"],
                     )
                 action = "updated"
-                issue_id = existing_id
             else:
                 action = "pulled "
                 if dry_run:
-                    issue_id = "would-create"
+                    pass
                 else:
                     created = create_beads_issue(
                         root=root,
@@ -282,13 +280,11 @@ def pull_dependabot_from_github_beads(
                         priority=_severity_to_priority(severity),
                         set_labels=["security", "github", "dependabot"],
                     )
-                    issue_id = created.identifier
-                    runtime_alert_index[index_key] = issue_id
+                    runtime_alert_index[index_key] = created.identifier
 
-            short_key = (
-                issue_id[: issue_id.find("-") + 7] if "-" in issue_id else issue_id
+            print(
+                f'{action}  [{severity:<8}]  {"alert#" + str(alert_number):<14}  "{title}"'
             )
-            print(f'{action}  [{severity:<8}]  {short_key:<14}  "{title}"')
             if action == "updated":
                 result.updated += 1
             else:
@@ -475,7 +471,7 @@ def _resolve_manifest_task(
             if changed:
                 task.updated_at = datetime.now(timezone.utc)
                 write_issue_to_file(task, path)
-                print(f'updated  [task    ]  {existing:<14}  "{task.title}"')
+                print(f'updated  [task    ]  "{task.title}"')
         return existing
 
     title = f"{repo}:{target_key}"
