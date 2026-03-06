@@ -6,7 +6,12 @@ from pathlib import Path
 
 from behave import given, then
 
-from features.steps.shared import build_issue, ensure_git_repository, write_issue_file
+from features.steps.shared import (
+    build_issue,
+    ensure_git_repository,
+    write_default_kanbus_config,
+    write_issue_file,
+)
 from kanbus.ids import format_issue_key
 
 
@@ -25,16 +30,20 @@ def _write_issue(project_dir: Path, identifier: str, title: str) -> None:
     write_issue_file(project_dir, issue)
 
 
-@given("a repository with nested project directories")
+@given("a workspace with nested Kanbus projects")
 def given_repo_with_nested_projects(context: object) -> None:
     root = _create_repo(context, "nested-projects")
-    root_project = root / "project"
-    nested_project = root / "nested" / "project"
-    _write_issue(root_project, "kanbus-root", "Root task")
-    _write_issue(nested_project, "kanbus-nested", "Nested task")
+    alpha_repo = root / "alpha"
+    beta_repo = root / "beta"
+    alpha_project = alpha_repo / "project"
+    beta_project = beta_repo / "project"
+    _write_issue(alpha_project, "kanbus-alpha", "Alpha task")
+    _write_issue(beta_project, "kanbus-beta", "Beta task")
+    write_default_kanbus_config(alpha_repo)
+    write_default_kanbus_config(beta_repo)
     context.discovered_issue_keys = [
-        format_issue_key("kanbus-root", project_context=False),
-        format_issue_key("kanbus-nested", project_context=False),
+        format_issue_key("kanbus-alpha", project_context=False),
+        format_issue_key("kanbus-beta", project_context=False),
     ]
 
 
@@ -43,6 +52,7 @@ def given_repo_project_above_cwd(context: object) -> None:
     root = _create_repo(context, "project-above")
     project_dir = root / "project"
     _write_issue(project_dir, "kanbus-above", "Above task")
+    write_default_kanbus_config(root)
     child_dir = root / "child"
     child_dir.mkdir(parents=True, exist_ok=True)
     context.working_directory = child_dir
@@ -56,8 +66,23 @@ def given_repo_with_project_local(context: object) -> None:
     local_dir = root / "project-local"
     _write_issue(project_dir, "kanbus-shared1", "Shared task")
     _write_issue(local_dir, "kanbus-local1", "Local task")
+    write_default_kanbus_config(root)
     context.shared_issue_key = format_issue_key("kanbus-shared1", project_context=True)
     context.local_issue_key = format_issue_key("kanbus-local1", project_context=True)
+
+
+@given("a Kanbus project with a nested Kanbus project")
+def given_repo_with_nested_configured_project(context: object) -> None:
+    root = _create_repo(context, "root-with-nested")
+    root_project = root / "project"
+    nested_repo = root / "nested"
+    nested_project = nested_repo / "project"
+    _write_issue(root_project, "kanbus-root", "Root task")
+    _write_issue(nested_project, "kanbus-nested", "Nested task")
+    write_default_kanbus_config(root)
+    write_default_kanbus_config(nested_repo)
+    context.root_issue_key = format_issue_key("kanbus-root", project_context=True)
+    context.nested_issue_key = format_issue_key("kanbus-nested", project_context=True)
 
 
 @given("a repository with a .kanbus file referencing another project")
@@ -114,3 +139,13 @@ def then_only_local_issues_listed(context: object) -> None:
 def then_issues_from_referenced_project_listed(context: object) -> None:
     expected = format_issue_key("kanbus-external", project_context=False)
     assert expected in context.result.stdout
+
+
+@then("only root issues should be listed")
+def then_only_root_issues_listed(context: object) -> None:
+    root_key = getattr(context, "root_issue_key", "")
+    nested_key = getattr(context, "nested_issue_key", "")
+    if root_key:
+        assert root_key in context.result.stdout
+    if nested_key:
+        assert nested_key not in context.result.stdout
