@@ -4,7 +4,7 @@ Feature: Project discovery
   So that shared and local issues are scoped to my working directory
 
   Scenario: Downward discovery finds nested projects
-    Given a repository with nested project directories
+    Given a workspace with nested Kanbus projects
     When I run "kanbus list"
     Then issues from all discovered projects should be listed
 
@@ -12,6 +12,11 @@ Feature: Project discovery
     Given a repository with a project directory above the current directory
     When I run "kanbus list"
     Then no issues should be listed
+
+  Scenario: Single project root does not recurse into nested configs
+    Given a Kanbus project with a nested Kanbus project
+    When I run "kanbus list"
+    Then only root issues should be listed
 
   Scenario: Local projects are discovered alongside shared projects
     Given a project directory with a sibling project-local directory

@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 import click
 from behave import given, then, when
 
 from features.steps.shared import (
     build_issue,
+    ensure_git_repository,
     load_project_directory,
     read_issue_file,
+    write_default_kanbus_config,
     write_issue_file,
 )
 from kanbus.config_loader import load_project_configuration
@@ -34,6 +37,24 @@ def given_issue_status_and_type(context: object) -> None:
     issue = read_issue_file(project_dir, "kanbus-aaa")
     issue = issue.model_copy(update={"status": "open", "issue_type": "task"})
     write_issue_file(project_dir, issue)
+
+
+@given("a workspace with multiple Kanbus projects and duplicate fragments")
+def given_workspace_with_duplicate_fragments(context: object) -> None:
+    root = Path(context.temp_dir) / "workspace"
+    root.mkdir(parents=True, exist_ok=True)
+    ensure_git_repository(root)
+    alpha_repo = root / "alpha"
+    beta_repo = root / "beta"
+    alpha_project = alpha_repo / "project"
+    beta_project = beta_repo / "project"
+    (alpha_project / "issues").mkdir(parents=True, exist_ok=True)
+    (beta_project / "issues").mkdir(parents=True, exist_ok=True)
+    write_default_kanbus_config(alpha_repo, project_key="alpha")
+    write_default_kanbus_config(beta_repo, project_key="beta")
+    write_issue_file(alpha_project, build_issue("alpha-aaaaaa", "Alpha task", "task", "open", None, []))
+    write_issue_file(beta_project, build_issue("beta-aaaaaa", "Beta task", "task", "open", None, []))
+    context.working_directory = root
 
 
 @when('I format issue "{identifier}" for display')

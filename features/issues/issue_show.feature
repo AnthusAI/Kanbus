@@ -18,6 +18,12 @@ Feature: Issue display
     And stdout should contain "Implement OAuth2 flow"
     And stdout should contain "ID: kanbus-aaa"
 
+  Scenario: Show issue by fragment fails when ambiguous across workspace
+    Given a workspace with multiple Kanbus projects and duplicate fragments
+    When I run "kanbus show aaaaaa"
+    Then the command should fail with exit code 1
+    And stderr should contain "ambiguous identifier"
+
   Scenario: Show issue as JSON
     Given a Kanbus project with default configuration
     And an issue "kanbus-aaa" exists with title "Implement OAuth2 flow"

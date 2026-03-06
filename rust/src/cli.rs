@@ -41,7 +41,9 @@ use crate::issue_transfer::{localize_issue, promote_issue};
 use crate::issue_update::update_issue;
 use crate::jira_sync::pull_from_jira;
 use crate::maintenance::{collect_project_stats, validate_project};
-use crate::migration::{load_beads_issue_by_id, load_beads_issues, migrate_from_beads};
+use crate::migration::{
+    load_beads_issue_by_id, load_beads_issue_from_workspace, load_beads_issues, migrate_from_beads,
+};
 use crate::models::IssueData;
 use crate::queries::{filter_issues, search_issues};
 use crate::rich_text_signals::{
@@ -145,6 +147,9 @@ enum Commands {
         /// Emit JSON output.
         #[arg(long)]
         json: bool,
+        /// Project root to scope lookup (directory containing .kanbus.yml).
+        #[arg(long = "project-root")]
+        project_root: Option<std::path::PathBuf>,
     },
     /// Update an issue.
     Update {
@@ -939,9 +944,15 @@ fn execute_command(
             );
             Ok(Some(output))
         }
-        Commands::Show { identifier, json } => {
+        Commands::Show {
+            identifier,
+            json,
+            project_root,
+        } => {
+            let lookup_root = project_root.as_deref().unwrap_or(root);
+            let beads_root_for_show = beads_root(lookup_root);
             let (issue, configuration) = if beads_mode {
-                let mut beads_issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
+                let mut beads_issue = load_beads_issue_by_id(&beads_root_for_show, &identifier)?;
                 // Normalize comment ids for display consistency
                 let (normalized, _) = crate::issue_comment::ensure_comment_ids(&beads_issue);
                 beads_issue = normalized;
@@ -954,17 +965,37 @@ fn execute_command(
 
                 (beads_issue, None)
             } else {
-                let lookup = load_issue_from_project(root, &identifier)?;
-                let configuration = load_project_configuration(&get_configuration_path(
-                    lookup.project_dir.as_path(),
-                )?)?;
-                let mut issue = ensure_issue_comment_ids(root, &identifier)?;
-                if configuration.beads_compatibility {
-                    if let Ok(beads_issue) = load_beads_issue_by_id(&root_for_beads, &identifier) {
-                        issue = merge_issue_views(beads_issue, issue);
+                match load_issue_from_project(lookup_root, &identifier) {
+                    Ok(lookup) => {
+                        let configuration = load_project_configuration(&get_configuration_path(
+                            lookup.project_dir.as_path(),
+                        )?)?;
+                        let mut issue = ensure_issue_comment_ids(lookup_root, &identifier)?;
+                        if configuration.beads_compatibility {
+                            if let Ok(beads_issue) =
+                                load_beads_issue_by_id(&beads_root_for_show, &identifier)
+                            {
+                                issue = merge_issue_views(beads_issue, issue);
+                            }
+                        }
+                        (issue, Some(configuration))
                     }
+                    Err(KanbusError::IssueOperation(message)) if message == "not found" => {
+                        let Some((issue, beads_root)) =
+                            load_beads_issue_from_workspace(lookup_root, &identifier)?
+                        else {
+                            return Err(KanbusError::IssueOperation("not found".to_string()));
+                        };
+                        let configuration_path = beads_root.join(".kanbus.yml");
+                        let configuration = if configuration_path.is_file() {
+                            load_project_configuration(&configuration_path).ok()
+                        } else {
+                            None
+                        };
+                        (issue, configuration)
+                    }
+                    Err(error) => return Err(error),
                 }
-                (issue, Some(configuration))
             };
             if json {
                 let payload =
