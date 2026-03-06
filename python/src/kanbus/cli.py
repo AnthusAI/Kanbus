@@ -1942,7 +1942,6 @@ def _run_github_dependabot_pull(
 ) -> None:
     """Pull Dependabot alerts from GitHub into Kanbus."""
     from kanbus.github_security_sync import (
-        DependabotPullResult,
         GithubSecuritySyncError,
         pull_dependabot_from_github,
         pull_dependabot_from_github_beads,

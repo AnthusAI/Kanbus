@@ -866,7 +866,7 @@ def _resolve_beads_epic(
     root: Path,
     issues: List[IssueData],
     configured_id: Optional[str],
-    _initiative_id: str,
+    initiative_id: str,
     dry_run: bool,
 ) -> str:
     if configured_id and any(issue.identifier == configured_id for issue in issues):
