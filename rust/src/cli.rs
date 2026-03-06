@@ -2,6 +2,7 @@
 
 use std::ffi::OsString;
 use std::io::IsTerminal;
+use std::io::Write;
 use std::path::Path;
 
 use chrono::Utc;
@@ -668,10 +669,18 @@ where
 {
     let output = run_from_args_with_output(args, cwd)?;
     if !output.stdout.is_empty() {
-        println!("{}", output.stdout);
+        let mut stdout = std::io::stdout();
+        stdout
+            .write_all(output.stdout.as_bytes())
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        stdout.flush().ok();
     }
     if !output.stderr.is_empty() {
-        eprint!("{}", output.stderr);
+        let mut stderr = std::io::stderr();
+        stderr
+            .write_all(output.stderr.as_bytes())
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        stderr.flush().ok();
     }
     Ok(())
 }
