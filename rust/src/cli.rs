@@ -189,6 +189,11 @@ enum Commands {
         #[arg(long = "no-validate")]
         no_validate: bool,
     },
+    /// Bulk issue operations.
+    Bulk {
+        #[command(subcommand)]
+        command: BulkCommands,
+    },
     /// Move an issue to a different issue type.
     Move {
         /// Issue identifier.
@@ -611,6 +616,31 @@ enum CommentCommands {
     EnsureIds {
         /// Issue identifier.
         identifier: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum BulkCommands {
+    /// Update multiple issues selected by IDs and/or filters.
+    Update {
+        /// Explicit issue identifiers (repeatable).
+        #[arg(long = "id")]
+        ids: Vec<String>,
+        /// Restrict matches to issue type.
+        #[arg(long = "where-type")]
+        where_type: Option<String>,
+        /// Restrict matches to issue status.
+        #[arg(long = "where-status")]
+        where_status: Option<String>,
+        /// Set status on matched issues.
+        #[arg(long = "set-status")]
+        set_status: Option<String>,
+        /// Set assignee on matched issues.
+        #[arg(long = "set-assignee")]
+        set_assignee: Option<String>,
+        /// Bypass validation checks.
+        #[arg(long = "no-validate")]
+        no_validate: bool,
     },
 }
 
@@ -1274,6 +1304,104 @@ fn execute_command(
                 formatted_identifier, moved_issue.issue_type
             )))
         }
+        Commands::Bulk { command } => match command {
+            BulkCommands::Update {
+                ids,
+                where_type,
+                where_status,
+                set_status,
+                set_assignee,
+                no_validate,
+            } => {
+                if beads_mode {
+                    return Err(KanbusError::IssueOperation(
+                        "bulk update is not supported in beads mode".to_string(),
+                    ));
+                }
+                if ids.is_empty() && where_type.is_none() && where_status.is_none() {
+                    return Err(KanbusError::IssueOperation(
+                        "bulk update requires at least one selector (--id, --where-type, or --where-status)".to_string(),
+                    ));
+                }
+                if set_status.is_none() && set_assignee.is_none() {
+                    return Err(KanbusError::IssueOperation(
+                        "bulk update requires at least one setter (--set-status or --set-assignee)".to_string(),
+                    ));
+                }
+
+                let mut selected = Vec::new();
+                let mut seen = HashSet::new();
+
+                for identifier in &ids {
+                    let updated_issue = update_issue(
+                        root,
+                        identifier,
+                        None,
+                        None,
+                        set_status.as_deref(),
+                        set_assignee.as_deref(),
+                        None,
+                        false,
+                        !no_validate,
+                        &[],
+                        &[],
+                        None,
+                        None,
+                        None,
+                    )?;
+                    if seen.insert(updated_issue.identifier.clone()) {
+                        selected.push(updated_issue);
+                    }
+                }
+
+                if where_type.is_some() || where_status.is_some() {
+                    let filtered = list_issues(
+                        root,
+                        where_status.as_deref(),
+                        where_type.as_deref(),
+                        None,
+                        None,
+                        None,
+                        None,
+                        &[],
+                        true,
+                        false,
+                    )?;
+                    for issue in filtered {
+                        if !seen.insert(issue.identifier.clone()) {
+                            continue;
+                        }
+                        let updated_issue = update_issue(
+                            root,
+                            &issue.identifier,
+                            None,
+                            None,
+                            set_status.as_deref(),
+                            set_assignee.as_deref(),
+                            None,
+                            false,
+                            !no_validate,
+                            &[],
+                            &[],
+                            None,
+                            None,
+                            None,
+                        )?;
+                        selected.push(updated_issue);
+                    }
+                }
+
+                if !selected.is_empty() {
+                    crate::policy_guidance::emit_guidance_for_issues(
+                        root,
+                        &selected,
+                        crate::policy_context::PolicyOperation::Update,
+                        no_guidance,
+                    );
+                }
+                Ok(Some(format!("Updated {} issue(s)", selected.len())))
+            }
+        },
         Commands::Close { identifier } => {
             if beads_mode {
                 update_beads_issue(
