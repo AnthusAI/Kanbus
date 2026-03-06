@@ -497,6 +497,7 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         beads_compatibility: false,
         jira: None,
         snyk: None,
+        github_security: None,
         transition_labels: BTreeMap::new(),
     };
     match get_workflow_for_issue_type(&configuration, &issue_type) {

@@ -93,6 +93,19 @@ Priority assigned to new issues when not explicitly provided.
 Whether CLI commands default to Beads compatibility mode when `--beads` is not provided.
 Defaults to `false`.
 
+### `github_security` (mapping, optional)
+
+GitHub security synchronization configuration.
+
+```yaml
+github_security:
+  repo: owner/repo
+  dependabot:
+    min_severity: low
+    state: open
+    parent_epic: kanbus-abc123
+```
+
 ## Validation rules
 
 - `hierarchy` must be non-empty.
