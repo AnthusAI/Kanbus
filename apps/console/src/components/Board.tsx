@@ -16,6 +16,24 @@ interface BoardProps {
   onToggleCollapse?: (column: string) => void;
 }
 
+function compareRecentFirst(a: Issue, b: Issue): number {
+  const aTimestamp = a.updated_at ?? a.created_at ?? "";
+  const bTimestamp = b.updated_at ?? b.created_at ?? "";
+  if (aTimestamp < bTimestamp) return 1;
+  if (aTimestamp > bTimestamp) return -1;
+  if (a.id < b.id) return -1;
+  if (a.id > b.id) return 1;
+  return 0;
+}
+
+function isDoneColumn(column: string, config?: ProjectConfig): boolean {
+  const status = config?.statuses.find((item) => item.key === column);
+  if (!status?.category) {
+    return false;
+  }
+  return status.category.trim().toLowerCase() === "done";
+}
+
 function BoardComponent({
   columns,
   issues,
@@ -72,13 +90,16 @@ function BoardComponent({
     >
       {columns.map((column) => {
         const columnIssues = issues.filter((issue) => issue.status === column);
+        const orderedIssues = isDoneColumn(column, config)
+          ? [...columnIssues].sort(compareRecentFirst)
+          : columnIssues;
         const displayTitle =
           config?.statuses.find((status) => status.key === column)?.name ?? column;
         return (
           <BoardColumn
             key={column}
             title={displayTitle}
-            issues={columnIssues}
+            issues={orderedIssues}
             priorityLookup={priorityLookup}
             config={config}
             onSelectIssue={onSelectIssue}
