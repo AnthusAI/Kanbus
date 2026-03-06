@@ -50,6 +50,7 @@ def given_open_tasks_with_priorities(context: object) -> None:
         write_issue_file(project_dir, issue)
 
 
+@given('a wiki page "{filename}" with content')
 @given('a wiki page "{filename}" with content:')
 def given_wiki_page_with_content(context: object, filename: str) -> None:
     project_dir = load_project_directory(context)
@@ -59,6 +60,7 @@ def given_wiki_page_with_content(context: object, filename: str) -> None:
     (wiki_dir / filename).write_text(content, encoding="utf-8")
 
 
+@given('a raw wiki page "{filename}" with content')
 @given('a raw wiki page "{filename}" with content:')
 def given_raw_wiki_page_with_content(context: object, filename: str) -> None:
     working_directory = Path(context.working_directory)

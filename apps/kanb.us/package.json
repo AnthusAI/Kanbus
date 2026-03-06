@@ -9,6 +9,8 @@
     "prebuild": "npm --prefix ../../packages/ui install && npm --prefix ../../packages/ui run build",
     "develop": "gatsby develop",
     "dev": "gatsby develop",
+    "dev:videos:local": "GATSBY_VIDEOS_BASE_URL=/videos gatsby develop",
+    "dev:videos:prod": "GATSBY_VIDEOS_BASE_URL=https://dmhqusv90xmye.cloudfront.net/kanbus-feature-videos gatsby develop",
     "build": "gatsby build",
     "serve": "gatsby serve",
     "clean": "gatsby clean"

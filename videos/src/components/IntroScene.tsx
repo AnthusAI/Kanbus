@@ -1,129 +1,279 @@
-import React from "react";
+import * as React from "react";
 import { useCurrentFrame, useVideoConfig } from "../remotion-shim";
 import { AnimatedPictogramVideo, type PictogramType } from "./AnimatedPictogramVideo";
+import { VideoFeatureFrame } from "./VideoFeatureFrame";
+
+type IntroSceneMode = "opening" | "feature-list" | "cta";
+
+type IntroSceneProps = {
+  mode?: IntroSceneMode;
+  showDebugGuides?: boolean;
+};
 
 type FeatureSpotlight = {
-  title: string;
-  subtitle: string;
+  headline: string;
+  subhead: string;
+  bodyPrimary: string;
   type: PictogramType;
 };
 
 const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
   {
-    title: "Agent-Ready CLI",
-    subtitle: "Create, update, and track issues from terminal-native workflows.",
+    headline: "Agent-Ready CLI",
+    subhead: "Run Kanbus in scripts and agent loops.",
+    bodyPrimary:
+      "Create, update, and move work from your terminal without leaving repository-native workflows.",
     type: "cli",
   },
   {
-    title: "Kanban Board",
-    subtitle: "A visual board that stays in sync with repository state.",
-    type: "git",
-  },
-  {
-    title: "Jira Sync",
-    subtitle: "Pull Jira tasks into your repo so agents always have context.",
+    headline: "Jira Synchronization",
+    subhead: "Bring Jira context into the repo.",
+    bodyPrimary:
+      "Sync existing Jira projects into local files so agents and humans work from the same source of truth.",
     type: "jira",
   },
   {
-    title: "Local Tasks",
-    subtitle: "Keep private WIP local and promote it when ready.",
+    headline: "Local Tasks",
+    subhead: "Draft privately, promote when ready.",
+    bodyPrimary:
+      "Keep work-in-progress local, then publish tasks to the shared board when they are ready for team visibility.",
     type: "local",
   },
   {
-    title: "Virtual Projects",
-    subtitle: "Aggregate cross-repository work into one view.",
+    headline: "Virtual Projects",
+    subhead: "Track multiple repos in one board.",
+    bodyPrimary:
+      "Aggregate cross-repository execution into a single view for planning and delivery coordination.",
     type: "virtual",
   },
   {
-    title: "Beads Mode",
-    subtitle: "Use existing Beads projects without migration overhead.",
+    headline: "Beads Compatibility",
+    subhead: "Adopt Kanbus without a migration freeze.",
+    bodyPrimary:
+      "Open existing Beads data immediately and evolve your process incrementally while teams keep shipping.",
     type: "beads",
   },
   {
-    title: "VS Code Plugin",
-    subtitle: "Manage your board directly inside the editor.",
+    headline: "VS Code Plugin",
+    subhead: "Manage workflow inside the editor.",
+    bodyPrimary:
+      "Inspect and update board state without context switching away from the files you are editing.",
     type: "vscode",
   },
   {
-    title: "Integrated Wiki",
-    subtitle: "Generate live planning docs from issue data.",
+    headline: "Integrated Wiki",
+    subhead: "Planning docs backed by live tasks.",
+    bodyPrimary:
+      "Render current issue lists inside docs so plans, status updates, and execution context stay synchronized.",
     type: "wiki",
   },
   {
-    title: "Policy as Code",
-    subtitle: "Enforce workflow standards with executable policies.",
+    headline: "Policy as Code",
+    subhead: "Enforce rules for humans and agents.",
+    bodyPrimary:
+      "Define standards once and apply them consistently across CLI usage, automation, and collaborative workflows.",
     type: "policy",
   },
 ];
 
-const SECONDS_PER_FEATURE = 3;
+const TRANSITION_FRAMES = 12;
+const SECONDS_PER_FEATURE = 2.8;
+const OPENING_SPLIT_SECONDS = 12;
 
-export const IntroScene: React.FC = () => {
+function StaticIntroFrame({
+  headline,
+  subhead,
+  bodyPrimary,
+  type,
+  scale,
+  leftRatio = 0.4,
+  framePadding,
+  allowRightOverflow = false,
+  allowPictogramOverflow = false,
+  showDebugGuides,
+}: {
+  headline: string;
+  subhead: string;
+  bodyPrimary: string;
+  type: PictogramType;
+  scale: number;
+  leftRatio?: number;
+  framePadding?: string;
+  allowRightOverflow?: boolean;
+  allowPictogramOverflow?: boolean;
+  showDebugGuides: boolean;
+}) {
+  return (
+    <VideoFeatureFrame
+      headline={headline}
+      subhead={subhead}
+      bodyPrimary={bodyPrimary}
+      leftRatio={leftRatio}
+      framePadding={framePadding}
+      allowRightOverflow={allowRightOverflow}
+      showDebugGuides={showDebugGuides}
+      rightPanel={
+        <AnimatedPictogramVideo
+          type={type}
+          scale={scale}
+          innerPadding={0}
+          allowOverflow={allowPictogramOverflow}
+          style={{ width: "100%", height: "100%" }}
+        />
+      }
+    />
+  );
+}
+
+function FeatureSlide({
+  feature,
+  translateX,
+  showDebugGuides,
+}: {
+  feature: FeatureSpotlight;
+  translateX: number;
+  showDebugGuides: boolean;
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        transform: `translateX(${translateX}%)`,
+      }}
+    >
+      <VideoFeatureFrame
+        headline={feature.headline}
+        subhead={feature.subhead}
+        bodyPrimary={feature.bodyPrimary}
+        leftRatio={0.4}
+        showDebugGuides={showDebugGuides}
+        rightPanel={
+          <AnimatedPictogramVideo
+            type={feature.type}
+            scale={1.3}
+            innerPadding={0}
+            style={{ width: "100%", height: "100%" }}
+          />
+        }
+      />
+    </div>
+  );
+}
+
+export const IntroScene: React.FC<IntroSceneProps> = ({
+  mode = "feature-list",
+  showDebugGuides = false,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+
+  if (mode === "opening") {
+    const splitFrame = Math.max(1, Math.round(fps * OPENING_SPLIT_SECONDS));
+    const transitionStart = Math.max(0, splitFrame - TRANSITION_FRAMES);
+    const inTransition = frame >= transitionStart && frame < splitFrame;
+    const progress = inTransition
+      ? Math.min(1, Math.max(0, (frame - transitionStart) / TRANSITION_FRAMES))
+      : frame >= splitFrame
+        ? 1
+        : 0;
+    const firstX = progress * -100;
+    const secondX = (1 - progress) * 100;
+
+    return (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          overflow: "hidden",
+          backgroundColor: "var(--background)",
+        }}
+      >
+        <div style={{ position: "absolute", inset: 0, transform: `translateX(${firstX}%)` }}>
+          <StaticIntroFrame
+            headline="Repository Kanban"
+            subhead="Accessible board + CLI from plain files."
+            bodyPrimary="Kanbus gives your team and agents one shared workflow: a live board backed by repository-native issue files."
+            type="kanban-home"
+            scale={1.13}
+            leftRatio={0.24}
+            allowRightOverflow={true}
+            allowPictogramOverflow={true}
+            showDebugGuides={showDebugGuides}
+          />
+        </div>
+        <div style={{ position: "absolute", inset: 0, transform: `translateX(${secondX}%)` }}>
+          <StaticIntroFrame
+            headline="Git Synchronization"
+            subhead="Use Git as the bus for kanban boards."
+            bodyPrimary="Board updates become normal file changes, so review, history, branching, and collaboration stay native to your existing engineering workflow."
+            type="git-sync-home"
+            scale={1.2}
+            leftRatio={0.34}
+            framePadding="0px 28px"
+            allowRightOverflow={true}
+            allowPictogramOverflow={true}
+            showDebugGuides={showDebugGuides}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "cta") {
+    return (
+      <StaticIntroFrame
+        headline="Get started with Kanbus"
+        subhead="Install quickly and run the workflow today."
+        bodyPrimary="Visit kanb.us for docs, setup guides, and the complete feature walkthrough."
+        type="cli"
+        scale={1.22}
+        showDebugGuides={showDebugGuides}
+      />
+    );
+  }
+
+  const framesPerFeature = Math.max(1, Math.round(fps * SECONDS_PER_FEATURE));
   const featureIndex = Math.min(
     FEATURE_SPOTLIGHTS.length - 1,
-    Math.floor(frame / (fps * SECONDS_PER_FEATURE)),
+    Math.floor(frame / framesPerFeature),
   );
-  const active = FEATURE_SPOTLIGHTS[featureIndex];
+  const frameInFeature = frame % framesPerFeature;
+  const hasNext = featureIndex < FEATURE_SPOTLIGHTS.length - 1;
+  const transitionStart = framesPerFeature - TRANSITION_FRAMES;
+  const isTransitionWindow = hasNext && frameInFeature >= transitionStart;
+
+  const transitionProgress = isTransitionWindow
+    ? Math.min(1, Math.max(0, (frameInFeature - transitionStart) / TRANSITION_FRAMES))
+    : 0;
+
+  const currentFeature = FEATURE_SPOTLIGHTS[featureIndex];
+  const nextFeature = hasNext ? FEATURE_SPOTLIGHTS[featureIndex + 1] : null;
+
+  const currentX = isTransitionWindow ? -transitionProgress * 100 : 0;
+  const nextX = isTransitionWindow ? (1 - transitionProgress) * 100 : 100;
 
   return (
     <div
       style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        gap: "20px",
-        padding: "72px",
-        backgroundColor: "#0f1115",
-        boxSizing: "border-box",
+        position: "absolute",
+        inset: 0,
+        overflow: "hidden",
+        backgroundColor: "var(--background)",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        <div style={{ fontSize: "22px", color: "#7dd3fc", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          Kanbus Feature Tour
-        </div>
-        <div style={{ fontSize: "56px", fontWeight: 800, color: "#e7e9ee", lineHeight: 1.1 }}>
-          {active.title}
-        </div>
-        <div style={{ fontSize: "24px", color: "#9ca3af", maxWidth: "1160px" }}>
-          {active.subtitle}
-        </div>
-      </div>
-
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <AnimatedPictogramVideo
-          type={active.type}
-          style={{
-            width: "100%",
-            height: "100%",
-            minHeight: "420px",
-            padding: "24px",
-            borderRadius: "18px",
-            backgroundColor: "#14171d",
-          }}
+      <FeatureSlide
+        feature={currentFeature}
+        translateX={currentX}
+        showDebugGuides={showDebugGuides}
+      />
+      {nextFeature ? (
+        <FeatureSlide
+          feature={nextFeature}
+          translateX={nextX}
+          showDebugGuides={showDebugGuides}
         />
-      </div>
-
-      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-        {FEATURE_SPOTLIGHTS.map((feature, idx) => (
-          <div
-            key={feature.title}
-            style={{
-              padding: "8px 14px",
-              borderRadius: "999px",
-              fontSize: "16px",
-              fontWeight: 600,
-              color: idx === featureIndex ? "#0f1115" : "#e7e9ee",
-              backgroundColor: idx === featureIndex ? "#7dd3fc" : "#1f2430",
-              border: idx === featureIndex ? "1px solid #7dd3fc" : "1px solid #2c3443",
-            }}
-          >
-            {feature.title}
-          </div>
-        ))}
-      </div>
+      ) : null}
     </div>
   );
 };

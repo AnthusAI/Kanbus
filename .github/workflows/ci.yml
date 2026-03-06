@@ -16,15 +16,15 @@ jobs:
       coverage_color: ${{ steps.python_coverage.outputs.color }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
 
       - name: Build kbsc for integration tests
         run: |
@@ -64,10 +64,10 @@ jobs:
         os: [ubuntu-latest, macos-14, windows-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
@@ -87,10 +87,10 @@ jobs:
       CARGO_HTTP_MULTIPLEXING: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node (for embedded console assets build)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
 
@@ -121,7 +121,7 @@ jobs:
           (cd rust && cargo package --locked --list) | grep -Eq '^embedded_assets/console/index.html$'
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
 
@@ -133,7 +133,7 @@ jobs:
           timeout 1500s time cargo clippy --locked -- -D warnings
           timeout 1800s time cargo test --locked
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@385db9cc6bf65d19775b02084a4b698eaca9a4f2 # v2
         with:
           tool: cargo-llvm-cov@0.6.11
 
@@ -159,9 +159,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
@@ -171,7 +171,7 @@ jobs:
           python -m pip install -e python
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
 
@@ -196,7 +196,7 @@ jobs:
           npm run build
 
       - name: Upload console assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: console-dist
           path: apps/console/dist
@@ -205,10 +205,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
@@ -218,7 +218,7 @@ jobs:
           python -m pip install -e python
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           components: rustfmt, clippy
 
@@ -230,13 +230,13 @@ jobs:
     needs: [rust, console-ui]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
 
       - name: Download console UI artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: console-dist
           path: apps/console/dist
@@ -266,23 +266,23 @@ jobs:
     needs: [python, python-install, rust, console-ui, performance, binary-smoke]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node (for embedded console assets build)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.22.x"
 
@@ -330,13 +330,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Prepare badges directory
         run: mkdir -p badges
 
       - name: Build Python CI badge
-        uses: emibcn/badge-action@v2
+        uses: emibcn/badge-action@afa1859d3d02b7b55f3410c7345c3e353e2d3783 # v2
         with:
           label: python
           status: ${{ needs.python.result == 'success' && 'passing' || 'failing' }}
@@ -344,7 +344,7 @@ jobs:
           path: badges/python-ci.svg
 
       - name: Build Python coverage badge
-        uses: emibcn/badge-action@v2
+        uses: emibcn/badge-action@afa1859d3d02b7b55f3410c7345c3e353e2d3783 # v2
         with:
           label: python coverage
           status: ${{ needs.python.outputs.coverage_percent }}%
@@ -352,7 +352,7 @@ jobs:
           path: badges/python-coverage.svg
 
       - name: Build Rust CI badge
-        uses: emibcn/badge-action@v2
+        uses: emibcn/badge-action@afa1859d3d02b7b55f3410c7345c3e353e2d3783 # v2
         with:
           label: rust
           status: ${{ needs.rust.result == 'success' && 'passing' || 'failing' }}
@@ -361,7 +361,7 @@ jobs:
 
       - name: Build Rust coverage badge
         if: needs.rust.result == 'success'
-        uses: emibcn/badge-action@v2
+        uses: emibcn/badge-action@afa1859d3d02b7b55f3410c7345c3e353e2d3783 # v2
         with:
           label: rust coverage
           status: ${{ needs.rust.outputs.coverage_percent }}%
@@ -370,7 +370,7 @@ jobs:
 
       - name: Build Rust coverage badge (failed)
         if: needs.rust.result != 'success'
-        uses: emibcn/badge-action@v2
+        uses: emibcn/badge-action@afa1859d3d02b7b55f3410c7345c3e353e2d3783 # v2
         with:
           label: rust coverage
           status: failed
@@ -378,7 +378,7 @@ jobs:
           path: badges/rust-coverage.svg
 
       - name: Publish badges branch
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@e9c66a37f080288a11235e32cbe2dc5fb3a679cc # v4
         continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

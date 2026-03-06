@@ -2,7 +2,10 @@
 
 ## Source of truth
 
-Rust coverage is produced with `cargo llvm-cov` and exported as Cobertura XML at `coverage-rust/cobertura.xml`. The CI workflow reads that file to publish the Rust coverage badge.
+Rust coverage is produced with `cargo llvm-cov` and exported as Cobertura XML at `coverage-rust/cobertura.xml`.
+
+- This XML file is generated output and is not committed to git.
+- CI regenerates the XML before computing coverage badges.
 
 ## Required tooling
 

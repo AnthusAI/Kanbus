@@ -10,7 +10,11 @@ import shutil
 from behave import given, then, when
 import yaml
 
-from features.steps.shared import ensure_git_repository, write_issue_file
+from features.steps.shared import (
+    ensure_git_repository,
+    write_default_kanbus_config,
+    write_issue_file,
+)
 from kanbus.models import IssueData
 from kanbus.project import (
     ProjectMarkerError,
@@ -35,30 +39,37 @@ def _create_repo(context: object, name: str) -> Path:
     return root
 
 
-@given("a repository with a single project directory")
+@given("a repository with a .kanbus.yml file and project directory")
 def given_repo_single_project(context: object) -> None:
     root = _create_repo(context, "single-project")
     (root / "project").mkdir()
+    write_default_kanbus_config(root)
 
 
-@given("an empty repository without a project directory")
+@given("an empty repository without a .kanbus.yml file")
 def given_repo_without_project(context: object) -> None:
     _create_repo(context, "empty-project")
 
 
-@given("a repository with multiple project directories")
+@given("a workspace with multiple Kanbus projects")
 def given_repo_multiple_projects(context: object) -> None:
     root = _create_repo(context, "multi-project")
-    (root / "project").mkdir()
-    (root / "nested").mkdir()
-    (root / "nested" / "project").mkdir(parents=True)
+    alpha_repo = root / "alpha"
+    beta_repo = root / "beta"
+    (alpha_repo / "project").mkdir(parents=True)
+    (beta_repo / "project").mkdir(parents=True)
+    write_default_kanbus_config(alpha_repo)
+    write_default_kanbus_config(beta_repo)
 
 
-@given("a repository with a project directory that cannot be canonicalized")
+@given(
+    "a repository with a .kanbus.yml file and a project directory that cannot be canonicalized"
+)
 def given_repo_project_cannot_canonicalize(context: object) -> None:
     root = _create_repo(context, "canonicalize-failure")
     project_dir = root / "project"
     project_dir.mkdir()
+    write_default_kanbus_config(root)
     _set_env_override(
         context,
         "KANBUS_TEST_CANONICALIZE_FAILURE",
@@ -132,19 +143,25 @@ def _build_issue(identifier: str, title: str) -> IssueData:
 @given("a repository with multiple projects and issues")
 def given_repo_multiple_projects_with_issues(context: object) -> None:
     root = _create_repo(context, "multi-project-issues")
-    alpha_project = root / "alpha" / "project"
-    beta_project = root / "beta" / "project"
+    alpha_repo = root / "alpha"
+    beta_repo = root / "beta"
+    alpha_project = alpha_repo / "project"
+    beta_project = beta_repo / "project"
     (alpha_project / "issues").mkdir(parents=True)
     (beta_project / "issues").mkdir(parents=True)
     write_issue_file(alpha_project, _build_issue("kanbus-alpha", "Alpha task"))
     write_issue_file(beta_project, _build_issue("kanbus-beta", "Beta task"))
+    write_default_kanbus_config(alpha_repo)
+    write_default_kanbus_config(beta_repo)
 
 
 @given("a repository with multiple projects and local issues")
 def given_repo_multiple_projects_with_local_issues(context: object) -> None:
     root = _create_repo(context, "multi-project-local")
-    alpha_project = root / "alpha" / "project"
-    beta_project = root / "beta" / "project"
+    alpha_repo = root / "alpha"
+    beta_repo = root / "beta"
+    alpha_project = alpha_repo / "project"
+    beta_project = beta_repo / "project"
     (alpha_project / "issues").mkdir(parents=True)
     (beta_project / "issues").mkdir(parents=True)
     write_issue_file(alpha_project, _build_issue("kanbus-alpha", "Alpha task"))
@@ -154,6 +171,8 @@ def given_repo_multiple_projects_with_local_issues(context: object) -> None:
     write_issue_file(
         local_project, _build_issue("kanbus-alpha-local", "Alpha local task")
     )
+    write_default_kanbus_config(alpha_repo)
+    write_default_kanbus_config(beta_repo)
 
 
 @given("a repository with a .kanbus.yml file referencing another project")
@@ -274,7 +293,7 @@ def given_repo_kanbus_with_blank_lines(context: object) -> None:
     context.expected_project_dir = (root / "extras" / "project").resolve()
 
 
-@given("a non-git directory without projects")
+@given("a non-git directory without a .kanbus.yml file")
 def given_non_git_directory(context: object) -> None:
     root = Path(context.temp_dir) / "no-git"
     root.mkdir(parents=True, exist_ok=True)
@@ -293,6 +312,22 @@ def given_repo_fake_git_root(context: object) -> None:
     git_path.chmod(0o755)
     context.original_path_env = os.environ.get("PATH", "")
     os.environ["PATH"] = f"{bin_dir}{os.pathsep}{context.original_path_env}"
+
+
+@given("a workspace with a valid project and an invalid config")
+def given_workspace_with_invalid_config(context: object) -> None:
+    root = _create_repo(context, "workspace-invalid")
+    valid_repo = root / "valid"
+    invalid_repo = root / "invalid"
+    (valid_repo / "project").mkdir(parents=True, exist_ok=True)
+    (invalid_repo / "project").mkdir(parents=True, exist_ok=True)
+    write_default_kanbus_config(valid_repo, project_key="valid")
+    (invalid_repo / ".kanbus.yml").write_text(
+        "unknown_field: value\n",
+        encoding="utf-8",
+    )
+    context.expected_project_dir = (valid_repo / "project").resolve()
+    context.working_directory = root
 
 
 @when("project directories are discovered")
@@ -378,6 +413,11 @@ def then_project_includes_referenced_path(context: object) -> None:
 @then("project discovery should return no projects")
 def then_project_returns_no_projects(context: object) -> None:
     assert context.project_dirs == []
+
+
+@then("project discovery should succeed")
+def then_project_discovery_succeeds(context: object) -> None:
+    assert context.project_error is None
 
 
 @then('configuration path lookup should fail with "project not initialized"')

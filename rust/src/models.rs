@@ -129,6 +129,8 @@ pub struct ProjectConfiguration {
     #[serde(default)]
     pub categories: Vec<CategoryDefinition>,
     #[serde(default)]
+    pub sort_order: BTreeMap<String, serde_yaml::Value>,
+    #[serde(default)]
     pub type_colors: BTreeMap<String, String>,
     #[serde(default)]
     pub beads_compatibility: bool,

@@ -4,6 +4,7 @@
 //! submitted through the CLI, and emits actionable warnings and suggestions.
 
 use std::cell::RefCell;
+use std::io::Write;
 
 thread_local! {
     static CAPTURED_STDERR: RefCell<Option<String>> = const { RefCell::new(None) };
@@ -37,7 +38,10 @@ fn write_stderr(message: &str) {
         }
     });
     if !captured {
-        eprintln!("{}", message);
+        let mut stderr = std::io::stderr();
+        let _ = stderr.write_all(message.as_bytes());
+        let _ = stderr.write_all(b"\n");
+        let _ = stderr.flush();
     }
 }
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 
-from jinja2 import Environment
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from kanbus.issue_listing import IssueListingError, list_issues
 from kanbus.models import IssueData
@@ -101,8 +101,14 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
         raise WikiError(str(error)) from error
 
     context = WikiContext(issues=list(issues))
-    template = request.page_path.read_text(encoding="utf-8")
-    environment = Environment(autoescape=False)
+    environment = Environment(
+        loader=FileSystemLoader(str(request.page_path.parent)),
+        autoescape=select_autoescape(
+            enabled_extensions=("html", "htm", "xml"),
+            default_for_string=False,
+            default=False,
+        ),
+    )
     environment.globals.update(
         {
             "query": context.query,
@@ -110,7 +116,7 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
         }
     )
     try:
-        return environment.from_string(template).render()
+        return environment.get_template(request.page_path.name).render()
     except WikiError:
         raise
     except Exception as error:

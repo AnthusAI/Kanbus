@@ -1,0 +1,10 @@
+{
+  "production": {
+    "awsProfile": "anthus",
+    "bucket": "amplify-d2h5foxy5ng19a-stagin-videosbucket75f673ed-nspyuhuddcrf",
+    "primaryPrefix": "kanbus-feature-videos",
+    "mirrorPrefix": "videos",
+    "cloudfrontDomain": "dmhqusv90xmye.cloudfront.net",
+    "cloudfrontDistributionId": "EJHU3B2S2NQWT"
+  }
+}

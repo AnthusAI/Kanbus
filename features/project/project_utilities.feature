@@ -3,28 +3,28 @@ Feature: Project utility helpers
   I want project discovery helpers to handle edge cases
   So that project resolution is predictable
 
-  Scenario: Discover a single project directory under the root
-    Given a repository with a single project directory
+  Scenario: Discover a single project from .kanbus.yml
+    Given a repository with a .kanbus.yml file and project directory
     When project directories are discovered
     Then exactly one project directory should be returned
 
   Scenario: Loading a project fails when none exist
-    Given an empty repository without a project directory
+    Given an empty repository without a .kanbus.yml file
     When the project directory is loaded
     Then project discovery should fail with "project not initialized"
 
   Scenario: Loading a project fails when multiple projects exist
-    Given a repository with multiple project directories
+    Given a workspace with multiple Kanbus projects
     When the project directory is loaded
     Then project discovery should fail with "multiple projects found"
 
   Scenario: Loading a project tolerates canonicalization failures
-    Given a repository with a project directory that cannot be canonicalized
+    Given a repository with a .kanbus.yml file and a project directory that cannot be canonicalized
     When the project directory is loaded
     Then exactly one project directory should be returned
 
   Scenario: Configuration path lookup fails without config
-    Given a repository with a single project directory
+    Given an empty repository without a .kanbus.yml file
     When the configuration path is requested
     Then configuration path lookup should fail with "project not initialized"
 
@@ -54,7 +54,7 @@ Feature: Project utility helpers
     Then project discovery should return no projects
 
   Scenario: Project discovery without git finds no dotfile paths
-    Given a non-git directory without projects
+    Given a non-git directory without a .kanbus.yml file
     When project directories are discovered
     Then project discovery should return no projects
 
@@ -63,7 +63,13 @@ Feature: Project utility helpers
     When project directories are discovered
     Then project discovery should fail with "Permission denied"
 
-  Scenario: Git root must point to a directory
+  Scenario: Workspace discovery skips invalid configs
+    Given a workspace with a valid project and an invalid config
+    When project directories are discovered
+    Then project discovery should include the referenced path
+    And project discovery should succeed
+
+  Scenario: Configuration lookup ignores git root
     Given a repository with a fake git root pointing to a file
     When project directories are discovered
     Then project discovery should return no projects

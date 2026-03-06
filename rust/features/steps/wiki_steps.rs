@@ -105,6 +105,7 @@ fn given_open_tasks_with_priorities(world: &mut KanbusWorld) {
     }
 }
 
+#[given(expr = "a wiki page {string} with content")]
 #[given(expr = "a wiki page {string} with content:")]
 fn given_wiki_page_with_content(world: &mut KanbusWorld, filename: String, step: &Step) {
     let project_dir = load_project_dir(world);
@@ -114,6 +115,7 @@ fn given_wiki_page_with_content(world: &mut KanbusWorld, filename: String, step:
     fs::write(wiki_dir.join(filename), content).expect("write wiki page");
 }
 
+#[given(expr = "a raw wiki page {string} with content")]
 #[given(expr = "a raw wiki page {string} with content:")]
 fn given_raw_wiki_page_with_content(world: &mut KanbusWorld, filename: String, step: &Step) {
     let cwd = world

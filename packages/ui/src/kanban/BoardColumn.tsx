@@ -5,6 +5,7 @@ import { IssueCard } from "./IssueCard";
 import type { KanbanMotionConfig } from "./motion";
 
 interface BoardColumnProps {
+  columnKey?: string;
   title: string;
   issues: KanbanIssue[];
   priorityLookup: Record<number, string>;
@@ -17,6 +18,7 @@ interface BoardColumnProps {
 }
 
 export function BoardColumn({
+  columnKey,
   title,
   issues,
   priorityLookup,
@@ -32,6 +34,7 @@ export function BoardColumn({
       <div
         className="kb-column flex flex-col items-center h-full min-h-0 cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
         style={{ minWidth: "48px", maxWidth: "48px" }}
+        data-column-key={columnKey}
         onClick={onToggleCollapse}
         title={`${title.replace(/_/g, " ")} (${issues.length}) - Click to expand`}
       >
@@ -58,7 +61,7 @@ export function BoardColumn({
   }
 
   return (
-    <div className="kb-column flex flex-col h-full min-h-0">
+    <div className="kb-column flex flex-col h-full min-h-0" data-column-key={columnKey}>
       <div
         className="kb-column-header h-7 items-center flex justify-between px-3 cursor-pointer hover:opacity-80 transition-opacity"
         onClick={onToggleCollapse}

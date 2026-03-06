@@ -106,6 +106,10 @@ fn find_matching_issues(
 ) -> Result<Vec<(String, PathBuf)>, KanbusError> {
     let mut matches = Vec::new();
 
+    if !issues_dir.is_dir() {
+        return Ok(matches);
+    }
+
     let entries = fs::read_dir(issues_dir).map_err(|error| {
         KanbusError::IssueOperation(format!("cannot read issues directory: {error}"))
     })?;

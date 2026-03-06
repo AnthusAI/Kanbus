@@ -286,7 +286,112 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
         }
     }
 
+    validate_sort_order(configuration, &mut errors);
+
     errors
+}
+
+const SORT_PRESETS: &[&str] = &["fifo", "priority-first", "recently-updated"];
+const SORT_FIELDS: &[&str] = &["priority", "created_at", "updated_at", "id"];
+const SORT_DIRECTIONS: &[&str] = &["asc", "desc"];
+
+fn validate_sort_order(configuration: &ProjectConfiguration, errors: &mut Vec<String>) {
+    if configuration.sort_order.is_empty() {
+        return;
+    }
+
+    if let Some(categories_value) = configuration.sort_order.get("categories") {
+        let Some(categories) = categories_value.as_mapping() else {
+            errors.push("sort_order.categories must be a mapping".to_string());
+            return;
+        };
+        for (category, rule) in categories {
+            let Some(category_name) = category.as_str() else {
+                errors.push("sort_order.categories keys must be strings".to_string());
+                continue;
+            };
+            validate_sort_rule(
+                &format!("sort_order.categories.{category_name}"),
+                rule,
+                errors,
+            );
+        }
+    }
+
+    for (status, rule) in &configuration.sort_order {
+        if status == "categories" {
+            continue;
+        }
+        validate_sort_rule(&format!("sort_order.{status}"), rule, errors);
+    }
+}
+
+fn validate_sort_rule(path: &str, value: &Value, errors: &mut Vec<String>) {
+    if let Some(preset) = value.as_str() {
+        if !SORT_PRESETS.contains(&preset) {
+            errors.push(format!(
+                "{path} has invalid preset '{preset}' (valid presets: {})",
+                SORT_PRESETS.join(", ")
+            ));
+        }
+        return;
+    }
+
+    let Some(rules) = value.as_sequence() else {
+        errors.push(format!(
+            "{path} must be a preset string or a list of field rules"
+        ));
+        return;
+    };
+
+    if rules.is_empty() {
+        errors.push(format!("{path} must not be an empty list"));
+        return;
+    }
+
+    for (index, rule) in rules.iter().enumerate() {
+        let Some(mapping) = rule.as_mapping() else {
+            errors.push(format!(
+                "{path}[{index}] must be an object with field/direction"
+            ));
+            continue;
+        };
+
+        for key in mapping.keys() {
+            let Some(key_text) = key.as_str() else {
+                errors.push(format!("{path}[{index}] contains a non-string key"));
+                continue;
+            };
+            if key_text != "field" && key_text != "direction" {
+                errors.push(format!("{path}[{index}] has unsupported key '{key_text}'"));
+            }
+        }
+
+        let field = mapping
+            .get(Value::String("field".to_string()))
+            .and_then(Value::as_str);
+        let direction = mapping
+            .get(Value::String("direction".to_string()))
+            .and_then(Value::as_str);
+
+        match field {
+            Some(value) if SORT_FIELDS.contains(&value) => {}
+            Some(value) => errors.push(format!(
+                "{path}[{index}] has invalid field '{value}' (valid fields: {})",
+                SORT_FIELDS.join(", ")
+            )),
+            None => errors.push(format!("{path}[{index}] is missing 'field'")),
+        }
+
+        match direction {
+            Some(value) if SORT_DIRECTIONS.contains(&value) => {}
+            Some(value) => errors.push(format!(
+                "{path}[{index}] has invalid direction '{value}' (valid directions: {})",
+                SORT_DIRECTIONS.join(", ")
+            )),
+            None => errors.push(format!("{path}[{index}] is missing 'direction'")),
+        }
+    }
 }
 
 /// Convert `virtual_projects` from a YAML sequence (e.g. `[]`) to an empty
