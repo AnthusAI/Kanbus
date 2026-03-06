@@ -857,6 +857,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         time_zone: None,
         statuses,
         categories,
+        sort_order: BTreeMap::new(),
         type_colors: BTreeMap::new(),
         beads_compatibility: false,
         jira: None,

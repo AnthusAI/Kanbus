@@ -101,6 +101,7 @@ async function resetMetricsConfig() {
   config.project_directory ??= "project";
   config.project_key ??= "kanbus";
   config.virtual_projects = {};
+  delete config.sort_order;
   await saveKanbusConfigFile(config);
 }
 

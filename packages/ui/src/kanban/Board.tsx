@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import type { KanbanConfig, KanbanIssue } from "./types";
+import type {
+  KanbanConfig,
+  KanbanIssue,
+  KanbanSortFieldRule,
+  KanbanSortPreset,
+  KanbanSortRule
+} from "./types";
 import { BoardColumn } from "./BoardColumn";
 import { useBoardTransitions } from "./useBoardTransitions";
 import {
@@ -21,31 +27,215 @@ interface BoardProps {
   motion?: KanbanMotionConfig;
 }
 
-function parseIssueTimestamp(issue: KanbanIssue): number {
-  const parsed = Date.parse(issue.updated_at ?? "");
-  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+type IssueComparator = (a: KanbanIssue, b: KanbanIssue) => number;
+
+const DONE_NAMES = new Set(["done", "closed", "complete", "completed", "resolved"]);
+
+function compareNullableString(
+  a: string | undefined,
+  b: string | undefined,
+  direction: "asc" | "desc"
+): number {
+  const hasA = typeof a === "string" && a.length > 0;
+  const hasB = typeof b === "string" && b.length > 0;
+  if (hasA && !hasB) return -1;
+  if (!hasA && hasB) return 1;
+  if (!hasA && !hasB) return 0;
+  const order = a! < b! ? -1 : a! > b! ? 1 : 0;
+  return direction === "asc" ? order : -order;
 }
 
-function compareRecentFirst(a: KanbanIssue, b: KanbanIssue): number {
-  const aTimestamp = parseIssueTimestamp(a);
-  const bTimestamp = parseIssueTimestamp(b);
-  if (aTimestamp < bTimestamp) return 1;
-  if (aTimestamp > bTimestamp) return -1;
-  if (a.id < b.id) return -1;
-  if (a.id > b.id) return 1;
-  return 0;
+function compareNullableNumber(
+  a: number | undefined,
+  b: number | undefined,
+  direction: "asc" | "desc"
+): number {
+  const hasA = Number.isFinite(a);
+  const hasB = Number.isFinite(b);
+  if (hasA && !hasB) return -1;
+  if (!hasA && hasB) return 1;
+  if (!hasA && !hasB) return 0;
+  const order = (a ?? 0) - (b ?? 0);
+  if (order === 0) return 0;
+  return direction === "asc" ? order : -order;
+}
+
+function parseTimestamp(value: string | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function compareTimestamp(
+  a: string | undefined,
+  b: string | undefined,
+  direction: "asc" | "desc"
+): number {
+  const parsedA = parseTimestamp(a);
+  const parsedB = parseTimestamp(b);
+  const hasA = parsedA != null;
+  const hasB = parsedB != null;
+  if (hasA && !hasB) return -1;
+  if (!hasA && hasB) return 1;
+  if (!hasA && !hasB) return 0;
+  const order = (parsedA ?? 0) - (parsedB ?? 0);
+  if (order === 0) return 0;
+  return direction === "asc" ? order : -order;
+}
+
+function compareIdAsc(a: KanbanIssue, b: KanbanIssue): number {
+  return compareNullableString(a.id, b.id, "asc");
+}
+
+function chainComparators(comparators: IssueComparator[]): IssueComparator {
+  return (a, b) => {
+    for (const comparator of comparators) {
+      const result = comparator(a, b);
+      if (result !== 0) {
+        return result;
+      }
+    }
+    return 0;
+  };
+}
+
+function isSortPreset(value: unknown): value is KanbanSortPreset {
+  return value === "fifo"
+    || value === "priority-first"
+    || value === "recently-updated";
+}
+
+function isSortField(value: unknown): value is KanbanSortFieldRule["field"] {
+  return value === "priority"
+    || value === "created_at"
+    || value === "updated_at"
+    || value === "id";
+}
+
+function isSortDirection(value: unknown): value is KanbanSortFieldRule["direction"] {
+  return value === "asc" || value === "desc";
+}
+
+function parseSortRule(value: unknown): KanbanSortRule | null {
+  if (isSortPreset(value)) {
+    return value;
+  }
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+
+  const parsed: KanbanSortFieldRule[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") {
+      return null;
+    }
+    const field = (entry as Record<string, unknown>).field;
+    const direction = (entry as Record<string, unknown>).direction;
+    if (!isSortField(field) || !isSortDirection(direction)) {
+      return null;
+    }
+    parsed.push({ field, direction });
+  }
+  return parsed;
+}
+
+function compareByField(
+  rule: KanbanSortFieldRule
+): IssueComparator {
+  if (rule.field === "priority") {
+    return (a, b) => compareNullableNumber(a.priority, b.priority, rule.direction);
+  }
+  if (rule.field === "created_at") {
+    return (a, b) => compareTimestamp(a.created_at, b.created_at, rule.direction);
+  }
+  if (rule.field === "updated_at") {
+    return (a, b) => compareTimestamp(a.updated_at, b.updated_at, rule.direction);
+  }
+  return (a, b) => compareNullableString(a.id, b.id, rule.direction);
+}
+
+function comparatorForPreset(preset: KanbanSortPreset): IssueComparator {
+  if (preset === "priority-first") {
+    return chainComparators([
+      (a, b) => compareNullableNumber(a.priority, b.priority, "asc"),
+      (a, b) => compareTimestamp(a.created_at, b.created_at, "asc"),
+      compareIdAsc
+    ]);
+  }
+  if (preset === "recently-updated") {
+    return chainComparators([
+      (a, b) => compareTimestamp(a.updated_at, b.updated_at, "desc"),
+      compareIdAsc
+    ]);
+  }
+  return chainComparators([
+    (a, b) => compareTimestamp(a.created_at, b.created_at, "asc"),
+    compareIdAsc
+  ]);
+}
+
+function comparatorForRule(rule: KanbanSortRule): IssueComparator {
+  if (typeof rule === "string") {
+    return comparatorForPreset(rule);
+  }
+
+  const comparators = rule.map(compareByField);
+  const hasIdRule = rule.some((entry) => entry.field === "id");
+  if (!hasIdRule) {
+    comparators.push(compareIdAsc);
+  }
+  return chainComparators(comparators);
+}
+
+function resolveConfiguredSortRule(
+  column: string,
+  config?: KanbanConfig
+): KanbanSortRule | null {
+  const sortOrder = config?.sort_order;
+  if (!sortOrder) {
+    return null;
+  }
+
+  const statusRule = parseSortRule((sortOrder as Record<string, unknown>)[column]);
+  if (statusRule) {
+    return statusRule;
+  }
+
+  const statusDefinition = config?.statuses.find((status) => status.key === column);
+  const categoryName = statusDefinition?.category;
+  if (!categoryName) {
+    return null;
+  }
+
+  const categories = (sortOrder as { categories?: unknown }).categories;
+  if (!categories || typeof categories !== "object" || Array.isArray(categories)) {
+    return null;
+  }
+  return parseSortRule((categories as Record<string, unknown>)[categoryName]);
+}
+
+function resolveColumnComparator(column: string, config?: KanbanConfig): IssueComparator {
+  if (isDoneColumn(column, config)) {
+    return comparatorForPreset("recently-updated");
+  }
+  const configuredRule = resolveConfiguredSortRule(column, config);
+  if (configuredRule) {
+    return comparatorForRule(configuredRule);
+  }
+  return comparatorForPreset("fifo");
 }
 
 function isDoneColumn(column: string, config?: KanbanConfig): boolean {
-  const doneNames = new Set(["done", "closed", "complete", "completed", "resolved"]);
   const status = config?.statuses.find((item) => item.key === column);
   if (status?.category) {
     const normalizedCategory = status.category.trim().toLowerCase();
-    if (doneNames.has(normalizedCategory)) {
+    if (DONE_NAMES.has(normalizedCategory)) {
       return true;
     }
   }
-  return doneNames.has(column.trim().toLowerCase());
+  return DONE_NAMES.has(column.trim().toLowerCase());
 }
 
 function BoardComponent({
@@ -105,14 +295,14 @@ function BoardComponent({
     <div ref={setBoardRef} className="kb-grid gap-2">
       {columns.map((column) => {
         const columnIssues = issues.filter((issue) => issue.status === column);
-        const orderedIssues = isDoneColumn(column, config)
-          ? [...columnIssues].sort(compareRecentFirst)
-          : columnIssues;
+        const comparator = resolveColumnComparator(column, config);
+        const orderedIssues = [...columnIssues].sort(comparator);
         const displayTitle =
           config?.statuses.find((status) => status.key === column)?.name ?? column;
         return (
           <BoardColumn
             key={column}
+            columnKey={column}
             title={displayTitle}
             issues={orderedIssues}
             priorityLookup={priorityLookup}
