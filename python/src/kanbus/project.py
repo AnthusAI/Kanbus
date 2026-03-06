@@ -204,7 +204,7 @@ def _discover_workspace_config_paths(root: Path) -> List[Path]:
             if entry.name in WORKSPACE_IGNORE_DIRS:
                 continue
             stack.append(entry)
-    return sorted(configs, key=lambda item: str(item))
+    return sorted(configs, key=str)
 
 
 def _discover_legacy_project_directories(root: Path) -> List[Path]:
