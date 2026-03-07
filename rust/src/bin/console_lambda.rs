@@ -23,6 +23,7 @@ use kanbus::console_backend::{find_issue_matches, FileStore};
 
 const EFS_ROOT: &str = "/mnt/data";
 const DEFAULT_ASSETS_ROOT: &str = "/opt/apps/console/dist";
+const REALTIME_MODE: &str = "mqtt_iot";
 
 type BoxedStream = Pin<Box<dyn Stream<Item = Result<Frame<Bytes>, Infallible>> + Send>>;
 type StreamBodyType = StreamBody<BoxedStream>;
@@ -69,7 +70,15 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
             Some(identifier) => handle_issue(&store, identifier),
             None => handle_issues(&store),
         },
-        "events" => handle_events(&store),
+        "events" => match segments.get(4) {
+            Some(&"realtime") => handle_realtime_events(&store),
+            Some(_) => Ok(not_found()),
+            None => handle_events(&store),
+        },
+        "realtime" => match segments.get(4) {
+            Some(&"bootstrap") => handle_realtime_bootstrap(account, project),
+            _ => Ok(not_found()),
+        },
         _ => Ok(not_found()),
     }
 }
@@ -114,6 +123,52 @@ fn handle_events(store: &FileStore) -> Result<ResponseType, Error> {
         .header("Connection", "keep-alive")
         .body(StreamBody::new(stream))
         .map_err(Error::from)
+}
+
+fn handle_realtime_events(store: &FileStore) -> Result<ResponseType, Error> {
+    // Cloud compatibility endpoint for the existing frontend notification stream.
+    // In Lambda mode this currently reuses snapshot-based SSE fallback behavior.
+    handle_events(store)
+}
+
+#[derive(Debug, serde::Serialize)]
+struct RealtimeBootstrapResponse {
+    mode: &'static str,
+    region: String,
+    iot_endpoint: String,
+    topic: String,
+    account: String,
+    project: String,
+}
+
+fn handle_realtime_bootstrap(account: &str, project: &str) -> Result<ResponseType, Error> {
+    let payload = match build_realtime_bootstrap(account, project) {
+        Ok(payload) => payload,
+        Err(message) => {
+            return error_response(message, StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    json_response(&payload)
+}
+
+fn build_realtime_bootstrap(
+    account: &str,
+    project: &str,
+) -> Result<RealtimeBootstrapResponse, String> {
+    let iot_endpoint = std::env::var("KANBUS_IOT_DATA_ENDPOINT")
+        .map_err(|_| "KANBUS_IOT_DATA_ENDPOINT is not configured".to_string())?;
+    let region = std::env::var("AWS_REGION")
+        .or_else(|_| std::env::var("AWS_DEFAULT_REGION"))
+        .map_err(|_| "AWS_REGION is not configured".to_string())?;
+    let topic = format!("projects/{account}/{project}/events");
+    Ok(RealtimeBootstrapResponse {
+        mode: REALTIME_MODE,
+        region,
+        iot_endpoint,
+        topic,
+        account: account.to_string(),
+        project: project.to_string(),
+    })
 }
 
 fn json_response<T: serde::Serialize>(value: &T) -> Result<ResponseType, Error> {
@@ -271,6 +326,16 @@ fn body_from_bytes(bytes: Vec<u8>) -> StreamBodyType {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
+
+    fn clear_realtime_env() {
+        // SAFETY: tests in this module are single-threaded and control env usage locally.
+        unsafe {
+            env::remove_var("KANBUS_IOT_DATA_ENDPOINT");
+            env::remove_var("AWS_REGION");
+            env::remove_var("AWS_DEFAULT_REGION");
+        }
+    }
 
     #[test]
     fn is_console_route_detects_supported_paths() {
@@ -288,5 +353,37 @@ mod tests {
         let bytes_hash = hash_bytes(b"payload");
         assert_eq!(one, two);
         assert_eq!(one, bytes_hash);
+    }
+
+    #[test]
+    fn realtime_bootstrap_builds_tenant_scoped_topic() {
+        clear_realtime_env();
+        // SAFETY: tests in this module are single-threaded and control env usage locally.
+        unsafe {
+            env::set_var("KANBUS_IOT_DATA_ENDPOINT", "a1b2c3-ats.iot.us-east-1.amazonaws.com");
+            env::set_var("AWS_REGION", "us-east-1");
+        }
+        let payload = build_realtime_bootstrap("acct", "proj").expect("bootstrap payload");
+        assert_eq!(payload.mode, REALTIME_MODE);
+        assert_eq!(payload.region, "us-east-1");
+        assert_eq!(payload.topic, "projects/acct/proj/events");
+        assert_eq!(payload.account, "acct");
+        assert_eq!(payload.project, "proj");
+    }
+
+    #[test]
+    fn realtime_bootstrap_requires_endpoint_and_region() {
+        clear_realtime_env();
+        let missing_endpoint = build_realtime_bootstrap("acct", "proj")
+            .expect_err("missing endpoint should return error");
+        assert!(missing_endpoint.contains("KANBUS_IOT_DATA_ENDPOINT"));
+
+        // SAFETY: tests in this module are single-threaded and control env usage locally.
+        unsafe {
+            env::set_var("KANBUS_IOT_DATA_ENDPOINT", "a1b2c3-ats.iot.us-east-1.amazonaws.com");
+        }
+        let missing_region = build_realtime_bootstrap("acct", "proj")
+            .expect_err("missing region should return error");
+        assert!(missing_region.contains("AWS_REGION"));
     }
 }
