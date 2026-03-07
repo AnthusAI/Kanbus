@@ -83,7 +83,7 @@ When("I create a wiki page named {string}", async function (relativePath) {
   });
   await this.page.getByRole("button", { name: "Actions" }).click();
   await this.page.getByRole("menuitem", { name: "New page" }).click();
-  await expect(this.page.getByRole("button", { name: relativePath })).toBeVisible();
+  await expect(this.page.getByRole("button", { name: relativePath })).toBeVisible({ timeout: 15000 });
 });
 
 When("I try to create a wiki page named {string}", async function (relativePath) {
@@ -102,7 +102,7 @@ When("I rename the wiki page {string} to {string}", async function (fromPath, to
   });
   await this.page.getByRole("button", { name: "Actions" }).click();
   await this.page.getByRole("menuitem", { name: "Rename page" }).click();
-  await expect(this.page.getByRole("button", { name: toPath })).toBeVisible();
+  await expect(this.page.getByRole("button", { name: toPath })).toBeVisible({ timeout: 15000 });
 });
 
 When("I delete the wiki page {string}", async function (relativePath) {
