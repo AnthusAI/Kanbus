@@ -1,4 +1,8 @@
 import type { IssuesSnapshot, Issue, IssueEventsResponse } from "../types/issues";
+import { SignatureV4 } from "@aws-sdk/signature-v4";
+import { Sha256 } from "@aws-crypto/sha256-js";
+import { HttpRequest } from "@aws-sdk/protocol-http";
+import { formatUrl } from "@aws-sdk/util-format-url";
 
 export type UiControlAction =
   | { action: "clear_focus" }
@@ -29,6 +33,7 @@ export type RealtimeBootstrap = {
   topic: string;
   account: string;
   project: string;
+  mqtt_custom_authorizer_name?: string;
   client_id?: string;
   username?: string;
   password?: string;
@@ -49,12 +54,19 @@ export type AuthBootstrap = {
 };
 
 type MqttModule = typeof import("mqtt");
+type SigV4Credentials = {
+  accessKeyId: string;
+  secretAccessKey: string;
+  sessionToken: string;
+  identityId: string;
+};
 
 type HeaderProvider = () => Promise<Record<string, string>> | Record<string, string>;
 type QueryProvider = () => string | null;
 
 let authHeaderProvider: HeaderProvider | null = null;
 let authQueryProvider: QueryProvider | null = null;
+let mqttTokenProvider: QueryProvider | null = null;
 
 export function setAuthHeaderProvider(provider: HeaderProvider | null): void {
   authHeaderProvider = provider;
@@ -62,6 +74,10 @@ export function setAuthHeaderProvider(provider: HeaderProvider | null): void {
 
 export function setAuthQueryProvider(provider: QueryProvider | null): void {
   authQueryProvider = provider;
+}
+
+export function setMqttTokenProvider(provider: QueryProvider | null): void {
+  mqttTokenProvider = provider;
 }
 
 async function fetchWithAuth(input: string, init?: RequestInit): Promise<Response> {
@@ -88,6 +104,107 @@ function withAuthQuery(url: string): string {
   const u = new URL(url, window.location.origin);
   u.searchParams.set("access_token", token);
   return `${u.pathname}${u.search}`;
+}
+
+async function buildSignedIotWebsocketUrl(
+  endpoint: string,
+  region: string,
+  credentials: SigV4Credentials
+): Promise<string> {
+  const request = new HttpRequest({
+    protocol: "wss:",
+    hostname: endpoint,
+    method: "GET",
+    path: "/mqtt",
+    headers: {
+      host: endpoint,
+    },
+  });
+  const signer = new SignatureV4({
+    service: "iotdevicegateway",
+    region,
+    sha256: Sha256,
+    credentials: {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      sessionToken: credentials.sessionToken,
+    },
+  });
+  const signed = await signer.presign(request, { expiresIn: 900 });
+  return formatUrl(signed);
+}
+
+function loginProviderKeyFromIssuer(issuer: string): string | null {
+  try {
+    const url = new URL(issuer);
+    return `${url.host}${url.pathname}`;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCognitoIdentityCredentials(
+  region: string,
+  identityPoolId: string,
+  loginProviderKey: string,
+  idToken: string
+): Promise<SigV4Credentials> {
+  const endpoint = `https://cognito-identity.${region}.amazonaws.com/`;
+  const commonHeaders = {
+    "Content-Type": "application/x-amz-json-1.1",
+  };
+  const getIdResponse = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      ...commonHeaders,
+      "X-Amz-Target": "AWSCognitoIdentityService.GetId",
+    },
+    body: JSON.stringify({
+      IdentityPoolId: identityPoolId,
+      Logins: { [loginProviderKey]: idToken },
+    }),
+  });
+  if (!getIdResponse.ok) {
+    throw new Error(`cognito GetId failed: ${getIdResponse.status}`);
+  }
+  const getIdPayload = (await getIdResponse.json()) as { IdentityId?: string };
+  const identityId = getIdPayload.IdentityId;
+  if (!identityId) {
+    throw new Error("cognito GetId response missing IdentityId");
+  }
+
+  const getCredentialsResponse = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      ...commonHeaders,
+      "X-Amz-Target": "AWSCognitoIdentityService.GetCredentialsForIdentity",
+    },
+    body: JSON.stringify({
+      IdentityId: identityId,
+      Logins: { [loginProviderKey]: idToken },
+    }),
+  });
+  if (!getCredentialsResponse.ok) {
+    throw new Error(`cognito GetCredentialsForIdentity failed: ${getCredentialsResponse.status}`);
+  }
+  const getCredentialsPayload = (await getCredentialsResponse.json()) as {
+    IdentityId?: string;
+    Credentials?: {
+      AccessKeyId?: string;
+      SecretKey?: string;
+      SessionToken?: string;
+    };
+  };
+  const creds = getCredentialsPayload.Credentials;
+  if (!creds?.AccessKeyId || !creds?.SecretKey || !creds?.SessionToken) {
+    throw new Error("cognito credentials response missing key material");
+  }
+  return {
+    accessKeyId: creds.AccessKeyId,
+    secretAccessKey: creds.SecretKey,
+    sessionToken: creds.SessionToken,
+    identityId: getCredentialsPayload.IdentityId ?? identityId,
+  };
 }
 
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
@@ -264,24 +381,87 @@ export function subscribeToRealtimeFeed(
     if (disposed) {
       return;
     }
-    const url = bootstrap.iot_wss_url ?? `wss://${bootstrap.iot_endpoint}/mqtt`;
+    const defaultUrl = bootstrap.iot_wss_url ?? `wss://${bootstrap.iot_endpoint}/mqtt`;
     try {
-      const mqtt = (await import("mqtt")) as MqttModule;
-      const client = mqtt.connect(url, {
-        clientId: bootstrap.client_id,
-        username: bootstrap.username,
-        password: bootstrap.password,
+      const mqttToken = mqttTokenProvider?.();
+      const useCustomAuthorizer = Boolean(
+        bootstrap.mqtt_custom_authorizer_name
+        && mqttToken
+      );
+      const authBootstrap = useCustomAuthorizer ? null : await fetchAuthBootstrap(apiBase);
+      const loginProviderKey = authBootstrap?.cognito_issuer
+        ? loginProviderKeyFromIssuer(authBootstrap.cognito_issuer)
+        : null;
+      const idToken = authQueryProvider?.();
+      const sigv4Credentials = (
+        authBootstrap?.identity_pool_id
+        && loginProviderKey
+        && idToken
+        && authBootstrap.mode === "cognito_pkce"
+      )
+        ? await fetchCognitoIdentityCredentials(
+          bootstrap.region,
+          authBootstrap.identity_pool_id,
+          loginProviderKey,
+          idToken
+        )
+        : null;
+      const signedUrl = useCustomAuthorizer
+        ? defaultUrl
+        : sigv4Credentials
+          ? await buildSignedIotWebsocketUrl(
+            bootstrap.iot_endpoint,
+            bootstrap.region,
+            sigv4Credentials
+          )
+          : defaultUrl;
+      const cognitoClientId = sigv4Credentials
+        ? `${sigv4Credentials.identityId}-${bootstrap.account}-${bootstrap.project}`.slice(0, 128)
+        : undefined;
+      const customAuthorizerName = bootstrap.mqtt_custom_authorizer_name;
+      const username = (useCustomAuthorizer && customAuthorizerName)
+        ? `?x-amz-customauthorizer-name=${encodeURIComponent(customAuthorizerName)}`
+        : bootstrap.username;
+      const password = useCustomAuthorizer
+        ? mqttToken
+        : bootstrap.password;
+      console.info("[realtime] mqtt auth mode", {
+        useCustomAuthorizer,
+        hasMqttToken: Boolean(mqttToken),
+        hasIdToken: Boolean(idToken),
+        customAuthorizerName: customAuthorizerName ?? null,
+      });
+
+      const mqtt = (await import("mqtt")) as MqttModule & {
+        default?: unknown;
+      };
+      const connectCandidate =
+        (mqtt as { connect?: unknown }).connect
+        ?? (mqtt.default as { connect?: unknown } | undefined)?.connect
+        ?? mqtt.default;
+      if (typeof connectCandidate !== "function") {
+        throw new Error("mqtt module does not expose connect()");
+      }
+      const client = connectCandidate(signedUrl, {
+        clientId: bootstrap.client_id ?? cognitoClientId,
+        username,
+        password,
+        protocolVersion: 4,
         clean: true,
         reconnectPeriod: 2000,
         connectTimeout: 10_000,
-      });
+      }) as {
+        subscribe: (topic: string, options: { qos: number }, callback: (err?: Error | null) => void) => void;
+        on: (event: string, callback: (...args: unknown[]) => void) => void;
+        end: (force?: boolean) => void;
+      };
 
       client.on("connect", () => {
         if (disposed) {
           client.end(true);
           return;
         }
-        client.subscribe(bootstrap.topic, { qos: 0 }, (err) => {
+        client.subscribe(bootstrap.topic, { qos: 0 }, (err?: Error | null) => {
           if (err) {
             console.warn("[realtime] mqtt subscribe failed", err);
             onError?.(new Event("mqtt-subscribe-error"));
@@ -297,9 +477,28 @@ export function subscribeToRealtimeFeed(
         });
       });
 
-      client.on("message", (_topic, payload) => {
+      client.on("message", (_topic: unknown, payload: unknown) => {
         try {
-          const event = JSON.parse(payload.toString("utf-8")) as NotificationEvent;
+          const raw = typeof payload === "string"
+            ? payload
+            : payload instanceof Uint8Array
+              ? new TextDecoder().decode(payload)
+              : String(payload);
+          const event = JSON.parse(raw) as NotificationEvent;
+          const logData: Record<string, unknown> = {
+            type: event.type,
+            receivedAt: new Date().toISOString()
+          };
+          if (event.type === "ui_control") {
+            logData.action = event.action.action;
+          } else if ("issue_id" in event) {
+            logData.issueId = event.issue_id;
+          }
+          console.info("[notifications] received", logData);
+          console.info("[notifications] full payload", {
+            notification: event,
+            hasIssueData: "issue_data" in event && Boolean(event.issue_data)
+          });
           onNotification(event);
         } catch (error) {
           console.warn("[realtime] mqtt payload parse failed", error);
@@ -307,7 +506,7 @@ export function subscribeToRealtimeFeed(
         }
       });
 
-      client.on("error", (error) => {
+      client.on("error", (error: unknown) => {
         console.warn("[realtime] mqtt error", error);
         onError?.(new Event("mqtt-error"));
         client.end(true);
@@ -315,6 +514,7 @@ export function subscribeToRealtimeFeed(
       });
 
       client.on("close", () => {
+        console.warn("[realtime] mqtt close", { useCustomAuthorizer });
         if (!disposed && !sseCleanup) {
           startSseFallback("mqtt-closed");
         }
