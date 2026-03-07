@@ -81,7 +81,8 @@ When("I create a wiki page named {string}", async function (relativePath) {
   this.page.once("dialog", (dialog) => {
     dialog.accept(relativePath);
   });
-  await this.page.getByRole("button", { name: "New" }).click();
+  await this.page.getByRole("button", { name: "Actions" }).click();
+  await this.page.getByRole("menuitem", { name: "New page" }).click();
   await expect(this.page.getByRole("button", { name: relativePath })).toBeVisible();
 });
 
@@ -90,7 +91,8 @@ When("I try to create a wiki page named {string}", async function (relativePath)
   this.page.once("dialog", (dialog) => {
     dialog.accept(relativePath);
   });
-  await this.page.getByRole("button", { name: "New" }).click();
+  await this.page.getByRole("button", { name: "Actions" }).click();
+  await this.page.getByRole("menuitem", { name: "New page" }).click();
 });
 
 When("I rename the wiki page {string} to {string}", async function (fromPath, toPath) {
@@ -98,14 +100,16 @@ When("I rename the wiki page {string} to {string}", async function (fromPath, to
   this.page.once("dialog", (dialog) => {
     dialog.accept(toPath);
   });
-  await this.page.getByRole("button", { name: "Rename" }).click();
+  await this.page.getByRole("button", { name: "Actions" }).click();
+  await this.page.getByRole("menuitem", { name: "Rename page" }).click();
   await expect(this.page.getByRole("button", { name: toPath })).toBeVisible();
 });
 
 When("I delete the wiki page {string}", async function (relativePath) {
   await reloadIfWikiStale(this);
   this.page.once("dialog", (dialog) => dialog.accept());
-  await this.page.getByRole("button", { name: "Delete" }).click();
+  await this.page.getByRole("button", { name: "Actions" }).click();
+  await this.page.getByRole("menuitem", { name: "Delete page" }).click();
 });
 
 When("I type wiki content:", async function (docString) {

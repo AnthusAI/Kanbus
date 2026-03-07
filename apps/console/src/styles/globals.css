@@ -13,7 +13,7 @@
   --scrollbar-size: 8px;
   --scrollbar-thumb: var(--card-muted);
   --scrollbar-track: transparent;
-  --layout-transition: 0.35s;
+  --layout-transition: 0.42s;
   --app-padding: 4px;
 }
 
@@ -1042,27 +1042,23 @@ html[data-motion="reduced"] .sidebar-column {
 
 /* Wiki workspace */
 .wiki-panel {
-  display: grid;
-  grid-template-columns: 240px 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
   height: 100%;
 }
 
-.wiki-tree {
-  background: var(--card);
-  border-radius: 12px;
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  overflow: auto;
+.wiki-split-container.is-resizing .wiki-edit-pane,
+.wiki-split-container.is-resizing .wiki-preview-pane {
+  transition: none;
 }
 
-.wiki-tree-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+.wiki-directory-listing {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 2rem;
   overflow: auto;
+  height: 100%;
 }
 
 .wiki-editor {
@@ -1083,7 +1079,6 @@ html[data-motion="reduced"] .sidebar-column {
   resize: none;
   background: var(--background);
   color: var(--text-foreground);
-  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.6rem 0.7rem;
   font-family: var(--font-mono);
@@ -1117,40 +1112,7 @@ html[data-motion="reduced"] .sidebar-column {
 .wiki-error {
   background: var(--card-muted);
   color: var(--text-muted);
-  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.6rem 0.7rem;
 }
 
-@media (max-width: 1024px) {
-  .wiki-panel {
-    grid-template-columns: 220px 1fr;
-    grid-template-rows: minmax(240px, 1fr) minmax(240px, 1fr);
-    grid-template-areas:
-      "tree editor"
-      "tree preview";
-  }
-
-  .wiki-tree {
-    grid-area: tree;
-  }
-
-  .wiki-editor {
-    grid-area: editor;
-  }
-
-  .wiki-preview {
-    grid-area: preview;
-  }
-}
-
-@media (max-width: 768px) {
-  .wiki-panel {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    grid-template-areas:
-      "tree"
-      "editor"
-      "preview";
-  }
-}

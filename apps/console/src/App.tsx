@@ -2,6 +2,7 @@ import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMe
 import {
   BarChart3,
   CheckCheck,
+  FileText,
   Filter,
   LayoutGrid,
   Lightbulb,
@@ -39,6 +40,7 @@ type RouteContext = {
   viewMode: ViewMode | null;
   issueId: string | null;
   parentId: string | null;
+  wikiPath: string | null;
   search: string | null;
   focused: string | null;
   comment: string | null;
@@ -155,7 +157,9 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
   }
   const viewModes: ViewMode[] = ["initiatives", "epics", "issues"];
   const isLocal =
-    segments.length === 0 || (segments[0] && viewModes.includes(segments[0] as ViewMode));
+    segments.length === 0
+    || (segments[0] && viewModes.includes(segments[0] as ViewMode))
+    || (segments[0] === "wiki");
   if (isLocal) {
     const rest = segments;
     if (rest.length === 0) {
@@ -166,11 +170,27 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: loadStoredViewMode(),
         issueId: null,
         parentId: null,
+        wikiPath: null,
         ...qp,
         error: null
       };
     }
     const head = rest[0];
+    if (head === "wiki") {
+      const wikiPathRaw = rest.slice(1).join("/");
+      const wikiPath = wikiPathRaw ? decodeURIComponent(wikiPathRaw) : "";
+      return {
+        account: null,
+        project: null,
+        basePath: "",
+        viewMode: null,
+        issueId: null,
+        parentId: null,
+        wikiPath,
+        ...qp,
+        error: null
+      };
+    }
     if (head === "initiatives" || head === "epics" || head === "issues") {
       if (rest.length === 1) {
         return {
@@ -180,6 +200,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: head,
           issueId: null,
           parentId: null,
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -194,6 +215,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: null,
           issueId: rest[1],
           parentId: null,
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -206,6 +228,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: null,
           issueId: null,
           parentId: rest[1],
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -218,6 +241,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: null,
           issueId: rest[2],
           parentId: rest[1],
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -230,6 +254,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       search: null,
       focused: null,
       comment: null,
@@ -245,6 +270,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       search: null,
       focused: null,
       comment: null,
@@ -264,11 +290,27 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: loadStoredViewMode(),
       issueId: null,
       parentId: null,
+      wikiPath: null,
       ...qp,
       error: null
     };
   }
   const head = rest[0];
+  if (head === "wiki") {
+    const wikiPathRaw = rest.slice(1).join("/");
+    const wikiPath = wikiPathRaw ? decodeURIComponent(wikiPathRaw) : "";
+    return {
+      account,
+      project,
+      basePath,
+      viewMode: null,
+      issueId: null,
+      parentId: null,
+      wikiPath,
+      ...qp,
+      error: null
+    };
+  }
   if (head === "initiatives" || head === "epics" || head === "issues") {
     if (rest.length === 1) {
       return {
@@ -278,6 +320,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: head,
         issueId: null,
         parentId: null,
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -292,6 +335,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: null,
         issueId: rest[1],
         parentId: null,
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -304,6 +348,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: null,
         issueId: null,
         parentId: rest[1],
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -316,6 +361,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: null,
         issueId: rest[2],
         parentId: rest[1],
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -328,6 +374,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
     viewMode: null,
     issueId: null,
     parentId: null,
+    wikiPath: null,
     search: null,
     focused: null,
     comment: null,
@@ -638,6 +685,7 @@ export default function App() {
       parsed.basePath !== route.basePath
       || parsed.issueId !== route.issueId
       || parsed.parentId !== route.parentId
+      || parsed.wikiPath !== route.wikiPath
       || parsed.viewMode !== route.viewMode
       || parsed.search !== route.search
       || parsed.focused !== route.focused
@@ -648,6 +696,12 @@ export default function App() {
       setRoute(parsed);
     }
   }, [route]);
+
+  useEffect(() => {
+    if (route.wikiPath !== null) {
+      setPanelMode("wiki");
+    }
+  }, [route.wikiPath]);
 
   useEffect(() => {
     let isMounted = true;
@@ -725,10 +779,6 @@ export default function App() {
                 issues: updatedIssues,
                 updated_at: new Date().toISOString()
               });
-              console.info("[notifications] applied issue update immediately", {
-                type: event.type,
-                issueId: event.issue_id
-              });
             } else {
               // Fallback to fetching if no snapshot yet
               fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
@@ -742,7 +792,6 @@ export default function App() {
                 issues: snapshot.issues.filter(issue => issue.id !== event.issue_id),
                 updated_at: new Date().toISOString()
               });
-              console.info("[notifications] applied issue deletion immediately", { issueId: event.issue_id });
             } else {
               fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
             }
@@ -1277,6 +1326,16 @@ export default function App() {
     navigate(nextUrl, setRoute, navActionRef);
   };
 
+  const handleWikiRouteChange = useCallback(
+    (path: string) => {
+      const wikiBase = route.basePath ? `${route.basePath}/wiki` : "/wiki";
+      const encoded = path ? path.split("/").map(encodeURIComponent).join("/") : "";
+      const fullPath = encoded ? `${wikiBase}/${encoded}` : wikiBase;
+      navigate(fullPath, setRoute, navActionRef);
+    },
+    [route.basePath]
+  );
+
   const handlePanelModeChange = (value: string) => {
     const nextMode = value as PanelMode;
     if (panelMode === "wiki" && wikiDirty && nextMode !== "wiki") {
@@ -1465,7 +1524,7 @@ export default function App() {
     });
     return [
       buildOption("board", "Board", LayoutGrid),
-      buildOption("wiki", "Wiki", Layers),
+      buildOption("wiki", "Wiki", FileText),
       buildOption("metrics", "Metrics", BarChart3)
     ];
   }, [panelMode]);
@@ -1620,18 +1679,9 @@ export default function App() {
       return [];
     }
     const projectFilterSet = effectiveEnabledProjects ?? new Set(projectLabels);
-    if (typeof window !== "undefined") {
-      console.info("[metrics-debug]", {
-        labels: projectLabels,
-        enabled: Array.from(projectFilterSet)
-      });
-    }
     const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
-    if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
-      console.info("[metrics] filter projects", Array.from(projectFilterSet), "issues", sourceIssues.length);
-    }
 
     if (focusedIssueId) {
       const ids = collectDescendants(sourceIssues, focusedIssueId);
@@ -2034,6 +2084,8 @@ export default function App() {
                       apiBase={apiBase}
                       isActive={panelMode === "wiki"}
                       onDirtyChange={setWikiDirty}
+                      initialRoutePath={route.wikiPath ?? ""}
+                      onRouteChange={handleWikiRouteChange}
                     />
                   ) : null}
                 </div>

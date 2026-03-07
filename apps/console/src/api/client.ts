@@ -35,7 +35,6 @@ export type NotificationEvent =
   | { type: "ui_control"; action: UiControlAction };
 
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
-  const startedAt = Date.now();
   const [configResponse, issuesResponse] = await Promise.all([
     fetch(`${apiBase}/config`),
     fetch(`${apiBase}/issues`)
@@ -51,12 +50,6 @@ export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
 
   const config = (await configResponse.json()) as IssuesSnapshot["config"];
   const issues = (await issuesResponse.json()) as IssuesSnapshot["issues"];
-  const finishedAt = Date.now();
-  console.info("[snapshot] fetched", {
-    durationMs: finishedAt - startedAt,
-    finishedAt: new Date(finishedAt).toISOString()
-  });
-
   return {
     config,
     issues,
@@ -74,19 +67,10 @@ export function subscribeToSnapshots(
   let lastErrorAt: number | null = null;
   let lastMessageAt: number | null = null;
 
-  console.info("[sse] connect", {
-    url: `${apiBase}/events`,
-    startedAt: new Date().toISOString()
-  });
-
   source.onopen = () => {
     const now = Date.now();
     openCount += 1;
-    console.info("[sse] open", {
-      count: openCount,
-      openedAt: new Date(now).toISOString(),
-      sinceLastErrorMs: lastErrorAt ? now - lastErrorAt : null
-    });
+    lastMessageAt = null;
   };
 
   source.onmessage = (event) => {
@@ -99,13 +83,7 @@ export function subscribeToSnapshots(
         return;
       }
       if (snapshot.config && snapshot.issues) {
-        const now = Date.now();
-        lastMessageAt = now;
-        console.info("[sse] message", {
-          receivedAt: new Date(now).toISOString(),
-          snapshotUpdatedAt: snapshot.updated_at ?? null,
-          lastEventId: event.lastEventId || null
-        });
+        lastMessageAt = Date.now();
         onSnapshot(snapshot as IssuesSnapshot);
         return;
       }
@@ -137,36 +115,11 @@ export function subscribeToNotifications(
 ): () => void {
   const source = new EventSource(`${apiBase}/events/realtime`);
 
-  console.info("[notifications] connect", {
-    url: `${apiBase}/events/realtime`,
-    startedAt: new Date().toISOString()
-  });
-
-  source.onopen = () => {
-    console.info("[notifications] open", {
-      openedAt: new Date().toISOString()
-    });
-  };
+  source.onopen = () => {};
 
   source.onmessage = (event) => {
     try {
       const notification = JSON.parse(event.data) as NotificationEvent;
-      const logData: Record<string, unknown> = {
-        type: notification.type,
-        receivedAt: new Date().toISOString()
-      };
-
-      if (notification.type === "ui_control") {
-        logData.action = notification.action.action;
-      } else if ("issue_id" in notification) {
-        logData.issueId = notification.issue_id;
-      }
-
-      console.info("[notifications] received", logData);
-      console.info("[notifications] full payload", {
-        notification,
-        hasIssueData: "issue_data" in notification && Boolean(notification.issue_data)
-      });
       onNotification(notification);
     } catch (error) {
       console.error("[notifications] parse error", error);
@@ -182,7 +135,6 @@ export function subscribeToNotifications(
   };
 
   return () => {
-    console.info("[notifications] disconnect");
     source.close();
   };
 }
@@ -294,7 +246,16 @@ export async function renderWikiPage(
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new Error(`wiki render request failed: ${response.status}`);
+    let message = `wiki render request failed: ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (typeof body?.error === "string" && body.error.length > 0) {
+        message = body.error;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
   }
   return (await response.json()) as WikiRenderResponse;
 }

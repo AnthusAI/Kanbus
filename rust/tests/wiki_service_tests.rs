@@ -1,7 +1,7 @@
 use chrono::Utc;
 use kanbus::console_backend::FileStore;
 use kanbus::console_wiki::{
-    create_page, delete_page, get_page, list_pages, render_page, rename_page, update_page,
+    create_page, delete_page, get_page, list_pages, rename_page, render_page, update_page,
     WikiCreateRequest, WikiRenameRequest, WikiRenderRequestPayload, WikiUpdateRequest,
 };
 use kanbus::issue_files::write_issue_to_file;
@@ -249,4 +249,77 @@ fn wiki_render_draft_success() {
     };
     let result = render_page(&store, &render).expect("render");
     assert!(result.rendered_markdown.contains("Open: "));
+}
+
+fn write_config_beads(dir: &PathBuf) {
+    let config = r#"
+project_directory: project
+project_key: kanbus
+hierarchy: [initiative, epic, task, sub-task]
+types: [bug, story, chore]
+workflows:
+  default:
+    open: [in_progress, closed, backlog]
+    in_progress: [open, blocked, closed]
+    blocked: [in_progress, closed]
+    closed: [open]
+    backlog: [open, closed]
+transition_labels:
+  default:
+    open: { in_progress: "Start work", closed: "Close", backlog: "Backlog" }
+    in_progress: { open: "Reopen", blocked: "Block", closed: "Close" }
+    blocked: { in_progress: "Unblock", closed: "Close" }
+    closed: { open: "Reopen" }
+    backlog: { open: "Start", closed: "Close" }
+initial_status: open
+priorities:
+  0: { name: critical }
+  1: { name: high }
+  2: { name: medium }
+  3: { name: low }
+  4: { name: trivial }
+default_priority: 2
+statuses:
+  - { key: open, name: Open, category: todo }
+  - { key: in_progress, name: In Progress, category: doing }
+  - { key: blocked, name: Blocked, category: todo }
+  - { key: closed, name: Closed, category: done }
+  - { key: backlog, name: Backlog, category: todo }
+categories:
+  - { name: todo }
+  - { name: doing }
+  - { name: done }
+type_colors: {}
+beads_compatibility: true
+"#;
+    fs::write(dir.join(".kanbus.yml"), config).expect("write config");
+    env::set_var("KANBUS_NO_DAEMON", "1");
+    let beads_dir = dir.join(".beads");
+    fs::create_dir_all(&beads_dir).expect("create .beads");
+    let record = r#"{"id":"bdx-001","title":"Beads task","issue_type":"task","status":"open","priority":2,"created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}"#;
+    fs::write(beads_dir.join("issues.jsonl"), format!("{}\n", record)).expect("write issues.jsonl");
+    let wiki_root = dir.join("project").join("wiki");
+    fs::create_dir_all(&wiki_root).expect("create project/wiki");
+}
+
+#[test]
+fn wiki_render_beads_mode_success() {
+    let (_dir, store) = temp_store();
+    write_config_beads(&store.root().to_path_buf());
+    let create = WikiCreateRequest {
+        path: "index.md".to_string(),
+        content: Some("Open: {{ count(status=\"open\") }}".to_string()),
+        overwrite: None,
+    };
+    create_page(&store, &create).expect("create page");
+    let render = WikiRenderRequestPayload {
+        path: "index.md".to_string(),
+        content: Some("Open: {{ count(status=\"open\") }}".to_string()),
+    };
+    let result = render_page(&store, &render).expect("render");
+    assert!(
+        result.rendered_markdown.contains("Open: 1"),
+        "expected 'Open: 1' in {:?}",
+        result.rendered_markdown
+    );
 }
