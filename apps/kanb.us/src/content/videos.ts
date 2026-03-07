@@ -45,7 +45,7 @@ export const VIDEOS: VideoEntry[] = [
   {
     id: "realtime-collaboration",
     title: "Realtime Collaboration",
-    description: "Gossip + overlay cache for distributed realtime updates, with Git as SSOT.",
+    description: "Gossip + overlay cache for distributed realtime updates across agents and humans.",
     filename: "realtime-collaboration.mp4",
     poster: "realtime-collaboration.jpg"
   },

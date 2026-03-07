@@ -20,7 +20,7 @@ const RealtimeCollaborationPage = () => {
       <Hero
         eyebrow="New Feature"
         title="Realtime Collaboration"
-        subtitle="Federated realtime updates for agents and humans. Gossip for instant visibility; overlay for speculative reads. Git remains the source of truth."
+        subtitle="Federated realtime updates for agents and humans. Gossip messaging for instant visibility, with an overlay cache for speculative reads between pulls."
         rightPane={<FeaturePictogram type="realtime-collaboration" />}
         bottomPane={
           <div className="w-full flex flex-col items-center justify-center mt-12 mb-8 gap-12">
@@ -32,7 +32,7 @@ const RealtimeCollaborationPage = () => {
       />
 
       <div className="space-y-12">
-        <Section title="Architecture" subtitle="Realtime is additive: Git stays SSOT, gossip is just visibility.">
+        <Section title="Architecture" subtitle="Realtime is additive: gossip adds visibility without changing your Git workflow.">
           <Card className="p-8">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
               <p>
@@ -147,7 +147,7 @@ kbs gossip watch`}
             <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
               <ul className="list-disc pl-5 space-y-2">
                 <li>No automatic commit, push, or pull.</li>
-                <li>No gossip authority: Git remains SSOT.</li>
+                <li>No gossip authority: your repository files are always the truth.</li>
                 <li>No conflict resolution beyond Git conflicts.</li>
                 <li>No exclusive task claiming (dispatch belongs elsewhere).</li>
               </ul>
