@@ -180,6 +180,34 @@ async function getSnapshotForRequest(
 
 const apiRouter = express.Router();
 
+apiRouter.get("/auth/bootstrap", (_req, res) => {
+  const account = null;
+  const project = null;
+  res.json({
+    mode: "none",
+    tenant_account_claim_key: "custom:account",
+    tenant_project_claim_key: "custom:project",
+    account,
+    project
+  });
+});
+
+apiRouter.get("/realtime/bootstrap", (_req, res) => {
+  const account = "";
+  const project = "";
+  const topic = account && project
+    ? `projects/${account}/${project}/events`
+    : "projects/local/local/events";
+  res.json({
+    mode: "sse",
+    region: "local",
+    iot_endpoint: "localhost",
+    topic,
+    account,
+    project
+  });
+});
+
 apiRouter.get("/config", async (req, res) => {
   try {
     const snapshot = await getSnapshotForRequest(req.query.refresh);
