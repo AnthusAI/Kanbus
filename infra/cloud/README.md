@@ -84,5 +84,5 @@ Webhook ingress currently expects:
 - `X-Hub-Signature-256` HMAC header
 - `X-Kanbus-Account` and `X-Kanbus-Project` tenant headers
 
-`GITHUB_WEBHOOK_SECRET` is scaffolded as an environment variable placeholder and
-should be replaced with a managed secret before production deployment.
+The stack provisions a Secrets Manager secret and passes its ARN to webhook ingress.
+Rotate this secret and configure GitHub webhook delivery to use the same value.

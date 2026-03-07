@@ -16,6 +16,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_lambda as lambda_,
     aws_lambda_event_sources as lambda_event_sources,
+    aws_secretsmanager as secretsmanager,
     aws_sqs as sqs,
     aws_cloudwatch as cloudwatch,
     custom_resources as cr,
@@ -270,6 +271,17 @@ class KanbusCloudFoundationStack(Stack):
             dead_letter_queue=sqs.DeadLetterQueue(queue=sync_dlq, max_receive_count=5),
         )
 
+        webhook_secret = secretsmanager.Secret(
+            self,
+            "GithubWebhookSecret",
+            secret_name=f"kanbus/github-webhook/{env_name}",
+            description="GitHub webhook secret for Kanbus sync ingress",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                exclude_punctuation=True,
+                password_length=40,
+            ),
+        )
+
         webhook_handler = lambda_.Function(
             self,
             "GithubWebhookIngress",
@@ -280,11 +292,12 @@ class KanbusCloudFoundationStack(Stack):
             memory_size=256,
             environment={
                 "SYNC_QUEUE_URL": sync_queue.queue_url,
-                "GITHUB_WEBHOOK_SECRET": "REPLACE_ME_WITH_SECRET",
+                "GITHUB_WEBHOOK_SECRET_ARN": webhook_secret.secret_arn,
             },
             description="Ingest GitHub push webhooks and enqueue tenant sync jobs",
         )
         sync_queue.grant_send_messages(webhook_handler)
+        webhook_secret.grant_read(webhook_handler)
 
         sync_worker = lambda_.Function(
             self,
@@ -388,6 +401,7 @@ class KanbusCloudFoundationStack(Stack):
         CfnOutput(self, "SyncQueueUrl", value=sync_queue.queue_url)
         CfnOutput(self, "SyncQueueArn", value=sync_queue.queue_arn)
         CfnOutput(self, "SyncDlqArn", value=sync_dlq.queue_arn)
+        CfnOutput(self, "GithubWebhookSecretArn", value=webhook_secret.secret_arn)
         CfnOutput(self, "TenantEfsFileSystemId", value=filesystem.file_system_id)
         CfnOutput(self, "TenantEfsAccessPointId", value=tenant_access_point.access_point_id)
         CfnOutput(self, "TenantEfsMountPath", value="/mnt/data")
