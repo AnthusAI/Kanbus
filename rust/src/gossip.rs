@@ -1,7 +1,7 @@
 //! Realtime gossip transport and envelope helpers.
 
 use chrono::Utc;
-use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS, Transport};
+use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS, TlsConfiguration, Transport};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -338,6 +338,29 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
         use_uds = true;
     }
 
+    let dual_transport_local_fallback = options.autostart_local_uds && transport == "mqtt";
+    if dual_transport_local_fallback {
+        ensure_local_uds_broker(realtime)?;
+        let topics_for_mqtt = topics.clone();
+        let handler_for_mqtt = Arc::clone(&handler);
+        let realtime_for_mqtt = realtime.clone();
+        let broker_for_mqtt = broker.clone();
+        let autostart_for_mqtt = autostart;
+        let keepalive_for_mqtt = keepalive;
+        thread::spawn(move || {
+            run_mqtt_subscription_resilient(
+                &broker_for_mqtt,
+                &realtime_for_mqtt,
+                &topics_for_mqtt,
+                handler_for_mqtt,
+                autostart_for_mqtt,
+                keepalive_for_mqtt,
+            );
+        });
+        run_uds_subscription(realtime, &topics, handler)?;
+        return Ok(());
+    }
+
     if use_uds {
         run_uds_subscription(realtime, &topics, handler)?;
         return Ok(());
@@ -379,6 +402,77 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
         }
     }
     Ok(())
+}
+
+fn run_mqtt_subscription_resilient(
+    broker: &str,
+    realtime: &RealtimeConfig,
+    topics: &[String],
+    handler: Arc<dyn Fn(GossipEnvelope) + Send + Sync>,
+    autostart: bool,
+    keepalive: bool,
+) {
+    loop {
+        let mut endpoint = match resolve_broker_endpoint(broker) {
+            Ok(endpoint) => endpoint,
+            Err(error) => {
+                eprintln!("warning: realtime mqtt endpoint resolve failed: {error}");
+                thread::sleep(Duration::from_secs(2));
+                continue;
+            }
+        };
+        let mut broker_process: Option<Child> = None;
+        if !broker_is_reachable(&endpoint) {
+            if broker == "auto" {
+                match parse_broker_url("mqtt://127.0.0.1:1883") {
+                    Ok(parsed) => endpoint = parsed,
+                    Err(error) => {
+                        eprintln!("warning: realtime mqtt auto broker parse failed: {error}");
+                        thread::sleep(Duration::from_secs(2));
+                        continue;
+                    }
+                }
+            }
+            if !autostart {
+                thread::sleep(Duration::from_secs(2));
+                continue;
+            }
+            match ensure_mosquitto(&endpoint) {
+                Ok(Some(startup)) => {
+                    match parse_broker_url(&startup.endpoint) {
+                        Ok(parsed) => endpoint = parsed,
+                        Err(error) => {
+                            eprintln!("warning: realtime mqtt startup endpoint parse failed: {error}");
+                            thread::sleep(Duration::from_secs(2));
+                            continue;
+                        }
+                    }
+                    broker_process = Some(startup.process);
+                }
+                Ok(None) => {
+                    print_mosquitto_missing();
+                    thread::sleep(Duration::from_secs(2));
+                    continue;
+                }
+                Err(error) => {
+                    eprintln!("warning: realtime mqtt autostart failed: {error}");
+                    thread::sleep(Duration::from_secs(2));
+                    continue;
+                }
+            }
+        }
+
+        if let Err(error) = run_mqtt_subscription(&endpoint, topics, Arc::clone(&handler), realtime)
+        {
+            eprintln!("warning: realtime mqtt subscription dropped: {error}");
+        }
+        if let Some(mut process) = broker_process {
+            if !keepalive {
+                let _ = process.kill();
+            }
+        }
+        thread::sleep(Duration::from_secs(2));
+    }
 }
 
 fn ensure_local_uds_broker(realtime: &RealtimeConfig) -> Result<(), KanbusError> {
@@ -562,17 +656,34 @@ fn publish_envelope(
     topic: &str,
     envelope: &GossipEnvelope,
 ) -> Result<(), KanbusError> {
-    let transport = configuration.realtime.transport.as_str();
-    let broker = configuration.realtime.broker.as_str();
-    let autostart = configuration.realtime.autostart;
-    let keepalive = configuration.realtime.keepalive;
+    publish_with_transport(
+        topic,
+        envelope,
+        &configuration.realtime,
+        &configuration.realtime.transport,
+        &configuration.realtime.broker,
+        configuration.realtime.autostart,
+        configuration.realtime.keepalive,
+    )
+}
+
+fn publish_with_transport(
+    topic: &str,
+    envelope: &GossipEnvelope,
+    realtime: &RealtimeConfig,
+    transport: &str,
+    broker: &str,
+    autostart: bool,
+    keepalive: bool,
+) -> Result<(), KanbusError> {
     if transport == "uds"
-        || (transport == "auto" && uds_socket_path(Some(&configuration.realtime)).exists())
+        || (transport == "auto" && uds_socket_path(Some(realtime)).exists())
     {
-        let _ = publish_uds(topic, envelope, &configuration.realtime);
+        let _ = publish_uds(topic, envelope, realtime);
         return Ok(());
     }
     if broker == "off" {
+        let _ = publish_uds_if_available(topic, envelope, realtime);
         return Ok(());
     }
     let mut endpoint = resolve_broker_endpoint(broker)?;
@@ -582,6 +693,7 @@ fn publish_envelope(
             endpoint = parse_broker_url("mqtt://127.0.0.1:1883")?;
         }
         if !autostart {
+            let _ = publish_uds_if_available(topic, envelope, realtime);
             return Ok(());
         }
         let startup = ensure_mosquitto(&endpoint)?;
@@ -592,13 +704,26 @@ fn publish_envelope(
         endpoint = parse_broker_url(&startup.endpoint)?;
         broker_process = Some(startup.process);
     }
-    publish_mqtt(&endpoint, topic, envelope, &configuration.realtime)?;
+    if let Err(error) = publish_mqtt(&endpoint, topic, envelope, realtime) {
+        if publish_uds_if_available(topic, envelope, realtime) {
+            return Ok(());
+        }
+        return Err(error);
+    }
     if let Some(mut process) = broker_process {
         if !keepalive {
             let _ = process.kill();
         }
     }
     Ok(())
+}
+
+fn publish_uds_if_available(topic: &str, envelope: &GossipEnvelope, realtime: &RealtimeConfig) -> bool {
+    let socket_path = uds_socket_path(Some(realtime));
+    if !socket_path.exists() {
+        return false;
+    }
+    publish_uds(topic, envelope, realtime).is_ok()
 }
 
 fn publish_uds(
@@ -677,10 +802,29 @@ fn run_mqtt_subscription(
 }
 
 fn mqtt_options(endpoint: &BrokerEndpoint, realtime: &RealtimeConfig) -> MqttOptions {
-    let mut options = MqttOptions::new(producer_id(), endpoint.host.clone(), endpoint.port);
+    let has_custom_authorizer =
+        realtime.mqtt_custom_authorizer_name.is_some() && realtime.mqtt_api_token.is_some();
+    let port = if endpoint.scheme == "mqtts" && has_custom_authorizer && endpoint.port == 8883 {
+        443
+    } else {
+        endpoint.port
+    };
+    let mut options = MqttOptions::new(producer_id(), endpoint.host.clone(), port);
     options.set_keep_alive(Duration::from_secs(30));
     if endpoint.scheme == "mqtts" {
-        options.set_transport(Transport::tls_with_default_config());
+        if has_custom_authorizer {
+            let transport = match TlsConfiguration::default() {
+                TlsConfiguration::Rustls(config) => {
+                    let mut config = (*config).clone();
+                    config.alpn_protocols = vec![b"x-amzn-mqtt-ca".to_vec()];
+                    Transport::tls_with_config(TlsConfiguration::Rustls(Arc::new(config)))
+                }
+                _ => Transport::tls_with_default_config(),
+            };
+            options.set_transport(transport);
+        } else {
+            options.set_transport(Transport::tls_with_default_config());
+        }
     }
     if let (Some(authorizer), Some(api_token)) = (
         realtime.mqtt_custom_authorizer_name.as_ref(),
@@ -882,4 +1026,134 @@ fn print_mosquitto_missing() {
     eprintln!(
         "Mosquitto not found. Install with: brew install mosquitto (macOS) or apt install mosquitto (Debian/Ubuntu)."
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::RealtimeTopics;
+    use std::sync::mpsc;
+    use tempfile::TempDir;
+
+    fn sample_realtime(socket_path: Option<String>) -> RealtimeConfig {
+        RealtimeConfig {
+            transport: "mqtt".to_string(),
+            broker: "mqtts://example.invalid:443".to_string(),
+            autostart: false,
+            keepalive: false,
+            uds_socket_path: socket_path,
+            mqtt_custom_authorizer_name: None,
+            mqtt_api_token: None,
+            topics: RealtimeTopics::default(),
+        }
+    }
+
+    fn sample_envelope() -> GossipEnvelope {
+        GossipEnvelope {
+            id: Uuid::new_v4().to_string(),
+            ts: now_iso(),
+            project: "test".to_string(),
+            event_type: "issue.mutated".to_string(),
+            issue_id: Some("test-1".to_string()),
+            event_id: Some(Uuid::new_v4().to_string()),
+            producer_id: Uuid::new_v4().to_string(),
+            origin_cluster_id: None,
+            issue: None,
+        }
+    }
+
+    #[test]
+    fn publish_uds_if_available_returns_false_without_socket() {
+        let realtime = sample_realtime(Some("/tmp/kanbus-nonexistent.sock".to_string()));
+        let envelope = sample_envelope();
+        assert!(!publish_uds_if_available(
+            "projects/test/events",
+            &envelope,
+            &realtime
+        ));
+    }
+
+    #[test]
+    fn publish_uds_if_available_returns_true_with_running_broker() {
+        let tmp = TempDir::new().expect("temp dir");
+        let socket_path = tmp.path().join("bus.sock");
+        let realtime = sample_realtime(Some(socket_path.display().to_string()));
+        let broker_socket = socket_path.clone();
+        thread::spawn(move || {
+            let _ = run_uds_broker(&broker_socket);
+        });
+        for _ in 0..40 {
+            if socket_path.exists() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+        let envelope = sample_envelope();
+        assert!(publish_uds_if_available(
+            "projects/test/events",
+            &envelope,
+            &realtime
+        ));
+    }
+
+    #[test]
+    fn publish_with_mqtt_unreachable_falls_back_to_uds_delivery() {
+        let tmp = TempDir::new().expect("temp dir");
+        let socket_path = tmp.path().join("bus.sock");
+        let topic = "projects/test/events".to_string();
+        let realtime = sample_realtime(Some(socket_path.display().to_string()));
+        let broker_socket = socket_path.clone();
+        thread::spawn(move || {
+            let _ = run_uds_broker(&broker_socket);
+        });
+        for _ in 0..40 {
+            if socket_path.exists() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+
+        let (tx, rx) = mpsc::channel::<String>();
+        let sub_socket = socket_path.clone();
+        let sub_topic = topic.clone();
+        thread::spawn(move || {
+            let mut stream = UnixStream::connect(&sub_socket).expect("connect uds");
+            let sub = serde_json::json!({"op":"sub","topic": sub_topic});
+            let line = serde_json::to_string(&sub).expect("serialize sub") + "\n";
+            stream.write_all(line.as_bytes()).expect("subscribe write");
+            let mut reader = BufReader::new(stream);
+            let mut inbound = String::new();
+            if reader.read_line(&mut inbound).is_ok() {
+                let _ = tx.send(inbound);
+            }
+        });
+        thread::sleep(Duration::from_millis(50));
+
+        let envelope = sample_envelope();
+        let result = publish_with_transport(
+            &topic,
+            &envelope,
+            &realtime,
+            "mqtt",
+            "mqtts://203.0.113.1:443",
+            false,
+            false,
+        );
+        assert!(result.is_ok(), "publish_with_transport should not fail");
+        let inbound = rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("expected UDS-delivered message");
+        let parsed: Value = serde_json::from_str(inbound.trim()).expect("parse inbound payload");
+        assert_eq!(
+            parsed.get("topic").and_then(|v| v.as_str()),
+            Some("projects/test/events")
+        );
+        assert_eq!(
+            parsed
+                .get("msg")
+                .and_then(|v| v.get("type"))
+                .and_then(|v| v.as_str()),
+            Some("issue.mutated")
+        );
+    }
 }
