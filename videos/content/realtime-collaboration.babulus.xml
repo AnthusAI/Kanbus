@@ -3,14 +3,10 @@
 
   <scene id="hook" title="Realtime Collaboration" duration="8s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="visual" z="0">
-      <animated-pictogram-video props='{"type":"git-sync-home"}' />
-    </layer>
-    <layer id="title" z="1">
-      <text-block props='{"text":"Realtime Collaboration","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1400,"font":"sans"}' />
-      <text-block props='{"text":"Gossip + overlay cache, with Git as SSOT","x":960,"y":200,"size":36,"weight":450,"align":"center","maxWidth":1400,"font":"serif","color":"var(--text-muted)"}' />
+      <animated-pictogram-video props='{"type": "git-sync-home", "headline": "Realtime Collaboration", "subhead": "Instant updates across agents and humans"}' />
     </layer>
     <cue id="hook_voice" label="Hook">
       <voice>Realtime Collaboration keeps humans and agents in sync while Git remains the source of truth.</voice>
@@ -21,7 +17,7 @@
 
   <scene id="deep_dive" title="Realtime Collaboration Deep Dive" duration="62s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="title" z="2">
       <title props='{"text":"Realtime Collaboration","x":960,"y":120}' />
