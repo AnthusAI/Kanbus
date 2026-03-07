@@ -198,15 +198,17 @@ pub fn run_gossip_watch(
 ) -> Result<(), KanbusError> {
     run_gossip_consumer(
         root,
-        project_filter,
-        transport_override,
-        broker_override,
-        autostart_override,
-        keepalive_override,
-        print_envelopes,
-        None,
-        false,
-        true,
+        GossipConsumerOptions {
+            project_filter,
+            transport_override,
+            broker_override,
+            autostart_override,
+            keepalive_override,
+            print_envelopes,
+            on_envelope: None,
+            autostart_local_uds: false,
+            broker_off_is_error: true,
+        },
     )
 }
 
@@ -220,20 +222,21 @@ pub fn run_gossip_bridge(
 ) -> Result<(), KanbusError> {
     run_gossip_consumer(
         root,
-        None,
-        None,
-        None,
-        None,
-        None,
-        false,
-        Some(on_envelope),
-        true,
-        false,
+        GossipConsumerOptions {
+            project_filter: None,
+            transport_override: None,
+            broker_override: None,
+            autostart_override: None,
+            keepalive_override: None,
+            print_envelopes: false,
+            on_envelope: Some(on_envelope),
+            autostart_local_uds: true,
+            broker_off_is_error: false,
+        },
     )
 }
 
-fn run_gossip_consumer(
-    root: &Path,
+struct GossipConsumerOptions {
     project_filter: Option<String>,
     transport_override: Option<String>,
     broker_override: Option<String>,
@@ -243,16 +246,22 @@ fn run_gossip_consumer(
     on_envelope: Option<Arc<dyn Fn(GossipEnvelope) + Send + Sync>>,
     autostart_local_uds: bool,
     broker_off_is_error: bool,
-) -> Result<(), KanbusError> {
+}
+
+fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<(), KanbusError> {
     let configuration = load_project_configuration(&get_configuration_path(root)?)?;
     let realtime = &configuration.realtime;
-    let transport = transport_override.unwrap_or_else(|| realtime.transport.clone());
-    let broker = broker_override.unwrap_or_else(|| realtime.broker.clone());
-    let autostart = autostart_override.unwrap_or(realtime.autostart);
-    let keepalive = keepalive_override.unwrap_or(realtime.keepalive);
+    let transport = options
+        .transport_override
+        .unwrap_or_else(|| realtime.transport.clone());
+    let broker = options
+        .broker_override
+        .unwrap_or_else(|| realtime.broker.clone());
+    let autostart = options.autostart_override.unwrap_or(realtime.autostart);
+    let keepalive = options.keepalive_override.unwrap_or(realtime.keepalive);
 
     let mut labeled = resolve_labeled_projects(root)?;
-    if let Some(filter) = project_filter.as_deref() {
+    if let Some(filter) = options.project_filter.as_deref() {
         labeled.retain(|project| project.label == filter);
         if labeled.is_empty() {
             return Err(KanbusError::IssueOperation(format!(
@@ -272,7 +281,7 @@ fn run_gossip_consumer(
     let dedupe = Arc::new(Mutex::new(DedupeSet::new(Duration::from_secs(3600))));
     let local_producer = producer_id();
     let overlay_config = configuration.overlay.clone();
-    let on_envelope_handler = on_envelope.clone();
+    let on_envelope_handler = options.on_envelope.clone();
     let handler = Arc::new(move |envelope: GossipEnvelope| {
         if envelope.producer_id == local_producer {
             return;
@@ -286,7 +295,7 @@ fn run_gossip_consumer(
             Some(path) => path,
             None => return,
         };
-        if print_envelopes {
+        if options.print_envelopes {
             if let Ok(line) = serde_json::to_string(&envelope) {
                 println!("{line}");
             }
@@ -324,7 +333,7 @@ fn run_gossip_consumer(
 
     let mut use_uds =
         transport == "uds" || (transport == "auto" && uds_socket_path(Some(realtime)).exists());
-    if autostart_local_uds && !use_uds && (transport == "uds" || transport == "auto") {
+    if options.autostart_local_uds && !use_uds && (transport == "uds" || transport == "auto") {
         ensure_local_uds_broker(realtime)?;
         use_uds = true;
     }
@@ -335,7 +344,7 @@ fn run_gossip_consumer(
     }
 
     if broker == "off" {
-        if !broker_off_is_error {
+        if !options.broker_off_is_error {
             return Ok(());
         }
         return Err(KanbusError::IssueOperation(
@@ -446,7 +455,7 @@ fn handle_uds_connection(stream: UnixStream, subscribers: Arc<Mutex<Vec<Subscrib
         return;
     };
     let reader = BufReader::new(read_stream);
-    for line in reader.lines().flatten() {
+    for line in reader.lines().map_while(Result::ok) {
         if line.trim().is_empty() {
             continue;
         }
@@ -527,7 +536,7 @@ fn run_uds_subscription(
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     let reader = BufReader::new(stream);
-    for line in reader.lines().flatten() {
+    for line in reader.lines().map_while(Result::ok) {
         if line.trim().is_empty() {
             continue;
         }
