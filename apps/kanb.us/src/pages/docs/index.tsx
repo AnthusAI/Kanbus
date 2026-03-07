@@ -44,6 +44,14 @@ const DocsIndexPage = ({ location }: PageProps) => {
               your issue hierarchy, and set up your workflow states.
             </li>
             <li>
+              <strong>Realtime Collaboration:</strong> Learn how gossip notifications and the overlay cache enable distributed realtime updates
+              while Git remains SSOT.{" "}
+              <Link to="/docs/features/realtime-collaboration" className="text-selected font-semibold hover:underline">
+                Read the summary
+              </Link>
+              .
+            </li>
+            <li>
               <strong>Directory Structure:</strong> See how Kanbus organizes files within 
               your repository's <code className="rounded bg-card-muted px-1.5 py-0.5 text-xs font-medium text-foreground">project/</code> directory.
             </li>

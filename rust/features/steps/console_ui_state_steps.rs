@@ -59,25 +59,29 @@ fn allocate_port() -> u16 {
         .port()
 }
 
-fn wait_for_server(port: u16) -> bool {
+fn wait_for_server(port: u16) -> Option<u16> {
     thread::spawn(move || {
         let client = Client::builder()
             .timeout(Duration::from_millis(500))
             .build()
             .expect("build http client");
-        let url = format!("http://127.0.0.1:{}/api/config", port);
+        let mut candidates = vec![port];
+        candidates.extend((1..=16).map(|delta| port.saturating_add(delta)));
         for _ in 0..100 {
-            if let Ok(resp) = client.get(&url).send() {
-                if resp.status().is_success() {
-                    return true;
+            for candidate in &candidates {
+                let url = format!("http://127.0.0.1:{}/api/config", candidate);
+                if let Ok(resp) = client.get(&url).send() {
+                    if resp.status().is_success() {
+                        return Some(*candidate);
+                    }
                 }
             }
             thread::sleep(Duration::from_millis(100));
         }
-        false
+        None
     })
     .join()
-    .unwrap_or(false)
+    .unwrap_or(None)
 }
 
 fn kbsc_binary_path() -> PathBuf {
@@ -186,7 +190,8 @@ fn given_console_server_is_running(world: &mut KanbusWorld) {
     // Note: child is intentionally leaked; the process will be cleaned up when
     // the test process exits.  A full lifecycle would store the Child handle in
     // KanbusWorld, but KanbusWorld currently has no field for it.
-    assert!(wait_for_server(port), "console server did not become ready");
+    let ready_port = wait_for_server(port).expect("console server did not become ready");
+    world.console_port = Some(ready_port);
 }
 
 #[when("the console server is restarted")]
@@ -205,10 +210,9 @@ fn when_console_server_is_restarted(world: &mut KanbusWorld) {
     .join();
     thread::sleep(Duration::from_millis(500));
     let _child = start_kbsc(world, port);
-    assert!(
-        wait_for_server(port),
-        "console server did not become ready after restart"
-    );
+    let ready_port =
+        wait_for_server(port).expect("console server did not become ready after restart");
+    world.console_port = Some(ready_port);
 }
 
 // ---------------------------------------------------------------------------

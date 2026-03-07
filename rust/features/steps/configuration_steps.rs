@@ -699,6 +699,36 @@ fn then_time_zone_should_match(world: &mut KanbusWorld, time_zone: String) {
     assert_eq!(configuration.time_zone.as_deref(), Some(time_zone.as_str()));
 }
 
+#[then(expr = "the realtime transport should be {string}")]
+fn then_realtime_transport_should_match(world: &mut KanbusWorld, transport: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.realtime.transport, transport);
+}
+
+#[then(expr = "the realtime broker should be {string}")]
+fn then_realtime_broker_should_match(world: &mut KanbusWorld, broker: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.realtime.broker, broker);
+}
+
+#[then("the realtime autostart should be false")]
+fn then_realtime_autostart_should_be_false(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(!configuration.realtime.autostart);
+}
+
+#[then("the overlay enabled should be false")]
+fn then_overlay_enabled_should_be_false(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(!configuration.overlay.enabled);
+}
+
+#[then("the overlay ttl should be 120")]
+fn then_overlay_ttl_should_be_120(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.overlay.ttl_s, 120);
+}
+
 #[then(expr = "the configuration should have virtual project {string}")]
 fn then_configuration_has_virtual_project(world: &mut KanbusWorld, label: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
@@ -758,8 +788,19 @@ fn given_project_with_valid_config_file(world: &mut KanbusWorld, filename: Strin
 }
 
 #[given(expr = "the environment variable {word} is not set")]
-fn given_env_var_not_set(_world: &mut KanbusWorld, var_name: String) {
+fn given_env_var_not_set(world: &mut KanbusWorld, var_name: String) {
+    world
+        .jira_unset_env_vars
+        .push((var_name.clone(), std::env::var(&var_name).ok()));
     std::env::remove_var(&var_name);
+}
+
+#[given(expr = "the environment variable {word} is set to {string}")]
+fn given_env_var_set(world: &mut KanbusWorld, var_name: String, value: String) {
+    world
+        .jira_unset_env_vars
+        .push((var_name.clone(), std::env::var(&var_name).ok()));
+    std::env::set_var(var_name, value);
 }
 
 #[given(expr = "no {string} file exists")]

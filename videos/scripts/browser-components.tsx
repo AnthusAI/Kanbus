@@ -8,6 +8,7 @@ import { BeadsDemoVideo } from "../src/components/BeadsDemoVideo";
 import { VirtualProjectsDemoVideo } from "../src/components/VirtualProjectsDemoVideo";
 import { VsCodeDemoVideo } from "../src/components/VsCodeDemoVideo";
 import { PolicyDemoVideo } from "../src/components/PolicyDemoVideo";
+import { RealtimeCollaborationDemoVideo } from "../src/components/RealtimeCollaborationDemoVideo";
 import { TextBlock } from "../src/components/TextBlock";
 // For the CLI renderer, window might be mocked, but we need to ensure Babulus exists
 if (typeof window !== "undefined") {
@@ -76,6 +77,7 @@ if (typeof window !== "undefined") {
     registerComponent("VirtualProjectsDemoVideo", VirtualProjectsDemoVideo);
     registerComponent("VsCodeDemoVideo", VsCodeDemoVideo);
     registerComponent("PolicyDemoVideo", PolicyDemoVideo);
+    registerComponent("RealtimeCollaborationDemoVideo", RealtimeCollaborationDemoVideo);
     registerComponent("TextBlock", TextBlock);
 
     console.log("[Kanbus] Custom components registered:", (window as any).Babulus.listComponents());

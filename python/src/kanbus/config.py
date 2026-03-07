@@ -13,6 +13,20 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "project_directory": "project",
     "virtual_projects": {},
     "console_port": None,
+    "realtime": {
+        "transport": "auto",
+        "broker": "auto",
+        "autostart": True,
+        "keepalive": False,
+        "uds_socket_path": None,
+        "topics": {
+            "project_events": "projects/{project}/events",
+        },
+    },
+    "overlay": {
+        "enabled": True,
+        "ttl_s": 86400,
+    },
     "project_key": "kanbus",
     "hierarchy": DEFAULT_HIERARCHY,
     "types": DEFAULT_TYPES,

@@ -159,6 +159,44 @@ kanbus search "project structure"
 kanbus close kanbus-a1b2c3 --comment "Initial structure is complete."
 ```
 
+## Realtime quickstart
+
+### One console hub (UDS)
+
+Terminal 1:
+
+```bash
+kbsc
+# or: kanbus-console
+```
+
+Terminal 2:
+
+```bash
+kbs create "Realtime task"
+kbs update <id> --status in_progress
+kbs delete <id>
+```
+
+Optional: observe incremental realtime events:
+
+```bash
+curl -N http://127.0.0.1:5174/api/events/realtime
+```
+
+### Local MQTT autostart
+
+```bash
+kanbus gossip watch --transport mqtt --broker auto
+```
+
+### Overlay maintenance
+
+```bash
+kanbus overlay gc --all
+kanbus overlay install-hooks
+```
+
 ## Running the specifications
 
 Kanbus uses a shared Gherkin specification suite under the repository `features/` directory. Both implementations run against the same files.

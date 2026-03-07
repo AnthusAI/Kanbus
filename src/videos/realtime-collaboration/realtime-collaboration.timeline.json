@@ -1,0 +1,173 @@
+{
+  "items": [
+    {
+      "type": "tts",
+      "sceneId": "hook",
+      "cueId": "hook_voice",
+      "startSec": 0,
+      "endSec": 5.8875,
+      "segments": [
+        {
+          "type": "tts",
+          "startSec": 0,
+          "endSec": 5.8875,
+          "text": "Realtime Collaboration keeps humans and agents in sync while Git remains the source of truth.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/realtime-collaboration/env/development/segments/hook--hook_voice--tts--c2e755bcf948--1.wav",
+          "durationSec": 5.8875,
+          "rawDurationSec": 5.8875,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "deep_dive",
+      "cueId": "gossip",
+      "startSec": 8.625,
+      "endSec": 17.3875,
+      "segments": [
+        {
+          "type": "pause",
+          "startSec": 8.625,
+          "endSec": 9.225,
+          "seconds": 0.6
+        },
+        {
+          "type": "tts",
+          "startSec": 9.225,
+          "endSec": 17.3875,
+          "text": "Every change still writes issue JSON and an event log entry. Gossip publishes a small notification so other tools react immediately.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/realtime-collaboration/env/development/segments/deep_dive--gossip--tts--42e069634c7b--1.wav",
+          "durationSec": 8.1625,
+          "rawDurationSec": 8.1625,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "deep_dive",
+      "cueId": "overlay",
+      "startSec": 17.3875,
+      "endSec": 25.6625,
+      "segments": [
+        {
+          "type": "pause",
+          "startSec": 17.3875,
+          "endSec": 17.9875,
+          "seconds": 0.6
+        },
+        {
+          "type": "tts",
+          "startSec": 17.9875,
+          "endSec": 25.6625,
+          "text": "Watchers write a disposable overlay snapshot, so you can see updates before a pull lands. Overlay never resolves conflicts.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/realtime-collaboration/env/development/segments/deep_dive--overlay--tts--bf1385c4ee44--1.wav",
+          "durationSec": 7.675,
+          "rawDurationSec": 7.675,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "deep_dive",
+      "cueId": "transports",
+      "startSec": 25.6625,
+      "endSec": 33.7875,
+      "segments": [
+        {
+          "type": "pause",
+          "startSec": 25.6625,
+          "endSec": 26.262500000000003,
+          "seconds": 0.6
+        },
+        {
+          "type": "tts",
+          "startSec": 26.262500000000003,
+          "endSec": 33.7875,
+          "text": "Use a local Unix socket broker on one machine, or MQTT for LAN and cloud. Mosquitto can autostart locally when available.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/realtime-collaboration/env/development/segments/deep_dive--transports--tts--00f0bd14d252--1.wav",
+          "durationSec": 7.525,
+          "rawDurationSec": 7.525,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "deep_dive",
+      "cueId": "close",
+      "startSec": 33.7875,
+      "endSec": 39.925000000000004,
+      "segments": [
+        {
+          "type": "pause",
+          "startSec": 33.7875,
+          "endSec": 34.3875,
+          "seconds": 0.6
+        },
+        {
+          "type": "tts",
+          "startSec": 34.3875,
+          "endSec": 39.925000000000004,
+          "text": "Best-effort realtime, Git-authoritative history. Start a broker, run watch, and keep moving.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/realtime-collaboration/env/development/segments/deep_dive--close--tts--a92ee4393256--1.wav",
+          "durationSec": 5.5375,
+          "rawDurationSec": 5.5375,
+          "trimEndSec": 0
+        }
+      ]
+    }
+  ],
+  "audio": {
+    "tracks": [
+      {
+        "id": "narration",
+        "kind": "narration",
+        "clips": [
+          {
+            "id": "hook--hook_voice--tts--c2e755bcf948--1",
+            "kind": "file",
+            "startSec": 0,
+            "durationSec": 5.8875,
+            "src": "/videoml/realtime-collaboration/env/development/segments/hook--hook_voice--tts--c2e755bcf948--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "deep_dive--gossip--tts--42e069634c7b--1",
+            "kind": "file",
+            "startSec": 9.225,
+            "durationSec": 8.1625,
+            "src": "/videoml/realtime-collaboration/env/development/segments/deep_dive--gossip--tts--42e069634c7b--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "deep_dive--overlay--tts--bf1385c4ee44--1",
+            "kind": "file",
+            "startSec": 17.9875,
+            "durationSec": 7.675,
+            "src": "/videoml/realtime-collaboration/env/development/segments/deep_dive--overlay--tts--bf1385c4ee44--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "deep_dive--transports--tts--00f0bd14d252--1",
+            "kind": "file",
+            "startSec": 26.262500000000003,
+            "durationSec": 7.525,
+            "src": "/videoml/realtime-collaboration/env/development/segments/deep_dive--transports--tts--00f0bd14d252--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "deep_dive--close--tts--a92ee4393256--1",
+            "kind": "file",
+            "startSec": 34.3875,
+            "durationSec": 5.5375,
+            "src": "/videoml/realtime-collaboration/env/development/segments/deep_dive--close--tts--a92ee4393256--1.wav",
+            "volume": 1
+          }
+        ]
+      }
+    ]
+  }
+}

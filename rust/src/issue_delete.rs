@@ -34,6 +34,7 @@ pub fn delete_issue(root: &Path, identifier: &str) -> Result<(), KanbusError> {
         issue_deleted_payload(&lookup.issue),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -43,10 +44,14 @@ pub fn delete_issue(root: &Path, identifier: &str) -> Result<(), KanbusError> {
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(root, NotificationEvent::IssueDeleted { issue_id });
+    if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
+        crate::gossip::publish_issue_deleted(
+            root,
+            &lookup.project_dir,
+            &lookup.issue.identifier,
+            Some(event_id),
+        );
+    }
 
     Ok(())
 }

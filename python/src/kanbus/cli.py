@@ -68,10 +68,23 @@ from kanbus.dependency_tree import (
 from kanbus.wiki import WikiError, WikiRenderRequest, render_wiki_page
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 from kanbus.console_ui_state import fetch_console_ui_state
-from kanbus.notification_publisher import publish_notification
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
+from kanbus.gossip import GossipError, run_gossip_broker, run_gossip_watch
+from kanbus.overlay import gc_overlay_for_projects, install_overlay_hooks
+
+
+def _deprecated_console_control(command: str) -> click.ClickException:
+    return click.ClickException(
+        f"`kanbus console {command}` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
+    )
+
+
+def _deprecated_create_focus() -> click.ClickException:
+    return click.ClickException(
+        "`kanbus create --focus` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
+    )
 
 
 def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool, bool]:
@@ -85,6 +98,30 @@ def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool,
     except ConfigurationError as error:
         raise click.ClickException(str(error)) from error
     return configuration.beads_compatibility, False
+
+
+def _resolve_beads_root(cwd: Path) -> Path:
+    """Resolve the repository root for Beads-mode operations.
+
+    When beads compatibility is enabled, the data lives under `.beads/` at the
+    repository root. Users may run `kanbus` from a subdirectory (e.g. `python/`);
+    in that case, Beads mode should still work by walking upward.
+    """
+    try:
+        marker = get_configuration_path(cwd)
+        return marker.parent
+    except (ProjectMarkerError, ConfigurationError):
+        pass
+
+    current: Optional[Path] = cwd
+    while current is not None:
+        if (current / ".beads").is_dir():
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return cwd
 
 
 @click.group()
@@ -241,6 +278,13 @@ def repair(yes: bool) -> None:
 @click.option("--label", "labels", multiple=True)
 @click.option("--description", default="")
 @click.option("--local", "local_issue", is_flag=True, default=False)
+@click.option(
+    "--focus",
+    "focus_issue",
+    is_flag=True,
+    default=False,
+    help="Deprecated. UI control commands are temporarily unavailable.",
+)
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
 @click.pass_context
 def create(
@@ -253,6 +297,7 @@ def create(
     labels: tuple[str, ...],
     description: str,
     local_issue: bool,
+    focus_issue: bool,
     no_validate: bool,
 ) -> None:
     """Create a new issue in the current project.
@@ -285,6 +330,8 @@ def create(
     description_text = description.strip()
     if not title_text:
         raise click.ClickException("title is required")
+    if focus_issue:
+        raise _deprecated_create_focus()
 
     quality_result = None
     if description_text:
@@ -300,6 +347,7 @@ def create(
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     if beads_mode:
+        root = _resolve_beads_root(root)
         if local_issue:
             raise click.ClickException("beads mode does not support local issues")
         try:
@@ -379,6 +427,7 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
             pass
 
     if beads_mode:
+        root = _resolve_beads_root(root)
         try:
             issue = load_beads_issue(root, identifier)
         except MigrationError as error:
@@ -494,6 +543,7 @@ def update(
     final_assignee = assignee or (get_current_user() if claim else None)
 
     if beads_mode:
+        root = _resolve_beads_root(root)
         if parent is not None:
             raise click.ClickException("parent update not supported in beads mode")
         before_issue = load_beads_issue(root, identifier)
@@ -841,6 +891,7 @@ def delete(context: click.Context, identifier: str) -> None:
             issue_for_guidance = None
 
     if beads_mode:
+        root = _resolve_beads_root(root)
         try:
             delete_beads_issue(root, identifier)
         except BeadsDeleteError as error:
@@ -944,6 +995,7 @@ def comment(
 
     try:
         if beads_mode:
+            root = _resolve_beads_root(root)
             from kanbus.beads_write import add_beads_comment, BeadsWriteError
 
             try:
@@ -1435,47 +1487,20 @@ def console_snapshot() -> None:
 @click.option("--comment", default=None, help="Comment ID to scroll to.")
 def console_focus(identifier: str, comment: Optional[str]) -> None:
     """Focus on an issue and its descendants in the console."""
-    from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
-
-    root = Path.cwd()
-    try:
-        result = load_issue_from_project(root, identifier)
-        issue_id = result.issue.identifier
-    except IssueLookupError as error:
-        raise click.ClickException(str(error)) from error
-    event: dict = {
-        "type": "issue_focused",
-        "issue_id": issue_id,
-    }
-    if comment:
-        event["comment_id"] = comment
-    publish_notification(root, event)
-    if comment:
-        click.echo(f"Focused on issue {issue_id} (comment {comment})")
-    else:
-        click.echo(f"Focused on issue {issue_id}")
+    raise _deprecated_console_control("focus")
 
 
 @console.command("unfocus")
 def console_unfocus() -> None:
     """Clear the current focus filter in the console."""
-    root = Path.cwd()
-    publish_notification(
-        root, {"type": "ui_control", "action": {"action": "clear_focus"}}
-    )
-    click.echo("Cleared focus filter")
+    raise _deprecated_console_control("unfocus")
 
 
 @console.command("view")
 @click.argument("mode", type=click.Choice(["initiatives", "epics", "issues"]))
 def console_view(mode: str) -> None:
     """Switch the console to a different view mode."""
-    root = Path.cwd()
-    publish_notification(
-        root,
-        {"type": "ui_control", "action": {"action": "set_view_mode", "mode": mode}},
-    )
-    click.echo(f"Switched to {mode} view")
+    raise _deprecated_console_control("view")
 
 
 @console.command("search")
@@ -1483,24 +1508,86 @@ def console_view(mode: str) -> None:
 @click.option("--clear", is_flag=True, help="Clear the active search query.")
 def console_search(query: Optional[str], clear: bool) -> None:
     """Set or clear the search query in the console."""
-    root = Path.cwd()
-    if clear:
-        search_query = ""
-    elif query:
-        search_query = query
-    else:
-        raise click.UsageError("Provide a query or use --clear.")
-    publish_notification(
-        root,
-        {
-            "type": "ui_control",
-            "action": {"action": "set_search", "query": search_query},
-        },
-    )
-    if clear or not search_query:
-        click.echo("Cleared search query")
-    else:
-        click.echo(f"Set search query to: {search_query}")
+    raise _deprecated_console_control("search")
+
+
+@console.command("maximize")
+def console_maximize() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("maximize")
+
+
+@console.command("restore")
+def console_restore() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("restore")
+
+
+@console.command("close-detail")
+def console_close_detail() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("close-detail")
+
+
+@console.command("toggle-settings")
+def console_toggle_settings() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("toggle-settings")
+
+
+@console.command("reload")
+def console_reload() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("reload")
+
+
+@console.command("set-setting")
+@click.argument("key")
+@click.argument("value")
+def console_set_setting(key: str, value: str) -> None:
+    """Deprecated console command."""
+    _ = (key, value)
+    raise _deprecated_console_control("set-setting")
+
+
+@console.command("collapse")
+@click.argument("column")
+def console_collapse(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("collapse")
+
+
+@console.command("collapse-column")
+@click.argument("column")
+def console_collapse_column(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("collapse-column")
+
+
+@console.command("expand")
+@click.argument("column")
+def console_expand(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("expand")
+
+
+@console.command("expand-column")
+@click.argument("column")
+def console_expand_column(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("expand-column")
+
+
+@console.command("select")
+@click.argument("identifier")
+def console_select(identifier: str) -> None:
+    """Deprecated console command."""
+    _ = identifier
+    raise _deprecated_console_control("select")
 
 
 @console.command("status")
@@ -1676,6 +1763,7 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
 
     if is_remove:
         if beads_mode:
+            root = _resolve_beads_root(root)
             try:
                 from kanbus.beads_write import remove_beads_dependency
 
@@ -1689,6 +1777,7 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
                 raise click.ClickException(str(error)) from error
     else:
         if beads_mode:
+            root = _resolve_beads_root(root)
             try:
                 from kanbus.beads_write import add_beads_dependency
 
@@ -1775,6 +1864,87 @@ def daemon_stop() -> None:
     except DaemonClientError as error:
         raise click.ClickException(str(error)) from error
     click.echo(json.dumps(result, indent=2, sort_keys=False))
+
+
+@cli.group()
+def gossip() -> None:
+    """Realtime gossip commands."""
+
+
+@gossip.command("broker")
+@click.option("--socket", "socket_path", type=click.Path(path_type=Path))
+def gossip_broker(socket_path: Optional[Path]) -> None:
+    """Run a local UDS gossip broker."""
+    root = Path.cwd()
+    try:
+        run_gossip_broker(root, socket_path)
+    except GossipError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@gossip.command("watch")
+@click.option("--project", "project_label", default=None)
+@click.option("--transport", default=None)
+@click.option("--broker", default=None)
+@click.option("--autostart/--no-autostart", default=None)
+@click.option("--keepalive/--no-keepalive", default=None)
+@click.option(
+    "--print/--no-print",
+    "print_envelopes",
+    default=False,
+    help="Print each received envelope as JSON (NDJSON) to stdout.",
+)
+def gossip_watch(
+    project_label: Optional[str],
+    transport: Optional[str],
+    broker: Optional[str],
+    autostart: Optional[bool],
+    keepalive: Optional[bool],
+    print_envelopes: bool,
+) -> None:
+    """Watch gossip notifications and update overlay cache."""
+    root = Path.cwd()
+    try:
+        run_gossip_watch(
+            root,
+            project_label,
+            transport,
+            broker,
+            autostart,
+            keepalive,
+            print_envelopes,
+        )
+    except GossipError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.group()
+def overlay() -> None:
+    """Overlay cache commands."""
+
+
+@overlay.command("gc")
+@click.option("--project", "project_label", default=None)
+@click.option("--all", "all_projects", is_flag=True, default=False)
+def overlay_gc(project_label: Optional[str], all_projects: bool) -> None:
+    """Sweep overlay cache entries."""
+    root = Path.cwd()
+    try:
+        count = gc_overlay_for_projects(root, project_label, all_projects)
+    except (ConfigurationError, ProjectMarkerError, ValueError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f"overlay gc complete ({count} project(s))")
+
+
+@overlay.command("install-hooks")
+def overlay_install_hooks() -> None:
+    """Install git hooks to run overlay gc after git operations."""
+    root = Path.cwd()
+    try:
+        install_overlay_hooks(root)
+    except (ConfigurationError, ProjectMarkerError, OSError, RuntimeError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo("overlay hooks installed")
 
 
 def _format_project_marker_error(error: ProjectMarkerError) -> str:

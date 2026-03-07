@@ -137,6 +137,7 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), KanbusE
     }
     write_project_guard_files(&project_dir)?;
     write_tool_block_files(root)?;
+    ensure_gitignore_entry(root, "project/.overlay/")?;
     if create_local {
         ensure_project_local_directory(&project_dir)?;
     }

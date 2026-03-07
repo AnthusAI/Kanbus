@@ -45,6 +45,19 @@ const FeaturesPage = () => {
         </Section>
 
         <Section
+          title="Collaboration"
+          subtitle="Realtime awareness for agents and humans, without changing Git’s role as the source of truth."
+        >
+          <div className="grid gap-6 md:grid-cols-2">
+            <FeatureCard
+              title="Realtime Collaboration"
+              description="Distributed realtime updates via gossip + a disposable overlay cache, while Git remains SSOT."
+              href="/features/realtime-collaboration"
+            />
+          </div>
+        </Section>
+
+        <Section
           title="Your Workflow, Your Way"
           subtitle="Keep personal work private, then share when ready. Aggregate issues across repositories."
           variant="alt"

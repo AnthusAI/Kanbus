@@ -60,3 +60,17 @@ Feature: Configuration standardization across Python and Rust
     Then the project key should be "ENV"
     When I load the configuration with override enabled
     Then the project key should be "YAML"
+
+  Scenario: Realtime and overlay env overrides apply consistently
+    Given a Kanbus project with a file "kanbus.yml" containing a valid configuration
+    And the environment variable KANBUS_REALTIME_TRANSPORT is set to "mqtt"
+    And the environment variable KANBUS_REALTIME_BROKER is set to "mqtt://127.0.0.1:1883"
+    And the environment variable KANBUS_REALTIME_AUTOSTART is set to "false"
+    And the environment variable KANBUS_OVERLAY_ENABLED is set to "false"
+    And the environment variable KANBUS_OVERLAY_TTL_S is set to "120"
+    When I load the configuration
+    Then the realtime transport should be "mqtt"
+    And the realtime broker should be "mqtt://127.0.0.1:1883"
+    And the realtime autostart should be false
+    And the overlay enabled should be false
+    And the overlay ttl should be 120

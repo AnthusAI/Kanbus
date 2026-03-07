@@ -110,6 +110,7 @@ const Layout = ({ children }: LayoutProps) => {
                 <li className="font-semibold col-span-1 sm:col-span-2 opacity-75">Features</li>
                 <li><a href="/features/core-management" className="text-muted hover:text-selected block">Core Management</a></li>
                 <li><a href="/features/kanban-board" className="text-muted hover:text-selected block">Kanban Board</a></li>
+                <li><a href="/features/realtime-collaboration" className="text-muted hover:text-selected block">Realtime Collaboration</a></li>
                 <li><a href="/features/jira-sync" className="text-muted hover:text-selected block">Jira Sync</a></li>
                 <li><a href="/features/local-tasks" className="text-muted hover:text-selected block">Local Tasks</a></li>
                 <li><a href="/features/virtual-projects" className="text-muted hover:text-selected block">Virtual Projects</a></li>

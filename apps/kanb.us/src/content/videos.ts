@@ -43,6 +43,13 @@ export const VIDEOS: VideoEntry[] = [
     poster: "kanban-board.jpg"
   },
   {
+    id: "realtime-collaboration",
+    title: "Realtime Collaboration",
+    description: "Gossip + overlay cache for distributed realtime updates, with Git as SSOT.",
+    filename: "realtime-collaboration.mp4",
+    poster: "realtime-collaboration.jpg"
+  },
+  {
     id: "virtual-projects",
     title: "Virtual Projects",
     description: "Aggregate issues from multiple repositories into a single view.",

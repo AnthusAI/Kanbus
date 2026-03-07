@@ -267,3 +267,26 @@ fn body_from_bytes(bytes: Vec<u8>) -> StreamBodyType {
     let stream = stream::once(async move { Ok(Frame::data(Bytes::from(bytes))) });
     StreamBody::new(Box::pin(stream))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_console_route_detects_supported_paths() {
+        assert!(is_console_route(""));
+        assert!(is_console_route("issues"));
+        assert!(is_console_route("issues/kanbus-1"));
+        assert!(is_console_route("issues/kanbus-parent/all"));
+        assert!(!is_console_route("assets/app.js"));
+    }
+
+    #[test]
+    fn hash_helpers_are_stable_for_same_payload() {
+        let one = hash_payload("payload");
+        let two = hash_payload("payload");
+        let bytes_hash = hash_bytes(b"payload");
+        assert_eq!(one, two);
+        assert_eq!(one, bytes_hash);
+    }
+}

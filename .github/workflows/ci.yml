@@ -43,7 +43,9 @@ jobs:
           black --check .
           ruff check .
           mkdir -p ../coverage-python
-          python -m coverage run --source=kanbus -m behave
+          python -m coverage erase
+          python -m coverage run --source=kanbus -m pytest
+          KANBUS_ENABLE_COVERAGE_HELPER=0 python -m coverage run --append --source=kanbus -m behave
           python -m coverage xml -o ../coverage-python/coverage.xml
 
       - name: Capture Python coverage
@@ -52,9 +54,13 @@ jobs:
           output=$(python tools/coverage_badge.py coverage-python/coverage.xml)
           echo "$output" >> "$GITHUB_OUTPUT"
 
+      - name: Upload Python coverage XML
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-python-xml
+          path: coverage-python/coverage.xml
+
       - name: Check spec parity
-        env:
-          KANBUS_PARITY_STRICT: "0"
         run: python tools/check_spec_parity.py
 
   python-install:
@@ -154,6 +160,87 @@ jobs:
         run: |
           output=$(python tools/coverage_badge.py coverage-rust/cobertura.xml)
           echo "$output" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Rust coverage XML
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-rust-xml
+          path: coverage-rust/cobertura.xml
+
+  coverage-ratchet:
+    runs-on: ubuntu-latest
+    needs: [python, rust]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      - name: Download Python coverage XML
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: coverage-python-xml
+          path: coverage-python
+
+      - name: Download Rust coverage XML
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: coverage-rust-xml
+          path: coverage-rust
+
+      - name: Assert coverage artifacts exist
+        run: |
+          test -s coverage-python/coverage.xml
+          test -s coverage-rust/cobertura.xml
+
+      - name: Enforce coverage ratchet
+        run: |
+          python tools/coverage_ratchet.py \
+            --python-xml coverage-python/coverage.xml \
+            --rust-xml coverage-rust/cobertura.xml \
+            --baseline-file config/coverage-baselines.json \
+            --json > coverage-ratchet.json
+          cat coverage-ratchet.json
+
+      - name: Publish coverage parity report
+        run: |
+          python tools/coverage_parity_report.py \
+            --python-xml coverage-python/coverage.xml \
+            --rust-xml coverage-rust/cobertura.xml \
+            --limit 25
+          python tools/coverage_parity_report.py \
+            --python-xml coverage-python/coverage.xml \
+            --rust-xml coverage-rust/cobertura.xml \
+            --limit 25 \
+            --json > coverage-parity-report.json
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-ratchet-reports
+          path: |
+            coverage-ratchet.json
+            coverage-parity-report.json
+
+  rust-console-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Run Rust @console parity scenarios
+        run: |
+          cd rust
+          KANBUS_CUCUMBER_ONLY_CONSOLE=1 cargo test --locked --test cucumber -- --fail-fast
 
   console-ui:
     runs-on: ubuntu-latest
@@ -263,7 +350,17 @@ jobs:
 
   beads-interop:
     runs-on: ubuntu-latest
-    needs: [python, python-install, rust, console-ui, performance, binary-smoke]
+    needs:
+      [
+        python,
+        python-install,
+        rust,
+        coverage-ratchet,
+        rust-console-parity,
+        console-ui,
+        performance,
+        binary-smoke,
+      ]
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

@@ -39,6 +39,7 @@ use kanbus::console_backend::{find_issue_matches, FileStore};
 use kanbus::console_ui_state::{load_state, save_state, state_path, ConsoleUiState};
 use kanbus::event_history::{load_issue_events, EventRecord};
 use kanbus::file_io::{detect_repairable_project_issues, repair_project_structure};
+use kanbus::gossip::{run_gossip_bridge, GossipEnvelope};
 use kanbus::notification_events::{NotificationEvent, UiControlAction};
 
 #[cfg(feature = "embed-assets")]
@@ -220,23 +221,7 @@ async fn main() {
         .route("/:account/:project/*path", get(get_asset))
         .fallback(get(get_asset_root));
 
-    // Start Unix socket listener for notifications before moving state
-    #[cfg(unix)]
-    {
-        let socket_path = get_notification_socket_path(&state.base_root);
-        let socket_state = state.clone();
-        tokio::spawn(async move {
-            if let Err(e) = listen_on_socket(socket_path, socket_state).await {
-                eprintln!("Unix socket listener error: {}", e);
-            }
-        });
-    }
-    #[cfg(not(unix))]
-    {
-        eprintln!(
-            "Unix domain sockets are unavailable on this platform; disabling console notifications."
-        );
-    }
+    start_gossip_bridge(state.clone());
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -866,6 +851,37 @@ async fn get_realtime_events(
     get_realtime_events_root(State(state)).await
 }
 
+fn start_gossip_bridge(state: AppState) {
+    let root = state.base_root.clone();
+    let notification_tx = state.notification_tx.clone();
+    std::thread::spawn(move || {
+        let callback = Arc::new(move |envelope: GossipEnvelope| {
+            if envelope.event_type == "issue.mutated" {
+                if let Some(issue) = envelope.issue {
+                    let issue_id = issue.identifier.clone();
+                    let event = NotificationEvent::IssueUpdated {
+                        issue_id,
+                        fields_changed: Vec::new(),
+                        issue_data: issue,
+                    };
+                    let _ = notification_tx.send(event);
+                }
+                return;
+            }
+            if envelope.event_type == "issue.deleted" {
+                if let Some(issue_id) = envelope.issue_id {
+                    let event = NotificationEvent::IssueDeleted { issue_id };
+                    let _ = notification_tx.send(event);
+                }
+            }
+        });
+
+        if let Err(error) = run_gossip_bridge(&root, callback) {
+            eprintln!("warning: realtime bridge stopped: {}", error);
+        }
+    });
+}
+
 async fn post_render_d2(body: Bytes) -> Response {
     // Check if d2 is installed
     let d2_available = Command::new("which")
@@ -1279,86 +1295,52 @@ fn serve_asset_from_filesystem(state: &AppState, asset_path: &str) -> Response {
         })
 }
 
-/// Get the Unix domain socket path for notifications based on project root.
-///
-/// Uses the same hash-based approach as the CLI publisher to ensure they connect to the same socket.
-fn get_notification_socket_path(root: &StdPath) -> PathBuf {
-    use sha2::{Digest, Sha256};
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.to_string_lossy().as_bytes());
-    let hash = format!("{:x}", hasher.finalize());
-    let socket_name = format!("kanbus-{}.sock", &hash[..12]);
+    #[test]
+    fn resolve_bind_host_handles_localhost_and_invalid_input() {
+        let (localhost_ip, localhost_host) = resolve_bind_host(Some("localhost".to_string()));
+        assert_eq!(localhost_ip.to_string(), "127.0.0.1");
+        assert_eq!(localhost_host, "127.0.0.1");
 
-    std::env::temp_dir().join(socket_name)
-}
-
-/// Listen on Unix domain socket for notification events from CLI commands.
-#[cfg(unix)]
-async fn listen_on_socket(socket_path: PathBuf, state: AppState) -> io::Result<()> {
-    use tokio::io::{AsyncBufReadExt, BufReader};
-    use tokio::net::UnixListener;
-
-    // Remove stale socket file if it exists
-    if socket_path.exists() {
-        let _ = std::fs::remove_file(&socket_path);
+        let (fallback_ip, fallback_host) = resolve_bind_host(Some("not-an-ip".to_string()));
+        assert_eq!(fallback_ip.to_string(), "127.0.0.1");
+        assert_eq!(fallback_host, "127.0.0.1");
     }
 
-    let listener = UnixListener::bind(&socket_path)?;
-    println!("Notification socket listening at {}", socket_path.display());
+    #[test]
+    fn telemetry_payload_includes_tenant_and_original_fields() {
+        let payload = serde_json::json!({
+            "level": "warn",
+            "message": "hello"
+        });
 
-    loop {
-        match listener.accept().await {
-            Ok((stream, _addr)) => {
-                let conn_state = state.clone();
-                tokio::spawn(async move {
-                    let mut reader = BufReader::new(stream);
-                    let mut line = String::new();
+        let rendered =
+            build_telemetry_payload(payload, Some(("acct".to_string(), "proj".to_string())));
+        let parsed: serde_json::Value = serde_json::from_str(&rendered).expect("json");
 
-                    while let Ok(n) = reader.read_line(&mut line).await {
-                        if n == 0 {
-                            break; // EOF
-                        }
-
-                        // Try to parse the JSON event
-                        match serde_json::from_str::<NotificationEvent>(&line) {
-                            Ok(event) => {
-                                eprintln!(
-                                    "Socket received notification: {:?}",
-                                    event.description()
-                                );
-                                // Update cached UI state before broadcasting
-                                update_ui_state_from_event(&conn_state, &event).await;
-                                match conn_state.notification_tx.send(event) {
-                                    Ok(receiver_count) => {
-                                        eprintln!("Broadcast sent to {} receivers", receiver_count);
-                                    }
-                                    Err(e) => {
-                                        eprintln!("Failed to broadcast notification: {:?}", e);
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                eprintln!("Failed to parse notification event: {}", e);
-                            }
-                        }
-
-                        line.clear();
-                    }
-                });
-            }
-            Err(e) => {
-                eprintln!("Failed to accept socket connection: {}", e);
-            }
-        }
+        assert_eq!(parsed["account"], "acct");
+        assert_eq!(parsed["project"], "proj");
+        assert_eq!(parsed["level"], "warn");
+        assert_eq!(parsed["message"], "hello");
+        assert!(parsed.get("received_at").is_some());
     }
-}
 
-#[cfg(not(unix))]
-async fn listen_on_socket(_socket_path: PathBuf, _state: AppState) -> io::Result<()> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "unix domain sockets unsupported on this platform",
-    ))
+    #[test]
+    fn hash_helpers_are_deterministic() {
+        let first = hash_payload("payload");
+        let second = hash_payload("payload");
+        let bytes_hash = hash_bytes(b"payload");
+
+        assert_eq!(first, second);
+        assert_eq!(first, bytes_hash);
+    }
+
+    #[test]
+    fn parse_json_body_falls_back_to_raw_string_payload() {
+        let parsed = parse_json_body(&Bytes::from("not-json"));
+        assert_eq!(parsed, serde_json::Value::String("not-json".to_string()));
+    }
 }

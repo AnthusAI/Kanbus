@@ -127,3 +127,54 @@ fn flatten_args(args: Option<Vec<serde_json::Value>>) -> Option<String> {
         Some(parts.join(" "))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn resolve_output_path_creates_parent_directory() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let output_path = temp_dir.path().join("nested").join("console.log");
+
+        let resolved = resolve_output_path(
+            temp_dir.path(),
+            Some(output_path.to_string_lossy().to_string()),
+        )
+        .expect("resolve path");
+
+        assert_eq!(resolved, output_path);
+        assert!(resolved.parent().expect("parent").is_dir());
+    }
+
+    #[test]
+    fn format_telemetry_line_parses_json_payload() {
+        let payload = r#"{"level":"warn","message":"test event","timestamp":"2026-03-06T10:00:00Z","url":"http://localhost","session_id":"session-1"}"#;
+
+        let formatted = format_telemetry_line(payload);
+
+        assert!(formatted.contains("[warn]"));
+        assert!(formatted.contains("test event"));
+        assert!(formatted.contains("[session-1]"));
+    }
+
+    #[test]
+    fn format_telemetry_line_handles_unparsed_payload() {
+        let formatted = format_telemetry_line("{invalid-json");
+        assert!(formatted.starts_with("[unparsed]"));
+    }
+
+    #[test]
+    fn flatten_args_joins_stringified_values() {
+        let args = Some(vec![
+            serde_json::Value::String("hello".to_string()),
+            serde_json::json!(123),
+            serde_json::json!({"k": "v"}),
+        ]);
+
+        let flattened = flatten_args(args);
+
+        assert_eq!(flattened.as_deref(), Some("hello 123 {\"k\":\"v\"}"));
+    }
+}

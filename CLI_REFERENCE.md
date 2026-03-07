@@ -1,6 +1,6 @@
 # CLI Reference
 
-This reference describes the intended Kanbus CLI for the first release. It is based on the current specification and will be kept in parity with both implementations.
+This reference describes the intended Kanbus CLI for the first release. It is based on the current specification and will be kept in parity with both implementations. Rust installs `kbs` with identical subcommands.
 
 ## Global Flags
 
@@ -121,6 +121,41 @@ Example:
 kanbus list --status open --sort priority --limit 10
 ```
 
+## Realtime Gossip + Overlay
+
+### `kanbus gossip broker`
+
+Run a local UDS broker.
+
+```bash
+kanbus gossip broker [--socket <path>]
+```
+
+### `kanbus gossip watch`
+
+Watch gossip notifications and update the overlay cache.
+
+```bash
+kanbus gossip watch [--project <label>] [--transport auto|uds|mqtt] [--broker auto|off|mqtt://...|mqtts://...] [--autostart|--no-autostart] [--keepalive|--no-keepalive]
+kanbus gossip watch [..] [--print]
+```
+
+### `kanbus overlay gc`
+
+Sweep overlay cache entries.
+
+```bash
+kanbus overlay gc [--project <label>] [--all]
+```
+
+### `kanbus overlay install-hooks`
+
+Install git hooks to run overlay GC after merges/checkouts.
+
+```bash
+kanbus overlay install-hooks
+```
+
 ### `kanbus ready`
 
 List open issues with no open blockers.
@@ -208,6 +243,15 @@ Emit a JSON snapshot for the console server.
 
 ```bash
 kanbus console snapshot
+```
+
+### Deprecated console controls
+
+The legacy CLI-to-console control channel has been removed. These commands now fail with a migration hint while control messaging is moved to pub/sub:
+
+```bash
+kanbus console focus|unfocus|view|search|maximize|restore|close-detail|toggle-settings|reload|set-setting|collapse-column|expand-column|select
+kanbus create --focus
 ```
 
 ## Maintenance

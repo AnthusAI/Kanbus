@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 export type FeaturePictogramType = 
   | "core-management" 
   | "kanban-board" 
+  | "realtime-collaboration"
   | "jira-sync" 
   | "local-tasks" 
   | "beads-compatibility" 
@@ -125,6 +126,98 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       >
         <rect x="30" y="98" width="120" height="48" fill="var(--accent-blue)" rx="6" />
       </motion.g>
+    </g>
+  );
+
+  const renderRealtimeCollaboration = () => (
+    <g transform="scale(1) translate(0, 0)">
+      <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
+
+      {/* Gossip lines (behind everything) */}
+      <path
+        d="M 105 140 L 250 140"
+        fill="none"
+        stroke="var(--accent-blue)"
+        strokeWidth="2.5"
+        strokeDasharray="7 7"
+        opacity="0.85"
+      >
+        <animate attributeName="stroke-dashoffset" from="14" to="0" dur="1s" repeatCount="indefinite" />
+      </path>
+      <path
+        d="M 250 140 L 395 140"
+        fill="none"
+        stroke="var(--accent-blue)"
+        strokeWidth="2.5"
+        strokeDasharray="7 7"
+        opacity="0.85"
+      >
+        <animate attributeName="stroke-dashoffset" from="14" to="0" dur="1s" repeatCount="indefinite" />
+      </path>
+
+      {/* Pulses */}
+      <motion.circle
+        r="5"
+        fill="var(--accent-blue)"
+        animate={{ cx: [105, 250], opacity: [0, 1, 1, 0] }}
+        transition={{ duration: 2.6, repeat: Infinity, ease: "linear" }}
+        cy={140}
+      />
+      <motion.circle
+        r="5"
+        fill="var(--accent-blue)"
+        animate={{ cx: [250, 395], opacity: [0, 1, 1, 0] }}
+        transition={{ duration: 2.6, repeat: Infinity, ease: "linear", delay: 0.9 }}
+        cy={140}
+      />
+
+      {/* Left: CLI / mutator */}
+      <g transform="translate(30, 80)">
+        <rect width="150" height="120" fill="var(--card)" rx="10" stroke="var(--border)" strokeWidth="2" />
+        <rect width="150" height="26" fill="var(--background)" rx="10" />
+        <circle cx="18" cy="13" r="5" fill="#ff5f56" opacity="0.85" />
+        <circle cx="36" cy="13" r="5" fill="#ffbd2e" opacity="0.85" />
+        <circle cx="54" cy="13" r="5" fill="#27c93f" opacity="0.85" />
+        <text x="16" y="56" fill="var(--accent-blue)" fontSize="14" fontFamily="monospace" fontWeight="800">~❯</text>
+        <text x="44" y="56" fill="var(--text-foreground)" fontSize="14" fontFamily="monospace">kbs update</text>
+        <rect x="16" y="70" width="118" height="10" fill="var(--card-muted)" rx="5" opacity="0.9" />
+        <rect x="16" y="88" width="92" height="10" fill="var(--card-muted)" rx="5" opacity="0.75" />
+        <rect x="16" y="106" width="104" height="10" fill="var(--card-muted)" rx="5" opacity="0.6" />
+      </g>
+
+      {/* Right: watcher + overlay */}
+      <g opacity="0.8">
+        <rect x="308" y="68" width="150" height="120" fill="transparent" stroke="var(--accent-blue)" strokeWidth="2" strokeDasharray="6 6" rx="10">
+          <animate attributeName="stroke-dashoffset" from="12" to="0" dur="1.4s" repeatCount="indefinite" />
+        </rect>
+      </g>
+      <g transform="translate(320, 80)">
+        <rect width="150" height="120" fill="var(--card)" rx="10" stroke="var(--border)" strokeWidth="2" />
+        <rect x="12" y="14" width="40" height="92" fill="var(--background)" rx="6" />
+        <rect x="55" y="14" width="40" height="92" fill="var(--background)" rx="6" />
+        <rect x="98" y="14" width="40" height="92" fill="var(--background)" rx="6" />
+        <rect x="18" y="24" width="28" height="16" fill="var(--card-muted)" rx="4" />
+        <motion.rect
+          x="61"
+          y="24"
+          width="28"
+          height="16"
+          rx="4"
+          fill="var(--accent-blue)"
+          animate={{ x: [61, 104, 61], opacity: [1, 1, 0.9] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <rect x="18" y="48" width="28" height="16" fill="var(--card-muted)" rx="4" opacity="0.8" />
+      </g>
+
+      {/* Center: broker */}
+      <g>
+        <circle cx="250" cy="140" r="28" fill="var(--background)" stroke="var(--accent-blue)" strokeWidth="3" />
+        <circle cx="250" cy="140" r="16" fill="var(--card)" stroke="var(--border)" strokeWidth="2" opacity="0.95" />
+        <text x="250" y="146" textAnchor="middle" fill="var(--text-foreground)" fontSize="11" fontFamily="monospace" fontWeight="800">
+          BUS
+        </text>
+      </g>
     </g>
   );
 
@@ -645,6 +738,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
   const renders: Record<string, () => React.ReactNode> = {
     "core-management": renderCli,
     "kanban-board": renderKanbanBoard,
+    "realtime-collaboration": renderRealtimeCollaboration,
     "jira-sync": renderJiraSync,
     "local-tasks": renderLocalTasks,
     "beads-compatibility": renderBeadsCompatibility,

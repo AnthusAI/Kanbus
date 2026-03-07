@@ -38,7 +38,11 @@ def before_scenario(context: object, scenario: object) -> None:
 
 
 def before_all(context: object) -> None:
-    """Run extra coverage helpers before the suite."""
+    """Run optional coverage helpers before the suite."""
+    import os
+
+    if os.environ.get("KANBUS_ENABLE_COVERAGE_HELPER") != "1":
+        return
     try:
         _run_coverage_helper()
     except Exception:

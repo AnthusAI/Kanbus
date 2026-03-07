@@ -89,3 +89,67 @@ pub fn save_state(root: &Path, state: &ConsoleUiState) -> Result<(), KanbusError
     let json = serde_json::to_string_pretty(state).map_err(|e| KanbusError::Io(e.to_string()))?;
     std::fs::write(&path, json).map_err(|e| KanbusError::Io(e.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::default_project_configuration;
+    use tempfile::TempDir;
+
+    fn setup_root(temp_dir: &TempDir) -> std::path::PathBuf {
+        let root = temp_dir.path().join("repo");
+        std::fs::create_dir_all(root.join("project").join("issues")).expect("create project");
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(&root)
+            .output()
+            .expect("git init");
+        let config = default_project_configuration();
+        let payload = serde_yaml::to_string(&config).expect("serialize config");
+        std::fs::write(root.join(".kanbus.yml"), payload).expect("write config");
+        root
+    }
+
+    #[test]
+    fn load_state_returns_default_when_missing() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let root = setup_root(&temp_dir);
+        let state = load_state(&root).expect("load state");
+        assert!(state.focused_issue_id.is_none());
+        assert!(state.view_mode.is_none());
+    }
+
+    #[test]
+    fn save_and_load_state_round_trip() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let root = setup_root(&temp_dir);
+        let original = ConsoleUiState {
+            focused_issue_id: Some("kanbus-123456".to_string()),
+            focused_comment_id: Some("comment-1".to_string()),
+            view_mode: Some("issues".to_string()),
+            search_query: Some("auth".to_string()),
+        };
+
+        save_state(&root, &original).expect("save state");
+        let loaded = load_state(&root).expect("load state");
+
+        assert_eq!(loaded.focused_issue_id, original.focused_issue_id);
+        assert_eq!(loaded.focused_comment_id, original.focused_comment_id);
+        assert_eq!(loaded.view_mode, original.view_mode);
+        assert_eq!(loaded.search_query, original.search_query);
+    }
+
+    #[test]
+    fn state_path_is_scoped_inside_root() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let root = setup_root(&temp_dir);
+        let path = state_path(&root).expect("state path");
+        assert_eq!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some("console_state.json")
+        );
+        assert!(!path
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir)));
+    }
+}

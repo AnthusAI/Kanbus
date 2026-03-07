@@ -1,0 +1,290 @@
+{
+  "scenes": [
+    {
+      "id": "hook",
+      "title": "Realtime Collaboration",
+      "startSec": 0,
+      "endSec": 8,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "#0f1115",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "animated-pictogram-video-0",
+              "type": "AnimatedPictogramVideo",
+              "props": {
+                "type": "git-sync-home",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Realtime Collaboration",
+                "x": 960,
+                "y": 120,
+                "size": 64,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 1400,
+                "font": "sans",
+                "sceneStartSec": 0
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "Gossip + overlay cache, with Git as SSOT",
+                "x": 960,
+                "y": 200,
+                "size": 36,
+                "weight": 450,
+                "align": "center",
+                "maxWidth": 1400,
+                "font": "serif",
+                "color": "var(--text-muted)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "hook_voice",
+          "label": "Hook",
+          "startSec": 0,
+          "endSec": 5.8875,
+          "text": "Realtime Collaboration keeps humans and agents in sync while Git remains the source of truth.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 0,
+              "endSec": 5.8875,
+              "text": "Realtime Collaboration keeps humans and agents in sync while Git remains the source of truth."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "deep_dive",
+      "title": "Realtime Collaboration Deep Dive",
+      "startSec": 8.625,
+      "endSec": 70.625,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "#0f1115",
+                "sceneStartSec": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 2,
+          "components": [
+            {
+              "id": "title-0",
+              "type": "Title",
+              "props": {
+                "text": "Realtime Collaboration",
+                "x": 960,
+                "y": 120,
+                "sceneStartSec": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "subtitle",
+          "zIndex": 2,
+          "components": [
+            {
+              "id": "subtitle-0",
+              "type": "Subtitle",
+              "props": {
+                "text": "Gossip + overlay cache, with Git as SSOT",
+                "x": 960,
+                "y": 200,
+                "sceneStartSec": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "diagram",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "realtime-collaboration-demo-video-0",
+              "type": "RealtimeCollaborationDemoVideo",
+              "props": {
+                "style": {
+                  "padding": "180px 24px 24px"
+                },
+                "sceneStartSec": 8
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "gossip",
+          "label": "Gossip",
+          "startSec": 8.625,
+          "endSec": 17.3875,
+          "text": "Every change still writes issue JSON and an event log entry. Gossip publishes a small notification so other tools react immediately.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 8.625,
+              "endSec": 9.225,
+              "durationSec": 0.6
+            },
+            {
+              "type": "tts",
+              "startSec": 9.225,
+              "endSec": 17.3875,
+              "text": "Every change still writes issue JSON and an event log entry. Gossip publishes a small notification so other tools react immediately."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "overlay",
+          "label": "Overlay",
+          "startSec": 17.3875,
+          "endSec": 25.6625,
+          "text": "Watchers write a disposable overlay snapshot, so you can see updates before a pull lands. Overlay never resolves conflicts.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 17.3875,
+              "endSec": 17.9875,
+              "durationSec": 0.6
+            },
+            {
+              "type": "tts",
+              "startSec": 17.9875,
+              "endSec": 25.6625,
+              "text": "Watchers write a disposable overlay snapshot, so you can see updates before a pull lands. Overlay never resolves conflicts."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "transports",
+          "label": "Transports",
+          "startSec": 25.6625,
+          "endSec": 33.7875,
+          "text": "Use a local Unix socket broker on one machine, or MQTT for LAN and cloud. Mosquitto can autostart locally when available.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 25.6625,
+              "endSec": 26.262500000000003,
+              "durationSec": 0.6
+            },
+            {
+              "type": "tts",
+              "startSec": 26.262500000000003,
+              "endSec": 33.7875,
+              "text": "Use a local Unix socket broker on one machine, or MQTT for LAN and cloud. Mosquitto can autostart locally when available."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "close",
+          "label": "Close",
+          "startSec": 33.7875,
+          "endSec": 39.925000000000004,
+          "text": "Best-effort realtime, Git-authoritative history. Start a broker, run watch, and keep moving.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 33.7875,
+              "endSec": 34.3875,
+              "durationSec": 0.6
+            },
+            {
+              "type": "tts",
+              "startSec": 34.3875,
+              "endSec": 39.925000000000004,
+              "text": "Best-effort realtime, Git-authoritative history. Start a broker, run watch, and keep moving."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "kind": "scene",
+      "sceneId": "hook",
+      "startSec": 0,
+      "endSec": 8
+    },
+    {
+      "kind": "transition",
+      "id": "push-1",
+      "startSec": 8,
+      "endSec": 8.625,
+      "effect": "slide",
+      "ease": "power2.inOut",
+      "props": {
+        "direction": "left"
+      },
+      "mode": "insert",
+      "fromSceneId": "hook",
+      "toSceneId": "deep_dive"
+    },
+    {
+      "kind": "scene",
+      "sceneId": "deep_dive",
+      "startSec": 8.625,
+      "endSec": 70.625
+    }
+  ],
+  "posterTimeSec": 2,
+  "fps": 24,
+  "meta": {
+    "fps": 24,
+    "width": 1920,
+    "height": 1080
+  }
+}

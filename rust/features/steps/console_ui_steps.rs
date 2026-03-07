@@ -88,10 +88,15 @@ fn when_console_reloaded(world: &mut KanbusWorld) {
 
 #[when(expr = "I switch to the {string} tab")]
 fn when_switch_tab(world: &mut KanbusWorld, tab: String) {
+    let previously_selected_tab = world.console_local_storage.selected_tab.clone();
     let state = require_console_state(world);
     if state.selected_tab == tab {
-        state.selected_tab = "All".to_string();
-        world.console_local_storage.selected_tab = Some("All".to_string());
+        if previously_selected_tab.as_deref() == Some(tab.as_str()) {
+            state.selected_tab = "All".to_string();
+            world.console_local_storage.selected_tab = Some("All".to_string());
+        } else {
+            world.console_local_storage.selected_tab = Some(tab);
+        }
         return;
     }
     state.selected_tab = tab.clone();
@@ -683,6 +688,12 @@ fn then_board_view_inactive(world: &mut KanbusWorld) {
 
 #[then("the metrics view should be active")]
 fn then_metrics_view_active(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_eq!(state.panel_mode, "metrics");
+}
+
+#[then("the metrics view should intersect the viewport")]
+fn then_metrics_view_intersects_viewport(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     assert_eq!(state.panel_mode, "metrics");
 }

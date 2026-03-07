@@ -17,6 +17,7 @@ const COMPOSITION_IDS = [
   "virtual-projects",
   "vscode-plugin",
   "policy-as-code",
+  "realtime-collaboration",
 ];
 
 const repoRoot = path.resolve(__dirname, "..");

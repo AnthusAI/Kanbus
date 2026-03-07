@@ -31,6 +31,7 @@ from kanbus.event_history import (
     write_events_batch,
 )
 from kanbus.users import get_current_user
+from kanbus.gossip import publish_issue_mutation
 
 
 class IssueUpdateError(RuntimeError):
@@ -304,6 +305,15 @@ def update_issue(
     except Exception as error:  # noqa: BLE001
         write_issue_to_file(before_issue, lookup.issue_path)
         raise IssueUpdateError(str(error)) from error
+    if lookup.issue_path.parent == lookup.project_dir / "issues":
+        event_id = events[0].event_id if events else None
+        publish_issue_mutation(
+            root,
+            lookup.project_dir,
+            updated_issue,
+            event_id,
+            "issue.mutated",
+        )
     return updated_issue
 
 

@@ -36,6 +36,7 @@ from kanbus.project import (
 )
 from kanbus.workflows import InvalidTransitionError, validate_status_value
 from kanbus.users import get_current_user
+from kanbus.gossip import publish_issue_mutation
 
 
 class IssueCreationError(RuntimeError):
@@ -232,6 +233,14 @@ def create_issue(
     except Exception as error:  # noqa: BLE001
         issue_path.unlink(missing_ok=True)
         raise IssueCreationError(str(error)) from error
+    if not local:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            issue,
+            event.event_id,
+            "issue.mutated",
+        )
     return IssueCreationResult(issue=issue, configuration=configuration)
 
 

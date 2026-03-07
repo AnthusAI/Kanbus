@@ -172,6 +172,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         issue_created_payload(&issue),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = if request.local {
         match events_dir_for_local(&project_dir) {
             Ok(path) => path,
@@ -193,16 +194,15 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(
-        request.root.as_path(),
-        NotificationEvent::IssueCreated {
-            issue_id: issue.identifier.clone(),
-            issue_data: issue.clone(),
-        },
-    );
+    if !request.local {
+        crate::gossip::publish_issue_mutation(
+            request.root.as_path(),
+            &project_dir,
+            &issue,
+            Some(event_id),
+            "issue.mutated",
+        );
+    }
 
     Ok(IssueCreationResult {
         issue,

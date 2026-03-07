@@ -148,6 +148,36 @@ class VirtualProjectConfig(BaseModel):
     path: str
 
 
+class RealtimeTopics(BaseModel):
+    """Realtime topic templates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_events: str = "projects/{project}/events"
+
+
+class RealtimeConfig(BaseModel):
+    """Realtime gossip configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    transport: str = "auto"
+    broker: str = "auto"
+    autostart: bool = True
+    keepalive: bool = False
+    uds_socket_path: Optional[str] = None
+    topics: RealtimeTopics = Field(default_factory=RealtimeTopics)
+
+
+class OverlayConfig(BaseModel):
+    """Overlay cache configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    ttl_s: int = 86400
+
+
 class ProjectConfiguration(BaseModel):
     """Project configuration loaded from .kanbus.yml.
 
@@ -189,6 +219,10 @@ class ProjectConfiguration(BaseModel):
     :type jira: Optional[JiraConfiguration]
     :param snyk: Optional Snyk vulnerability synchronization configuration.
     :type snyk: Optional[SnykConfiguration]
+    :param realtime: Realtime gossip configuration.
+    :type realtime: RealtimeConfig
+    :param overlay: Overlay cache configuration.
+    :type overlay: OverlayConfig
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -218,3 +252,5 @@ class ProjectConfiguration(BaseModel):
     beads_compatibility: bool = False
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
+    realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
+    overlay: OverlayConfig = Field(default_factory=OverlayConfig)

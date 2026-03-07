@@ -36,6 +36,7 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     merged_value = apply_overrides(merged_value, overrides);
     handle_legacy_fields(&mut merged_value);
     normalize_virtual_projects(&mut merged_value);
+    apply_environment_overrides(&mut merged_value);
     let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
         .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
 
@@ -503,4 +504,84 @@ fn apply_overrides(mut value: Mapping, overrides: Mapping) -> Mapping {
         value.insert(key, value_override);
     }
     value
+}
+
+fn apply_environment_overrides(mapping: &mut Mapping) {
+    if let Ok(value) = env::var("KANBUS_REALTIME_TRANSPORT") {
+        if !value.trim().is_empty() {
+            set_nested_value(mapping, &["realtime", "transport"], Value::String(value));
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_REALTIME_BROKER") {
+        if !value.trim().is_empty() {
+            set_nested_value(mapping, &["realtime", "broker"], Value::String(value));
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_REALTIME_AUTOSTART") {
+        if let Some(parsed) = parse_env_bool(&value) {
+            set_nested_value(mapping, &["realtime", "autostart"], Value::Bool(parsed));
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_REALTIME_KEEPALIVE") {
+        if let Some(parsed) = parse_env_bool(&value) {
+            set_nested_value(mapping, &["realtime", "keepalive"], Value::Bool(parsed));
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_REALTIME_UDS_SOCKET_PATH") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["realtime", "uds_socket_path"],
+                Value::String(value),
+            );
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_REALTIME_TOPICS_PROJECT_EVENTS") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["realtime", "topics", "project_events"],
+                Value::String(value),
+            );
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_OVERLAY_ENABLED") {
+        if let Some(parsed) = parse_env_bool(&value) {
+            set_nested_value(mapping, &["overlay", "enabled"], Value::Bool(parsed));
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_OVERLAY_TTL_S") {
+        if let Ok(parsed) = value.trim().parse::<u64>() {
+            set_nested_value(
+                mapping,
+                &["overlay", "ttl_s"],
+                Value::Number(serde_yaml::Number::from(parsed)),
+            );
+        }
+    }
+}
+
+fn parse_env_bool(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
+
+fn set_nested_value(mapping: &mut Mapping, path: &[&str], value: Value) {
+    if path.is_empty() {
+        return;
+    }
+    if path.len() == 1 {
+        mapping.insert(Value::String(path[0].to_string()), value);
+        return;
+    }
+    let key = Value::String(path[0].to_string());
+    if !matches!(mapping.get(&key), Some(Value::Mapping(_))) {
+        mapping.insert(key.clone(), Value::Mapping(Mapping::new()));
+    }
+    if let Some(Value::Mapping(child)) = mapping.get_mut(&key) {
+        set_nested_value(child, &path[1..], value);
+    }
 }
