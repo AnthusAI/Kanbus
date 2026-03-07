@@ -18,9 +18,8 @@ import { SearchInput } from "./components/SearchInput";
 import { MetricsPanel } from "./components/MetricsPanel";
 import {
   fetchSnapshot,
-  fetchRealtimeBootstrap,
   subscribeToSnapshots,
-  subscribeToNotifications,
+  subscribeToRealtimeFeed,
   type NotificationEvent,
   type UiControlAction,
 } from "./api/client";
@@ -702,30 +701,13 @@ export default function App() {
     };
   }, [route.basePath]);
 
+  // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
     if (!route.basePath) {
       return;
     }
     const apiBase = `${route.basePath}/api`;
-    fetchRealtimeBootstrap(apiBase)
-      .then((bootstrap) => {
-        console.info("[realtime] bootstrap", {
-          mode: bootstrap.mode,
-          region: bootstrap.region,
-          topic: bootstrap.topic,
-          account: bootstrap.account,
-          project: bootstrap.project,
-        });
-      })
-      .catch((error) => {
-        console.warn("[realtime] bootstrap failed", error);
-      });
-  }, [route.basePath]);
-
-  // Real-time notification subscription
-  useEffect(() => {
-    const apiBase = `${route.basePath}/api`;
-    const unsubscribe = subscribeToNotifications(
+    const unsubscribe = subscribeToRealtimeFeed(
       apiBase,
       (event: NotificationEvent) => {
         switch (event.type) {

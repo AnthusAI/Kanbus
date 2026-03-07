@@ -136,6 +136,7 @@ struct RealtimeBootstrapResponse {
     mode: &'static str,
     region: String,
     iot_endpoint: String,
+    iot_wss_url: String,
     topic: String,
     account: String,
     project: String,
@@ -161,10 +162,12 @@ fn build_realtime_bootstrap(
         .or_else(|_| std::env::var("AWS_DEFAULT_REGION"))
         .map_err(|_| "AWS_REGION is not configured".to_string())?;
     let topic = format!("projects/{account}/{project}/events");
+    let iot_wss_url = format!("wss://{iot_endpoint}/mqtt");
     Ok(RealtimeBootstrapResponse {
         mode: REALTIME_MODE,
         region,
         iot_endpoint,
+        iot_wss_url,
         topic,
         account: account.to_string(),
         project: project.to_string(),
@@ -327,9 +330,15 @@ fn body_from_bytes(bytes: Vec<u8>) -> StreamBodyType {
 mod tests {
     use super::*;
     use std::env;
+    use std::sync::{Mutex, OnceLock};
+
+    fn realtime_env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(())).lock().expect("env lock")
+    }
 
     fn clear_realtime_env() {
-        // SAFETY: tests in this module are single-threaded and control env usage locally.
+        // SAFETY: guarded by module-level mutex in realtime tests.
         unsafe {
             env::remove_var("KANBUS_IOT_DATA_ENDPOINT");
             env::remove_var("AWS_REGION");
@@ -357,8 +366,9 @@ mod tests {
 
     #[test]
     fn realtime_bootstrap_builds_tenant_scoped_topic() {
+        let _guard = realtime_env_guard();
         clear_realtime_env();
-        // SAFETY: tests in this module are single-threaded and control env usage locally.
+        // SAFETY: guarded by module-level mutex in realtime tests.
         unsafe {
             env::set_var("KANBUS_IOT_DATA_ENDPOINT", "a1b2c3-ats.iot.us-east-1.amazonaws.com");
             env::set_var("AWS_REGION", "us-east-1");
@@ -366,6 +376,10 @@ mod tests {
         let payload = build_realtime_bootstrap("acct", "proj").expect("bootstrap payload");
         assert_eq!(payload.mode, REALTIME_MODE);
         assert_eq!(payload.region, "us-east-1");
+        assert_eq!(
+            payload.iot_wss_url,
+            "wss://a1b2c3-ats.iot.us-east-1.amazonaws.com/mqtt"
+        );
         assert_eq!(payload.topic, "projects/acct/proj/events");
         assert_eq!(payload.account, "acct");
         assert_eq!(payload.project, "proj");
@@ -373,12 +387,13 @@ mod tests {
 
     #[test]
     fn realtime_bootstrap_requires_endpoint_and_region() {
+        let _guard = realtime_env_guard();
         clear_realtime_env();
         let missing_endpoint = build_realtime_bootstrap("acct", "proj")
             .expect_err("missing endpoint should return error");
         assert!(missing_endpoint.contains("KANBUS_IOT_DATA_ENDPOINT"));
 
-        // SAFETY: tests in this module are single-threaded and control env usage locally.
+        // SAFETY: guarded by module-level mutex in realtime tests.
         unsafe {
             env::set_var("KANBUS_IOT_DATA_ENDPOINT", "a1b2c3-ats.iot.us-east-1.amazonaws.com");
         }
