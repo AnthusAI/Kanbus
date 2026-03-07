@@ -9,6 +9,8 @@ This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 - Cognito User Pool + Identity Pool foundation
 - API Gateway Cognito authorizer on proxy methods
 - IoT IAM policy scaffolding for tenant-scoped topics via principal tags
+- GitHub webhook ingress Lambda (`/internal/webhooks/github`) + SQS + DLQ
+- Tenant sync worker Lambda (EFS-backed) with IoT publish scaffolding
 - AWS IoT Data endpoint discovery output
 
 ## Prerequisites
@@ -61,6 +63,9 @@ AWS_PROFILE=anthus npx cdk synth \
 - `TenantEfsAccessPointId`
 - `TenantEfsMountPath`
 - `TenantRootTemplate`
+- `SyncQueueUrl`
+- `SyncQueueArn`
+- `SyncDlqArn`
 
 ## Tenant isolation note
 
@@ -70,3 +75,14 @@ The authenticated identity role includes IoT subscribe/receive permissions scope
 
 This is intentional scaffolding for strict tenant isolation. In v1, your identity provider
 mapping flow must set `account` and `project` principal tags for authenticated sessions.
+
+## Webhook sync note
+
+Webhook ingress currently expects:
+
+- `X-GitHub-Event: push`
+- `X-Hub-Signature-256` HMAC header
+- `X-Kanbus-Account` and `X-Kanbus-Project` tenant headers
+
+`GITHUB_WEBHOOK_SECRET` is scaffolded as an environment variable placeholder and
+should be replaced with a managed secret before production deployment.

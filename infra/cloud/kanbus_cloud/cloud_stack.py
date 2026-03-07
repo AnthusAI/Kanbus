@@ -15,6 +15,9 @@ from aws_cdk import (
     aws_efs as efs,
     aws_iam as iam,
     aws_lambda as lambda_,
+    aws_lambda_event_sources as lambda_event_sources,
+    aws_sqs as sqs,
+    aws_cloudwatch as cloudwatch,
     custom_resources as cr,
 )
 
@@ -249,6 +252,93 @@ class KanbusCloudFoundationStack(Stack):
             roles={"authenticated": authenticated_role.role_arn},
         )
 
+        sync_dlq = sqs.Queue(
+            self,
+            "SyncDlq",
+            queue_name=f"kanbus-sync-dlq-{env_name}",
+            retention_period=Duration.days(14),
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
+        )
+
+        sync_queue = sqs.Queue(
+            self,
+            "SyncQueue",
+            queue_name=f"kanbus-sync-{env_name}",
+            visibility_timeout=Duration.minutes(5),
+            retention_period=Duration.days(4),
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
+            dead_letter_queue=sqs.DeadLetterQueue(queue=sync_dlq, max_receive_count=5),
+        )
+
+        webhook_handler = lambda_.Function(
+            self,
+            "GithubWebhookIngress",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="webhook_handler.handler",
+            code=lambda_.Code.from_asset(str(project_root / "infra" / "cloud" / "lambda")),
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment={
+                "SYNC_QUEUE_URL": sync_queue.queue_url,
+                "GITHUB_WEBHOOK_SECRET": "REPLACE_ME_WITH_SECRET",
+            },
+            description="Ingest GitHub push webhooks and enqueue tenant sync jobs",
+        )
+        sync_queue.grant_send_messages(webhook_handler)
+
+        sync_worker = lambda_.Function(
+            self,
+            "TenantSyncWorker",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="sync_worker.handler",
+            code=lambda_.Code.from_asset(str(project_root / "infra" / "cloud" / "lambda")),
+            timeout=Duration.minutes(3),
+            memory_size=1024,
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+            security_groups=[lambda_sg],
+            filesystem=lambda_.FileSystem.from_efs_access_point(tenant_access_point, "/mnt/data"),
+            environment={
+                "KANBUS_TENANT_MOUNT": "/mnt/data",
+            },
+            description="Process tenant sync jobs and publish IoT cloud sync events",
+        )
+        sync_worker.add_event_source(
+            lambda_event_sources.SqsEventSource(sync_queue, batch_size=5)
+        )
+        sync_queue.grant_consume_messages(sync_worker)
+        sync_worker.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["iot:Publish"],
+                resources=[
+                    f"arn:{self.partition}:iot:{self.region}:{self.account}:topic/projects/*/*/events"
+                ],
+            )
+        )
+
+        internal = api.root.add_resource("internal")
+        webhooks = internal.add_resource("webhooks")
+        github = webhooks.add_resource("github")
+        github.add_method(
+            "POST",
+            apigw.LambdaIntegration(webhook_handler, proxy=True),
+            authorization_type=apigw.AuthorizationType.NONE,
+        )
+
+        dlq_alarm = cloudwatch.Alarm(
+            self,
+            "SyncDlqVisibleMessagesAlarm",
+            alarm_name=f"kanbus-sync-dlq-visible-{env_name}",
+            alarm_description="Kanbus tenant sync DLQ has pending messages",
+            metric=sync_dlq.metric_approximate_number_of_messages_visible(
+                period=Duration.minutes(5)
+            ),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+        dlq_alarm.node.add_dependency(sync_dlq)
+
         iot_endpoint = cr.AwsCustomResource(
             self,
             "IotDataEndpoint",
@@ -275,6 +365,9 @@ class KanbusCloudFoundationStack(Stack):
             ),
         )
         iot_endpoint.node.add_dependency(identity_pool_role_attachment)
+        sync_worker.add_environment(
+            "KANBUS_IOT_DATA_ENDPOINT", iot_endpoint.get_response_field("endpointAddress")
+        )
 
         CfnOutput(self, "ApiBaseUrl", value=api.url, description="Regional API base URL")
         CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
@@ -292,6 +385,9 @@ class KanbusCloudFoundationStack(Stack):
             value=iot_endpoint.get_response_field("endpointAddress"),
             description="AWS IoT Core data endpoint",
         )
+        CfnOutput(self, "SyncQueueUrl", value=sync_queue.queue_url)
+        CfnOutput(self, "SyncQueueArn", value=sync_queue.queue_arn)
+        CfnOutput(self, "SyncDlqArn", value=sync_dlq.queue_arn)
         CfnOutput(self, "TenantEfsFileSystemId", value=filesystem.file_system_id)
         CfnOutput(self, "TenantEfsAccessPointId", value=tenant_access_point.access_point_id)
         CfnOutput(self, "TenantEfsMountPath", value="/mnt/data")
