@@ -641,9 +641,9 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       delay: number;
     }) => (
       <motion.g
-        initial={{ x: 250 + laneOffset * 0.35, y: 74, scale: 0.3, opacity: 0 }}
+        initial={{ x: 250 + laneOffset * 0.01, y: 74, scale: 0.3, opacity: 0 }}
         animate={{
-          x: [250 + laneOffset * 0.35, 250 + laneOffset * 0.7, 250 + laneOffset],
+          x: [250 + laneOffset * 0.01, 250 + laneOffset * 0.45, 250 + laneOffset],
           y: [74, 150, 244],
           scale: [0.3, 0.7, 1.25],
           opacity: [0, 1, 0],
