@@ -25,11 +25,11 @@ def _sync_repo(repo_root: Path, repo_url: str, sha: str) -> None:
     if not (repo_root / ".git").exists():
         _run(["git", "clone", "--no-checkout", repo_url, str(repo_root)])
     else:
-        # EFS ownership can differ from container uid; mark tenant repo as trusted.
-        _run(["git", "config", "--global", "--add", "safe.directory", str(repo_root)])
-        _run(["git", "remote", "set-url", "origin", repo_url], cwd=repo_root)
-    _run(["git", "fetch", "--prune", "origin"], cwd=repo_root)
-    _run(["git", "reset", "--hard", sha], cwd=repo_root)
+        pass
+    safe_repo = f"safe.directory={repo_root}"
+    _run(["git", "-c", safe_repo, "remote", "set-url", "origin", repo_url], cwd=repo_root)
+    _run(["git", "-c", safe_repo, "fetch", "--prune", "origin"], cwd=repo_root)
+    _run(["git", "-c", safe_repo, "reset", "--hard", sha], cwd=repo_root)
 
 
 def _publish_sync_event(account: str, project: str, sha: str, ref: str | None) -> None:
