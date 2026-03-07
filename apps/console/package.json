@@ -14,6 +14,10 @@
     "test:ui": "tsx scripts/run_ui_tests.ts"
   },
   "dependencies": {
+    "@aws-crypto/sha256-js": "^5.0.0",
+    "@aws-sdk/protocol-http": "^3.0.0",
+    "@aws-sdk/signature-v4": "^3.0.0",
+    "@aws-sdk/util-format-url": "^3.0.0",
     "@gsap/react": "^2.1.1",
     "@kanbus/ui": "file:../../packages/ui",
     "@radix-ui/colors": "^3.0.0",
