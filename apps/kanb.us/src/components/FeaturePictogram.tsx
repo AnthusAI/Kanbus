@@ -199,7 +199,6 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         <rect x="98" y="14" width="40" height="92" fill="var(--background)" rx="6" />
         <rect x="18" y="24" width="28" height="16" fill="var(--card-muted)" rx="4" />
         <motion.rect
-          x="61"
           y="24"
           width="28"
           height="16"
