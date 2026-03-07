@@ -3,14 +3,10 @@
 
   <scene id="hook" title="Local Tasks" duration="5s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="visual" z="0">
-      <animated-pictogram-video props='{"type": "local"}' />
-    </layer>
-    <layer id="title" z="1">
-      <text-block props='{"text":"Local Tasks","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
-      <text-block props='{"text":"Your Private Scratchpad","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+      <animated-pictogram-video props='{"type": "local", "headline": "Local Tasks", "subhead": "Your Private Scratchpad"}' />
     </layer>
   </scene>
 
@@ -18,7 +14,7 @@
 
   <scene id="deep_dive" title="Local Tasks Deep Dive" duration="28s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="title" z="1">
       <title props='{"text":"Local Tasks","x":960,"y":120}' />

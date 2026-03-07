@@ -3,7 +3,7 @@
 
   <scene id="opening" title="Kanban Overview and Git Synchronization" duration="23s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="content" z="0">
@@ -41,7 +41,7 @@
 
   <scene id="feature-tour" title="Feature Tour" duration="23s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="content" z="0">
@@ -59,7 +59,7 @@
 
   <scene id="cta" title="Get Started" duration="10s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="content" z="0">

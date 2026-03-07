@@ -29,24 +29,24 @@ if (typeof window !== "undefined") {
           --font-mono: "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
           --font-body: var(--font-sans);
 
-          /* Console dark */
-          --background: #0f1115;
-          --card: #14171d;
-          --card-muted: #1e222b;
-          --card-outline: #262c36;
-          --frame: #0f1115;
-          --column: #1a1f28;
-          --text-foreground: #e7e9ee;
-          --text-muted: #9ca3af;
-          --text-selected: #7dd3fc;
-          --border: #262c36;
+          /* Console light */
+          --background: #f9f9f9;
+          --card: #f9f9f9;
+          --card-muted: #e0e0e0;
+          --card-outline: #d9d9d9;
+          --frame: #f9f9f9;
+          --column: #f0f0f0;
+          --text-foreground: #202020;
+          --text-muted: #838383;
+          --text-selected: #00749e;
+          --border: #d9d9d9;
           --shadow-card: none;
 
-          --danger-bg: #451a1d;
-          --danger-text: #fca5a5;
+          --danger-bg: #fef2f2;
+          --danger-text: #991b1b;
 
-          --glow-center: rgba(0, 0, 0, 0.5);
-          --glow-edge: rgba(0, 0, 0, 0);
+          --glow-center: rgba(255, 255, 255, 0.9);
+          --glow-edge: rgba(255, 255, 255, 0);
         }
       `;
       document.head.appendChild(style);

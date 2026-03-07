@@ -3,14 +3,10 @@
 
   <scene id="hook" title="Core Management" duration="5s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="visual" z="0">
-      <animated-pictogram-video props='{"type": "cli"}' />
-    </layer>
-    <layer id="title" z="1">
-      <text-block props='{"text":"Core Management","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
-      <text-block props='{"text":"The speed of the CLI, the structure of Jira","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+      <animated-pictogram-video props='{"type": "cli", "headline": "Core Management", "subhead": "The speed of the CLI, the structure of Jira"}' />
     </layer>
   </scene>
 
@@ -18,7 +14,7 @@
 
   <scene id="deep_dive" title="Core Management Deep Dive" duration="36s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="title" z="1">
       <title props='{"text":"Core Management","x":960,"y":120}' />

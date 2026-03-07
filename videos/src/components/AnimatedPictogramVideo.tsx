@@ -4,6 +4,7 @@ import {
   type FeaturePictogramType,
 } from "../../../apps/kanb.us/src/components/FeaturePictogram";
 import { AnimatedPictogram } from "../../../apps/kanb.us/src/components/AnimatedPictogram";
+import { VideoFeatureFrame } from "./VideoFeatureFrame";
 
 export type PictogramType =
   | "git"
@@ -40,17 +41,21 @@ export function AnimatedPictogramVideo({
   scale = 1,
   innerPadding = 0,
   allowOverflow = false,
+  headline,
+  subhead,
 }: {
   type?: PictogramType;
   style?: React.CSSProperties;
   scale?: number;
   innerPadding?: number;
   allowOverflow?: boolean;
+  headline?: string;
+  subhead?: string;
 }) {
   const homeType = HOME_TYPE_MAP[type] || HOME_TYPE_MAP.git;
   const isGitSyncHome = type === "git-sync-home";
 
-  return (
+  const pictogram = (
     <div
       style={{
         display: "flex",
@@ -63,7 +68,7 @@ export function AnimatedPictogramVideo({
         background: "transparent",
         ...(style || { width: "100%", height: "100%" }),
       }}
-      >
+    >
       {isGitSyncHome ? (
         <div
           style={{
@@ -105,4 +110,16 @@ export function AnimatedPictogramVideo({
       )}
     </div>
   );
+
+  if (headline && subhead) {
+    return (
+      <VideoFeatureFrame
+        headline={headline}
+        subhead={subhead}
+        rightPanel={pictogram}
+      />
+    );
+  }
+
+  return pictogram;
 }
