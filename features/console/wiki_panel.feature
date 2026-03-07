@@ -1,3 +1,4 @@
+@console
 Feature: Console wiki workspace
   As a Kanbus console user
   I want a wiki workspace alongside board and metrics
@@ -161,7 +162,7 @@ Feature: Console wiki workspace
       {{ 1 / 0 }}
       """
     And I render the wiki page
-    Then the wiki error banner should contain "render request failed"
+    Then the wiki error banner should contain "division by zero"
     And the wiki preview should contain "Baseline content"
 
   @wiki-ui-011
