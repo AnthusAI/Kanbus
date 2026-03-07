@@ -25,10 +25,16 @@ export type RealtimeBootstrap = {
   mode: string;
   region: string;
   iot_endpoint: string;
+  iot_wss_url?: string;
   topic: string;
   account: string;
   project: string;
+  client_id?: string;
+  username?: string;
+  password?: string;
 };
+
+type MqttModule = typeof import("mqtt");
 
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
   const startedAt = Date.now();
@@ -180,6 +186,124 @@ export function subscribeToNotifications(
   return () => {
     console.info("[notifications] disconnect");
     source.close();
+  };
+}
+
+export function subscribeToRealtimeFeed(
+  apiBase: string,
+  onNotification: (event: NotificationEvent) => void,
+  onError?: (error: Event) => void
+): () => void {
+  let disposed = false;
+  let mqttCleanup: (() => void) | null = null;
+  let sseCleanup: (() => void) | null = null;
+
+  const startSseFallback = (reason: string) => {
+    if (disposed || sseCleanup) {
+      return;
+    }
+    console.warn("[realtime] using SSE fallback", { reason });
+    sseCleanup = subscribeToNotifications(apiBase, onNotification, onError);
+  };
+
+  const startMqtt = async (bootstrap: RealtimeBootstrap) => {
+    if (disposed) {
+      return;
+    }
+    const url = bootstrap.iot_wss_url ?? `wss://${bootstrap.iot_endpoint}/mqtt`;
+    try {
+      const mqtt = (await import("mqtt")) as MqttModule;
+      const client = mqtt.connect(url, {
+        clientId: bootstrap.client_id,
+        username: bootstrap.username,
+        password: bootstrap.password,
+        clean: true,
+        reconnectPeriod: 2000,
+        connectTimeout: 10_000,
+      });
+
+      client.on("connect", () => {
+        if (disposed) {
+          client.end(true);
+          return;
+        }
+        client.subscribe(bootstrap.topic, { qos: 0 }, (err) => {
+          if (err) {
+            console.warn("[realtime] mqtt subscribe failed", err);
+            onError?.(new Event("mqtt-subscribe-error"));
+            client.end(true);
+            startSseFallback("mqtt-subscribe-error");
+            return;
+          }
+          console.info("[realtime] mqtt subscribed", {
+            topic: bootstrap.topic,
+            endpoint: bootstrap.iot_endpoint,
+            region: bootstrap.region,
+          });
+        });
+      });
+
+      client.on("message", (_topic, payload) => {
+        try {
+          const event = JSON.parse(payload.toString("utf-8")) as NotificationEvent;
+          onNotification(event);
+        } catch (error) {
+          console.warn("[realtime] mqtt payload parse failed", error);
+          onError?.(new Event("mqtt-parse-error"));
+        }
+      });
+
+      client.on("error", (error) => {
+        console.warn("[realtime] mqtt error", error);
+        onError?.(new Event("mqtt-error"));
+        client.end(true);
+        startSseFallback("mqtt-error");
+      });
+
+      client.on("close", () => {
+        if (!disposed && !sseCleanup) {
+          startSseFallback("mqtt-closed");
+        }
+      });
+
+      mqttCleanup = () => {
+        client.end(true);
+      };
+    } catch (error) {
+      console.warn("[realtime] mqtt transport unavailable", error);
+      onError?.(new Event("mqtt-transport-unavailable"));
+      startSseFallback("mqtt-transport-unavailable");
+    }
+  };
+
+  fetchRealtimeBootstrap(apiBase)
+    .then((bootstrap) => {
+      if (disposed) {
+        return;
+      }
+      console.info("[realtime] bootstrap", {
+        mode: bootstrap.mode,
+        region: bootstrap.region,
+        topic: bootstrap.topic,
+        account: bootstrap.account,
+        project: bootstrap.project,
+      });
+      if (bootstrap.mode === "mqtt_iot") {
+        void startMqtt(bootstrap);
+        return;
+      }
+      startSseFallback(`unsupported-mode-${bootstrap.mode}`);
+    })
+    .catch((error) => {
+      console.warn("[realtime] bootstrap failed", error);
+      onError?.(new Event("bootstrap-error"));
+      startSseFallback("bootstrap-error");
+    });
+
+  return () => {
+    disposed = true;
+    mqttCleanup?.();
+    sseCleanup?.();
   };
 }
 

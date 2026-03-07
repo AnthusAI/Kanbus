@@ -22,6 +22,7 @@ Returns JSON:
 - `mode`: realtime mode (`mqtt_iot`)
 - `region`: AWS region used for IoT WebSocket signing
 - `iot_endpoint`: AWS IoT data endpoint hostname
+- `iot_wss_url`: MQTT-over-WSS URL derived from endpoint (`wss://<endpoint>/mqtt`)
 - `topic`: tenant topic (`projects/{account}/{project}/events`)
 - `account`: resolved account segment from route
 - `project`: resolved project segment from route
@@ -49,12 +50,12 @@ Current fallback stream behavior:
 
 ## Client Reconnect Guidance
 
-For cloud clients using SSE fallback:
+For cloud clients:
 
+- Attempt MQTT-over-WSS first using `/api/realtime/bootstrap`.
+- If MQTT connect/subscribe fails, fall back to `/api/events/realtime` SSE.
 - Treat SSE as bounded and reconnect-safe.
 - On `error`, allow browser/EventSource reconnect behavior to re-establish stream.
-- Use `/api/realtime/bootstrap` + MQTT-over-WSS as primary realtime path.
-- Keep SSE fallback enabled for compatibility and degraded-mode operation.
 
 ## Verification
 

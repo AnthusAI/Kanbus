@@ -352,6 +352,64 @@ class KanbusCloudFoundationStack(Stack):
         )
         dlq_alarm.node.add_dependency(sync_dlq)
 
+        sync_queue_age_alarm = cloudwatch.Alarm(
+            self,
+            "SyncQueueOldestMessageAgeAlarm",
+            alarm_name=f"kanbus-sync-queue-age-{env_name}",
+            alarm_description="Kanbus sync queue oldest message age is elevated",
+            metric=sync_queue.metric_approximate_age_of_oldest_message(
+                period=Duration.minutes(5)
+            ),
+            threshold=300,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+        sync_queue_age_alarm.node.add_dependency(sync_queue)
+
+        console_lambda_errors_alarm = cloudwatch.Alarm(
+            self,
+            "ConsoleLambdaErrorsAlarm",
+            alarm_name=f"kanbus-console-lambda-errors-{env_name}",
+            alarm_description="Kanbus console lambda is reporting errors",
+            metric=console_lambda.metric_errors(period=Duration.minutes(5)),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
+        webhook_lambda_errors_alarm = cloudwatch.Alarm(
+            self,
+            "WebhookLambdaErrorsAlarm",
+            alarm_name=f"kanbus-webhook-lambda-errors-{env_name}",
+            alarm_description="Kanbus webhook ingress lambda is reporting errors",
+            metric=webhook_handler.metric_errors(period=Duration.minutes(5)),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
+        sync_worker_errors_alarm = cloudwatch.Alarm(
+            self,
+            "SyncWorkerLambdaErrorsAlarm",
+            alarm_name=f"kanbus-sync-worker-errors-{env_name}",
+            alarm_description="Kanbus tenant sync worker lambda is reporting errors",
+            metric=sync_worker.metric_errors(period=Duration.minutes(5)),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
+        api_client_errors_alarm = cloudwatch.Alarm(
+            self,
+            "ApiGateway4xxAlarm",
+            alarm_name=f"kanbus-console-api-4xx-{env_name}",
+            alarm_description="Kanbus console API is returning elevated 4XX responses",
+            metric=api.metric_client_error(period=Duration.minutes(5)),
+            threshold=20,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
         iot_endpoint = cr.AwsCustomResource(
             self,
             "IotDataEndpoint",
