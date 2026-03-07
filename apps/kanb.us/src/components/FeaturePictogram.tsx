@@ -402,19 +402,21 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         <path d="M 340 215 L 330 220 L 338 210" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         
         {/* Animated incoming cards */}
-        <motion.g
-          animate={{ x: [140, 170], y: [100, 220], opacity: [0, 1, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-        >
-          <rect width="30" height="12" fill="var(--accent-blue)" rx="2" transform="translate(-15, -6)" />
-        </motion.g>
+        <g opacity="0">
+          <animate attributeName="opacity" values="0; 1; 0" dur="2s" repeatCount="indefinite" />
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="140 100; 170 220" dur="2s" repeatCount="indefinite" />
+            <rect width="30" height="12" fill="var(--accent-blue)" rx="2" transform="translate(-15, -6)" />
+          </g>
+        </g>
 
-        <motion.g
-          animate={{ x: [360, 330], y: [100, 220], opacity: [0, 1, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear", delay: 1 }}
-        >
-          <rect width="30" height="12" fill="var(--accent-blue)" rx="2" transform="translate(-15, -6)" />
-        </motion.g>
+        <g opacity="0">
+          <animate attributeName="opacity" values="0; 1; 0" dur="2s" begin="1s" repeatCount="indefinite" />
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="360 100; 330 220" dur="2s" begin="1s" repeatCount="indefinite" />
+            <rect width="30" height="12" fill="var(--accent-blue)" rx="2" transform="translate(-15, -6)" />
+          </g>
+        </g>
       </g>
     );
   };
