@@ -706,10 +706,10 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
 
   const renderAgileMetrics = () => (
     <g transform="scale(1) translate(0, 0)">
-      <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
-      <rect x="24" y="20" width="148" height="120" fill="var(--card)" rx="10" />
-      <rect x="188" y="20" width="288" height="120" fill="var(--card)" rx="10" />
-      <rect x="24" y="156" width="452" height="124" fill="var(--card)" rx="10" />
+      <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" opacity="0.6" />
+      <rect x="24" y="20" width="148" height="120" fill="var(--card)" rx="10" opacity="0.6" />
+      <rect x="188" y="20" width="288" height="120" fill="var(--card)" rx="10" opacity="0.6" />
+      <rect x="24" y="156" width="452" height="124" fill="var(--card)" rx="10" opacity="0.6" />
 
       <text x="40" y="48" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">TOTAL ISSUES</text>
       <text x="40" y="96" fill="var(--text-foreground)" fontSize="34" fontWeight="700" fontFamily="monospace">124</text>
