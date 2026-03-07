@@ -649,9 +649,9 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         <g opacity="0">
           <animate attributeName="opacity" values="0; 1; 0" dur={dur} begin={begin} repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1" />
           <g>
-            <animateTransform attributeName="transform" type="translate" values={`${x0} 74; ${x1} 150; ${x2} 244`} dur={dur} begin={begin} repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1" />
+            <animateTransform attributeName="transform" type="translate" values={`${x0} 74; ${x1} 150; ${x2} 244`} dur={dur} begin={begin} repeatCount="indefinite" />
             <g>
-              <animateTransform attributeName="transform" type="scale" values="0.3; 0.7; 1.25" dur={dur} begin={begin} repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1" />
+              <animateTransform attributeName="transform" type="scale" values="0.3; 0.7; 1.25" dur={dur} begin={begin} repeatCount="indefinite" />
               <rect x="-2" y="20" width="4" height="18" fill="var(--text-muted)" opacity={0.75} />
               <SignFace symbol={symbol} />
             </g>
