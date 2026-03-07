@@ -123,7 +123,7 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
     }
 }
 
-fn normalize_segments<'a>(segments: Vec<&'a str>) -> Vec<&'a str> {
+fn normalize_segments(segments: Vec<&str>) -> Vec<&str> {
     if let Ok(stage) = std::env::var("KANBUS_API_STAGE") {
         if segments.first().copied() == Some(stage.as_str()) {
             return segments[1..].to_vec();
@@ -234,6 +234,7 @@ fn decode_jwt_claims(token: &str) -> Option<serde_json::Value> {
     serde_json::from_slice(&bytes).ok()
 }
 
+#[allow(clippy::result_large_err)]
 fn enforce_tenant_claims(
     request: &Request,
     account: &str,
