@@ -17,8 +17,14 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
     href: "/features/kanban-board"
   },
   {
+    title: "Git-Native Storage",
+    description: "Your issues are plain JSON files in your repo. No database, no proprietary index--just transparent files you can read, diff, and version like any other code.",
+    href: "/features/git-native-storage",
+    eyebrow: "New"
+  },
+  {
     title: "Realtime Collaboration",
-    description: "Distributed realtime updates for agents and humans via gossip + a disposable overlay cache, while Git stays SSOT.",
+    description: "Instant updates across agents and humans. Lightweight pub/sub messaging keeps everyone in sync without waiting for a pull.",
     href: "/features/realtime-collaboration",
     eyebrow: "New"
   },

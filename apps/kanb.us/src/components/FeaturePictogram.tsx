@@ -12,7 +12,8 @@ export type FeaturePictogramType =
   | "vscode-plugin" 
   | "integrated-wiki" 
   | "policy-as-code"
-  | "agile-metrics";
+  | "agile-metrics"
+  | "git-native-storage";
 
 export function FeaturePictogram({ type, style, className }: { type: string, style?: React.CSSProperties, className?: string }) {
   const prefersReducedMotion = useReducedMotion();
@@ -737,6 +738,81 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
     </g>
   );
 
+  const renderGitNativeStorage = () => (
+    <g transform="scale(1) translate(0, 0)">
+      <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
+
+      {/* Git branch line */}
+      <line x1="80" y1="40" x2="80" y2="270" stroke="var(--accent-blue)" strokeWidth="3" />
+
+      {/* Commits on the branch */}
+      <circle cx="80" cy="70" r="8" fill="var(--accent-blue)" />
+      <circle cx="80" cy="130" r="8" fill="var(--accent-blue)" />
+      <circle cx="80" cy="190" r="8" fill="var(--accent-blue)" />
+      <motion.circle
+        cx={80}
+        cy={250}
+        r={8}
+        fill="var(--accent-blue)"
+        animate={{ opacity: [0, 0, 1, 1, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.4, 0.9, 1] }}
+      />
+
+      {/* File tree from commits */}
+      <g transform="translate(120, 50)">
+        <text x="0" y="14" fill="var(--text-muted)" fontSize="13" fontFamily="monospace">project/</text>
+        <line x1="8" y1="22" x2="8" y2="84" stroke="var(--border)" strokeWidth="1" />
+
+        <line x1="8" y1="38" x2="20" y2="38" stroke="var(--border)" strokeWidth="1" />
+        <text x="24" y="42" fill="var(--text-muted)" fontSize="13" fontFamily="monospace">issues/</text>
+        <line x1="32" y1="50" x2="32" y2="84" stroke="var(--border)" strokeWidth="1" />
+
+        <line x1="32" y1="62" x2="44" y2="62" stroke="var(--border)" strokeWidth="1" />
+        <text x="48" y="66" fill="var(--text-foreground)" fontSize="13" fontFamily="monospace">tsk-1.json</text>
+
+        <line x1="32" y1="84" x2="44" y2="84" stroke="var(--border)" strokeWidth="1" />
+        <text x="48" y="88" fill="var(--text-foreground)" fontSize="13" fontFamily="monospace">tsk-2.json</text>
+      </g>
+
+      {/* Animated new file appearing */}
+      <motion.g
+        transform="translate(120, 50)"
+        animate={{ opacity: [0, 0, 1, 1, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.4, 0.9, 1] }}
+      >
+        <line x1="32" y1="84" x2="32" y2="106" stroke="var(--border)" strokeWidth="1" />
+        <line x1="32" y1="106" x2="44" y2="106" stroke="var(--border)" strokeWidth="1" />
+        <text x="48" y="110" fill="var(--accent-blue)" fontSize="13" fontFamily="monospace">tsk-3.json</text>
+      </motion.g>
+
+      {/* JSON preview card */}
+      <g transform="translate(290, 40)">
+        <rect width="180" height="130" fill="var(--background)" rx="8" stroke="var(--border)" strokeWidth="1" />
+        <text x="14" y="24" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">{'{'}</text>
+        <text x="26" y="42" fill="var(--accent-blue)" fontSize="11" fontFamily="monospace">"id"</text>
+        <text x="54" y="42" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">:</text>
+        <text x="62" y="42" fill="var(--text-foreground)" fontSize="11" fontFamily="monospace">"tsk-1",</text>
+        <text x="26" y="60" fill="var(--accent-blue)" fontSize="11" fontFamily="monospace">"title"</text>
+        <text x="72" y="60" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">:</text>
+        <text x="80" y="60" fill="var(--text-foreground)" fontSize="11" fontFamily="monospace">"Update docs",</text>
+        <text x="26" y="78" fill="var(--accent-blue)" fontSize="11" fontFamily="monospace">"status"</text>
+        <text x="80" y="78" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">:</text>
+        <text x="88" y="78" fill="var(--text-foreground)" fontSize="11" fontFamily="monospace">"open",</text>
+        <text x="26" y="96" fill="var(--accent-blue)" fontSize="11" fontFamily="monospace">"type"</text>
+        <text x="62" y="96" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">:</text>
+        <text x="70" y="96" fill="var(--text-foreground)" fontSize="11" fontFamily="monospace">"task"</text>
+        <text x="14" y="114" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">{'}'}</text>
+      </g>
+
+      {/* "No database" crossed-out icon */}
+      <g transform="translate(310, 200)">
+        <rect width="140" height="60" fill="var(--card)" rx="8" />
+        <text x="70" y="24" textAnchor="middle" fill="var(--text-muted)" fontSize="12" fontFamily="monospace">No database.</text>
+        <text x="70" y="44" textAnchor="middle" fill="var(--text-muted)" fontSize="12" fontFamily="monospace">Just files in Git.</text>
+      </g>
+    </g>
+  );
+
   const renders: Record<string, () => React.ReactNode> = {
     "core-management": renderCli,
     "kanban-board": renderKanbanBoard,
@@ -749,6 +825,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
     "integrated-wiki": renderIntegratedWiki,
     "policy-as-code": renderPolicyAsCode,
     "agile-metrics": renderAgileMetrics,
+    "git-native-storage": renderGitNativeStorage,
   };
 
   const renderContent = renders[type] || renderCli;
@@ -762,7 +839,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
           background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
         }}
       />
-      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" || type === "agile-metrics" ? "none" : "xMidYMid meet"}>
+      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" || type === "agile-metrics" || type === "git-native-storage" ? "none" : "xMidYMid meet"}>
         <defs>
           <radialGradient id="feature-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
             <stop offset="0%" stopColor="var(--glow-center)" />
@@ -771,7 +848,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         </defs>
         
         {/* Ambient background glow / shadow */}
-        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && type !== "agile-metrics" && (
+        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && type !== "agile-metrics" && type !== "git-native-storage" && (
           <ellipse cx="250" cy="150" rx="200" ry="140" fill="url(#feature-glow)" />
         )}
         

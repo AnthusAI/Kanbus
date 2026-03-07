@@ -51,7 +51,7 @@ const FeaturesPage = () => {
           <div className="grid gap-6 md:grid-cols-2">
             <FeatureCard
               title="Realtime Collaboration"
-              description="Distributed realtime updates via gossip + a disposable overlay cache, while Git remains SSOT."
+              description="Instant updates across agents and humans. Lightweight pub/sub messaging keeps everyone in sync without waiting for a pull."
               href="/features/realtime-collaboration"
             />
           </div>

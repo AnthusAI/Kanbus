@@ -45,7 +45,7 @@ const DocsIndexPage = ({ location }: PageProps) => {
             </li>
             <li>
               <strong>Realtime Collaboration:</strong> Learn how gossip notifications and the overlay cache enable distributed realtime updates
-              while Git remains SSOT.{" "}
+              while your repository files stay the source of truth.{" "}
               <Link to="/docs/features/realtime-collaboration" className="text-selected font-semibold hover:underline">
                 Read the summary
               </Link>
