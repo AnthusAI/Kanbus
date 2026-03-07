@@ -16,6 +16,7 @@ import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
 import { MetricsPanel } from "./components/MetricsPanel";
+import { WikiPanel } from "./components/WikiPanel";
 import {
   fetchSnapshot,
   subscribeToSnapshots,
@@ -29,7 +30,7 @@ import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
 
 type ViewMode = "initiatives" | "epics" | "issues";
-type PanelMode = "board" | "metrics";
+type PanelMode = "board" | "metrics" | "wiki";
 type NavAction = "push" | "pop" | "none";
 type RouteContext = {
   account: string | null;
@@ -109,8 +110,8 @@ function loadStoredPanelMode(): PanelMode {
     return "board";
   }
   const stored = window.localStorage.getItem(PANEL_MODE_STORAGE_KEY);
-  if (stored === "metrics") {
-    return "metrics";
+  if (stored === "metrics" || stored === "board" || stored === "wiki") {
+    return stored as PanelMode;
   }
   return "board";
 }
@@ -547,6 +548,7 @@ export default function App() {
   const [panelMode, setPanelMode] = useState<PanelMode>(() =>
     loadStoredPanelMode()
   );
+  const [wikiDirty, setWikiDirty] = useState(false);
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1276,12 +1278,15 @@ export default function App() {
   };
 
   const handlePanelModeChange = (value: string) => {
-    refreshSnapshot();
-    if (value === "metrics") {
-      setPanelMode("metrics");
-      return;
+    const nextMode = value as PanelMode;
+    if (panelMode === "wiki" && wikiDirty && nextMode !== "wiki") {
+      const proceed = window.confirm("You have unsaved wiki changes. Leave without saving?");
+      if (!proceed) {
+        return;
+      }
     }
-    setPanelMode("board");
+    refreshSnapshot();
+    setPanelMode(nextMode);
   };
 
   const handleTaskClose = () => {
@@ -1460,6 +1465,7 @@ export default function App() {
     });
     return [
       buildOption("board", "Board", LayoutGrid),
+      buildOption("wiki", "Wiki", Layers),
       buildOption("metrics", "Metrics", BarChart3)
     ];
   }, [panelMode]);
@@ -1686,6 +1692,16 @@ export default function App() {
       ? "transition-opacity duration-150"
       : "transition-opacity duration-300";
 
+  const viewTrackTransform = useMemo(() => {
+    if (panelMode === "wiki") {
+      return "translateX(-33.3333%)";
+    }
+    if (panelMode === "metrics") {
+      return "translateX(-66.6667%)";
+    }
+    return "translateX(0)";
+  }, [panelMode]);
+
   const transitionKey = `${resolvedViewMode ?? "none"}-${snapshot?.updated_at ?? ""}`;
   const showLoadingIndicator =
     loading || !snapshot;
@@ -1867,11 +1883,10 @@ export default function App() {
               sidebarPhase === "open" || sidebarPhase === "opening" ? " layout-main-pushed" : ""
             }`}
           >
-            <div
-              className={`view-track${sidebarReady ? " view-track-animate" : ""}${
-                panelMode === "metrics" ? " view-track-metrics" : ""
-              }`}
-            >
+          <div
+            className={`view-track${sidebarReady ? " view-track-animate" : ""}`}
+            style={{ transform: viewTrackTransform }}
+          >
               <div
                 className={`view-panel ${
                   panelMode === "board" ? "view-panel-active" : "view-panel-inactive"
@@ -2005,6 +2020,23 @@ export default function App() {
                   focusedCommentId={focusedCommentId}
                   onNavigateToDescendant={handleSelectIssue}
                 />
+              </div>
+              <div
+                className={`view-panel ${
+                  panelMode === "wiki" ? "view-panel-active" : "view-panel-inactive"
+                }`}
+                data-testid="wiki-view"
+                aria-hidden={panelMode !== "wiki"}
+              >
+                <div className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3">
+                  {apiBase ? (
+                    <WikiPanel
+                      apiBase={apiBase}
+                      isActive={panelMode === "wiki"}
+                      onDirtyChange={setWikiDirty}
+                    />
+                  ) : null}
+                </div>
               </div>
               <div
                 className={`view-panel ${

@@ -1,4 +1,17 @@
 import type { IssuesSnapshot, Issue, IssueEventsResponse } from "../types/issues";
+import type {
+  WikiCreateRequest,
+  WikiCreateResponse,
+  WikiDeleteResponse,
+  WikiPageResponse,
+  WikiPagesResponse,
+  WikiRenameRequest,
+  WikiRenameResponse,
+  WikiRenderRequest,
+  WikiRenderResponse,
+  WikiUpdateRequest,
+  WikiUpdateResponse
+} from "../types/wiki";
 
 export type UiControlAction =
   | { action: "clear_focus" }
@@ -195,4 +208,93 @@ export async function fetchIssueEvents(
     throw new Error(`issue events request failed: ${response.status}`);
   }
   return (await response.json()) as IssueEventsResponse;
+}
+
+export async function fetchWikiPages(apiBase: string): Promise<WikiPagesResponse> {
+  const response = await fetch(`${apiBase}/wiki/pages`);
+  if (!response.ok) {
+    throw new Error(`wiki pages request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiPagesResponse;
+}
+
+export async function fetchWikiPage(apiBase: string, path: string): Promise<WikiPageResponse> {
+  const url = `${apiBase}/wiki/page?path=${encodeURIComponent(path)}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`wiki page request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiPageResponse;
+}
+
+export async function createWikiPage(
+  apiBase: string,
+  payload: WikiCreateRequest
+): Promise<WikiCreateResponse> {
+  const response = await fetch(`${apiBase}/wiki/page`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(`wiki create request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiCreateResponse;
+}
+
+export async function updateWikiPage(
+  apiBase: string,
+  payload: WikiUpdateRequest
+): Promise<WikiUpdateResponse> {
+  const response = await fetch(`${apiBase}/wiki/page`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(`wiki update request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiUpdateResponse;
+}
+
+export async function renameWikiPage(
+  apiBase: string,
+  payload: WikiRenameRequest
+): Promise<WikiRenameResponse> {
+  const response = await fetch(`${apiBase}/wiki/rename`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(`wiki rename request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiRenameResponse;
+}
+
+export async function deleteWikiPage(
+  apiBase: string,
+  path: string
+): Promise<WikiDeleteResponse> {
+  const url = `${apiBase}/wiki/page?path=${encodeURIComponent(path)}`;
+  const response = await fetch(url, { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error(`wiki delete request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiDeleteResponse;
+}
+
+export async function renderWikiPage(
+  apiBase: string,
+  payload: WikiRenderRequest
+): Promise<WikiRenderResponse> {
+  const response = await fetch(`${apiBase}/wiki/render`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(`wiki render request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiRenderResponse;
 }

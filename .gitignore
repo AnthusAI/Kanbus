@@ -14,6 +14,7 @@ rust/target/
 # Taskulus
 project/.cache/
 project/events/
+project/.overlay/
 tools/tmp/
 tools/tmp/*
 tmp/
