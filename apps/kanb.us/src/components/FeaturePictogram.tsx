@@ -279,14 +279,12 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         <animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite" />
       </path>
 
-      <motion.g
-        animate={{ x: [200, 300], y: [200, 100] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-      >
+      <g>
+        <animateTransform attributeName="transform" type="translate" values="200 200; 300 100" dur="3s" repeatCount="indefinite" />
         <g transform="scale(1, 0.5) rotate(45)">
           <rect width="44" height="20" fill="var(--accent-blue)" rx="2" />
         </g>
-      </motion.g>
+      </g>
     </g>
   );
 
