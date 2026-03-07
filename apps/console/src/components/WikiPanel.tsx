@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   createWikiPage,
   deleteWikiPage,
@@ -29,7 +29,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange }: WikiPanelProps) 
   const [isSaving, setIsSaving] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [autoRenderTimer, setAutoRenderTimer] = useState<number | null>(null);
+  const autoRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDirty = useMemo(() => draftContent !== savedContent, [draftContent, savedContent]);
 
@@ -48,15 +48,20 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange }: WikiPanelProps) 
     if (!wikiShouldAutoRender()) {
       return;
     }
-    if (autoRenderTimer) {
-      window.clearTimeout(autoRenderTimer);
+    if (autoRenderTimerRef.current) {
+      window.clearTimeout(autoRenderTimerRef.current);
+      autoRenderTimerRef.current = null;
     }
     const timer = window.setTimeout(() => {
+      autoRenderTimerRef.current = null;
       void handleRender();
     }, 800);
-    setAutoRenderTimer(timer);
+    autoRenderTimerRef.current = timer;
     return () => {
       window.clearTimeout(timer);
+      if (autoRenderTimerRef.current === timer) {
+        autoRenderTimerRef.current = null;
+      }
     };
   }, [draftContent, selectedPath, isActive]);
 
@@ -65,7 +70,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange }: WikiPanelProps) 
       return;
     }
     void handleRender();
-  }, [selectedPath, isActive]);
+  }, [selectedPath, isActive, isDirty]);
 
   useEffect(() => {
     if (!isActive || !isDirty) {
