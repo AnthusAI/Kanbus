@@ -23,6 +23,7 @@ from kanbus.project import (
 )
 from kanbus.migration import MigrationError, load_beads_issues
 from kanbus.users import get_current_user
+from kanbus.gossip import publish_issue_mutation
 
 ALLOWED_DEPENDENCY_TYPES = {"blocked-by", "relates-to"}
 
@@ -97,6 +98,14 @@ def add_dependency(
     except Exception as error:  # noqa: BLE001
         write_issue_to_file(source_lookup.issue, source_lookup.issue_path)
         raise DependencyError(str(error)) from error
+    if source_lookup.issue_path.parent == source_lookup.project_dir / "issues":
+        publish_issue_mutation(
+            root,
+            source_lookup.project_dir,
+            updated_issue,
+            event.event_id,
+            "issue.mutated",
+        )
     return updated_issue
 
 
@@ -153,6 +162,14 @@ def remove_dependency(
     except Exception as error:  # noqa: BLE001
         write_issue_to_file(source_lookup.issue, source_lookup.issue_path)
         raise DependencyError(str(error)) from error
+    if source_lookup.issue_path.parent == source_lookup.project_dir / "issues":
+        publish_issue_mutation(
+            root,
+            source_lookup.project_dir,
+            updated_issue,
+            event.event_id,
+            "issue.mutated",
+        )
     return updated_issue
 
 

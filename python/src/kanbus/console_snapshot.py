@@ -10,6 +10,7 @@ from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.issue_files import read_issue_from_file
 from kanbus.migration import MigrationError, load_beads_issues
 from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.overlay import apply_overlay_to_issues
 from kanbus.project import (
     ProjectMarkerError,
     find_project_local_directory,
@@ -97,8 +98,17 @@ def _load_console_issues(
             except Exception as error:
                 raise ConsoleSnapshotError("issue file is invalid") from error
 
-    issues.sort(key=lambda issue: issue.identifier)
-    return issues
+    shared = [issue for issue in issues if issue.custom.get("source") == "shared"]
+    local = [issue for issue in issues if issue.custom.get("source") == "local"]
+    shared = apply_overlay_to_issues(
+        project_dir,
+        shared,
+        configuration.overlay,
+        project_label=configuration.project_key,
+    )
+    merged = [*shared, *local]
+    merged.sort(key=lambda issue: issue.identifier)
+    return merged
 
 
 def _load_issues_with_virtual_projects(
@@ -116,10 +126,17 @@ def _load_issues_with_virtual_projects(
         if issues_dir.is_dir():
             try:
                 shared = _read_issues_from_dir(issues_dir)
-                for issue in shared:
-                    all_issues.append(
-                        _tag_issue(issue, project_label=project.label, source="shared")
-                    )
+                tagged_shared = [
+                    _tag_issue(issue, project_label=project.label, source="shared")
+                    for issue in shared
+                ]
+                tagged_shared = apply_overlay_to_issues(
+                    project.project_dir,
+                    tagged_shared,
+                    configuration.overlay,
+                    project_label=project.label,
+                )
+                all_issues.extend(tagged_shared)
             except PermissionError as error:
                 raise ConsoleSnapshotError(str(error)) from error
             except Exception as error:

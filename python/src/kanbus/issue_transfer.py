@@ -19,6 +19,7 @@ from kanbus.event_history import (
     transfer_payload,
     write_events_batch,
 )
+from kanbus.gossip import publish_issue_deleted, publish_issue_mutation
 from kanbus.users import get_current_user
 
 
@@ -72,6 +73,13 @@ def promote_issue(root: Path, identifier: str) -> IssueData:
     except Exception as error:  # noqa: BLE001
         target_path.replace(local_issue_path)
         raise IssueTransferError(str(error)) from error
+    publish_issue_mutation(
+        root,
+        project_dir,
+        issue,
+        event.event_id,
+        "issue.mutated",
+    )
     return issue
 
 
@@ -118,4 +126,10 @@ def localize_issue(root: Path, identifier: str) -> IssueData:
     except Exception as error:  # noqa: BLE001
         target_path.replace(shared_issue_path)
         raise IssueTransferError(str(error)) from error
+    publish_issue_deleted(
+        root,
+        project_dir,
+        issue.identifier,
+        event.event_id,
+    )
     return issue

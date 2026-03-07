@@ -242,3 +242,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+
+    #[test]
+    fn create_issue_adds_blocked_dependency_for_zero_suffix() {
+        let now = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        let blocked = create_issue("kanbus-000010", now);
+        let clear = create_issue("kanbus-000011", now);
+
+        assert_eq!(blocked.dependencies.len(), 1);
+        assert_eq!(blocked.dependencies[0].dependency_type, "blocked-by");
+        assert!(clear.dependencies.is_empty());
+    }
+
+    #[test]
+    fn create_index_starts_empty() {
+        let index = create_index();
+        assert!(index.by_id.is_empty());
+        assert!(index.by_status.is_empty());
+        assert!(index.by_type.is_empty());
+        assert!(index.by_parent.is_empty());
+        assert!(index.by_label.is_empty());
+        assert!(index.reverse_dependencies.is_empty());
+    }
+}

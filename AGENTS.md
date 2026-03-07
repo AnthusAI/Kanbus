@@ -168,18 +168,41 @@ except FileNotFoundError as error:
     ) from error
 ```
 
-## Rust coverage (repeatable command)
+## Coverage Ratchet (Policy)
 
-Use this command to get the library/test coverage figure (excludes binaries and test harness targets) that matches our usual badge number:
+Coverage is enforced with a frozen ratchet baseline in:
+
+- `config/coverage-baselines.json`
+  - `python_line_coverage: 80.5`
+  - `rust_line_coverage: 65.0`
+  - `max_gap_points: 15.5`
+
+Run the ratchet gate locally:
 
 ```bash
-PATH="$HOME/.cargo/bin:$PATH" \
-cargo llvm-cov report \
-  --manifest-path rust/Cargo.toml \
-  --ignore-filename-regex 'rust/src/bin/.*|rust/tests/.*'
+python tools/coverage_ratchet.py \
+  --python-xml coverage-python/coverage.xml \
+  --rust-xml coverage-rust/cobertura.xml \
+  --baseline-file config/coverage-baselines.json
 ```
 
-The last run with this filter reported **87.30% line coverage**. Always use the same ignore regex to keep the denominator consistent. If you need HTML output, add `--html --output-dir /tmp/kanbus-cov-lib` to the same command.
+Only update baselines intentionally:
+
+```bash
+python tools/coverage_ratchet.py \
+  --python-xml coverage-python/coverage.xml \
+  --rust-xml coverage-rust/cobertura.xml \
+  --baseline-file config/coverage-baselines.json \
+  --update-baseline
+```
+
+For shared-module deltas:
+
+```bash
+python tools/coverage_parity_report.py \
+  --python-xml coverage-python/coverage.xml \
+  --rust-xml coverage-rust/cobertura.xml
+```
 
 ## Code Style Standards
 
@@ -352,8 +375,9 @@ Before any PR can merge:
    - `cargo test` passes (all Gherkin scenarios pass) ✓
 
 5. **Coverage**
-   - Python coverage ≥ 100% ✓
-   - Rust coverage ≥ 100% (cargo llvm-cov) ✓
+   - Python and Rust coverage reports are generated from explicit tests
+   - `tools/coverage_ratchet.py` passes against `config/coverage-baselines.json`
+   - Rust/Python gap does not widen beyond ratchet baseline
 
 ## Rust Coverage (Local)
 
@@ -375,8 +399,17 @@ cp -R apps/console/dist rust/embedded_assets/console
 ```bash
 cd rust
 mkdir -p ../coverage-rust
-cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*|src/bin/.*|src/main.rs"
+cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"
 cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobertura.xml
+```
+
+**Python coverage run (explicit tests, helper disabled by default):**
+```bash
+cd python
+python -m coverage erase
+python -m coverage run --source=kanbus -m pytest
+KANBUS_ENABLE_COVERAGE_HELPER=0 python -m coverage run --append --source=kanbus -m behave
+python -m coverage xml -o ../coverage-python/coverage.xml
 ```
 
 6. **YAML test cases** (when implemented)

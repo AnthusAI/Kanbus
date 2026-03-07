@@ -16,7 +16,9 @@ from features.steps.shared import (
 )
 from features.steps.shared import initialize_default_project
 from kanbus.cli import list_command
+from kanbus.config_loader import load_project_configuration
 from kanbus.issue_listing import _list_issues_with_local
+from kanbus.project import get_configuration_path
 
 
 @given('issues "{first}" and "{second}" exist')
@@ -231,11 +233,15 @@ def when_shared_only_listed(context: object) -> None:
     project_dir = load_project_directory(context)
     local_dir = project_dir.parent / "project-local"
     local_dir.mkdir(parents=True, exist_ok=True)
+    root = Path(context.working_directory)
+    configuration = load_project_configuration(get_configuration_path(root))
     issues = _list_issues_with_local(
         project_dir,
         local_dir,
         include_local=False,
         local_only=False,
+        overlay_config=configuration.overlay,
+        project_label=configuration.project_key,
     )
     context.shared_only_results = issues
 

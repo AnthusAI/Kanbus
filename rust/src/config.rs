@@ -5,7 +5,8 @@ use std::path::Path;
 
 use crate::error::KanbusError;
 use crate::models::{
-    CategoryDefinition, PriorityDefinition, ProjectConfiguration, StatusDefinition,
+    CategoryDefinition, OverlayConfig, PriorityDefinition, ProjectConfiguration, RealtimeConfig,
+    StatusDefinition,
 };
 
 /// Return the default project configuration.
@@ -181,6 +182,8 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         new_issue_project: None,
         ignore_paths: Vec::new(),
         console_port: None,
+        realtime: RealtimeConfig::default(),
+        overlay: OverlayConfig::default(),
         project_key: "kanbus".to_string(),
         project_management_template: None,
         hierarchy: vec![

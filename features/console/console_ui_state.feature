@@ -4,71 +4,79 @@ Feature: Console UI state commands
   I want CLI commands to read and write the console UI state
   So that I can inspect and control the console from scripts and workflows
 
+  Scenario: Create focus flag is deprecated
+    Given a Kanbus project with default configuration
+    When I run "kanbus create \"Deprecated focus\" --focus"
+    Then the command should fail
+    And stderr should contain "deprecated"
+    And stderr should contain "pub/sub convention"
+
   # ---------------------------------------------------------------------------
   # kbs console focus
   # ---------------------------------------------------------------------------
 
-  Scenario: Focus command prints confirmation and exits successfully
+  Scenario: Focus command is deprecated
     Given a Kanbus project with default configuration
     And an issue "kanbus-abc" exists with title "Auth bug"
     When I run "kanbus console focus kanbus-abc"
-    Then the command should succeed
-    And stdout should contain "kanbus-abc"
+    Then the command should fail
+    And stderr should contain "deprecated"
+    And stderr should contain "pub/sub convention"
 
-  Scenario: Focus command with comment flag prints confirmation including comment
+  Scenario: Focus command with comment flag is deprecated
     Given a Kanbus project with default configuration
     And an issue "kanbus-abc" exists with title "Auth bug"
     When I run "kanbus console focus kanbus-abc --comment abc123"
-    Then the command should succeed
-    And stdout should contain "kanbus-abc"
-    And stdout should contain "abc123"
+    Then the command should fail
+    And stderr should contain "deprecated"
 
-  Scenario: Focus command fails when the issue does not exist
+  Scenario: Focus command still fails fast as deprecated even when issue does not exist
     Given a Kanbus project with default configuration
     When I run "kanbus console focus kanbus-does-not-exist"
     Then the command should fail
+    And stderr should contain "deprecated"
 
   # ---------------------------------------------------------------------------
   # kbs console unfocus
   # ---------------------------------------------------------------------------
 
-  Scenario: Unfocus command prints confirmation and exits successfully
+  Scenario: Unfocus command is deprecated
     Given a Kanbus project with default configuration
     When I run "kanbus console unfocus"
-    Then the command should succeed
-    And stdout should contain "focus"
+    Then the command should fail
+    And stderr should contain "deprecated"
 
   # ---------------------------------------------------------------------------
   # kbs console view
   # ---------------------------------------------------------------------------
 
-  Scenario: View command with "issues" mode prints confirmation and exits successfully
+  Scenario: View command with "issues" mode is deprecated
     Given a Kanbus project with default configuration
     When I run "kanbus console view issues"
-    Then the command should succeed
-    And stdout should contain "issues"
+    Then the command should fail
+    And stderr should contain "deprecated"
 
-  Scenario: View command with "epics" mode prints confirmation and exits successfully
+  Scenario: View command with "epics" mode is deprecated
     Given a Kanbus project with default configuration
     When I run "kanbus console view epics"
-    Then the command should succeed
-    And stdout should contain "epics"
+    Then the command should fail
+    And stderr should contain "deprecated"
 
-  Scenario: View command with "initiatives" mode prints confirmation and exits successfully
+  Scenario: View command with "initiatives" mode is deprecated
     Given a Kanbus project with default configuration
     When I run "kanbus console view initiatives"
-    Then the command should succeed
-    And stdout should contain "initiatives"
+    Then the command should fail
+    And stderr should contain "deprecated"
 
   # ---------------------------------------------------------------------------
   # kbs console search
   # ---------------------------------------------------------------------------
 
-  Scenario: Search command prints confirmation and exits successfully
+  Scenario: Search command is deprecated
     Given a Kanbus project with default configuration
     When I run "kanbus console search auth"
-    Then the command should succeed
-    And stdout should contain "auth"
+    Then the command should fail
+    And stderr should contain "deprecated"
 
   # ---------------------------------------------------------------------------
   # kbs console status (server offline)
@@ -172,25 +180,23 @@ Feature: Console UI state commands
     And stdout should contain "auth bug"
 
   @console
-  Scenario: Focus command updates server state
+  Scenario: Focus command is deprecated while server is running
     Given a Kanbus project with default configuration
     And an issue "kanbus-abc" exists with title "Auth bug"
     And the console server is running
     When I run "kanbus console focus kanbus-abc"
-    Then the command should succeed
-    When I run "kanbus console get focus"
-    Then stdout should contain "kanbus-abc"
+    Then the command should fail
+    And stderr should contain "deprecated"
 
   @console
-  Scenario: Unfocus clears server focus state
+  Scenario: Unfocus command is deprecated while server is running
     Given a Kanbus project with default configuration
     And an issue "kanbus-abc" exists with title "Auth bug"
     And the console server is running
     And the console focused issue is "kanbus-abc"
     When I run "kanbus console unfocus"
-    Then the command should succeed
-    When I run "kanbus console get focus"
-    Then stdout should contain "none"
+    Then the command should fail
+    And stderr should contain "deprecated"
 
   @console
   Scenario: UI state persists across server restarts

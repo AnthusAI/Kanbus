@@ -137,7 +137,7 @@ enum Commands {
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
-        /// Automatically focus the issue in the console UI after creation.
+        /// Deprecated: UI control commands are being migrated to pub/sub.
         #[arg(long)]
         focus: bool,
     },
@@ -342,6 +342,16 @@ enum Commands {
     Console {
         #[command(subcommand)]
         command: ConsoleCommands,
+    },
+    /// Realtime gossip commands.
+    Gossip {
+        #[command(subcommand)]
+        command: GossipCommands,
+    },
+    /// Overlay cache commands.
+    Overlay {
+        #[command(subcommand)]
+        command: OverlayCommands,
     },
     /// Policy management commands.
     Policy {
@@ -594,6 +604,59 @@ enum ConsoleCommands {
 }
 
 #[derive(Debug, Subcommand)]
+enum GossipCommands {
+    /// Run a local UDS gossip broker.
+    Broker {
+        /// Optional socket path override.
+        #[arg(long, value_name = "PATH")]
+        socket: Option<std::path::PathBuf>,
+    },
+    /// Watch gossip notifications and update overlays.
+    Watch {
+        /// Filter to a single project label.
+        #[arg(long = "project")]
+        project: Option<String>,
+        /// Transport override: auto, uds, or mqtt.
+        #[arg(long)]
+        transport: Option<String>,
+        /// Broker override: auto, off, mqtt://... or mqtts://...
+        #[arg(long)]
+        broker: Option<String>,
+        /// Force autostart on.
+        #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "no_autostart")]
+        autostart: bool,
+        /// Force autostart off.
+        #[arg(long = "no-autostart", action = clap::ArgAction::SetTrue)]
+        no_autostart: bool,
+        /// Keep the broker running after exit.
+        #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "no_keepalive")]
+        keepalive: bool,
+        /// Stop the broker on exit.
+        #[arg(long = "no-keepalive", action = clap::ArgAction::SetTrue)]
+        no_keepalive: bool,
+        /// Print each received envelope as JSON (NDJSON) to stdout.
+        #[arg(long = "print", action = clap::ArgAction::SetTrue)]
+        print_envelopes: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum OverlayCommands {
+    /// Sweep overlay cache entries.
+    Gc {
+        /// Filter to a single project label.
+        #[arg(long = "project")]
+        project: Option<String>,
+        /// Sweep all labeled projects.
+        #[arg(long)]
+        all: bool,
+    },
+    /// Install git hooks that run overlay GC.
+    #[command(name = "install-hooks")]
+    InstallHooks,
+}
+
+#[derive(Debug, Subcommand)]
 enum CommentCommands {
     /// Update a comment by id prefix.
     Update {
@@ -804,6 +867,18 @@ fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), Ka
     Ok(())
 }
 
+fn deprecated_console_control_error(command: &str) -> KanbusError {
+    KanbusError::IssueOperation(format!(
+        "`kbs console {command}` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
+    ))
+}
+
+fn deprecated_create_focus_error() -> KanbusError {
+    KanbusError::IssueOperation(
+        "`kbs create --focus` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable.".to_string(),
+    )
+}
+
 fn execute_command(
     command: Commands,
     root: &Path,
@@ -893,6 +968,9 @@ fn execute_command(
             if !no_validate && !description_text.is_empty() {
                 validate_code_blocks(&description_text)?;
             }
+            if focus {
+                return Err(deprecated_create_focus_error());
+            }
             if beads_mode {
                 if local {
                     return Err(KanbusError::IssueOperation(
@@ -912,21 +990,6 @@ fn execute_command(
                         Some(description_text.as_str())
                     },
                 )?;
-
-                // Auto-focus the newly created issue if --focus flag is set
-                if focus {
-                    use crate::notification_events::NotificationEvent;
-                    use crate::notification_publisher::publish_notification;
-
-                    let event = NotificationEvent::IssueFocused {
-                        issue_id: issue.identifier.clone(),
-                        user: None,
-                        comment_id: None,
-                    };
-
-                    // Best-effort notification - don't fail if console server is down
-                    let _ = publish_notification(root, event);
-                }
 
                 let use_color = should_use_color();
                 let output = format_issue_for_display(&issue, None, use_color, false);
@@ -954,21 +1017,6 @@ fn execute_command(
             let result = create_issue(&request)?;
             let configuration = result.configuration;
             let issue = result.issue;
-
-            // Auto-focus the newly created issue if --focus flag is set
-            if focus {
-                use crate::notification_events::NotificationEvent;
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::IssueFocused {
-                    issue_id: issue.identifier.clone(),
-                    user: None,
-                    comment_id: None,
-                };
-
-                // Best-effort notification - don't fail if console server is down
-                let _ = publish_notification(root, event);
-            }
 
             let use_color = should_use_color();
             let output = format_issue_for_display(&issue, Some(&configuration), use_color, false);
@@ -1906,6 +1954,57 @@ fn execute_command(
                 Ok(Some(output))
             }
         },
+        Commands::Gossip { command } => match command {
+            GossipCommands::Broker { socket } => {
+                crate::gossip::run_gossip_broker(root, socket)?;
+                Ok(None)
+            }
+            GossipCommands::Watch {
+                project,
+                transport,
+                broker,
+                autostart,
+                no_autostart,
+                keepalive,
+                no_keepalive,
+                print_envelopes,
+            } => {
+                let autostart_override = if autostart {
+                    Some(true)
+                } else if no_autostart {
+                    Some(false)
+                } else {
+                    None
+                };
+                let keepalive_override = if keepalive {
+                    Some(true)
+                } else if no_keepalive {
+                    Some(false)
+                } else {
+                    None
+                };
+                crate::gossip::run_gossip_watch(
+                    root,
+                    project,
+                    transport,
+                    broker,
+                    autostart_override,
+                    keepalive_override,
+                    print_envelopes,
+                )?;
+                Ok(None)
+            }
+        },
+        Commands::Overlay { command } => match command {
+            OverlayCommands::Gc { project, all } => {
+                let count = crate::overlay::gc_overlay_for_projects(root, project, all)?;
+                Ok(Some(format!("overlay gc complete ({count} project(s))")))
+            }
+            OverlayCommands::InstallHooks => {
+                crate::overlay::install_overlay_hooks(root)?;
+                Ok(Some("overlay hooks installed".to_string()))
+            }
+        },
         Commands::Policy { command } => match command {
             PolicyCommands::Check { identifier } => {
                 use crate::config_loader::load_project_configuration;
@@ -2142,230 +2241,25 @@ fn execute_command(
                 stream_console_telemetry(root, output, url)?;
                 Ok(None)
             }
-            ConsoleCommands::Focus {
-                identifier,
-                comment,
-            } => {
-                // Validate that the issue exists and get its ID
-                let issue_id = if beads_mode {
-                    let issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
-                    issue.identifier
-                } else {
-                    let result = load_issue_from_project(root, &identifier)?;
-                    result.issue.identifier
-                };
-
-                // Publish focus notification
-                use crate::notification_events::NotificationEvent;
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::IssueFocused {
-                    issue_id: issue_id.clone(),
-                    user: None,
-                    comment_id: comment.clone(),
-                };
-
-                // Best-effort notification - don't fail if console server is down
-                let _ = publish_notification(root, event);
-
-                let msg = if let Some(ref cid) = comment {
-                    format!("Focused on issue {} (comment {})", issue_id, cid)
-                } else {
-                    format!("Focused on issue {}", issue_id)
-                };
-                Ok(Some(msg))
-            }
-            ConsoleCommands::Unfocus => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::ClearFocus,
-                };
-
-                // Best-effort notification - don't fail if console server is down
-                let _ = publish_notification(root, event);
-
-                Ok(Some("Cleared focus filter".to_string()))
-            }
-            ConsoleCommands::View { mode } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                // Validate mode
-                let valid_modes = ["initiatives", "epics", "issues"];
-                if !valid_modes.contains(&mode.as_str()) {
-                    return Err(KanbusError::IssueOperation(format!(
-                        "Invalid view mode '{}'. Valid modes: {}",
-                        mode,
-                        valid_modes.join(", ")
-                    )));
-                }
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::SetViewMode { mode: mode.clone() },
-                };
-
-                // Best-effort notification - don't fail if console server is down
-                let _ = publish_notification(root, event);
-
-                Ok(Some(format!("Switched to {} view", mode)))
-            }
-            ConsoleCommands::Search { query, clear } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let search_query = if clear {
-                    String::new()
-                } else if let Some(q) = query {
-                    q.clone()
-                } else {
-                    return Err(KanbusError::IssueOperation(
-                        "Either provide a query or use --clear flag".to_string(),
-                    ));
-                };
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::SetSearch {
-                        query: search_query.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-
-                let msg = if clear || search_query.is_empty() {
-                    "Cleared search query".to_string()
-                } else {
-                    format!("Set search query to: {}", search_query)
-                };
-                Ok(Some(msg))
-            }
-            ConsoleCommands::Maximize => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::MaximizeDetail,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Maximized detail panel");
-                Ok(None)
-            }
-            ConsoleCommands::Restore => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::RestoreDetail,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Restored detail panel");
-                Ok(None)
-            }
-            ConsoleCommands::CloseDetail => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::CloseDetail,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Closed detail panel");
-                Ok(None)
-            }
+            ConsoleCommands::Focus { .. } => Err(deprecated_console_control_error("focus")),
+            ConsoleCommands::Unfocus => Err(deprecated_console_control_error("unfocus")),
+            ConsoleCommands::View { .. } => Err(deprecated_console_control_error("view")),
+            ConsoleCommands::Search { .. } => Err(deprecated_console_control_error("search")),
+            ConsoleCommands::Maximize => Err(deprecated_console_control_error("maximize")),
+            ConsoleCommands::Restore => Err(deprecated_console_control_error("restore")),
+            ConsoleCommands::CloseDetail => Err(deprecated_console_control_error("close-detail")),
             ConsoleCommands::ToggleSettings => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::ToggleSettings,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Toggled settings panel");
-                Ok(None)
+                Err(deprecated_console_control_error("toggle-settings"))
             }
-            ConsoleCommands::Reload => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::ReloadPage,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Reloaded console page");
-                Ok(None)
+            ConsoleCommands::Reload => Err(deprecated_console_control_error("reload")),
+            ConsoleCommands::SetSetting { .. } => Err(deprecated_console_control_error("set-setting")),
+            ConsoleCommands::CollapseColumn { .. } => {
+                Err(deprecated_console_control_error("collapse-column"))
             }
-            ConsoleCommands::SetSetting { key, value } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::SetSetting {
-                        key: key.clone(),
-                        value: value.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Set {} = {}", key, value);
-                Ok(None)
+            ConsoleCommands::ExpandColumn { .. } => {
+                Err(deprecated_console_control_error("expand-column"))
             }
-            ConsoleCommands::CollapseColumn { column } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::CollapseColumn {
-                        column_name: column.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Collapsed column: {}", column);
-                Ok(None)
-            }
-            ConsoleCommands::ExpandColumn { column } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::ExpandColumn {
-                        column_name: column.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Expanded column: {}", column);
-                Ok(None)
-            }
-            ConsoleCommands::Select { identifier } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                // Validate that the issue exists and get its ID
-                let issue_id = if beads_mode {
-                    let issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
-                    issue.identifier
-                } else {
-                    let result = load_issue_from_project(root, &identifier)?;
-                    result.issue.identifier
-                };
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::SelectIssue {
-                        issue_id: issue_id.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Selected issue {}", issue_id);
-                Ok(None)
-            }
+            ConsoleCommands::Select { .. } => Err(deprecated_console_control_error("select")),
             ConsoleCommands::Status => {
                 let root_clone = root.to_path_buf();
                 let result = std::thread::spawn(move || fetch_console_ui_state(&root_clone))
@@ -2559,4 +2453,81 @@ fn fetch_console_ui_state(
 fn should_use_color() -> bool {
     use std::io::IsTerminal;
     std::env::var_os("NO_COLOR").is_none() && std::io::stdout().is_terminal()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+
+    fn issue(identifier: &str) -> IssueData {
+        let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        IssueData {
+            identifier: identifier.to_string(),
+            title: "Issue".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: timestamp,
+            updated_at: timestamp,
+            closed_at: None,
+            custom: std::collections::BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn rewrite_alias_args_rewrites_issue_aliases() {
+        let args = vec!["kanbus".into(), "epics".into(), "--json".into()];
+        let rewritten = rewrite_alias_args(args);
+        assert_eq!(
+            rewritten,
+            vec![
+                OsString::from("kanbus"),
+                OsString::from("list"),
+                OsString::from("--type"),
+                OsString::from("epic"),
+                OsString::from("--json"),
+            ]
+        );
+    }
+
+    #[test]
+    fn format_ready_line_includes_project_path_prefix() {
+        let mut data = issue("kanbus-123456");
+        data.custom.insert(
+            "project_path".to_string(),
+            serde_json::Value::String("alpha/project".to_string()),
+        );
+
+        assert_eq!(format_ready_line(&data), "alpha/project kanbus-123456");
+    }
+
+    #[test]
+    fn blocked_issue_detection_checks_blocked_by_dependencies() {
+        let mut data = issue("kanbus-123456");
+        data.dependencies.push(crate::models::DependencyLink {
+            target: "kanbus-parent".to_string(),
+            dependency_type: "blocked-by".to_string(),
+        });
+
+        assert!(is_issue_blocked(&data));
+    }
+
+    #[test]
+    fn format_daemon_project_error_rewrites_known_messages() {
+        let rewritten = format_daemon_project_error(KanbusError::IssueOperation(
+            "project not initialized".to_string(),
+        ));
+        let KanbusError::IssueOperation(message) = rewritten else {
+            panic!("expected issue operation");
+        };
+        assert!(message.contains("Run \"kanbus init\""));
+    }
 }

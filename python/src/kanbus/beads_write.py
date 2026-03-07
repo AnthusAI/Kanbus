@@ -24,6 +24,7 @@ from kanbus.event_history import (
     now_timestamp,
     write_events_batch,
 )
+from kanbus.gossip import publish_issue_deleted, publish_issue_mutation
 from kanbus.migration import load_beads_issue
 from kanbus.project import load_project_directory
 
@@ -188,6 +189,38 @@ def create_beads_issue(
     except Exception as error:  # noqa: BLE001
         issues_path.write_text(original_contents, encoding="utf-8")
         raise BeadsWriteError(str(error)) from error
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception:
+        updated_issue = None
+    if updated_issue is not None:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            updated_issue,
+            event.event_id,
+            "issue.mutated",
+        )
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception:
+        updated_issue = None
+    if updated_issue is not None:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            updated_issue,
+            event.event_id,
+            "issue.mutated",
+        )
+
+    publish_issue_mutation(
+        root,
+        project_dir,
+        issue,
+        event.event_id,
+        "issue.mutated",
+    )
 
     return issue
 
@@ -298,6 +331,15 @@ def update_beads_issue(
         issues_path.write_text(original_contents, encoding="utf-8")
         raise BeadsWriteError(str(error)) from error
 
+    event_id = events[0].event_id if events else None
+    publish_issue_mutation(
+        root,
+        project_dir,
+        updated_issue,
+        event_id,
+        "issue.mutated",
+    )
+
     return updated_issue
 
 
@@ -353,6 +395,22 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
         for record in records:
             json.dump(record, handle, separators=(",", ":"))
             handle.write("\n")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception as error:  # noqa: BLE001
+        raise BeadsWriteError(str(error)) from error
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception:
+        updated_issue = None
+    if updated_issue is not None:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            updated_issue,
+            None,
+            "issue.mutated",
+        )
     if created_comment_id is None:
         raise BeadsWriteError("comment id is required")
     try:
@@ -453,6 +511,12 @@ def delete_beads_issue(root: Path, identifier: str) -> None:
     except Exception as error:  # noqa: BLE001
         issues_path.write_text(original_contents, encoding="utf-8")
         raise BeadsDeleteError(str(error)) from error
+    publish_issue_deleted(
+        root,
+        project_dir,
+        identifier,
+        event.event_id,
+    )
 
 
 def _load_beads_records(issues_path: Path) -> List[Dict[str, object]]:

@@ -13,6 +13,7 @@ use crate::file_io::{
 };
 use crate::migration::load_beads_issues;
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::overlay::apply_overlay_to_issues;
 
 /// Snapshot payload for the console.
 #[derive(Debug, Clone, Serialize)]
@@ -68,6 +69,7 @@ impl FileStore {
 
     /// Load issues from all virtual projects.
     fn load_issues_with_virtual_projects(&self) -> Result<Vec<IssueData>, KanbusError> {
+        let configuration = self.load_config()?;
         let labeled = resolve_labeled_projects(self.root())?;
         let mut all_issues = Vec::new();
         for project in &labeled {
@@ -78,6 +80,12 @@ impl FileStore {
                     tag_custom(issue, "project_label", &project.label);
                     tag_custom(issue, "source", "shared");
                 }
+                let mut shared = apply_overlay_to_issues(
+                    &project.project_dir,
+                    shared,
+                    &configuration.overlay,
+                    Some(project.label.as_str()),
+                )?;
                 all_issues.append(&mut shared);
 
                 if let Some(local_dir) = find_project_local_directory(&project.project_dir) {
@@ -200,6 +208,15 @@ fn load_console_issues(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError
         tag_custom(issue, "source", "shared");
     }
 
+    let configuration_path = get_configuration_path(project_dir)?;
+    let configuration = load_project_configuration(&configuration_path)?;
+    issues = apply_overlay_to_issues(
+        project_dir,
+        issues,
+        &configuration.overlay,
+        Some(configuration.project_key.as_str()),
+    )?;
+
     if let Some(local_dir) = find_project_local_directory(project_dir) {
         let local_issues_dir = local_dir.join("issues");
         if local_issues_dir.is_dir() {
@@ -219,4 +236,87 @@ fn tag_custom(issue: &mut IssueData, key: &str, value: &str) {
         key.to_string(),
         serde_json::Value::String(value.to_string()),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    use tempfile::TempDir;
+
+    fn issue(identifier: &str) -> IssueData {
+        let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        IssueData {
+            identifier: identifier.to_string(),
+            title: format!("Issue {identifier}"),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: timestamp,
+            updated_at: timestamp,
+            closed_at: None,
+            custom: std::collections::BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn find_issue_matches_exact_and_short_identifier() {
+        let issues = vec![issue("kanbus-abcdef"), issue("kanbus-zzzzzz")];
+
+        let exact = find_issue_matches(&issues, "kanbus-abcdef", "kanbus");
+        assert_eq!(exact.len(), 1);
+        assert_eq!(exact[0].identifier, "kanbus-abcdef");
+
+        let short = find_issue_matches(&issues, "kanbus-abc", "kanbus");
+        assert_eq!(short.len(), 1);
+        assert_eq!(short[0].identifier, "kanbus-abcdef");
+    }
+
+    #[test]
+    fn short_id_match_rejects_invalid_candidates() {
+        assert!(!short_id_matches("alpha-abc", "kanbus", "kanbus-abcdef"));
+        assert!(!short_id_matches("kanbus-", "kanbus", "kanbus-abcdef"));
+        assert!(!short_id_matches(
+            "kanbus-abcdefg",
+            "kanbus",
+            "kanbus-abcdef"
+        ));
+    }
+
+    #[test]
+    fn load_issues_from_dir_reads_only_json_files() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues");
+
+        let first = issue("kanbus-111111");
+        let second = issue("kanbus-222222");
+        std::fs::write(
+            issues_dir.join("kanbus-111111.json"),
+            serde_json::to_vec(&first).expect("serialize first"),
+        )
+        .expect("write first");
+        std::fs::write(
+            issues_dir.join("kanbus-222222.json"),
+            serde_json::to_vec(&second).expect("serialize second"),
+        )
+        .expect("write second");
+        std::fs::write(issues_dir.join("notes.txt"), "skip").expect("write note");
+
+        let issues = load_issues_from_dir(&issues_dir).expect("load issues");
+        let identifiers = issues
+            .into_iter()
+            .map(|item| item.identifier)
+            .collect::<Vec<_>>();
+        assert_eq!(identifiers.len(), 2);
+        assert!(identifiers.contains(&"kanbus-111111".to_string()));
+        assert!(identifiers.contains(&"kanbus-222222".to_string()));
+    }
 }

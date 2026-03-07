@@ -7,7 +7,10 @@ use cucumber::{given, then, when};
 use serde_json::Value;
 
 use kanbus::file_io::load_project_directory;
-use kanbus::models::{IssueData, PriorityDefinition, ProjectConfiguration, StatusDefinition};
+use kanbus::models::{
+    IssueData, OverlayConfig, PriorityDefinition, ProjectConfiguration, RealtimeConfig,
+    StatusDefinition,
+};
 use kanbus::workflows::get_workflow_for_issue_type;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -498,6 +501,8 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         jira: None,
         snyk: None,
         transition_labels: BTreeMap::new(),
+        realtime: RealtimeConfig::default(),
+        overlay: OverlayConfig::default(),
     };
     match get_workflow_for_issue_type(&configuration, &issue_type) {
         Ok(_) => world.workflow_error = None,

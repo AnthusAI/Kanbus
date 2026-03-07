@@ -80,6 +80,7 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
         )
     _write_project_guard_files_if_missing(project_dir)
     _write_tool_block_files(root)
+    _ensure_gitignore_entry(root, "project/.overlay/")
     template_path = root / DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME
     if not template_path.exists():
         template_path.write_text(
@@ -88,6 +89,18 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
         )
     if create_local:
         ensure_project_local_directory(project_dir)
+
+
+def _ensure_gitignore_entry(root: Path, entry: str) -> None:
+    gitignore_path = root / ".gitignore"
+    existing = ""
+    if gitignore_path.exists():
+        existing = gitignore_path.read_text(encoding="utf-8")
+    lines = [line.strip() for line in existing.splitlines() if line.strip()]
+    if entry in lines:
+        return
+    lines.append(entry)
+    gitignore_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _write_project_guard_files(project_dir: Path) -> None:

@@ -6,12 +6,16 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kanbus.ids import matches_issue_identifier
+from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.issue_files import list_issue_identifiers, read_issue_from_file
-from kanbus.models import IssueData
+from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration
+from kanbus.overlay import load_overlay_issue, load_tombstone, resolve_issue_with_overlay
 from kanbus.project import (
     ProjectMarkerError,
     discover_project_directories,
     find_project_local_directory,
+    get_configuration_path,
+    resolve_labeled_projects,
 )
 
 
@@ -51,12 +55,41 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
         raise IssueLookupError("project not initialized")
 
     all_matches: list[tuple[str, Path, Path]] = []
+    root_configuration: ProjectConfiguration | None = None
+    project_labels: dict[Path, str] = {}
+    try:
+        root_configuration = load_project_configuration(get_configuration_path(root))
+        project_labels = {
+            project.project_dir: project.label
+            for project in resolve_labeled_projects(root)
+        }
+    except (ProjectMarkerError, ConfigurationError):
+        root_configuration = None
+
+    overlay_configs = {
+        project_dir: _overlay_config_for_project(project_dir, root_configuration)
+        for project_dir in project_dirs
+    }
 
     for project_dir in project_dirs:
+        overlay_config = overlay_configs.get(project_dir, OverlayConfig(enabled=False))
         for issues_dir in _search_directories(project_dir):
             issue_path = issues_dir / f"{identifier}.json"
             if issue_path.exists():
                 issue = read_issue_from_file(issue_path)
+                if issues_dir == project_dir / "issues":
+                    overlay_issue = load_overlay_issue(project_dir, issue.identifier)
+                    tombstone = load_tombstone(project_dir, issue.identifier)
+                    issue = resolve_issue_with_overlay(
+                        project_dir,
+                        issue,
+                        overlay_issue,
+                        tombstone,
+                        overlay_config,
+                        project_label=project_labels.get(project_dir),
+                    )
+                    if issue is None:
+                        continue
                 return IssueLookupResult(
                     issue=issue, issue_path=issue_path, project_dir=project_dir
                 )
@@ -64,6 +97,27 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
             matches = _find_matching_issues(issues_dir, identifier)
             for full_id, path in matches:
                 all_matches.append((full_id, path, project_dir))
+
+        overlay_issue = load_overlay_issue(project_dir, identifier)
+        if overlay_issue is not None:
+            tombstone = load_tombstone(project_dir, identifier)
+            resolved = resolve_issue_with_overlay(
+                project_dir,
+                None,
+                overlay_issue,
+                tombstone,
+                overlay_config,
+                project_label=project_labels.get(project_dir),
+            )
+            if resolved is not None:
+                overlay_path = (
+                    project_dir / ".overlay" / "issues" / f"{identifier}.json"
+                )
+                return IssueLookupResult(
+                    issue=resolved,
+                    issue_path=overlay_path,
+                    project_dir=project_dir,
+                )
 
     if not all_matches:
         raise IssueLookupError("not found")
@@ -128,3 +182,17 @@ def _find_matching_issues(issues_dir: Path, identifier: str) -> list[tuple[str, 
         if matches_issue_identifier(identifier, full_id):
             matches.append((full_id, issues_dir / f"{full_id}.json"))
     return matches
+
+
+def _overlay_config_for_project(
+    project_dir: Path, root_configuration: ProjectConfiguration | None
+) -> OverlayConfig:
+    if root_configuration is not None:
+        return root_configuration.overlay
+    config_path = project_dir.parent / ".kanbus.yml"
+    if not config_path.is_file():
+        return OverlayConfig(enabled=False)
+    try:
+        return load_project_configuration(config_path).overlay
+    except (ConfigurationError, ProjectMarkerError, RuntimeError):
+        return OverlayConfig(enabled=False)

@@ -48,6 +48,7 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
             merged["virtual_projects"] = {**main_vp, **override_vp}
     _reject_legacy_fields(merged)
     _normalize_virtual_projects(merged)
+    _apply_environment_overrides(merged)
 
     try:
         configuration = ProjectConfiguration.model_validate(merged)
@@ -66,6 +67,66 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
             raise ConfigurationError("; ".join(workflow_errors))
 
     return configuration
+
+
+def _apply_environment_overrides(merged: dict) -> None:
+    realtime = merged.setdefault("realtime", {})
+    overlay = merged.setdefault("overlay", {})
+    topics = realtime.setdefault("topics", {})
+
+    transport = os.environ.get("KANBUS_REALTIME_TRANSPORT")
+    if transport:
+        realtime["transport"] = transport
+
+    broker = os.environ.get("KANBUS_REALTIME_BROKER")
+    if broker:
+        realtime["broker"] = broker
+
+    autostart = _parse_bool_env("KANBUS_REALTIME_AUTOSTART")
+    if autostart is not None:
+        realtime["autostart"] = autostart
+
+    keepalive = _parse_bool_env("KANBUS_REALTIME_KEEPALIVE")
+    if keepalive is not None:
+        realtime["keepalive"] = keepalive
+
+    socket_path = os.environ.get("KANBUS_REALTIME_UDS_SOCKET_PATH")
+    if socket_path is not None and socket_path != "":
+        realtime["uds_socket_path"] = socket_path
+
+    project_events = os.environ.get("KANBUS_REALTIME_TOPICS_PROJECT_EVENTS")
+    if project_events:
+        topics["project_events"] = project_events
+
+    overlay_enabled = _parse_bool_env("KANBUS_OVERLAY_ENABLED")
+    if overlay_enabled is not None:
+        overlay["enabled"] = overlay_enabled
+
+    overlay_ttl_s = _parse_int_env("KANBUS_OVERLAY_TTL_S")
+    if overlay_ttl_s is not None:
+        overlay["ttl_s"] = overlay_ttl_s
+
+
+def _parse_bool_env(name: str) -> bool | None:
+    raw = os.environ.get(name)
+    if raw is None:
+        return None
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
+def _parse_int_env(name: str) -> int | None:
+    raw = os.environ.get(name)
+    if raw is None:
+        return None
+    try:
+        return int(raw.strip())
+    except (TypeError, ValueError):
+        return None
 
 
 def _load_dotenv(path: Path) -> None:

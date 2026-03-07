@@ -15,6 +15,7 @@ const sidebarLinks: SidebarLink[] = [
   { label: "Features", href: "#", isHeader: true },
   { label: "Core Management", href: "/docs/features/core-management" },
   { label: "Kanban Board", href: "/docs/features/kanban-board" },
+  { label: "Realtime Collaboration", href: "/docs/features/realtime-collaboration" },
   { label: "Jira Sync", href: "/docs/features/jira-sync" },
   { label: "Local Tasks", href: "/docs/features/local-tasks" },
   { label: "Virtual Projects", href: "/docs/features/virtual-projects" },

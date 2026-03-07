@@ -14,6 +14,7 @@ from kanbus.event_history import (
     write_events_batch,
 )
 from kanbus.users import get_current_user
+from kanbus.gossip import publish_issue_deleted
 
 
 class IssueDeleteError(RuntimeError):
@@ -50,3 +51,10 @@ def delete_issue(root: Path, identifier: str) -> None:
     except Exception as error:  # noqa: BLE001
         write_issue_to_file(lookup.issue, lookup.issue_path)
         raise IssueDeleteError(str(error)) from error
+    if lookup.issue_path.parent == lookup.project_dir / "issues":
+        publish_issue_deleted(
+            root,
+            lookup.project_dir,
+            lookup.issue.identifier,
+            event.event_id,
+        )

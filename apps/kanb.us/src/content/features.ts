@@ -17,6 +17,12 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
     href: "/features/kanban-board"
   },
   {
+    title: "Realtime Collaboration",
+    description: "Distributed realtime updates for agents and humans via gossip + a disposable overlay cache, while Git stays SSOT.",
+    href: "/features/realtime-collaboration",
+    eyebrow: "New"
+  },
+  {
     title: "Jira Sync",
     description: "Pull Jira issues into your repository so agents always have the full context.",
     href: "/features/jira-sync"

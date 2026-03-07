@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use chrono::{TimeZone, Utc};
@@ -28,6 +28,12 @@ fn create_repo(world: &mut KanbusWorld, name: &str) -> PathBuf {
     repo_path
 }
 
+fn write_default_config(repo_root: &Path) {
+    let configuration = default_project_configuration();
+    let payload = serde_yaml::to_string(&configuration).expect("serialize config");
+    fs::write(repo_root.join(".kanbus.yml"), payload).expect("write config");
+}
+
 fn set_canonicalize_failure(world: &mut KanbusWorld) {
     if world.original_canonicalize_failure_env.is_none() {
         world.original_canonicalize_failure_env =
@@ -50,9 +56,21 @@ fn given_repo_single_project(world: &mut KanbusWorld) {
     fs::create_dir_all(root.join("project")).expect("create project dir");
 }
 
+#[given("a repository with a .kanbus.yml file and project directory")]
+fn given_repo_single_project_with_config(world: &mut KanbusWorld) {
+    let root = create_repo(world, "single-project-config");
+    fs::create_dir_all(root.join("project")).expect("create project dir");
+    write_default_config(&root);
+}
+
 #[given("an empty repository without a project directory")]
 fn given_repo_no_project(world: &mut KanbusWorld) {
     let _ = create_repo(world, "empty-project");
+}
+
+#[given("an empty repository without a .kanbus.yml file")]
+fn given_repo_no_project_without_config(world: &mut KanbusWorld) {
+    given_repo_no_project(world);
 }
 
 #[given("a repository with multiple project directories")]
@@ -60,6 +78,17 @@ fn given_repo_multiple_projects(world: &mut KanbusWorld) {
     let root = create_repo(world, "multi-project");
     fs::create_dir_all(root.join("project")).expect("create project dir");
     fs::create_dir_all(root.join("nested").join("project")).expect("create nested project");
+}
+
+#[given("a workspace with multiple Kanbus projects")]
+fn given_workspace_multiple_projects(world: &mut KanbusWorld) {
+    let root = create_repo(world, "workspace-multi-project");
+    let alpha = root.join("alpha");
+    let beta = root.join("beta");
+    fs::create_dir_all(alpha.join("project")).expect("create alpha project");
+    fs::create_dir_all(beta.join("project")).expect("create beta project");
+    write_default_config(&alpha);
+    write_default_config(&beta);
 }
 
 #[given("a repository with a project directory that cannot be canonicalized")]
@@ -79,6 +108,16 @@ fn given_repo_project_cannot_canonicalize(world: &mut KanbusWorld) {
         fs::set_permissions(&project_dir, permissions).expect("set permissions");
         world.unreadable_path = Some(project_dir);
         world.unreadable_mode = Some(original);
+    }
+}
+
+#[given(
+    "a repository with a .kanbus.yml file and a project directory that cannot be canonicalized"
+)]
+fn given_repo_project_cannot_canonicalize_with_config(world: &mut KanbusWorld) {
+    given_repo_project_cannot_canonicalize(world);
+    if let Some(root) = world.working_directory.as_ref() {
+        write_default_config(root);
     }
 }
 
@@ -278,6 +317,30 @@ fn given_non_git_directory(world: &mut KanbusWorld) {
     world.temp_dir = Some(temp_dir);
 }
 
+#[given("a non-git directory without a .kanbus.yml file")]
+fn given_non_git_directory_without_config(world: &mut KanbusWorld) {
+    given_non_git_directory(world);
+}
+
+#[given("a workspace with a valid project and an invalid config")]
+fn given_workspace_with_invalid_config(world: &mut KanbusWorld) {
+    let root = create_repo(world, "workspace-invalid");
+    let valid_repo = root.join("valid");
+    let invalid_repo = root.join("invalid");
+    let valid_project = valid_repo.join("project");
+    let invalid_project = invalid_repo.join("project");
+    fs::create_dir_all(&valid_project).expect("create valid project");
+    fs::create_dir_all(&invalid_project).expect("create invalid project");
+    let mut valid_configuration = default_project_configuration();
+    valid_configuration.project_key = "valid".to_string();
+    let valid_payload =
+        serde_yaml::to_string(&valid_configuration).expect("serialize valid config");
+    fs::write(valid_repo.join(".kanbus.yml"), valid_payload).expect("write valid config");
+    fs::write(invalid_repo.join(".kanbus.yml"), "unknown_field: value\n")
+        .expect("write invalid config");
+    world.expected_project_dir = Some(valid_project);
+}
+
 #[given("a repository with a fake git root pointing to a file")]
 fn given_fake_git_root(world: &mut KanbusWorld) {
     let _ = create_repo(world, "fake-git-root");
@@ -412,11 +475,31 @@ fn then_project_returns_none(world: &mut KanbusWorld) {
     assert!(dirs.is_empty());
 }
 
+#[then("project discovery should succeed")]
+fn then_project_discovery_succeeds(world: &mut KanbusWorld) {
+    assert!(
+        world.project_error.is_none(),
+        "project discovery failed: {:?}",
+        world.project_error
+    );
+}
+
 #[then("issues from all discovered projects should be listed")]
 fn then_issues_from_discovered_projects(world: &mut KanbusWorld) {
     let stdout = world.stdout.as_ref().expect("stdout");
+    let has_nested_pair = stdout.contains("Root task") && stdout.contains("Nested task");
+    let has_workspace_pair = stdout.contains("Alpha task") && stdout.contains("Beta task");
+    assert!(
+        has_nested_pair || has_workspace_pair,
+        "expected discovered issues in output, got: {stdout}"
+    );
+}
+
+#[then("only root issues should be listed")]
+fn then_only_root_issues_listed(world: &mut KanbusWorld) {
+    let stdout = world.stdout.as_ref().expect("stdout");
     assert!(stdout.contains("Root task"));
-    assert!(stdout.contains("Nested task"));
+    assert!(!stdout.contains("Nested task"));
 }
 
 #[then("no issues should be listed")]

@@ -1,11 +1,11 @@
 # Configuration Reference
 
-Kanbus projects are configured via `kanbus.yml`. This file defines the issue hierarchy, types, workflows, and default values used by the CLI and validators.
+Kanbus projects are configured via `.kanbus.yml`. This file defines the issue hierarchy, types, workflows, and default values used by the CLI and validators.
 
 ## File location
 
 ```
-kanbus.yml
+.kanbus.yml
 ```
 
 ## Full schema
@@ -92,6 +92,47 @@ Priority assigned to new issues when not explicitly provided.
 
 Whether CLI commands default to Beads compatibility mode when `--beads` is not provided.
 Defaults to `false`.
+
+### `realtime` (map, optional)
+
+Realtime gossip configuration.
+
+```yaml
+realtime:
+  transport: auto            # auto | uds | mqtt
+  broker: auto               # auto | off | mqtt://... | mqtts://...
+  autostart: true            # autostart mosquitto if unreachable
+  keepalive: false           # keep autostarted broker running
+  uds_socket_path: null      # override UDS socket path
+  topics:
+    project_events: "projects/{project}/events"
+```
+
+### `overlay` (map, optional)
+
+Speculative overlay cache configuration.
+
+```yaml
+overlay:
+  enabled: true
+  ttl_s: 86400
+```
+
+Notes:
+
+- `broker=auto` uses discovery precedence: `~/.kanbus/run/broker.json` then `mqtt://127.0.0.1:1883`. This is an explicit exception to the no-fallback policy.
+- Overlay snapshots live under `project/.overlay/` and are safe to delete.
+
+Environment override keys (higher precedence than YAML):
+
+- `KANBUS_REALTIME_TRANSPORT`
+- `KANBUS_REALTIME_BROKER`
+- `KANBUS_REALTIME_AUTOSTART`
+- `KANBUS_REALTIME_KEEPALIVE`
+- `KANBUS_REALTIME_UDS_SOCKET_PATH`
+- `KANBUS_REALTIME_TOPICS_PROJECT_EVENTS`
+- `KANBUS_OVERLAY_ENABLED`
+- `KANBUS_OVERLAY_TTL_S`
 
 ## Validation rules
 

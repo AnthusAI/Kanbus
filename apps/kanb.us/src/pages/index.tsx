@@ -239,6 +239,14 @@ const IndexPage = () => {
           title="Realtime Kanban Board"
           subtitle="Watch the board update in realtime as your agent makes changes."
         >
+          <div className="w-full flex justify-center pb-6">
+            <a
+              href="/features/realtime-collaboration"
+              className="cta-button px-6 py-3 text-sm transition-all hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Learn about Realtime Collaboration →
+            </a>
+          </div>
           <div className="kanban-snapshot-container h-[550px]" ref={boardSectionRef}>
             <div className={`layout-frame gap-4 ${isMaximized ? "detail-maximized" : ""} flex flex-col lg:flex-row`}>
               <div className="layout-slot layout-slot-board">
@@ -309,7 +317,12 @@ const IndexPage = () => {
                     {/* Feature Text */}
                     <div className="flex-1 flex flex-col">
                       <h3 className="text-2xl font-bold text-foreground mb-3 group-hover:text-selected transition-colors flex items-center gap-2">
-                        {feature.title} 
+                        {feature.title}
+                        {feature.eyebrow ? (
+                          <span className="inline-flex items-center rounded-full bg-selected/15 text-selected px-2 py-0.5 text-xs font-semibold">
+                            {feature.eyebrow}
+                          </span>
+                        ) : null}
                         <span className="opacity-0 -translate-x-2 transition-all group-hover:opacity-100 group-hover:translate-x-0">→</span>
                       </h3>
                       <p className="text-muted leading-relaxed flex-1">

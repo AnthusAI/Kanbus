@@ -588,6 +588,7 @@ export default function App() {
   const collapsedColumnsInitialized = React.useRef(false);
   const viewModeAutoCorrected = React.useRef(false);
   const lastTypeSelectionRef = React.useRef<string | null>(null);
+  const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
   useAppearance();
   const config = snapshot?.config;
   const issues = useMemo(() => {
@@ -612,6 +613,10 @@ export default function App() {
       .catch((err) => console.warn("[snapshot] refresh failed", err));
   }, [apiBase]);
   const showAllTypes = route.typeFilter === "all";
+
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
 
   // Initialize collapsed columns from config (only once)
   useEffect(() => {
@@ -709,40 +714,48 @@ export default function App() {
             break;
           case "issue_created":
           case "issue_updated":
-            // Use the issue data from the notification payload directly
-            if (event.issue_data && snapshot) {
-              const updatedIssues = snapshot.issues.map(issue =>
-                issue.id === event.issue_id ? event.issue_data : issue
-              );
-              // If this is a new issue (created), add it if not already present in updatedIssues
-              if (event.type === "issue_created" && !updatedIssues.find(i => i.id === event.issue_id)) {
-                updatedIssues.push(event.issue_data);
+            if (event.issue_data) {
+              const current = snapshotRef.current;
+              if (current) {
+                const existing = current.issues.some((issue) => issue.id === event.issue_id);
+                const updatedIssues = existing
+                  ? current.issues.map((issue) =>
+                    issue.id === event.issue_id ? event.issue_data : issue
+                  )
+                  : [...current.issues, event.issue_data];
+                const nextSnapshot = {
+                  ...current,
+                  issues: updatedIssues,
+                  updated_at: new Date().toISOString()
+                };
+                snapshotRef.current = nextSnapshot;
+                setSnapshot(nextSnapshot);
+                console.info("[notifications] applied issue update immediately", {
+                  type: event.type,
+                  issueId: event.issue_id
+                });
+                break;
               }
-              setSnapshot({
-                ...snapshot,
-                issues: updatedIssues,
-                updated_at: new Date().toISOString()
-              });
-              console.info("[notifications] applied issue update immediately", {
-                type: event.type,
-                issueId: event.issue_id
-              });
-            } else {
-              // Fallback to fetching if no snapshot yet
-              fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
             }
+            fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
             break;
           case "issue_deleted":
-            // Remove the deleted issue from snapshot
-            if (snapshot) {
-              setSnapshot({
-                ...snapshot,
-                issues: snapshot.issues.filter(issue => issue.id !== event.issue_id),
-                updated_at: new Date().toISOString()
-              });
-              console.info("[notifications] applied issue deletion immediately", { issueId: event.issue_id });
-            } else {
-              fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+            {
+              const current = snapshotRef.current;
+              if (current) {
+                const nextSnapshot = {
+                  ...current,
+                  issues: current.issues.filter((issue) => issue.id !== event.issue_id),
+                  updated_at: new Date().toISOString()
+                };
+                snapshotRef.current = nextSnapshot;
+                setSnapshot(nextSnapshot);
+                console.info("[notifications] applied issue deletion immediately", {
+                  issueId: event.issue_id
+                });
+              } else {
+                fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+              }
             }
             break;
           case "ui_control":

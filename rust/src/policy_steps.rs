@@ -730,3 +730,108 @@ fn then_suggest(_context: &PolicyContext, captures: &regex::Captures) -> StepRes
 fn then_explain(_context: &PolicyContext, captures: &regex::Captures) -> StepResult {
     Ok(StepOutcome::Explain(captures[1].to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::default_project_configuration;
+    use crate::policy_context::{PolicyContext, PolicyOperation, StatusTransition};
+    use chrono::{TimeZone, Utc};
+
+    fn issue(identifier: &str) -> crate::models::IssueData {
+        let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        crate::models::IssueData {
+            identifier: identifier.to_string(),
+            title: "Test issue".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: Some("kanbus-parent".to_string()),
+            labels: vec!["security".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: timestamp,
+            updated_at: timestamp,
+            closed_at: None,
+            custom: std::collections::BTreeMap::from([(
+                "team".to_string(),
+                serde_json::Value::String("platform".to_string()),
+            )]),
+        }
+    }
+
+    fn context() -> PolicyContext {
+        let parent = crate::models::IssueData {
+            parent: None,
+            identifier: "kanbus-parent".to_string(),
+            ..issue("kanbus-parent")
+        };
+        let child = issue("kanbus-child");
+        PolicyContext {
+            current_issue: Some(child.clone()),
+            proposed_issue: child,
+            transition: Some(StatusTransition {
+                from: "open".to_string(),
+                to: "in_progress".to_string(),
+            }),
+            operation: PolicyOperation::Update,
+            project_configuration: default_project_configuration(),
+            all_issues: vec![parent],
+        }
+    }
+
+    #[test]
+    fn registry_finds_and_executes_label_step() {
+        let registry = StepRegistry::new();
+        let (step, captures) = registry
+            .find_step("the issue has label \"security\"")
+            .expect("step");
+        let outcome = step.execute(&context(), &captures).expect("execute");
+        assert_eq!(outcome, StepOutcome::Pass);
+    }
+
+    #[test]
+    fn custom_field_step_reports_mismatch() {
+        let registry = StepRegistry::new();
+        let (step, captures) = registry
+            .find_step("the custom field \"team\" must be \"infra\"")
+            .expect("step");
+        let error = step
+            .execute(&context(), &captures)
+            .expect_err("expected failure");
+        assert_eq!(
+            error,
+            "custom field \"team\" is \"platform\" but must be \"infra\""
+        );
+    }
+
+    #[test]
+    fn guidance_steps_emit_expected_outcomes() {
+        let warning_pattern = regex::Regex::new(r#"^warn "([^"]*)"$"#).expect("warning regex");
+        let suggest_pattern = regex::Regex::new(r#"^suggest "([^"]*)"$"#).expect("suggest regex");
+        let explain_pattern = regex::Regex::new(r#"^explain "([^"]*)"$"#).expect("explain regex");
+        let warning_captures = warning_pattern.captures("warn \"heads up\"").expect("warn");
+        let suggest_captures = suggest_pattern
+            .captures("suggest \"consider labels\"")
+            .expect("suggest");
+        let explain_captures = explain_pattern
+            .captures("explain \"for policy consistency\"")
+            .expect("explain");
+
+        assert_eq!(
+            then_warn(&context(), &warning_captures).expect("warn"),
+            StepOutcome::Warn("heads up".to_string())
+        );
+        assert_eq!(
+            then_suggest(&context(), &suggest_captures).expect("suggest"),
+            StepOutcome::Suggest("consider labels".to_string())
+        );
+        assert_eq!(
+            then_explain(&context(), &explain_captures).expect("explain"),
+            StepOutcome::Explain("for policy consistency".to_string())
+        );
+    }
+}

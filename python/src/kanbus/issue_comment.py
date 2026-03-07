@@ -19,6 +19,7 @@ from kanbus.event_history import (
     write_events_batch,
 )
 from kanbus.users import get_current_user
+from kanbus.gossip import publish_issue_mutation
 
 
 class IssueCommentError(RuntimeError):
@@ -137,6 +138,14 @@ def add_comment(
     except Exception as error:  # noqa: BLE001
         write_issue_to_file(lookup.issue, lookup.issue_path)
         raise IssueCommentError(str(error)) from error
+    if lookup.issue_path.parent == lookup.project_dir / "issues":
+        publish_issue_mutation(
+            root,
+            lookup.project_dir,
+            updated,
+            event.event_id,
+            "issue.mutated",
+        )
     return IssueCommentResult(issue=updated, comment=comment)
 
 
@@ -187,6 +196,14 @@ def update_comment(
     except Exception as error:  # noqa: BLE001
         write_issue_to_file(lookup.issue, lookup.issue_path)
         raise IssueCommentError(str(error)) from error
+    if lookup.issue_path.parent == lookup.project_dir / "issues":
+        publish_issue_mutation(
+            root,
+            lookup.project_dir,
+            updated,
+            event.event_id,
+            "issue.mutated",
+        )
     return updated
 
 
@@ -221,4 +238,12 @@ def delete_comment(root: Path, identifier: str, comment_id: str) -> IssueData:
     except Exception as error:  # noqa: BLE001
         write_issue_to_file(lookup.issue, lookup.issue_path)
         raise IssueCommentError(str(error)) from error
+    if lookup.issue_path.parent == lookup.project_dir / "issues":
+        publish_issue_mutation(
+            root,
+            lookup.project_dir,
+            updated,
+            event.event_id,
+            "issue.mutated",
+        )
     return updated

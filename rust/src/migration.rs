@@ -19,7 +19,7 @@ use crate::hierarchy::validate_parent_child_relationship;
 use crate::issue_files::write_issue_to_file;
 use crate::models::{
     CategoryDefinition, DependencyLink, IssueComment, IssueData, PriorityDefinition,
-    ProjectConfiguration, StatusDefinition,
+    OverlayConfig, ProjectConfiguration, RealtimeConfig, StatusDefinition,
 };
 use crate::workflows::get_workflow_for_issue_type;
 
@@ -862,6 +862,8 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         beads_compatibility: false,
         jira: None,
         snyk: None,
+        realtime: RealtimeConfig::default(),
+        overlay: OverlayConfig::default(),
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];

@@ -641,3 +641,48 @@ fn join_lines(lines: &[String]) -> String {
     output.push('\n');
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_header_extracts_level_and_title() {
+        assert_eq!(parse_header("# Heading"), Some((1, "Heading".to_string())));
+        assert_eq!(
+            parse_header("## Subheading"),
+            Some((2, "Subheading".to_string()))
+        );
+        assert_eq!(parse_header("not a heading"), None);
+    }
+
+    #[test]
+    fn find_insert_index_prefers_after_first_h1_block() {
+        let lines = vec![
+            "# Title".to_string(),
+            "".to_string(),
+            "Body line".to_string(),
+            "## Section".to_string(),
+        ];
+
+        let index = find_insert_index(&lines);
+
+        assert_eq!(index, 2);
+    }
+
+    #[test]
+    fn insert_kanbus_section_inserts_at_expected_location() {
+        let lines = vec![
+            "# Title".to_string(),
+            "".to_string(),
+            "Body line".to_string(),
+        ];
+        let section = ["## Kanbus", "Managed content"];
+
+        let updated = insert_kanbus_section(&lines, &section);
+
+        assert!(updated.contains("## Kanbus"));
+        assert!(updated.contains("Managed content"));
+        assert!(updated.starts_with("# Title"));
+    }
+}

@@ -321,3 +321,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", serde_json::to_string_pretty(&payload)?);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn issue_identifier_and_title_are_deterministic() {
+        assert_eq!(issue_identifier(2, 15), "kanbus-020015");
+        assert_eq!(issue_title(2, 15), "Project 2 issue 15");
+    }
+
+    #[test]
+    fn blocked_by_dependency_detects_blocked_links() {
+        let mut data = build_issue("kanbus-1", "One");
+        data.dependencies.push(kanbus::models::DependencyLink {
+            target: "kanbus-2".to_string(),
+            dependency_type: "blocked-by".to_string(),
+        });
+        assert!(blocked_by_dependency(&data));
+    }
+}

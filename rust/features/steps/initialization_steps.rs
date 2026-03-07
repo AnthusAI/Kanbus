@@ -105,6 +105,23 @@ pub struct KanbusWorld {
     pub original_invalid_status_env: Option<Option<String>>,
     pub virtual_project_state: Option<VirtualProjectState>,
     pub simulated_configuration_error: Option<String>,
+    pub realtime_doc: Option<String>,
+    pub gossip_issue: Option<kanbus::models::IssueData>,
+    pub gossip_envelope: Option<kanbus::gossip::GossipEnvelope>,
+    pub gossip_dedupe: Option<kanbus::gossip::DedupeSet>,
+    pub gossip_producer_id: Option<String>,
+    pub last_notification_ignored: Option<bool>,
+    pub overlay_base_issue: Option<kanbus::models::IssueData>,
+    pub overlay_issue_record: Option<kanbus::overlay::OverlayIssueRecord>,
+    pub overlay_project_dir: Option<PathBuf>,
+    pub overlay_temp_dir: Option<TempDir>,
+    pub overlay_resolved: Option<kanbus::models::IssueData>,
+    pub overlay_snapshot_id: Option<String>,
+    pub uds_temp_dir: Option<TempDir>,
+    pub uds_socket_path: Option<PathBuf>,
+    pub uds_subscriber: Option<std::os::unix::net::UnixStream>,
+    pub uds_published_id: Option<String>,
+    pub mosquitto_startup: Option<kanbus::gossip::BrokerStartup>,
 }
 
 impl Drop for KanbusWorld {
@@ -170,6 +187,9 @@ impl Drop for KanbusWorld {
                 Some(value) => std::env::set_var("KANBUS_TEST_INVALID_STATUS", value),
                 None => std::env::remove_var("KANBUS_TEST_INVALID_STATUS"),
             }
+        }
+        if let Some(mut startup) = self.mosquitto_startup.take() {
+            let _ = startup.process.kill();
         }
         std::env::remove_var("KANBUS_TEST_EXTERNAL_TOOL_MISSING");
         std::env::remove_var("KANBUS_TEST_EXTERNAL_TIMEOUT_MS");
