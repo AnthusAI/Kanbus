@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Menu, X } from "lucide-react";
 import { AnimatedKanbanIcon } from "./AnimatedKanbanIcon";
+import { FEATURE_ENTRIES } from "../content/features";
 
 const navigation = [
   { label: "What Is This?", href: "/what-is-this" },
@@ -108,17 +109,9 @@ const Layout = ({ children }: LayoutProps) => {
             <div className="col-span-2 text-muted">
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-y-0 gap-x-8 text-sm text-muted footer-compact">
                 <li className="font-semibold col-span-1 sm:col-span-2 opacity-75">Features</li>
-                <li><a href="/features/core-management" className="text-muted hover:text-selected block">Core Management</a></li>
-                <li><a href="/features/kanban-board" className="text-muted hover:text-selected block">Kanban Board</a></li>
-                <li><a href="/features/realtime-collaboration" className="text-muted hover:text-selected block">Realtime Collaboration</a></li>
-                <li><a href="/features/jira-sync" className="text-muted hover:text-selected block">Jira Sync</a></li>
-                <li><a href="/features/local-tasks" className="text-muted hover:text-selected block">Local Tasks</a></li>
-                <li><a href="/features/virtual-projects" className="text-muted hover:text-selected block">Virtual Projects</a></li>
-                <li><a href="/features/beads-compatibility" className="text-muted hover:text-selected block">Beads Mode</a></li>
-                <li><a href="/features/vscode-plugin" className="text-muted hover:text-selected block">VS Code Plugin</a></li>
-                <li><a href="/features/integrated-wiki" className="text-muted hover:text-selected block">Integrated Wiki</a></li>
-                <li><a href="/features/policy-as-code" className="text-muted hover:text-selected block">Policy as Code</a></li>
-                <li><a href="/features/agile-metrics" className="text-muted hover:text-selected block">Agile Metrics</a></li>
+                {FEATURE_ENTRIES.map((f) => (
+                  <li key={f.href}><a href={f.href} className="text-muted hover:text-selected block">{f.title}</a></li>
+                ))}
               </ul>
             </div>
             
