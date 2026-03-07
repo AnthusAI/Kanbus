@@ -102,6 +102,21 @@ class SyncWorkerTests(unittest.TestCase):
             sync_repo.assert_called_once()
             publish_event.assert_called_once_with("acct", "proj", "abc123", "refs/heads/dev")
 
+    @patch.object(sync_worker, "_run")
+    def test_sync_repo_marks_existing_repo_as_safe_directory(self, run_cmd: MagicMock) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp) / "acct" / "proj" / "repo"
+            (repo_root / ".git").mkdir(parents=True, exist_ok=True)
+
+            sync_worker._sync_repo(repo_root, "https://github.com/org/repo.git", "abc123")
+
+            self.assertIn(
+                (
+                    ["git", "config", "--global", "--add", "safe.directory", str(repo_root)],
+                ),
+                [call.args for call in run_cmd.call_args_list],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
