@@ -1,7 +1,7 @@
 //! Realtime gossip transport and envelope helpers.
 
 use chrono::Utc;
-use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS, TlsConfiguration, Transport};
+use rumqttc::{AsyncClient, Event, MqttOptions, Outgoing, Packet, QoS, TlsConfiguration, Transport};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -755,15 +755,45 @@ fn publish_mqtt(
     let runtime =
         tokio::runtime::Runtime::new().map_err(|error| KanbusError::Io(error.to_string()))?;
     runtime.block_on(async move {
+        let mut connected = false;
+        let connect_deadline = Instant::now() + Duration::from_secs(3);
+        while Instant::now() < connect_deadline {
+            match tokio::time::timeout(Duration::from_millis(250), eventloop.poll()).await {
+                Ok(Ok(Event::Incoming(Packet::ConnAck(_)))) => {
+                    connected = true;
+                    break;
+                }
+                Ok(Ok(_)) => {}
+                Ok(Err(error)) => return Err(KanbusError::Io(error.to_string())),
+                Err(_) => {}
+            }
+        }
+        if !connected {
+            return Err(KanbusError::Io("mqtt connect timeout".to_string()));
+        }
+
         client
             .publish(topic, QoS::AtMostOnce, false, payload)
             .await
             .map_err(|error| KanbusError::Io(error.to_string()))?;
-        for _ in 0..5 {
-            let _ = eventloop
-                .poll()
-                .await
-                .map_err(|error| KanbusError::Io(error.to_string()))?;
+
+        // Drive the event loop briefly after queueing publish so the outgoing
+        // packet has a chance to flush without indefinite blocking.
+        let flush_deadline = Instant::now() + Duration::from_secs(2);
+        let mut published = false;
+        while Instant::now() < flush_deadline {
+            match tokio::time::timeout(Duration::from_millis(150), eventloop.poll()).await {
+                Ok(Ok(Event::Outgoing(Outgoing::Publish(_)))) => {
+                    published = true;
+                    break;
+                }
+                Ok(Ok(_)) => {}
+                Ok(Err(error)) => return Err(KanbusError::Io(error.to_string())),
+                Err(_) => {}
+            }
+        }
+        if !published {
+            return Err(KanbusError::Io("mqtt publish flush timeout".to_string()));
         }
         Ok(())
     })
@@ -816,7 +846,7 @@ fn mqtt_options(endpoint: &BrokerEndpoint, realtime: &RealtimeConfig) -> MqttOpt
             let transport = match TlsConfiguration::default() {
                 TlsConfiguration::Rustls(config) => {
                     let mut config = (*config).clone();
-                    config.alpn_protocols = vec![b"x-amzn-mqtt-ca".to_vec()];
+                    config.alpn_protocols = vec![b"mqtt".to_vec()];
                     Transport::tls_with_config(TlsConfiguration::Rustls(Arc::new(config)))
                 }
                 _ => Transport::tls_with_default_config(),
