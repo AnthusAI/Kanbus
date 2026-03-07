@@ -299,12 +299,14 @@ class KanbusCloudFoundationStack(Stack):
         sync_queue.grant_send_messages(webhook_handler)
         webhook_secret.grant_read(webhook_handler)
 
-        sync_worker = lambda_.Function(
+        sync_worker = lambda_.DockerImageFunction(
             self,
             "TenantSyncWorker",
-            runtime=lambda_.Runtime.PYTHON_3_11,
-            handler="sync_worker.handler",
-            code=lambda_.Code.from_asset(str(project_root / "infra" / "cloud" / "lambda")),
+            code=lambda_.DockerImageCode.from_image_asset(
+                directory=str(project_root / "infra" / "cloud" / "lambda"),
+                file="sync_worker.Dockerfile",
+            ),
+            architecture=lambda_.Architecture.X86_64,
             timeout=Duration.minutes(3),
             memory_size=1024,
             vpc=vpc,
