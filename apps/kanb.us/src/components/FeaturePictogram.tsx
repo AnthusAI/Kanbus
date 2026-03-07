@@ -198,15 +198,9 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         <rect x="55" y="14" width="40" height="92" fill="var(--background)" rx="6" />
         <rect x="98" y="14" width="40" height="92" fill="var(--background)" rx="6" />
         <rect x="18" y="24" width="28" height="16" fill="var(--card-muted)" rx="4" />
-        <motion.rect
-          y="24"
-          width="28"
-          height="16"
-          rx="4"
-          fill="var(--accent-blue)"
-          animate={{ x: [61, 104, 61], opacity: [1, 1, 0.9] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        />
+        <rect x="61" y="24" width="28" height="16" rx="4" fill="var(--accent-blue)">
+          <animate attributeName="x" values="61; 104; 61" dur="6s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1" />
+        </rect>
         <rect x="18" y="48" width="28" height="16" fill="var(--card-muted)" rx="4" opacity="0.8" />
       </g>
 
