@@ -2,6 +2,18 @@
 
 <!-- version list -->
 
+## [0.17.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-py-0.16.0...kanbus-py-0.17.0) (2026-03-07)
+
+
+### Features
+
+* **sync:** add GitHub Dependabot pull sync with Beads support and Rust/Python parity ([df13ee7](https://github.com/AnthusAI/Kanbus/commit/df13ee73327c47d02ab3dd149f2adc68e574a239))
+
+
+### Bug Fixes
+
+* **python:** log ignored exception in dependabot sync created_at preservation ([bb9411c](https://github.com/AnthusAI/Kanbus/commit/bb9411cc3f76550cf0a1901d3a7452739551053e))
+
 ## [0.16.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-py-0.15.0...kanbus-py-0.16.0) (2026-03-06)
 
 
