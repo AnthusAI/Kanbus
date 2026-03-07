@@ -37,7 +37,7 @@ def _issue(identifier: str, updated_at: datetime) -> IssueData:
 
 
 def test_overlay_prefers_newer_overlay() -> None:
-    base_time = datetime(2026, 3, 6, 0, 0, 0, tzinfo=timezone.utc)
+    base_time = datetime.now(timezone.utc) - timedelta(minutes=30)
     overlay_time = base_time + timedelta(hours=1)
     base_issue = _issue("kanbus-1", base_time)
     overlay_issue = _issue("kanbus-1", overlay_time)
@@ -62,7 +62,7 @@ def test_overlay_prefers_newer_overlay() -> None:
 
 
 def test_gc_overlay_removes_stale_overlay() -> None:
-    base_time = datetime(2026, 3, 6, 0, 0, 0, tzinfo=timezone.utc)
+    base_time = datetime.now(timezone.utc)
     overlay_time = base_time - timedelta(hours=1)
     base_issue = _issue("kanbus-2", base_time)
     overlay_issue = _issue("kanbus-2", overlay_time)

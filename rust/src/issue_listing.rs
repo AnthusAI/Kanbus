@@ -227,9 +227,9 @@ fn list_issues_local(
     overlay_config: &crate::models::OverlayConfig,
     project_labels: &HashMap<std::path::PathBuf, String>,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    let issues = list_issues_for_project(&project_dir)?;
+    let issues = list_issues_for_project(project_dir)?;
     apply_overlay_to_issues(
-        &project_dir,
+        project_dir,
         issues,
         overlay_config,
         project_labels.get(project_dir).map(|value| value.as_str()),
