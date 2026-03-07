@@ -425,7 +425,7 @@ jobs:
 
   badges:
     needs: [python, rust]
-    if: always()
+    if: ${{ always() && github.event_name == 'push' && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
