@@ -118,7 +118,7 @@ export function VirtualProjectsDemoVideo({ style }: { style?: React.CSSPropertie
           transform: `translateX(${dep1X}px) translateY(${depsY}px)`,
           opacity: depsOpacity
         }}>
-          <div style={{ color: "#c084fc", fontFamily: "monospace", fontWeight: "bold", marginBottom: "16px" }}>web-client/</div>
+          <div style={{ color: "var(--text-selected)", fontFamily: "monospace", fontWeight: "bold", marginBottom: "16px" }}>web-client/</div>
           <div style={{ fontSize: "12px", color: "rgba(168,85,247,0.7)" }}>PROJ- UI</div>
         </div>
 

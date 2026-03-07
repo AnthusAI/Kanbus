@@ -39,7 +39,7 @@
           "id": "hook",
           "label": "Hook",
           "startSec": 0,
-          "endSec": 18.2875,
+          "endSec": 18.387500000000003,
           "text": "Kanbus gives you an agent-ready CLI, a live Kanban board, Jira sync, and local tasks, all powered directly from repository files. You also get virtual projects, Beads compatibility, a VS Code plugin, an integrated wiki, and policy as code, so agents and humans can run the same workflow.",
           "segments": [
             {
@@ -51,19 +51,19 @@
             {
               "type": "tts",
               "startSec": 0.6,
-              "endSec": 8.4625,
+              "endSec": 8.5,
               "text": "Kanbus gives you an agent-ready CLI, a live Kanban board, Jira sync, and local tasks, all powered directly from repository files."
             },
             {
               "type": "pause",
-              "startSec": 8.4625,
-              "endSec": 8.762500000000001,
+              "startSec": 8.5,
+              "endSec": 8.8,
               "durationSec": 0.3
             },
             {
               "type": "tts",
-              "startSec": 8.762500000000001,
-              "endSec": 18.2875,
+              "startSec": 8.8,
+              "endSec": 18.387500000000003,
               "text": "You also get virtual projects, Beads compatibility, a VS Code plugin, an integrated wiki, and policy as code, so agents and humans can run the same workflow."
             }
           ],
@@ -96,12 +96,18 @@
           "zIndex": 1,
           "components": [
             {
-              "id": "title-0",
-              "type": "Title",
+              "id": "text-block-0",
+              "type": "TextBlock",
               "props": {
                 "text": "Files Are the Database",
                 "x": 960,
                 "y": 200,
+                "size": 64,
+                "weight": 700,
+                "align": "center",
+                "maxWidth": 1400,
+                "font": "sans",
+                "color": "var(--text-foreground)",
                 "sceneStartSec": 27
               }
             }
@@ -185,25 +191,25 @@
           "id": "one_file",
           "label": "One File Per Issue",
           "startSec": 27.5,
-          "endSec": 50.099999999999994,
+          "endSec": 50.2375,
           "text": "Every issue is a single JSON file. Not one giant file that causes merge conflicts every time two people touch it—one file per issue. That means your team and your AI agents can create, update, and close issues in parallel without stepping on each other. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time.",
           "segments": [
             {
               "type": "tts",
               "startSec": 27.5,
-              "endSec": 35.7375,
+              "endSec": 35.825,
               "text": "Every issue is a single JSON file. Not one giant file that causes merge conflicts every time two people touch it—one file per issue."
             },
             {
               "type": "pause",
-              "startSec": 35.7375,
-              "endSec": 36.037499999999994,
+              "startSec": 35.825,
+              "endSec": 36.125,
               "durationSec": 0.3
             },
             {
               "type": "tts",
-              "startSec": 36.037499999999994,
-              "endSec": 50.099999999999994,
+              "startSec": 36.125,
+              "endSec": 50.2375,
               "text": "That means your team and your AI agents can create, update, and close issues in parallel without stepping on each other. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time."
             }
           ],
@@ -212,20 +218,20 @@
         {
           "id": "no_friction",
           "label": "No Friction",
-          "startSec": 50.099999999999994,
-          "endSec": 60.31249999999999,
+          "startSec": 50.2375,
+          "endSec": 60.52499999999999,
           "text": "There's no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 50.099999999999994,
-              "endSec": 50.39999999999999,
+              "startSec": 50.2375,
+              "endSec": 50.537499999999994,
               "durationSec": 0.3
             },
             {
               "type": "tts",
-              "startSec": 50.39999999999999,
-              "endSec": 60.31249999999999,
+              "startSec": 50.537499999999994,
+              "endSec": 60.52499999999999,
               "text": "There's no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly."
             }
           ],
@@ -258,12 +264,18 @@
           "zIndex": 1,
           "components": [
             {
-              "id": "title-0",
-              "type": "Title",
+              "id": "text-block-0",
+              "type": "TextBlock",
               "props": {
                 "text": "Built for AI Agents",
                 "x": 960,
                 "y": 200,
+                "size": 64,
+                "weight": 700,
+                "align": "center",
+                "maxWidth": 1400,
+                "font": "sans",
+                "color": "var(--text-foreground)",
                 "sceneStartSec": 62
               }
             }
@@ -347,25 +359,25 @@
           "id": "agent_native",
           "label": "Agent-Native",
           "startSec": 63,
-          "endSec": 79.78750000000001,
+          "endSec": 79.5375,
           "text": "Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would. No API keys. No web latency. Just native file and command-line access to the full project tracker.",
           "segments": [
             {
               "type": "tts",
               "startSec": 63,
-              "endSec": 73.4625,
+              "endSec": 73.2375,
               "text": "Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would."
             },
             {
               "type": "pause",
-              "startSec": 73.4625,
-              "endSec": 73.7625,
+              "startSec": 73.2375,
+              "endSec": 73.5375,
               "durationSec": 0.3
             },
             {
               "type": "tts",
-              "startSec": 73.7625,
-              "endSec": 79.78750000000001,
+              "startSec": 73.5375,
+              "endSec": 79.5375,
               "text": "No API keys. No web latency. Just native file and command-line access to the full project tracker."
             }
           ],
@@ -374,20 +386,20 @@
         {
           "id": "wiki",
           "label": "Live Wiki",
-          "startSec": 79.78750000000001,
-          "endSec": 95.825,
+          "startSec": 79.5375,
+          "endSec": 95.46249999999999,
           "text": "Kanbus also includes an integrated wiki with live templates. Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 79.78750000000001,
-              "endSec": 80.0875,
+              "startSec": 79.5375,
+              "endSec": 79.83749999999999,
               "durationSec": 0.3
             },
             {
               "type": "tts",
-              "startSec": 80.0875,
-              "endSec": 95.825,
+              "startSec": 79.83749999999999,
+              "endSec": 95.46249999999999,
               "text": "Kanbus also includes an integrated wiki with live templates. Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot."
             }
           ],
@@ -420,12 +432,18 @@
           "zIndex": 1,
           "components": [
             {
-              "id": "title-0",
-              "type": "Title",
+              "id": "text-block-0",
+              "type": "TextBlock",
               "props": {
                 "text": "Connected, Not Isolated",
                 "x": 960,
                 "y": 200,
+                "size": 64,
+                "weight": 700,
+                "align": "center",
+                "maxWidth": 1400,
+                "font": "sans",
+                "color": "var(--text-foreground)",
                 "sceneStartSec": 98
               }
             }
@@ -509,13 +527,13 @@
           "id": "jira_sync",
           "label": "Jira Sync",
           "startSec": 99.5,
-          "endSec": 110.85,
+          "endSec": 110.9875,
           "text": "Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access.",
           "segments": [
             {
               "type": "tts",
               "startSec": 99.5,
-              "endSec": 110.85,
+              "endSec": 110.9875,
               "text": "Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access."
             }
           ],
@@ -524,20 +542,20 @@
         {
           "id": "local_tasks",
           "label": "Local Tasks",
-          "startSec": 110.85,
-          "endSec": 121.87499999999999,
+          "startSec": 110.9875,
+          "endSec": 122.08749999999999,
           "text": "And for your own work-in-progress, local tasks stay off Git until you're ready. Draft ideas, experiment, and promote tasks to the shared board when they're ready for the team.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 110.85,
-              "endSec": 111.14999999999999,
+              "startSec": 110.9875,
+              "endSec": 111.2875,
               "durationSec": 0.3
             },
             {
               "type": "tts",
-              "startSec": 111.14999999999999,
-              "endSec": 121.87499999999999,
+              "startSec": 111.2875,
+              "endSec": 122.08749999999999,
               "text": "And for your own work-in-progress, local tasks stay off Git until you're ready. Draft ideas, experiment, and promote tasks to the shared board when they're ready for the team."
             }
           ],
@@ -549,7 +567,7 @@
       "id": "tools",
       "title": "Three Ways to Use It",
       "startSec": 123,
-      "endSec": 155.28750000000002,
+      "endSec": 155.3,
       "layers": [
         {
           "id": "background",
@@ -570,12 +588,18 @@
           "zIndex": 1,
           "components": [
             {
-              "id": "title-0",
-              "type": "Title",
+              "id": "text-block-0",
+              "type": "TextBlock",
               "props": {
                 "text": "Three Ways to Use It",
                 "x": 960,
                 "y": 200,
+                "size": 64,
+                "weight": 700,
+                "align": "center",
+                "maxWidth": 1400,
+                "font": "sans",
+                "color": "var(--text-foreground)",
                 "sceneStartSec": 121
               }
             }
@@ -675,7 +699,7 @@
           "id": "shared_store",
           "label": "Shared Datastore",
           "startSec": 145.7125,
-          "endSec": 155.28750000000002,
+          "endSec": 155.3,
           "text": "Multiple projects can even share a data store while keeping issues namespaced per project. Track work across codebases with centralized visibility.",
           "segments": [
             {
@@ -687,7 +711,7 @@
             {
               "type": "tts",
               "startSec": 146.01250000000002,
-              "endSec": 155.28750000000002,
+              "endSec": 155.3,
               "text": "Multiple projects can even share a data store while keeping issues namespaced per project. Track work across codebases with centralized visibility."
             }
           ],
@@ -698,8 +722,8 @@
     {
       "id": "cta",
       "title": "Get Started",
-      "startSec": 155.78750000000002,
-      "endSec": 169.78750000000002,
+      "startSec": 155.8,
+      "endSec": 169.8,
       "layers": [
         {
           "id": "background",
@@ -710,7 +734,7 @@
               "type": "Background",
               "props": {
                 "color": "#0f1115",
-                "sceneStartSec": 153.28750000000002
+                "sceneStartSec": 153.3
               }
             }
           ]
@@ -720,13 +744,19 @@
           "zIndex": 1,
           "components": [
             {
-              "id": "title-0",
-              "type": "Title",
+              "id": "text-block-0",
+              "type": "TextBlock",
               "props": {
                 "text": "Get Started",
                 "x": 960,
                 "y": 150,
-                "sceneStartSec": 153.28750000000002
+                "size": 64,
+                "weight": 700,
+                "align": "center",
+                "maxWidth": 1400,
+                "font": "sans",
+                "color": "var(--text-foreground)",
+                "sceneStartSec": 153.3
               }
             }
           ]
@@ -736,32 +766,32 @@
         {
           "id": "cta",
           "label": "Get Started",
-          "startSec": 155.78750000000002,
-          "endSec": 166.08750000000003,
+          "startSec": 155.8,
+          "endSec": 166.05,
           "text": "Kanbus. A tiny Jira clone for your repo. Files are the database. Agents are first-class citizens. And everything stays in Git. Visit kanb.us to get started.",
           "segments": [
             {
               "type": "tts",
-              "startSec": 155.78750000000002,
-              "endSec": 163.50000000000003,
+              "startSec": 155.8,
+              "endSec": 163.4625,
               "text": "Kanbus. A tiny Jira clone for your repo. Files are the database. Agents are first-class citizens. And everything stays in Git."
             },
             {
               "type": "pause",
-              "startSec": 163.50000000000003,
-              "endSec": 163.80000000000004,
+              "startSec": 163.4625,
+              "endSec": 163.76250000000002,
               "durationSec": 0.3
             },
             {
               "type": "tts",
-              "startSec": 163.80000000000004,
-              "endSec": 165.58750000000003,
+              "startSec": 163.76250000000002,
+              "endSec": 165.55,
               "text": "Visit kanb.us to get started."
             },
             {
               "type": "pause",
-              "startSec": 165.58750000000003,
-              "endSec": 166.08750000000003,
+              "startSec": 165.55,
+              "endSec": 166.05,
               "durationSec": 0.5
             }
           ],
@@ -855,13 +885,13 @@
       "kind": "scene",
       "sceneId": "tools",
       "startSec": 123,
-      "endSec": 155.28750000000002
+      "endSec": 155.3
     },
     {
       "kind": "transition",
       "id": "push-5",
-      "startSec": 155.28750000000002,
-      "endSec": 155.78750000000002,
+      "startSec": 155.3,
+      "endSec": 155.8,
       "effect": "slide",
       "ease": "power2.inOut",
       "props": {
@@ -874,8 +904,8 @@
     {
       "kind": "scene",
       "sceneId": "cta",
-      "startSec": 155.78750000000002,
-      "endSec": 169.78750000000002
+      "startSec": 155.8,
+      "endSec": 169.8
     }
   ],
   "posterTimeSec": 24,

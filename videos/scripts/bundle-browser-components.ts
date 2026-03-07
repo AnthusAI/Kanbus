@@ -5,9 +5,9 @@ import { resolve } from "path";
 import { globalsPlugin } from "./esbuild-globals-plugin";
 
 async function bundle() {
+  const watchMode = process.argv.includes("--watch");
   console.error("Bundling browser components...");
-
-  await esbuild.build({
+  const buildOptions: esbuild.BuildOptions = {
     entryPoints: [resolve(__dirname, "browser-components.tsx")],
     bundle: true,
     format: "iife",
@@ -27,12 +27,20 @@ async function bundle() {
       ".jpeg": "dataurl",
       ".gif": "dataurl",
       ".svg": "dataurl",
-      ".css": "text"
+      ".css": "text",
     },
     minify: false,
-    sourcemap: true
-  });
+    sourcemap: true,
+  };
 
+  if (watchMode) {
+    const ctx = await esbuild.context(buildOptions);
+    await ctx.watch();
+    console.error("Bundle watch active at videos/public/browser-components.js");
+    return;
+  }
+
+  await esbuild.build(buildOptions);
   console.error("Bundle created at public/browser-components.js");
 }
 

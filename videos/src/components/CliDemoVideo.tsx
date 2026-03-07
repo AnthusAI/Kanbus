@@ -98,7 +98,7 @@ export function CliDemoVideo({ style }: { style?: React.CSSProperties }) {
               <div style={{ opacity: 0.3 }}>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <span style={{ color: "#60a5fa" }}>~</span>
-                  <span style={{ color: "#f472b6" }}>❯</span>
+                  <span style={{ color: "var(--text-selected)" }}>❯</span>
                   <span style={{ color: "#ffffff" }}>{COMMANDS[activeIndex - 1].cmd}</span>
                 </div>
                 <div style={{ color: "#d4d4d4", marginTop: "4px", paddingLeft: "24px" }}>
@@ -111,7 +111,7 @@ export function CliDemoVideo({ style }: { style?: React.CSSProperties }) {
             <div>
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <span style={{ color: "#60a5fa" }}>~</span>
-                <span style={{ color: "#f472b6" }}>❯</span>
+                <span style={{ color: "var(--text-selected)" }}>❯</span>
                 <span style={{ color: "#ffffff" }}>
                   {COMMANDS[activeIndex].cmd.substring(0, charsToShow)}
                   {transitionFrame < typeDuration + (fps * 0.5) && (

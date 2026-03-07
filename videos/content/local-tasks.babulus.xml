@@ -5,51 +5,30 @@
     <layer id="background" z="-1">
       <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="visual" z="0">
-      <animated-pictogram-video props='{"type": "local"}' />
-    </layer>
-    <layer id="title" z="1">
-      <text-block props='{"text":"Local Tasks","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
-      <text-block props='{"text":"Your Private Scratchpad","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+    <layer id="content" z="1">
+      <feature-two-column-scene props='{"headline":"Local Tasks","subhead":"Your private scratchpad","bodyPrimary":"Capture experiments and WIP privately, then promote to shared execution when ready.","leftRatio":0.4,"rightPanel":"pictogram","pictogramType":"local","pictogramScale":1.22}' />
     </layer>
   </scene>
 
-  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+  <transition id="push-1" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
   <scene id="deep_dive" title="Local Tasks Deep Dive" duration="28s">
     <layer id="background" z="-1">
       <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="title" z="1">
-      <title props='{"text":"Local Tasks","x":960,"y":120}' />
-    </layer>
-    <layer id="subtitle" z="1">
-      <subtitle props='{"text":"Your Private Scratchpad","x":960,"y":200}' />
-    </layer>
     <layer id="content" z="1">
-      <text-block props='{"text":"Private Scratchpad","x":480,"y":400,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
-      <text-block props='{"text":"Sometimes you need to jot down ideas or track personal reminders without cluttering the team&apos;s shared board. Local tasks give you a private workspace. Visible only to you, invisible to version control.","x":480,"y":540,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
-      
-      <text-block props='{"text":"Promote With Ease","x":480,"y":760,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
-      <text-block props='{"text":"When your experiment turns into something real, promote it to the shared project with a single command. See everything together, or filter to hide your private scratchpad entirely.","x":480,"y":880,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
-    </layer>
-    <layer id="visual" z="0">
-      <local-tasks-demo-video props='{"style":{"left": 960, "top": 300, "width": 800, "bottom": 0, "position": "absolute"}}' />
+      <feature-two-column-scene props='{"headline":"Local Tasks","subhead":"Your private scratchpad","bodyPrimary":"Track personal ideas without cluttering team boards. Local tasks stay visible to you and out of version control.","bodySecondary":"When work is ready, promote it to the shared project with one command and keep private drafts separate.","leftRatio":0.4,"rightPanel":"local-tasks-demo"}' />
     </layer>
     <cue id="intro" label="Introduction">
-      <voice>Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board.</voice>
+      <voice>Keep private tasks off git and only promote them when ready. Perfect for drafting ideas and work-in-progress.</voice>
     </cue>
-    <cue id="private" label="Private">
+    <cue id="scratchpad" label="Private Scratchpad">
       <pause seconds="0.5s" />
-      <voice>Local tasks give you a private workspace. Visible only to you, invisible to version control.</voice>
+      <voice>Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board. Local tasks give you a private workspace.</voice>
     </cue>
     <cue id="promote" label="Promote">
       <pause seconds="0.5s" />
-      <voice>When your experiment turns into something real, promote it to the shared project with a single command.</voice>
-    </cue>
-    <cue id="clean" label="Clean">
-      <pause seconds="0.5s" />
-      <voice>See everything together, or filter to hide your private scratchpad entirely. It's your workspace.</voice>
+      <voice>When your experiment turns into something real, promote it to the shared project with a single command. See everything together, or hide local tasks entirely.</voice>
     </cue>
   </scene>
 </vml>

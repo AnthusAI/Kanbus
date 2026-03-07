@@ -4,17 +4,17 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "intro",
-      "startSec": 5.625,
-      "endSec": 12.7,
+      "startSec": 5.5,
+      "endSec": 13.6,
       "segments": [
         {
           "type": "tts",
-          "startSec": 5.625,
-          "endSec": 12.7,
-          "text": "Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/virtual-projects/env/development/segments/deep_dive--intro--tts--cc67e0bb58b3--1.wav",
-          "durationSec": 7.075,
-          "rawDurationSec": 7.075,
+          "startSec": 5.5,
+          "endSec": 13.6,
+          "text": "Need to track issues from multiple repositories in one place? Virtual projects let you aggregate external project data seamlessly.",
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/virtual-projects/env/development/segments/deep_dive--intro--tts--2e3f6aeb4d5c--1.wav",
+          "durationSec": 8.1,
+          "rawDurationSec": 8.1,
           "trimEndSec": 0
         }
       ]
@@ -22,24 +22,24 @@
     {
       "type": "tts",
       "sceneId": "deep_dive",
-      "cueId": "unified",
-      "startSec": 12.7,
-      "endSec": 20.674999999999997,
+      "cueId": "mount",
+      "startSec": 13.6,
+      "endSec": 21.975,
       "segments": [
         {
           "type": "pause",
-          "startSec": 12.7,
-          "endSec": 13.2,
+          "startSec": 13.6,
+          "endSec": 14.1,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 13.2,
-          "endSec": 20.674999999999997,
-          "text": "Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/virtual-projects/env/development/segments/deep_dive--unified--tts--46fadc7179b3--1.wav",
-          "durationSec": 7.475,
-          "rawDurationSec": 7.475,
+          "startSec": 14.1,
+          "endSec": 21.975,
+          "text": "Mount other projects into your current workspace and query all issues together. Keep context without constant repo switching.",
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/virtual-projects/env/development/segments/deep_dive--mount--tts--cf34778bf8eb--1.wav",
+          "durationSec": 7.875,
+          "rawDurationSec": 7.875,
           "trimEndSec": 0
         }
       ]
@@ -48,48 +48,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "shared",
-      "startSec": 20.674999999999997,
-      "endSec": 28.049999999999997,
+      "startSec": 21.975,
+      "endSec": 30.637500000000003,
       "segments": [
         {
           "type": "pause",
-          "startSec": 20.674999999999997,
-          "endSec": 21.174999999999997,
+          "startSec": 21.975,
+          "endSec": 22.475,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 21.174999999999997,
-          "endSec": 28.049999999999997,
-          "text": "Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/virtual-projects/env/development/segments/deep_dive--shared--tts--fe9c3be1fcdf--1.wav",
-          "durationSec": 6.875,
-          "rawDurationSec": 6.875,
-          "trimEndSec": 0
-        }
-      ]
-    },
-    {
-      "type": "tts",
-      "sceneId": "deep_dive",
-      "cueId": "local",
-      "startSec": 28.049999999999997,
-      "endSec": 36,
-      "segments": [
-        {
-          "type": "pause",
-          "startSec": 28.049999999999997,
-          "endSec": 28.549999999999997,
-          "seconds": 0.5
-        },
-        {
-          "type": "tts",
-          "startSec": 28.549999999999997,
-          "endSec": 36,
-          "text": "Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/virtual-projects/env/development/segments/deep_dive--local--tts--1e6d0f8abaaf--1.wav",
-          "durationSec": 7.45,
-          "rawDurationSec": 7.45,
+          "startSec": 22.475,
+          "endSec": 30.637500000000003,
+          "text": "Add virtual projects to a team configuration file and everyone gets the same view. Or keep a private config for personal tracking.",
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/virtual-projects/env/development/segments/deep_dive--shared--tts--c5100d2822ef--1.wav",
+          "durationSec": 8.1625,
+          "rawDurationSec": 8.1625,
           "trimEndSec": 0
         }
       ]
@@ -102,35 +77,27 @@
         "kind": "narration",
         "clips": [
           {
-            "id": "deep_dive--intro--tts--cc67e0bb58b3--1",
+            "id": "deep_dive--intro--tts--2e3f6aeb4d5c--1",
             "kind": "file",
-            "startSec": 5.625,
-            "durationSec": 7.075,
-            "src": "/videoml/virtual-projects/env/development/segments/deep_dive--intro--tts--cc67e0bb58b3--1.wav",
+            "startSec": 5.5,
+            "durationSec": 8.1,
+            "src": "/videoml/virtual-projects/env/development/segments/deep_dive--intro--tts--2e3f6aeb4d5c--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--unified--tts--46fadc7179b3--1",
+            "id": "deep_dive--mount--tts--cf34778bf8eb--1",
             "kind": "file",
-            "startSec": 13.2,
-            "durationSec": 7.475,
-            "src": "/videoml/virtual-projects/env/development/segments/deep_dive--unified--tts--46fadc7179b3--1.wav",
+            "startSec": 14.1,
+            "durationSec": 7.875,
+            "src": "/videoml/virtual-projects/env/development/segments/deep_dive--mount--tts--cf34778bf8eb--1.wav",
             "volume": 1
           },
           {
-            "id": "deep_dive--shared--tts--fe9c3be1fcdf--1",
+            "id": "deep_dive--shared--tts--c5100d2822ef--1",
             "kind": "file",
-            "startSec": 21.174999999999997,
-            "durationSec": 6.875,
-            "src": "/videoml/virtual-projects/env/development/segments/deep_dive--shared--tts--fe9c3be1fcdf--1.wav",
-            "volume": 1
-          },
-          {
-            "id": "deep_dive--local--tts--1e6d0f8abaaf--1",
-            "kind": "file",
-            "startSec": 28.549999999999997,
-            "durationSec": 7.45,
-            "src": "/videoml/virtual-projects/env/development/segments/deep_dive--local--tts--1e6d0f8abaaf--1.wav",
+            "startSec": 22.475,
+            "durationSec": 8.1625,
+            "src": "/videoml/virtual-projects/env/development/segments/deep_dive--shared--tts--c5100d2822ef--1.wav",
             "volume": 1
           }
         ]

@@ -65,7 +65,7 @@ export function PolicyDemoVideo({ style }: { style?: React.CSSProperties }) {
             lineHeight: "1.625",
             whiteSpace: "pre-wrap"
           }}>
-            <span style={{ color: "#c084fc" }}>Feature:</span> Tasks require assignee{'\n\n'}
+            <span style={{ color: "var(--text-selected)" }}>Feature:</span> Tasks require assignee{'\n\n'}
             <span style={{ color: "#60a5fa" }}>  Scenario:</span> Task must have assignee to start{'\n'}
             <span style={{ color: "#facc15" }}>    Given</span> the issue type is <span style={{ color: "#86efac" }}>"task"</span>{'\n'}
             <span style={{ color: "#facc15" }}>    When</span> transitioning to <span style={{ color: "#86efac" }}>"in_progress"</span>{'\n'}
@@ -101,7 +101,7 @@ export function PolicyDemoVideo({ style }: { style?: React.CSSProperties }) {
             color: "#4ade80"
           }}>
             <span style={{ color: "#60a5fa", marginRight: "8px" }}>~</span>
-            <span style={{ color: "#f472b6", marginRight: "8px" }}>❯</span>
+            <span style={{ color: "var(--text-selected)", marginRight: "8px" }}>❯</span>
             <span style={{ color: "#ffffff", fontSize: "14px" }}>
               {cmdString.substring(0, Math.max(0, cmdChars))}
               <span style={{

@@ -21,51 +21,20 @@
           ]
         },
         {
-          "id": "visual",
-          "zIndex": 0,
-          "components": [
-            {
-              "id": "animated-pictogram-video-0",
-              "type": "AnimatedPictogramVideo",
-              "props": {
-                "type": "vscode",
-                "sceneStartSec": 0
-              }
-            }
-          ]
-        },
-        {
-          "id": "title",
+          "id": "content",
           "zIndex": 1,
           "components": [
             {
-              "id": "text-block-0",
-              "type": "TextBlock",
+              "id": "feature-two-column-scene-0",
+              "type": "FeatureTwoColumnScene",
               "props": {
-                "text": "VS Code Integration",
-                "x": 960,
-                "y": 120,
-                "size": 64,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 1200,
-                "font": "sans",
-                "sceneStartSec": 0
-              }
-            },
-            {
-              "id": "text-block-1",
-              "type": "TextBlock",
-              "props": {
-                "text": "The full Kanbus experience, embedded in your editor",
-                "x": 960,
-                "y": 200,
-                "size": 36,
-                "weight": 400,
-                "align": "center",
-                "maxWidth": 1200,
-                "font": "serif",
-                "color": "var(--text-muted)",
+                "headline": "VS Code Plugin",
+                "subhead": "Kanbus control inside the editor",
+                "bodyPrimary": "Manage board state without leaving your coding environment.",
+                "leftRatio": 0.4,
+                "rightPanel": "pictogram",
+                "pictogramType": "vscode",
+                "pictogramScale": 1.22,
                 "sceneStartSec": 0
               }
             }
@@ -77,8 +46,8 @@
     {
       "id": "deep_dive",
       "title": "VS Code Plugin Deep Dive",
-      "startSec": 5.625,
-      "endSec": 35.625,
+      "startSec": 5.5,
+      "endSec": 35.5,
       "layers": [
         {
           "id": "background",
@@ -95,124 +64,19 @@
           ]
         },
         {
-          "id": "title",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "title-0",
-              "type": "Title",
-              "props": {
-                "text": "VS Code Integration",
-                "x": 960,
-                "y": 120,
-                "sceneStartSec": 5
-              }
-            }
-          ]
-        },
-        {
-          "id": "subtitle",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "subtitle-0",
-              "type": "Subtitle",
-              "props": {
-                "text": "The full Kanbus experience, embedded in your editor",
-                "x": 960,
-                "y": 200,
-                "sceneStartSec": 5
-              }
-            }
-          ]
-        },
-        {
           "id": "content",
           "zIndex": 1,
           "components": [
             {
-              "id": "text-block-0",
-              "type": "TextBlock",
+              "id": "feature-two-column-scene-0",
+              "type": "FeatureTwoColumnScene",
               "props": {
-                "text": "Zero Context Switching",
-                "x": 480,
-                "y": 400,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 5
-              }
-            },
-            {
-              "id": "text-block-1",
-              "type": "TextBlock",
-              "props": {
-                "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab. Drag issues, edit details, and filter tasks while your code remains visible right next to it.",
-                "x": 480,
-                "y": 540,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 5
-              }
-            },
-            {
-              "id": "text-block-2",
-              "type": "TextBlock",
-              "props": {
-                "text": "Instant Access",
-                "x": 480,
-                "y": 760,
-                "size": 36,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "sans",
-                "sceneStartSec": 5
-              }
-            },
-            {
-              "id": "text-block-3",
-              "type": "TextBlock",
-              "props": {
-                "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details. The Kanbus extension is open source and available for free.",
-                "x": 480,
-                "y": 880,
-                "size": 28,
-                "align": "center",
-                "maxWidth": 600,
-                "font": "serif",
-                "background": "var(--card)",
-                "padding": 28,
-                "borderRadius": 16,
-                "border": "1px solid var(--border)",
-                "sceneStartSec": 5
-              }
-            }
-          ]
-        },
-        {
-          "id": "visual",
-          "zIndex": 0,
-          "components": [
-            {
-              "id": "vs-code-demo-video-0",
-              "type": "VsCodeDemoVideo",
-              "props": {
-                "style": {
-                  "left": 960,
-                  "top": 300,
-                  "width": 800,
-                  "bottom": 0,
-                  "position": "absolute"
-                },
+                "headline": "VS Code Plugin",
+                "subhead": "Kanbus control inside the editor",
+                "bodyPrimary": "Open the Kanban board in a VS Code tab, drag issues, edit details, and keep code visible in adjacent panes.",
+                "bodySecondary": "Jump from issue references to details instantly via Activity Bar and Command Palette integration.",
+                "leftRatio": 0.4,
+                "rightPanel": "vscode-demo",
                 "sceneStartSec": 5
               }
             }
@@ -223,81 +87,59 @@
         {
           "id": "intro",
           "label": "Introduction",
-          "startSec": 5.625,
-          "endSec": 11.65,
-          "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab.",
+          "startSec": 5.5,
+          "endSec": 11.7125,
+          "text": "Manage your project board directly inside VS Code. No context switching between browser and editor.",
           "segments": [
             {
               "type": "tts",
-              "startSec": 5.625,
-              "endSec": 11.65,
-              "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab."
+              "startSec": 5.5,
+              "endSec": 11.7125,
+              "text": "Manage your project board directly inside VS Code. No context switching between browser and editor."
             }
           ],
           "bullets": []
         },
         {
-          "id": "workflow",
-          "label": "Workflow",
-          "startSec": 11.65,
-          "endSec": 19.3375,
-          "text": "Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching.",
+          "id": "integrated",
+          "label": "Integrated Board",
+          "startSec": 11.7125,
+          "endSec": 19.875,
+          "text": "Open the Kanban board in a dedicated tab, drag issues across columns, and edit details while code stays visible in split view.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 11.65,
-              "endSec": 12.15,
+              "startSec": 11.7125,
+              "endSec": 12.2125,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 12.15,
-              "endSec": 19.3375,
-              "text": "Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching."
+              "startSec": 12.2125,
+              "endSec": 19.875,
+              "text": "Open the Kanban board in a dedicated tab, drag issues across columns, and edit details while code stays visible in split view."
             }
           ],
           "bullets": []
         },
         {
-          "id": "access",
-          "label": "Access",
-          "startSec": 19.3375,
-          "endSec": 28.1375,
-          "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details.",
+          "id": "commands",
+          "label": "Quick Access",
+          "startSec": 19.875,
+          "endSec": 27.5,
+          "text": "Access Kanbus via Activity Bar or Command Palette, and jump from issue IDs in comments straight to their details.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 19.3375,
-              "endSec": 19.8375,
+              "startSec": 19.875,
+              "endSec": 20.375,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 19.8375,
-              "endSec": 28.1375,
-              "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details."
-            }
-          ],
-          "bullets": []
-        },
-        {
-          "id": "install",
-          "label": "Install",
-          "startSec": 28.1375,
-          "endSec": 34.7625,
-          "text": "The Kanbus extension is open source and available for free. Install it from the Marketplace today.",
-          "segments": [
-            {
-              "type": "pause",
-              "startSec": 28.1375,
-              "endSec": 28.6375,
-              "durationSec": 0.5
-            },
-            {
-              "type": "tts",
-              "startSec": 28.6375,
-              "endSec": 34.7625,
-              "text": "The Kanbus extension is open source and available for free. Install it from the Marketplace today."
+              "startSec": 20.375,
+              "endSec": 27.5,
+              "text": "Access Kanbus via Activity Bar or Command Palette, and jump from issue IDs in comments straight to their details."
             }
           ],
           "bullets": []
@@ -316,7 +158,7 @@
       "kind": "transition",
       "id": "push-1",
       "startSec": 5,
-      "endSec": 5.625,
+      "endSec": 5.5,
       "effect": "slide",
       "ease": "power2.inOut",
       "props": {
@@ -329,8 +171,8 @@
     {
       "kind": "scene",
       "sceneId": "deep_dive",
-      "startSec": 5.625,
-      "endSec": 35.625
+      "startSec": 5.5,
+      "endSec": 35.5
     }
   ],
   "posterTimeSec": 2,
