@@ -13,6 +13,7 @@ export type CloudAuthResult = {
   mode: "none" | "cognito_pkce";
   headers: Record<string, string>;
   queryToken: string | null;
+  mqttToken: string | null;
   forbiddenReason: string | null;
   bootstrap: AuthBootstrap;
 };
@@ -171,6 +172,13 @@ function tenantFromBasePath(basePath: string): { account: string; project: strin
   if (parts.length < 2) {
     return null;
   }
+  const hasStagePrefix = parts[0] === "dev" || parts[0] === "prod" || parts[0] === "staging";
+  if (hasStagePrefix) {
+    if (parts.length < 3) {
+      return null;
+    }
+    return { account: parts[1], project: parts[2] };
+  }
   return { account: parts[0], project: parts[1] };
 }
 
@@ -207,6 +215,7 @@ export async function ensureCloudAuth(
       mode: "none",
       headers: {},
       queryToken: null,
+      mqttToken: null,
       forbiddenReason: null,
       bootstrap
     };
@@ -228,6 +237,7 @@ export async function ensureCloudAuth(
       mode: "cognito_pkce",
       headers: { Authorization: `Bearer ${exchanged.auth.id_token}` },
       queryToken: exchanged.auth.id_token,
+      mqttToken: exchanged.auth.id_token,
       forbiddenReason: validateTenantClaims(bootstrap, exchanged.auth.id_token, exchanged.returnTo),
       bootstrap
     };
@@ -245,6 +255,7 @@ export async function ensureCloudAuth(
     mode: "cognito_pkce",
     headers: { Authorization: `Bearer ${stored!.id_token}` },
     queryToken: stored!.id_token,
+    mqttToken: stored!.id_token,
     forbiddenReason: validateTenantClaims(bootstrap, stored!.id_token, currentBasePath),
     bootstrap
   };

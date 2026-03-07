@@ -17,10 +17,14 @@ _TOKEN_TABLE = os.environ["KANBUS_TOKEN_TABLE"]
 _PEPPER_SECRET_ARN = os.environ["KANBUS_TOKEN_PEPPER_SECRET_ARN"]
 _AWS_ACCOUNT = os.environ.get("KANBUS_AWS_ACCOUNT", "")
 _AWS_REGION = os.environ.get("KANBUS_AWS_REGION", os.environ.get("AWS_REGION", "us-east-1"))
+_COGNITO_USER_POOL_ID = os.environ.get("KANBUS_COGNITO_USER_POOL_ID", "")
+_TENANT_ACCOUNT_CLAIM_KEY = os.environ.get("KANBUS_TENANT_ACCOUNT_CLAIM_KEY", "custom:account")
+_TENANT_PROJECT_CLAIM_KEY = os.environ.get("KANBUS_TENANT_PROJECT_CLAIM_KEY", "custom:project")
 
 _dynamodb = boto3.resource("dynamodb")
 _table = _dynamodb.Table(_TOKEN_TABLE)
 _secrets = boto3.client("secretsmanager")
+_cognito = boto3.client("cognito-idp")
 _PEPPER_CACHE: str | None = None
 
 
@@ -91,6 +95,59 @@ def _is_expired(expires_at: str | None) -> bool:
     return datetime.now(UTC) >= parsed
 
 
+def _looks_like_jwt(token_value: str) -> bool:
+    return token_value.count(".") == 2
+
+
+def _decode_jwt_claims(token_value: str) -> dict[str, Any] | None:
+    if not _looks_like_jwt(token_value):
+        return None
+    parts = token_value.split(".")
+    if len(parts) < 2:
+        return None
+    payload = parts[1]
+    padding = "=" * ((4 - len(payload) % 4) % 4)
+    try:
+        decoded = base64.urlsafe_b64decode(f"{payload}{padding}".encode("utf-8"))
+        parsed = json.loads(decoded.decode("utf-8"))
+    except Exception:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
+def _tenant_from_cognito_access_token(access_token: str) -> tuple[str, str, str] | None:
+    claims = _decode_jwt_claims(access_token)
+    if claims:
+        account = str(claims.get(_TENANT_ACCOUNT_CLAIM_KEY, "")).strip()
+        project = str(claims.get(_TENANT_PROJECT_CLAIM_KEY, "")).strip()
+        username = (
+            str(claims.get("cognito:username", "")).strip()
+            or str(claims.get("username", "")).strip()
+            or str(claims.get("sub", "")).strip()
+            or "cognito-user"
+        )
+        if account and project:
+            return account, project, username
+    if not _COGNITO_USER_POOL_ID:
+        return None
+    try:
+        user = _cognito.get_user(AccessToken=access_token)
+    except Exception:
+        return None
+    attributes = {
+        str(attr.get("Name")): str(attr.get("Value", ""))
+        for attr in user.get("UserAttributes", [])
+    }
+    account = attributes.get(_TENANT_ACCOUNT_CLAIM_KEY, "").strip()
+    project = attributes.get(_TENANT_PROJECT_CLAIM_KEY, "").strip()
+    username = str(user.get("Username", "")).strip() or "cognito-user"
+    if not account or not project:
+        return None
+    return account, project, username
+
+
 def _policy_document(account: str, project: str, scopes: list[str]) -> dict[str, Any]:
     statements: list[dict[str, Any]] = [
         {
@@ -133,7 +190,16 @@ def _policy_document(account: str, project: str, scopes: list[str]) -> dict[str,
     return {"Version": "2012-10-17", "Statement": statements}
 
 
+def _principal_id(*parts: str) -> str:
+    raw = "".join(parts)
+    filtered = "".join(ch for ch in raw if ch.isalnum())
+    if not filtered:
+        return "kanbusprincipal"
+    return filtered[:128]
+
+
 def _deny(reason: str) -> dict[str, Any]:
+    print(json.dumps({"level": "warn", "result": "deny", "reason": reason}))
     return {"isAuthenticated": False, "disconnectAfterInSeconds": 60, "reason": reason}
 
 
@@ -142,6 +208,36 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         token_value = _extract_token(event)
         if not token_value:
             return _deny("missing token")
+        if _looks_like_jwt(token_value):
+            tenant = _tenant_from_cognito_access_token(token_value)
+            if not tenant:
+                return _deny("invalid cognito access token")
+            account, project, username = tenant
+            scopes = ["subscribe"]
+            print(
+                json.dumps(
+                    {
+                        "level": "info",
+                        "result": "allow",
+                        "source": "cognito_access_token",
+                        "account": account,
+                        "project": project,
+                    }
+                )
+            )
+            return {
+                "isAuthenticated": True,
+                "principalId": _principal_id("cog", account, project, username),
+                "policyDocuments": [_policy_document(account, project, scopes)],
+                "disconnectAfterInSeconds": 3600,
+                "refreshAfterInSeconds": 300,
+                "context": {
+                    "account": account,
+                    "project": project,
+                    "source": "cognito_access_token",
+                    "scopes": json.dumps(scopes),
+                },
+            }
         parsed = _parse_token(token_value)
         if not parsed:
             return _deny("invalid token format")
@@ -170,10 +266,22 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         scopes = [str(scope).strip() for scope in item.get("scopes", [])]
         if not scopes:
             scopes = ["subscribe"]
+        print(
+            json.dumps(
+                {
+                    "level": "info",
+                    "result": "allow",
+                    "source": "api_token",
+                    "account": account,
+                    "project": project,
+                    "token_id": token_id,
+                }
+            )
+        )
 
         return {
             "isAuthenticated": True,
-            "principalId": f"{account}:{project}:{token_id}",
+            "principalId": _principal_id("tok", account, project, token_id),
             "policyDocuments": [_policy_document(account, project, scopes)],
             "disconnectAfterInSeconds": 86_400,
             "refreshAfterInSeconds": 300,
