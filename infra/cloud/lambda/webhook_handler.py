@@ -4,11 +4,15 @@ import hashlib
 import hmac
 import json
 import os
+import re
 from typing import Any
 
 import boto3
 
 sqs = boto3.client("sqs")
+secrets = boto3.client("secretsmanager")
+TENANT_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+_SECRET_CACHE: str | None = None
 
 
 def _response(status: int, body: dict[str, Any]) -> dict[str, Any]:
@@ -30,9 +34,30 @@ def _verify_signature(secret: str, payload: bytes, signature_header: str | None)
     return hmac.compare_digest(expected, signature_header)
 
 
+def _load_webhook_secret() -> str:
+    global _SECRET_CACHE  # pylint: disable=global-statement
+    if _SECRET_CACHE:
+        return _SECRET_CACHE
+
+    inline = os.environ.get("GITHUB_WEBHOOK_SECRET")
+    if inline:
+        _SECRET_CACHE = inline
+        return _SECRET_CACHE
+
+    arn = os.environ.get("GITHUB_WEBHOOK_SECRET_ARN", "")
+    if not arn:
+        raise RuntimeError("GITHUB_WEBHOOK_SECRET_ARN is not configured")
+
+    value = secrets.get_secret_value(SecretId=arn)["SecretString"]
+    if not value:
+        raise RuntimeError("GitHub webhook secret is empty")
+    _SECRET_CACHE = value
+    return _SECRET_CACHE
+
+
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     queue_url = os.environ["SYNC_QUEUE_URL"]
-    secret = os.environ["GITHUB_WEBHOOK_SECRET"]
+    secret = _load_webhook_secret()
     headers = event.get("headers") or {}
     body_text = event.get("body") or ""
 
@@ -55,6 +80,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     project = _header(headers, "X-Kanbus-Project")
     if not account or not project:
         return _response(400, {"error": "missing X-Kanbus-Account or X-Kanbus-Project"})
+    if not TENANT_RE.match(account) or not TENANT_RE.match(project):
+        return _response(400, {"error": "invalid tenant header format"})
 
     payload_json = json.loads(payload.decode("utf-8"))
     repo = payload_json.get("repository") or {}
