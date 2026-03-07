@@ -405,7 +405,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         <g opacity="0">
           <animate attributeName="opacity" values="0; 1; 0" dur="2s" repeatCount="indefinite" />
           <g>
-            <animateTransform attributeName="transform" type="translate" values="140 100; 170 220" dur="2s" repeatCount="indefinite" />
+            <animateTransform attributeName="transform" type="translate" values="160 100; 200 220" dur="2s" repeatCount="indefinite" />
             <rect width="30" height="12" fill="var(--accent-blue)" rx="2" transform="translate(-15, -6)" />
           </g>
         </g>
@@ -413,7 +413,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         <g opacity="0">
           <animate attributeName="opacity" values="0; 1; 0" dur="2s" begin="1s" repeatCount="indefinite" />
           <g>
-            <animateTransform attributeName="transform" type="translate" values="360 100; 330 220" dur="2s" begin="1s" repeatCount="indefinite" />
+            <animateTransform attributeName="transform" type="translate" values="340 100; 300 220" dur="2s" begin="1s" repeatCount="indefinite" />
             <rect width="30" height="12" fill="var(--accent-blue)" rx="2" transform="translate(-15, -6)" />
           </g>
         </g>
