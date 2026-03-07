@@ -33,7 +33,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       <defs>
         <clipPath id="cmd-clip">
           <rect x="56" y="70" width="0" height="40">
-            <animate attributeName="width" values="0; 135; 135; 0" dur="6s" keyTimes="0; 0.15; 0.9; 1" repeatCount="indefinite" />
+            <animate attributeName="width" values="0; 0; 12; 12; 25; 25; 37; 37; 49; 49; 61; 61; 74; 74; 86; 86; 98; 98; 110; 110; 123; 123; 135; 135; 0; 0" dur="6s" keyTimes="0; 0.060; 0.061; 0.073; 0.074; 0.086; 0.087; 0.099; 0.100; 0.112; 0.113; 0.125; 0.126; 0.140; 0.141; 0.153; 0.154; 0.166; 0.167; 0.179; 0.180; 0.192; 0.193; 0.970; 0.971; 1" repeatCount="indefinite" />
           </rect>
         </clipPath>
       </defs>
@@ -51,36 +51,38 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       
       {/* Terminal Content */}
       <text x="28" y="96" fill="var(--accent-blue)" fontSize="20" fontFamily="monospace" fontWeight="bold">~❯</text>
-      <text x="56" y="96" fill="var(--text-foreground)" fontSize="20" fontFamily="monospace" clipPath="url(#cmd-clip)">kanbus list</text>
+      <g clipPath="url(#cmd-clip)">
+        <text x="56" y="96" fill="var(--text-foreground)" fontSize="20" fontFamily="monospace">kanbus list</text>
+      </g>
       
       <text x="28" y="140" fill="var(--text-muted)" fontSize="18" fontFamily="monospace" opacity="0">
         ID      STATUS    TITLE
-        <animate attributeName="opacity" values="0; 1; 1; 0" dur="6s" keyTimes="0; 0.151; 0.98; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0" dur="6s" keyTimes="0; 0.200; 0.201; 0.969; 0.970; 1" repeatCount="indefinite" />
       </text>
       <text x="28" y="172" fill="var(--text-foreground)" fontSize="18" fontFamily="monospace" opacity="0">
         tsk-1   open      Update docs
-        <animate attributeName="opacity" values="0; 1; 1; 0" dur="6s" keyTimes="0; 0.152; 0.98; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0" dur="6s" keyTimes="0; 0.201; 0.202; 0.969; 0.970; 1" repeatCount="indefinite" />
       </text>
       <text x="28" y="204" fill="var(--text-foreground)" fontSize="18" fontFamily="monospace" opacity="0">
         tsk-2   progress  Fix login flow
-        <animate attributeName="opacity" values="0; 1; 1; 0" dur="6s" keyTimes="0; 0.153; 0.98; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0" dur="6s" keyTimes="0; 0.202; 0.203; 0.969; 0.970; 1" repeatCount="indefinite" />
       </text>
       <text x="28" y="236" fill="var(--text-foreground)" fontSize="18" fontFamily="monospace" opacity="0">
         tsk-3   done      Add tests
-        <animate attributeName="opacity" values="0; 1; 1; 0" dur="6s" keyTimes="0; 0.154; 0.98; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0" dur="6s" keyTimes="0; 0.203; 0.204; 0.969; 0.970; 1" repeatCount="indefinite" />
       </text>
       
       {/* Typing cursor for command */}
       <line x1="56" y1="78" x2="56" y2="100" stroke="var(--accent-blue)" strokeWidth="10">
-        <animate attributeName="x1" values="56; 190; 190; 56" dur="6s" keyTimes="0; 0.15; 0.98; 1" repeatCount="indefinite" />
-        <animate attributeName="x2" values="56; 190; 190; 56" dur="6s" keyTimes="0; 0.15; 0.98; 1" repeatCount="indefinite" />
+        <animate attributeName="x1" values="56; 56; 68; 68; 81; 81; 93; 93; 105; 105; 117; 117; 130; 130; 142; 142; 154; 154; 166; 166; 179; 179; 190; 190; 56; 56" dur="6s" keyTimes="0; 0.060; 0.061; 0.073; 0.074; 0.086; 0.087; 0.099; 0.100; 0.112; 0.113; 0.125; 0.126; 0.140; 0.141; 0.153; 0.154; 0.166; 0.167; 0.179; 0.180; 0.192; 0.193; 0.970; 0.971; 1" repeatCount="indefinite" />
+        <animate attributeName="x2" values="56; 56; 68; 68; 81; 81; 93; 93; 105; 105; 117; 117; 130; 130; 142; 142; 154; 154; 166; 166; 179; 179; 190; 190; 56; 56" dur="6s" keyTimes="0; 0.060; 0.061; 0.073; 0.074; 0.086; 0.087; 0.099; 0.100; 0.112; 0.113; 0.125; 0.126; 0.140; 0.141; 0.153; 0.154; 0.166; 0.167; 0.179; 0.180; 0.192; 0.193; 0.970; 0.971; 1" repeatCount="indefinite" />
         <animate attributeName="opacity" values="1;0;1;0" dur="0.8s" repeatCount="indefinite" />
-        <animate attributeName="display" values="inline; inline; none; none" dur="6s" keyTimes="0; 0.145; 0.15; 1" repeatCount="indefinite" />
+        <animate attributeName="display" values="inline; inline; none; none" dur="6s" keyTimes="0; 0.195; 0.20; 1" repeatCount="indefinite" />
       </line>
 
       {/* Typing cursor for next prompt */}
       <g opacity="0">
-        <animate attributeName="opacity" values="0; 0; 1; 1; 0" dur="6s" keyTimes="0; 0.155; 0.16; 0.98; 1" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0" dur="6s" keyTimes="0; 0.209; 0.210; 0.969; 0.970; 1" repeatCount="indefinite" />
         <text x="28" y="278" fill="var(--accent-blue)" fontSize="20" fontFamily="monospace" fontWeight="bold">~❯</text>
         <line x1="56" y1="260" x2="56" y2="284" stroke="var(--accent-blue)" strokeWidth="10">
           <animate attributeName="opacity" values="1;0;1;0" dur="0.8s" repeatCount="indefinite" />
@@ -301,7 +303,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       <defs>
         <clipPath id="cmd-clip-beads">
           <rect x="56" y="70" width="0" height="40">
-            <animate attributeName="width" values="0; 120; 120; 0; 0; 135; 135; 0; 0" dur="12s" keyTimes="0; 0.15; 0.4; 0.401; 0.5; 0.65; 0.9; 0.901; 1" repeatCount="indefinite" />
+            <animate attributeName="width" values="0; 0; 12; 12; 24; 24; 36; 36; 48; 48; 60; 60; 72; 72; 84; 84; 96; 96; 108; 108; 120; 120; 0; 0; 12; 12; 25; 25; 37; 37; 49; 49; 61; 61; 74; 74; 86; 86; 98; 98; 110; 110; 123; 123; 135; 135; 0; 0" dur="12s" keyTimes="0; 0.030; 0.031; 0.043; 0.044; 0.056; 0.057; 0.069; 0.070; 0.082; 0.083; 0.097; 0.098; 0.110; 0.111; 0.123; 0.124; 0.136; 0.137; 0.149; 0.150; 0.395; 0.396; 0.530; 0.531; 0.543; 0.544; 0.556; 0.557; 0.569; 0.570; 0.582; 0.583; 0.595; 0.596; 0.610; 0.611; 0.623; 0.624; 0.636; 0.637; 0.649; 0.650; 0.662; 0.663; 0.895; 0.896; 1" repeatCount="indefinite" />
           </rect>
         </clipPath>
       </defs>
@@ -337,32 +339,32 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       
       <text x="28" y="140" fill="var(--text-muted)" fontSize="18" fontFamily="monospace" opacity="0">
         ID      STATUS    TITLE
-        <animate attributeName="opacity" values="0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.151; 0.4; 0.401; 0.5; 0.651; 0.9; 0.901; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.180; 0.181; 0.394; 0.395; 0.680; 0.681; 0.894; 0.895; 1" repeatCount="indefinite" />
       </text>
       <text x="28" y="172" fill="var(--text-foreground)" fontSize="18" fontFamily="monospace" opacity="0">
         tsk-1   open      Update docs
-        <animate attributeName="opacity" values="0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.152; 0.4; 0.401; 0.5; 0.652; 0.9; 0.901; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.181; 0.182; 0.394; 0.395; 0.681; 0.682; 0.894; 0.895; 1" repeatCount="indefinite" />
       </text>
       <text x="28" y="204" fill="var(--text-foreground)" fontSize="18" fontFamily="monospace" opacity="0">
         tsk-2   progress  Fix login flow
-        <animate attributeName="opacity" values="0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.153; 0.4; 0.401; 0.5; 0.653; 0.9; 0.901; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.182; 0.183; 0.394; 0.395; 0.682; 0.683; 0.894; 0.895; 1" repeatCount="indefinite" />
       </text>
       <text x="28" y="236" fill="var(--text-foreground)" fontSize="18" fontFamily="monospace" opacity="0">
         tsk-3   done      Add tests
-        <animate attributeName="opacity" values="0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.154; 0.4; 0.401; 0.5; 0.654; 0.9; 0.901; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.183; 0.184; 0.394; 0.395; 0.683; 0.684; 0.894; 0.895; 1" repeatCount="indefinite" />
       </text>
 
       {/* Typing cursor for command */}
       <line x1="56" y1="78" x2="56" y2="100" stroke="var(--accent-blue)" strokeWidth="10">
-        <animate attributeName="x1" values="56; 176; 176; 56; 56; 188; 188; 56; 56" dur="12s" keyTimes="0; 0.15; 0.4; 0.401; 0.5; 0.65; 0.9; 0.901; 1" repeatCount="indefinite" />
-        <animate attributeName="x2" values="56; 176; 176; 56; 56; 188; 188; 56; 56" dur="12s" keyTimes="0; 0.15; 0.4; 0.401; 0.5; 0.65; 0.9; 0.901; 1" repeatCount="indefinite" />
+        <animate attributeName="x1" values="56; 56; 68; 68; 80; 80; 92; 92; 104; 104; 116; 116; 128; 128; 140; 140; 152; 152; 164; 164; 176; 176; 56; 56; 68; 68; 80; 80; 92; 92; 104; 104; 116; 116; 128; 128; 140; 140; 152; 152; 164; 164; 176; 176; 188; 188; 56; 56" dur="12s" keyTimes="0; 0.030; 0.031; 0.043; 0.044; 0.056; 0.057; 0.069; 0.070; 0.082; 0.083; 0.097; 0.098; 0.110; 0.111; 0.123; 0.124; 0.136; 0.137; 0.149; 0.150; 0.395; 0.396; 0.530; 0.531; 0.543; 0.544; 0.556; 0.557; 0.569; 0.570; 0.582; 0.583; 0.595; 0.596; 0.610; 0.611; 0.623; 0.624; 0.636; 0.637; 0.649; 0.650; 0.662; 0.663; 0.895; 0.896; 1" repeatCount="indefinite" />
+        <animate attributeName="x2" values="56; 56; 68; 68; 80; 80; 92; 92; 104; 104; 116; 116; 128; 128; 140; 140; 152; 152; 164; 164; 176; 176; 56; 56; 68; 68; 80; 80; 92; 92; 104; 104; 116; 116; 128; 128; 140; 140; 152; 152; 164; 164; 176; 176; 188; 188; 56; 56" dur="12s" keyTimes="0; 0.030; 0.031; 0.043; 0.044; 0.056; 0.057; 0.069; 0.070; 0.082; 0.083; 0.097; 0.098; 0.110; 0.111; 0.123; 0.124; 0.136; 0.137; 0.149; 0.150; 0.395; 0.396; 0.530; 0.531; 0.543; 0.544; 0.556; 0.557; 0.569; 0.570; 0.582; 0.583; 0.595; 0.596; 0.610; 0.611; 0.623; 0.624; 0.636; 0.637; 0.649; 0.650; 0.662; 0.663; 0.895; 0.896; 1" repeatCount="indefinite" />
         <animate attributeName="opacity" values="1;0;1;0" dur="0.8s" repeatCount="indefinite" />
-        <animate attributeName="display" values="inline; none; none; none; inline; none; none; none; none" dur="12s" keyTimes="0; 0.15; 0.4; 0.401; 0.5; 0.65; 0.9; 0.901; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="display" values="inline; none; none; none; inline; none; none; none; none" dur="12s" keyTimes="0; 0.18; 0.4; 0.401; 0.5; 0.68; 0.9; 0.901; 1" calcMode="discrete" repeatCount="indefinite" />
       </line>
 
       {/* Typing cursor for next prompt */}
       <g opacity="0">
-        <animate attributeName="opacity" values="0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.16; 0.4; 0.401; 0.5; 0.66; 0.9; 0.901; 1" calcMode="discrete" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0; 0; 1; 1; 0; 0; 1; 1; 0; 0" dur="12s" keyTimes="0; 0.189; 0.190; 0.394; 0.395; 0.689; 0.690; 0.894; 0.895; 1" repeatCount="indefinite" />
         <text x="28" y="278" fill="var(--accent-blue)" fontSize="20" fontFamily="monospace" fontWeight="bold">~❯</text>
         <line x1="56" y1="260" x2="56" y2="284" stroke="var(--accent-blue)" strokeWidth="10">
           <animate attributeName="opacity" values="1;0;1;0" dur="0.8s" repeatCount="indefinite" />
