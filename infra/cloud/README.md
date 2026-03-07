@@ -7,10 +7,14 @@ This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 - Rust Lambda container runtime (`console_lambda`)
 - Regional REST API Gateway proxying to Lambda
 - Cognito User Pool + Identity Pool foundation
+- Cognito Hosted UI PKCE bootstrap outputs for browser login UX
 - API Gateway Cognito authorizer on proxy methods
 - IoT IAM policy scaffolding for tenant-scoped topics via principal tags
+- DynamoDB-backed MQTT API token registry
+- IoT Core custom authorizer for CLI MQTT API-token auth
 - GitHub webhook ingress Lambda (`/internal/webhooks/github`) + SQS + DLQ
 - Tenant sync worker Lambda (EFS-backed) with IoT publish scaffolding
+- Token admin Lambda API (`/api/tokens`) for create/list/revoke
 - AWS IoT Data endpoint discovery output
 
 ## Prerequisites
@@ -58,7 +62,10 @@ AWS_PROFILE=anthus npx cdk synth \
 - `UserPoolClientId`
 - `UserPoolIssuerUrl`
 - `IdentityPoolId`
+- `UserPoolHostedUiBaseUrl`
 - `IotDataEndpointAddress`
+- `MqttTokenAuthorizerName`
+- `MqttTokenTableName`
 - `TenantEfsFileSystemId`
 - `TenantEfsAccessPointId`
 - `TenantEfsMountPath`
@@ -75,6 +82,11 @@ The authenticated identity role includes IoT subscribe/receive permissions scope
 
 This is intentional scaffolding for strict tenant isolation. In v1, your identity provider
 mapping flow must set `account` and `project` principal tags for authenticated sessions.
+
+Hosted UI + identity pool principal tag mapping now uses Cognito custom attributes:
+
+- `custom:account`
+- `custom:project`
 
 ## Webhook sync note
 

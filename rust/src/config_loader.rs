@@ -536,6 +536,24 @@ fn apply_environment_overrides(mapping: &mut Mapping) {
             );
         }
     }
+    if let Ok(value) = env::var("KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["realtime", "mqtt_custom_authorizer_name"],
+                Value::String(value),
+            );
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_REALTIME_MQTT_API_TOKEN") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["realtime", "mqtt_api_token"],
+                Value::String(value),
+            );
+        }
+    }
     if let Ok(value) = env::var("KANBUS_REALTIME_TOPICS_PROJECT_EVENTS") {
         if !value.trim().is_empty() {
             set_nested_value(

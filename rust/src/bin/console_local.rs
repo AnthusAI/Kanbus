@@ -172,6 +172,7 @@ async fn main() {
         .route("/api/issues/:id/events", get(get_issue_events_root))
         .route("/api/events", get(get_events_root))
         .route("/api/events/realtime", get(get_realtime_events_root))
+        .route("/api/auth/bootstrap", get(get_auth_bootstrap_root))
         .route("/api/notifications", post(post_notification_root))
         .route("/api/ui-state", get(get_ui_state_root))
         .route("/api/render/d2", post(post_render_d2))
@@ -198,6 +199,10 @@ async fn main() {
         .route(
             "/:account/:project/api/events/realtime",
             get(get_realtime_events),
+        )
+        .route(
+            "/:account/:project/api/auth/bootstrap",
+            get(get_auth_bootstrap),
         )
         .route(
             "/:account/:project/api/notifications",
@@ -849,6 +854,50 @@ async fn get_realtime_events(
     AxumPath((_account, _project)): AxumPath<(String, String)>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     get_realtime_events_root(State(state)).await
+}
+
+#[derive(Debug, Serialize)]
+struct AuthBootstrapResponse {
+    mode: &'static str,
+    cognito_domain_url: Option<String>,
+    cognito_client_id: Option<String>,
+    cognito_redirect_uri: Option<String>,
+    cognito_logout_uri: Option<String>,
+    cognito_issuer: Option<String>,
+    identity_pool_id: Option<String>,
+    tenant_account_claim_key: String,
+    tenant_project_claim_key: String,
+    account: Option<String>,
+    project: Option<String>,
+}
+
+async fn get_auth_bootstrap_root() -> Json<AuthBootstrapResponse> {
+    Json(build_local_auth_bootstrap(None, None))
+}
+
+async fn get_auth_bootstrap(
+    AxumPath((account, project)): AxumPath<(String, String)>,
+) -> Json<AuthBootstrapResponse> {
+    Json(build_local_auth_bootstrap(Some(account), Some(project)))
+}
+
+fn build_local_auth_bootstrap(
+    account: Option<String>,
+    project: Option<String>,
+) -> AuthBootstrapResponse {
+    AuthBootstrapResponse {
+        mode: "none",
+        cognito_domain_url: None,
+        cognito_client_id: None,
+        cognito_redirect_uri: None,
+        cognito_logout_uri: None,
+        cognito_issuer: None,
+        identity_pool_id: None,
+        tenant_account_claim_key: "custom:account".to_string(),
+        tenant_project_claim_key: "custom:project".to_string(),
+        account,
+        project,
+    }
 }
 
 fn start_gossip_bridge(state: AppState) {

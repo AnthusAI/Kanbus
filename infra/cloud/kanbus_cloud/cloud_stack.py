@@ -19,6 +19,8 @@ from aws_cdk import (
     aws_secretsmanager as secretsmanager,
     aws_sqs as sqs,
     aws_cloudwatch as cloudwatch,
+    aws_dynamodb as dynamodb,
+    aws_iot as iot,
     custom_resources as cr,
 )
 
@@ -138,6 +140,9 @@ class KanbusCloudFoundationStack(Stack):
             ),
             cloud_watch_role=True,
         )
+        console_base_url = (
+            f"https://{api.rest_api_id}.execute-api.{self.region}.{self.url_suffix}/{env_name}/"
+        )
 
         user_pool = cognito.UserPool(
             self,
@@ -145,6 +150,10 @@ class KanbusCloudFoundationStack(Stack):
             user_pool_name=f"kanbus-console-{env_name}-users",
             self_sign_up_enabled=False,
             sign_in_aliases=cognito.SignInAliases(email=True, username=False),
+            custom_attributes={
+                "account": cognito.StringAttribute(min_len=1, max_len=128, mutable=True),
+                "project": cognito.StringAttribute(min_len=1, max_len=128, mutable=True),
+            },
             password_policy=cognito.PasswordPolicy(
                 min_length=12,
                 require_digits=True,
@@ -162,6 +171,34 @@ class KanbusCloudFoundationStack(Stack):
             auth_flows=cognito.AuthFlow(user_password=True, user_srp=True),
             generate_secret=False,
             prevent_user_existence_errors=True,
+            o_auth=cognito.OAuthSettings(
+                flows=cognito.OAuthFlows(authorization_code_grant=True),
+                scopes=[
+                    cognito.OAuthScope.OPENID,
+                    cognito.OAuthScope.EMAIL,
+                    cognito.OAuthScope.PROFILE,
+                ],
+                callback_urls=[console_base_url],
+                logout_urls=[console_base_url],
+            ),
+            supported_identity_providers=[
+                cognito.UserPoolClientIdentityProvider.COGNITO
+            ],
+        )
+
+        user_pool_domain = user_pool.add_domain(
+            "ConsoleUserPoolDomain",
+            cognito_domain=cognito.CognitoDomainOptions(
+                domain_prefix=f"kanbus-console-{env_name}-{self.account}"
+            ),
+        )
+
+        admin_group = cognito.CfnUserPoolGroup(
+            self,
+            "ConsoleAdminGroup",
+            user_pool_id=user_pool.user_pool_id,
+            group_name="kanbus-admin",
+            description="Admins allowed to manage cloud MQTT API tokens",
         )
 
         api_authorizer = apigw.CognitoUserPoolsAuthorizer(
@@ -176,14 +213,46 @@ class KanbusCloudFoundationStack(Stack):
         api.root.add_method(
             "ANY",
             lambda_integration,
-            authorization_type=apigw.AuthorizationType.COGNITO,
-            authorizer=api_authorizer,
+            authorization_type=apigw.AuthorizationType.NONE,
         )
         api.root.add_resource("{proxy+}").add_method(
             "ANY",
             lambda_integration,
+            authorization_type=apigw.AuthorizationType.NONE,
+        )
+
+        account_resource = api.root.add_resource("{account}")
+        project_resource = account_resource.add_resource("{project}")
+        tenant_api_resource = project_resource.add_resource("api")
+        tenant_api_resource.add_resource("{proxy+}").add_method(
+            "ANY",
+            lambda_integration,
             authorization_type=apigw.AuthorizationType.COGNITO,
             authorizer=api_authorizer,
+        )
+        tenant_auth_resource = tenant_api_resource.add_resource("auth")
+        tenant_auth_resource.add_resource("bootstrap").add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigw.AuthorizationType.NONE,
+        )
+        tenant_events_resource = tenant_api_resource.add_resource("events")
+        tenant_events_resource.add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigw.AuthorizationType.NONE,
+        )
+        tenant_events_resource.add_resource("realtime").add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigw.AuthorizationType.NONE,
+        )
+        api_root_resource = api.root.add_resource("api")
+        api_auth_resource = api_root_resource.add_resource("auth")
+        api_auth_resource.add_resource("bootstrap").add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigw.AuthorizationType.NONE,
         )
 
         identity_pool = cognito.CfnIdentityPool(
@@ -252,6 +321,19 @@ class KanbusCloudFoundationStack(Stack):
             "ConsoleIdentityPoolRoleAttachment",
             identity_pool_id=identity_pool.ref,
             roles={"authenticated": authenticated_role.role_arn},
+        )
+        cognito.CfnIdentityPoolPrincipalTag(
+            self,
+            "ConsoleIdentityPoolPrincipalTags",
+            identity_pool_id=identity_pool.ref,
+            identity_provider_name=(
+                f"{user_pool.user_pool_provider_name}:{user_pool_client.user_pool_client_id}"
+            ),
+            principal_tags={
+                "account": "custom:account",
+                "project": "custom:project",
+            },
+            use_defaults=False,
         )
 
         sync_dlq = sqs.Queue(
@@ -332,6 +414,111 @@ class KanbusCloudFoundationStack(Stack):
             )
         )
 
+        token_table = dynamodb.Table(
+            self,
+            "MqttApiTokenTable",
+            table_name=f"kanbus-mqtt-tokens-{env_name}",
+            partition_key=dynamodb.Attribute(
+                name="token_id", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            point_in_time_recovery=True,
+            removal_policy=RemovalPolicy.RETAIN,
+        )
+
+        token_pepper_secret = secretsmanager.Secret(
+            self,
+            "MqttApiTokenPepper",
+            secret_name=f"kanbus/mqtt-token-pepper/{env_name}",
+            description="Pepper used for hashing Kanbus MQTT API token secrets",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                exclude_punctuation=True,
+                password_length=40,
+            ),
+        )
+
+        token_admin = lambda_.Function(
+            self,
+            "TokenAdminApi",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="token_admin.handler",
+            code=lambda_.Code.from_asset(str(project_root / "infra" / "cloud" / "lambda")),
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment={
+                "KANBUS_TOKEN_TABLE": token_table.table_name,
+                "KANBUS_TOKEN_PEPPER_SECRET_ARN": token_pepper_secret.secret_arn,
+                "KANBUS_ADMIN_GROUP": "kanbus-admin",
+            },
+            description="Admin API for creating/listing/revoking MQTT API tokens",
+        )
+        token_admin.node.add_dependency(admin_group)
+        token_table.grant_read_write_data(token_admin)
+        token_pepper_secret.grant_read(token_admin)
+
+        mqtt_authorizer_handler = lambda_.Function(
+            self,
+            "MqttTokenAuthorizerHandler",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="mqtt_authorizer.handler",
+            code=lambda_.Code.from_asset(str(project_root / "infra" / "cloud" / "lambda")),
+            timeout=Duration.seconds(15),
+            memory_size=256,
+            environment={
+                "KANBUS_TOKEN_TABLE": token_table.table_name,
+                "KANBUS_TOKEN_PEPPER_SECRET_ARN": token_pepper_secret.secret_arn,
+                "KANBUS_AWS_ACCOUNT": self.account,
+                "KANBUS_AWS_REGION": self.region,
+            },
+            description="AWS IoT custom authorizer for Kanbus MQTT API tokens",
+        )
+        token_table.grant_read_data(mqtt_authorizer_handler)
+        token_pepper_secret.grant_read(mqtt_authorizer_handler)
+
+        mqtt_token_authorizer = iot.CfnAuthorizer(
+            self,
+            "MqttTokenAuthorizer",
+            authorizer_name=f"kanbus-mqtt-token-{env_name}",
+            authorizer_function_arn=mqtt_authorizer_handler.function_arn,
+            signing_disabled=True,
+            status="ACTIVE",
+            enable_caching_for_http=False,
+        )
+
+        lambda_.CfnPermission(
+            self,
+            "MqttTokenAuthorizerInvokePermission",
+            action="lambda:InvokeFunction",
+            function_name=mqtt_authorizer_handler.function_name,
+            principal="iot.amazonaws.com",
+            source_arn=(
+                f"arn:{self.partition}:iot:{self.region}:{self.account}:authorizer/"
+                f"{mqtt_token_authorizer.authorizer_name}"
+            ),
+        )
+
+        tokens_resource = api_root_resource.add_resource("tokens")
+        token_admin_integration = apigw.LambdaIntegration(token_admin, proxy=True)
+        tokens_resource.add_method(
+            "GET",
+            token_admin_integration,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            authorizer=api_authorizer,
+        )
+        tokens_resource.add_method(
+            "POST",
+            token_admin_integration,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            authorizer=api_authorizer,
+        )
+        token_revoke_resource = tokens_resource.add_resource("{token_id}").add_resource("revoke")
+        token_revoke_resource.add_method(
+            "POST",
+            token_admin_integration,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            authorizer=api_authorizer,
+        )
+
         internal = api.root.add_resource("internal")
         webhooks = internal.add_resource("webhooks")
         github = webhooks.add_resource("github")
@@ -402,6 +589,28 @@ class KanbusCloudFoundationStack(Stack):
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
         )
 
+        token_admin_errors_alarm = cloudwatch.Alarm(
+            self,
+            "TokenAdminLambdaErrorsAlarm",
+            alarm_name=f"kanbus-token-admin-errors-{env_name}",
+            alarm_description="Kanbus token admin API lambda is reporting errors",
+            metric=token_admin.metric_errors(period=Duration.minutes(5)),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
+        mqtt_authorizer_errors_alarm = cloudwatch.Alarm(
+            self,
+            "MqttAuthorizerLambdaErrorsAlarm",
+            alarm_name=f"kanbus-mqtt-authorizer-errors-{env_name}",
+            alarm_description="Kanbus MQTT token authorizer lambda is reporting errors",
+            metric=mqtt_authorizer_handler.metric_errors(period=Duration.minutes(5)),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
         api_client_errors_alarm = cloudwatch.Alarm(
             self,
             "ApiGateway4xxAlarm",
@@ -439,6 +648,15 @@ class KanbusCloudFoundationStack(Stack):
             ),
         )
         iot_endpoint.node.add_dependency(identity_pool_role_attachment)
+        console_lambda.add_environment("KANBUS_AUTH_MODE", "cognito_pkce")
+        console_lambda.add_environment("KANBUS_COGNITO_CLIENT_ID", user_pool_client.user_pool_client_id)
+        console_lambda.add_environment("KANBUS_COGNITO_DOMAIN_URL", user_pool_domain.base_url())
+        console_lambda.add_environment("KANBUS_COGNITO_REDIRECT_URI", console_base_url)
+        console_lambda.add_environment("KANBUS_COGNITO_LOGOUT_URI", console_base_url)
+        console_lambda.add_environment("KANBUS_COGNITO_ISSUER", user_pool.user_pool_provider_url)
+        console_lambda.add_environment("KANBUS_IDENTITY_POOL_ID", identity_pool.ref)
+        console_lambda.add_environment("KANBUS_TENANT_ACCOUNT_CLAIM_KEY", "custom:account")
+        console_lambda.add_environment("KANBUS_TENANT_PROJECT_CLAIM_KEY", "custom:project")
         console_lambda.add_environment(
             "KANBUS_IOT_DATA_ENDPOINT", iot_endpoint.get_response_field("endpointAddress")
         )
@@ -449,6 +667,7 @@ class KanbusCloudFoundationStack(Stack):
         CfnOutput(self, "ApiBaseUrl", value=api.url, description="Regional API base URL")
         CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
         CfnOutput(self, "UserPoolClientId", value=user_pool_client.user_pool_client_id)
+        CfnOutput(self, "UserPoolHostedUiBaseUrl", value=user_pool_domain.base_url())
         CfnOutput(
             self,
             "UserPoolIssuerUrl",
@@ -456,6 +675,8 @@ class KanbusCloudFoundationStack(Stack):
             description="JWT issuer URL used by Cognito authorizer",
         )
         CfnOutput(self, "IdentityPoolId", value=identity_pool.ref)
+        CfnOutput(self, "MqttTokenAuthorizerName", value=mqtt_token_authorizer.authorizer_name)
+        CfnOutput(self, "MqttTokenTableName", value=token_table.table_name)
         CfnOutput(
             self,
             "IotDataEndpointAddress",
