@@ -4,17 +4,17 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "intro",
-      "startSec": 5.625,
-      "endSec": 12.525,
+      "startSec": 5.5,
+      "endSec": 12.35,
       "segments": [
         {
           "type": "tts",
-          "startSec": 5.625,
-          "endSec": 12.525,
+          "startSec": 5.5,
+          "endSec": 12.35,
           "text": "Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/core-management/env/development/segments/deep_dive--intro--tts--908e2beb14b6--1.wav",
-          "durationSec": 6.9,
-          "rawDurationSec": 6.9,
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/core-management/env/development/segments/deep_dive--intro--tts--908e2beb14b6--1.wav",
+          "durationSec": 6.85,
+          "rawDurationSec": 6.85,
           "trimEndSec": 0
         }
       ]
@@ -23,23 +23,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "filter",
-      "startSec": 12.525,
-      "endSec": 20.4,
+      "startSec": 12.35,
+      "endSec": 20.2375,
       "segments": [
         {
           "type": "pause",
-          "startSec": 12.525,
-          "endSec": 13.025,
+          "startSec": 12.35,
+          "endSec": 12.85,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 13.025,
-          "endSec": 20.4,
+          "startSec": 12.85,
+          "endSec": 20.2375,
           "text": "Find exactly what you need with powerful query filters. List all open issues, or filter by status, priority, or assignee.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/core-management/env/development/segments/deep_dive--filter--tts--ea3b1cf99f7c--1.wav",
-          "durationSec": 7.375,
-          "rawDurationSec": 7.375,
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/core-management/env/development/segments/deep_dive--filter--tts--ea3b1cf99f7c--1.wav",
+          "durationSec": 7.3875,
+          "rawDurationSec": 7.3875,
           "trimEndSec": 0
         }
       ]
@@ -48,23 +48,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "hierarchy",
-      "startSec": 20.4,
-      "endSec": 28.474999999999998,
+      "startSec": 20.2375,
+      "endSec": 28.375,
       "segments": [
         {
           "type": "pause",
-          "startSec": 20.4,
-          "endSec": 20.9,
+          "startSec": 20.2375,
+          "endSec": 20.7375,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 20.9,
-          "endSec": 28.474999999999998,
+          "startSec": 20.7375,
+          "endSec": 28.375,
           "text": "Group related tasks under an Epic to track larger initiatives. Creating a child task automatically links it to the parent.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/core-management/env/development/segments/deep_dive--hierarchy--tts--ccb6f4dc03f3--1.wav",
-          "durationSec": 7.575,
-          "rawDurationSec": 7.575,
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/core-management/env/development/segments/deep_dive--hierarchy--tts--ccb6f4dc03f3--1.wav",
+          "durationSec": 7.6375,
+          "rawDurationSec": 7.6375,
           "trimEndSec": 0
         }
       ]
@@ -73,23 +73,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "workflow",
-      "startSec": 28.474999999999998,
-      "endSec": 36.8375,
+      "startSec": 28.375,
+      "endSec": 37,
       "segments": [
         {
           "type": "pause",
-          "startSec": 28.474999999999998,
-          "endSec": 28.974999999999998,
+          "startSec": 28.375,
+          "endSec": 28.875,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 28.974999999999998,
-          "endSec": 36.8375,
+          "startSec": 28.875,
+          "endSec": 37,
           "text": "Move an issue to In Progress and assign it to yourself in one move. Keep your project moving forward without leaving the terminal.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/core-management/env/development/segments/deep_dive--workflow--tts--726da0fb0370--1.wav",
-          "durationSec": 7.8625,
-          "rawDurationSec": 7.8625,
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/core-management/env/development/segments/deep_dive--workflow--tts--726da0fb0370--1.wav",
+          "durationSec": 8.125,
+          "rawDurationSec": 8.125,
           "trimEndSec": 0
         }
       ]
@@ -104,32 +104,32 @@
           {
             "id": "deep_dive--intro--tts--908e2beb14b6--1",
             "kind": "file",
-            "startSec": 5.625,
-            "durationSec": 6.9,
+            "startSec": 5.5,
+            "durationSec": 6.85,
             "src": "/videoml/core-management/env/development/segments/deep_dive--intro--tts--908e2beb14b6--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--filter--tts--ea3b1cf99f7c--1",
             "kind": "file",
-            "startSec": 13.025,
-            "durationSec": 7.375,
+            "startSec": 12.85,
+            "durationSec": 7.3875,
             "src": "/videoml/core-management/env/development/segments/deep_dive--filter--tts--ea3b1cf99f7c--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--hierarchy--tts--ccb6f4dc03f3--1",
             "kind": "file",
-            "startSec": 20.9,
-            "durationSec": 7.575,
+            "startSec": 20.7375,
+            "durationSec": 7.6375,
             "src": "/videoml/core-management/env/development/segments/deep_dive--hierarchy--tts--ccb6f4dc03f3--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--workflow--tts--726da0fb0370--1",
             "kind": "file",
-            "startSec": 28.974999999999998,
-            "durationSec": 7.8625,
+            "startSec": 28.875,
+            "durationSec": 8.125,
             "src": "/videoml/core-management/env/development/segments/deep_dive--workflow--tts--726da0fb0370--1.wav",
             "volume": 1
           }

@@ -4,17 +4,17 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "intro",
-      "startSec": 5.625,
-      "endSec": 13.0375,
+      "startSec": 5.5,
+      "endSec": 12.9,
       "segments": [
         {
           "type": "tts",
-          "startSec": 5.625,
-          "endSec": 13.0375,
+          "startSec": 5.5,
+          "endSec": 12.9,
           "text": "Pull Jira issues into your repository so coding agents always have full context. No API calls, no MCP tools, just files.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/jira-sync/env/development/segments/deep_dive--intro--tts--a6cc0c12ecdd--1.wav",
-          "durationSec": 7.4125,
-          "rawDurationSec": 7.4125,
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/jira-sync/env/development/segments/deep_dive--intro--tts--a6cc0c12ecdd--1.wav",
+          "durationSec": 7.4,
+          "rawDurationSec": 7.4,
           "trimEndSec": 0
         }
       ]
@@ -23,23 +23,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "sync",
-      "startSec": 13.0375,
-      "endSec": 22.112499999999997,
+      "startSec": 12.9,
+      "endSec": 21.950000000000003,
       "segments": [
         {
           "type": "pause",
-          "startSec": 13.0375,
-          "endSec": 13.5375,
+          "startSec": 12.9,
+          "endSec": 13.4,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 13.5375,
-          "endSec": 22.112499999999997,
+          "startSec": 13.4,
+          "endSec": 21.950000000000003,
           "text": "Run a single command to sync your entire project. Kanbus fetches every issue and translates types, statuses, and priorities automatically.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/jira-sync/env/development/segments/deep_dive--sync--tts--4b9456415673--1.wav",
-          "durationSec": 8.575,
-          "rawDurationSec": 8.575,
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/jira-sync/env/development/segments/deep_dive--sync--tts--4b9456415673--1.wav",
+          "durationSec": 8.55,
+          "rawDurationSec": 8.55,
           "trimEndSec": 0
         }
       ]
@@ -48,21 +48,21 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "idempotent",
-      "startSec": 22.112499999999997,
-      "endSec": 29.512499999999996,
+      "startSec": 21.950000000000003,
+      "endSec": 29.35,
       "segments": [
         {
           "type": "pause",
-          "startSec": 22.112499999999997,
-          "endSec": 22.612499999999997,
+          "startSec": 21.950000000000003,
+          "endSec": 22.450000000000003,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 22.612499999999997,
-          "endSec": 29.512499999999996,
+          "startSec": 22.450000000000003,
+          "endSec": 29.35,
           "text": "Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/jira-sync/env/development/segments/deep_dive--idempotent--tts--972b7c28445e--1.wav",
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/jira-sync/env/development/segments/deep_dive--idempotent--tts--972b7c28445e--1.wav",
           "durationSec": 6.9,
           "rawDurationSec": 6.9,
           "trimEndSec": 0
@@ -73,23 +73,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "agents",
-      "startSec": 29.512499999999996,
-      "endSec": 37.925,
+      "startSec": 29.35,
+      "endSec": 37.8875,
       "segments": [
         {
           "type": "pause",
-          "startSec": 29.512499999999996,
-          "endSec": 30.012499999999996,
+          "startSec": 29.35,
+          "endSec": 29.85,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 30.012499999999996,
-          "endSec": 37.925,
+          "startSec": 29.85,
+          "endSec": 37.8875,
           "text": "Any agent that can read your source code can now read your Jira issues. The context travels with your branch and survives offline.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus2/.videoml/out/jira-sync/env/development/segments/deep_dive--agents--tts--8d7e5e9ee800--1.wav",
-          "durationSec": 7.9125,
-          "rawDurationSec": 7.9125,
+          "segmentPath": "/private/tmp/kanbus2-feature-web-videos/.videoml/out/jira-sync/env/development/segments/deep_dive--agents--tts--8d7e5e9ee800--1.wav",
+          "durationSec": 8.0375,
+          "rawDurationSec": 8.0375,
           "trimEndSec": 0
         }
       ]
@@ -104,23 +104,23 @@
           {
             "id": "deep_dive--intro--tts--a6cc0c12ecdd--1",
             "kind": "file",
-            "startSec": 5.625,
-            "durationSec": 7.4125,
+            "startSec": 5.5,
+            "durationSec": 7.4,
             "src": "/videoml/jira-sync/env/development/segments/deep_dive--intro--tts--a6cc0c12ecdd--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--sync--tts--4b9456415673--1",
             "kind": "file",
-            "startSec": 13.5375,
-            "durationSec": 8.575,
+            "startSec": 13.4,
+            "durationSec": 8.55,
             "src": "/videoml/jira-sync/env/development/segments/deep_dive--sync--tts--4b9456415673--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--idempotent--tts--972b7c28445e--1",
             "kind": "file",
-            "startSec": 22.612499999999997,
+            "startSec": 22.450000000000003,
             "durationSec": 6.9,
             "src": "/videoml/jira-sync/env/development/segments/deep_dive--idempotent--tts--972b7c28445e--1.wav",
             "volume": 1
@@ -128,8 +128,8 @@
           {
             "id": "deep_dive--agents--tts--8d7e5e9ee800--1",
             "kind": "file",
-            "startSec": 30.012499999999996,
-            "durationSec": 7.9125,
+            "startSec": 29.85,
+            "durationSec": 8.0375,
             "src": "/videoml/jira-sync/env/development/segments/deep_dive--agents--tts--8d7e5e9ee800--1.wav",
             "volume": 1
           }

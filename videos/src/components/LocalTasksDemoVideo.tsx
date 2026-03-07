@@ -140,7 +140,7 @@ export function LocalTasksDemoVideo({ style }: { style?: React.CSSProperties }) 
           color: "#4ade80"
         }}>
           <span style={{ color: "#60a5fa", marginRight: "8px" }}>~</span>
-          <span style={{ color: "#f472b6", marginRight: "8px" }}>❯</span>
+          <span style={{ color: "var(--text-selected)", marginRight: "8px" }}>❯</span>
           <span style={{ color: "#ffffff" }}>
             {cmdString.substring(0, Math.max(0, cmdChars))}
             <span style={{

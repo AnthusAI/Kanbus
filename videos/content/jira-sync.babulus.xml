@@ -5,36 +5,19 @@
     <layer id="background" z="-1">
       <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="visual" z="0">
-      <animated-pictogram-video props='{"type": "jira"}' />
-    </layer>
-    <layer id="title" z="1">
-      <text-block props='{"text":"Jira Sync","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
-      <text-block props='{"text":"Pull Jira issues directly into your repository","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+    <layer id="content" z="1">
+      <feature-two-column-scene props='{"headline":"Jira Sync","subhead":"Pull Jira issues directly into your repository","bodyPrimary":"Bring external planning context into local files so agents can execute without API dependencies.","leftRatio":0.4,"rightPanel":"pictogram","pictogramType":"jira","pictogramScale":1.22}' />
     </layer>
   </scene>
 
-  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+  <transition id="push-1" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
   <scene id="deep_dive" title="Jira Sync Deep Dive" duration="36s">
     <layer id="background" z="-1">
       <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="title" z="1">
-      <title props='{"text":"Jira Sync","x":960,"y":120}' />
-    </layer>
-    <layer id="subtitle" z="1">
-      <subtitle props='{"text":"Pull Jira issues directly into your repository","x":960,"y":200}' />
-    </layer>
     <layer id="content" z="1">
-      <text-block props='{"text":"Full Context Offline","x":480,"y":400,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
-      <text-block props='{"text":"Run a single command to sync your entire project. Any agent that can read your source code can now read your Jira issues without API calls.","x":480,"y":540,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
-      
-      <text-block props='{"text":"Idempotent and Safe","x":480,"y":740,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
-      <text-block props='{"text":"Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs and ensuring no duplication.","x":480,"y":880,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
-    </layer>
-    <layer id="visual" z="0">
-      <jira-sync-demo-video props='{"style":{"left": 960, "top": 300, "width": 800, "bottom": 0, "position": "absolute"}}' />
+      <feature-two-column-scene props='{"headline":"Jira Sync","subhead":"Pull Jira issues directly into your repository","bodyPrimary":"Run one command to sync the project and give every coding agent full issue context locally.","bodySecondary":"Sync operations are idempotent and safe to rerun, preserving stable local Kanbus IDs without duplication.","leftRatio":0.4,"rightPanel":"jira-sync-demo"}' />
     </layer>
     <cue id="intro" label="Introduction">
       <voice>Pull Jira issues into your repository so coding agents always have full context. No API calls, no MCP tools, just files.</voice>

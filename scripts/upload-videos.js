@@ -39,6 +39,13 @@ for (const arg of process.argv.slice(2)) {
   }
 }
 
+const allowProdPublish = process.env.ALLOW_PROD_PUBLISH === "1";
+const normalizedPrefix = (prefix || "").replace(/^\/+|\/+$/g, "");
+if (normalizedPrefix === "videos" && !allowProdPublish) {
+  console.error("PUBLISH_BLOCKED_EXPLICIT_APPROVAL_REQUIRED set ALLOW_PROD_PUBLISH=1 to upload to videos/");
+  process.exit(1);
+}
+
 // Helper to list assets
 const listAssets = (dir) => {
   if (!existsSync(dir)) return [];
@@ -254,16 +261,16 @@ console.log("");
 console.log("Upload complete!");
 console.log("");
 console.log("Next steps:");
-const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, "");
+const normalizedPrefixOutput = prefix.replace(/^\/+|\/+$/g, "");
 console.log("1. Set environment variable for local preview:");
-console.log(`   export GATSBY_VIDEOS_BASE_URL=https://${bucket}.s3.amazonaws.com/${normalizedPrefix}`);
+console.log(`   export GATSBY_VIDEOS_BASE_URL=https://${bucket}.s3.amazonaws.com/${normalizedPrefixOutput}`);
 console.log("");
 console.log("2. Recommended: use the Amplify CDN URL:");
 if (amplifyVideoOutputs?.cdnUrl) {
   const baseCdn = amplifyVideoOutputs.cdnUrl.replace(/\/+$/g, "");
-  console.log(`   export GATSBY_VIDEOS_BASE_URL=${baseCdn}/${normalizedPrefix}`);
+  console.log(`   export GATSBY_VIDEOS_BASE_URL=${baseCdn}/${normalizedPrefixOutput}`);
 } else {
-  console.log(`   export GATSBY_VIDEOS_BASE_URL=https://<cloudfront-domain>/${normalizedPrefix}`);
+  console.log(`   export GATSBY_VIDEOS_BASE_URL=https://<cloudfront-domain>/${normalizedPrefixOutput}`);
 }
 console.log("");
 console.log("3. Run the web app:");

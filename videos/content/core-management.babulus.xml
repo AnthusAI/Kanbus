@@ -5,36 +5,19 @@
     <layer id="background" z="-1">
       <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="visual" z="0">
-      <animated-pictogram-video props='{"type": "cli"}' />
-    </layer>
-    <layer id="title" z="1">
-      <text-block props='{"text":"Core Management","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
-      <text-block props='{"text":"The speed of the CLI, the structure of Jira","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+    <layer id="content" z="1">
+      <feature-two-column-scene props='{"headline":"Core Management","subhead":"The speed of the CLI, the structure of Jira","bodyPrimary":"Create and update work items directly from terminal-native workflows.","leftRatio":0.4,"rightPanel":"pictogram","pictogramType":"cli","pictogramScale":1.22}' />
     </layer>
   </scene>
 
-  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+  <transition id="push-1" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
   <scene id="deep_dive" title="Core Management Deep Dive" duration="36s">
     <layer id="background" z="-1">
       <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="title" z="1">
-      <title props='{"text":"Core Management","x":960,"y":120}' />
-    </layer>
-    <layer id="subtitle" z="1">
-      <subtitle props='{"text":"The speed of the CLI, the structure of Jira","x":960,"y":200}' />
-    </layer>
     <layer id="content" z="1">
-      <text-block props='{"text":"Instant Creation","x":480,"y":400,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
-      <text-block props='{"text":"Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.","x":480,"y":520,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
-      
-      <text-block props='{"text":"Seamless Workflow","x":480,"y":720,"size":36,"weight":800,"align":"center","maxWidth":600,"font":"sans"}' />
-      <text-block props='{"text":"Find exactly what you need with powerful query filters. Group related tasks under Epics to track larger initiatives.","x":480,"y":840,"size":28,"align":"center","maxWidth":600,"font":"serif","background":"var(--card)","padding":28,"borderRadius":16,"border":"1px solid var(--border)"}' />
-    </layer>
-    <layer id="visual" z="0">
-      <cli-demo-video props='{"style":{"left": 960, "top": 300, "width": 800, "bottom": 0, "position": "absolute"}}' />
+      <feature-two-column-scene props='{"headline":"Core Management","subhead":"The speed of the CLI, the structure of Jira","bodyPrimary":"Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.","bodySecondary":"Find exactly what you need with powerful query filters, and group related tasks under epics to track larger initiatives.","leftRatio":0.4,"rightPanel":"cli-demo"}' />
     </layer>
     <cue id="intro" label="Introduction">
       <voice>Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.</voice>

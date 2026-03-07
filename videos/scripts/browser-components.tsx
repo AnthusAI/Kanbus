@@ -38,6 +38,9 @@ if (typeof window !== "undefined") {
           --text-foreground: #e7e9ee;
           --text-muted: #9ca3af;
           --text-selected: #7dd3fc;
+          --accent-blue: #7dd3fc;
+          --accent-green: #22c55e;
+          --accent-red: #ef4444;
           --border: #262c36;
           --shadow-card: none;
 
