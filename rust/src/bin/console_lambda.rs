@@ -67,6 +67,10 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
     }
     let token_from_query = query_param(&query, "access_token");
     match segments[3] {
+        "telemetry" => match segments.get(4) {
+            Some(&"console") => Ok(no_content()),
+            _ => Ok(not_found()),
+        },
         "config" => {
             if let Err(response) = enforce_tenant_claims(&request, account, project, None) {
                 return Ok(response);
@@ -333,6 +337,7 @@ struct RealtimeBootstrapResponse {
     topic: String,
     account: String,
     project: String,
+    mqtt_custom_authorizer_name: Option<String>,
 }
 
 fn handle_realtime_bootstrap(account: &str, project: &str) -> Result<ResponseType, Error> {
@@ -364,6 +369,7 @@ fn build_realtime_bootstrap(
         topic,
         account: account.to_string(),
         project: project.to_string(),
+        mqtt_custom_authorizer_name: std::env::var("KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME").ok(),
     })
 }
 
@@ -384,6 +390,13 @@ fn error_response(message: impl Into<String>, status: StatusCode) -> Result<Resp
         .header("Content-Type", "application/json")
         .body(body_from_text(body))
         .map_err(Error::from)
+}
+
+fn no_content() -> ResponseType {
+    Response::builder()
+        .status(StatusCode::NO_CONTENT)
+        .body(Body::Empty)
+        .unwrap_or_else(|_| Response::new(Body::Empty))
 }
 
 fn not_found() -> ResponseType {
@@ -518,6 +531,7 @@ mod tests {
             env::remove_var("KANBUS_TENANT_ACCOUNT_CLAIM_KEY");
             env::remove_var("KANBUS_TENANT_PROJECT_CLAIM_KEY");
             env::remove_var("KANBUS_IOT_DATA_ENDPOINT");
+            env::remove_var("KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME");
             env::remove_var("KANBUS_API_STAGE");
             env::remove_var("AWS_REGION");
             env::remove_var("AWS_DEFAULT_REGION");
@@ -596,6 +610,18 @@ mod tests {
         assert_eq!(payload.topic, "projects/acct/proj/events");
         assert_eq!(payload.account, "acct");
         assert_eq!(payload.project, "proj");
+        assert_eq!(payload.mqtt_custom_authorizer_name, None);
+
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME", "kanbus-mqtt-token-dev");
+        }
+        let payload_with_authorizer =
+            build_realtime_bootstrap("acct", "proj").expect("bootstrap payload");
+        assert_eq!(
+            payload_with_authorizer.mqtt_custom_authorizer_name.as_deref(),
+            Some("kanbus-mqtt-token-dev")
+        );
     }
 
     #[test]
