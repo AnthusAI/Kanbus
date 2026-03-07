@@ -123,6 +123,14 @@ beads_compatibility: true
 #   min_severity: high          # critical | high | medium | low (default: low)
 #   parent_epic: <kanbus-id>    # optional: attach imported bugs under this epic
 
+# GitHub security synchronization (optional). Secrets go in .env, not here.
+# github_security:
+#   repo: owner/repo            # optional: defaults from git remote origin
+#   dependabot:
+#     min_severity: high        # critical | high | medium | low (default: low)
+#     state: open               # open | fixed | dismissed | auto_dismissed (default: open)
+#     parent_epic: <kanbus-id>  # optional: attach imported findings under this epic
+
 # Jira synchronization (optional). Secrets go in .env, not here.
 jira:
   url: https://equity.atlassian.net

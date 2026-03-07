@@ -781,6 +781,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
     }
     let mut workflows: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
     workflows.insert("default".to_string(), workflow_state.clone());
+    workflows.insert("initiative".to_string(), workflow_state.clone());
     workflows.insert("epic".to_string(), workflow_state.clone());
     workflows.insert("task".to_string(), workflow_state.clone());
 
@@ -843,6 +844,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         project_key: "BD".to_string(),
         project_management_template: None,
         hierarchy: vec![
+            "initiative".to_string(),
             "epic".to_string(),
             "task".to_string(),
             "sub-task".to_string(),
@@ -862,6 +864,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         beads_compatibility: false,
         jira: None,
         snyk: None,
+        github_security: None,
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];
