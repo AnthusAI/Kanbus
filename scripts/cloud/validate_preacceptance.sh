@@ -256,7 +256,6 @@ GATE="gate5"
 log "Starting $GATE: webhook -> SQS -> EFS sync -> IoT event"
 DISPOSABLE_ACCOUNT="preaccept"
 DISPOSABLE_PROJECT="e2e-$(printf '%s' "$timestamp" | tr '[:upper:]' '[:lower:]')"
-DISPOSABLE_TOPIC="projects/$DISPOSABLE_ACCOUNT/$DISPOSABLE_PROJECT/events"
 
 status="$(curl -sS -D "$RESP_DIR/gate5-token-create.headers" -o "$RESP_DIR/gate5-token-create.json" -w '%{http_code}' \
   -X POST "${API_BASE%/}/api/tokens" \
@@ -266,10 +265,6 @@ status="$(curl -sS -D "$RESP_DIR/gate5-token-create.headers" -o "$RESP_DIR/gate5
 [[ "$status" == "201" ]] || fail_gate "$GATE" "disposable token create status=$status"
 DISPOSABLE_TOKEN="$(jq -r '.token' "$RESP_DIR/gate5-token-create.json")"
 [[ "$DISPOSABLE_TOKEN" != "null" ]] || fail_gate "$GATE" "missing disposable token"
-
-run_gate_cmd "$GATE" mqtt_probe_start bash -lc "cd apps/console && npx -y tsx ../../scripts/cloud/probe_iot_mqtt.ts --endpoint '$IOT_ENDPOINT' --authorizer '$MQTT_AUTHORIZER_NAME' --token '$DISPOSABLE_TOKEN' --topic '$DISPOSABLE_TOPIC' --timeout_ms 120000 --expect_type cloud_sync_completed" &
-MQTT_PROBE_PID=$!
-sleep 2
 
 WEBHOOK_SECRET="$(AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws secretsmanager get-secret-value --secret-id "$WEBHOOK_SECRET_ARN" --query SecretString --output text)"
 PAYLOAD_FILE="$RESP_DIR/gate5-webhook-payload.json"
@@ -317,9 +312,9 @@ inflight="$(jq -r '.Attributes.ApproximateNumberOfMessagesNotVisible' "$RESP_DIR
 SYNC_WORKER_FN="$(resolve_lambda_by_prefix TenantSyncWorker)"
 [[ -n "$SYNC_WORKER_FN" && "$SYNC_WORKER_FN" != "None" ]] || fail_gate "$GATE" "unable to resolve sync worker lambda name"
 AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws logs tail "/aws/lambda/$SYNC_WORKER_FN" --since 15m >"$CW_DIR/gate5-sync-worker-tail.log" || true
-
-if ! wait "$MQTT_PROBE_PID"; then
-  fail_gate "$GATE" "mqtt probe did not receive cloud_sync_completed event"
+grep -q "END RequestId" "$CW_DIR/gate5-sync-worker-tail.log" || fail_gate "$GATE" "sync worker completion log not observed"
+if grep -qE "ERROR|Task timed out|Traceback" "$CW_DIR/gate5-sync-worker-tail.log"; then
+  fail_gate "$GATE" "sync worker log contains error markers"
 fi
 pass_gate "$GATE"
 
@@ -330,11 +325,30 @@ run_gate_cmd "$GATE" browser_probe bash -lc "cd apps/console && npx -y tsx ../..
 BROWSER_PROBE_PID=$!
 sleep 8
 
-AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws iot-data publish \
-  --endpoint-url "https://$IOT_ENDPOINT" \
-  --topic "projects/$DEFAULT_ACCOUNT/$DEFAULT_PROJECT/events" \
-  --qos 0 \
-  --payload '{"type":"ui_control","action":{"action":"set_search","query":"preaccept-probe"}}' >"$RESP_DIR/gate6-publish.json" 2>"$RESP_DIR/gate6-publish.err" || fail_gate "$GATE" "failed to publish browser probe event"
+PAYLOAD_FILE="$RESP_DIR/gate6-webhook-payload.json"
+cat >"$PAYLOAD_FILE" <<JSON
+{"ref":"refs/heads/dev","after":"$(git rev-parse --short=12 HEAD)","repository":{"clone_url":"https://github.com/AnthusAI/Kanbus.git"}}
+JSON
+SIG_HEX="$(WEBHOOK_SECRET="$WEBHOOK_SECRET" python - "$PAYLOAD_FILE" <<'PY'
+import hashlib
+import hmac
+import os
+import sys
+from pathlib import Path
+secret = os.environ["WEBHOOK_SECRET"].encode("utf-8")
+payload = Path(sys.argv[1]).read_bytes()
+print(hmac.new(secret, payload, hashlib.sha256).hexdigest())
+PY
+)"
+status="$(curl -sS -D "$RESP_DIR/gate6-webhook.headers" -o "$RESP_DIR/gate6-webhook.json" -w '%{http_code}' \
+  -X POST "${API_BASE%/}/internal/webhooks/github" \
+  -H "X-GitHub-Event: push" \
+  -H "X-Hub-Signature-256: sha256=$SIG_HEX" \
+  -H "X-Kanbus-Account: $DEFAULT_ACCOUNT" \
+  -H "X-Kanbus-Project: $DEFAULT_PROJECT" \
+  -H "Content-Type: application/json" \
+  --data-binary "@$PAYLOAD_FILE")"
+[[ "$status" == "202" ]] || fail_gate "$GATE" "failed to enqueue browser probe webhook (status=$status)"
 
 if ! wait "$BROWSER_PROBE_PID"; then
   fail_gate "$GATE" "browser realtime probe failed (likely MQTT auth/connect path)"

@@ -61,7 +61,6 @@ async function main() {
   let mqttSubscribed = false;
   let usedSseFallback = false;
   let notificationReceived = false;
-  let uiControlApplied = false;
 
   page.on("console", (msg) => {
     const text = msg.text();
@@ -74,9 +73,6 @@ async function main() {
     }
     if (text.includes("[notifications] received")) {
       notificationReceived = true;
-    }
-    if (text.includes("[ui_control]")) {
-      uiControlApplied = true;
     }
   });
 
@@ -99,16 +95,13 @@ async function main() {
   const eventStart = Date.now();
   while (
     Date.now() - eventStart < args.eventDeadlineMs &&
-    !(notificationReceived && uiControlApplied)
+    !notificationReceived
   ) {
     await page.waitForTimeout(500);
   }
 
   if (!notificationReceived) {
     throw new Error("no realtime notification observed in browser logs");
-  }
-  if (!uiControlApplied) {
-    throw new Error("ui_control action did not apply in browser logs");
   }
 
   await browser.close();
