@@ -639,21 +639,26 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       symbol: "arrow" | "warning" | "stop";
       laneOffset: number;
       delay: number;
-    }) => (
-      <motion.g
-        initial={{ x: 250 + laneOffset * 0.01, y: 74, scale: 0.3, opacity: 0 }}
-        animate={{
-          x: [250 + laneOffset * 0.01, 250 + laneOffset * 0.45, 250 + laneOffset],
-          y: [74, 150, 244],
-          scale: [0.3, 0.7, 1.25],
-          opacity: [0, 1, 0],
-        }}
-        transition={{ duration: 6.2, ease: "easeInOut", repeat: Infinity, delay }}
-      >
-        <rect x="-2" y="20" width="4" height="18" fill="var(--text-muted)" opacity={0.75} />
-        <SignFace symbol={symbol} />
-      </motion.g>
-    );
+    }) => {
+      const x0 = 250 + laneOffset * 0.01;
+      const x1 = 250 + laneOffset * 0.45;
+      const x2 = 250 + laneOffset;
+      const dur = "6.2s";
+      const begin = `${delay}s`;
+      return (
+        <g opacity="0">
+          <animate attributeName="opacity" values="0; 1; 0" dur={dur} begin={begin} repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1" />
+          <g>
+            <animateTransform attributeName="transform" type="translate" values={`${x0} 74; ${x1} 150; ${x2} 244`} dur={dur} begin={begin} repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1" />
+            <g>
+              <animateTransform attributeName="transform" type="scale" values="0.3; 0.7; 1.25" dur={dur} begin={begin} repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1" />
+              <rect x="-2" y="20" width="4" height="18" fill="var(--text-muted)" opacity={0.75} />
+              <SignFace symbol={symbol} />
+            </g>
+          </g>
+        </g>
+      );
+    };
 
     if (prefersReducedMotion) {
       return (
@@ -683,15 +688,15 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
         </defs>
         <rect x="0" y="0" width="500" height="300" fill="url(#policy-gradient)" rx="10" />
         <path d="M130 300 250 72 370 300" fill="none" stroke="var(--text-muted)" strokeOpacity="0.22" strokeWidth="2" />
-        <motion.path
+        <path
           d="M250 78 250 294"
           stroke="var(--text-muted)"
           strokeOpacity="0.2"
           strokeWidth="2"
           strokeDasharray="8 12"
-          animate={{ strokeDashoffset: [0, -40] }}
-          transition={{ duration: 3.2, repeat: Infinity, ease: "linear" }}
-        />
+        >
+          <animate attributeName="stroke-dashoffset" from="0" to="-40" dur="3.2s" repeatCount="indefinite" />
+        </path>
         <AnimatedSign symbol="arrow" laneOffset={-58} delay={0} />
         <AnimatedSign symbol="warning" laneOffset={0} delay={1.6} />
         <AnimatedSign symbol="stop" laneOffset={58} delay={3.2} />
