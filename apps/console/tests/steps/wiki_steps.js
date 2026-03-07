@@ -150,7 +150,7 @@ Then("the wiki view should be inactive", async function () {
 });
 
 Then("the wiki empty state should be visible", async function () {
-  await expect(this.page.getByText("Empty wiki")).toBeVisible();
+  await expect(this.page.getByText("This directory is empty.")).toBeVisible();
 });
 
 Then("the wiki page list should include {string}", async function (relativePath) {

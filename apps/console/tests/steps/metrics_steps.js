@@ -212,6 +212,7 @@ Then("the metrics view should be active", async function () {
 
 Then("the metrics view should intersect the viewport", async function () {
   const metricsView = this.page.getByTestId("metrics-view");
+  await expect(metricsView).toBeVisible();
   const box = await metricsView.boundingBox();
   expect(box).not.toBeNull();
   const viewport = this.page.viewportSize();
