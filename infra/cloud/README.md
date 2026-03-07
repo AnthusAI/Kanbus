@@ -98,3 +98,35 @@ Webhook ingress currently expects:
 
 The stack provisions a Secrets Manager secret and passes its ARN to webhook ingress.
 Rotate this secret and configure GitHub webhook delivery to use the same value.
+
+## Automated pre-acceptance validation
+
+Use the cloud validation runner before human acceptance or UX review:
+
+```bash
+AWS_PROFILE=anthus \
+KANBUS_TEST_ADMIN_USERNAME=<admin-user> \
+KANBUS_TEST_ADMIN_PASSWORD=<admin-pass> \
+KANBUS_TEST_TENANT_USERNAME=<tenant-user> \
+KANBUS_TEST_TENANT_PASSWORD=<tenant-pass> \
+KANBUS_TEST_MISMATCH_USERNAME=<mismatch-user> \
+KANBUS_TEST_MISMATCH_PASSWORD=<mismatch-pass> \
+scripts/cloud/validate_preacceptance.sh
+```
+
+Artifacts are written to:
+
+- `artifacts/cloud-validation/<timestamp>/gate-*.log`
+- `artifacts/cloud-validation/<timestamp>/responses/*`
+- `artifacts/cloud-validation/<timestamp>/cloudwatch/*`
+- `artifacts/cloud-validation/<timestamp>/summary.json`
+
+The script enforces gates in order:
+
+1. Environment/stack preflight.
+2. Static/build checks.
+3. Unauthenticated API/auth contracts.
+4. Authenticated tenant isolation + SSE endpoint.
+5. Token admin + authorizer + CLI parity.
+6. Webhook -> SQS -> worker -> IoT event.
+7. Browser realtime hard gate (MQTT primary, no SSE-only pass).
