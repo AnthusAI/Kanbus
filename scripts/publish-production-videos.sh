@@ -8,6 +8,12 @@ AWS_PROFILE="${AWS_PROFILE:-anthus}"
 PRIMARY_PREFIX="${PRIMARY_PREFIX:-videos}"
 MIRROR_PREFIX="${MIRROR_PREFIX:-kanbus-feature-videos}"
 OUT_DIR="${OUT_DIR:-${ROOT_DIR}/videos/out}"
+ALLOW_PROD_PUBLISH="${ALLOW_PROD_PUBLISH:-0}"
+
+if [ "${ALLOW_PROD_PUBLISH}" != "1" ]; then
+  echo "PUBLISH_BLOCKED_EXPLICIT_APPROVAL_REQUIRED set ALLOW_PROD_PUBLISH=1 to continue" >&2
+  exit 1
+fi
 
 ensure_alias_asset() {
   local target="$1"

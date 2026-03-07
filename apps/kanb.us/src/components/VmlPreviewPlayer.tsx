@@ -1,14 +1,10 @@
 import * as React from "react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { spring, interpolate } from "remotion";
 
-// Try to register the dom library here so that it gets loaded on the client side only
-// to avoid SSR issues with custom elements
 if (typeof window !== "undefined") {
   try {
-    // In React 18 / Gatsby environments, typical ES5 adapters don't always bind perfectly
-    // with Reflect.construct since HTMLElement requires 'new'.
     require("@webcomponents/custom-elements/src/native-shim.js");
     require("@videoml/stdlib/dom");
   } catch (e) {
@@ -16,7 +12,6 @@ if (typeof window !== "undefined") {
   }
 }
 
-// Dynamically load to avoid SSR
 if (typeof window !== "undefined") {
   const w = window as any;
   if (!w.Babulus) {
@@ -28,60 +23,57 @@ if (typeof window !== "undefined") {
       components: new Map(),
       registerComponent: (name: string, Component: any) => {
         w.Babulus.components.set(name, Component);
-        
-        // Also register as a Web Component so VideoML DOM player can render it
-        const kebabName = name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+
+        const kebabName = name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
         if (!customElements.get(kebabName)) {
-           class ReactWrapper extends HTMLElement {
-             private root: any = null;
-             
-             connectedCallback() {
-               // Ensure custom element takes up the full container like native VML elements
-               this.style.display = 'block';
-               this.style.width = '100%';
-               this.style.height = '100%';
-               this.style.position = 'relative';
-               
-               // Must use createRoot for React 18
-               this.root = createRoot(this);
-               this.renderComponent();
-             }
-             
-             disconnectedCallback() {
-               this.root?.unmount();
-               this.root = null;
-             }
-             
-             attributeChangedCallback() {
-               this.renderComponent();
-             }
-             
-             static get observedAttributes() {
-               return ['props'];
-             }
-             
-             renderComponent() {
-               if (!this.root) return;
-               const props: any = {};
-               try {
-                 const propsAttr = this.getAttribute('props');
-                 if (propsAttr) Object.assign(props, JSON.parse(propsAttr));
-               } catch (e) {}
-               this.root.render(React.createElement(Component, props));
-             }
-           }
-           customElements.define(kebabName, ReactWrapper);
+          class ReactWrapper extends HTMLElement {
+            private root: any = null;
+
+            connectedCallback() {
+              this.style.display = "block";
+              this.style.width = "100%";
+              this.style.height = "100%";
+              this.style.position = "relative";
+              this.root = createRoot(this);
+              this.renderComponent();
+            }
+
+            disconnectedCallback() {
+              this.root?.unmount();
+              this.root = null;
+            }
+
+            attributeChangedCallback() {
+              this.renderComponent();
+            }
+
+            static get observedAttributes() {
+              return ["props"];
+            }
+
+            renderComponent() {
+              if (!this.root) return;
+              const props: any = {};
+              try {
+                const propsAttr = this.getAttribute("props");
+                if (propsAttr) Object.assign(props, JSON.parse(propsAttr));
+              } catch {
+                // Ignore malformed props attributes.
+              }
+              this.root.render(React.createElement(Component, props));
+            }
+          }
+          customElements.define(kebabName, ReactWrapper);
         }
       },
       listComponents: () => Array.from(w.Babulus.components.keys()),
       getComponent: (name: string) => w.Babulus.components.get(name),
-      // Mocks for components to not crash when trying to use Remotion hooks
       useCurrentFrame: () => {
         const [frame, setFrame] = useState(currentFrame);
         useEffect(() => {
           const handler = (e: any) => setFrame(e.detail);
-          frameTarget.addEventListener('frame', handler);
-          return () => frameTarget.removeEventListener('frame', handler);
+          frameTarget.addEventListener("frame", handler);
+          return () => frameTarget.removeEventListener("frame", handler);
         }, []);
         return frame;
       },
@@ -91,167 +83,172 @@ if (typeof window !== "undefined") {
       _updateFrame: (frame: number, fps: number) => {
         currentFrame = frame;
         currentFps = fps;
-        frameTarget.dispatchEvent(new CustomEvent('frame', { detail: frame }));
-      }
+        frameTarget.dispatchEvent(new CustomEvent("frame", { detail: frame }));
+      },
     };
-    
-    // listen to global timeline tick
-    window.addEventListener("timeline:tick", ((e: CustomEvent) => {
-       w.Babulus._updateFrame(e.detail.frame, e.detail.fps);
-    }) as EventListener);
+
+    window.addEventListener(
+      "timeline:tick",
+      ((e: CustomEvent) => {
+        const detail = e.detail ?? {};
+        const frame = Number.isFinite(detail.sceneLocalFrame)
+          ? detail.sceneLocalFrame
+          : Number.isFinite(detail.frame)
+            ? detail.frame
+            : 0;
+        const fps = Number.isFinite(detail.fps) ? detail.fps : 24;
+        w.Babulus._updateFrame(Math.max(0, Math.floor(frame)), fps);
+      }) as EventListener,
+    );
   }
 
-  // Use a dynamic import to avoid SSR errors.
-  import("../../../../videos/scripts/browser-components").catch(e => {
+  import("../../../../videos/scripts/browser-components").catch((e) => {
     console.error("Failed to load browser components", e);
   });
 }
 
-// Workaround for module loading in Gatsby SSR/develop
-let Player: any;
+let CorePlayer: any;
 if (typeof window !== "undefined") {
-  Player = require("@videoml/player/react").VideomlDomPlayer;
+  try {
+    const mod = require("@videoml/player/react");
+    CorePlayer = mod?.VideomlPlayer ?? null;
+  } catch {
+    CorePlayer = null;
+  }
 }
 
 type VmlPreviewPlayerProps = {
-  xmlPath: string;
+  videoId: string;
 };
 
-export function VmlPreviewPlayer({ xmlPath }: VmlPreviewPlayerProps) {
-  const [VideomlDomPlayerComponent, setVideomlDomPlayerComponent] = useState<any>(null);
+type PreviewHealth = {
+  ok: boolean;
+  videoId: string;
+  xmlPath: string;
+  xmlExists: boolean;
+  xmlMtimeMs: number | null;
+  wavPath: string;
+  wavExists: boolean;
+  wavMtimeMs: number | null;
+};
 
-  useEffect(() => {
-    if (Player) {
-      setVideomlDomPlayerComponent(() => Player);
-    }
-  }, []);
-
+export function VmlPreviewPlayer({ videoId }: VmlPreviewPlayerProps) {
+  const [PlayerComponent, setPlayerComponent] = useState<any>(null);
   const [xmlContent, setXmlContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(10); // Default duration, the player should ideally tell us, but let's see.
-
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [health, setHealth] = useState<PreviewHealth | null>(null);
+  const xmlUrl = `/__vml/content/${videoId}.babulus.xml`;
 
   useEffect(() => {
-    // Determine the audio source from xmlPath, e.g., "content/local-tasks.babulus.xml" -> "/videoml/local-tasks.wav"
-    // The VML CLI generates these alongside the XML
-    const match = xmlPath.match(/\/([^\/]+)\.babulus\.xml$/);
-    if (match) {
-      // Gatsby dev server serves the root static/public folder. The generated audio is in public/videoml/
-      // Since we are running the gatsby dev server, public files are available at the root URL
-      setAudioSrc(`/videoml/${match[1]}.wav`);
+    if (CorePlayer) {
+      setPlayerComponent(() => CorePlayer);
+      return;
     }
-  }, [xmlPath]);
+    setError(
+      "Core VideoML transport player not found. Install a VideoML player build that exports `VideomlPlayer` from `@videoml/player/react`.",
+    );
+  }, []);
 
-  // Sync audio play state
   useEffect(() => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        // Only set currentTime if it's drifted to avoid stuttering
-        if (Math.abs(audioRef.current.currentTime - currentTime) > 0.2) {
-          audioRef.current.currentTime = currentTime;
+    if (!CorePlayer) return;
+    let cancelled = false;
+    setError(null);
+    setHealth(null);
+    setXmlContent(null);
+
+    const loadPreviewAssets = async () => {
+      try {
+        const healthRes = await fetch(`/__vml/health/${videoId}`);
+        if (!healthRes.ok) {
+          if (healthRes.status === 404) {
+            throw new Error(
+              "Preview health endpoint failed (404). Restart `npm --prefix apps/kanb.us run develop` so Gatsby loads `onCreateDevServer` routes.",
+            );
+          }
+          throw new Error(`Preview health endpoint failed (${healthRes.status})`);
         }
-        audioRef.current.play().catch(e => console.warn("Audio playback prevented:", e));
-      } else {
-        audioRef.current.pause();
+
+        const previewHealth = (await healthRes.json()) as PreviewHealth;
+        if (cancelled) return;
+        setHealth(previewHealth);
+
+        if (!previewHealth.ok) {
+          const missing = [];
+          if (!previewHealth.xmlExists) missing.push(`XML missing: ${previewHealth.xmlPath}`);
+          if (!previewHealth.wavExists) missing.push(`WAV missing: ${previewHealth.wavPath}`);
+          const fixCmd =
+            videoId === "intro"
+              ? "node scripts/sync-vml-preview-assets.js --intro"
+              : "node scripts/sync-vml-preview-assets.js --all";
+          throw new Error(`${missing.join(" | ")}. Run: ${fixCmd}`);
+        }
+
+        const xmlRes = await fetch(xmlUrl);
+        if (!xmlRes.ok) {
+          throw new Error(`Failed to load XML ${xmlUrl} (${xmlRes.status})`);
+        }
+        const text = await xmlRes.text();
+        if (!cancelled) {
+          setXmlContent(text);
+        }
+      } catch (err: any) {
+        if (!cancelled) setError(err?.message || "Preview load failed");
       }
-    }
-  }, [isPlaying]);
+    };
 
-  useEffect(() => {
-    // Determine the actual path.
-    // The player expects the content from the root or a static directory.
-    // We fetch it from the raw content path or static depending on how it's served.
-    // For Gatsby static files, it's typically just /content/... if placed in static/content/
-    // Let's assume xmlPath is relative to the site root
-    fetch("/" + xmlPath)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load VML file: " + res.statusText);
-        return res.text();
-      })
-      .then((text) => setXmlContent(text))
-      .catch((err) => setError(err.message));
-  }, [xmlPath]);
-
-  // Try to parse duration from XML attributes
-  useEffect(() => {
-    if (xmlContent) {
-      const match = xmlContent.match(/<vml[^>]*duration="([^"]+)"/);
-      if (match && match[1]) {
-        const dur = parseFloat(match[1]);
-        if (!isNaN(dur)) {
-          setDuration(dur);
-        }
-      } else {
-        // sum of scene durations? 
-        const sceneMatches = Array.from(xmlContent.matchAll(/<scene[^>]*duration="([^"s]+)s"/g));
-        if (sceneMatches.length > 0) {
-          const totalDur = sceneMatches.reduce((acc, match) => acc + parseFloat(match[1]), 0);
-          if (!isNaN(totalDur)) setDuration(totalDur);
-        }
-      }
-    }
-  }, [xmlContent]);
+    loadPreviewAssets();
+    return () => {
+      cancelled = true;
+    };
+  }, [videoId, xmlUrl]);
 
   if (error) {
-    return <div className="text-red-500 p-4">Error: {error}</div>;
-  }
-
-  if (!xmlContent || !VideomlDomPlayerComponent) {
-    return <div className="text-muted p-4 flex flex-col items-center justify-center h-full min-h-[300px]">
-      <div className="w-8 h-8 border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent rounded-full animate-spin mb-4"></div>
-      Loading preview...
-    </div>;
-  }
-
-  // The actual player should hopefully be able to render now
-  return (
-    <div className="relative w-full h-full flex flex-col bg-black">
-      <div className="flex-1 relative overflow-hidden">
-        {audioSrc && <audio ref={audioRef} src={audioSrc} preload="auto" />}
-        <VideomlDomPlayerComponent
-          xml={xmlContent}
-          autoPlay={isPlaying}
-          clockMode="bounded"
-          loop={true}
-          onTimeUpdate={(time: number) => setCurrentTime(time)}
-        />
-      </div>
-
-      {/* Controls */}
-      <div className="h-16 bg-neutral-900 border-t border-neutral-800 flex items-center px-4 gap-4 z-20">
-        <button
-          onClick={() => setIsPlaying(!isPlaying)}
-          className="w-10 h-10 flex items-center justify-center bg-card rounded-full text-foreground hover:bg-neutral-700"
-        >
-          {isPlaying ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 4h4v16H6zm8 0h4v16h-4z" />
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="ml-1">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          )}
-        </button>
-        <div className="flex-1 flex items-center gap-4">
-          <span className="text-xs text-neutral-400 font-mono w-12 text-right">
-            {currentTime.toFixed(1)}s
-          </span>
-          <div className="flex-1 h-2 bg-neutral-700 rounded-full relative overflow-hidden">
-            <div 
-              className="absolute top-0 left-0 h-full bg-blue-500" 
-              style={{ width: `${(currentTime / duration) * 100}%` }}
-            />
+    const defaultFixCmd =
+      videoId === "intro"
+        ? "node scripts/sync-vml-preview-assets.js --intro"
+        : "node scripts/sync-vml-preview-assets.js --all";
+    return (
+      <div className="h-full min-h-[300px] bg-[#160a0a] text-red-100 p-6 border border-red-600/70 rounded-lg overflow-auto">
+        <div className="text-sm tracking-wide font-bold text-red-300">PREVIEW_INPUTS_MISSING</div>
+        <div className="mt-3 text-base font-semibold">
+          Preview cannot start for <code>{videoId}</code>.
+        </div>
+        <div className="mt-2 text-sm leading-6 text-red-100/90">{error}</div>
+        <div className="mt-4 text-xs text-red-200/90 space-y-1">
+          <div>
+            Health endpoint: <code>/__vml/health/{videoId}</code>
           </div>
-          <span className="text-xs text-neutral-400 font-mono w-12">
-            {duration.toFixed(1)}s
-          </span>
+          {health ? <div>XML path: {health.xmlPath}</div> : null}
+          {health ? <div>WAV path: {health.wavPath}</div> : null}
+        </div>
+        <div className="mt-5 rounded border border-red-500/70 bg-black/40 p-3 text-xs font-mono text-red-200">
+          {defaultFixCmd}
         </div>
       </div>
+    );
+  }
+
+  if (!xmlContent || !PlayerComponent) {
+    return (
+      <div className="text-muted p-4 flex flex-col items-center justify-center h-full min-h-[300px]">
+        <div className="w-8 h-8 border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent rounded-full animate-spin mb-4" />
+        Loading preview...
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full bg-black">
+      <PlayerComponent
+        xml={xmlContent}
+        autoPlay={false}
+        clockMode="bounded"
+        loop={true}
+        width={1920}
+        height={1080}
+        audioSrc={`/videoml/${videoId}.wav`}
+        transport={{ mode: "overlay-autohide", autoHideMs: 1600, keyboardShortcuts: true }}
+      />
     </div>
   );
 }

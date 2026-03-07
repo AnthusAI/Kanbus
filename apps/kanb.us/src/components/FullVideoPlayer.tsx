@@ -19,7 +19,7 @@ export function FullVideoPlayer({ src, poster, className = "", videoId }: FullVi
     setIsClient(true);
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.has("preview")) {
+      if (process.env.NODE_ENV === "development" && urlParams.has("preview")) {
         setIsPreviewMode(true);
       }
     }
@@ -39,10 +39,6 @@ export function FullVideoPlayer({ src, poster, className = "", videoId }: FullVi
   };
 
   if (isClient && isPreviewMode && videoId) {
-    // Determine the path to the VideoML file
-    // Assumes the videoId matches the filename stem in videos/content/
-    const xmlPath = `content/${videoId}.babulus.xml`;
-    
     return (
       <div className={`relative w-full max-w-5xl mx-auto rounded-2xl overflow-hidden shadow-2xl bg-black border border-[var(--border)] aspect-video ${className}`}>
         {/* Preview Mode Controls overlay */}
@@ -57,7 +53,7 @@ export function FullVideoPlayer({ src, poster, className = "", videoId }: FullVi
             Exit Preview
           </button>
         </div>
-        <VmlPreviewPlayer xmlPath={xmlPath} />
+        <VmlPreviewPlayer videoId={videoId} />
       </div>
     );
   }

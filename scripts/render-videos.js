@@ -237,6 +237,7 @@ const main = () => {
 
   run("npm run bundle:components", { cwd: videosDir });
   run("npm run vml:generate", { cwd: videosDir });
+  run("node scripts/sync-vml-preview-assets.js --all", { cwd: repoRoot });
 
   const wavChecks = COMPOSITION_IDS.map((id) => {
     const wavPath = path.join(publicVideomlDir, `${id}.wav`);

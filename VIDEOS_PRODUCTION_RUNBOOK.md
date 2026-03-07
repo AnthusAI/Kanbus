@@ -6,7 +6,16 @@ live `kanb.us` URLs resolve and contain non-silent audio.
 ## One command (recommended)
 
 ```bash
-AWS_PROFILE=anthus scripts/publish-production-videos.sh
+ALLOW_PROD_PUBLISH=1 AWS_PROFILE=anthus scripts/publish-production-videos.sh
+```
+
+Safety gate:
+
+- Production publish is blocked unless `ALLOW_PROD_PUBLISH=1` is set.
+- Block marker:
+
+```text
+PUBLISH_BLOCKED_EXPLICIT_APPROVAL_REQUIRED
 ```
 
 What this does:
@@ -57,3 +66,12 @@ Success marker:
 ```text
 CONFIGURE_REWRITE_OK
 ```
+
+## Troubleshooting
+
+- Publish blocked:
+  - set `ALLOW_PROD_PUBLISH=1` explicitly for intentional production writes
+- Missing/stale local artifacts:
+  - run `node scripts/render-videos.js` before publish
+- Verify failures:
+  - run `AWS_PROFILE=anthus scripts/verify-production-videos.sh` and inspect failing asset rows

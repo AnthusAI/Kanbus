@@ -13,6 +13,7 @@ export type FeaturePictogramType =
   | "policy-as-code";
 
 export function FeaturePictogram({ type, style, className }: { type: string, style?: React.CSSProperties, className?: string }) {
+  const viewBox = type === "jira-sync" ? "-24 0 524 300" : "0 0 500 300";
   const Board = ({ x = 250, y, opacity = 1, color = "var(--column)" }: { x?: number; y: number; opacity?: number; color?: string }) => (
     <g transform={`translate(${x}, ${y}) scale(1, 0.5) rotate(45) translate(-100, -75)`} opacity={opacity}>
       {/* Board Base */}
@@ -595,7 +596,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
           background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
         }}
       />
-      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" ? "none" : "xMidYMid meet"}>
+      <svg width="100%" height="100%" viewBox={viewBox} fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" ? "none" : "xMidYMid meet"}>
         <defs>
           <radialGradient id="feature-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
             <stop offset="0%" stopColor="var(--glow-center)" />

@@ -1,26 +1,34 @@
 <vml id="local-tasks" title="Local Tasks" fps="24" width="1920" height="1080" poster="2s">
-  <voiceover provider="openai" model="gpt-4o-mini-tts" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
 
-  <scene id="hook" title="Hover Animation" duration="5s">
+  <scene id="hook" title="Local Tasks" duration="5s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="visual" z="0">
-      <code-ui-sync-video />
+    <layer id="content" z="1">
+      <feature-two-column-scene props='{"headline":"Local Tasks","subhead":"Your private scratchpad","bodyPrimary":"Capture experiments and WIP privately, then promote to shared execution when ready.","leftRatio":0.4,"rightPanel":"pictogram","pictogramType":"local","pictogramScale":1.22}' />
     </layer>
   </scene>
 
-  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+  <transition id="push-1" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
-  <scene id="deep_dive" title="Local Tasks Deep Dive" duration="10s">
+  <scene id="deep_dive" title="Local Tasks Deep Dive" duration="28s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="title" z="1">
-      <title props='{"text":"Local Tasks","x":960,"y":150}' />
+    <layer id="content" z="1">
+      <feature-two-column-scene props='{"headline":"Local Tasks","subhead":"Your private scratchpad","bodyPrimary":"Track personal ideas without cluttering team boards. Local tasks stay visible to you and out of version control.","bodySecondary":"When work is ready, promote it to the shared project with one command and keep private drafts separate.","leftRatio":0.4,"rightPanel":"local-tasks-demo"}' />
     </layer>
     <cue id="intro" label="Introduction">
-      <voice>Keep private tasks off git and promote them when they are ready to share.</voice>
+      <voice>Keep private tasks off git and only promote them when ready. Perfect for drafting ideas and work-in-progress.</voice>
+    </cue>
+    <cue id="scratchpad" label="Private Scratchpad">
+      <pause seconds="0.5s" />
+      <voice>Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board. Local tasks give you a private workspace.</voice>
+    </cue>
+    <cue id="promote" label="Promote">
+      <pause seconds="0.5s" />
+      <voice>When your experiment turns into something real, promote it to the shared project with a single command. See everything together, or hide local tasks entirely.</voice>
     </cue>
   </scene>
 </vml>
