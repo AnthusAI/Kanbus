@@ -1,23 +1,12 @@
 //! Lambda handler for the console backend.
 
 use std::collections::hash_map::DefaultHasher;
-use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::time::Duration;
-
-use bytes::Bytes;
 use chrono::Utc;
-use futures_util::stream::{self, Stream, StreamExt};
-use http_body::Frame;
-use http_body_util::StreamBody;
 use lambda_http::{
-    http::StatusCode, run_with_streaming_response, service_fn, Error, Request, Response,
+    http::StatusCode, run, service_fn, Body, Error, Request, Response,
 };
-use tokio::sync::Mutex;
-use tokio_stream::wrappers::IntervalStream;
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
 
@@ -25,18 +14,21 @@ const EFS_ROOT: &str = "/mnt/data";
 const DEFAULT_ASSETS_ROOT: &str = "/opt/apps/console/dist";
 const REALTIME_MODE: &str = "mqtt_iot";
 
-type BoxedStream = Pin<Box<dyn Stream<Item = Result<Frame<Bytes>, Infallible>> + Send>>;
-type StreamBodyType = StreamBody<BoxedStream>;
-type ResponseType = Response<StreamBodyType>;
+type ResponseType = Response<Body>;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    run_with_streaming_response(service_fn(handler)).await
+    run(service_fn(handler)).await
 }
 
 async fn handler(request: Request) -> Result<ResponseType, Error> {
     let path = request.uri().path();
-    let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
+    let raw_segments: Vec<&str> = path
+        .trim_start_matches('/')
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect();
+    let segments = normalize_segments(raw_segments);
     if segments.is_empty() {
         return Ok(not_found());
     }
@@ -49,7 +41,7 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
     }
     let account = segments[0];
     let project = segments[1];
-    let store_root = FileStore::resolve_tenant_root(Path::new(EFS_ROOT), account, project);
+    let store_root = resolve_store_root(Path::new(EFS_ROOT), account, project);
     let store = FileStore::new(store_root);
     if segments.len() < 3 {
         return Ok(asset_response("index.html"));
@@ -81,6 +73,30 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
         },
         _ => Ok(not_found()),
     }
+}
+
+fn normalize_segments<'a>(segments: Vec<&'a str>) -> Vec<&'a str> {
+    if let Ok(stage) = std::env::var("KANBUS_API_STAGE") {
+        if segments.first().copied() == Some(stage.as_str()) {
+            return segments[1..].to_vec();
+        }
+    }
+    if segments.len() >= 4 && segments[2] != "api" && segments[3] == "api" {
+        return segments[1..].to_vec();
+    }
+    segments
+}
+
+fn resolve_store_root(base: &Path, account: &str, project: &str) -> std::path::PathBuf {
+    let tenant_root = FileStore::resolve_tenant_root(base, account, project);
+    if tenant_root.join(".kanbus.yml").is_file() {
+        return tenant_root;
+    }
+    let repo_root = tenant_root.join("repo");
+    if repo_root.join(".kanbus.yml").is_file() {
+        return repo_root;
+    }
+    tenant_root
 }
 
 fn handle_config(store: &FileStore) -> Result<ResponseType, Error> {
@@ -115,13 +131,13 @@ fn handle_issue(store: &FileStore, identifier: &str) -> Result<ResponseType, Err
 }
 
 fn handle_events(store: &FileStore) -> Result<ResponseType, Error> {
-    let stream = sse_stream(store.clone());
+    let (payload, _) = snapshot_payload(store);
     Response::builder()
         .status(StatusCode::OK)
         .header("Content-Type", "text/event-stream")
         .header("Cache-Control", "no-cache")
         .header("Connection", "keep-alive")
-        .body(StreamBody::new(stream))
+        .body(Body::Text(format!("data: {payload}\n\n")))
         .map_err(Error::from)
 }
 
@@ -254,30 +270,6 @@ fn asset_response(path: &str) -> ResponseType {
         .unwrap_or_else(|_| Response::new(body_from_text("{\"error\":\"asset response failed\"}")))
 }
 
-fn sse_stream(store: FileStore) -> BoxedStream {
-    let (initial_payload, initial_fingerprint) = snapshot_payload(&store);
-    let last_fingerprint = Arc::new(Mutex::new(initial_fingerprint));
-    let initial = stream::once(async move { Ok(Frame::data(Bytes::from(initial_payload))) });
-    let updates_store = store.clone();
-    let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
-    let updates_last = Arc::clone(&last_fingerprint);
-    let updates = interval.filter_map(move |_| {
-        let store = updates_store.clone();
-        let last_fingerprint = Arc::clone(&updates_last);
-        async move {
-            let (payload, fingerprint) = snapshot_payload(&store);
-            let mut guard = last_fingerprint.lock().await;
-            if *guard == fingerprint {
-                None
-            } else {
-                *guard = fingerprint;
-                Some(Ok(Frame::data(Bytes::from(payload))))
-            }
-        }
-    });
-    Box::pin(initial.chain(updates))
-}
-
 fn snapshot_payload(store: &FileStore) -> (String, u64) {
     let (payload, fingerprint) = match store.build_snapshot() {
         Ok(snapshot) => {
@@ -297,7 +289,7 @@ fn snapshot_payload(store: &FileStore) -> (String, u64) {
             (payload.clone(), hash_payload(&payload))
         }
     };
-    (format!("data: {payload}\n\n"), fingerprint)
+    (payload, fingerprint)
 }
 
 fn snapshot_fingerprint(snapshot: &kanbus::console_backend::ConsoleSnapshot) -> u64 {
@@ -315,15 +307,12 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
     hasher.finish()
 }
 
-fn body_from_text(text: impl Into<String>) -> StreamBodyType {
-    let bytes = Bytes::from(text.into());
-    let stream = stream::once(async move { Ok(Frame::data(bytes)) });
-    StreamBody::new(Box::pin(stream))
+fn body_from_text(text: impl Into<String>) -> Body {
+    Body::Text(text.into())
 }
 
-fn body_from_bytes(bytes: Vec<u8>) -> StreamBodyType {
-    let stream = stream::once(async move { Ok(Frame::data(Bytes::from(bytes))) });
-    StreamBody::new(Box::pin(stream))
+fn body_from_bytes(bytes: Vec<u8>) -> Body {
+    Body::Binary(bytes)
 }
 
 #[cfg(test)]
@@ -341,6 +330,7 @@ mod tests {
         // SAFETY: guarded by module-level mutex in realtime tests.
         unsafe {
             env::remove_var("KANBUS_IOT_DATA_ENDPOINT");
+            env::remove_var("KANBUS_API_STAGE");
             env::remove_var("AWS_REGION");
             env::remove_var("AWS_DEFAULT_REGION");
         }
@@ -362,6 +352,38 @@ mod tests {
         let bytes_hash = hash_bytes(b"payload");
         assert_eq!(one, two);
         assert_eq!(one, bytes_hash);
+    }
+
+    #[test]
+    fn normalize_segments_strips_configured_stage_prefix() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_API_STAGE", "dev");
+        }
+        let normalized = normalize_segments(vec!["dev", "anthus", "kanbus", "api", "config"]);
+        assert_eq!(normalized, vec!["anthus", "kanbus", "api", "config"]);
+    }
+
+    #[test]
+    fn normalize_segments_falls_back_to_api_shape_detection() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        let normalized = normalize_segments(vec!["prod", "anthus", "kanbus", "api", "issues"]);
+        assert_eq!(normalized, vec!["anthus", "kanbus", "api", "issues"]);
+    }
+
+    #[test]
+    fn resolve_store_root_prefers_repo_checkout_when_present() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let base = temp.path();
+        let tenant_repo = base.join("anthus").join("kanbus").join("repo");
+        std::fs::create_dir_all(&tenant_repo).expect("create repo root");
+        std::fs::write(tenant_repo.join(".kanbus.yml"), "project_key: kbs").expect("write config");
+
+        let resolved = resolve_store_root(base, "anthus", "kanbus");
+        assert_eq!(resolved, tenant_repo);
     }
 
     #[test]
