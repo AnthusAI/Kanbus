@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-rust-0.16.0...kanbus-rust-0.17.0) (2026-03-07)
+
+
+### Features
+
+* **sync:** add GitHub Dependabot pull sync with Beads support and Rust/Python parity ([df13ee7](https://github.com/AnthusAI/Kanbus/commit/df13ee73327c47d02ab3dd149f2adc68e574a239))
+
 ## [0.16.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-rust-0.15.0...kanbus-rust-0.16.0) (2026-03-06)
 
 
