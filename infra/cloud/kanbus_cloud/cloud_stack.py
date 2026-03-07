@@ -134,10 +134,6 @@ class KanbusCloudFoundationStack(Stack):
             cloud_watch_role=True,
         )
 
-        lambda_integration = apigw.LambdaIntegration(console_lambda, proxy=True)
-        api.root.add_method("ANY", lambda_integration)
-        api.root.add_resource("{proxy+}").add_method("ANY", lambda_integration)
-
         user_pool = cognito.UserPool(
             self,
             "ConsoleUserPool",
@@ -161,6 +157,28 @@ class KanbusCloudFoundationStack(Stack):
             auth_flows=cognito.AuthFlow(user_password=True, user_srp=True),
             generate_secret=False,
             prevent_user_existence_errors=True,
+        )
+
+        api_authorizer = apigw.CognitoUserPoolsAuthorizer(
+            self,
+            "ConsoleApiAuthorizer",
+            cognito_user_pools=[user_pool],
+            authorizer_name=f"kanbus-console-{env_name}-authorizer",
+            identity_source="method.request.header.Authorization",
+        )
+
+        lambda_integration = apigw.LambdaIntegration(console_lambda, proxy=True)
+        api.root.add_method(
+            "ANY",
+            lambda_integration,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            authorizer=api_authorizer,
+        )
+        api.root.add_resource("{proxy+}").add_method(
+            "ANY",
+            lambda_integration,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            authorizer=api_authorizer,
         )
 
         identity_pool = cognito.CfnIdentityPool(
@@ -201,6 +219,28 @@ class KanbusCloudFoundationStack(Stack):
                 resources=[api.arn_for_execute_api("*", "/*", "*")],
             )
         )
+        authenticated_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["iot:Connect"],
+                resources=[
+                    f"arn:{self.partition}:iot:{self.region}:{self.account}:client/"
+                    "${cognito-identity.amazonaws.com:sub}-*"
+                ],
+            )
+        )
+        authenticated_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["iot:Subscribe", "iot:Receive"],
+                resources=[
+                    f"arn:{self.partition}:iot:{self.region}:{self.account}:topicfilter/"
+                    "projects/${aws:PrincipalTag/account}/${aws:PrincipalTag/project}/events",
+                    f"arn:{self.partition}:iot:{self.region}:{self.account}:topic/"
+                    "projects/${aws:PrincipalTag/account}/${aws:PrincipalTag/project}/events",
+                ],
+            )
+        )
 
         identity_pool_role_attachment = cognito.CfnIdentityPoolRoleAttachment(
             self,
@@ -239,6 +279,12 @@ class KanbusCloudFoundationStack(Stack):
         CfnOutput(self, "ApiBaseUrl", value=api.url, description="Regional API base URL")
         CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
         CfnOutput(self, "UserPoolClientId", value=user_pool_client.user_pool_client_id)
+        CfnOutput(
+            self,
+            "UserPoolIssuerUrl",
+            value=user_pool.user_pool_provider_url,
+            description="JWT issuer URL used by Cognito authorizer",
+        )
         CfnOutput(self, "IdentityPoolId", value=identity_pool.ref)
         CfnOutput(
             self,
