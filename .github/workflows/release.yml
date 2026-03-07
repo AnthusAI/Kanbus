@@ -65,7 +65,7 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
           ls -la dist
-          twine upload dist/*
+          twine upload --skip-existing dist/*
 
       - name: Verify PyPI release
         working-directory: python
