@@ -278,22 +278,6 @@ export function TaskDetailPanel({
   const [eventLoading, setEventLoading] = useState(false);
   const [eventError, setEventError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
-    console.log("[detail-panel] task", task?.id ?? null);
-  }, [task?.id]);
-
-  useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
-    const node = panelRef.current;
-    if (!node) return;
-    const id = window.requestAnimationFrame(() => {
-      const rect = node.getBoundingClientRect();
-      console.log("[detail-panel] rect", { width: rect.width, height: rect.height, layout });
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [isVisible, task?.id, layout]);
-
   // Flash effects for real-time updates
   const statusFlashRef = useFlashEffect(task?.status, isOpen);
   const titleFlashRef = useFlashEffect(task?.title, isOpen);

@@ -3,6 +3,19 @@ import { SignatureV4 } from "@aws-sdk/signature-v4";
 import { Sha256 } from "@aws-crypto/sha256-js";
 import { HttpRequest } from "@aws-sdk/protocol-http";
 import { formatUrl } from "@aws-sdk/util-format-url";
+import type {
+  WikiCreateRequest,
+  WikiCreateResponse,
+  WikiDeleteResponse,
+  WikiPageResponse,
+  WikiPagesResponse,
+  WikiRenameRequest,
+  WikiRenameResponse,
+  WikiRenderRequest,
+  WikiRenderResponse,
+  WikiUpdateRequest,
+  WikiUpdateResponse
+} from "../types/wiki";
 
 export type UiControlAction =
   | { action: "clear_focus" }
@@ -208,7 +221,6 @@ async function fetchCognitoIdentityCredentials(
 }
 
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
-  const startedAt = Date.now();
   const [configResponse, issuesResponse] = await Promise.all([
     fetchWithAuth(`${apiBase}/config`),
     fetchWithAuth(`${apiBase}/issues`)
@@ -224,12 +236,6 @@ export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
 
   const config = (await configResponse.json()) as IssuesSnapshot["config"];
   const issues = (await issuesResponse.json()) as IssuesSnapshot["issues"];
-  const finishedAt = Date.now();
-  console.info("[snapshot] fetched", {
-    durationMs: finishedAt - startedAt,
-    finishedAt: new Date(finishedAt).toISOString()
-  });
-
   return {
     config,
     issues,
@@ -247,19 +253,10 @@ export function subscribeToSnapshots(
   let lastErrorAt: number | null = null;
   let lastMessageAt: number | null = null;
 
-  console.info("[sse] connect", {
-    url: `${apiBase}/events`,
-    startedAt: new Date().toISOString()
-  });
-
   source.onopen = () => {
     const now = Date.now();
     openCount += 1;
-    console.info("[sse] open", {
-      count: openCount,
-      openedAt: new Date(now).toISOString(),
-      sinceLastErrorMs: lastErrorAt ? now - lastErrorAt : null
-    });
+    lastMessageAt = null;
   };
 
   source.onmessage = (event) => {
@@ -272,13 +269,7 @@ export function subscribeToSnapshots(
         return;
       }
       if (snapshot.config && snapshot.issues) {
-        const now = Date.now();
-        lastMessageAt = now;
-        console.info("[sse] message", {
-          receivedAt: new Date(now).toISOString(),
-          snapshotUpdatedAt: snapshot.updated_at ?? null,
-          lastEventId: event.lastEventId || null
-        });
+        lastMessageAt = Date.now();
         onSnapshot(snapshot as IssuesSnapshot);
         return;
       }
@@ -310,36 +301,11 @@ export function subscribeToNotifications(
 ): () => void {
   const source = new EventSource(withAuthQuery(`${apiBase}/events/realtime`));
 
-  console.info("[notifications] connect", {
-    url: `${apiBase}/events/realtime`,
-    startedAt: new Date().toISOString()
-  });
-
-  source.onopen = () => {
-    console.info("[notifications] open", {
-      openedAt: new Date().toISOString()
-    });
-  };
+  source.onopen = () => {};
 
   source.onmessage = (event) => {
     try {
       const notification = JSON.parse(event.data) as NotificationEvent;
-      const logData: Record<string, unknown> = {
-        type: notification.type,
-        receivedAt: new Date().toISOString()
-      };
-
-      if (notification.type === "ui_control") {
-        logData.action = notification.action.action;
-      } else if ("issue_id" in notification) {
-        logData.issueId = notification.issue_id;
-      }
-
-      console.info("[notifications] received", logData);
-      console.info("[notifications] full payload", {
-        notification,
-        hasIssueData: "issue_data" in notification && Boolean(notification.issue_data)
-      });
       onNotification(notification);
     } catch (error) {
       console.error("[notifications] parse error", error);
@@ -355,7 +321,6 @@ export function subscribeToNotifications(
   };
 
   return () => {
-    console.info("[notifications] disconnect");
     source.close();
   };
 }
@@ -600,4 +565,102 @@ export async function fetchAuthBootstrap(apiBase: string): Promise<AuthBootstrap
     throw new Error(`auth bootstrap request failed: ${response.status}`);
   }
   return (await response.json()) as AuthBootstrap;
+}
+
+export async function fetchWikiPages(apiBase: string): Promise<WikiPagesResponse> {
+  const response = await fetch(`${apiBase}/wiki/pages`);
+  if (!response.ok) {
+    throw new Error(`wiki pages request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiPagesResponse;
+}
+
+export async function fetchWikiPage(apiBase: string, path: string): Promise<WikiPageResponse> {
+  const url = `${apiBase}/wiki/page?path=${encodeURIComponent(path)}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`wiki page request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiPageResponse;
+}
+
+export async function createWikiPage(
+  apiBase: string,
+  payload: WikiCreateRequest
+): Promise<WikiCreateResponse> {
+  const response = await fetch(`${apiBase}/wiki/page`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(`wiki create request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiCreateResponse;
+}
+
+export async function updateWikiPage(
+  apiBase: string,
+  payload: WikiUpdateRequest
+): Promise<WikiUpdateResponse> {
+  const response = await fetch(`${apiBase}/wiki/page`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(`wiki update request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiUpdateResponse;
+}
+
+export async function renameWikiPage(
+  apiBase: string,
+  payload: WikiRenameRequest
+): Promise<WikiRenameResponse> {
+  const response = await fetch(`${apiBase}/wiki/rename`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(`wiki rename request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiRenameResponse;
+}
+
+export async function deleteWikiPage(
+  apiBase: string,
+  path: string
+): Promise<WikiDeleteResponse> {
+  const url = `${apiBase}/wiki/page?path=${encodeURIComponent(path)}`;
+  const response = await fetch(url, { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error(`wiki delete request failed: ${response.status}`);
+  }
+  return (await response.json()) as WikiDeleteResponse;
+}
+
+export async function renderWikiPage(
+  apiBase: string,
+  payload: WikiRenderRequest
+): Promise<WikiRenderResponse> {
+  const response = await fetch(`${apiBase}/wiki/render`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    let message = `wiki render request failed: ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (typeof body?.error === "string" && body.error.length > 0) {
+        message = body.error;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as WikiRenderResponse;
 }

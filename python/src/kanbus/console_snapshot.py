@@ -42,6 +42,22 @@ def build_console_snapshot(root: Path) -> Dict[str, object]:
     }
 
 
+def get_issues_for_root(root: Path) -> List[IssueData]:
+    """Load issues for the given repository root using the same logic as the console.
+
+    Respects beads_compatibility and virtual_projects. Use this when you need
+    the canonical issue list (e.g. for wiki render) without building a full snapshot.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: List of issues.
+    :rtype: List[IssueData]
+    :raises ConsoleSnapshotError: If loading fails.
+    """
+    project_dir, config = _load_project_context(root)
+    return _load_console_issues(root, project_dir, config)
+
+
 def _load_project_context(root: Path) -> tuple[Path, ProjectConfiguration]:
     try:
         configuration_path = get_configuration_path(root)

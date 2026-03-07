@@ -45,7 +45,7 @@ jobs:
           mkdir -p ../coverage-python
           python -m coverage erase
           python -m coverage run --source=kanbus -m pytest
-          KANBUS_ENABLE_COVERAGE_HELPER=0 python -m coverage run --append --source=kanbus -m behave
+          KANBUS_ENABLE_COVERAGE_HELPER=0 python -m coverage run --append --source=kanbus -m behave --exclude "console"
           python -m coverage xml -o ../coverage-python/coverage.xml
 
       - name: Capture Python coverage

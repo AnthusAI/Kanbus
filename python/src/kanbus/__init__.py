@@ -6,4 +6,4 @@ Kanbus Python package.
 This patch is a no-op change to trigger a release build.
 """
 
-__version__ = "0.15.0"
+__version__ = "0.16.0"

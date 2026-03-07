@@ -6,8 +6,8 @@ use std::sync::Arc;
 use minijinja::value::{Kwargs, Value};
 use minijinja::{context, Environment, Error, ErrorKind};
 
+use crate::console_backend::FileStore;
 use crate::error::KanbusError;
-use crate::issue_listing::list_issues;
 use crate::models::IssueData;
 
 /// Request for rendering a wiki page.
@@ -33,18 +33,9 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
     let page_path = request.root.join(&request.page_path);
     validate_page_exists(&page_path)?;
 
-    let issues = list_issues(
-        &request.root,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        &[],
-        true,
-        false,
-    )?;
+    let store = FileStore::new(&request.root);
+    let configuration = store.load_config()?;
+    let issues = store.load_issues(&configuration)?;
     let issues = Arc::new(issues);
 
     let mut env = Environment::new();

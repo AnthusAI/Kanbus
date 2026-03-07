@@ -37,6 +37,11 @@ use tower_http::cors::{Any, CorsLayer};
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
 use kanbus::console_ui_state::{load_state, save_state, state_path, ConsoleUiState};
+use kanbus::console_wiki::{
+    create_page, delete_page, get_page, list_pages, rename_page, render_page, update_page,
+    WikiCreateRequest, WikiRenameRequest, WikiRenderRequestPayload, WikiServiceError,
+    WikiUpdateRequest,
+};
 use kanbus::event_history::{load_issue_events, EventRecord};
 use kanbus::file_io::{detect_repairable_project_issues, repair_project_structure};
 use kanbus::gossip::{run_gossip_bridge, GossipEnvelope};
@@ -67,6 +72,11 @@ struct AppState {
 struct IssueEventsQuery {
     limit: Option<usize>,
     before: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct WikiPathQuery {
+    path: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -175,6 +185,16 @@ async fn main() {
         .route("/api/auth/bootstrap", get(get_auth_bootstrap_root))
         .route("/api/notifications", post(post_notification_root))
         .route("/api/ui-state", get(get_ui_state_root))
+        .route(
+            "/api/wiki/page",
+            get(get_wiki_page_root)
+                .post(post_wiki_page_root)
+                .put(put_wiki_page_root)
+                .delete(delete_wiki_page_root),
+        )
+        .route("/api/wiki/pages", get(get_wiki_pages_root))
+        .route("/api/wiki/rename", post(post_wiki_rename_root))
+        .route("/api/wiki/render", post(post_wiki_render_root))
         .route("/api/render/d2", post(post_render_d2))
         .route("/api/telemetry/console", post(post_console_telemetry_root))
         .route(
@@ -208,6 +228,16 @@ async fn main() {
             "/:account/:project/api/notifications",
             post(post_notification),
         )
+        .route(
+            "/:account/:project/api/wiki/page",
+            get(get_wiki_page)
+                .post(post_wiki_page)
+                .put(put_wiki_page)
+                .delete(delete_wiki_page),
+        )
+        .route("/:account/:project/api/wiki/pages", get(get_wiki_pages))
+        .route("/:account/:project/api/wiki/rename", post(post_wiki_rename))
+        .route("/:account/:project/api/wiki/render", post(post_wiki_render))
         .route(
             "/:account/:project/api/telemetry/console",
             post(post_console_telemetry),
@@ -931,6 +961,219 @@ fn start_gossip_bridge(state: AppState) {
     });
 }
 
+async fn get_wiki_pages_root(State(state): State<AppState>) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    match list_pages(&store) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn get_wiki_pages(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    match list_pages(&store) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn get_wiki_page_root(
+    State(state): State<AppState>,
+    Query(query): Query<WikiPathQuery>,
+) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    match get_page(&store, &query.path) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn get_wiki_page(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+    Query(query): Query<WikiPathQuery>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    match get_page(&store, &query.path) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn post_wiki_page_root(
+    State(state): State<AppState>,
+    Json(payload): Json<WikiCreateRequest>,
+) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    match create_page(&store, &payload) {
+        Ok(result) => (StatusCode::CREATED, Json(result)).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn post_wiki_page(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+    Json(payload): Json<WikiCreateRequest>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    match create_page(&store, &payload) {
+        Ok(result) => (StatusCode::CREATED, Json(result)).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn put_wiki_page_root(
+    State(state): State<AppState>,
+    Json(payload): Json<WikiUpdateRequest>,
+) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    match update_page(&store, &payload) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn put_wiki_page(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+    Json(payload): Json<WikiUpdateRequest>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    match update_page(&store, &payload) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn delete_wiki_page_root(
+    State(state): State<AppState>,
+    Query(query): Query<WikiPathQuery>,
+) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    match delete_page(&store, &query.path) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn delete_wiki_page(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+    Query(query): Query<WikiPathQuery>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    match delete_page(&store, &query.path) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn post_wiki_rename_root(
+    State(state): State<AppState>,
+    Json(payload): Json<WikiRenameRequest>,
+) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    match rename_page(&store, &payload) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn post_wiki_rename(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+    Json(payload): Json<WikiRenameRequest>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    match rename_page(&store, &payload) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn post_wiki_render_root(
+    State(state): State<AppState>,
+    Json(payload): Json<WikiRenderRequestPayload>,
+) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    match render_page(&store, &payload) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
+async fn post_wiki_render(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+    Json(payload): Json<WikiRenderRequestPayload>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    match render_page(&store, &payload) {
+        Ok(result) => Json(result).into_response(),
+        Err(error) => wiki_error_to_response(error),
+    }
+}
+
 async fn post_render_d2(body: Bytes) -> Response {
     // Check if d2 is installed
     let d2_available = Command::new("which")
@@ -1090,6 +1333,18 @@ fn store_for_root(state: &AppState) -> Option<FileStore> {
 fn error_response(message: impl Into<String>, status: StatusCode) -> Response {
     let payload = serde_json::json!({ "error": message.into() });
     (status, Json(payload)).into_response()
+}
+
+fn wiki_error_to_response(error: WikiServiceError) -> Response {
+    match error {
+        WikiServiceError::InvalidPath(message) => {
+            error_response(message, StatusCode::UNPROCESSABLE_ENTITY)
+        }
+        WikiServiceError::NotFound(message) => error_response(message, StatusCode::NOT_FOUND),
+        WikiServiceError::Conflict(message) => error_response(message, StatusCode::CONFLICT),
+        WikiServiceError::Render(message) => error_response(message, StatusCode::BAD_REQUEST),
+        WikiServiceError::Io(message) => error_response(message, StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 fn snapshot_payload(store: &FileStore) -> (String, u64) {
