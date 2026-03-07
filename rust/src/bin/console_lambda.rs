@@ -162,8 +162,12 @@ struct AuthBootstrapResponse {
     project: Option<String>,
 }
 
-fn handle_auth_bootstrap(account: Option<&str>, project: Option<&str>) -> Result<ResponseType, Error> {
-    let auth_mode = std::env::var("KANBUS_AUTH_MODE").unwrap_or_else(|_| AUTH_MODE_NONE.to_string());
+fn handle_auth_bootstrap(
+    account: Option<&str>,
+    project: Option<&str>,
+) -> Result<ResponseType, Error> {
+    let auth_mode =
+        std::env::var("KANBUS_AUTH_MODE").unwrap_or_else(|_| AUTH_MODE_NONE.to_string());
     if auth_mode == AUTH_MODE_NONE {
         return json_response(&AuthBootstrapResponse {
             mode: AUTH_MODE_NONE.to_string(),
@@ -195,11 +199,13 @@ fn handle_auth_bootstrap(account: Option<&str>, project: Option<&str>) -> Result
 }
 
 fn tenant_account_claim_key() -> String {
-    std::env::var("KANBUS_TENANT_ACCOUNT_CLAIM_KEY").unwrap_or_else(|_| "custom:account".to_string())
+    std::env::var("KANBUS_TENANT_ACCOUNT_CLAIM_KEY")
+        .unwrap_or_else(|_| "custom:account".to_string())
 }
 
 fn tenant_project_claim_key() -> String {
-    std::env::var("KANBUS_TENANT_PROJECT_CLAIM_KEY").unwrap_or_else(|_| "custom:project".to_string())
+    std::env::var("KANBUS_TENANT_PROJECT_CLAIM_KEY")
+        .unwrap_or_else(|_| "custom:project".to_string())
 }
 
 fn query_param(query: &str, key: &str) -> Option<String> {
@@ -222,7 +228,9 @@ fn bearer_token(request: &Request) -> Option<String> {
 
 fn decode_jwt_claims(token: &str) -> Option<serde_json::Value> {
     let payload = token.split('.').nth(1)?;
-    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload).ok()?;
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload)
+        .ok()?;
     serde_json::from_slice(&bytes).ok()
 }
 
@@ -232,7 +240,8 @@ fn enforce_tenant_claims(
     project: &str,
     token_from_query: Option<&str>,
 ) -> Result<(), ResponseType> {
-    let auth_mode = std::env::var("KANBUS_AUTH_MODE").unwrap_or_else(|_| AUTH_MODE_NONE.to_string());
+    let auth_mode =
+        std::env::var("KANBUS_AUTH_MODE").unwrap_or_else(|_| AUTH_MODE_NONE.to_string());
     if auth_mode == AUTH_MODE_NONE {
         return Ok(());
     }
@@ -490,7 +499,9 @@ mod tests {
 
     fn realtime_env_guard() -> std::sync::MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(())).lock().expect("env lock")
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env lock")
     }
 
     fn clear_realtime_env() {
@@ -568,7 +579,10 @@ mod tests {
         clear_realtime_env();
         // SAFETY: guarded by module-level mutex in realtime tests.
         unsafe {
-            env::set_var("KANBUS_IOT_DATA_ENDPOINT", "a1b2c3-ats.iot.us-east-1.amazonaws.com");
+            env::set_var(
+                "KANBUS_IOT_DATA_ENDPOINT",
+                "a1b2c3-ats.iot.us-east-1.amazonaws.com",
+            );
             env::set_var("AWS_REGION", "us-east-1");
         }
         let payload = build_realtime_bootstrap("acct", "proj").expect("bootstrap payload");
@@ -593,7 +607,10 @@ mod tests {
 
         // SAFETY: guarded by module-level mutex in realtime tests.
         unsafe {
-            env::set_var("KANBUS_IOT_DATA_ENDPOINT", "a1b2c3-ats.iot.us-east-1.amazonaws.com");
+            env::set_var(
+                "KANBUS_IOT_DATA_ENDPOINT",
+                "a1b2c3-ats.iot.us-east-1.amazonaws.com",
+            );
         }
         let missing_region = build_realtime_bootstrap("acct", "proj")
             .expect_err("missing region should return error");

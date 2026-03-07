@@ -85,7 +85,8 @@ pub fn create_cloud_token(
     let parsed: TokenCreateResponse = response
         .json()
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
-    serde_json::to_string_pretty(&parsed).map_err(|error| KanbusError::IssueOperation(error.to_string()))
+    serde_json::to_string_pretty(&parsed)
+        .map_err(|error| KanbusError::IssueOperation(error.to_string()))
 }
 
 pub fn list_cloud_tokens(
@@ -114,7 +115,8 @@ pub fn list_cloud_tokens(
     let parsed: TokenListResponse = response
         .json()
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
-    serde_json::to_string_pretty(&parsed).map_err(|error| KanbusError::IssueOperation(error.to_string()))
+    serde_json::to_string_pretty(&parsed)
+        .map_err(|error| KanbusError::IssueOperation(error.to_string()))
 }
 
 pub fn revoke_cloud_token(
@@ -140,5 +142,6 @@ pub fn revoke_cloud_token(
     let parsed: TokenRevokeResponse = response
         .json()
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
-    serde_json::to_string_pretty(&parsed).map_err(|error| KanbusError::IssueOperation(error.to_string()))
+    serde_json::to_string_pretty(&parsed)
+        .map_err(|error| KanbusError::IssueOperation(error.to_string()))
 }
