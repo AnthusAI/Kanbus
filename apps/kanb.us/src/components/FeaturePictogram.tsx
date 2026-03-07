@@ -134,8 +134,6 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
 
   const renderRealtimeCollaboration = () => (
     <g transform="scale(1) translate(0, 0)">
-      <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
-
       {/* Gossip lines (behind everything) */}
       <path
         d="M 105 140 L 250 140"
@@ -740,8 +738,6 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
 
   const renderGitNativeStorage = () => (
     <g transform="scale(1) translate(0, 0)">
-      <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
-
       {/* Git branch line */}
       <line x1="80" y1="40" x2="80" y2="270" stroke="var(--accent-blue)" strokeWidth="3" />
 
