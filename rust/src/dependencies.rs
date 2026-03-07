@@ -91,7 +91,8 @@ pub fn add_dependency(
         }
     }
 
-    if source_lookup.issue_path.parent() == Some(source_lookup.project_dir.join("issues").as_path()) {
+    if source_lookup.issue_path.parent() == Some(source_lookup.project_dir.join("issues").as_path())
+    {
         crate::gossip::publish_issue_mutation(
             root,
             &source_lookup.project_dir,

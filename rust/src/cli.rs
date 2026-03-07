@@ -2252,7 +2252,9 @@ fn execute_command(
                 Err(deprecated_console_control_error("toggle-settings"))
             }
             ConsoleCommands::Reload => Err(deprecated_console_control_error("reload")),
-            ConsoleCommands::SetSetting { .. } => Err(deprecated_console_control_error("set-setting")),
+            ConsoleCommands::SetSetting { .. } => {
+                Err(deprecated_console_control_error("set-setting"))
+            }
             ConsoleCommands::CollapseColumn { .. } => {
                 Err(deprecated_console_control_error("collapse-column"))
             }

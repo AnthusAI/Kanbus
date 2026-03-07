@@ -90,9 +90,7 @@ pub fn load_issue_from_project(
                         overlay_issue,
                         tombstone,
                         &overlay_config,
-                        project_labels
-                            .get(project_dir)
-                            .map(|value| value.as_str()),
+                        project_labels.get(project_dir).map(|value| value.as_str()),
                     )?;
                     if let Some(issue) = resolved {
                         return Ok(IssueLookupResult {
@@ -125,9 +123,7 @@ pub fn load_issue_from_project(
                 Some(overlay_issue),
                 tombstone,
                 &overlay_config,
-                project_labels
-                    .get(project_dir)
-                    .map(|value| value.as_str()),
+                project_labels.get(project_dir).map(|value| value.as_str()),
             )?;
             if let Some(issue) = resolved {
                 return Ok(IssueLookupResult {

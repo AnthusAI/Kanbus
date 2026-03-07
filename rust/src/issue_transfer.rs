@@ -132,11 +132,6 @@ pub fn localize_issue(root: &Path, identifier: &str) -> Result<IssueData, Kanbus
             return Err(error);
         }
     }
-    crate::gossip::publish_issue_deleted(
-        root,
-        &project_dir,
-        &issue.identifier,
-        Some(event_id),
-    );
+    crate::gossip::publish_issue_deleted(root, &project_dir, &issue.identifier, Some(event_id));
     Ok(issue)
 }

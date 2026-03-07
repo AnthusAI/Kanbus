@@ -322,8 +322,8 @@ fn run_gossip_consumer(
         }
     });
 
-    let mut use_uds = transport == "uds"
-        || (transport == "auto" && uds_socket_path(Some(realtime)).exists());
+    let mut use_uds =
+        transport == "uds" || (transport == "auto" && uds_socket_path(Some(realtime)).exists());
     if autostart_local_uds && !use_uds && (transport == "uds" || transport == "auto") {
         ensure_local_uds_broker(realtime)?;
         use_uds = true;
@@ -421,8 +421,8 @@ fn run_uds_broker(socket_path: &Path) -> Result<(), KanbusError> {
     if let Some(parent) = socket_path.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
-    let listener = UnixListener::bind(socket_path)
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let listener =
+        UnixListener::bind(socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let subscribers: Arc<Mutex<Vec<Subscriber>>> = Arc::new(Mutex::new(Vec::new()));
     for stream in listener.incoming() {
         let stream = match stream {
@@ -515,8 +515,8 @@ fn run_uds_subscription(
     handler: Arc<dyn Fn(GossipEnvelope) + Send + Sync>,
 ) -> Result<(), KanbusError> {
     let socket_path = uds_socket_path(Some(realtime));
-    let mut stream = UnixStream::connect(&socket_path)
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let mut stream =
+        UnixStream::connect(&socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     for topic in topics {
         let payload = serde_json::json!({"op": "sub", "topic": topic});
         let line = serde_json::to_string(&payload)
@@ -598,12 +598,11 @@ fn publish_uds(
     realtime: &RealtimeConfig,
 ) -> Result<(), KanbusError> {
     let socket_path = uds_socket_path(Some(realtime));
-    let mut stream = UnixStream::connect(socket_path)
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let mut stream =
+        UnixStream::connect(socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let payload = serde_json::json!({"op": "pub", "topic": topic, "msg": envelope});
-    let line = serde_json::to_string(&payload)
-        .map_err(|error| KanbusError::Io(error.to_string()))?
-        + "\n";
+    let line =
+        serde_json::to_string(&payload).map_err(|error| KanbusError::Io(error.to_string()))? + "\n";
     stream
         .write_all(line.as_bytes())
         .map_err(|error| KanbusError::Io(error.to_string()))
@@ -614,11 +613,12 @@ fn publish_mqtt(
     topic: &str,
     envelope: &GossipEnvelope,
 ) -> Result<(), KanbusError> {
-    let payload = serde_json::to_vec(envelope).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let payload =
+        serde_json::to_vec(envelope).map_err(|error| KanbusError::Io(error.to_string()))?;
     let options = mqtt_options(endpoint);
     let (client, mut eventloop) = AsyncClient::new(options, 10);
-    let runtime = tokio::runtime::Runtime::new()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let runtime =
+        tokio::runtime::Runtime::new().map_err(|error| KanbusError::Io(error.to_string()))?;
     runtime.block_on(async move {
         client
             .publish(topic, QoS::AtMostOnce, false, payload)
@@ -641,8 +641,8 @@ fn run_mqtt_subscription(
 ) -> Result<(), KanbusError> {
     let options = mqtt_options(endpoint);
     let (client, mut eventloop) = AsyncClient::new(options, 10);
-    let runtime = tokio::runtime::Runtime::new()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let runtime =
+        tokio::runtime::Runtime::new().map_err(|error| KanbusError::Io(error.to_string()))?;
     runtime.block_on(async move {
         for topic in topics {
             client
@@ -653,7 +653,8 @@ fn run_mqtt_subscription(
         loop {
             match eventloop.poll().await {
                 Ok(Event::Incoming(Packet::Publish(publish))) => {
-                    if let Ok(envelope) = serde_json::from_slice::<GossipEnvelope>(&publish.payload) {
+                    if let Ok(envelope) = serde_json::from_slice::<GossipEnvelope>(&publish.payload)
+                    {
                         handler(envelope);
                     }
                 }
@@ -708,7 +709,11 @@ fn ensure_mosquitto(endpoint: &BrokerEndpoint) -> Result<Option<BrokerStartup>, 
     }
     let run_dir = broker_run_dir();
     fs::create_dir_all(&run_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
-    let mut port = if endpoint.port == 0 { 1883 } else { endpoint.port };
+    let mut port = if endpoint.port == 0 {
+        1883
+    } else {
+        endpoint.port
+    };
     port = find_free_port(port)?;
     let conf_path = run_dir.join("mosquitto.conf");
     let log_path = run_dir.join("mosquitto.log");
@@ -816,10 +821,7 @@ fn home_dir() -> PathBuf {
 }
 
 fn project_topic(realtime: &RealtimeConfig, label: &str) -> String {
-    realtime
-        .topics
-        .project_events
-        .replace("{project}", label)
+    realtime.topics.project_events.replace("{project}", label)
 }
 
 fn resolve_project_label(
@@ -844,9 +846,9 @@ fn parse_broker_url(url: &str) -> Result<BrokerEndpoint, KanbusError> {
     };
     let host_port = rest.split('/').next().unwrap_or(rest);
     let (host, port) = if let Some((host, port_text)) = host_port.split_once(':') {
-        let port = port_text.parse::<u16>().map_err(|_| {
-            KanbusError::IssueOperation(format!("invalid broker url: {url}"))
-        })?;
+        let port = port_text
+            .parse::<u16>()
+            .map_err(|_| KanbusError::IssueOperation(format!("invalid broker url: {url}")))?;
         (host.to_string(), port)
     } else {
         (host_port.to_string(), 1883)

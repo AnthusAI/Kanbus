@@ -152,9 +152,7 @@ def given_seen_notification(context: object, notification_id: str) -> None:
     context.gossip_dedupe.seen(notification_id)
 
 
-@when(
-    'it receives notification id "{notification_id}" from producer "{producer_id}"'
-)
+@when('it receives notification id "{notification_id}" from producer "{producer_id}"')
 def when_receive_notification(
     context: object, notification_id: str, producer_id: str
 ) -> None:
@@ -285,9 +283,16 @@ def when_publish_uds(context: object, topic: str) -> None:
         issue=issue,
     )
     context.uds_published_id = envelope.id
-    payload = json.dumps(
-        {"op": "pub", "topic": topic, "msg": envelope.model_dump(by_alias=True, mode="json")}
-    ) + "\n"
+    payload = (
+        json.dumps(
+            {
+                "op": "pub",
+                "topic": topic,
+                "msg": envelope.model_dump(by_alias=True, mode="json"),
+            }
+        )
+        + "\n"
+    )
     pub_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     pub_sock.settimeout(2.0)
     pub_sock.connect(str(context.uds_socket_path))

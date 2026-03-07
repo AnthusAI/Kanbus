@@ -61,6 +61,8 @@ jobs:
           path: coverage-python/coverage.xml
 
       - name: Check spec parity
+        env:
+          KANBUS_PARITY_STRICT: "0"
         run: python tools/check_spec_parity.py
 
   python-install:

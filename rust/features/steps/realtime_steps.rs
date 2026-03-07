@@ -91,11 +91,7 @@ fn then_doc_envelope(world: &mut KanbusWorld) {
 
 #[then("the realtime guide documents dedupe rules")]
 fn then_doc_dedupe(world: &mut KanbusWorld) {
-    assert!(world
-        .realtime_doc
-        .as_ref()
-        .expect("doc")
-        .contains("Dedupe"));
+    assert!(world.realtime_doc.as_ref().expect("doc").contains("Dedupe"));
 }
 
 #[then("the realtime guide documents overlay merge rules")]
@@ -166,7 +162,15 @@ fn then_envelope_includes_issue(world: &mut KanbusWorld) {
 fn then_envelope_standard_metadata(world: &mut KanbusWorld) {
     let envelope = world.gossip_envelope.as_ref().expect("envelope");
     let payload = serde_json::to_value(envelope).expect("serialize");
-    for key in ["id", "ts", "project", "type", "issue_id", "event_id", "producer_id"] {
+    for key in [
+        "id",
+        "ts",
+        "project",
+        "type",
+        "issue_id",
+        "event_id",
+        "producer_id",
+    ] {
         assert!(payload.get(key).is_some(), "missing metadata field: {key}");
     }
 }
@@ -215,9 +219,14 @@ fn given_base_issue(world: &mut KanbusWorld, identifier: String, timestamp: Stri
         world.overlay_project_dir = Some(project_dir);
     }
     let project_dir = world.overlay_project_dir.as_ref().expect("project dir");
-    let issue_path = project_dir.join("issues").join(format!("{identifier}.json"));
-    fs::write(&issue_path, serde_json::to_vec(&base_issue).expect("serialize"))
-        .expect("write issue");
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    fs::write(
+        &issue_path,
+        serde_json::to_vec(&base_issue).expect("serialize"),
+    )
+    .expect("write issue");
     world.overlay_base_issue = Some(base_issue);
 }
 
@@ -240,7 +249,10 @@ fn when_resolve_overlay(world: &mut KanbusWorld) {
         world.overlay_base_issue.clone(),
         world.overlay_issue_record.clone(),
         None,
-        &OverlayConfig { enabled: true, ttl_s: 86_400 },
+        &OverlayConfig {
+            enabled: true,
+            ttl_s: 86_400,
+        },
         None,
     )
     .expect("resolve");
@@ -272,8 +284,14 @@ fn given_overlay_snapshot(world: &mut KanbusWorld, identifier: String, timestamp
 #[when("I run overlay GC")]
 fn when_run_overlay_gc(world: &mut KanbusWorld) {
     let project_dir = world.overlay_project_dir.as_ref().expect("project dir");
-    gc_overlay(project_dir, &OverlayConfig { enabled: true, ttl_s: 86_400 })
-        .expect("gc overlay");
+    gc_overlay(
+        project_dir,
+        &OverlayConfig {
+            enabled: true,
+            ttl_s: 86_400,
+        },
+    )
+    .expect("gc overlay");
 }
 
 #[then(expr = "the overlay snapshot {string} is removed")]

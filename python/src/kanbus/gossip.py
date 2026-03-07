@@ -229,8 +229,12 @@ def _run_gossip_consumer(
     realtime = configuration.realtime
     transport = transport_override or realtime.transport
     broker = broker_override or realtime.broker
-    autostart = autostart_override if autostart_override is not None else realtime.autostart
-    keepalive = keepalive_override if keepalive_override is not None else realtime.keepalive
+    autostart = (
+        autostart_override if autostart_override is not None else realtime.autostart
+    )
+    keepalive = (
+        keepalive_override if keepalive_override is not None else realtime.keepalive
+    )
 
     labeled = resolve_labeled_projects(root)
     if project_filter:
@@ -442,7 +446,10 @@ def run_uds_subscription(
 
 
 def _publish_envelope(
-    root: Path, configuration: ProjectConfiguration, topic: str, envelope: GossipEnvelope
+    root: Path,
+    configuration: ProjectConfiguration,
+    topic: str,
+    envelope: GossipEnvelope,
 ) -> None:
     transport = configuration.realtime.transport
     broker = configuration.realtime.broker
@@ -476,7 +483,9 @@ def _publish_envelope(
         broker_process.terminate()
 
 
-def _publish_uds(topic: str, envelope: GossipEnvelope, realtime: RealtimeConfig) -> None:
+def _publish_uds(
+    topic: str, envelope: GossipEnvelope, realtime: RealtimeConfig
+) -> None:
     socket_path = _uds_socket_path(realtime)
     payload = (
         json.dumps(
@@ -573,7 +582,9 @@ def _find_free_port(start_port: int) -> int:
                 port += 1
 
 
-def _publish_mqtt(endpoint: BrokerEndpoint, topic: str, envelope: GossipEnvelope) -> None:
+def _publish_mqtt(
+    endpoint: BrokerEndpoint, topic: str, envelope: GossipEnvelope
+) -> None:
     try:
         import paho.mqtt.client as mqtt
     except ImportError:
@@ -604,7 +615,9 @@ def run_mqtt_subscription(
     if endpoint.scheme == "mqtts":
         client.tls_set()
 
-    def on_message(_client: mqtt.Client, _userdata: object, msg: mqtt.MQTTMessage) -> None:
+    def on_message(
+        _client: mqtt.Client, _userdata: object, msg: mqtt.MQTTMessage
+    ) -> None:
         try:
             payload = json.loads(msg.payload.decode())
             envelope = GossipEnvelope.model_validate(payload)

@@ -144,7 +144,9 @@ def resolve_issue_with_overlay(
 
     if overlay_issue:
         if _is_expired(overlay_issue.overlay_ts, config.ttl_s, now):
-            _remove_path(overlay_issue_path(project_dir, overlay_issue.issue.identifier))
+            _remove_path(
+                overlay_issue_path(project_dir, overlay_issue.issue.identifier)
+            )
             overlay_issue = None
         elif base_updated and _overlay_is_newer(
             overlay_issue.overlay_ts,
@@ -159,7 +161,9 @@ def resolve_issue_with_overlay(
             overlay_issue.overlay_event_id,
             base_event_id,
         ):
-            _remove_path(overlay_issue_path(project_dir, overlay_issue.issue.identifier))
+            _remove_path(
+                overlay_issue_path(project_dir, overlay_issue.issue.identifier)
+            )
 
     return _tag_issue(base_issue, project_label) if base_issue else None
 
@@ -277,7 +281,9 @@ def gc_overlay(project_dir: Path, config: OverlayConfig) -> None:
                 _remove_path(entry)
 
 
-def _tag_issue(issue: Optional[IssueData], project_label: Optional[str]) -> Optional[IssueData]:
+def _tag_issue(
+    issue: Optional[IssueData], project_label: Optional[str]
+) -> Optional[IssueData]:
     if issue is None:
         return None
     custom = dict(issue.custom)
