@@ -188,7 +188,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
 
       {/* Right: watcher + overlay */}
       <g opacity="0.8">
-        <rect x="308" y="68" width="150" height="120" fill="transparent" stroke="var(--accent-blue)" strokeWidth="2" strokeDasharray="6 6" rx="10">
+        <rect x="320" y="80" width="150" height="120" fill="transparent" stroke="var(--accent-blue)" strokeWidth="2" strokeDasharray="6 6" rx="10">
           <animate attributeName="stroke-dashoffset" from="12" to="0" dur="1.4s" repeatCount="indefinite" />
         </rect>
       </g>
