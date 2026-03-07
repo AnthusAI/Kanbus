@@ -106,6 +106,7 @@ export function WikiHeader({
                   type="button"
                   onClick={() => onNavigate(route)}
                   className="text-muted hover:text-foreground transition-colors font-medium truncate max-w-[150px]"
+                  data-testid={`wiki-path-${part}`}
                 >
                   {part}
                 </button>

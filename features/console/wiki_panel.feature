@@ -12,7 +12,7 @@ Feature: Console wiki workspace
     Then the wiki view should be active
     And the wiki empty state should be visible
 
-  @wiki-ui-002 @skip-in-ci
+  @wiki-ui-002
   Scenario: create page from empty state
     Given the console is open
     And the wiki storage is empty
@@ -26,7 +26,7 @@ Feature: Console wiki workspace
       """
     And the wiki preview should contain "No preview yet"
 
-  @wiki-ui-003 @skip-in-ci
+  @wiki-ui-003
   Scenario: edit existing page and save
     Given the console is open
     And a wiki page "notes.md" exists with content:
@@ -46,7 +46,7 @@ Feature: Console wiki workspace
       Updated content
       """
 
-  @wiki-ui-004 @skip-in-ci
+  @wiki-ui-004
   Scenario: preview dirty draft
     Given the console is open
     And a wiki page "draft.md" exists with content:
@@ -63,7 +63,7 @@ Feature: Console wiki workspace
     Then the wiki preview should contain "Draft live"
     And the wiki status should show "Unsaved changes"
 
-  @wiki-ui-005 @skip-in-ci
+  @wiki-ui-005
   Scenario: rename selected page and keep selection
     Given the console is open
     And a wiki page "page.md" exists with content:
@@ -77,7 +77,7 @@ Feature: Console wiki workspace
     And the wiki page list should not include "page.md"
     And the wiki editor path should be "renamed.md"
 
-  @wiki-ui-006 @skip-in-ci
+  @wiki-ui-006
   Scenario: delete selected page and recover selection
     Given the console is open
     And a wiki page "first.md" exists with content:
@@ -103,7 +103,7 @@ Feature: Console wiki workspace
     And I try to create a wiki page named "../bad.md"
     Then the wiki error banner should contain "wiki create request failed"
 
-  @wiki-ui-008 @skip-in-ci
+  @wiki-ui-008
   Scenario: unsaved guard blocks page switch without confirmation
     Given the console is open
     And a wiki page "first.md" exists with content:
@@ -127,7 +127,7 @@ Feature: Console wiki workspace
       Dirty edit
       """
 
-  @wiki-ui-009 @skip-in-ci
+  @wiki-ui-009
   Scenario: unsaved guard blocks panel switch without confirmation
     Given the console is open
     And a wiki page "stay.md" exists with content:
@@ -147,7 +147,7 @@ Feature: Console wiki workspace
       In progress
       """
 
-  @wiki-ui-010 @skip-in-ci
+  @wiki-ui-010
   Scenario: render error preserves last successful preview
     Given the console is open
     And a wiki page "calc.md" exists with content:
