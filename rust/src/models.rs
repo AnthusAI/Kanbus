@@ -119,6 +119,8 @@ pub struct RealtimeConfig {
     pub autostart: bool,
     pub keepalive: bool,
     pub uds_socket_path: Option<String>,
+    pub mqtt_custom_authorizer_name: Option<String>,
+    pub mqtt_api_token: Option<String>,
     pub topics: RealtimeTopics,
 }
 
@@ -130,6 +132,8 @@ impl Default for RealtimeConfig {
             autostart: true,
             keepalive: false,
             uds_socket_path: None,
+            mqtt_custom_authorizer_name: None,
+            mqtt_api_token: None,
             topics: RealtimeTopics::default(),
         }
     }

@@ -41,6 +41,33 @@ class AuthIsolationTemplateTests(unittest.TestCase):
         self.assertIn("iot:Subscribe", serialized)
         self.assertIn("iot:Receive", serialized)
 
+    def test_identity_pool_principal_tags_map_custom_tenant_claims(self) -> None:
+        template = self._template()
+        template.has_resource_properties(
+            "AWS::Cognito::IdentityPoolPrincipalTag",
+            {
+                "PrincipalTags": {
+                    "account": "custom:account",
+                    "project": "custom:project",
+                },
+                "UseDefaults": False,
+            },
+        )
+
+    def test_user_pool_client_enables_oauth_code_grant(self) -> None:
+        template = self._template()
+        template.has_resource_properties(
+            "AWS::Cognito::UserPoolClient",
+            {
+                "AllowedOAuthFlowsUserPoolClient": True,
+                "AllowedOAuthFlows": Match.array_with(["code"]),
+            },
+        )
+
+    def test_iot_custom_authorizer_is_provisioned(self) -> None:
+        template = self._template()
+        template.resource_count_is("AWS::IoT::Authorizer", 1)
+
 
 if __name__ == "__main__":
     unittest.main()

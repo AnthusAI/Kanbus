@@ -34,13 +34,67 @@ export type RealtimeBootstrap = {
   password?: string;
 };
 
+export type AuthBootstrap = {
+  mode: string;
+  cognito_domain_url?: string | null;
+  cognito_client_id?: string | null;
+  cognito_redirect_uri?: string | null;
+  cognito_logout_uri?: string | null;
+  cognito_issuer?: string | null;
+  identity_pool_id?: string | null;
+  tenant_account_claim_key?: string | null;
+  tenant_project_claim_key?: string | null;
+  account?: string | null;
+  project?: string | null;
+};
+
 type MqttModule = typeof import("mqtt");
+
+type HeaderProvider = () => Promise<Record<string, string>> | Record<string, string>;
+type QueryProvider = () => string | null;
+
+let authHeaderProvider: HeaderProvider | null = null;
+let authQueryProvider: QueryProvider | null = null;
+
+export function setAuthHeaderProvider(provider: HeaderProvider | null): void {
+  authHeaderProvider = provider;
+}
+
+export function setAuthQueryProvider(provider: QueryProvider | null): void {
+  authQueryProvider = provider;
+}
+
+async function fetchWithAuth(input: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers ?? {});
+  if (authHeaderProvider) {
+    const provided = await authHeaderProvider();
+    Object.entries(provided).forEach(([key, value]) => {
+      if (value) {
+        headers.set(key, value);
+      }
+    });
+  }
+  return fetch(input, {
+    ...init,
+    headers
+  });
+}
+
+function withAuthQuery(url: string): string {
+  const token = authQueryProvider?.();
+  if (!token) {
+    return url;
+  }
+  const u = new URL(url, window.location.origin);
+  u.searchParams.set("access_token", token);
+  return `${u.pathname}${u.search}`;
+}
 
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
   const startedAt = Date.now();
   const [configResponse, issuesResponse] = await Promise.all([
-    fetch(`${apiBase}/config`),
-    fetch(`${apiBase}/issues`)
+    fetchWithAuth(`${apiBase}/config`),
+    fetchWithAuth(`${apiBase}/issues`)
   ]);
 
   if (!configResponse.ok) {
@@ -71,7 +125,7 @@ export function subscribeToSnapshots(
   onSnapshot: (snapshot: IssuesSnapshot) => void,
   onError: (error: Event) => void
 ): () => void {
-  const source = new EventSource(`${apiBase}/events`);
+  const source = new EventSource(withAuthQuery(`${apiBase}/events`));
   let openCount = 0;
   let lastErrorAt: number | null = null;
   let lastMessageAt: number | null = null;
@@ -137,7 +191,7 @@ export function subscribeToNotifications(
   onNotification: (event: NotificationEvent) => void,
   onError?: (error: Event) => void
 ): () => void {
-  const source = new EventSource(`${apiBase}/events/realtime`);
+  const source = new EventSource(withAuthQuery(`${apiBase}/events/realtime`));
 
   console.info("[notifications] connect", {
     url: `${apiBase}/events/realtime`,
@@ -323,7 +377,7 @@ export async function fetchIssueEvents(
   const url = query
     ? `${apiBase}/issues/${issueId}/events?${query}`
     : `${apiBase}/issues/${issueId}/events`;
-  const response = await fetch(url);
+  const response = await fetchWithAuth(url);
   if (!response.ok) {
     throw new Error(`issue events request failed: ${response.status}`);
   }
@@ -333,9 +387,17 @@ export async function fetchIssueEvents(
 export async function fetchRealtimeBootstrap(
   apiBase: string
 ): Promise<RealtimeBootstrap> {
-  const response = await fetch(`${apiBase}/realtime/bootstrap`);
+  const response = await fetchWithAuth(`${apiBase}/realtime/bootstrap`);
   if (!response.ok) {
     throw new Error(`realtime bootstrap request failed: ${response.status}`);
   }
   return (await response.json()) as RealtimeBootstrap;
+}
+
+export async function fetchAuthBootstrap(apiBase: string): Promise<AuthBootstrap> {
+  const response = await fetch(`${apiBase}/auth/bootstrap`);
+  if (!response.ok) {
+    throw new Error(`auth bootstrap request failed: ${response.status}`);
+  }
+  return (await response.json()) as AuthBootstrap;
 }

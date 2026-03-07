@@ -17,12 +17,16 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
 import { MetricsPanel } from "./components/MetricsPanel";
 import {
+  fetchAuthBootstrap,
   fetchSnapshot,
+  setAuthHeaderProvider,
+  setAuthQueryProvider,
   subscribeToSnapshots,
   subscribeToRealtimeFeed,
   type NotificationEvent,
   type UiControlAction,
 } from "./api/client";
+import { ensureCloudAuth } from "./auth/cloudAuth";
 import { installConsoleTelemetry } from "./utils/console-telemetry";
 import { matchesSearchQuery } from "./utils/issue-search";
 import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
@@ -539,6 +543,7 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<IssuesSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorTime, setErrorTime] = useState<number | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode | null>(() =>
@@ -654,6 +659,8 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+    let unsubscribe: (() => void) | null = null;
+    setAuthReady(false);
     setLoading(true);
     if (route.basePath == null) {
       setError("URL must include /:account/:project");
@@ -662,48 +669,69 @@ export default function App() {
     }
     const apiBase = `${route.basePath}/api`;
     installConsoleTelemetry(apiBase);
-    fetchSnapshot(apiBase)
-      .then((data) => {
-        if (isMounted) {
-          setSnapshot(data);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          const errorMessage = err instanceof Error ? err.message : "Failed to load data";
-          setError(errorMessage);
-          setErrorTime(Date.now());
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoading(false);
-        }
-      });
 
-    const unsubscribe = subscribeToSnapshots(
-      apiBase,
-      (data) => {
+    void (async () => {
+      try {
+        const bootstrap = await fetchAuthBootstrap(apiBase);
+        if (!isMounted) {
+          return;
+        }
+        const authResult = await ensureCloudAuth(bootstrap, route.basePath ?? "");
+        if (!isMounted) {
+          return;
+        }
+        setAuthHeaderProvider(() => authResult.headers);
+        setAuthQueryProvider(() => authResult.queryToken);
+        if (authResult.forbiddenReason) {
+          setError(`Forbidden: ${authResult.forbiddenReason}`);
+          setErrorTime(Date.now());
+          setLoading(false);
+          return;
+        }
+        const data = await fetchSnapshot(apiBase);
+        if (!isMounted) {
+          return;
+        }
         setSnapshot(data);
         setError(null);
-        setErrorTime(null);
-      },
-      () => {
-        setError("SSE connection issue. Attempting to reconnect.");
+        setAuthReady(true);
+        setLoading(false);
+        unsubscribe = subscribeToSnapshots(
+          apiBase,
+          (nextSnapshot) => {
+            setSnapshot(nextSnapshot);
+            setError(null);
+            setErrorTime(null);
+          },
+          () => {
+            setError("SSE connection issue. Attempting to reconnect.");
+            setErrorTime(Date.now());
+          }
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to initialize auth";
+        // Redirect flow intentionally throws after assigning location.
+        if (message === "redirecting") {
+          return;
+        }
+        if (!isMounted) {
+          return;
+        }
+        setError(message);
         setErrorTime(Date.now());
+        setLoading(false);
       }
-    );
+    })();
 
     return () => {
       isMounted = false;
-      unsubscribe();
+      unsubscribe?.();
     };
   }, [route.basePath]);
 
   // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
-    if (!route.basePath) {
+    if (!route.basePath || !authReady) {
       return;
     }
     const apiBase = `${route.basePath}/api`;

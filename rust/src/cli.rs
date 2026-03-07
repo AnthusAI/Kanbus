@@ -15,6 +15,7 @@ use crate::beads_write::{
     add_beads_comment, add_beads_dependency, create_beads_issue, delete_beads_comment,
     delete_beads_issue, remove_beads_dependency, update_beads_comment, update_beads_issue,
 };
+use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_token};
 use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
@@ -358,6 +359,11 @@ enum Commands {
         #[command(subcommand)]
         command: PolicyCommands,
     },
+    /// Cloud auth/token helper commands.
+    Cloud {
+        #[command(subcommand)]
+        command: CloudCommands,
+    },
     /// Report daemon status.
     #[command(name = "daemon-status")]
     DaemonStatus,
@@ -524,6 +530,66 @@ enum PolicyCommands {
     },
     /// Validate all policy files for syntax errors.
     Validate,
+}
+
+#[derive(Debug, Subcommand)]
+enum CloudCommands {
+    /// Manage cloud API tokens used by CLI MQTT clients.
+    Token {
+        #[command(subcommand)]
+        command: CloudTokenCommands,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum CloudTokenCommands {
+    /// Create a scoped API token.
+    Create {
+        /// Base API URL, e.g. https://...execute-api.../dev
+        #[arg(long = "base-url", value_name = "URL")]
+        base_url: Option<String>,
+        /// Cognito ID token for admin API authentication.
+        #[arg(long = "id-token", value_name = "JWT")]
+        id_token: Option<String>,
+        /// Tenant account scope.
+        #[arg(long)]
+        account: String,
+        /// Tenant project scope.
+        #[arg(long)]
+        project: String,
+        /// Comma-separated scopes (subscribe,read,publish).
+        #[arg(long, default_value = "subscribe")]
+        scopes: String,
+        /// Token expiration in days.
+        #[arg(long, default_value_t = 90)]
+        days: u16,
+    },
+    /// List tokens (optionally filtered by tenant).
+    List {
+        /// Base API URL, e.g. https://...execute-api.../dev
+        #[arg(long = "base-url", value_name = "URL")]
+        base_url: Option<String>,
+        /// Cognito ID token for admin API authentication.
+        #[arg(long = "id-token", value_name = "JWT")]
+        id_token: Option<String>,
+        /// Optional account filter.
+        #[arg(long)]
+        account: Option<String>,
+        /// Optional project filter.
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Revoke a token by id.
+    Revoke {
+        /// Base API URL, e.g. https://...execute-api.../dev
+        #[arg(long = "base-url", value_name = "URL")]
+        base_url: Option<String>,
+        /// Cognito ID token for admin API authentication.
+        #[arg(long = "id-token", value_name = "JWT")]
+        id_token: Option<String>,
+        /// Token id (with or without kbt_ prefix).
+        token_id: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -2230,6 +2296,66 @@ fn execute_command(
                 )))
             }
         },
+        Commands::Cloud { command } => match command {
+            CloudCommands::Token { command } => match command {
+                CloudTokenCommands::Create {
+                    base_url,
+                    id_token,
+                    account,
+                    project,
+                    scopes,
+                    days,
+                } => {
+                    let base_url = resolve_cloud_base_url(base_url)?;
+                    let id_token = resolve_cloud_id_token(id_token)?;
+                    let parsed_scopes = scopes
+                        .split(',')
+                        .map(|scope| scope.trim().to_string())
+                        .filter(|scope| !scope.is_empty())
+                        .collect::<Vec<_>>();
+                    if parsed_scopes.is_empty() {
+                        return Err(KanbusError::IssueOperation(
+                            "at least one scope is required".to_string(),
+                        ));
+                    }
+                    let output = create_cloud_token(
+                        &base_url,
+                        &id_token,
+                        &account,
+                        &project,
+                        parsed_scopes,
+                        days,
+                    )?;
+                    Ok(Some(output))
+                }
+                CloudTokenCommands::List {
+                    base_url,
+                    id_token,
+                    account,
+                    project,
+                } => {
+                    let base_url = resolve_cloud_base_url(base_url)?;
+                    let id_token = resolve_cloud_id_token(id_token)?;
+                    let output = list_cloud_tokens(
+                        &base_url,
+                        &id_token,
+                        account.as_deref(),
+                        project.as_deref(),
+                    )?;
+                    Ok(Some(output))
+                }
+                CloudTokenCommands::Revoke {
+                    base_url,
+                    id_token,
+                    token_id,
+                } => {
+                    let base_url = resolve_cloud_base_url(base_url)?;
+                    let id_token = resolve_cloud_id_token(id_token)?;
+                    let output = revoke_cloud_token(&base_url, &id_token, &token_id)?;
+                    Ok(Some(output))
+                }
+            },
+        },
         Commands::Console { command } => match command {
             ConsoleCommands::Snapshot => {
                 let snapshot = build_console_snapshot(root)?;
@@ -2450,6 +2576,42 @@ fn fetch_console_ui_state(
         .map_err(|e| KanbusError::IssueOperation(e.to_string()))?;
 
     Ok(ui_state)
+}
+
+fn resolve_cloud_base_url(cli_value: Option<String>) -> Result<String, KanbusError> {
+    if let Some(value) = cli_value {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    if let Ok(value) = std::env::var("KANBUS_CLOUD_API_BASE_URL") {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    Err(KanbusError::IssueOperation(
+        "cloud base URL is required (use --base-url or KANBUS_CLOUD_API_BASE_URL)".to_string(),
+    ))
+}
+
+fn resolve_cloud_id_token(cli_value: Option<String>) -> Result<String, KanbusError> {
+    if let Some(value) = cli_value {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    if let Ok(value) = std::env::var("KANBUS_CLOUD_ID_TOKEN") {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    Err(KanbusError::IssueOperation(
+        "admin ID token is required (use --id-token or KANBUS_CLOUD_ID_TOKEN)".to_string(),
+    ))
 }
 
 fn should_use_color() -> bool {

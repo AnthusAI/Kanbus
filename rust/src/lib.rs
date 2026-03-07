@@ -4,6 +4,7 @@ pub mod agents_management;
 pub mod beads_write;
 pub mod cache;
 pub mod cli;
+pub mod cloud_tokens;
 pub mod config;
 pub mod config_loader;
 pub mod console_backend;

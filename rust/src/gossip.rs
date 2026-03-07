@@ -372,7 +372,7 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
         broker_process = Some(startup.process);
     }
 
-    run_mqtt_subscription(&endpoint, &topics, handler)?;
+    run_mqtt_subscription(&endpoint, &topics, handler, realtime)?;
     if let Some(mut process) = broker_process {
         if !keepalive {
             let _ = process.kill();
@@ -592,7 +592,7 @@ fn publish_envelope(
         endpoint = parse_broker_url(&startup.endpoint)?;
         broker_process = Some(startup.process);
     }
-    publish_mqtt(&endpoint, topic, envelope)?;
+    publish_mqtt(&endpoint, topic, envelope, &configuration.realtime)?;
     if let Some(mut process) = broker_process {
         if !keepalive {
             let _ = process.kill();
@@ -621,10 +621,11 @@ fn publish_mqtt(
     endpoint: &BrokerEndpoint,
     topic: &str,
     envelope: &GossipEnvelope,
+    realtime: &RealtimeConfig,
 ) -> Result<(), KanbusError> {
     let payload =
         serde_json::to_vec(envelope).map_err(|error| KanbusError::Io(error.to_string()))?;
-    let options = mqtt_options(endpoint);
+    let options = mqtt_options(endpoint, realtime);
     let (client, mut eventloop) = AsyncClient::new(options, 10);
     let runtime =
         tokio::runtime::Runtime::new().map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -647,8 +648,9 @@ fn run_mqtt_subscription(
     endpoint: &BrokerEndpoint,
     topics: &[String],
     handler: Arc<dyn Fn(GossipEnvelope) + Send + Sync>,
+    realtime: &RealtimeConfig,
 ) -> Result<(), KanbusError> {
-    let options = mqtt_options(endpoint);
+    let options = mqtt_options(endpoint, realtime);
     let (client, mut eventloop) = AsyncClient::new(options, 10);
     let runtime =
         tokio::runtime::Runtime::new().map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -674,11 +676,18 @@ fn run_mqtt_subscription(
     })
 }
 
-fn mqtt_options(endpoint: &BrokerEndpoint) -> MqttOptions {
+fn mqtt_options(endpoint: &BrokerEndpoint, realtime: &RealtimeConfig) -> MqttOptions {
     let mut options = MqttOptions::new(producer_id(), endpoint.host.clone(), endpoint.port);
     options.set_keep_alive(Duration::from_secs(30));
     if endpoint.scheme == "mqtts" {
         options.set_transport(Transport::tls_with_default_config());
+    }
+    if let (Some(authorizer), Some(api_token)) = (
+        realtime.mqtt_custom_authorizer_name.as_ref(),
+        realtime.mqtt_api_token.as_ref(),
+    ) {
+        let username = format!("?x-amz-customauthorizer-name={authorizer}");
+        options.set_credentials(username, api_token.clone());
     }
     options
 }
