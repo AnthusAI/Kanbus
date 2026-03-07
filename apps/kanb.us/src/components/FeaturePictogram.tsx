@@ -208,8 +208,8 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       <g>
         <circle cx="250" cy="140" r="28" fill="var(--background)" stroke="var(--accent-blue)" strokeWidth="3" />
         <circle cx="250" cy="140" r="16" fill="var(--card)" stroke="var(--border)" strokeWidth="2" opacity="0.95" />
-        <text x="250" y="146" textAnchor="middle" fill="var(--text-foreground)" fontSize="11" fontFamily="monospace" fontWeight="800">
-          BUS
+        <text x="250" y="146" textAnchor="middle" fill="var(--text-foreground)" fontSize="9" fontFamily="monospace" fontWeight="800">
+          MQTT
         </text>
       </g>
     </g>
