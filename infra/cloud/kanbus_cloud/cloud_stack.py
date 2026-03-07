@@ -215,7 +215,12 @@ class KanbusCloudFoundationStack(Stack):
             lambda_integration,
             authorization_type=apigw.AuthorizationType.NONE,
         )
-        api.root.add_resource("{proxy+}").add_method(
+        api.root.add_resource("assets").add_resource("{proxy+}").add_method(
+            "ANY",
+            lambda_integration,
+            authorization_type=apigw.AuthorizationType.NONE,
+        )
+        api.root.add_resource("auth").add_resource("{proxy+}").add_method(
             "ANY",
             lambda_integration,
             authorization_type=apigw.AuthorizationType.NONE,
@@ -223,6 +228,16 @@ class KanbusCloudFoundationStack(Stack):
 
         account_resource = api.root.add_resource("{account}")
         project_resource = account_resource.add_resource("{project}")
+        project_resource.add_method(
+            "ANY",
+            lambda_integration,
+            authorization_type=apigw.AuthorizationType.NONE,
+        )
+        project_resource.add_resource("{proxy+}").add_method(
+            "ANY",
+            lambda_integration,
+            authorization_type=apigw.AuthorizationType.NONE,
+        )
         tenant_api_resource = project_resource.add_resource("api")
         tenant_api_resource.add_resource("{proxy+}").add_method(
             "ANY",
