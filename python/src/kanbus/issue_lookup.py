@@ -9,7 +9,11 @@ from kanbus.ids import matches_issue_identifier
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.issue_files import list_issue_identifiers, read_issue_from_file
 from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration
-from kanbus.overlay import load_overlay_issue, load_tombstone, resolve_issue_with_overlay
+from kanbus.overlay import (
+    load_overlay_issue,
+    load_tombstone,
+    resolve_issue_with_overlay,
+)
 from kanbus.project import (
     ProjectMarkerError,
     discover_project_directories,

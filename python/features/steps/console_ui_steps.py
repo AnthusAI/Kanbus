@@ -290,7 +290,9 @@ def when_console_server_is_restarted(context: object) -> None:
     new_proc = _start_kbsc(working_directory, port)
     context.console_server_process = new_proc
     ready_port = _wait_for_server(port)
-    assert ready_port is not None, f"kbsc did not become ready on port {port} after restart"
+    assert (
+        ready_port is not None
+    ), f"kbsc did not become ready on port {port} after restart"
     context.console_server_port = ready_port
 
 

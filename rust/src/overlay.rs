@@ -64,8 +64,8 @@ pub fn write_overlay_issue(
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
-    let contents =
-        serde_json::to_string_pretty(&payload).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let contents = serde_json::to_string_pretty(&payload)
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     fs::write(path, contents).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
@@ -135,7 +135,10 @@ pub fn resolve_issue_with_overlay(
 
     if let Some(overlay_record) = overlay_issue {
         if is_expired(&overlay_record.overlay_ts, config.ttl_s, now) {
-            let _ = fs::remove_file(overlay_issue_path(project_dir, &overlay_record.issue.identifier));
+            let _ = fs::remove_file(overlay_issue_path(
+                project_dir,
+                &overlay_record.issue.identifier,
+            ));
         } else if let Some(base_time) = base_updated {
             if overlay_is_newer(
                 &overlay_record.overlay_ts,
@@ -145,7 +148,10 @@ pub fn resolve_issue_with_overlay(
             ) {
                 return Ok(Some(tag_issue(overlay_record.issue, project_label)));
             }
-            let _ = fs::remove_file(overlay_issue_path(project_dir, &overlay_record.issue.identifier));
+            let _ = fs::remove_file(overlay_issue_path(
+                project_dir,
+                &overlay_record.issue.identifier,
+            ));
         } else {
             return Ok(Some(tag_issue(overlay_record.issue, project_label)));
         }
@@ -191,13 +197,18 @@ pub fn apply_overlay_to_issues(
 
     let overlay_dir = overlay_root(project_dir).join("issues");
     if overlay_dir.exists() {
-        for entry in fs::read_dir(&overlay_dir).map_err(|error| KanbusError::Io(error.to_string()))? {
+        for entry in
+            fs::read_dir(&overlay_dir).map_err(|error| KanbusError::Io(error.to_string()))?
+        {
             let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
             let path = entry.path();
             if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
                 continue;
             }
-            let issue_id = path.file_stem().and_then(|name| name.to_str()).unwrap_or("");
+            let issue_id = path
+                .file_stem()
+                .and_then(|name| name.to_str())
+                .unwrap_or("");
             if base_ids.contains_key(issue_id) {
                 continue;
             }
@@ -231,13 +242,18 @@ pub fn gc_overlay(project_dir: &Path, config: &OverlayConfig) -> Result<(), Kanb
     let now = Utc::now();
     let issues_dir = overlay_root(project_dir).join("issues");
     if issues_dir.exists() {
-        for entry in fs::read_dir(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))? {
+        for entry in
+            fs::read_dir(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?
+        {
             let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
             let path = entry.path();
             if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
                 continue;
             }
-            let issue_id = path.file_stem().and_then(|name| name.to_str()).unwrap_or("");
+            let issue_id = path
+                .file_stem()
+                .and_then(|name| name.to_str())
+                .unwrap_or("");
             let overlay_issue = load_overlay_issue(project_dir, issue_id)?;
             if let Some(record) = overlay_issue {
                 let base_path = project_dir.join("issues").join(format!("{issue_id}.json"));
@@ -266,15 +282,18 @@ pub fn gc_overlay(project_dir: &Path, config: &OverlayConfig) -> Result<(), Kanb
 
     let tombstones_dir = overlay_root(project_dir).join("tombstones");
     if tombstones_dir.exists() {
-        for entry in fs::read_dir(&tombstones_dir)
-            .map_err(|error| KanbusError::Io(error.to_string()))?
+        for entry in
+            fs::read_dir(&tombstones_dir).map_err(|error| KanbusError::Io(error.to_string()))?
         {
             let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
             let path = entry.path();
             if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
                 continue;
             }
-            let issue_id = path.file_stem().and_then(|name| name.to_str()).unwrap_or("");
+            let issue_id = path
+                .file_stem()
+                .and_then(|name| name.to_str())
+                .unwrap_or("");
             let tombstone = load_tombstone(project_dir, issue_id)?;
             if let Some(record) = tombstone {
                 let base_path = project_dir.join("issues").join(format!("{issue_id}.json"));
@@ -342,7 +361,8 @@ pub fn install_overlay_hooks(root: &Path) -> Result<(), KanbusError> {
     for hook in ["post-merge", "post-checkout", "post-rewrite"] {
         let path = hooks_dir.join(hook);
         let contents = if path.exists() {
-            let existing = fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
+            let existing =
+                fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
             if existing.contains("Kanbus overlay cache GC") {
                 continue;
             }
@@ -350,7 +370,8 @@ pub fn install_overlay_hooks(root: &Path) -> Result<(), KanbusError> {
         } else {
             format!("#!/bin/sh\n{}", hook_block)
         };
-        fs::write(&path, format!("{contents}\n")).map_err(|error| KanbusError::Io(error.to_string()))?;
+        fs::write(&path, format!("{contents}\n"))
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
         ensure_executable(&path)?;
     }
     Ok(())
@@ -396,7 +417,8 @@ fn ensure_executable(path: &Path) -> Result<(), KanbusError> {
         let mut permissions = metadata.permissions();
         let mode = permissions.mode();
         permissions.set_mode(mode | 0o111);
-        fs::set_permissions(path, permissions).map_err(|error| KanbusError::Io(error.to_string()))?;
+        fs::set_permissions(path, permissions)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     Ok(())
 }
@@ -530,7 +552,10 @@ mod tests {
             Some(base_issue),
             Some(overlay_record),
             None,
-            &OverlayConfig { enabled: true, ttl_s: 86_400 },
+            &OverlayConfig {
+                enabled: true,
+                ttl_s: 86_400,
+            },
             None,
         )
         .expect("resolve");
@@ -551,8 +576,11 @@ mod tests {
         let issues_dir = project_dir.join("issues");
         fs::create_dir_all(&issues_dir).expect("issues dir");
         let issue_path = issues_dir.join("kanbus-2.json");
-        fs::write(&issue_path, serde_json::to_vec(&base_issue).expect("serialize"))
-            .expect("write issue");
+        fs::write(
+            &issue_path,
+            serde_json::to_vec(&base_issue).expect("serialize"),
+        )
+        .expect("write issue");
         write_overlay_issue(
             project_dir,
             &overlay_issue,
@@ -560,8 +588,14 @@ mod tests {
             None,
         )
         .expect("write overlay");
-        gc_overlay(project_dir, &OverlayConfig { enabled: true, ttl_s: 86_400 })
-            .expect("gc overlay");
+        gc_overlay(
+            project_dir,
+            &OverlayConfig {
+                enabled: true,
+                ttl_s: 86_400,
+            },
+        )
+        .expect("gc overlay");
         let overlay_path = overlay_issue_path(project_dir, "kanbus-2");
         assert!(!overlay_path.exists());
     }

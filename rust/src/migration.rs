@@ -18,8 +18,8 @@ use crate::file_io::{
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::issue_files::write_issue_to_file;
 use crate::models::{
-    CategoryDefinition, DependencyLink, IssueComment, IssueData, PriorityDefinition,
-    OverlayConfig, ProjectConfiguration, RealtimeConfig, StatusDefinition,
+    CategoryDefinition, DependencyLink, IssueComment, IssueData, OverlayConfig, PriorityDefinition,
+    ProjectConfiguration, RealtimeConfig, StatusDefinition,
 };
 use crate::workflows::get_workflow_for_issue_type;
 

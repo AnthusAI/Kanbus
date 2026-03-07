@@ -260,7 +260,8 @@ fn list_issues_with_local(
         ));
     }
     let shared_issues = list_issues_for_project(project_dir)?;
-    let shared_issues = apply_overlay_to_issues(project_dir, shared_issues, overlay_config, project_label)?;
+    let shared_issues =
+        apply_overlay_to_issues(project_dir, shared_issues, overlay_config, project_label)?;
     let mut local_issues = Vec::new();
     if let Some(local_dir) = local_dir {
         let issues_dir = local_dir.join("issues");

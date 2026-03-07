@@ -1050,12 +1050,7 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
         }
     }
 
-    crate::gossip::publish_issue_deleted(
-        root,
-        &project_dir,
-        identifier,
-        Some(event_id),
-    );
+    crate::gossip::publish_issue_deleted(root, &project_dir, identifier, Some(event_id));
 
     Ok(())
 }
