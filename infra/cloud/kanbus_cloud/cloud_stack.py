@@ -118,6 +118,7 @@ class KanbusCloudFoundationStack(Stack):
             filesystem=lambda_.FileSystem.from_efs_access_point(tenant_access_point, "/mnt/data"),
             environment={
                 "KANBUS_CLOUD_ENV": env_name,
+                "KANBUS_API_STAGE": env_name,
                 "CONSOLE_ASSETS_ROOT": "/opt/apps/console/dist",
             },
             description="Kanbus console API + SSE fallback runtime",
@@ -438,6 +439,9 @@ class KanbusCloudFoundationStack(Stack):
             ),
         )
         iot_endpoint.node.add_dependency(identity_pool_role_attachment)
+        console_lambda.add_environment(
+            "KANBUS_IOT_DATA_ENDPOINT", iot_endpoint.get_response_field("endpointAddress")
+        )
         sync_worker.add_environment(
             "KANBUS_IOT_DATA_ENDPOINT", iot_endpoint.get_response_field("endpointAddress")
         )
