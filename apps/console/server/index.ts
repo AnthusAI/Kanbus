@@ -8,6 +8,8 @@ import chokidar from "chokidar";
 import { resolvePortOrExit } from "../scripts/resolvePort";
 import type { IssuesSnapshot } from "../src/types/issues";
 
+const fsPromises = fs.promises;
+
 const app = express();
 const desiredPort = Number(process.env.CONSOLE_PORT ?? 5174);
 const vitePort = Number(process.env.VITE_PORT ?? 5173);
@@ -99,7 +101,7 @@ app.use(
       }
       callback(null, false);
     },
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST", "PUT", "DELETE"]
   })
 );
 
@@ -353,6 +355,341 @@ apiRouter.post(
       payloadCaptured: false
     });
     res.status(204).end();
+  }
+);
+
+const wikiRoot = path.join(projectRoot, "wiki");
+
+function getRustKbsPath(): string | null {
+  const fromPath = process.env.PATH?.split(path.delimiter).find((dir) => {
+    const candidate = path.join(dir, "kbs");
+    try {
+      return fs.existsSync(candidate);
+    } catch {
+      return false;
+    }
+  });
+  if (fromPath) {
+    return path.join(fromPath, "kbs");
+  }
+  const release = path.join(repoRoot, "rust", "target", "release", "kbs");
+  if (fs.existsSync(release)) {
+    return release;
+  }
+  const debug = path.join(repoRoot, "rust", "target", "debug", "kbs");
+  if (fs.existsSync(debug)) {
+    return debug;
+  }
+  return null;
+}
+
+function normalizeWikiPath(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    throw new Error("invalid wiki path");
+  }
+  if (trimmed.startsWith("/") || trimmed.includes(":")) {
+    throw new Error("invalid wiki path");
+  }
+  const replaced = trimmed.replace(/\\/g, "/");
+  const parts: string[] = [];
+  for (const part of replaced.split("/")) {
+    if (part === "" || part === ".") {
+      throw new Error("invalid wiki path");
+    }
+    if (part === "..") {
+      throw new Error("invalid wiki path");
+    }
+    parts.push(part);
+  }
+  const canonical = parts.join("/");
+  if (!canonical.endsWith(".md")) {
+    throw new Error("wiki path must end with .md");
+  }
+  return canonical;
+}
+
+function absoluteWikiPath(normalizedPath: string): string {
+  return path.join(wikiRoot, normalizedPath);
+}
+
+async function collectMarkdownPages(
+  dirPath: string,
+  relativePrefix: string,
+  pages: string[]
+): Promise<void> {
+  const entries = await fsPromises.readdir(dirPath, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(dirPath, entry.name);
+    const relative = relativePrefix ? `${relativePrefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      await collectMarkdownPages(full, relative, pages);
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      pages.push(relative.replace(/\\/g, "/"));
+    }
+  }
+}
+
+async function listWikiPages(): Promise<{ pages: string[] }> {
+  if (!fs.existsSync(wikiRoot)) {
+    return { pages: [] };
+  }
+  const pages: string[] = [];
+  await collectMarkdownPages(wikiRoot, "", pages);
+  pages.sort();
+  return { pages };
+}
+
+async function wikiRenderPage(relativePagePath: string): Promise<string> {
+  const rustKbs = getRustKbsPath();
+  if (rustKbs) {
+    try {
+      const { stdout } = await execFileAsync(rustKbs, ["wiki", "render", relativePagePath], {
+        cwd: repoRoot,
+        env: { ...process.env },
+        maxBuffer: 2 * 1024 * 1024
+      });
+      return stdout.trimEnd();
+    } catch (rustError) {
+      const err = rustError as Error & { stderr?: string; stdout?: string };
+      const detail = [err.stderr, err.stdout, err.message].filter(Boolean).join("\n").trim();
+      logConsoleEvent("wiki-render-rust-fallback", { path: relativePagePath, detail });
+    }
+  }
+
+  const command = kanbusPython ?? "kanbus";
+  const args = kanbusPython
+    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "wiki", "render", relativePagePath]
+    : ["wiki", "render", relativePagePath];
+  const { stdout } = await execFileAsync(command, args, {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      KANBUS_NO_DAEMON: "1",
+      PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
+    },
+    maxBuffer: 2 * 1024 * 1024
+  });
+  return stdout.trimEnd();
+}
+
+apiRouter.get("/wiki/pages", async (_req, res) => {
+  try {
+    const result = await listWikiPages();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+apiRouter.get("/wiki/page", async (req, res) => {
+  try {
+    const raw = req.query.path;
+    if (typeof raw !== "string") {
+      res.status(400).json({ error: "invalid wiki path" });
+      return;
+    }
+    const normalized = normalizeWikiPath(raw);
+    const absolute = absoluteWikiPath(normalized);
+    if (!fs.existsSync(absolute)) {
+      res.status(404).json({ error: "wiki page not found" });
+      return;
+    }
+    const content = await fsPromises.readFile(absolute, "utf-8");
+    res.json({ path: normalized, content, exists: true });
+  } catch (error) {
+    const message = (error as Error).message;
+    if (message === "invalid wiki path" || message === "wiki path must end with .md") {
+      res.status(400).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+apiRouter.post(
+  "/wiki/page",
+  express.json({ limit: "2mb" }),
+  async (req, res) => {
+    try {
+      const body = req.body as { path?: string; content?: string; overwrite?: boolean };
+      const raw = body?.path;
+      if (typeof raw !== "string") {
+        res.status(400).json({ error: "invalid wiki path" });
+        return;
+      }
+      const normalized = normalizeWikiPath(raw);
+      const absolute = absoluteWikiPath(normalized);
+      const overwrite = Boolean(body?.overwrite);
+      if (fs.existsSync(absolute) && !overwrite) {
+        res.status(409).json({ error: "wiki page already exists" });
+        return;
+      }
+      const content = body?.content ?? "# New page\n";
+      const parent = path.dirname(absolute);
+      await fsPromises.mkdir(parent, { recursive: true });
+      const tempPath = `${absolute}.tmp.${Date.now()}.md`;
+      await fsPromises.writeFile(tempPath, content, "utf-8");
+      await fsPromises.rename(tempPath, absolute);
+      res.json({ path: normalized, created: true });
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === "invalid wiki path" || message === "wiki path must end with .md") {
+        res.status(400).json({ error: message });
+        return;
+      }
+      res.status(500).json({ error: message });
+    }
+  }
+);
+
+apiRouter.put(
+  "/wiki/page",
+  express.json({ limit: "2mb" }),
+  async (req, res) => {
+    try {
+      const body = req.body as { path?: string; content?: string };
+      const raw = body?.path;
+      if (typeof raw !== "string" || typeof body?.content !== "string") {
+        res.status(400).json({ error: "invalid wiki path" });
+        return;
+      }
+      const normalized = normalizeWikiPath(raw);
+      const absolute = absoluteWikiPath(normalized);
+      if (!fs.existsSync(absolute)) {
+        res.status(404).json({ error: "wiki page not found" });
+        return;
+      }
+      const tempPath = `${absolute}.tmp.${Date.now()}.md`;
+      await fsPromises.writeFile(tempPath, body.content, "utf-8");
+      await fsPromises.rename(tempPath, absolute);
+      res.json({ path: normalized, updated: true });
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === "invalid wiki path" || message === "wiki path must end with .md") {
+        res.status(400).json({ error: message });
+        return;
+      }
+      res.status(500).json({ error: message });
+    }
+  }
+);
+
+apiRouter.delete("/wiki/page", async (req, res) => {
+  try {
+    const raw = req.query.path;
+    if (typeof raw !== "string") {
+      res.status(400).json({ error: "invalid wiki path" });
+      return;
+    }
+    const normalized = normalizeWikiPath(raw);
+    const absolute = absoluteWikiPath(normalized);
+    if (!fs.existsSync(absolute)) {
+      res.status(404).json({ error: "wiki page not found" });
+      return;
+    }
+    await fsPromises.unlink(absolute);
+    res.json({ path: normalized, deleted: true });
+  } catch (error) {
+    const message = (error as Error).message;
+    if (message === "invalid wiki path" || message === "wiki path must end with .md") {
+      res.status(400).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+apiRouter.post(
+  "/wiki/rename",
+  express.json({ limit: "16kb" }),
+  async (req, res) => {
+    try {
+      const body = req.body as { from_path?: string; to_path?: string; overwrite?: boolean };
+      const fromRaw = body?.from_path;
+      const toRaw = body?.to_path;
+      if (typeof fromRaw !== "string" || typeof toRaw !== "string") {
+        res.status(400).json({ error: "invalid wiki path" });
+        return;
+      }
+      const fromNormalized = normalizeWikiPath(fromRaw);
+      const toNormalized = normalizeWikiPath(toRaw);
+      const fromAbsolute = absoluteWikiPath(fromNormalized);
+      const toAbsolute = absoluteWikiPath(toNormalized);
+      if (!fs.existsSync(fromAbsolute)) {
+        res.status(404).json({ error: "wiki page not found" });
+        return;
+      }
+      const overwrite = Boolean(body?.overwrite);
+      if (fs.existsSync(toAbsolute) && !overwrite) {
+        res.status(409).json({ error: "wiki page already exists" });
+        return;
+      }
+      const toParent = path.dirname(toAbsolute);
+      await fsPromises.mkdir(toParent, { recursive: true });
+      await fsPromises.rename(fromAbsolute, toAbsolute);
+      res.json({ from_path: fromNormalized, to_path: toNormalized, renamed: true });
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === "invalid wiki path" || message === "wiki path must end with .md") {
+        res.status(400).json({ error: message });
+        return;
+      }
+      res.status(500).json({ error: message });
+    }
+  }
+);
+
+apiRouter.post(
+  "/wiki/render",
+  express.json({ limit: "2mb" }),
+  async (req, res) => {
+    try {
+      const body = req.body as { path?: string; content?: string };
+      const raw = body?.path;
+      if (typeof raw !== "string") {
+        res.status(400).json({ error: "invalid wiki path" });
+        return;
+      }
+      const normalized = normalizeWikiPath(raw);
+      const absolute = absoluteWikiPath(normalized);
+      const relativePagePath = path.relative(repoRoot, absolute).replace(/\\/g, "/");
+
+      let renderPath = relativePagePath;
+      let tempPath: string | null = null;
+
+      if (body?.content != null) {
+        tempPath = path.join(wikiRoot, `.tmp.render.${Date.now()}.md`);
+        const tempDir = path.dirname(tempPath);
+        await fsPromises.mkdir(tempDir, { recursive: true });
+        await fsPromises.writeFile(tempPath, body.content, "utf-8");
+        renderPath = path.relative(repoRoot, tempPath).replace(/\\/g, "/");
+      } else if (!fs.existsSync(absolute)) {
+        res.status(404).json({ error: "wiki page not found" });
+        return;
+      }
+
+      try {
+        const rendered = await wikiRenderPage(renderPath);
+        res.json({ path: normalized, rendered_markdown: rendered });
+      } catch (renderError) {
+        const err = renderError as Error & { stderr?: string; stdout?: string };
+        const detail = [err.stderr, err.stdout, err.message].filter(Boolean).join("\n").trim() || err.message;
+        logConsoleEvent("wiki-render-error", { path: normalized, detail });
+        res.status(500).json({ error: detail });
+      } finally {
+        if (tempPath && fs.existsSync(tempPath)) {
+          await fsPromises.unlink(tempPath).catch(() => {});
+        }
+      }
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === "invalid wiki path" || message === "wiki path must end with .md") {
+        res.status(400).json({ error: message });
+        return;
+      }
+      res.status(500).json({ error: message });
+    }
   }
 );
 

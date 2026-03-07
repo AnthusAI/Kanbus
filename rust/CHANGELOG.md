@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.16.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-rust-0.15.0...kanbus-rust-0.16.0) (2026-03-06)
+
+
+### Features
+
+* add --full-ids list option and lock show output keys ([70943b4](https://github.com/AnthusAI/Kanbus/commit/70943b48e4fa8bfe1a82f5c3652cc7ee1269dd3b))
+* **cli:** add bulk issue update command ([7f53078](https://github.com/AnthusAI/Kanbus/commit/7f530789630fbd623122bf913b81ec11bd4bf391))
+* **kanban:** add config-driven column sorting with FIFO defaults ([0ac17b6](https://github.com/AnthusAI/Kanbus/commit/0ac17b6d3398463fe98812d8ef082d3890f9cab6))
+* **workspace:** improve project discovery and show lookup ([254a737](https://github.com/AnthusAI/Kanbus/commit/254a7376245215e4bef3ac1b376d8391ff7ab271))
+
+
+### Bug Fixes
+
+* **ci:** restore discovery fallback and complete console sort test support ([5f27f84](https://github.com/AnthusAI/Kanbus/commit/5f27f846ef6a75e052ad4696b2e9d36f175da6c4))
+* **console:** enforce recency sort in Done column ([393dbd2](https://github.com/AnthusAI/Kanbus/commit/393dbd23e535d8271aa2286de559d987559c56d2))
+* **rust:** constrain console state path and avoid stderr log macros ([c646ced](https://github.com/AnthusAI/Kanbus/commit/c646cedba9bd194d0523ff255a80c4df9ed9f36b))
+
 ## [0.15.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-rust-0.14.0...kanbus-rust-0.15.0) (2026-03-02)
 
 

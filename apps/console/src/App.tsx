@@ -2,6 +2,7 @@ import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMe
 import {
   BarChart3,
   CheckCheck,
+  FileText,
   Filter,
   LayoutGrid,
   Lightbulb,
@@ -16,6 +17,7 @@ import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
 import { MetricsPanel } from "./components/MetricsPanel";
+import { WikiPanel } from "./components/WikiPanel";
 import {
   fetchAuthBootstrap,
   fetchSnapshot,
@@ -33,7 +35,7 @@ import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
 
 type ViewMode = "initiatives" | "epics" | "issues";
-type PanelMode = "board" | "metrics";
+type PanelMode = "board" | "metrics" | "wiki";
 type NavAction = "push" | "pop" | "none";
 type RouteContext = {
   account: string | null;
@@ -42,6 +44,7 @@ type RouteContext = {
   viewMode: ViewMode | null;
   issueId: string | null;
   parentId: string | null;
+  wikiPath: string | null;
   search: string | null;
   focused: string | null;
   comment: string | null;
@@ -113,8 +116,8 @@ function loadStoredPanelMode(): PanelMode {
     return "board";
   }
   const stored = window.localStorage.getItem(PANEL_MODE_STORAGE_KEY);
-  if (stored === "metrics") {
-    return "metrics";
+  if (stored === "metrics" || stored === "board" || stored === "wiki") {
+    return stored as PanelMode;
   }
   return "board";
 }
@@ -158,7 +161,9 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
   }
   const viewModes: ViewMode[] = ["initiatives", "epics", "issues"];
   const isLocal =
-    segments.length === 0 || (segments[0] && viewModes.includes(segments[0] as ViewMode));
+    segments.length === 0
+    || (segments[0] && viewModes.includes(segments[0] as ViewMode))
+    || (segments[0] === "wiki");
   if (isLocal) {
     const rest = segments;
     if (rest.length === 0) {
@@ -169,11 +174,27 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: loadStoredViewMode(),
         issueId: null,
         parentId: null,
+        wikiPath: null,
         ...qp,
         error: null
       };
     }
     const head = rest[0];
+    if (head === "wiki") {
+      const wikiPathRaw = rest.slice(1).join("/");
+      const wikiPath = wikiPathRaw ? decodeURIComponent(wikiPathRaw) : "";
+      return {
+        account: null,
+        project: null,
+        basePath: "",
+        viewMode: null,
+        issueId: null,
+        parentId: null,
+        wikiPath,
+        ...qp,
+        error: null
+      };
+    }
     if (head === "initiatives" || head === "epics" || head === "issues") {
       if (rest.length === 1) {
         return {
@@ -183,6 +204,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: head,
           issueId: null,
           parentId: null,
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -197,6 +219,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: null,
           issueId: rest[1],
           parentId: null,
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -209,6 +232,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: null,
           issueId: null,
           parentId: rest[1],
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -221,6 +245,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: null,
           issueId: rest[2],
           parentId: rest[1],
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -233,6 +258,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       search: null,
       focused: null,
       comment: null,
@@ -248,6 +274,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       search: null,
       focused: null,
       comment: null,
@@ -267,11 +294,27 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: loadStoredViewMode(),
       issueId: null,
       parentId: null,
+      wikiPath: null,
       ...qp,
       error: null
     };
   }
   const head = rest[0];
+  if (head === "wiki") {
+    const wikiPathRaw = rest.slice(1).join("/");
+    const wikiPath = wikiPathRaw ? decodeURIComponent(wikiPathRaw) : "";
+    return {
+      account,
+      project,
+      basePath,
+      viewMode: null,
+      issueId: null,
+      parentId: null,
+      wikiPath,
+      ...qp,
+      error: null
+    };
+  }
   if (head === "initiatives" || head === "epics" || head === "issues") {
     if (rest.length === 1) {
       return {
@@ -281,6 +324,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: head,
         issueId: null,
         parentId: null,
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -295,6 +339,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: null,
         issueId: rest[1],
         parentId: null,
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -307,6 +352,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: null,
         issueId: null,
         parentId: rest[1],
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -319,6 +365,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: null,
         issueId: rest[2],
         parentId: rest[1],
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -331,6 +378,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
     viewMode: null,
     issueId: null,
     parentId: null,
+    wikiPath: null,
     search: null,
     focused: null,
     comment: null,
@@ -552,6 +600,7 @@ export default function App() {
   const [panelMode, setPanelMode] = useState<PanelMode>(() =>
     loadStoredPanelMode()
   );
+  const [wikiDirty, setWikiDirty] = useState(false);
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -646,6 +695,7 @@ export default function App() {
       parsed.basePath !== route.basePath
       || parsed.issueId !== route.issueId
       || parsed.parentId !== route.parentId
+      || parsed.wikiPath !== route.wikiPath
       || parsed.viewMode !== route.viewMode
       || parsed.search !== route.search
       || parsed.focused !== route.focused
@@ -656,6 +706,12 @@ export default function App() {
       setRoute(parsed);
     }
   }, [route]);
+
+  useEffect(() => {
+    if (route.wikiPath !== null) {
+      setPanelMode("wiki");
+    }
+  }, [route.wikiPath]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1319,13 +1375,26 @@ export default function App() {
     navigate(nextUrl, setRoute, navActionRef);
   };
 
+  const handleWikiRouteChange = useCallback(
+    (path: string) => {
+      const wikiBase = route.basePath ? `${route.basePath}/wiki` : "/wiki";
+      const encoded = path ? path.split("/").map(encodeURIComponent).join("/") : "";
+      const fullPath = encoded ? `${wikiBase}/${encoded}` : wikiBase;
+      navigate(fullPath, setRoute, navActionRef);
+    },
+    [route.basePath]
+  );
+
   const handlePanelModeChange = (value: string) => {
-    refreshSnapshot();
-    if (value === "metrics") {
-      setPanelMode("metrics");
-      return;
+    const nextMode = value as PanelMode;
+    if (panelMode === "wiki" && wikiDirty && nextMode !== "wiki") {
+      const proceed = window.confirm("You have unsaved wiki changes. Leave without saving?");
+      if (!proceed) {
+        return;
+      }
     }
-    setPanelMode("board");
+    refreshSnapshot();
+    setPanelMode(nextMode);
   };
 
   const handleTaskClose = () => {
@@ -1504,6 +1573,7 @@ export default function App() {
     });
     return [
       buildOption("board", "Board", LayoutGrid),
+      buildOption("wiki", "Wiki", FileText),
       buildOption("metrics", "Metrics", BarChart3)
     ];
   }, [panelMode]);
@@ -1658,18 +1728,9 @@ export default function App() {
       return [];
     }
     const projectFilterSet = effectiveEnabledProjects ?? new Set(projectLabels);
-    if (typeof window !== "undefined") {
-      console.info("[metrics-debug]", {
-        labels: projectLabels,
-        enabled: Array.from(projectFilterSet)
-      });
-    }
     const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
-    if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
-      console.info("[metrics] filter projects", Array.from(projectFilterSet), "issues", sourceIssues.length);
-    }
 
     if (focusedIssueId) {
       const ids = collectDescendants(sourceIssues, focusedIssueId);
@@ -1729,6 +1790,16 @@ export default function App() {
       : motionMode === "reduced"
       ? "transition-opacity duration-150"
       : "transition-opacity duration-300";
+
+  const viewTrackTransform = useMemo(() => {
+    if (panelMode === "wiki") {
+      return "translateX(-33.3333%)";
+    }
+    if (panelMode === "metrics") {
+      return "translateX(-66.6667%)";
+    }
+    return "translateX(0)";
+  }, [panelMode]);
 
   const transitionKey = `${resolvedViewMode ?? "none"}-${snapshot?.updated_at ?? ""}`;
   const showLoadingIndicator =
@@ -1911,11 +1982,10 @@ export default function App() {
               sidebarPhase === "open" || sidebarPhase === "opening" ? " layout-main-pushed" : ""
             }`}
           >
-            <div
-              className={`view-track${sidebarReady ? " view-track-animate" : ""}${
-                panelMode === "metrics" ? " view-track-metrics" : ""
-              }`}
-            >
+          <div
+            className={`view-track${sidebarReady ? " view-track-animate" : ""}`}
+            style={{ transform: viewTrackTransform }}
+          >
               <div
                 className={`view-panel ${
                   panelMode === "board" ? "view-panel-active" : "view-panel-inactive"
@@ -2049,6 +2119,25 @@ export default function App() {
                   focusedCommentId={focusedCommentId}
                   onNavigateToDescendant={handleSelectIssue}
                 />
+              </div>
+              <div
+                className={`view-panel ${
+                  panelMode === "wiki" ? "view-panel-active" : "view-panel-inactive"
+                }`}
+                data-testid="wiki-view"
+                aria-hidden={panelMode !== "wiki"}
+              >
+                <div className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3">
+                  {apiBase ? (
+                    <WikiPanel
+                      apiBase={apiBase}
+                      isActive={panelMode === "wiki"}
+                      onDirtyChange={setWikiDirty}
+                      initialRoutePath={route.wikiPath ?? ""}
+                      onRouteChange={handleWikiRouteChange}
+                    />
+                  ) : null}
+                </div>
               </div>
               <div
                 className={`view-panel ${

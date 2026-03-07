@@ -8,7 +8,7 @@ from typing import Dict, List
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from kanbus.issue_listing import IssueListingError, list_issues
+from kanbus.console_snapshot import ConsoleSnapshotError, get_issues_for_root
 from kanbus.models import IssueData
 from kanbus.queries import filter_issues
 
@@ -96,8 +96,8 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
         raise WikiError("wiki page not found")
 
     try:
-        issues = list_issues(request.root)
-    except IssueListingError as error:
+        issues = get_issues_for_root(request.root)
+    except ConsoleSnapshotError as error:
         raise WikiError(str(error)) from error
 
     context = WikiContext(issues=list(issues))
