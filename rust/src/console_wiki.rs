@@ -157,12 +157,11 @@ fn absolute_page_path(store: &FileStore, path: &str) -> Result<PathBuf, KanbusEr
 }
 
 /// List all markdown pages under wiki root.
+/// Returns an empty list when the wiki directory does not exist yet (e.g. first use).
 pub fn list_pages(store: &FileStore) -> Result<WikiPagesResponse, WikiServiceError> {
     let root = wiki_root(store).map_err(to_service_error)?;
     if !root.exists() {
-        return Err(WikiServiceError::NotFound(
-            "wiki page not found".to_string(),
-        ));
+        return Ok(WikiPagesResponse { pages: vec![] });
     }
     let mut pages = Vec::new();
     collect_markdown(&root, &root, &mut pages)?;

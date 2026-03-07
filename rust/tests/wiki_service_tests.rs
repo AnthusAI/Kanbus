@@ -226,6 +226,14 @@ fn wiki_list_pages_only_markdown() {
 }
 
 #[test]
+fn wiki_list_pages_empty_when_wiki_root_missing() {
+    let (_dir, store) = temp_store();
+    write_config(&store.root().to_path_buf());
+    let list = list_pages(&store).expect("list pages");
+    assert!(list.pages.is_empty());
+}
+
+#[test]
 fn wiki_render_draft_success() {
     let (_dir, store) = temp_store();
     write_config(&store.root().to_path_buf());
