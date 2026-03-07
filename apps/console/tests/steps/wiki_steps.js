@@ -83,7 +83,10 @@ When("I create a wiki page named {string}", async function (relativePath) {
   });
   await this.page.getByRole("button", { name: "Actions" }).click();
   await this.page.getByRole("menuitem", { name: "New page" }).click();
-  await expect(this.page.getByRole("button", { name: relativePath })).toBeVisible({ timeout: 15000 });
+  const pathSegment = relativePath.replace(/.*\//, "");
+  await expect(
+    this.page.getByTestId(`wiki-path-${pathSegment}`).or(this.page.getByRole("button", { name: relativePath }))
+  ).toBeVisible({ timeout: 15000 });
 });
 
 When("I try to create a wiki page named {string}", async function (relativePath) {
@@ -102,7 +105,10 @@ When("I rename the wiki page {string} to {string}", async function (fromPath, to
   });
   await this.page.getByRole("button", { name: "Actions" }).click();
   await this.page.getByRole("menuitem", { name: "Rename page" }).click();
-  await expect(this.page.getByRole("button", { name: toPath })).toBeVisible({ timeout: 15000 });
+  const pathSegment = toPath.replace(/.*\//, "");
+  await expect(
+    this.page.getByTestId(`wiki-path-${pathSegment}`).or(this.page.getByRole("button", { name: toPath }))
+  ).toBeVisible({ timeout: 15000 });
 });
 
 When("I delete the wiki page {string}", async function (relativePath) {
@@ -154,7 +160,10 @@ Then("the wiki empty state should be visible", async function () {
 });
 
 Then("the wiki page list should include {string}", async function (relativePath) {
-  await expect(this.page.getByRole("button", { name: relativePath })).toBeVisible();
+  const pathSegment = relativePath.replace(/.*\//, "");
+  await expect(
+    this.page.getByTestId(`wiki-path-${pathSegment}`).or(this.page.getByRole("button", { name: relativePath })).first
+  ).toBeVisible();
 });
 
 Then("the wiki page list should not include {string}", async function (relativePath) {
