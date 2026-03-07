@@ -249,6 +249,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         beads_compatibility: false,
         jira: None,
         snyk: None,
+        github_security: None,
     }
 }
 

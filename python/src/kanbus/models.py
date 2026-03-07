@@ -140,6 +140,25 @@ class SnykConfiguration(BaseModel):
     repo: Optional[str] = None
 
 
+class DependabotConfiguration(BaseModel):
+    """GitHub Dependabot synchronization configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    min_severity: str = "low"
+    state: str = "open"
+    parent_epic: Optional[str] = None
+
+
+class GithubSecurityConfiguration(BaseModel):
+    """GitHub security synchronization configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    repo: Optional[str] = None
+    dependabot: Optional[DependabotConfiguration] = None
+
+
 class VirtualProjectConfig(BaseModel):
     """Configuration for a single virtual project."""
 
@@ -189,6 +208,8 @@ class ProjectConfiguration(BaseModel):
     :type jira: Optional[JiraConfiguration]
     :param snyk: Optional Snyk vulnerability synchronization configuration.
     :type snyk: Optional[SnykConfiguration]
+    :param github_security: Optional GitHub security synchronization configuration.
+    :type github_security: Optional[GithubSecurityConfiguration]
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -218,3 +239,4 @@ class ProjectConfiguration(BaseModel):
     beads_compatibility: bool = False
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
+    github_security: Optional[GithubSecurityConfiguration] = None
