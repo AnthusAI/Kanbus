@@ -18,7 +18,7 @@ const RealtimeCollaborationPage = () => {
   return (
     <Layout>
       <Hero
-        eyebrow="New Feature"
+
         title="Realtime Collaboration"
         subtitle="Federated realtime updates for agents and humans. Gossip messaging for instant visibility, with an overlay cache for speculative reads between pulls."
         rightPane={<FeaturePictogram type="realtime-collaboration" />}

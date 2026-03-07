@@ -19,14 +19,12 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
   {
     title: "Git-Native Storage",
     description: "Your issues are plain JSON files in your repo. No database, no proprietary index--just transparent files you can read, diff, and version like any other code.",
-    href: "/features/git-native-storage",
-    eyebrow: "New"
+    href: "/features/git-native-storage"
   },
   {
     title: "Realtime Collaboration",
     description: "Instant updates across agents and humans. Lightweight pub/sub messaging keeps everyone in sync without waiting for a pull.",
-    href: "/features/realtime-collaboration",
-    eyebrow: "New"
+    href: "/features/realtime-collaboration"
   },
   {
     title: "Jira Sync",
@@ -61,8 +59,7 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
   {
     title: "Policy as Code",
     description: "Combine hard guardrails with kairotic, in-the-moment guidance so agents follow procedure without losing flow.",
-    href: "/features/policy-as-code",
-    eyebrow: "New"
+    href: "/features/policy-as-code"
   },
   {
     title: "Agile Metrics",

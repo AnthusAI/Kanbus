@@ -12,7 +12,7 @@ const GitNativeStoragePage = () => {
   return (
     <Layout>
       <Hero
-        eyebrow="New Feature"
+
         title="Git-Native Storage"
         subtitle="Your project data is plain JSON in your repository. No database to manage, no proprietary index to rebuild--just files you can read, diff, and version like any other code."
         rightPane={<FeaturePictogram type="git-native-storage" />}
