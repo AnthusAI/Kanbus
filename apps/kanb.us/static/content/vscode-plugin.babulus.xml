@@ -1,26 +1,34 @@
 <vml id="vscode-plugin" title="VS Code Plugin" fps="24" width="1920" height="1080" poster="2s">
-  <voiceover provider="openai" model="gpt-4o-mini-tts" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
 
-  <scene id="hook" title="Hover Animation" duration="5s">
+  <scene id="hook" title="VS Code Plugin" duration="5s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="visual" z="0">
-      <animated-pictogram-video />
+    <layer id="content" z="1">
+      <feature-two-column-scene props='{"headline":"VS Code Plugin","subhead":"Kanbus control inside the editor","bodyPrimary":"Manage board state without leaving your coding environment.","leftRatio":0.4,"rightPanel":"pictogram","pictogramType":"vscode","pictogramScale":1.22}' />
     </layer>
   </scene>
 
-  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+  <transition id="push-1" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
-  <scene id="deep_dive" title="VS Code Plugin Deep Dive" duration="10s">
+  <scene id="deep_dive" title="VS Code Plugin Deep Dive" duration="30s">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"#0f1115"}' />
     </layer>
-    <layer id="title" z="1">
-      <title props='{"text":"VS Code Plugin","x":960,"y":150}' />
+    <layer id="content" z="1">
+      <feature-two-column-scene props='{"headline":"VS Code Plugin","subhead":"Kanbus control inside the editor","bodyPrimary":"Open the Kanban board in a VS Code tab, drag issues, edit details, and keep code visible in adjacent panes.","bodySecondary":"Jump from issue references to details instantly via Activity Bar and Command Palette integration.","leftRatio":0.4,"rightPanel":"vscode-demo"}' />
     </layer>
     <cue id="intro" label="Introduction">
-      <voice>Manage your project without leaving your code. Full Kanban board integration.</voice>
+      <voice>Manage your project board directly inside VS Code. No context switching between browser and editor.</voice>
+    </cue>
+    <cue id="integrated" label="Integrated Board">
+      <pause seconds="0.5s" />
+      <voice>Open the Kanban board in a dedicated tab, drag issues across columns, and edit details while code stays visible in split view.</voice>
+    </cue>
+    <cue id="commands" label="Quick Access">
+      <pause seconds="0.5s" />
+      <voice>Access Kanbus via Activity Bar or Command Palette, and jump from issue IDs in comments straight to their details.</voice>
     </cue>
   </scene>
 </vml>

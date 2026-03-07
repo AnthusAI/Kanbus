@@ -14,10 +14,12 @@ exports.onCreateWebpackConfig = ({ actions, stage }) => {
     };
   }
 
-  if (stage === "build-html" || stage === "develop-html") {
+  if (stage === "build-html" || stage === "develop-html" || stage === "build-javascript") {
     config.resolve.alias = {
       "@radix-ui/react-scroll-area": path.resolve(__dirname, "src/mocks/empty-module.js"),
       "@radix-ui/react-tabs": path.resolve(__dirname, "src/mocks/empty-module.js"),
+      "@videoml/player/react": path.resolve(__dirname, "src/mocks/empty-module.js"),
+      "@videoml/stdlib/dom": path.resolve(__dirname, "src/mocks/empty-module.js"),
       gsap: path.resolve(__dirname, "src/mocks/empty-module.js")
     };
   }
@@ -80,4 +82,58 @@ exports.onPreInit = () => {
   } catch {
     // amplify_outputs.json present but unreadable — fall through
   }
+};
+
+exports.onCreateDevServer = ({ app }) => {
+  const repoRoot = path.resolve(__dirname, "../..");
+  const vmlContentDir = path.join(repoRoot, "videos", "content");
+  const previewWavDir = path.join(__dirname, "static", "videoml");
+
+  app.get("/__vml/content/:file", (req, res) => {
+    const requested = req.params.file || "";
+    if (!requested.endsWith(".babulus.xml")) {
+      res.status(400).json({ ok: false, error: "invalid-file-extension" });
+      return;
+    }
+
+    const resolved = path.resolve(vmlContentDir, requested);
+    if (!resolved.startsWith(vmlContentDir + path.sep)) {
+      res.status(400).json({ ok: false, error: "invalid-path" });
+      return;
+    }
+
+    if (!fs.existsSync(resolved)) {
+      res.status(404).json({ ok: false, error: "xml-not-found", path: resolved });
+      return;
+    }
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.send(fs.readFileSync(resolved, "utf8"));
+  });
+
+  app.get("/__vml/health/:videoId", (req, res) => {
+    const videoId = req.params.videoId || "";
+    if (!/^[a-z0-9-]+$/.test(videoId)) {
+      res.status(400).json({ ok: false, error: "invalid-video-id" });
+      return;
+    }
+
+    const xmlPath = path.resolve(vmlContentDir, `${videoId}.babulus.xml`);
+    const wavPath = path.resolve(previewWavDir, `${videoId}.wav`);
+    const xmlExists = fs.existsSync(xmlPath);
+    const wavExists = fs.existsSync(wavPath);
+    const xmlMtimeMs = xmlExists ? fs.statSync(xmlPath).mtimeMs : null;
+    const wavMtimeMs = wavExists ? fs.statSync(wavPath).mtimeMs : null;
+
+    res.json({
+      ok: xmlExists && wavExists,
+      videoId,
+      xmlPath,
+      xmlExists,
+      xmlMtimeMs,
+      wavPath,
+      wavExists,
+      wavMtimeMs,
+    });
+  });
 };

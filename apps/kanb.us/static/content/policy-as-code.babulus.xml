@@ -1,0 +1,38 @@
+<vml id="policy-as-code" title="Policy as Code" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="Policy as Code" duration="5s">
+    <layer id="background" z="-1">
+      <background props='{"color":"#0f1115"}' />
+    </layer>
+    <layer id="content" z="1">
+      <feature-two-column-scene props='{"headline":"Policy as Code","subhead":"Executable workflow standards","bodyPrimary":"Define guardrails once and enforce them for every human and agent action.","leftRatio":0.4,"rightPanel":"policy-demo"}' />
+    </layer>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="deep_dive" title="Policy as Code" duration="39s">
+    <layer id="background" z="-1">
+      <background props='{"color":"#0f1115"}' />
+    </layer>
+    <layer id="content" z="1">
+      <feature-two-column-scene props='{"headline":"Policy as Code","subhead":"Executable workflow standards","bodyPrimary":"Express rules in readable scenarios so teams can define quality bars without writing low-level enforcement code.","bodySecondary":"Policies run automatically and reject invalid transitions with clear feedback, keeping execution consistent across humans and agents.","leftRatio":0.4,"rightPanel":"policy-demo"}' />
+    </layer>
+    <cue id="intro" label="Introduction">
+      <voice>Define project rules as executable policy. Enforce standards automatically using readable BDD syntax.</voice>
+    </cue>
+    <cue id="readable" label="Readable Specs">
+      <pause seconds="0.5s" />
+      <voice>Policies are written in plain language with Given, When, Then clauses. Any team member can understand and review them.</voice>
+    </cue>
+    <cue id="enforce" label="Enforcement">
+      <pause seconds="0.5s" />
+      <voice>When a command violates policy, Kanbus blocks the change and returns a clear, actionable error. Rules stay consistent in every environment.</voice>
+    </cue>
+    <cue id="agents" label="Agents and Humans">
+      <pause seconds="0.5s" />
+      <voice>The same policy engine runs for humans and AI agents, so process quality does not degrade as automation scales.</voice>
+    </cue>
+  </scene>
+</vml>

@@ -1,7 +1,21 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 
-export function AnimatedPictogram() {
+type AnimatedPictogramProps = {
+  showTitle?: boolean;
+  framed?: boolean;
+  title?: string;
+  className?: string;
+  style?: React.CSSProperties;
+};
+
+export function AnimatedPictogram({
+  showTitle = true,
+  framed = true,
+  title = "Git Synchronization",
+  className = "",
+  style,
+}: AnimatedPictogramProps = {}) {
   const transitionProps = {
     duration: 3,
     ease: "easeInOut",
@@ -29,15 +43,25 @@ export function AnimatedPictogram() {
   );
 
   return (
-    <div className="w-full h-full bg-card flex flex-col items-center justify-center py-6 px-2 md:p-8 overflow-hidden rounded-2xl min-h-[400px] relative pictogram">
-      {/* Background glow to ground the 3D window */}
-      <div 
-        className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-[100%] pointer-events-none z-0"
-        style={{
-          background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
-        }}
-      />
-      <h3 className="font-mono text-sm text-muted mb-4 tracking-widest uppercase z-10">Git Synchronization</h3>
+    <div
+      className={`w-full h-full flex flex-col items-center justify-center relative pictogram ${
+        framed
+          ? "bg-card py-6 px-2 md:p-8 overflow-hidden rounded-2xl min-h-[400px]"
+          : "overflow-visible min-h-0"
+      } ${className}`.trim()}
+      style={style}
+    >
+      {framed ? (
+        <div
+          className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-[100%] pointer-events-none z-0"
+          style={{
+            background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
+          }}
+        />
+      ) : null}
+      {showTitle ? (
+        <h3 className="font-mono text-sm text-muted mb-4 tracking-widest uppercase z-10">{title}</h3>
+      ) : null}
       <svg width="100%" viewBox="55 0 335 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 h-auto max-h-[400px]">
         <defs>
           <radialGradient id="pictogram-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
