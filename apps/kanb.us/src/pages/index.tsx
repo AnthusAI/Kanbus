@@ -382,8 +382,8 @@ const IndexPage = () => {
                 <h3 className="text-xl font-bold text-foreground">Successor to Beads</h3>
               </CardHeader>
               <CardContent className="p-0 text-muted leading-relaxed">
-                Inspired by the elegant Beads cognitive framework, but re-engineered for Git. We removed the
-                SQLite database, used separate files to eliminate merge conflicts, and adopted standard Jira
+                Inspired by the elegant Beads cognitive framework, but re-engineered for Git. Kanbus drops the
+                SQLite database, uses separate files to eliminate merge conflicts, and adopts standard Jira
                 terms to better leverage AI pre-training.
               </CardContent>
             </Card>
