@@ -18,6 +18,7 @@ import { SearchInput } from "./components/SearchInput";
 import { MetricsPanel } from "./components/MetricsPanel";
 import {
   fetchSnapshot,
+  fetchRealtimeBootstrap,
   subscribeToSnapshots,
   subscribeToNotifications,
   type NotificationEvent,
@@ -699,6 +700,26 @@ export default function App() {
       isMounted = false;
       unsubscribe();
     };
+  }, [route.basePath]);
+
+  useEffect(() => {
+    if (!route.basePath) {
+      return;
+    }
+    const apiBase = `${route.basePath}/api`;
+    fetchRealtimeBootstrap(apiBase)
+      .then((bootstrap) => {
+        console.info("[realtime] bootstrap", {
+          mode: bootstrap.mode,
+          region: bootstrap.region,
+          topic: bootstrap.topic,
+          account: bootstrap.account,
+          project: bootstrap.project,
+        });
+      })
+      .catch((error) => {
+        console.warn("[realtime] bootstrap failed", error);
+      });
   }, [route.basePath]);
 
   // Real-time notification subscription

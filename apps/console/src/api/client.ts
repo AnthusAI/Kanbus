@@ -21,6 +21,15 @@ export type NotificationEvent =
   | { type: "issue_focused"; issue_id: string; user?: string; comment_id?: string }
   | { type: "ui_control"; action: UiControlAction };
 
+export type RealtimeBootstrap = {
+  mode: string;
+  region: string;
+  iot_endpoint: string;
+  topic: string;
+  account: string;
+  project: string;
+};
+
 export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
   const startedAt = Date.now();
   const [configResponse, issuesResponse] = await Promise.all([
@@ -195,4 +204,14 @@ export async function fetchIssueEvents(
     throw new Error(`issue events request failed: ${response.status}`);
   }
   return (await response.json()) as IssueEventsResponse;
+}
+
+export async function fetchRealtimeBootstrap(
+  apiBase: string
+): Promise<RealtimeBootstrap> {
+  const response = await fetch(`${apiBase}/realtime/bootstrap`);
+  if (!response.ok) {
+    throw new Error(`realtime bootstrap request failed: ${response.status}`);
+  }
+  return (await response.json()) as RealtimeBootstrap;
 }
