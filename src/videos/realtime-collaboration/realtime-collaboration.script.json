@@ -4,7 +4,7 @@
       "id": "hook",
       "title": "Realtime Collaboration",
       "startSec": 0,
-      "endSec": 5.7125,
+      "endSec": 5.8875,
       "layers": [
         {
           "id": "background",
@@ -42,13 +42,13 @@
           "id": "hook_voice",
           "label": "Hook",
           "startSec": 0,
-          "endSec": 5.7125,
+          "endSec": 5.8875,
           "text": "Realtime Collaboration keeps humans and agents in sync while Git remains the source of truth.",
           "segments": [
             {
               "type": "tts",
               "startSec": 0,
-              "endSec": 5.7125,
+              "endSec": 5.8875,
               "text": "Realtime Collaboration keeps humans and agents in sync while Git remains the source of truth."
             }
           ],
@@ -59,8 +59,8 @@
     {
       "id": "deep_dive",
       "title": "Realtime Collaboration Deep Dive",
-      "startSec": 6.3375,
-      "endSec": 37.550000000000004,
+      "startSec": 6.5125,
+      "endSec": 37.837500000000006,
       "layers": [
         {
           "id": "background",
@@ -71,7 +71,7 @@
               "type": "Background",
               "props": {
                 "color": "var(--background)",
-                "sceneStartSec": 5.7125
+                "sceneStartSec": 5.8875
               }
             }
           ]
@@ -87,7 +87,7 @@
                 "text": "Realtime Collaboration",
                 "x": 960,
                 "y": 120,
-                "sceneStartSec": 5.7125
+                "sceneStartSec": 5.8875
               }
             }
           ]
@@ -103,7 +103,7 @@
                 "text": "Gossip + overlay cache, with Git as SSOT",
                 "x": 960,
                 "y": 200,
-                "sceneStartSec": 5.7125
+                "sceneStartSec": 5.8875
               }
             }
           ]
@@ -119,7 +119,7 @@
                 "style": {
                   "padding": "180px 24px 24px"
                 },
-                "sceneStartSec": 5.7125
+                "sceneStartSec": 5.8875
               }
             }
           ]
@@ -129,20 +129,20 @@
         {
           "id": "gossip",
           "label": "Gossip",
-          "startSec": 6.3375,
-          "endSec": 15.25,
+          "startSec": 6.5125,
+          "endSec": 15.3,
           "text": "Every change still writes issue JSON and an event log entry. Gossip publishes a small notification so other tools react immediately.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 6.3375,
-              "endSec": 6.9375,
+              "startSec": 6.5125,
+              "endSec": 7.1125,
               "durationSec": 0.6
             },
             {
               "type": "tts",
-              "startSec": 6.9375,
-              "endSec": 15.25,
+              "startSec": 7.1125,
+              "endSec": 15.3,
               "text": "Every change still writes issue JSON and an event log entry. Gossip publishes a small notification so other tools react immediately."
             }
           ],
@@ -151,20 +151,20 @@
         {
           "id": "overlay",
           "label": "Overlay",
-          "startSec": 15.25,
-          "endSec": 23.45,
+          "startSec": 15.3,
+          "endSec": 23.55,
           "text": "Watchers write a disposable overlay snapshot, so you can see updates before a pull lands. Overlay never resolves conflicts.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 15.25,
-              "endSec": 15.85,
+              "startSec": 15.3,
+              "endSec": 15.9,
               "durationSec": 0.6
             },
             {
               "type": "tts",
-              "startSec": 15.85,
-              "endSec": 23.45,
+              "startSec": 15.9,
+              "endSec": 23.55,
               "text": "Watchers write a disposable overlay snapshot, so you can see updates before a pull lands. Overlay never resolves conflicts."
             }
           ],
@@ -173,20 +173,20 @@
         {
           "id": "transports",
           "label": "Transports",
-          "startSec": 23.45,
-          "endSec": 31.450000000000003,
+          "startSec": 23.55,
+          "endSec": 31.700000000000003,
           "text": "Use a local Unix socket broker on one machine, or MQTT for LAN and cloud. Mosquitto can autostart locally when available.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 23.45,
-              "endSec": 24.05,
+              "startSec": 23.55,
+              "endSec": 24.150000000000002,
               "durationSec": 0.6
             },
             {
               "type": "tts",
-              "startSec": 24.05,
-              "endSec": 31.450000000000003,
+              "startSec": 24.150000000000002,
+              "endSec": 31.700000000000003,
               "text": "Use a local Unix socket broker on one machine, or MQTT for LAN and cloud. Mosquitto can autostart locally when available."
             }
           ],
@@ -195,20 +195,20 @@
         {
           "id": "close",
           "label": "Close",
-          "startSec": 31.450000000000003,
-          "endSec": 37.550000000000004,
+          "startSec": 31.700000000000003,
+          "endSec": 37.837500000000006,
           "text": "Best-effort realtime, Git-authoritative history. Start a broker, run watch, and keep moving.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 31.450000000000003,
-              "endSec": 32.050000000000004,
+              "startSec": 31.700000000000003,
+              "endSec": 32.300000000000004,
               "durationSec": 0.6
             },
             {
               "type": "tts",
-              "startSec": 32.050000000000004,
-              "endSec": 37.550000000000004,
+              "startSec": 32.300000000000004,
+              "endSec": 37.837500000000006,
               "text": "Best-effort realtime, Git-authoritative history. Start a broker, run watch, and keep moving."
             }
           ],
@@ -222,13 +222,13 @@
       "kind": "scene",
       "sceneId": "hook",
       "startSec": 0,
-      "endSec": 5.7125
+      "endSec": 5.8875
     },
     {
       "kind": "transition",
       "id": "push-1",
-      "startSec": 5.7125,
-      "endSec": 6.3375,
+      "startSec": 5.8875,
+      "endSec": 6.5125,
       "effect": "slide",
       "ease": "power2.inOut",
       "props": {
@@ -241,8 +241,8 @@
     {
       "kind": "scene",
       "sceneId": "deep_dive",
-      "startSec": 6.3375,
-      "endSec": 37.550000000000004
+      "startSec": 6.5125,
+      "endSec": 37.837500000000006
     }
   ],
   "posterTimeSec": 2,
