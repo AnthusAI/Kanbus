@@ -1097,7 +1097,7 @@ fn delete_single_beads_issue(
             }
         }
     }
-    write_beads_records(&issues_path, &records)?;
+    write_beads_records(issues_path, &records)?;
     let project_dir = load_project_directory(root)?;
     let events_dir = events_dir_for_project(&project_dir);
     let mut ids = HashSet::new();
