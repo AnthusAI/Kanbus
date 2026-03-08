@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import click
 
@@ -94,20 +94,54 @@ def _paint(value: str, color: Optional[str], use_color: bool) -> str:
     return click.style(value, fg=normalized)
 
 
+def _render_description_and_comments(
+    issue: IssueData, all_issues: List[IssueData]
+) -> tuple[str, List[str]]:
+    """Render description and comment texts through Jinja2 templates.
+
+    :param issue: Issue to render.
+    :type issue: IssueData
+    :param all_issues: All issues for query/count/issue context.
+    :type all_issues: List[IssueData]
+    :return: (rendered_description, [rendered_comment_text, ...]).
+    :rtype: tuple[str, List[str]]
+    """
+    from kanbus.wiki import WikiError, render_template_string
+
+    try:
+        description = issue.description
+        if description:
+            description = render_template_string(description, all_issues)
+        else:
+            description = ""
+        comments_text: List[str] = []
+        for comment in issue.comments:
+            text = render_template_string(comment.text, all_issues)
+            comments_text.append(text)
+        return description, comments_text
+    except WikiError:
+        return issue.description or "", [c.text for c in issue.comments]
+
+
 def format_issue_for_display(
     issue: IssueData,
     configuration: Optional[ProjectConfiguration] = None,
     use_color: Optional[bool] = None,
     project_context: bool = False,
+    all_issues: Optional[List[IssueData]] = None,
 ) -> str:
     """Format an issue for human-readable display.
 
     :param issue: Issue data to display.
     :type issue: IssueData
+    :param configuration: Project configuration for status/priority colors.
+    :type configuration: Optional[ProjectConfiguration]
     :param use_color: Whether to apply ANSI colors (defaults to TTY detection).
     :type use_color: Optional[bool]
     :param project_context: Whether the identifier should omit the project key.
     :type project_context: bool
+    :param all_issues: All issues for Jinja2 in description/comments.
+    :type all_issues: Optional[List[IssueData]]
     :return: Human-readable issue display.
     :rtype: str
     """
@@ -160,9 +194,18 @@ def format_issue_for_display(
         )
         lines.append(f"{_dim(label, color_output)} {painted_value}")
 
-    if issue.description:
+    description = issue.description
+    comments_texts: List[str] = []
+    if all_issues:
+        description, comments_texts = _render_description_and_comments(
+            issue, all_issues
+        )
+    else:
+        comments_texts = [c.text for c in issue.comments]
+
+    if description:
         lines.append(f"{_dim('Description:', color_output)}")
-        lines.append(_paint(issue.description, None, color_output))
+        lines.append(_paint(description, None, color_output))
 
     if issue.dependencies:
         lines.append(f"{_dim('Dependencies:', color_output)}")
@@ -171,14 +214,13 @@ def format_issue_for_display(
 
     if issue.comments:
         lines.append(f"{_dim('Comments:', color_output)}")
-        for comment in issue.comments:
+        for idx, comment in enumerate(issue.comments):
             author = comment.author or "unknown"
             prefix = (comment.id or "")[:6]
+            text = comments_texts[idx] if idx < len(comments_texts) else comment.text
             if prefix:
-                lines.append(
-                    f"  [{prefix}] {_dim(f'{author}:', color_output)} {comment.text}"
-                )
+                lines.append(f"  [{prefix}] {_dim(f'{author}:', color_output)} {text}")
             else:
-                lines.append(f"  {_dim(f'{author}:', color_output)} {comment.text}")
+                lines.append(f"  {_dim(f'{author}:', color_output)} {text}")
 
     return "\n".join(lines)

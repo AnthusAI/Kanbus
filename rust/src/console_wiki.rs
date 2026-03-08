@@ -144,7 +144,36 @@ fn normalize_path(path: &str) -> Result<String, WikiServiceError> {
 
 fn wiki_root(store: &FileStore) -> Result<PathBuf, KanbusError> {
     let config = store.load_config()?;
-    Ok(store.root().join(&config.project_directory).join("wiki"))
+    let wiki_subdir = config.wiki_directory.as_deref().unwrap_or("wiki");
+    if wiki_subdir.starts_with("../") {
+        let normalized = wiki_subdir
+            .replace('\\', "/")
+            .trim_start_matches("../")
+            .trim_start_matches("..\\")
+            .to_string();
+        Ok(store.root().join(&normalized))
+    } else {
+        Ok(store
+            .root()
+            .join(&config.project_directory)
+            .join(wiki_subdir))
+    }
+}
+
+/// Return the prefix for wiki page paths (e.g. "project/docs" or "wiki").
+pub fn wiki_list_prefix(store: &FileStore) -> Result<String, KanbusError> {
+    let config = store.load_config()?;
+    let wiki_subdir = config.wiki_directory.as_deref().unwrap_or("wiki");
+    if wiki_subdir.starts_with("../") {
+        let normalized = wiki_subdir
+            .replace('\\', "/")
+            .trim_start_matches("../")
+            .trim_start_matches("..\\")
+            .to_string();
+        Ok(normalized)
+    } else {
+        Ok(format!("{}/{}", config.project_directory, wiki_subdir))
+    }
 }
 
 fn absolute_page_path(store: &FileStore, path: &str) -> Result<PathBuf, KanbusError> {

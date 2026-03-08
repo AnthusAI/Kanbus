@@ -71,7 +71,12 @@ from kanbus.dependency_tree import (
     build_dependency_tree,
     render_dependency_tree,
 )
-from kanbus.wiki import WikiError, WikiRenderRequest, render_wiki_page
+from kanbus.wiki import (
+    WikiError,
+    WikiRenderRequest,
+    list_wiki_pages,
+    render_wiki_page,
+)
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
@@ -468,11 +473,21 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
         _emit_policy_guidance(context, [issue], "view")
         return
 
+    all_issues = None
+    if not beads_mode:
+        try:
+            from kanbus.console_snapshot import get_issues_for_root
+
+            all_issues = list(get_issues_for_root(root))
+        except Exception:
+            pass
+
     click.echo(
         format_issue_for_display(
             issue,
             configuration=configuration,
             project_context=False,
+            all_issues=all_issues,
         )
     )
     _emit_policy_guidance(context, [issue], "view")
@@ -1292,6 +1307,18 @@ def render_wiki(page: str) -> None:
     except WikiError as error:
         raise click.ClickException(str(error)) from error
     click.echo(output)
+
+
+@wiki.command("list")
+def wiki_list() -> None:
+    """List wiki pages."""
+    root = Path.cwd()
+    try:
+        pages = list_wiki_pages(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    for path in pages:
+        click.echo(path)
 
 
 @cli.group("policy")

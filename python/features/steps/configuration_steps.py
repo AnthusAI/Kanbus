@@ -814,9 +814,11 @@ def given_kanbus_yml_missing_workflow(context: object) -> None:
 
 @when("I load the configuration")
 def when_load_config(context: object) -> None:
-    """Load configuration from kanbus.yml."""
+    """Load configuration from kanbus.yml or .kanbus.yml."""
     repository = Path(context.working_directory)
-    config_path = repository / "kanbus.yml"
+    kanbus_yml = repository / "kanbus.yml"
+    dot_kanbus = repository / ".kanbus.yml"
+    config_path = kanbus_yml if kanbus_yml.exists() else dot_kanbus
 
     # Check if this test requires validation that's not yet implemented
     if getattr(context, "validation_not_implemented", False):

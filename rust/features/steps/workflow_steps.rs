@@ -520,6 +520,7 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         transition_labels: BTreeMap::new(),
         realtime: RealtimeConfig::default(),
         overlay: OverlayConfig::default(),
+        wiki_directory: None,
     };
     match get_workflow_for_issue_type(&configuration, &issue_type) {
         Ok(_) => world.workflow_error = None,

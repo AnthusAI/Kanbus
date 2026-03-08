@@ -54,7 +54,7 @@ use crate::rich_text_signals::{
 };
 use crate::snyk_sync::pull_from_snyk;
 use crate::users::get_current_user;
-use crate::wiki::{render_wiki_page, WikiRenderRequest};
+use crate::wiki::{list_wiki_pages, render_wiki_page, WikiRenderRequest};
 
 /// Kanbus CLI arguments.
 #[derive(Debug, Parser)]
@@ -510,6 +510,8 @@ enum WikiCommands {
         /// Wiki page path.
         page: String,
     },
+    /// List wiki pages.
+    List,
 }
 
 #[derive(Debug, Subcommand)]
@@ -1088,7 +1090,7 @@ fn execute_command(
                 )?;
 
                 let use_color = should_use_color();
-                let output = format_issue_for_display(&issue, None, use_color, false);
+                let output = format_issue_for_display(&issue, None, use_color, false, None);
                 if let Some(ref qr) = quality_result {
                     emit_signals(qr, "description", Some(&issue.identifier), None, false);
                 }
@@ -1115,7 +1117,8 @@ fn execute_command(
             let issue = result.issue;
 
             let use_color = should_use_color();
-            let output = format_issue_for_display(&issue, Some(&configuration), use_color, false);
+            let output =
+                format_issue_for_display(&issue, Some(&configuration), use_color, false, None);
             if let Some(ref qr) = quality_result {
                 emit_signals(qr, "description", Some(&issue.identifier), None, false);
             }
@@ -1194,8 +1197,23 @@ fn execute_command(
                 return Ok(Some(payload));
             }
             let use_color = should_use_color();
-            let rendered =
-                format_issue_for_display(&issue, configuration.as_ref(), use_color, false);
+            let all_issues = if beads_mode {
+                None
+            } else {
+                let store = crate::console_backend::FileStore::new(lookup_root);
+                if let Ok(config) = store.load_config() {
+                    store.load_issues(&config).ok()
+                } else {
+                    None
+                }
+            };
+            let rendered = format_issue_for_display(
+                &issue,
+                configuration.as_ref(),
+                use_color,
+                false,
+                all_issues.as_deref(),
+            );
             if !beads_mode {
                 crate::policy_guidance::emit_guidance_for_issues(
                     root,
@@ -2148,6 +2166,11 @@ fn execute_command(
                     page_path: Path::new(&page).to_path_buf(),
                 };
                 let output = render_wiki_page(&request)?;
+                Ok(Some(output))
+            }
+            WikiCommands::List => {
+                let pages = list_wiki_pages(root)?;
+                let output = pages.join("\n");
                 Ok(Some(output))
             }
         },

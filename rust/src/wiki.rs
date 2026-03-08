@@ -1,12 +1,14 @@
 //! Wiki rendering utilities.
 
 use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 
 use minijinja::value::{Kwargs, Value};
 use minijinja::{context, Environment, Error, ErrorKind};
 
 use crate::console_backend::FileStore;
+use crate::console_wiki;
 use crate::error::KanbusError;
 use crate::models::IssueData;
 
@@ -62,6 +64,12 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
             .assert_all_used()
             .map_err(|_| Error::new(ErrorKind::InvalidOperation, "invalid query parameter"))?;
         Ok(filtered.len())
+    });
+
+    let issue_issues = Arc::clone(&issues);
+    env.add_function("issue", move |id: String| {
+        let found = issue_issues.iter().find(|i| i.identifier == id).cloned();
+        Ok(Value::from_serialize(found))
     });
 
     #[cfg(tarpaulin)]
@@ -174,4 +182,73 @@ fn validate_page_exists(page_path: &std::path::Path) -> Result<(), KanbusError> 
         ));
     }
     Ok(())
+}
+
+/// Render a template string with wiki context (query, count, issue).
+///
+/// # Arguments
+/// * `text` - Template string (may contain Jinja2).
+/// * `issues` - Issues for query/count/issue context.
+///
+/// # Returns
+/// Rendered text.
+///
+/// # Errors
+/// Returns error if template rendering fails.
+pub fn render_template_string(text: &str, issues: &[IssueData]) -> Result<String, KanbusError> {
+    let issues = Arc::new(issues.to_vec());
+    let mut env = Environment::new();
+    let query_issues = Arc::clone(&issues);
+    env.add_function("query", move |kwargs: Kwargs| {
+        let mut filtered = filter_issues_from_kwargs(&query_issues, &kwargs)?;
+        if let Some(sort_key) = kwargs.get::<Option<String>>("sort")? {
+            match sort_key.as_str() {
+                "title" => filtered.sort_by(|left, right| left.title.cmp(&right.title)),
+                "priority" => filtered.sort_by_key(|issue| issue.priority),
+                _ => return Err(Error::new(ErrorKind::InvalidOperation, "invalid sort key")),
+            }
+        }
+        kwargs
+            .assert_all_used()
+            .map_err(|_| Error::new(ErrorKind::InvalidOperation, "invalid query parameter"))?;
+        Ok(Value::from_serialize(filtered))
+    });
+    let count_issues = Arc::clone(&issues);
+    env.add_function("count", move |kwargs: Kwargs| {
+        let filtered = filter_issues_from_kwargs(&count_issues, &kwargs)?;
+        kwargs
+            .assert_all_used()
+            .map_err(|_| Error::new(ErrorKind::InvalidOperation, "invalid query parameter"))?;
+        Ok(filtered.len())
+    });
+    let issue_issues = Arc::clone(&issues);
+    env.add_function("issue", move |id: String| {
+        let found = issue_issues.iter().find(|i| i.identifier == id).cloned();
+        Ok(Value::from_serialize(found))
+    });
+    env.render_str(text, context! {})
+        .map_err(|error| KanbusError::IssueOperation(error.to_string()))
+}
+
+/// List wiki page paths relative to repository root.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+///
+/// # Returns
+/// Sorted list of paths like `project/docs/page.md`.
+///
+/// # Errors
+/// Returns `KanbusError` if configuration or project structure is invalid.
+pub fn list_wiki_pages(root: &Path) -> Result<Vec<String>, KanbusError> {
+    let store = FileStore::new(root);
+    let response = console_wiki::list_pages(&store)
+        .map_err(|e| KanbusError::IssueOperation(format!("{:?}", e)))?;
+    let prefix = console_wiki::wiki_list_prefix(&store)?;
+    let pages: Vec<String> = response
+        .pages
+        .into_iter()
+        .map(|p| format!("{}/{}", prefix, p))
+        .collect();
+    Ok(pages)
 }

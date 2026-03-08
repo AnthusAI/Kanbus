@@ -864,6 +864,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         snyk: None,
         realtime: RealtimeConfig::default(),
         overlay: OverlayConfig::default(),
+        wiki_directory: None,
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];

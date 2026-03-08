@@ -68,6 +68,19 @@ class WikiContext:
         """
         return len(self.query(**filters))
 
+    def issue(self, identifier: str) -> Dict[str, object] | None:
+        """Look up an issue by identifier for wiki templates.
+
+        :param identifier: Issue identifier.
+        :type identifier: str
+        :return: Serialized issue or None if not found.
+        :rtype: Dict[str, object] | None
+        """
+        for i in self.issues:
+            if i.identifier == identifier:
+                return _serialize_issue(i)
+        return None
+
 
 @dataclass(frozen=True)
 class WikiRenderRequest:
@@ -113,6 +126,7 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
         {
             "query": context.query,
             "count": context.count,
+            "issue": context.issue,
         }
     )
     try:
@@ -133,3 +147,78 @@ def _get_string(value: object) -> str | None:
 
 def _serialize_issue(issue: IssueData) -> Dict[str, object]:
     return issue.model_dump(by_alias=True, mode="json")
+
+
+def render_template_string(text: str, issues: List[IssueData]) -> str:
+    """Render a template string with wiki context (query, count, issue).
+
+    :param text: Template string (may contain Jinja2).
+    :type text: str
+    :param issues: Issues for query/count/issue context.
+    :type issues: List[IssueData]
+    :return: Rendered text.
+    :rtype: str
+    :raises WikiError: If template rendering fails.
+    """
+    context = WikiContext(issues=issues)
+    environment = Environment(
+        autoescape=select_autoescape(
+            enabled_extensions=("html", "htm", "xml"),
+            default_for_string=False,
+            default=False,
+        ),
+    )
+    environment.globals.update(
+        {
+            "query": context.query,
+            "count": context.count,
+            "issue": context.issue,
+        }
+    )
+    try:
+        template = environment.from_string(text)
+        return template.render()
+    except WikiError:
+        raise
+    except Exception as error:
+        raise WikiError(str(error)) from error
+
+
+def list_wiki_pages(root: Path) -> List[str]:
+    """List wiki page paths relative to repository root.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Sorted list of paths like project/docs/page.md.
+    :rtype: List[str]
+    :raises WikiError: If configuration or project structure is invalid.
+    """
+    from kanbus.config_loader import ConfigurationError, load_project_configuration
+    from kanbus.project import ProjectMarkerError, get_configuration_path
+
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except (ProjectMarkerError, ConfigurationError) as error:
+        raise WikiError(str(error)) from error
+
+    project_dir = configuration.project_directory
+    wiki_subdir = configuration.wiki_directory or "wiki"
+    if wiki_subdir.startswith("../"):
+        normalized = wiki_subdir.replace("\\", "/").lstrip("../").lstrip("..\\")
+        wiki_root = root / normalized
+        prefix = Path(normalized)
+    else:
+        wiki_root = root / project_dir / wiki_subdir
+        prefix = Path(project_dir) / wiki_subdir
+
+    if not wiki_root.exists():
+        return []
+
+    paths: List[str] = []
+    for path in wiki_root.rglob("*.md"):
+        if path.is_file():
+            rel = path.relative_to(wiki_root)
+            paths.append(str(prefix / rel).replace("\\", "/"))
+    paths.sort()
+    return paths

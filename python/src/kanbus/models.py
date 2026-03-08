@@ -252,6 +252,7 @@ class ProjectConfiguration(BaseModel):
     sort_order: Dict[str, Any] = Field(default_factory=dict)
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False
+    wiki_directory: Optional[str] = None
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
     realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
