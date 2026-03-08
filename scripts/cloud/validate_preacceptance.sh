@@ -311,9 +311,19 @@ inflight="$(jq -r '.Attributes.ApproximateNumberOfMessagesNotVisible' "$RESP_DIR
 
 SYNC_WORKER_FN="$(resolve_lambda_by_prefix TenantSyncWorker)"
 [[ -n "$SYNC_WORKER_FN" && "$SYNC_WORKER_FN" != "None" ]] || fail_gate "$GATE" "unable to resolve sync worker lambda name"
-AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws logs tail "/aws/lambda/$SYNC_WORKER_FN" --since 15m >"$CW_DIR/gate5-sync-worker-tail.log" || true
-grep -q "END RequestId" "$CW_DIR/gate5-sync-worker-tail.log" || fail_gate "$GATE" "sync worker completion log not observed"
-if grep -qE "ERROR|Task timed out|Traceback" "$CW_DIR/gate5-sync-worker-tail.log"; then
+SYNC_LOG_FILE="$CW_DIR/gate5-sync-worker-tail.log"
+: >"$SYNC_LOG_FILE"
+worker_completed=0
+for _ in {1..24}; do
+  AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws logs tail "/aws/lambda/$SYNC_WORKER_FN" --since 15m >"$SYNC_LOG_FILE" || true
+  if grep -q "END RequestId" "$SYNC_LOG_FILE"; then
+    worker_completed=1
+    break
+  fi
+  sleep 5
+done
+[[ "$worker_completed" == "1" ]] || fail_gate "$GATE" "sync worker completion log not observed"
+if grep -qE "ERROR|Task timed out|Traceback" "$SYNC_LOG_FILE"; then
   fail_gate "$GATE" "sync worker log contains error markers"
 fi
 pass_gate "$GATE"
