@@ -252,6 +252,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         beads_compatibility: false,
         jira: None,
         snyk: None,
+        wiki_directory: None,
     }
 }
 

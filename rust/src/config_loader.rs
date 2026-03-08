@@ -97,6 +97,17 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
         errors.push("project_directory must not be empty".to_string());
     }
 
+    if let Some(ref wd) = configuration.wiki_directory {
+        if wd.starts_with('/') || (wd.len() >= 2 && wd.chars().nth(1) == Some(':')) {
+            errors.push("wiki_directory must not escape project root".to_string());
+        } else if wd.contains("..") {
+            let normalized = wd.replace('\\', "/");
+            if wd.matches("..").count() > 1 || !normalized.starts_with("../") {
+                errors.push("wiki_directory must not escape project root".to_string());
+            }
+        }
+    }
+
     for label in configuration.virtual_projects.keys() {
         if label == &configuration.project_key {
             errors.push("virtual project label conflicts with project key".to_string());

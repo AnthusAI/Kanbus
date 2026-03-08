@@ -117,6 +117,7 @@ fn when_format_issue_display_generic(world: &mut KanbusWorld, identifier: String
         configuration.as_ref(),
         false,
         false,
+        None,
     ));
 }
 
@@ -149,6 +150,7 @@ fn when_format_issue_display_with_color(world: &mut KanbusWorld, identifier: Str
         configuration.as_ref(),
         true,
         false,
+        None,
     ));
 }
 
@@ -160,7 +162,7 @@ fn when_format_issue_display_without_configuration(world: &mut KanbusWorld, iden
         .join(format!("{identifier}.json"));
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
-    world.formatted_output = Some(format_issue_for_display(&issue, None, true, false));
+    world.formatted_output = Some(format_issue_for_display(&issue, None, true, false, None));
 }
 
 #[then("the formatted output should contain ANSI color codes")]

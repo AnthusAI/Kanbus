@@ -90,6 +90,7 @@ pub struct KanbusWorld {
     pub jira_env_set: bool,
     pub jira_unset_env_vars: Vec<(String, Option<String>)>,
     pub validation_error: Option<String>,
+    pub wiki_directory: Option<String>,
     pub external_tool_dir: Option<TempDir>,
     pub original_path: Option<Option<String>>,
     pub canonical_priorities: Option<Vec<String>>,

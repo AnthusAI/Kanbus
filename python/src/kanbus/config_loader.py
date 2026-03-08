@@ -227,6 +227,14 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     if not configuration.project_directory:
         errors.append("project_directory must not be empty")
 
+    if configuration.wiki_directory is not None:
+        wd = configuration.wiki_directory
+        if wd.startswith("/") or (len(wd) >= 2 and wd[1] == ":"):
+            errors.append("wiki_directory must not escape project root")
+        elif ".." in wd:
+            if wd.count("..") > 1 or not wd.replace("\\", "/").startswith("../"):
+                errors.append("wiki_directory must not escape project root")
+
     for label in configuration.virtual_projects:
         if label == configuration.project_key:
             errors.append("virtual project label conflicts with project key")

@@ -193,6 +193,8 @@ pub struct ProjectConfiguration {
     #[serde(default)]
     pub beads_compatibility: bool,
     #[serde(default)]
+    pub wiki_directory: Option<String>,
+    #[serde(default)]
     pub jira: Option<JiraConfiguration>,
     #[serde(default)]
     pub snyk: Option<SnykConfiguration>,

@@ -114,4 +114,5 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
         "event": "bright_blue",
     },
     "beads_compatibility": False,
+    "wiki_directory": None,
 }
