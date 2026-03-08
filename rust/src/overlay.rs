@@ -545,7 +545,7 @@ fn resolve_git_hooks_dir(root: &Path) -> Result<PathBuf, KanbusError> {
     } else {
         root.join(path)
     };
-    if resolved == PathBuf::from("/dev/null") {
+    if resolved == Path::new("/dev/null") {
         return Err(KanbusError::IssueOperation(
             "git hooks are disabled (core.hooksPath=/dev/null); run `git config --unset core.hooksPath` to enable hook installation".to_string(),
         ));
