@@ -614,12 +614,17 @@ mod tests {
 
         // SAFETY: guarded by module-level mutex in realtime tests.
         unsafe {
-            env::set_var("KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME", "kanbus-mqtt-token-dev");
+            env::set_var(
+                "KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME",
+                "kanbus-mqtt-token-dev",
+            );
         }
         let payload_with_authorizer =
             build_realtime_bootstrap("acct", "proj").expect("bootstrap payload");
         assert_eq!(
-            payload_with_authorizer.mqtt_custom_authorizer_name.as_deref(),
+            payload_with_authorizer
+                .mqtt_custom_authorizer_name
+                .as_deref(),
             Some("kanbus-mqtt-token-dev")
         );
     }

@@ -1,7 +1,9 @@
 //! Realtime gossip transport and envelope helpers.
 
 use chrono::Utc;
-use rumqttc::{AsyncClient, Event, MqttOptions, Outgoing, Packet, QoS, TlsConfiguration, Transport};
+use rumqttc::{
+    AsyncClient, Event, MqttOptions, Outgoing, Packet, QoS, TlsConfiguration, Transport,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -442,7 +444,9 @@ fn run_mqtt_subscription_resilient(
                     match parse_broker_url(&startup.endpoint) {
                         Ok(parsed) => endpoint = parsed,
                         Err(error) => {
-                            eprintln!("warning: realtime mqtt startup endpoint parse failed: {error}");
+                            eprintln!(
+                                "warning: realtime mqtt startup endpoint parse failed: {error}"
+                            );
                             thread::sleep(Duration::from_secs(2));
                             continue;
                         }
@@ -676,9 +680,7 @@ fn publish_with_transport(
     autostart: bool,
     keepalive: bool,
 ) -> Result<(), KanbusError> {
-    if transport == "uds"
-        || (transport == "auto" && uds_socket_path(Some(realtime)).exists())
-    {
+    if transport == "uds" || (transport == "auto" && uds_socket_path(Some(realtime)).exists()) {
         let _ = publish_uds(topic, envelope, realtime);
         return Ok(());
     }
@@ -718,7 +720,11 @@ fn publish_with_transport(
     Ok(())
 }
 
-fn publish_uds_if_available(topic: &str, envelope: &GossipEnvelope, realtime: &RealtimeConfig) -> bool {
+fn publish_uds_if_available(
+    topic: &str,
+    envelope: &GossipEnvelope,
+    realtime: &RealtimeConfig,
+) -> bool {
     let socket_path = uds_socket_path(Some(realtime));
     if !socket_path.exists() {
         return false;

@@ -160,14 +160,16 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     }
   }
 
-  async function refreshPages() {
+  async function refreshPages(): Promise<string[]> {
     setIsLoadingPages(true);
     setError(null);
     try {
       const result = await fetchWikiPages(apiBase);
       setPages(result.pages);
+      return result.pages;
     } catch (err) {
       setError((err as Error).message);
+      return [];
     } finally {
       setIsLoadingPages(false);
     }
@@ -289,10 +291,21 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     }
     setError(null);
     try {
+      const optimisticRemaining = pages.filter((candidate) => candidate !== activePath);
       await deleteWikiPage(apiBase, activePath);
-      await refreshPages();
-      // Go back if we are deleting the current file
-      goBack();
+      const refreshedPages = await refreshPages();
+      const mergedCandidates = new Set<string>([...optimisticRemaining, ...refreshedPages]);
+      const remainingPages = Array.from(mergedCandidates)
+        .filter((candidate) => candidate !== activePath)
+        .sort((a, b) => a.localeCompare(b));
+      const nextPath = remainingPages[0] ?? "";
+      const normalized = nextPath.replace(/^\/+/, "").replace(/\/+$/, "");
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(normalized);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+      setViewMode("read");
+      onRouteChange(normalized);
     } catch (err) {
       setError((err as Error).message);
     }
