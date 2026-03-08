@@ -82,3 +82,12 @@ search_history.py
 # AWS Amplify
 .amplify/
 amplify_outputs.json
+
+# Cloud validation / gate artifacts
+artifacts/
+dist/
+coverage-python-local.xml
+infra/cloud/cdk.context.json
+rust/*.profraw
+src/videos/*/*.timing.xml
+.agents/

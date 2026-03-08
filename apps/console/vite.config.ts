@@ -15,6 +15,8 @@ export default defineConfig(async () => {
   });
 
   return {
+    // Emit relative asset URLs so the embedded console works under staged and tenant-prefixed paths.
+    base: process.env.VITE_ASSET_BASE ?? "./",
     plugins: [react()],
     server: {
       host: viteHost,

@@ -22,6 +22,7 @@ import {
   fetchAuthBootstrap,
   fetchSnapshot,
   setAuthHeaderProvider,
+  setMqttTokenProvider,
   setAuthQueryProvider,
   subscribeToSnapshots,
   subscribeToRealtimeFeed,
@@ -156,6 +157,8 @@ function parseQueryParams(search: string): {
 function parseRoute(pathname: string, queryString?: string): RouteContext {
   const qp = parseQueryParams(queryString ?? window.location.search);
   const segments = pathname.split("/").filter(Boolean);
+  const isStageName = (value: string | undefined): boolean =>
+    value === "dev" || value === "prod" || value === "staging";
   if (segments[segments.length - 1] === "index.html") {
     segments.pop();
   }
@@ -266,7 +269,24 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       error: "Unsupported console route"
     };
   }
-  if (segments.length < 2) {
+  if (segments.length === 1 && isStageName(segments[0])) {
+    return {
+      account: null,
+      project: null,
+      basePath: `/${segments[0]}`,
+      viewMode: null,
+      issueId: null,
+      parentId: null,
+      ...qp,
+      error: null
+    };
+  }
+  const hasStagePrefix =
+    segments.length >= 3
+    && isStageName(segments[0]);
+  const tenantOffset = hasStagePrefix ? 1 : 0;
+
+  if (segments.length < tenantOffset + 2) {
     return {
       account: null,
       project: null,
@@ -282,10 +302,11 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       error: "URL must include /:account/:project"
     };
   }
-  const account = segments[0];
-  const project = segments[1];
-  const basePath = `/${account}/${project}`;
-  const rest = segments.slice(2);
+  const account = segments[tenantOffset];
+  const project = segments[tenantOffset + 1];
+  const stagePrefix = hasStagePrefix ? `/${segments[0]}` : "";
+  const basePath = `${stagePrefix}/${account}/${project}`;
+  const rest = segments.slice(tenantOffset + 2);
   if (rest.length === 0) {
     return {
       account,
@@ -738,6 +759,7 @@ export default function App() {
         }
         setAuthHeaderProvider(() => authResult.headers);
         setAuthQueryProvider(() => authResult.queryToken);
+        setMqttTokenProvider(() => authResult.mqttToken);
         if (authResult.forbiddenReason) {
           setError(`Forbidden: ${authResult.forbiddenReason}`);
           setErrorTime(Date.now());
@@ -782,6 +804,9 @@ export default function App() {
     return () => {
       isMounted = false;
       unsubscribe?.();
+      setAuthHeaderProvider(null);
+      setAuthQueryProvider(null);
+      setMqttTokenProvider(null);
     };
   }, [route.basePath]);
 
@@ -858,7 +883,7 @@ export default function App() {
     return () => {
       unsubscribe();
     };
-  }, [route.basePath]);
+  }, [route.basePath, authReady]);
 
   // Auto-select focused issue in detail panel and encode focus in URL
   useEffect(() => {

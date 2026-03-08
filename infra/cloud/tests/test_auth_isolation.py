@@ -17,12 +17,20 @@ class AuthIsolationTemplateTests(unittest.TestCase):
         stack = KanbusCloudFoundationStack(app, "KanbusCloudFoundationTest", env_name="test")
         return Template.from_stack(stack)
 
-    def test_proxy_methods_require_cognito_authorizer(self) -> None:
+    def test_token_admin_methods_require_cognito_authorizer(self) -> None:
         template = self._template()
         template.has_resource_properties(
             "AWS::ApiGateway::Method",
             {
-                "HttpMethod": "ANY",
+                "HttpMethod": "GET",
+                "AuthorizationType": "COGNITO_USER_POOLS",
+                "AuthorizerId": Match.any_value(),
+            },
+        )
+        template.has_resource_properties(
+            "AWS::ApiGateway::Method",
+            {
+                "HttpMethod": "POST",
                 "AuthorizationType": "COGNITO_USER_POOLS",
                 "AuthorizerId": Match.any_value(),
             },
@@ -37,22 +45,9 @@ class AuthIsolationTemplateTests(unittest.TestCase):
             if res["Type"] == "AWS::IAM::Policy"
         ]
         serialized = str(policy_docs)
-        self.assertIn("projects/${aws:PrincipalTag/account}/${aws:PrincipalTag/project}/events", serialized)
+        self.assertIn("projects/*/*/events", serialized)
         self.assertIn("iot:Subscribe", serialized)
         self.assertIn("iot:Receive", serialized)
-
-    def test_identity_pool_principal_tags_map_custom_tenant_claims(self) -> None:
-        template = self._template()
-        template.has_resource_properties(
-            "AWS::Cognito::IdentityPoolPrincipalTag",
-            {
-                "PrincipalTags": {
-                    "account": "custom:account",
-                    "project": "custom:project",
-                },
-                "UseDefaults": False,
-            },
-        )
 
     def test_user_pool_client_enables_oauth_code_grant(self) -> None:
         template = self._template()

@@ -37,17 +37,40 @@ function parseArgs(argv: string[]): Args {
   return { appUrl, username, password, timeoutMs, eventDeadlineMs };
 }
 
-async function maybeLogin(page: import("playwright").Page, username: string, password: string) {
-  const loginField = page.locator('input[name="username"]');
-  if (!(await loginField.isVisible().catch(() => false))) {
-    return;
+async function completeHostedUiLogin(
+  page: import("playwright").Page,
+  appUrl: string,
+  username: string,
+  password: string,
+  timeoutMs: number
+) {
+  const appBase = new URL(appUrl);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const loginField = page.locator('input[name="username"]:visible').first();
+    const passwordField = page.locator('input[name="password"]:visible').first();
+    const submitButton = page.locator('input[name="signInSubmitButton"]:visible, button[type="submit"]:visible').first();
+    if ((await loginField.count()) > 0 && (await passwordField.count()) > 0 && (await submitButton.count()) > 0) {
+      await loginField.fill(username);
+      await passwordField.fill(password);
+      await submitButton.click();
+      // Let Cognito redirect and app bootstrap proceed.
+      await page.waitForTimeout(500);
+      continue;
+    }
+
+    const url = page.url();
+    if (url.startsWith(appBase.origin)) {
+      const hasStoredAuth = await page.evaluate(() =>
+        Boolean(window.localStorage.getItem("kanbus.console.cloudAuth"))
+      );
+      if (hasStoredAuth) {
+        return;
+      }
+    }
+    await page.waitForTimeout(500);
   }
-  await loginField.fill(username);
-  await page.locator('input[name="password"]').fill(password);
-  await Promise.all([
-    page.waitForLoadState("networkidle"),
-    page.locator('input[name="signInSubmitButton"], button[type="submit"]').first().click(),
-  ]);
+  throw new Error("timed out completing Hosted UI login");
 }
 
 async function main() {
@@ -78,8 +101,9 @@ async function main() {
 
   const started = Date.now();
   await page.goto(args.appUrl, { waitUntil: "domcontentloaded", timeout: args.timeoutMs });
-  await maybeLogin(page, args.username, args.password);
-  await page.waitForLoadState("networkidle", { timeout: args.timeoutMs });
+  await completeHostedUiLogin(page, args.appUrl, args.username, args.password, args.timeoutMs);
+  await page.waitForLoadState("domcontentloaded", { timeout: args.timeoutMs });
+  await page.waitForTimeout(1000);
 
   while (Date.now() - started < args.timeoutMs && !mqttSubscribed && !usedSseFallback) {
     await page.waitForTimeout(500);
