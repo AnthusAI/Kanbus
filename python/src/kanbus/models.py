@@ -166,6 +166,8 @@ class RealtimeConfig(BaseModel):
     autostart: bool = True
     keepalive: bool = False
     uds_socket_path: Optional[str] = None
+    mqtt_custom_authorizer_name: Optional[str] = None
+    mqtt_api_token: Optional[str] = None
     topics: RealtimeTopics = Field(default_factory=RealtimeTopics)
 
 

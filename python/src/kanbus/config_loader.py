@@ -94,6 +94,16 @@ def _apply_environment_overrides(merged: dict) -> None:
     if socket_path is not None and socket_path != "":
         realtime["uds_socket_path"] = socket_path
 
+    mqtt_custom_authorizer_name = os.environ.get(
+        "KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME"
+    )
+    if mqtt_custom_authorizer_name:
+        realtime["mqtt_custom_authorizer_name"] = mqtt_custom_authorizer_name
+
+    mqtt_api_token = os.environ.get("KANBUS_REALTIME_MQTT_API_TOKEN")
+    if mqtt_api_token:
+        realtime["mqtt_api_token"] = mqtt_api_token
+
     project_events = os.environ.get("KANBUS_REALTIME_TOPICS_PROJECT_EVENTS")
     if project_events:
         topics["project_events"] = project_events

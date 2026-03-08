@@ -363,9 +363,8 @@ def reconcile_overlay(
         merged_issue = _apply_overrides(base_issue, overrides)
         if merged_issue is None:
             continue
-        needs_write = (
-            merged_issue != overlay_issue.issue
-            or dict(overrides) != dict(overlay_issue.overrides or {})
+        needs_write = merged_issue != overlay_issue.issue or dict(overrides) != dict(
+            overlay_issue.overrides or {}
         )
         if needs_write:
             issues_updated += 1
@@ -602,11 +601,15 @@ def _apply_overrides(
     return _issue_from_map(merged)
 
 
-def _diff_issue_fields(base_issue: IssueData, overlay_issue: IssueData) -> dict[str, object]:
+def _diff_issue_fields(
+    base_issue: IssueData, overlay_issue: IssueData
+) -> dict[str, object]:
     base_payload = _issue_to_map(base_issue)
     overlay_payload = _issue_to_map(overlay_issue)
     return {
-        key: value for key, value in overlay_payload.items() if base_payload.get(key) != value
+        key: value
+        for key, value in overlay_payload.items()
+        if base_payload.get(key) != value
     }
 
 
