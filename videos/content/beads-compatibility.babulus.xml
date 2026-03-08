@@ -12,7 +12,7 @@
 
   <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
-  <scene id="deep_dive" title="Beads Compatibility Deep Dive" duration="34s">
+  <scene id="deep_dive" title="Beads Compatibility Deep Dive">
     <layer id="background" z="-1">
       <background props='{"color":"var(--background)"}' />
     </layer>

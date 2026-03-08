@@ -4,9 +4,10 @@
   "private": true,
   "description": "VideoML videos about Kanbus",
   "scripts": {
-    "generate": "npm run vml:generate",
+    "generate": "npm run vml:generate && npm run sync:public",
     "render": "npm run vml:render:all",
     "bundle:components": "npx tsx scripts/bundle-browser-components.ts",
+    "sync:public": "for d in ../src/videos/*/; do id=$(basename $d); cp $d$id.timing.xml ../apps/kanb.us/public/videoml/$id.timing.xml 2>/dev/null; cp $d$id.script.json ../apps/kanb.us/public/videoml/$id.script.json 2>/dev/null; done && cp ../public/videoml/*.wav ../apps/kanb.us/public/videoml/",
     "vml:generate": "node $VIDEOML_CLI generate content/",
     "vml:render:intro": "node $VIDEOML_CLI render --script ../src/videos/intro/intro.script.json --timeline ../src/videos/intro/intro.timeline.json --audio ../public/videoml/intro.wav --frames out/frames/intro --out out/intro.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",
     "vml:render:core-management": "node $VIDEOML_CLI render --script ../src/videos/core-management/core-management.script.json --timeline ../src/videos/core-management/core-management.timeline.json --audio ../public/videoml/core-management.wav --frames out/frames/core-management --out out/core-management.mp4 --browser-bundle $BABULUS_BUNDLE --browser-bundle public/browser-components.js",

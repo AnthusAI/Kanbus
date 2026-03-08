@@ -5,7 +5,7 @@
       "sceneId": "opening",
       "cueId": "overview",
       "startSec": 0,
-      "endSec": 14.1125,
+      "endSec": 14.025000000000002,
       "segments": [
         {
           "type": "pause",
@@ -32,11 +32,11 @@
         {
           "type": "tts",
           "startSec": 5.6625000000000005,
-          "endSec": 14.1125,
+          "endSec": 14.025000000000002,
           "text": "You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/opening--overview--tts--1eafffb46aba--1.wav",
-          "durationSec": 8.45,
-          "rawDurationSec": 8.45,
+          "durationSec": 8.3625,
+          "rawDurationSec": 8.3625,
           "trimEndSec": 0
         }
       ]
@@ -45,33 +45,33 @@
       "type": "tts",
       "sceneId": "opening",
       "cueId": "git_bus",
-      "startSec": 14.1125,
-      "endSec": 28.0625,
+      "startSec": 14.025000000000002,
+      "endSec": 27.975,
       "segments": [
         {
           "type": "tts",
-          "startSec": 14.1125,
-          "endSec": 18.762500000000003,
+          "startSec": 14.025000000000002,
+          "endSec": 18.612500000000004,
           "text": "Git synchronization is the core idea: use Git as the bus for Kanban boards.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/opening--git_bus--tts--c6c93d6f5b34--1.wav",
-          "durationSec": 4.65,
-          "rawDurationSec": 4.65,
+          "durationSec": 4.5875,
+          "rawDurationSec": 4.5875,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 18.762500000000003,
-          "endSec": 18.962500000000002,
+          "startSec": 18.612500000000004,
+          "endSec": 18.812500000000004,
           "seconds": 0.2
         },
         {
           "type": "tts",
-          "startSec": 18.962500000000002,
-          "endSec": 28.0625,
+          "startSec": 18.812500000000004,
+          "endSec": 27.975,
           "text": "Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/opening--git_bus--tts--fd20551076eb--1.wav",
-          "durationSec": 9.1,
-          "rawDurationSec": 9.1,
+          "durationSec": 9.1625,
+          "rawDurationSec": 9.1625,
           "trimEndSec": 0
         }
       ]
@@ -80,33 +80,33 @@
       "type": "tts",
       "sceneId": "feature-tour",
       "cueId": "feature_list",
-      "startSec": 28.5625,
-      "endSec": 44.9625,
+      "startSec": 28.475,
+      "endSec": 44.87500000000001,
       "segments": [
         {
           "type": "tts",
-          "startSec": 28.5625,
-          "endSec": 37.05,
+          "startSec": 28.475,
+          "endSec": 36.95,
           "text": "From there, pick the capabilities you need: an agent-ready CLI, Jira synchronization, local tasks, virtual projects, and Beads compatibility.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-tour--feature_list--tts--c93fd74827c9--1.wav",
-          "durationSec": 8.4875,
-          "rawDurationSec": 8.4875,
+          "durationSec": 8.475,
+          "rawDurationSec": 8.475,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 37.05,
-          "endSec": 37.25,
+          "startSec": 36.95,
+          "endSec": 37.150000000000006,
           "seconds": 0.2
         },
         {
           "type": "tts",
-          "startSec": 37.25,
-          "endSec": 44.9625,
+          "startSec": 37.150000000000006,
+          "endSec": 44.87500000000001,
           "text": "You also get a VS Code plugin, an integrated wiki, and policy as code so humans and agents operate from one shared workflow.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-tour--feature_list--tts--e598b5f5b043--1.wav",
-          "durationSec": 7.7125,
-          "rawDurationSec": 7.7125,
+          "durationSec": 7.725,
+          "rawDurationSec": 7.725,
           "trimEndSec": 0
         }
       ]
@@ -115,33 +115,33 @@
       "type": "tts",
       "sceneId": "cta",
       "cueId": "cta",
-      "startSec": 52.0625,
-      "endSec": 59.462500000000006,
+      "startSec": 45.37500000000001,
+      "endSec": 52.92500000000001,
       "segments": [
         {
           "type": "tts",
-          "startSec": 52.0625,
-          "endSec": 53.3875,
+          "startSec": 45.37500000000001,
+          "endSec": 46.66250000000001,
           "text": "Get started at kanb.us.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/cta--cta--tts--480563fcefb6--1.wav",
-          "durationSec": 1.325,
-          "rawDurationSec": 1.325,
+          "durationSec": 1.2875,
+          "rawDurationSec": 1.2875,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 53.3875,
-          "endSec": 53.587500000000006,
+          "startSec": 46.66250000000001,
+          "endSec": 46.86250000000001,
           "seconds": 0.2
         },
         {
           "type": "tts",
-          "startSec": 53.587500000000006,
-          "endSec": 59.462500000000006,
+          "startSec": 46.86250000000001,
+          "endSec": 52.92500000000001,
           "text": "Install Kanbus, connect your repository, and run the same board workflow for humans and AI agents.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/cta--cta--tts--7da02dde765e--1.wav",
-          "durationSec": 5.875,
-          "rawDurationSec": 5.875,
+          "durationSec": 6.0625,
+          "rawDurationSec": 6.0625,
           "trimEndSec": 0
         }
       ]
@@ -165,55 +165,55 @@
             "id": "opening--overview--tts--1eafffb46aba--1",
             "kind": "file",
             "startSec": 5.6625000000000005,
-            "durationSec": 8.45,
+            "durationSec": 8.3625,
             "src": "/videoml/intro/env/development/segments/opening--overview--tts--1eafffb46aba--1.wav",
             "volume": 1
           },
           {
             "id": "opening--git_bus--tts--c6c93d6f5b34--1",
             "kind": "file",
-            "startSec": 14.1125,
-            "durationSec": 4.65,
+            "startSec": 14.025000000000002,
+            "durationSec": 4.5875,
             "src": "/videoml/intro/env/development/segments/opening--git_bus--tts--c6c93d6f5b34--1.wav",
             "volume": 1
           },
           {
             "id": "opening--git_bus--tts--fd20551076eb--1",
             "kind": "file",
-            "startSec": 18.962500000000002,
-            "durationSec": 9.1,
+            "startSec": 18.812500000000004,
+            "durationSec": 9.1625,
             "src": "/videoml/intro/env/development/segments/opening--git_bus--tts--fd20551076eb--1.wav",
             "volume": 1
           },
           {
             "id": "feature-tour--feature_list--tts--c93fd74827c9--1",
             "kind": "file",
-            "startSec": 28.5625,
-            "durationSec": 8.4875,
+            "startSec": 28.475,
+            "durationSec": 8.475,
             "src": "/videoml/intro/env/development/segments/feature-tour--feature_list--tts--c93fd74827c9--1.wav",
             "volume": 1
           },
           {
             "id": "feature-tour--feature_list--tts--e598b5f5b043--1",
             "kind": "file",
-            "startSec": 37.25,
-            "durationSec": 7.7125,
+            "startSec": 37.150000000000006,
+            "durationSec": 7.725,
             "src": "/videoml/intro/env/development/segments/feature-tour--feature_list--tts--e598b5f5b043--1.wav",
             "volume": 1
           },
           {
             "id": "cta--cta--tts--480563fcefb6--1",
             "kind": "file",
-            "startSec": 52.0625,
-            "durationSec": 1.325,
+            "startSec": 45.37500000000001,
+            "durationSec": 1.2875,
             "src": "/videoml/intro/env/development/segments/cta--cta--tts--480563fcefb6--1.wav",
             "volume": 1
           },
           {
             "id": "cta--cta--tts--7da02dde765e--1",
             "kind": "file",
-            "startSec": 53.587500000000006,
-            "durationSec": 5.875,
+            "startSec": 46.86250000000001,
+            "durationSec": 6.0625,
             "src": "/videoml/intro/env/development/segments/cta--cta--tts--7da02dde765e--1.wav",
             "volume": 1
           }
@@ -233,18 +233,18 @@
             "variants": [
               {
                 "variant": 0,
-                "seed": 1715670075,
-                "path": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/music/bed--v1--e6430c3a3b9b.wav",
-                "durationSec": 62.0625
+                "seed": 1342232229,
+                "path": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/music/bed--v1--d000d6a47eaf.wav",
+                "durationSec": 52.92500000000001
               }
             ],
             "chosen": {
               "variant": 0,
-              "seed": 1715670075,
-              "path": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/music/bed--v1--e6430c3a3b9b.wav",
-              "durationSec": 62.0625
+              "seed": 1342232229,
+              "path": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/music/bed--v1--d000d6a47eaf.wav",
+              "durationSec": 52.92500000000001
             },
-            "src": "/videoml/env/development/music/bed/bed--v1--e6430c3a3b9b.wav",
+            "src": "/videoml/env/development/music/bed/bed--v1--d000d6a47eaf.wav",
             "playThrough": true,
             "volumeEnvelope": [
               {
@@ -260,11 +260,11 @@
                 "volume": 0.12
               },
               {
-                "atSec": 57.0625,
+                "atSec": 47.92500000000001,
                 "volume": 0.12
               },
               {
-                "atSec": 60.0625,
+                "atSec": 50.92500000000001,
                 "volume": 0.7
               }
             ]

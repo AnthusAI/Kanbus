@@ -12,7 +12,7 @@
 
   <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
-  <scene id="deep_dive" title="Local Tasks Deep Dive" duration="28s">
+  <scene id="deep_dive" title="Local Tasks Deep Dive">
     <layer id="background" z="-1">
       <background props='{"color":"var(--background)"}' />
     </layer>

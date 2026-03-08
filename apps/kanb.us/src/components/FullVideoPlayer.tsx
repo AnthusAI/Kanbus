@@ -86,7 +86,7 @@ export function FullVideoPlayer({ src, poster, className = "", videoId }: FullVi
         poster={poster}
         controls
         playsInline
-        className="w-full h-auto block"
+        className="w-full h-full object-contain block"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onClick={togglePlay}

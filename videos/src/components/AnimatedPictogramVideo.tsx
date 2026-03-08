@@ -43,6 +43,8 @@ export function AnimatedPictogramVideo({
   allowOverflow = false,
   headline,
   subhead,
+  frame,
+  fps,
 }: {
   type?: PictogramType;
   style?: React.CSSProperties;
@@ -51,6 +53,8 @@ export function AnimatedPictogramVideo({
   allowOverflow?: boolean;
   headline?: string;
   subhead?: string;
+  frame?: number;
+  fps?: number;
 }) {
   const homeType = HOME_TYPE_MAP[type] || HOME_TYPE_MAP.git;
   const isGitSyncHome = type === "git-sync-home";
@@ -73,19 +77,17 @@ export function AnimatedPictogramVideo({
         <div
           style={{
             width: "100%",
-            height: "100%",
-            minHeight: 0,
             transform: `scale(${scale})`,
-            transformOrigin: "center center",
+            transformOrigin: "60% center",
           }}
         >
           <AnimatedPictogram
             showTitle={false}
             framed={false}
-            className="w-full h-full"
+            frame={frame}
+            fps={fps}
+            className="w-full"
             style={{
-              width: "100%",
-              height: "100%",
               ["--glow-center" as any]: "transparent",
               ["--glow-edge" as any]: "transparent",
             }}
@@ -94,13 +96,13 @@ export function AnimatedPictogramVideo({
       ) : (
         <FeaturePictogram
           type={homeType}
-          className="w-full h-full min-h-0"
+          frame={frame}
+          fps={fps}
+          allowOverflow={scale !== 1}
+          className="w-full min-h-0"
           style={{
-            width: "100%",
-            height: "100%",
-            minHeight: 0,
             transform: `scale(${scale})`,
-            transformOrigin: "center center",
+            transformOrigin: "60% center",
             borderRadius: 0,
             // Flatten for video scenes: no glow gradients, no decorative backdrop.
             ["--glow-center" as any]: "transparent",

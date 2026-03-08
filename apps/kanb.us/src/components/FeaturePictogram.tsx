@@ -1,22 +1,41 @@
 import * as React from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
-export type FeaturePictogramType = 
-  | "core-management" 
-  | "kanban-board" 
+export type FeaturePictogramType =
+  | "core-management"
+  | "kanban-board"
   | "realtime-collaboration"
-  | "jira-sync" 
-  | "local-tasks" 
-  | "beads-compatibility" 
-  | "virtual-projects" 
-  | "vscode-plugin" 
-  | "integrated-wiki" 
+  | "jira-sync"
+  | "local-tasks"
+  | "beads-compatibility"
+  | "virtual-projects"
+  | "vscode-plugin"
+  | "integrated-wiki"
   | "policy-as-code"
   | "agile-metrics"
   | "git-native-storage";
 
-export function FeaturePictogram({ type, style, className }: { type: string, style?: React.CSSProperties, className?: string }) {
+// Interpolates a value from a keyframe sequence at normalized time t in [0, 1].
+// values and times must have the same length; times must be in [0, 1] ascending.
+function lerpKf(values: number[], times: number[], t: number): number {
+  const n = times.length;
+  if (t <= times[0]) return values[0];
+  if (t >= times[n - 1]) return values[n - 1];
+  for (let i = 0; i < n - 1; i++) {
+    if (t >= times[i] && t <= times[i + 1]) {
+      const seg = times[i + 1] - times[i];
+      if (seg === 0) return values[i + 1];
+      const u = (t - times[i]) / seg;
+      return values[i] + u * (values[i + 1] - values[i]);
+    }
+  }
+  return values[n - 1];
+}
+
+export function FeaturePictogram({ type, style, className, frame, fps, allowOverflow }: { type: string, style?: React.CSSProperties, className?: string, frame?: number, fps?: number, allowOverflow?: boolean }) {
   const prefersReducedMotion = useReducedMotion();
+  // When frame/fps are provided, compute a deterministic time-in-seconds from the frame counter.
+  const frameTimeSec = (frame != null && fps != null && fps > 0) ? frame / fps : null;
   const Board = ({ x = 250, y, opacity = 1, color = "var(--column)" }: { x?: number; y: number; opacity?: number; color?: string }) => (
     <g transform={`translate(${x}, ${y}) scale(1, 0.5) rotate(45) translate(-100, -75)`} opacity={opacity}>
       {/* Board Base */}
@@ -92,45 +111,68 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
     </g>
   );
 
-  const renderKanbanBoard = () => (
-    <g transform="scale(1) translate(0, 0)">
-      {/* Board Base */}
-      <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
-      
-      {/* Columns */}
-      <rect x="20" y="20" width="140" height="260" fill="var(--background)" rx="8" />
-      <rect x="180" y="20" width="140" height="260" fill="var(--background)" rx="8" />
-      <rect x="340" y="20" width="140" height="260" fill="var(--background)" rx="8" />
-      
-      {/* Cards */}
-      <rect x="30" y="35" width="120" height="48" fill="var(--card)" rx="6" />
-      
-      {/* Right Column Card - shifts down */}
-      <motion.g
-        animate={{ y: [0, 0, 63, 63, 0, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", times: [0, 0.5, 0.53, 0.9, 0.95, 1] }}
-      >
-        <rect x="350" y="35" width="120" height="48" fill="var(--card)" rx="6" />
-      </motion.g>
-      
-      {/* Animated Card - moving between columns */}
-      <motion.g
-        animate={{ x: [0, 0, 160, 160, 0, 0], opacity: [1, 1, 1, 1, 0, 1] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", times: [0, 0.51, 0.54, 0.9, 0.95, 1] }}
-      >
-        <rect x="190" y="35" width="120" height="48" fill="var(--accent-blue)" rx="6" />
-      </motion.g>
-
-      {/* Animated Card - new item appearing */}
-      <motion.g
-        initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 0, 1, 1, 0, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1, 0.9, 0.95, 1] }}
-      >
-        <rect x="30" y="98" width="120" height="48" fill="var(--accent-blue)" rx="6" />
-      </motion.g>
-    </g>
-  );
+  const renderKanbanBoard = () => {
+    const DUR = 10;
+    if (frameTimeSec != null) {
+      const t = (frameTimeSec % DUR) / DUR;
+      const rightY    = lerpKf([0, 0, 63, 63, 0, 0],       [0, 0.5, 0.53, 0.9, 0.95, 1], t);
+      const movingX   = lerpKf([0, 0, 160, 160, 0, 0],     [0, 0.51, 0.54, 0.9, 0.95, 1], t);
+      const movingOp  = lerpKf([1, 1, 1, 1, 0, 1],         [0, 0.51, 0.54, 0.9, 0.95, 1], t);
+      const newOp     = lerpKf([0, 0, 1, 1, 0, 0],         [0, 0.05, 0.1, 0.9, 0.95, 1], t);
+      return (
+        <g transform="scale(1) translate(0, 0)">
+          <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
+          <rect x="20" y="20" width="140" height="260" fill="var(--background)" rx="8" />
+          <rect x="180" y="20" width="140" height="260" fill="var(--background)" rx="8" />
+          <rect x="340" y="20" width="140" height="260" fill="var(--background)" rx="8" />
+          <rect x="30" y="35" width="120" height="48" fill="var(--card)" rx="6" />
+          <g transform={`translate(0, ${rightY})`}>
+            <rect x="350" y="35" width="120" height="48" fill="var(--card)" rx="6" />
+          </g>
+          <g transform={`translate(${movingX}, 0)`} opacity={movingOp}>
+            <rect x="190" y="35" width="120" height="48" fill="var(--accent-blue)" rx="6" />
+          </g>
+          <g opacity={newOp}>
+            <rect x="30" y="98" width="120" height="48" fill="var(--accent-blue)" rx="6" />
+          </g>
+        </g>
+      );
+    }
+    return (
+      <g transform="scale(1) translate(0, 0)">
+        {/* Board Base */}
+        <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
+        {/* Columns */}
+        <rect x="20" y="20" width="140" height="260" fill="var(--background)" rx="8" />
+        <rect x="180" y="20" width="140" height="260" fill="var(--background)" rx="8" />
+        <rect x="340" y="20" width="140" height="260" fill="var(--background)" rx="8" />
+        {/* Cards */}
+        <rect x="30" y="35" width="120" height="48" fill="var(--card)" rx="6" />
+        {/* Right Column Card - shifts down */}
+        <motion.g
+          animate={{ y: [0, 0, 63, 63, 0, 0] }}
+          transition={{ duration: DUR, repeat: Infinity, ease: "easeInOut", times: [0, 0.5, 0.53, 0.9, 0.95, 1] }}
+        >
+          <rect x="350" y="35" width="120" height="48" fill="var(--card)" rx="6" />
+        </motion.g>
+        {/* Animated Card - moving between columns */}
+        <motion.g
+          animate={{ x: [0, 0, 160, 160, 0, 0], opacity: [1, 1, 1, 1, 0, 1] }}
+          transition={{ duration: DUR, repeat: Infinity, ease: "easeInOut", times: [0, 0.51, 0.54, 0.9, 0.95, 1] }}
+        >
+          <rect x="190" y="35" width="120" height="48" fill="var(--accent-blue)" rx="6" />
+        </motion.g>
+        {/* Animated Card - new item appearing */}
+        <motion.g
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0, 1, 1, 0, 0] }}
+          transition={{ duration: DUR, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1, 0.9, 0.95, 1] }}
+        >
+          <rect x="30" y="98" width="120" height="48" fill="var(--accent-blue)" rx="6" />
+        </motion.g>
+      </g>
+    );
+  };
 
   const renderRealtimeCollaboration = () => (
     <g transform="scale(1) translate(0, 0)">
@@ -462,14 +504,16 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
           </g>
 
           {/* Typing Cursor */}
-          <line x1="215" y1="133" x2="215" y2="148" stroke="var(--accent-blue)" strokeWidth="2">
-            <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" />
+          <line x1="215" y1="133" x2="215" y2="148" stroke="var(--accent-blue)" strokeWidth="2"
+            opacity={frameTimeSec != null ? (Math.floor(frameTimeSec / 0.5) % 2 === 0 ? 1 : 0) : undefined}
+          >
+            {frameTimeSec == null && <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" />}
           </line>
         </g>
 
         {/* Kanban Pane (Right Half) Background */}
         <rect x="250" y="0" width="250" height="300" fill="var(--column)" />
-        
+
         {/* Separator */}
         <line x1="250" y1="0" x2="250" y2="300" stroke="var(--border)" strokeWidth="2" />
 
@@ -479,34 +523,36 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
           <rect x="10" y="20" width="70" height="260" fill="var(--background)" rx="6" />
           <rect x="90" y="20" width="70" height="260" fill="var(--background)" rx="6" />
           <rect x="170" y="20" width="70" height="260" fill="var(--background)" rx="6" />
-          
+
           {/* Cards */}
           <rect x="15" y="35" width="60" height="24" fill="var(--card)" rx="3" />
-          
-          {/* Right Column Card - shifts down */}
-          <motion.g
-            animate={{ y: [0, 0, 32, 32, 0, 0] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", times: [0, 0.5, 0.53, 0.9, 0.95, 1] }}
-          >
-            <rect x="175" y="35" width="60" height="24" fill="var(--card)" rx="3" />
-          </motion.g>
-          
-          {/* Animated Card - moving between columns (middle to right) */}
-          <motion.g
-            animate={{ x: [0, 0, 80, 80, 0, 0], opacity: [1, 1, 1, 1, 0, 1] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", times: [0, 0.51, 0.54, 0.9, 0.95, 1] }}
-          >
-            <rect x="95" y="35" width="60" height="24" fill="var(--accent-blue)" rx="3" />
-          </motion.g>
 
-          {/* Animated Card - new item appearing */}
-          <motion.g
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0, 1, 1, 0, 0] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1, 0.9, 0.95, 1] }}
-          >
-            <rect x="15" y="67" width="60" height="24" fill="var(--accent-blue)" rx="3" />
-          </motion.g>
+          {frameTimeSec != null ? (() => {
+            const DUR = 10;
+            const t = (frameTimeSec % DUR) / DUR;
+            const rightY   = lerpKf([0, 0, 32, 32, 0, 0],     [0, 0.5, 0.53, 0.9, 0.95, 1], t);
+            const movingX  = lerpKf([0, 0, 80, 80, 0, 0],     [0, 0.51, 0.54, 0.9, 0.95, 1], t);
+            const movingOp = lerpKf([1, 1, 1, 1, 0, 1],       [0, 0.51, 0.54, 0.9, 0.95, 1], t);
+            const newOp    = lerpKf([0, 0, 1, 1, 0, 0],       [0, 0.05, 0.1, 0.9, 0.95, 1], t);
+            return (<>
+              <g transform={`translate(0, ${rightY})`}><rect x="175" y="35" width="60" height="24" fill="var(--card)" rx="3" /></g>
+              <g transform={`translate(${movingX}, 0)`} opacity={movingOp}><rect x="95" y="35" width="60" height="24" fill="var(--accent-blue)" rx="3" /></g>
+              <g opacity={newOp}><rect x="15" y="67" width="60" height="24" fill="var(--accent-blue)" rx="3" /></g>
+            </>);
+          })() : (<>
+            {/* Right Column Card - shifts down */}
+            <motion.g animate={{ y: [0, 0, 32, 32, 0, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", times: [0, 0.5, 0.53, 0.9, 0.95, 1] }}>
+              <rect x="175" y="35" width="60" height="24" fill="var(--card)" rx="3" />
+            </motion.g>
+            {/* Animated Card - moving between columns */}
+            <motion.g animate={{ x: [0, 0, 80, 80, 0, 0], opacity: [1, 1, 1, 1, 0, 1] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", times: [0, 0.51, 0.54, 0.9, 0.95, 1] }}>
+              <rect x="95" y="35" width="60" height="24" fill="var(--accent-blue)" rx="3" />
+            </motion.g>
+            {/* Animated Card - new item appearing */}
+            <motion.g initial={{ opacity: 0 }} animate={{ opacity: [0, 0, 1, 1, 0, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1, 0.9, 0.95, 1] }}>
+              <rect x="15" y="67" width="60" height="24" fill="var(--accent-blue)" rx="3" />
+            </motion.g>
+          </>)}
         </g>
       </g>
     </g>
@@ -529,78 +575,77 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       </defs>
 
       <g clipPath="url(#wiki-clip)">
-        {/* Full Kanban Board Base */}
-        <motion.rect 
-          x="0" y="0" height="300" fill="var(--column)" 
-          animate={{ width: [500, 300, 300, 500] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }}
-        />
-        
-        {/* Animated Kanban Content (Squishing to the left) */}
-        <motion.g
-          animate={{ scaleX: [1, 0.56, 0.56, 1] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }}
-          style={{ originX: 0 }}
-        >
-          {/* Columns */}
-          <rect x="20" y="20" width="140" height="260" fill="var(--background)" rx="8" />
-          <rect x="180" y="20" width="140" height="260" fill="var(--background)" rx="8" />
-          <rect x="340" y="20" width="140" height="260" fill="var(--background)" rx="8" />
-          
-          {/* Cards */}
-          <rect x="30" y="35" width="120" height="32" fill="var(--card)" rx="6" />
-          <rect x="30" y="77" width="120" height="32" fill="var(--card)" rx="6" />
-          <rect x="30" y="119" width="120" height="32" fill="var(--card)" rx="6" />
-          <rect x="30" y="161" width="120" height="32" fill="var(--card)" rx="6" />
-          
-          <rect x="190" y="35" width="120" height="32" fill="var(--card)" rx="6" />
-          <rect x="190" y="77" width="120" height="32" fill="var(--card)" rx="6" />
-          <rect x="190" y="119" width="120" height="32" fill="var(--accent-blue)" rx="6" />
-          
-          <rect x="350" y="35" width="120" height="32" fill="var(--card)" rx="6" />
-          <rect x="350" y="77" width="120" height="32" fill="var(--card)" rx="6" />
-        </motion.g>
-
-        {/* Sliding Wiki Panel */}
-        <motion.g
-          animate={{ x: [500, 300, 300, 500] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }}
-        >
-          {/* Panel Shadow / Border */}
-          <line x1="0" y1="0" x2="0" y2="300" stroke="var(--border)" strokeWidth="2" />
-          <rect x="0" y="0" width="200" height="300" fill="var(--background)" />
-          
-          {/* Wiki Content */}
-          <g transform="translate(15, 25)" className="tiny-text" fill="var(--text-muted)">
-            <text x="0" y="0" fill="var(--text-foreground)" fontSize="12">Project Architecture</text>
-            <rect x="0" y="8" width="170" height="1" fill="var(--border)" />
-            
-            <text x="0" y="25">The core system consists of several</text>
-            <text x="0" y="35">microservices that communicate via</text>
-            <text x="0" y="45"><tspan fill="var(--accent-blue)">event streams</tspan>. This allows us to scale</text>
-            <text x="0" y="55">independently.</text>
-            
-            <text x="0" y="75" fill="var(--text-foreground)">1. Authentication Flow</text>
-            <text x="0" y="85">User tokens are issued by the</text>
-            <text x="0" y="95"><tspan fill="var(--accent-blue)">Auth Gateway</tspan> and verified by</text>
-            <text x="0" y="105">edge nodes before routing.</text>
-            
-            <text x="0" y="125" fill="var(--text-foreground)">2. Data Storage</text>
-            <text x="0" y="135">We use a combination of relational</text>
-            <text x="0" y="145">databases and document stores.</text>
-            <text x="0" y="155">See <tspan fill="var(--accent-blue)">Schema Definitions</tspan> for details.</text>
-            
-            <text x="0" y="175" fill="var(--text-foreground)">Deployment</text>
-            <text x="0" y="185">All services are containerized</text>
-            <text x="0" y="195">and orchestrated using</text>
-            <text x="0" y="205"><tspan fill="var(--accent-blue)">Kubernetes clusters</tspan>.</text>
-            
-            {/* Some fake code blocks */}
-            <rect x="0" y="220" width="160" height="35" fill="var(--card)" rx="2" />
-            <text x="5" y="232" fill="var(--accent-blue)">docker build -t app .</text>
-            <text x="5" y="244" fill="var(--accent-blue)">kubectl apply -f k8s/</text>
-          </g>
-        </motion.g>
+        {(() => {
+          const DUR = 6;
+          const wikiContent = (
+            <g transform="translate(15, 25)" className="tiny-text" fill="var(--text-muted)">
+              <text x="0" y="0" fill="var(--text-foreground)" fontSize="12">Project Architecture</text>
+              <rect x="0" y="8" width="170" height="1" fill="var(--border)" />
+              <text x="0" y="25">The core system consists of several</text>
+              <text x="0" y="35">microservices that communicate via</text>
+              <text x="0" y="45"><tspan fill="var(--accent-blue)">event streams</tspan>. This allows us to scale</text>
+              <text x="0" y="55">independently.</text>
+              <text x="0" y="75" fill="var(--text-foreground)">1. Authentication Flow</text>
+              <text x="0" y="85">User tokens are issued by the</text>
+              <text x="0" y="95"><tspan fill="var(--accent-blue)">Auth Gateway</tspan> and verified by</text>
+              <text x="0" y="105">edge nodes before routing.</text>
+              <text x="0" y="125" fill="var(--text-foreground)">2. Data Storage</text>
+              <text x="0" y="135">We use a combination of relational</text>
+              <text x="0" y="145">databases and document stores.</text>
+              <text x="0" y="155">See <tspan fill="var(--accent-blue)">Schema Definitions</tspan> for details.</text>
+              <text x="0" y="175" fill="var(--text-foreground)">Deployment</text>
+              <text x="0" y="185">All services are containerized</text>
+              <text x="0" y="195">and orchestrated using</text>
+              <text x="0" y="205"><tspan fill="var(--accent-blue)">Kubernetes clusters</tspan>.</text>
+              <rect x="0" y="220" width="160" height="35" fill="var(--card)" rx="2" />
+              <text x="5" y="232" fill="var(--accent-blue)">docker build -t app .</text>
+              <text x="5" y="244" fill="var(--accent-blue)">kubectl apply -f k8s/</text>
+            </g>
+          );
+          const kanbanContent = (<>
+            <rect x="20" y="20" width="140" height="260" fill="var(--background)" rx="8" />
+            <rect x="180" y="20" width="140" height="260" fill="var(--background)" rx="8" />
+            <rect x="340" y="20" width="140" height="260" fill="var(--background)" rx="8" />
+            <rect x="30" y="35" width="120" height="32" fill="var(--card)" rx="6" />
+            <rect x="30" y="77" width="120" height="32" fill="var(--card)" rx="6" />
+            <rect x="30" y="119" width="120" height="32" fill="var(--card)" rx="6" />
+            <rect x="30" y="161" width="120" height="32" fill="var(--card)" rx="6" />
+            <rect x="190" y="35" width="120" height="32" fill="var(--card)" rx="6" />
+            <rect x="190" y="77" width="120" height="32" fill="var(--card)" rx="6" />
+            <rect x="190" y="119" width="120" height="32" fill="var(--accent-blue)" rx="6" />
+            <rect x="350" y="35" width="120" height="32" fill="var(--card)" rx="6" />
+            <rect x="350" y="77" width="120" height="32" fill="var(--card)" rx="6" />
+          </>);
+          if (frameTimeSec != null) {
+            const t = (frameTimeSec % DUR) / DUR;
+            const boardW  = lerpKf([500, 300, 300, 500], [0, 0.2, 0.8, 1], t);
+            const scaleX  = lerpKf([1, 0.56, 0.56, 1],  [0, 0.2, 0.8, 1], t);
+            const panelX  = lerpKf([500, 300, 300, 500], [0, 0.2, 0.8, 1], t);
+            return (<>
+              <rect x="0" y="0" width={boardW} height="300" fill="var(--column)" />
+              <g transform={`scale(${scaleX}, 1)`} style={{ transformOrigin: "0 0" }}>{kanbanContent}</g>
+              <g transform={`translate(${panelX}, 0)`}>
+                <line x1="0" y1="0" x2="0" y2="300" stroke="var(--border)" strokeWidth="2" />
+                <rect x="0" y="0" width="200" height="300" fill="var(--background)" />
+                {wikiContent}
+              </g>
+            </>);
+          }
+          return (<>
+            <motion.rect x="0" y="0" height="300" fill="var(--column)"
+              animate={{ width: [500, 300, 300, 500] }}
+              transition={{ duration: DUR, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }}
+            />
+            <motion.g animate={{ scaleX: [1, 0.56, 0.56, 1] }} transition={{ duration: DUR, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }} style={{ originX: 0 }}>
+              {kanbanContent}
+            </motion.g>
+            <motion.g animate={{ x: [500, 300, 300, 500] }} transition={{ duration: DUR, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }}>
+              <line x1="0" y1="0" x2="0" y2="300" stroke="var(--border)" strokeWidth="2" />
+              <rect x="0" y="0" width="200" height="300" fill="var(--background)" />
+              {wikiContent}
+            </motion.g>
+          </>);
+        })()}
       </g>
     </g>
   );
@@ -631,6 +676,8 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       );
     };
 
+    const SIGN_DUR = 6.2;
+
     const AnimatedSign = ({
       symbol,
       laneOffset,
@@ -643,6 +690,23 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       const x0 = 250 + laneOffset * 0.01;
       const x1 = 250 + laneOffset * 0.45;
       const x2 = 250 + laneOffset;
+
+      if (frameTimeSec != null) {
+        const t = ((frameTimeSec - delay) % SIGN_DUR + SIGN_DUR) % SIGN_DUR / SIGN_DUR;
+        const opacity = lerpKf([0, 1, 0], [0, 0.5, 1], t);
+        const tx = lerpKf([x0, x1, x2], [0, 0.5, 1], t);
+        const ty = lerpKf([74, 150, 244], [0, 0.5, 1], t);
+        const sc = lerpKf([0.3, 0.7, 1.25], [0, 0.5, 1], t);
+        return (
+          <g opacity={opacity} transform={`translate(${tx}, ${ty})`}>
+            <g transform={`scale(${sc})`}>
+              <rect x="-2" y="20" width="4" height="18" fill="var(--text-muted)" opacity={0.75} />
+              <SignFace symbol={symbol} />
+            </g>
+          </g>
+        );
+      }
+
       const dur = "6.2s";
       const begin = `${delay}s`;
       return (
@@ -678,6 +742,8 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       );
     }
 
+    const dashOffset = frameTimeSec != null ? -((frameTimeSec * 40 / 3.2) % 40) : undefined;
+
     return (
       <g transform="scale(1) translate(0, 0)">
         <defs>
@@ -694,8 +760,9 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
           strokeOpacity="0.2"
           strokeWidth="2"
           strokeDasharray="8 12"
+          strokeDashoffset={dashOffset}
         >
-          <animate attributeName="stroke-dashoffset" from="0" to="-40" dur="3.2s" repeatCount="indefinite" />
+          {frameTimeSec == null && <animate attributeName="stroke-dashoffset" from="0" to="-40" dur="3.2s" repeatCount="indefinite" />}
         </path>
         <AnimatedSign symbol="arrow" laneOffset={-58} delay={0} />
         <AnimatedSign symbol="warning" laneOffset={0} delay={1.6} />
@@ -743,14 +810,16 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       <circle cx="80" cy="70" r="8" fill="var(--accent-blue)" />
       <circle cx="80" cy="130" r="8" fill="var(--accent-blue)" />
       <circle cx="80" cy="190" r="8" fill="var(--accent-blue)" />
-      <motion.circle
-        cx={80}
-        cy={250}
-        r={8}
-        fill="var(--accent-blue)"
-        animate={{ opacity: [0, 0, 1, 1, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.4, 0.9, 1] }}
-      />
+      {frameTimeSec != null ? (() => {
+        const DUR = 6; const t = (frameTimeSec % DUR) / DUR;
+        const op = lerpKf([0, 0, 1, 1, 0], [0, 0.3, 0.4, 0.9, 1], t);
+        return <circle cx={80} cy={250} r={8} fill="var(--accent-blue)" opacity={op} />;
+      })() : (
+        <motion.circle cx={80} cy={250} r={8} fill="var(--accent-blue)"
+          animate={{ opacity: [0, 0, 1, 1, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.4, 0.9, 1] }}
+        />
+      )}
 
       {/* File tree from commits */}
       <g transform="translate(120, 50)">
@@ -769,15 +838,27 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
       </g>
 
       {/* Animated new file appearing */}
-      <motion.g
-        transform="translate(120, 50)"
-        animate={{ opacity: [0, 0, 1, 1, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.4, 0.9, 1] }}
-      >
-        <line x1="32" y1="84" x2="32" y2="106" stroke="var(--border)" strokeWidth="1" />
-        <line x1="32" y1="106" x2="44" y2="106" stroke="var(--border)" strokeWidth="1" />
-        <text x="48" y="110" fill="var(--accent-blue)" fontSize="13" fontFamily="monospace">tsk-3.json</text>
-      </motion.g>
+      {frameTimeSec != null ? (() => {
+        const DUR = 6; const t = (frameTimeSec % DUR) / DUR;
+        const op = lerpKf([0, 0, 1, 1, 0], [0, 0.3, 0.4, 0.9, 1], t);
+        return (
+          <g transform="translate(120, 50)" opacity={op}>
+            <line x1="32" y1="84" x2="32" y2="106" stroke="var(--border)" strokeWidth="1" />
+            <line x1="32" y1="106" x2="44" y2="106" stroke="var(--border)" strokeWidth="1" />
+            <text x="48" y="110" fill="var(--accent-blue)" fontSize="13" fontFamily="monospace">tsk-3.json</text>
+          </g>
+        );
+      })() : (
+        <motion.g
+          transform="translate(120, 50)"
+          animate={{ opacity: [0, 0, 1, 1, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.4, 0.9, 1] }}
+        >
+          <line x1="32" y1="84" x2="32" y2="106" stroke="var(--border)" strokeWidth="1" />
+          <line x1="32" y1="106" x2="44" y2="106" stroke="var(--border)" strokeWidth="1" />
+          <text x="48" y="110" fill="var(--accent-blue)" fontSize="13" fontFamily="monospace">tsk-3.json</text>
+        </motion.g>
+      )}
 
       {/* JSON preview card */}
       <g transform="translate(290, 40)">
@@ -825,7 +906,7 @@ export function FeaturePictogram({ type, style, className }: { type: string, sty
   const renderContent = renders[type] || renderCli;
 
   return (
-    <div className={`w-full aspect-[5/3] flex flex-col items-center justify-center overflow-hidden relative pictogram ${className || ""}`} style={{ ...style }}>
+    <div className={`w-full aspect-[5/3] flex flex-col items-center justify-center ${allowOverflow ? "overflow-visible" : "overflow-hidden"} relative pictogram ${className || ""}`} style={{ ...style }}>
       {/* Background glow to ground the 3D window */}
       <div 
         className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] rounded-[100%] pointer-events-none z-0"
