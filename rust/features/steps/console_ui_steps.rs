@@ -1,8 +1,10 @@
+use std::fs;
+use std::path::PathBuf;
+
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use chrono_tz::Tz;
 use cucumber::{given, then, when};
 use std::collections::HashSet;
-use std::path::PathBuf;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
@@ -481,7 +483,7 @@ fn then_tab_selected(world: &mut KanbusWorld, tab: String) {
     assert_eq!(state.selected_tab, tab);
 }
 
-#[then("no view tab should be selected")]
+#[then(expr = "no view tab should be selected")]
 fn then_no_tab_selected(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     assert!(
@@ -1033,6 +1035,42 @@ fn default_issues() -> Vec<ConsoleIssue> {
     ]
 }
 
+fn console_app_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("apps")
+        .join("console")
+}
+
+fn assert_priority_pill_uses_background() {
+    let root = console_app_root();
+    let globals_css = fs::read_to_string(root.join("src").join("styles").join("globals.css"))
+        .expect("read globals.css");
+    if !globals_css.contains("background") || !globals_css.contains("--issue-priority-bg") {
+        panic!("priority label must use background with --issue-priority-bg in globals.css");
+    }
+    let issue_colors = fs::read_to_string(root.join("src").join("utils").join("issue-colors.ts"))
+        .expect("read issue-colors.ts");
+    if !issue_colors.contains("issue-priority-bg-light")
+        || !issue_colors.contains("issue-priority-bg-dark")
+    {
+        panic!("issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark");
+    }
+}
+
+fn assert_priority_pill_uses_foreground_text() {
+    let root = console_app_root();
+    let globals_css = fs::read_to_string(root.join("src").join("styles").join("globals.css"))
+        .expect("read globals.css");
+    let start = globals_css
+        .find(".issue-accent-priority")
+        .expect(".issue-accent-priority not found in globals.css");
+    let block = globals_css[start..].chars().take(600).collect::<String>();
+    if !block.contains("var(--text-foreground)") || !block.contains("color") {
+        panic!(".issue-accent-priority must set color to var(--text-foreground)");
+    }
+}
+
 fn get_selected_issue(world: &mut KanbusWorld) -> &mut ConsoleIssue {
     let state = require_console_state(world);
     let selected = state.selected_task_title.clone().expect("no task selected");
@@ -1092,41 +1130,4 @@ fn format_timestamp(value: &str, time_zone: Option<&str>) -> String {
         period,
         tzname
     )
-}
-
-fn console_app_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("apps")
-        .join("console")
-}
-
-fn assert_priority_pill_uses_background() {
-    let root = console_app_root();
-    let globals_css = std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
-        .expect("read globals.css");
-    if !globals_css.contains("background") || !globals_css.contains("--issue-priority-bg") {
-        panic!("priority label must use background with --issue-priority-bg in globals.css");
-    }
-    let issue_colors =
-        std::fs::read_to_string(root.join("src").join("utils").join("issue-colors.ts"))
-            .expect("read issue-colors.ts");
-    if !issue_colors.contains("issue-priority-bg-light")
-        || !issue_colors.contains("issue-priority-bg-dark")
-    {
-        panic!("issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark");
-    }
-}
-
-fn assert_priority_pill_uses_foreground_text() {
-    let root = console_app_root();
-    let globals_css = std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
-        .expect("read globals.css");
-    let start = globals_css.find(".issue-accent-priority");
-    let start = start.expect(".issue-accent-priority not found in globals.css");
-    let end = std::cmp::min(start + 600, globals_css.len());
-    let block = &globals_css[start..end];
-    if !block.contains("var(--text-foreground)") || !block.contains("color") {
-        panic!(".issue-accent-priority must set color to var(--text-foreground)");
-    }
 }

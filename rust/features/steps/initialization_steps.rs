@@ -97,6 +97,7 @@ pub struct KanbusWorld {
     pub imported_issue_priority: Option<String>,
     pub stored_priority: Option<String>,
     pub loaded_project_key: Option<String>,
+    pub last_comment_id: Option<String>,
     pub kanbus_version: Option<String>,
     pub kanbusr_version: Option<String>,
     pub kanbusr_has_all: Option<bool>,

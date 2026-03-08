@@ -902,8 +902,18 @@ def then_project_key_matches(context: object, expected: str) -> None:
 @then('the hierarchy should be "{expected}"')
 def then_hierarchy_matches(context: object, expected: str) -> None:
     """Verify hierarchy matches expected value."""
-    # For now, just verify the expected format
-    assert ">" in expected, "Hierarchy should use > separator"
+    configuration = getattr(context, "configuration", None)
+    if configuration is None:
+        raise AssertionError("No configuration loaded")
+
+    if ">" in expected:
+        parts = [part.strip() for part in expected.split(">")]
+    else:
+        parts = [part.strip() for part in expected.split(",")]
+    parts = [part for part in parts if part]
+    assert (
+        configuration.hierarchy == parts
+    ), f"Expected hierarchy {parts}, got {configuration.hierarchy}"
 
 
 @then('the default priority should be "{expected}"')
