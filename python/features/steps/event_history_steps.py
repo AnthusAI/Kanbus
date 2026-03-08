@@ -80,7 +80,7 @@ def when_update_last_issue_title(context: object, title: str) -> None:
 @when('I update the last issue description to "{description}"')
 def when_update_last_issue_description(context: object, description: str) -> None:
     identifier = _last_issue_id(context)
-    run_cli(context, f"kanbus update {identifier} --description \"{description}\"")
+    run_cli(context, f'kanbus update {identifier} --description "{description}"')
 
 
 @when("I localize the last issue")
@@ -110,13 +110,13 @@ def when_update_last_issue_priority(context: object, priority: str) -> None:
 @when('I set labels on the last issue to "{labels}"')
 def when_set_labels_last_issue(context: object, labels: str) -> None:
     identifier = _last_issue_id(context)
-    run_cli(context, f"kanbus update {identifier} --set-labels \"{labels}\"")
+    run_cli(context, f'kanbus update {identifier} --set-labels "{labels}"')
 
 
 @when('I add a comment to the last issue with text "{text}"')
 def when_add_comment_last_issue(context: object, text: str) -> None:
     identifier = _last_issue_id(context)
-    run_cli(context, f"kanbus comment {identifier} \"{text}\"")
+    run_cli(context, f'kanbus comment {identifier} "{text}"')
     _capture_last_comment(context)
 
 
@@ -219,7 +219,9 @@ def then_event_log_field_update(
     assert found, f"expected field update for {field}"
 
 
-@then("the event log for the last issue should include a priority update from {from_value} to {to_value}")
+@then(
+    "the event log for the last issue should include a priority update from {from_value} to {to_value}"
+)
 def then_event_log_priority_update(
     context: object, from_value: str, to_value: str
 ) -> None:
