@@ -91,6 +91,8 @@ function StaticIntroFrame({
   allowRightOverflow = false,
   allowPictogramOverflow = false,
   showDebugGuides,
+  frame,
+  fps,
 }: {
   headline: string;
   subhead: string;
@@ -102,6 +104,8 @@ function StaticIntroFrame({
   allowRightOverflow?: boolean;
   allowPictogramOverflow?: boolean;
   showDebugGuides: boolean;
+  frame: number;
+  fps: number;
 }) {
   return (
     <VideoFeatureFrame
@@ -118,7 +122,8 @@ function StaticIntroFrame({
           scale={scale}
           innerPadding={0}
           allowOverflow={allowPictogramOverflow}
-          style={{ width: "100%", height: "100%" }}
+          frame={frame}
+          fps={fps}
         />
       }
     />
@@ -129,10 +134,14 @@ function FeatureSlide({
   feature,
   translateX,
   showDebugGuides,
+  frame,
+  fps,
 }: {
   feature: FeatureSpotlight;
   translateX: number;
   showDebugGuides: boolean;
+  frame: number;
+  fps: number;
 }) {
   return (
     <div
@@ -151,9 +160,10 @@ function FeatureSlide({
         rightPanel={
           <AnimatedPictogramVideo
             type={feature.type}
-            scale={1.3}
+            scale={1.17}
             innerPadding={0}
-            style={{ width: "100%", height: "100%" }}
+            frame={frame}
+            fps={fps}
           />
         }
       />
@@ -195,11 +205,13 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
             subhead="Accessible board + CLI from plain files."
             bodyPrimary="Kanbus gives your team and agents one shared workflow: a live board backed by repository-native issue files."
             type="kanban-home"
-            scale={1.13}
+            scale={1.017}
             leftRatio={0.24}
             allowRightOverflow={true}
             allowPictogramOverflow={true}
             showDebugGuides={showDebugGuides}
+            frame={frame}
+            fps={fps}
           />
         </div>
         <div style={{ position: "absolute", inset: 0, transform: `translateX(${secondX}%)` }}>
@@ -208,12 +220,14 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
             subhead="Use Git as the bus for kanban boards."
             bodyPrimary="Board updates become normal file changes, so review, history, branching, and collaboration stay native to your existing engineering workflow."
             type="git-sync-home"
-            scale={1.2}
+            scale={1.08}
             leftRatio={0.34}
             framePadding="0px 28px"
             allowRightOverflow={true}
             allowPictogramOverflow={true}
             showDebugGuides={showDebugGuides}
+            frame={frame}
+            fps={fps}
           />
         </div>
       </div>
@@ -227,8 +241,10 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
         subhead="Install quickly and run the workflow today."
         bodyPrimary="Visit kanb.us for docs, setup guides, and the complete feature walkthrough."
         type="cli"
-        scale={1.22}
+        scale={1.098}
         showDebugGuides={showDebugGuides}
+        frame={frame}
+        fps={fps}
       />
     );
   }
@@ -266,12 +282,16 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
         feature={currentFeature}
         translateX={currentX}
         showDebugGuides={showDebugGuides}
+        frame={frame}
+        fps={fps}
       />
       {nextFeature ? (
         <FeatureSlide
           feature={nextFeature}
           translateX={nextX}
           showDebugGuides={showDebugGuides}
+          frame={frame}
+          fps={fps}
         />
       ) : null}
     </div>

@@ -1,7 +1,7 @@
 <vml id="realtime-collaboration" title="Realtime Collaboration" fps="24" width="1920" height="1080" poster="2s">
   <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
 
-  <scene id="hook" title="Realtime Collaboration" duration="8s">
+  <scene id="hook" title="Realtime Collaboration">
     <layer id="background" z="-1">
       <background props='{"color":"var(--background)"}' />
     </layer>
@@ -15,7 +15,7 @@
 
   <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
-  <scene id="deep_dive" title="Realtime Collaboration Deep Dive" duration="62s">
+  <scene id="deep_dive" title="Realtime Collaboration Deep Dive">
     <layer id="background" z="-1">
       <background props='{"color":"var(--background)"}' />
     </layer>

@@ -14,7 +14,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "#0f1115",
+                "color": "var(--background)",
                 "sceneStartSec": 0
               }
             }
@@ -29,43 +29,8 @@
               "type": "AnimatedPictogramVideo",
               "props": {
                 "type": "jira",
-                "sceneStartSec": 0
-              }
-            }
-          ]
-        },
-        {
-          "id": "title",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "text-block-0",
-              "type": "TextBlock",
-              "props": {
-                "text": "Jira Sync",
-                "x": 960,
-                "y": 120,
-                "size": 64,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 1200,
-                "font": "sans",
-                "sceneStartSec": 0
-              }
-            },
-            {
-              "id": "text-block-1",
-              "type": "TextBlock",
-              "props": {
-                "text": "Pull Jira issues directly into your repository",
-                "x": 960,
-                "y": 200,
-                "size": 36,
-                "weight": 400,
-                "align": "center",
-                "maxWidth": 1200,
-                "font": "serif",
-                "color": "var(--text-muted)",
+                "headline": "Jira Sync",
+                "subhead": "Pull Jira issues directly into your repository",
                 "sceneStartSec": 0
               }
             }
@@ -78,7 +43,7 @@
       "id": "deep_dive",
       "title": "Jira Sync Deep Dive",
       "startSec": 5.625,
-      "endSec": 41.625,
+      "endSec": 38.1,
       "layers": [
         {
           "id": "background",
@@ -88,7 +53,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "#0f1115",
+                "color": "var(--background)",
                 "sceneStartSec": 5
               }
             }
@@ -224,13 +189,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 13.0375,
+          "endSec": 13.0125,
           "text": "Pull Jira issues into your repository so coding agents always have full context. No API calls, no MCP tools, just files.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 13.0375,
+              "endSec": 13.0125,
               "text": "Pull Jira issues into your repository so coding agents always have full context. No API calls, no MCP tools, just files."
             }
           ],
@@ -239,20 +204,20 @@
         {
           "id": "sync",
           "label": "Sync",
-          "startSec": 13.0375,
-          "endSec": 22.075,
+          "startSec": 13.0125,
+          "endSec": 22.0625,
           "text": "Run a single command to sync your entire project. Kanbus fetches every issue and translates types, statuses, and priorities automatically.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 13.0375,
-              "endSec": 13.5375,
+              "startSec": 13.0125,
+              "endSec": 13.5125,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 13.5375,
-              "endSec": 22.075,
+              "startSec": 13.5125,
+              "endSec": 22.0625,
               "text": "Run a single command to sync your entire project. Kanbus fetches every issue and translates types, statuses, and priorities automatically."
             }
           ],
@@ -261,19 +226,19 @@
         {
           "id": "idempotent",
           "label": "Idempotent",
-          "startSec": 22.075,
+          "startSec": 22.0625,
           "endSec": 29.45,
           "text": "Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 22.075,
-              "endSec": 22.575,
+              "startSec": 22.0625,
+              "endSec": 22.5625,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 22.575,
+              "startSec": 22.5625,
               "endSec": 29.45,
               "text": "Safe to re-run anytime. Existing issues are updated in place, keeping the local Kanbus IDs stable across syncs."
             }
@@ -284,7 +249,7 @@
           "id": "agents",
           "label": "Agents",
           "startSec": 29.45,
-          "endSec": 38.125,
+          "endSec": 38.1,
           "text": "Any agent that can read your source code can now read your Jira issues. The context travels with your branch and survives offline.",
           "segments": [
             {
@@ -296,7 +261,7 @@
             {
               "type": "tts",
               "startSec": 29.95,
-              "endSec": 38.125,
+              "endSec": 38.1,
               "text": "Any agent that can read your source code can now read your Jira issues. The context travels with your branch and survives offline."
             }
           ],
@@ -330,7 +295,7 @@
       "kind": "scene",
       "sceneId": "deep_dive",
       "startSec": 5.625,
-      "endSec": 41.625
+      "endSec": 38.1
     }
   ],
   "posterTimeSec": 2,

@@ -5,16 +5,16 @@
       "sceneId": "deep_dive",
       "cueId": "intro",
       "startSec": 5.625,
-      "endSec": 11.5875,
+      "endSec": 11.5625,
       "segments": [
         {
           "type": "tts",
           "startSec": 5.625,
-          "endSec": 11.5875,
+          "endSec": 11.5625,
           "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/vscode-plugin/env/development/segments/deep_dive--intro--tts--16618407283d--1.wav",
-          "durationSec": 5.9625,
-          "rawDurationSec": 5.9625,
+          "durationSec": 5.9375,
+          "rawDurationSec": 5.9375,
           "trimEndSec": 0
         }
       ]
@@ -23,23 +23,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "workflow",
-      "startSec": 11.5875,
-      "endSec": 19.2875,
+      "startSec": 11.5625,
+      "endSec": 19.2125,
       "segments": [
         {
           "type": "pause",
-          "startSec": 11.5875,
-          "endSec": 12.0875,
+          "startSec": 11.5625,
+          "endSec": 12.0625,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 12.0875,
-          "endSec": 19.2875,
+          "startSec": 12.0625,
+          "endSec": 19.2125,
           "text": "Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/vscode-plugin/env/development/segments/deep_dive--workflow--tts--e9c92a4c2d7e--1.wav",
-          "durationSec": 7.2,
-          "rawDurationSec": 7.2,
+          "durationSec": 7.15,
+          "rawDurationSec": 7.15,
           "trimEndSec": 0
         }
       ]
@@ -48,23 +48,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "access",
-      "startSec": 19.2875,
-      "endSec": 28.0375,
+      "startSec": 19.2125,
+      "endSec": 28.025,
       "segments": [
         {
           "type": "pause",
-          "startSec": 19.2875,
-          "endSec": 19.7875,
+          "startSec": 19.2125,
+          "endSec": 19.7125,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 19.7875,
-          "endSec": 28.0375,
+          "startSec": 19.7125,
+          "endSec": 28.025,
           "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/vscode-plugin/env/development/segments/deep_dive--access--tts--cff241d87aca--1.wav",
-          "durationSec": 8.25,
-          "rawDurationSec": 8.25,
+          "durationSec": 8.3125,
+          "rawDurationSec": 8.3125,
           "trimEndSec": 0
         }
       ]
@@ -73,23 +73,23 @@
       "type": "tts",
       "sceneId": "deep_dive",
       "cueId": "install",
-      "startSec": 28.0375,
-      "endSec": 34.6625,
+      "startSec": 28.025,
+      "endSec": 34.375,
       "segments": [
         {
           "type": "pause",
-          "startSec": 28.0375,
-          "endSec": 28.5375,
+          "startSec": 28.025,
+          "endSec": 28.525,
           "seconds": 0.5
         },
         {
           "type": "tts",
-          "startSec": 28.5375,
-          "endSec": 34.6625,
+          "startSec": 28.525,
+          "endSec": 34.375,
           "text": "The Kanbus extension is open source and available for free. Install it from the Marketplace today.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/vscode-plugin/env/development/segments/deep_dive--install--tts--5b8a1cf66883--1.wav",
-          "durationSec": 6.125,
-          "rawDurationSec": 6.125,
+          "durationSec": 5.85,
+          "rawDurationSec": 5.85,
           "trimEndSec": 0
         }
       ]
@@ -105,31 +105,31 @@
             "id": "deep_dive--intro--tts--16618407283d--1",
             "kind": "file",
             "startSec": 5.625,
-            "durationSec": 5.9625,
+            "durationSec": 5.9375,
             "src": "/videoml/vscode-plugin/env/development/segments/deep_dive--intro--tts--16618407283d--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--workflow--tts--e9c92a4c2d7e--1",
             "kind": "file",
-            "startSec": 12.0875,
-            "durationSec": 7.2,
+            "startSec": 12.0625,
+            "durationSec": 7.15,
             "src": "/videoml/vscode-plugin/env/development/segments/deep_dive--workflow--tts--e9c92a4c2d7e--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--access--tts--cff241d87aca--1",
             "kind": "file",
-            "startSec": 19.7875,
-            "durationSec": 8.25,
+            "startSec": 19.7125,
+            "durationSec": 8.3125,
             "src": "/videoml/vscode-plugin/env/development/segments/deep_dive--access--tts--cff241d87aca--1.wav",
             "volume": 1
           },
           {
             "id": "deep_dive--install--tts--5b8a1cf66883--1",
             "kind": "file",
-            "startSec": 28.5375,
-            "durationSec": 6.125,
+            "startSec": 28.525,
+            "durationSec": 5.85,
             "src": "/videoml/vscode-plugin/env/development/segments/deep_dive--install--tts--5b8a1cf66883--1.wav",
             "volume": 1
           }

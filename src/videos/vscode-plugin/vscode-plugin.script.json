@@ -14,7 +14,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "#0f1115",
+                "color": "var(--background)",
                 "sceneStartSec": 0
               }
             }
@@ -29,43 +29,8 @@
               "type": "AnimatedPictogramVideo",
               "props": {
                 "type": "vscode",
-                "sceneStartSec": 0
-              }
-            }
-          ]
-        },
-        {
-          "id": "title",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "text-block-0",
-              "type": "TextBlock",
-              "props": {
-                "text": "VS Code Integration",
-                "x": 960,
-                "y": 120,
-                "size": 64,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 1200,
-                "font": "sans",
-                "sceneStartSec": 0
-              }
-            },
-            {
-              "id": "text-block-1",
-              "type": "TextBlock",
-              "props": {
-                "text": "The full Kanbus experience, embedded in your editor",
-                "x": 960,
-                "y": 200,
-                "size": 36,
-                "weight": 400,
-                "align": "center",
-                "maxWidth": 1200,
-                "font": "serif",
-                "color": "var(--text-muted)",
+                "headline": "VS Code Integration",
+                "subhead": "The full Kanbus experience, embedded in your editor",
                 "sceneStartSec": 0
               }
             }
@@ -78,7 +43,7 @@
       "id": "deep_dive",
       "title": "VS Code Plugin Deep Dive",
       "startSec": 5.625,
-      "endSec": 35.625,
+      "endSec": 34.375,
       "layers": [
         {
           "id": "background",
@@ -88,7 +53,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "#0f1115",
+                "color": "var(--background)",
                 "sceneStartSec": 5
               }
             }
@@ -224,13 +189,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 11.5875,
+          "endSec": 11.5625,
           "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 11.5875,
+              "endSec": 11.5625,
               "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab."
             }
           ],
@@ -239,20 +204,20 @@
         {
           "id": "workflow",
           "label": "Workflow",
-          "startSec": 11.5875,
-          "endSec": 19.2875,
+          "startSec": 11.5625,
+          "endSec": 19.2125,
           "text": "Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 11.5875,
-              "endSec": 12.0875,
+              "startSec": 11.5625,
+              "endSec": 12.0625,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 12.0875,
-              "endSec": 19.2875,
+              "startSec": 12.0625,
+              "endSec": 19.2125,
               "text": "Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching."
             }
           ],
@@ -261,20 +226,20 @@
         {
           "id": "access",
           "label": "Access",
-          "startSec": 19.2875,
-          "endSec": 28.0375,
+          "startSec": 19.2125,
+          "endSec": 28.025,
           "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 19.2875,
-              "endSec": 19.7875,
+              "startSec": 19.2125,
+              "endSec": 19.7125,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 19.7875,
-              "endSec": 28.0375,
+              "startSec": 19.7125,
+              "endSec": 28.025,
               "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details."
             }
           ],
@@ -283,20 +248,20 @@
         {
           "id": "install",
           "label": "Install",
-          "startSec": 28.0375,
-          "endSec": 34.6625,
+          "startSec": 28.025,
+          "endSec": 34.375,
           "text": "The Kanbus extension is open source and available for free. Install it from the Marketplace today.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 28.0375,
-              "endSec": 28.5375,
+              "startSec": 28.025,
+              "endSec": 28.525,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 28.5375,
-              "endSec": 34.6625,
+              "startSec": 28.525,
+              "endSec": 34.375,
               "text": "The Kanbus extension is open source and available for free. Install it from the Marketplace today."
             }
           ],
@@ -330,7 +295,7 @@
       "kind": "scene",
       "sceneId": "deep_dive",
       "startSec": 5.625,
-      "endSec": 35.625
+      "endSec": 34.375
     }
   ],
   "posterTimeSec": 2,
