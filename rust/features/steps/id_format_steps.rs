@@ -332,5 +332,5 @@ fn when_delete_recorded_kanbus_issue(world: &mut KanbusWorld) {
         .last_kanbus_issue_id
         .as_ref()
         .expect("no Kanbus issue id recorded");
-    run_cli(world, &format!("kanbus delete {}", identifier));
+    run_cli(world, &format!("kanbus delete {} --yes", identifier));
 }

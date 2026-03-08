@@ -332,6 +332,13 @@ def when_run_command_non_interactively_no_quotes(context: object, command: str) 
     run_cli(context, command_text)
 
 
+@when(r'I run "(?P<command>.+)" non-interactively')
+def when_run_command_non_interactively_quoted(context: object, command: str) -> None:
+    if _maybe_handle_virtual_project_command(context, command, None):
+        return
+    run_cli(context, command)
+
+
 @when(r"I run (?P<command>[^\"].+)")
 def when_run_command_no_quotes(context: object, command: str) -> None:
     command_text = _normalize_step_text(command)

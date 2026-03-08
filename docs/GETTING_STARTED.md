@@ -103,7 +103,9 @@ kbs setup agents
 # or: kanbus setup agents
 ```
 
-This updates `AGENTS.md`, refreshes `CONTRIBUTING_AGENT.md`, and re-writes the guard files under `project/`.
+This updates `AGENTS.md`, refreshes `CONTRIBUTING_AGENT.md`, and re-writes the guard files under `project/issues/` and `project/events/`. The agent may edit `project/wiki/` directly; it must not edit `project/issues/` or `project/events/` directly (use Kanbus commands instead).
+
+If you have an existing repo with a `.cursorignore` that lists `project/`, change it to `project/issues/` and `project/events/` so the agent can edit the wiki.
 
 ## Beads compatibility mode
 

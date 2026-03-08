@@ -1,5 +1,6 @@
 //! CLI command definitions.
 
+use std::env;
 use std::ffi::OsString;
 use std::io::IsTerminal;
 use std::io::Write;
@@ -218,6 +219,12 @@ enum Commands {
     Delete {
         /// Issue identifier.
         identifier: String,
+        /// Skip confirmation prompts.
+        #[arg(long)]
+        yes: bool,
+        /// Also delete descendants after confirmation.
+        #[arg(long)]
+        recursive: bool,
     },
     /// Add a comment to an issue.
     Comment {
@@ -948,6 +955,14 @@ fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), Ka
     Ok(())
 }
 
+/// Returns true when delete may show prompts: TTY or KANBUS_FORCE_INTERACTIVE=1.
+fn delete_terminal_is_interactive() -> bool {
+    if env::var("KANBUS_FORCE_INTERACTIVE").ok().as_deref() == Some("1") {
+        return true;
+    }
+    std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
+}
+
 fn deprecated_console_control_error(command: &str) -> KanbusError {
     KanbusError::IssueOperation(format!(
         "`kbs console {command}` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
@@ -1567,7 +1582,11 @@ fn execute_command(
             let formatted_identifier = format_issue_key(&identifier, false);
             Ok(Some(format!("Closed {}", formatted_identifier)))
         }
-        Commands::Delete { identifier } => {
+        Commands::Delete {
+            identifier,
+            yes: yes_flag,
+            recursive,
+        } => {
             let issue_for_guidance = if beads_mode {
                 None
             } else {
@@ -1576,9 +1595,107 @@ fn execute_command(
                     .map(|lookup| lookup.issue)
             };
             if beads_mode {
-                delete_beads_issue(&root_for_beads, &identifier)?;
+                if !yes_flag {
+                    if !delete_terminal_is_interactive() {
+                        return Err(KanbusError::IssueOperation(
+                            "delete requires confirmation (re-run with --yes)".to_string(),
+                        ));
+                    }
+                    eprint!("Delete \"{}\" and its event history? [y/N] ", identifier);
+                    use std::io::Write;
+                    std::io::stderr().flush().ok();
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input).ok();
+                    let reply = input.trim().to_ascii_lowercase();
+                    if reply != "y" && reply != "yes" {
+                        return Ok(Some("Delete cancelled.".to_string()));
+                    }
+                }
+                let mut beads_recursive = recursive;
+                if recursive && !yes_flag {
+                    let beads_descendants = crate::beads_write::get_beads_descendant_identifiers(
+                        &root_for_beads,
+                        &identifier,
+                    )?;
+                    if !beads_descendants.is_empty() {
+                        let formatted: String = if beads_descendants.len() > 5 {
+                            format!(
+                                "{} and {} more",
+                                beads_descendants[..5].join(", "),
+                                beads_descendants.len() - 5
+                            )
+                        } else {
+                            beads_descendants.join(", ")
+                        };
+                        eprint!(
+                            "Also delete {} descendant(s): {}? [y/N] ",
+                            beads_descendants.len(),
+                            formatted
+                        );
+                        std::io::stderr().flush().ok();
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input).ok();
+                        let reply = input.trim().to_ascii_lowercase();
+                        if reply != "y" && reply != "yes" {
+                            beads_recursive = false;
+                        }
+                    }
+                }
+                delete_beads_issue(&root_for_beads, &identifier, beads_recursive)?;
+                let formatted_identifier = format_issue_key(&identifier, false);
+                return Ok(Some(format!("Deleted {}", formatted_identifier)));
+            }
+            if !yes_flag {
+                if !delete_terminal_is_interactive() {
+                    return Err(KanbusError::IssueOperation(
+                        "delete requires confirmation (re-run with --yes)".to_string(),
+                    ));
+                }
+                eprint!("Delete \"{}\" and its event history? [y/N] ", identifier);
+                use std::io::Write;
+                std::io::stderr().flush().ok();
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).ok();
+                let reply = input.trim().to_ascii_lowercase();
+                if reply != "y" && reply != "yes" {
+                    return Ok(Some("Delete cancelled.".to_string()));
+                }
+            }
+            let lookup = load_issue_from_project(root, &identifier)?;
+            let mut descendants = if recursive {
+                crate::issue_delete::get_descendant_identifiers(&lookup.project_dir, &identifier)?
             } else {
-                delete_issue(root, &identifier)?;
+                vec![]
+            };
+            if !descendants.is_empty() && !yes_flag && delete_terminal_is_interactive() {
+                let formatted: String = if descendants.len() > 5 {
+                    format!(
+                        "{} and {} more",
+                        descendants[..5].join(", "),
+                        descendants.len() - 5
+                    )
+                } else {
+                    descendants.join(", ")
+                };
+                eprint!(
+                    "Also delete {} descendant(s): {}? [y/N] ",
+                    descendants.len(),
+                    formatted
+                );
+                std::io::stderr().flush().ok();
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).ok();
+                let reply = input.trim().to_ascii_lowercase();
+                if reply != "y" && reply != "yes" {
+                    descendants.clear();
+                }
+            }
+            descendants.push(identifier.clone());
+            let mut deleted_lines = Vec::new();
+            for issue_id in &descendants {
+                delete_issue(root, issue_id)?;
+                let formatted_identifier = format_issue_key(issue_id, false);
+                deleted_lines.push(format!("Deleted {}", formatted_identifier));
             }
             if let Some(issue) = issue_for_guidance {
                 crate::policy_guidance::emit_guidance_for_issues(
@@ -1588,8 +1705,7 @@ fn execute_command(
                     no_guidance,
                 );
             }
-            let formatted_identifier = format_issue_key(&identifier, false);
-            Ok(Some(format!("Deleted {}", formatted_identifier)))
+            Ok(Some(deleted_lines.join("\n")))
         }
         Commands::Comment {
             command,

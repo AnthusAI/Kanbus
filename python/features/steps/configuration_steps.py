@@ -18,7 +18,7 @@ from features.steps.shared import ensure_git_repository, initialize_default_proj
 
 
 def _track_env_restore(context: object, name: str) -> None:
-    tracked = getattr(context, "_tracked_env_vars", None)
+    tracked = context.__dict__.get("_tracked_env_vars")
     if tracked is None:
         tracked = set()
         context._tracked_env_vars = tracked

@@ -6,7 +6,7 @@ Feature: Delete flow interoperability
   Scenario: Delete via Beads mode removes from Kanbus list
     Given a Kanbus project with beads compatibility enabled
     And a kanbus issue "bdx-test" exists
-    When I run "kanbus --beads delete bdx-test"
+    When I run "kanbus --beads delete bdx-test --yes"
     Then the command should succeed
     And beads issues.jsonl should not contain "bdx-test"
     When I run "kanbus list"
@@ -15,7 +15,7 @@ Feature: Delete flow interoperability
   Scenario: Delete via Kanbus removes from Beads mode list
     Given a Kanbus project with beads compatibility enabled
     And a kanbus issue "bdx-test" exists
-    When I run "kanbus delete bdx-test"
+    When I run "kanbus delete bdx-test --yes"
     Then the command should succeed
     When I run "kanbus --beads list"
     Then stdout should not contain "bdx-test"
@@ -23,14 +23,14 @@ Feature: Delete flow interoperability
   Scenario: Beads mode delete fails for Kanbus-only issue
     Given a Kanbus project with beads compatibility enabled
     And a kanbus-only issue "tsk-only" exists
-    When I run "kanbus --beads delete tsk-only"
+    When I run "kanbus --beads delete tsk-only --yes"
     Then the command should fail with exit code 1
     And stderr should contain "not found"
 
   Scenario: Kanbus delete removes Beads issue
     Given a Kanbus project with beads compatibility enabled
     And a beads issue "bdx-old" exists
-    When I run "kanbus delete bdx-old"
+    When I run "kanbus delete bdx-old --yes"
     Then the command should succeed
     And beads issues.jsonl should not contain "bdx-old"
 
@@ -38,7 +38,7 @@ Feature: Delete flow interoperability
     Given a Kanbus project with beads compatibility enabled
     And a beads issue "bdx-parent" exists
     And a beads issue "bdx-parent.1" exists with parent "bdx-parent"
-    When I run "kanbus --beads delete bdx-parent"
+    When I run "kanbus --beads delete bdx-parent --yes"
     Then the command should succeed
     And beads issues.jsonl should not contain "bdx-parent"
     And beads issues.jsonl should contain "bdx-parent.1"
@@ -47,7 +47,7 @@ Feature: Delete flow interoperability
     Given a Kanbus project with beads compatibility enabled
     And a beads issue "bdx-parent" exists
     And a beads issue "bdx-parent.1" exists with parent "bdx-parent"
-    When I run "kanbus delete bdx-parent"
+    When I run "kanbus delete bdx-parent --yes"
     Then the command should succeed
     When I run "kanbus --beads list"
     Then stdout should not list issue "bdx-parent"

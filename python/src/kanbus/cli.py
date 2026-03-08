@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -22,12 +23,17 @@ from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
 from kanbus.issue_creation import IssueCreationError, create_issue
 from kanbus.issue_close import IssueCloseError, close_issue
 from kanbus.issue_comment import IssueCommentError, add_comment
-from kanbus.issue_delete import IssueDeleteError, delete_issue
+from kanbus.issue_delete import (
+    IssueDeleteError,
+    delete_issue,
+    get_descendant_identifiers,
+)
 from kanbus.beads_write import (
     BeadsDeleteError,
     BeadsWriteError,
     create_beads_issue,
     delete_beads_issue,
+    get_beads_descendant_identifiers,
     update_beads_issue,
 )
 from kanbus.issue_display import format_issue_for_display
@@ -163,6 +169,17 @@ def _should_check_project_structure(context: click.Context) -> bool:
     if context.invoked_subcommand is None:
         return False
     return context.invoked_subcommand not in {"init", "setup", "repair"}
+
+
+def _delete_terminal_is_interactive() -> bool:
+    if os.getenv("KANBUS_FORCE_INTERACTIVE") == "1":
+        return True
+    return bool(
+        getattr(sys.stdin, "isatty", None)
+        and sys.stdin.isatty()
+        and getattr(sys.stdout, "isatty", None)
+        and sys.stdout.isatty()
+    )
 
 
 def _maybe_prompt_project_repair(context: click.Context) -> None:
@@ -866,25 +883,36 @@ def move(
 
 @cli.command("delete")
 @click.argument("identifier")
+@click.option("--yes", "yes_flag", is_flag=True, default=False)
+@click.option("--recursive", is_flag=True, default=False)
 @click.pass_context
-def delete(context: click.Context, identifier: str) -> None:
-    """Delete an issue.
+def delete(
+    context: click.Context, identifier: str, yes_flag: bool, recursive: bool
+) -> None:
+    """Delete an issue and its event history.
 
+    Prompts for confirmation unless --yes is given. With --recursive, also
+    prompts to delete descendant issues.
+
+    :param context: Click context.
+    :type context: click.Context
     :param identifier: Issue identifier.
     :type identifier: str
+    :param yes_flag: Skip confirmation prompts.
+    :type yes_flag: bool
+    :param recursive: Allow deleting descendants after confirmation.
+    :type recursive: bool
     """
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode"))
     issue_for_guidance: IssueData | None = None
 
-    # Check if beads_compatibility is enabled in config
     if not beads_mode:
         try:
             config = load_project_configuration(get_configuration_path(root))
             if config.beads_compatibility:
                 beads_mode = True
         except (ConfigurationError, ProjectMarkerError):
-            # Treat unreadable/missing project config as standard Kanbus mode.
             pass
 
     if not beads_mode:
@@ -896,17 +924,79 @@ def delete(context: click.Context, identifier: str) -> None:
 
     if beads_mode:
         root = _resolve_beads_root(root)
+        if not yes_flag:
+            if not _delete_terminal_is_interactive():
+                raise click.ClickException(
+                    "delete requires confirmation (re-run with --yes)"
+                )
+            if not click.confirm(
+                f'Delete "{identifier}" and its event history?', default=False
+            ):
+                click.echo("Delete cancelled.")
+                return
+        beads_recursive = recursive
+        if recursive and not yes_flag:
+            beads_descendants = get_beads_descendant_identifiers(root, identifier)
+            if beads_descendants:
+                formatted_desc = ", ".join(beads_descendants)
+                if len(beads_descendants) > 5:
+                    formatted_desc = (
+                        ", ".join(beads_descendants[:5])
+                        + f" and {len(beads_descendants) - 5} more"
+                    )
+                if not click.confirm(
+                    f"Also delete {len(beads_descendants)} descendant(s): {formatted_desc}?",
+                    default=False,
+                ):
+                    beads_recursive = False
         try:
-            delete_beads_issue(root, identifier)
+            delete_beads_issue(root, identifier, recursive=beads_recursive)
         except BeadsDeleteError as error:
             raise click.ClickException(str(error)) from error
-    else:
+        formatted_identifier = format_issue_key(identifier, project_context=False)
+        click.echo(f"Deleted {formatted_identifier}")
+        return
+
+    if not yes_flag:
+        if not _delete_terminal_is_interactive():
+            raise click.ClickException(
+                "delete requires confirmation (re-run with --yes)"
+            )
+        if not click.confirm(
+            f'Delete "{identifier}" and its event history?', default=False
+        ):
+            click.echo("Delete cancelled.")
+            return
+
+    try:
+        lookup = load_issue_from_project(root, identifier)
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+
+    descendants: list[str] = []
+    if recursive:
+        descendants = get_descendant_identifiers(lookup.project_dir, identifier)
+    if descendants and not yes_flag:
+        formatted_desc = ", ".join(descendants)
+        if len(descendants) > 5:
+            formatted_desc = (
+                ", ".join(descendants[:5]) + f" and {len(descendants) - 5} more"
+            )
+        if not click.confirm(
+            f"Also delete {len(descendants)} descendant(s): {formatted_desc}?",
+            default=False,
+        ):
+            descendants = []
+
+    to_delete = descendants + [identifier]
+    for issue_id in to_delete:
         try:
-            delete_issue(root, identifier)
+            delete_issue(root, issue_id)
         except IssueDeleteError as error:
             raise click.ClickException(str(error)) from error
-    formatted_identifier = format_issue_key(identifier, project_context=False)
-    click.echo(f"Deleted {formatted_identifier}")
+        formatted_identifier = format_issue_key(issue_id, project_context=False)
+        click.echo(f"Deleted {formatted_identifier}")
+
     if issue_for_guidance is not None:
         _emit_policy_guidance(context, [issue_for_guidance], "delete")
 

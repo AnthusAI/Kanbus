@@ -33,10 +33,11 @@ Diagrams must use fenced code blocks with the appropriate language identifier:
 ```d2
 
 Direct file system access is strictly forbidden:
-- Do not edit the project/ directory directly
+- Do not edit project/issues/ or project/events/ directly; use Kanbus for issues and events
+- You may edit project/wiki/ (e.g. Markdown) directly
 - Do not read issue JSON with tools like cat, jq, or grep
-- Do not inspect the file system structure
-- All work must pass through the kbs command
+- Do not inspect the file system structure for issues or events
+- All work on issues and events must pass through the kbs command
 
 ## Running Kanbus (Do This Exactly)
 

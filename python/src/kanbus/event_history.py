@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Set
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -111,6 +112,25 @@ def write_events_batch(events_dir: Path, events: Iterable[EventRecord]) -> List[
 def rollback_event_files(paths: Iterable[Path]) -> None:
     for path in paths:
         path.unlink(missing_ok=True)
+
+
+def delete_events_for_issues(events_dir: Path, issue_ids: Set[str]) -> None:
+    """Remove all event files whose issue_id is in issue_ids.
+
+    :param events_dir: Directory containing event JSON files.
+    :type events_dir: Path
+    :param issue_ids: Set of issue identifiers whose events should be removed.
+    :type issue_ids: Set[str]
+    """
+    if not events_dir.is_dir() or not issue_ids:
+        return
+    for path in events_dir.glob("*.json"):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if payload.get("issue_id") in issue_ids:
+            path.unlink(missing_ok=True)
 
 
 def issue_created_payload(issue: IssueData) -> Dict[str, Any]:
