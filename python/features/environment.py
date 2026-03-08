@@ -46,7 +46,6 @@ def before_all(context: object) -> None:
     try:
         _run_coverage_helper()
     except Exception:
-        # Coverage helper failures should not block the suite.
         return
 
 

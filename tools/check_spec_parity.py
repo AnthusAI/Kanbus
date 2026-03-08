@@ -114,8 +114,6 @@ def _iter_feature_steps(feature_path: Path) -> Iterable[str]:
             skip_scenario = (
                 "wip" in current_feature_tags
                 or "wip" in current_scenario_tags
-                or "console" in current_feature_tags
-                or "console" in current_scenario_tags
             )
             current_scenario_tags = set()
             continue

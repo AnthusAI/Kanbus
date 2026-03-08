@@ -121,7 +121,12 @@ pub fn create_beads_issue(
         custom: std::collections::BTreeMap::new(),
     };
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(issue);
+        }
+    };
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
@@ -268,7 +273,12 @@ pub fn add_beads_comment(
     }
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let comment_id = created_comment_id
         .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
     let comment_author = comment_author.unwrap_or_default();
@@ -369,7 +379,12 @@ pub fn update_beads_comment(
     }
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let comment_id = updated_comment_id
         .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
     let comment_author = updated_comment_author.unwrap_or_default();
@@ -469,7 +484,12 @@ pub fn delete_beads_comment(
     }
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let comment_id = deleted_comment_id
         .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
     let comment_author = deleted_comment_author.unwrap_or_default();
@@ -585,7 +605,12 @@ pub fn add_beads_dependency(
 
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
@@ -661,7 +686,12 @@ pub fn remove_beads_dependency(
 
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
@@ -851,7 +881,12 @@ pub fn update_beads_issue(
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let events = build_update_events(&before_issue, &updated_issue, &actor_id, &occurred_at);
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(updated_issue);
+        }
+    };
     let events_dir = events_dir_for_project(&project_dir);
     match write_events_batch(&events_dir, &events) {
         Ok(_paths) => {}
@@ -1029,7 +1064,12 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
     }
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(

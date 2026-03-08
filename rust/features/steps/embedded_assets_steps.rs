@@ -166,6 +166,57 @@ async fn given_kanbus_console_binary_with_embedded_assets(world: &mut KanbusWorl
         .unwrap_or_else(|_| console_dir.join("dist"));
 
     if !(prebuilt_dist.join("index.html").exists()) {
+        // Ensure the local UI package is built so Vite can resolve it.
+        let ui_dir = world
+            .working_directory
+            .as_ref()
+            .unwrap()
+            .join("packages")
+            .join("ui");
+        if ui_dir.exists() {
+            let ui_dist = ui_dir.join("dist").join("index.js");
+            if !ui_dist.exists() {
+                let ui_install = Command::new("npm")
+                    .args(&["install"])
+                    .current_dir(&ui_dir)
+                    .output()
+                    .expect("Failed to install UI dependencies");
+                if !ui_install.status.success() {
+                    panic!(
+                        "UI dependency install failed: {}",
+                        String::from_utf8_lossy(&ui_install.stderr)
+                    );
+                }
+                let ui_build = Command::new("npm")
+                    .args(&["run", "build"])
+                    .current_dir(&ui_dir)
+                    .output()
+                    .expect("Failed to build UI package");
+                if !ui_build.status.success() {
+                    panic!(
+                        "UI build failed: {}",
+                        String::from_utf8_lossy(&ui_build.stderr)
+                    );
+                }
+            }
+        }
+        let vite_bin = console_dir
+            .join("node_modules")
+            .join(".bin")
+            .join(if cfg!(windows) { "vite.cmd" } else { "vite" });
+        if !vite_bin.exists() {
+            let install = Command::new("npm")
+                .args(&["install"])
+                .current_dir(&console_dir)
+                .output()
+                .expect("Failed to install frontend dependencies");
+            if !install.status.success() {
+                panic!(
+                    "Frontend dependency install failed: {}",
+                    String::from_utf8_lossy(&install.stderr)
+                );
+            }
+        }
         let output = Command::new("npm")
             .args(&["run", "build"])
             .current_dir(&console_dir)

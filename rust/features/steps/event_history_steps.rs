@@ -87,6 +87,26 @@ fn parse_issue_identifier(world: &KanbusWorld) -> String {
             return identifier;
         }
     }
+    if let Some(parent) = project_dir.parent() {
+        let local_issues = parent.join("project-local").join("issues");
+        if local_issues.exists() {
+            let entries = fs::read_dir(local_issues).expect("read local issues dir");
+            for entry in entries {
+                let path = entry.expect("issue entry").path();
+                if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                    continue;
+                }
+                let identifier = path
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .unwrap_or_default()
+                    .to_string();
+                if matches_abbreviation(&identifier, &abbrev_base, abbrev_suffix.as_deref()) {
+                    return identifier;
+                }
+            }
+        }
+    }
     panic!("issue id not found");
 }
 
@@ -132,28 +152,67 @@ fn last_issue_id(world: &KanbusWorld) -> String {
         .expect("last issue id not set")
 }
 
+fn load_issue_record(world: &KanbusWorld, issue_id: &str) -> Value {
+    let project_dir = load_project_dir(world);
+    let issue_path = project_dir.join("issues").join(format!("{issue_id}.json"));
+    let contents = fs::read_to_string(issue_path).expect("read issue file");
+    serde_json::from_str(&contents).expect("parse issue")
+}
+
+fn capture_last_comment(world: &mut KanbusWorld) -> (String, String) {
+    let issue_id = last_issue_id(world);
+    let issue = load_issue_record(world, &issue_id);
+    let comments = issue
+        .get("comments")
+        .and_then(|value| value.as_array())
+        .expect("comments");
+    let comment = comments.last().expect("comment");
+    let comment_id = comment
+        .get("id")
+        .and_then(|value| value.as_str())
+        .expect("comment id")
+        .to_string();
+    let author = comment
+        .get("author")
+        .and_then(|value| value.as_str())
+        .unwrap_or("")
+        .to_string();
+    world.last_comment_id = Some(comment_id.clone());
+    (comment_id, author)
+}
+
 fn load_issue_events(world: &KanbusWorld, issue_id: &str) -> Vec<(String, Value)> {
     let project_dir = load_project_dir(world);
-    let events_dir = project_dir.join("events");
-    if !events_dir.exists() {
-        return Vec::new();
+    let mut events_dirs = vec![project_dir.join("events")];
+    let local_dir = project_dir
+        .parent()
+        .map(|parent| parent.join("project-local").join("events"));
+    if let Some(local_dir) = local_dir {
+        if local_dir.exists() {
+            events_dirs.push(local_dir);
+        }
     }
     let mut events = Vec::new();
-    for entry in fs::read_dir(&events_dir).expect("read events dir") {
-        let entry = entry.expect("event entry");
-        let path = entry.path();
-        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+    for events_dir in events_dirs {
+        if !events_dir.exists() {
             continue;
         }
-        let filename = path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .unwrap_or_default()
-            .to_string();
-        let contents = fs::read_to_string(&path).expect("read event");
-        let record: Value = serde_json::from_str(&contents).expect("parse event");
-        if record.get("issue_id").and_then(|value| value.as_str()) == Some(issue_id) {
-            events.push((filename, record));
+        for entry in fs::read_dir(&events_dir).expect("read events dir") {
+            let entry = entry.expect("event entry");
+            let path = entry.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                continue;
+            }
+            let filename = path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or_default()
+                .to_string();
+            let contents = fs::read_to_string(&path).expect("read event");
+            let record: Value = serde_json::from_str(&contents).expect("parse event");
+            if record.get("issue_id").and_then(|value| value.as_str()) == Some(issue_id) {
+                events.push((filename, record));
+            }
         }
     }
     events
@@ -198,10 +257,85 @@ fn when_update_last_issue_title(world: &mut KanbusWorld, title: String) {
     );
 }
 
+#[when(expr = "I update the last issue description to {string}")]
+fn when_update_last_issue_description(world: &mut KanbusWorld, description: String) {
+    let identifier = last_issue_id(world);
+    run_cli(
+        world,
+        &format!("kanbus update {identifier} --description \"{description}\""),
+    );
+}
+
+#[when("I localize the last issue")]
+fn when_localize_last_issue(world: &mut KanbusWorld) {
+    let identifier = last_issue_id(world);
+    run_cli(world, &format!("kanbus localize {identifier}"));
+}
+
+#[when("I promote the last issue")]
+fn when_promote_last_issue(world: &mut KanbusWorld) {
+    let identifier = last_issue_id(world);
+    run_cli(world, &format!("kanbus promote {identifier}"));
+}
+
+#[when(expr = "I update the last issue assignee to {string}")]
+fn when_update_last_issue_assignee(world: &mut KanbusWorld, assignee: String) {
+    let identifier = last_issue_id(world);
+    run_cli(
+        world,
+        &format!("kanbus update {identifier} --assignee {assignee}"),
+    );
+}
+
+#[when(expr = "I update the last issue priority to {int}")]
+fn when_update_last_issue_priority(world: &mut KanbusWorld, priority: i32) {
+    let identifier = last_issue_id(world);
+    run_cli(
+        world,
+        &format!("kanbus update {identifier} --priority {priority}"),
+    );
+}
+
+#[when(expr = "I set labels on the last issue to {string}")]
+fn when_set_labels_last_issue(world: &mut KanbusWorld, labels: String) {
+    let identifier = last_issue_id(world);
+    run_cli(
+        world,
+        &format!("kanbus update {identifier} --set-labels \"{labels}\""),
+    );
+}
+
 #[when(expr = "I add a comment to the last issue with text {string}")]
 fn when_add_comment_last_issue(world: &mut KanbusWorld, text: String) {
     let identifier = last_issue_id(world);
     run_cli(world, &format!("kanbus comment {identifier} \"{text}\""));
+    let _ = capture_last_comment(world);
+}
+
+#[when(expr = "I update the last issue comment to {string}")]
+fn when_update_last_issue_comment(world: &mut KanbusWorld, text: String) {
+    let identifier = last_issue_id(world);
+    let comment_id = world
+        .last_comment_id
+        .clone()
+        .unwrap_or_else(|| capture_last_comment(world).0);
+    run_cli(
+        world,
+        &format!("kanbus comment update {identifier} {comment_id} \"{text}\""),
+    );
+}
+
+#[when("I delete the last issue comment")]
+fn when_delete_last_issue_comment(world: &mut KanbusWorld) {
+    let identifier = last_issue_id(world);
+    let comment_id = world
+        .last_comment_id
+        .clone()
+        .unwrap_or_else(|| capture_last_comment(world).0);
+    run_cli(
+        world,
+        &format!("kanbus comment delete {identifier} {comment_id}"),
+    );
 }
 
 #[when(expr = "I add a blocked-by dependency from the last issue to {string}")]
@@ -210,6 +344,15 @@ fn when_add_dependency(world: &mut KanbusWorld, target: String) {
     run_cli(
         world,
         &format!("kanbus dep {identifier} blocked-by {target}"),
+    );
+}
+
+#[when(expr = "I remove the blocked-by dependency from the last issue to {string}")]
+fn when_remove_dependency(world: &mut KanbusWorld, target: String) {
+    let identifier = last_issue_id(world);
+    run_cli(
+        world,
+        &format!("kanbus dep {identifier} remove blocked-by {target}"),
     );
 }
 
@@ -291,6 +434,105 @@ fn then_event_log_field_update(world: &mut KanbusWorld, field: String, from: Str
 }
 
 #[then(
+    expr = "the event log for the last issue should include a priority update from {int} to {int}"
+)]
+fn then_event_log_priority_update(world: &mut KanbusWorld, from_value: i32, to_value: i32) {
+    let identifier = last_issue_id(world);
+    let events = load_issue_events(world, &identifier);
+    let found = events.iter().any(|(_, record)| {
+        if record.get("event_type").and_then(|value| value.as_str()) != Some("field_updated") {
+            return false;
+        }
+        let change = record
+            .get("payload")
+            .and_then(|payload| payload.get("changes"))
+            .and_then(|changes| changes.get("priority"));
+        let Some(change) = change else {
+            return false;
+        };
+        let from_val = change.get("from").and_then(|value| value.as_i64());
+        let to_val = change.get("to").and_then(|value| value.as_i64());
+        from_val == Some(i64::from(from_value)) && to_val == Some(i64::from(to_value))
+    });
+    assert!(found, "expected priority field update");
+}
+
+#[then(
+    expr = "the event log for the last issue should include a labels update from {string} to {string}"
+)]
+fn then_event_log_labels_update(world: &mut KanbusWorld, from_labels: String, to_labels: String) {
+    let identifier = last_issue_id(world);
+    let events = load_issue_events(world, &identifier);
+    let expected_from: Vec<String> = from_labels
+        .split(',')
+        .map(|label| label.trim().to_string())
+        .filter(|label| !label.is_empty())
+        .collect();
+    let expected_to: Vec<String> = to_labels
+        .split(',')
+        .map(|label| label.trim().to_string())
+        .filter(|label| !label.is_empty())
+        .collect();
+    let found = events.iter().any(|(_, record)| {
+        if record.get("event_type").and_then(|value| value.as_str()) != Some("field_updated") {
+            return false;
+        }
+        let change = record
+            .get("payload")
+            .and_then(|payload| payload.get("changes"))
+            .and_then(|changes| changes.get("labels"));
+        let Some(change) = change else {
+            return false;
+        };
+        let from_values: Option<Vec<String>> = change.get("from").and_then(|value| {
+            value.as_array().map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.as_str().map(|value| value.to_string()))
+                    .collect()
+            })
+        });
+        let to_values: Option<Vec<String>> = change.get("to").and_then(|value| {
+            value.as_array().map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.as_str().map(|value| value.to_string()))
+                    .collect()
+            })
+        });
+        from_values == Some(expected_from.clone()) && to_values == Some(expected_to.clone())
+    });
+    assert!(found, "expected labels field update");
+}
+
+#[then(
+    expr = "the event log for the last issue should include a transfer event {string} from {string} to {string}"
+)]
+fn then_event_log_transfer_event(
+    world: &mut KanbusWorld,
+    event_type: String,
+    from_location: String,
+    to_location: String,
+) {
+    let identifier = last_issue_id(world);
+    let events = load_issue_events(world, &identifier);
+    let found = events.iter().any(|(_, record)| {
+        if record.get("event_type").and_then(|value| value.as_str()) != Some(event_type.as_str()) {
+            return false;
+        }
+        let payload = record.get("payload");
+        let from_value = payload
+            .and_then(|value| value.get("from_location"))
+            .and_then(|value| value.as_str());
+        let to_value = payload
+            .and_then(|value| value.get("to_location"))
+            .and_then(|value| value.as_str());
+        from_value == Some(from_location.as_str()) && to_value == Some(to_location.as_str())
+    });
+    assert!(found, "expected transfer event {event_type}");
+}
+
+#[then(
     expr = "the event log for the last issue should include a comment_added event by {string} with a comment id"
 )]
 fn then_event_log_comment_added(world: &mut KanbusWorld, author: String) {
@@ -308,6 +550,60 @@ fn then_event_log_comment_added(world: &mut KanbusWorld, author: String) {
         comment_author == Some(author.as_str()) && comment_id.is_some()
     });
     assert!(found, "expected comment_added event for {author}");
+}
+
+#[then(
+    expr = "the event log for the last issue should include a comment_updated event by {string} with the last comment id"
+)]
+fn then_event_log_comment_updated(world: &mut KanbusWorld, author: String) {
+    let identifier = last_issue_id(world);
+    let events = load_issue_events(world, &identifier);
+    let expected_comment_id = world.last_comment_id.clone();
+    let found = events.iter().any(|(_, record)| {
+        if record.get("event_type").and_then(|value| value.as_str()) != Some("comment_updated") {
+            return false;
+        }
+        let Some(payload) = record.get("payload") else {
+            return false;
+        };
+        let comment_author = payload.get("comment_author").and_then(|v| v.as_str());
+        let comment_id = payload.get("comment_id").and_then(|v| v.as_str());
+        if comment_author != Some(author.as_str()) {
+            return false;
+        }
+        match expected_comment_id.as_ref() {
+            Some(id) => comment_id == Some(id.as_str()),
+            None => comment_id.is_some(),
+        }
+    });
+    assert!(found, "expected comment_updated event for {author}");
+}
+
+#[then(
+    expr = "the event log for the last issue should include a comment_deleted event by {string} with the last comment id"
+)]
+fn then_event_log_comment_deleted(world: &mut KanbusWorld, author: String) {
+    let identifier = last_issue_id(world);
+    let events = load_issue_events(world, &identifier);
+    let expected_comment_id = world.last_comment_id.clone();
+    let found = events.iter().any(|(_, record)| {
+        if record.get("event_type").and_then(|value| value.as_str()) != Some("comment_deleted") {
+            return false;
+        }
+        let Some(payload) = record.get("payload") else {
+            return false;
+        };
+        let comment_author = payload.get("comment_author").and_then(|v| v.as_str());
+        let comment_id = payload.get("comment_id").and_then(|v| v.as_str());
+        if comment_author != Some(author.as_str()) {
+            return false;
+        }
+        match expected_comment_id.as_ref() {
+            Some(id) => comment_id == Some(id.as_str()),
+            None => comment_id.is_some(),
+        }
+    });
+    assert!(found, "expected comment_deleted event for {author}");
 }
 
 #[then("the event log for the last issue should not include comment text")]
@@ -348,5 +644,32 @@ fn then_event_log_dependency(world: &mut KanbusWorld, dependency_type: String, t
     assert!(
         found,
         "expected dependency event for {dependency_type} -> {target}"
+    );
+}
+
+#[then(
+    expr = "the event log for the last issue should include a dependency_removed {string} on {string}"
+)]
+fn then_event_log_dependency_removed(
+    world: &mut KanbusWorld,
+    dependency_type: String,
+    target: String,
+) {
+    let identifier = last_issue_id(world);
+    let events = load_issue_events(world, &identifier);
+    let found = events.iter().any(|(_, record)| {
+        if record.get("event_type").and_then(|value| value.as_str()) != Some("dependency_removed") {
+            return false;
+        }
+        let Some(payload) = record.get("payload") else {
+            return false;
+        };
+        let dep_type = payload.get("dependency_type").and_then(|v| v.as_str());
+        let target_id = payload.get("target_id").and_then(|v| v.as_str());
+        dep_type == Some(dependency_type.as_str()) && target_id == Some(target.as_str())
+    });
+    assert!(
+        found,
+        "expected dependency_removed event for {dependency_type} -> {target}"
     );
 }

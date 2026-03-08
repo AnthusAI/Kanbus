@@ -98,6 +98,7 @@ def create_beads_issue(
     if not issues_path.exists():
         raise BeadsWriteError("no issues.jsonl")
     original_contents = issues_path.read_text(encoding="utf-8")
+    original_contents = issues_path.read_text(encoding="utf-8")
 
     records = _load_beads_records(issues_path)
     if not records:
@@ -171,9 +172,8 @@ def create_beads_issue(
     )
     try:
         project_dir = load_project_directory(root)
-    except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
-        raise BeadsWriteError(str(error)) from error
+    except Exception:  # noqa: BLE001
+        return issue
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
@@ -321,9 +321,8 @@ def update_beads_issue(
     events = build_update_events(before_issue, updated_issue, actor_id, occurred_at)
     try:
         project_dir = load_project_directory(root)
-    except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
-        raise BeadsWriteError(str(error)) from error
+    except Exception:  # noqa: BLE001
+        return updated_issue
     events_dir = events_dir_for_project(project_dir)
     try:
         write_events_batch(events_dir, events)
@@ -415,9 +414,8 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
         raise BeadsWriteError("comment id is required")
     try:
         project_dir = load_project_directory(root)
-    except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
-        raise BeadsWriteError(str(error)) from error
+    except Exception:  # noqa: BLE001
+        return
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
@@ -493,9 +491,8 @@ def delete_beads_issue(root: Path, identifier: str) -> None:
 
     try:
         project_dir = load_project_directory(root)
-    except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
-        raise BeadsWriteError(str(error)) from error
+    except Exception:  # noqa: BLE001
+        return
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
@@ -662,14 +659,13 @@ def add_beads_dependency(
             handle.write("\n")
     try:
         project_dir = load_project_directory(root)
-    except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
-        raise BeadsWriteError(str(error)) from error
+    except Exception:  # noqa: BLE001
+        return
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
         issue_id=identifier,
-        event_type="dependency_removed",
+        event_type="dependency_added",
         actor_id=actor_id,
         payload=dependency_payload(dependency_type, target),
         occurred_at=occurred_at,
@@ -704,6 +700,7 @@ def remove_beads_dependency(
     if not issues_path.exists():
         raise BeadsWriteError("no issues.jsonl")
 
+    original_contents = issues_path.read_text(encoding="utf-8")
     records = _load_beads_records(issues_path)
     found = False
 
@@ -742,3 +739,22 @@ def remove_beads_dependency(
         for record in records:
             json.dump(record, handle, separators=(",", ":"))
             handle.write("\n")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception:  # noqa: BLE001
+        return
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=identifier,
+        event_type="dependency_removed",
+        actor_id=actor_id,
+        payload=dependency_payload(dependency_type, target),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
