@@ -103,15 +103,52 @@ def _ensure_gitignore_entry(root: Path, entry: str) -> None:
     gitignore_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _write_project_guard_files(project_dir: Path) -> None:
-    agents_path = project_dir / "AGENTS.md"
+def _write_guard_files_in_subdir(subdir: Path, folder_name: str) -> None:
+    """Write AGENTS.md and DO_NOT_EDIT into a guarded subdir (e.g. issues/ or events/)."""
+    agents_path = subdir / "AGENTS.md"
     agents_path.write_text(
         "\n".join(
             [
                 "# DO NOT EDIT HERE",
                 "",
-                "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
-                "Do not read or write in this folder. Do not inspect issue JSON with tools like cat or jq. Use Kanbus commands instead.",
+                f"Do not read or write in this folder ({folder_name}/). Use Kanbus commands instead.",
+                "Do not inspect issue JSON with tools like cat or jq.",
+                "",
+                "See ../../AGENTS.md and ../../CONTRIBUTING_AGENT.md for required process.",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    do_not_edit = subdir / "DO_NOT_EDIT"
+    do_not_edit.write_text(
+        "\n".join(
+            [
+                f"DO NOT EDIT THIS FOLDER ({folder_name}/)",
+                "This folder is guarded by The Way.",
+                "All changes must go through Kanbus (see ../../AGENTS.md and ../../CONTRIBUTING_AGENT.md).",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_project_guard_files(project_dir: Path) -> None:
+    issues_dir = project_dir / "issues"
+    events_dir = project_dir / "events"
+    if issues_dir.exists():
+        _write_guard_files_in_subdir(issues_dir, "issues")
+    if events_dir.exists():
+        _write_guard_files_in_subdir(events_dir, "events")
+    root_agents_path = project_dir / "AGENTS.md"
+    root_agents_path.write_text(
+        "\n".join(
+            [
+                "# Project directory",
+                "",
+                "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
+                "You may edit wiki/ (e.g. Markdown) directly.",
                 "",
                 "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
             ]
@@ -122,30 +159,37 @@ def _write_project_guard_files(project_dir: Path) -> None:
 
 
 def _write_project_guard_files_if_missing(project_dir: Path) -> None:
-    agents_path = project_dir / "AGENTS.md"
-    do_not_edit = project_dir / "DO_NOT_EDIT"
-    if agents_path.exists() and do_not_edit.exists():
-        return
-    _write_project_guard_files(project_dir)
-    do_not_edit = project_dir / "DO_NOT_EDIT"
-    do_not_edit.write_text(
-        "\n".join(
-            [
-                "DO NOT EDIT ANYTHING IN project/",
-                "This folder is guarded by The Way.",
-                "Do not inspect issue JSON with tools like cat or jq.",
-                "All changes must go through Kanbus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
-            ]
+    issues_dir = project_dir / "issues"
+    events_dir = project_dir / "events"
+    for subdir, folder_name in [(issues_dir, "issues"), (events_dir, "events")]:
+        if not subdir.exists():
+            continue
+        agents_path = subdir / "AGENTS.md"
+        do_not_edit = subdir / "DO_NOT_EDIT"
+        if not agents_path.exists() or not do_not_edit.exists():
+            _write_guard_files_in_subdir(subdir, folder_name)
+    root_agents_path = project_dir / "AGENTS.md"
+    if not root_agents_path.exists():
+        root_agents_path.write_text(
+            "\n".join(
+                [
+                    "# Project directory",
+                    "",
+                    "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
+                    "You may edit wiki/ (e.g. Markdown) directly.",
+                    "",
+                    "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
         )
-        + "\n",
-        encoding="utf-8",
-    )
 
 
 def _write_tool_block_files(root: Path) -> None:
     cursorignore = root / ".cursorignore"
     if not cursorignore.exists():
-        cursorignore.write_text("project/\n", encoding="utf-8")
+        cursorignore.write_text("project/issues/\nproject/events/\n", encoding="utf-8")
 
     claude_dir = root / ".claude"
     claude_dir.mkdir(parents=True, exist_ok=True)
@@ -156,10 +200,38 @@ def _write_tool_block_files(root: Path) -> None:
                 {
                     "permissions": {
                         "deny": [
-                            "Read(./project/**)",
-                            "Edit(./project/**)",
+                            "Read(./project/issues/**)",
+                            "Edit(./project/issues/**)",
+                            "Read(./project/events/**)",
+                            "Edit(./project/events/**)",
                         ]
                     }
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    vscode_dir = root / ".vscode"
+    vscode_dir.mkdir(parents=True, exist_ok=True)
+    vscode_settings = vscode_dir / "settings.json"
+    if not vscode_settings.exists():
+        vscode_settings.write_text(
+            json.dumps(
+                {
+                    "files.exclude": {
+                        "**/project/issues/**": True,
+                        "**/project/events/**": True,
+                    },
+                    "files.watcherExclude": {
+                        "**/project/issues/**": True,
+                        "**/project/events/**": True,
+                    },
+                    "search.exclude": {
+                        "**/project/issues/**": True,
+                        "**/project/events/**": True,
+                    },
                 },
                 indent=2,
             )
@@ -227,9 +299,18 @@ def repair_project_structure(root: Path, plan: RepairPlan) -> None:
         vscode_settings.write_text(
             json.dumps(
                 {
-                    "files.exclude": {"**/project/**": True},
-                    "files.watcherExclude": {"**/project/**": True},
-                    "search.exclude": {"**/project/**": True},
+                    "files.exclude": {
+                        "**/project/issues/**": True,
+                        "**/project/events/**": True,
+                    },
+                    "files.watcherExclude": {
+                        "**/project/issues/**": True,
+                        "**/project/events/**": True,
+                    },
+                    "search.exclude": {
+                        "**/project/issues/**": True,
+                        "**/project/events/**": True,
+                    },
                 },
                 indent=2,
             )

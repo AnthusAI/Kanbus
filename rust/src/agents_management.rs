@@ -425,12 +425,45 @@ fn ensure_project_guard_files(root: &Path) -> Result<(), KanbusError> {
     if !project_dir.exists() {
         return Ok(());
     }
+    let issues_dir = project_dir.join("issues");
+    let events_dir = project_dir.join("events");
+    for (subdir, folder_name) in [(&issues_dir, "issues"), (&events_dir, "events")] {
+        if subdir.exists() {
+            let project_agents = subdir.join("AGENTS.md");
+            let content = [
+                "# DO NOT EDIT HERE",
+                "",
+                &format!(
+                    "Do not read or write in this folder ({}/). Use Kanbus commands instead.",
+                    folder_name
+                ),
+                "Do not inspect issue JSON with tools like cat or jq.",
+                "",
+                "See ../../AGENTS.md and ../../CONTRIBUTING_AGENT.md for required process.",
+            ]
+            .join("\n")
+                + "\n";
+            fs::write(&project_agents, content)
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
+
+            let do_not_edit = subdir.join("DO_NOT_EDIT");
+            let do_not_edit_content = [
+                &format!("DO NOT EDIT THIS FOLDER ({}/)", folder_name),
+                "This folder is guarded by The Way.",
+                "All changes must go through Kanbus (see ../../AGENTS.md and ../../CONTRIBUTING_AGENT.md).",
+            ]
+            .join("\n")
+                + "\n";
+            fs::write(&do_not_edit, do_not_edit_content)
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
+        }
+    }
     let project_agents = project_dir.join("AGENTS.md");
     let project_agents_content = [
-        "# DO NOT EDIT HERE",
+        "# Project directory",
         "",
-        "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
-        "Do not read or write in this folder. Use Kanbus commands instead.",
+        "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
+        "You may edit wiki/ (e.g. Markdown) directly.",
         "",
         "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
     ]
@@ -438,16 +471,7 @@ fn ensure_project_guard_files(root: &Path) -> Result<(), KanbusError> {
         + "\n";
     fs::write(&project_agents, project_agents_content)
         .map_err(|error| KanbusError::Io(error.to_string()))?;
-
-    let do_not_edit = project_dir.join("DO_NOT_EDIT");
-    let do_not_edit_content = [
-        "DO NOT EDIT ANYTHING IN project/",
-        "This folder is guarded by The Way.",
-        "All changes must go through Kanbus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
-    ]
-    .join("\n")
-        + "\n";
-    fs::write(&do_not_edit, do_not_edit_content).map_err(|error| KanbusError::Io(error.to_string()))
+    Ok(())
 }
 
 fn confirm_overwrite() -> Result<bool, KanbusError> {

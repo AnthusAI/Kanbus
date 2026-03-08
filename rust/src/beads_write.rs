@@ -12,8 +12,8 @@ use uuid::Uuid;
 
 use crate::error::KanbusError;
 use crate::event_history::{
-    build_update_events, comment_payload, comment_updated_payload, dependency_payload,
-    events_dir_for_project, issue_created_payload, issue_deleted_payload, now_timestamp,
+    build_update_events, comment_payload, comment_updated_payload, delete_events_for_issues,
+    dependency_payload, events_dir_for_project, issue_created_payload, now_timestamp,
     write_events_batch, EventRecord, EventType,
 };
 use crate::file_io::load_project_directory;
@@ -1016,29 +1016,65 @@ fn write_beads_records(path: &Path, records: &[Value]) -> Result<(), KanbusError
     Ok(())
 }
 
-/// Delete a Beads-compatible issue in .beads/issues.jsonl.
-pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusError> {
-    let beads_dir = root.join(".beads");
-    if !beads_dir.exists() {
-        return Err(KanbusError::IssueOperation(
-            "no .beads directory".to_string(),
-        ));
-    }
-    let issues_path = beads_dir.join("issues.jsonl");
+/// Return Beads descendant issue identifiers in leaf-first order.
+pub fn get_beads_descendant_identifiers(
+    root: &Path,
+    identifier: &str,
+) -> Result<Vec<String>, KanbusError> {
+    let issues_path = root.join(".beads").join("issues.jsonl");
     if !issues_path.exists() {
-        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
+        return Ok(vec![]);
     }
+    let records = load_beads_records(&issues_path)?;
+    let mut parent_to_children: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for record in &records {
+        let id = record.get("id").and_then(Value::as_str);
+        let parent = record.get("parent").and_then(Value::as_str);
+        if let (Some(id), Some(parent)) = (id, parent) {
+            parent_to_children
+                .entry(parent.to_string())
+                .or_default()
+                .push(id.to_string());
+        }
+    }
+    let mut depth: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    depth.insert(identifier.to_string(), 0);
+    let mut queue = std::collections::VecDeque::new();
+    queue.push_back(identifier.to_string());
+    while let Some(parent_id) = queue.pop_front() {
+        let d = *depth.get(&parent_id).unwrap_or(&0);
+        for child_id in parent_to_children
+            .get(&parent_id)
+            .cloned()
+            .unwrap_or_default()
+        {
+            if !depth.contains_key(&child_id) {
+                depth.insert(child_id.clone(), d + 1);
+                queue.push_back(child_id);
+            }
+        }
+    }
+    let mut descendants: Vec<(String, usize)> =
+        depth.into_iter().filter(|(k, _)| k != identifier).collect();
+    descendants.sort_by_key(|(_, d)| std::cmp::Reverse(*d));
+    Ok(descendants.into_iter().map(|(id, _)| id).collect())
+}
+
+fn delete_single_beads_issue(
+    root: &Path,
+    issues_path: &Path,
+    identifier: &str,
+) -> Result<(), KanbusError> {
     let original_contents =
-        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
-    let deleted_issue = load_beads_issue_by_id(root, identifier)?;
-    let mut records = load_beads_records(&issues_path)?;
+        fs::read_to_string(issues_path).map_err(|e| KanbusError::Io(e.to_string()))?;
+    let mut records = load_beads_records(issues_path)?;
     let original_count = records.len();
     records.retain(|record| record.get("id").and_then(|id| id.as_str()) != Some(identifier));
     if records.len() == original_count {
         return Err(KanbusError::IssueOperation("not found".to_string()));
     }
     for record in &mut records {
-        // Clear parent fields that reference the deleted issue
         if let Some(parent_value) = record.get("parent").and_then(Value::as_str) {
             if parent_value == identifier {
                 if let Some(object) = record.as_object_mut() {
@@ -1054,7 +1090,6 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
                     .map(|value| value != identifier)
                     .unwrap_or(true)
             });
-            // remove empty dependency arrays for cleanliness
             if list.is_empty() {
                 if let Some(object) = record.as_object_mut() {
                     object.remove("dependencies");
@@ -1063,35 +1098,46 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
         }
     }
     write_beads_records(&issues_path, &records)?;
-
-    let project_dir = match load_project_directory(root) {
-        Ok(dir) => dir,
-        Err(_) => {
-            return Ok(());
-        }
-    };
-    let occurred_at = now_timestamp();
-    let actor_id = get_current_user();
-    let event = EventRecord::new(
-        identifier.to_string(),
-        EventType::IssueDeleted,
-        actor_id,
-        issue_deleted_payload(&deleted_issue),
-        occurred_at,
-    );
-    let event_id = event.event_id.clone();
+    let project_dir = load_project_directory(root)?;
     let events_dir = events_dir_for_project(&project_dir);
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            fs::write(&issues_path, original_contents)
-                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
-            return Err(error);
-        }
+    let mut ids = HashSet::new();
+    ids.insert(identifier.to_string());
+    if let Err(error) = delete_events_for_issues(&events_dir, &ids) {
+        let _ = fs::write(issues_path, original_contents);
+        return Err(error);
     }
+    crate::gossip::publish_issue_deleted(root, &project_dir, identifier, None);
+    Ok(())
+}
 
-    crate::gossip::publish_issue_deleted(root, &project_dir, identifier, Some(event_id));
-
+/// Delete a Beads-compatible issue in .beads/issues.jsonl and prune its events.
+///
+/// When `recursive` is true, deletes all descendants first (leaf-first), then the target.
+pub fn delete_beads_issue(
+    root: &Path,
+    identifier: &str,
+    recursive: bool,
+) -> Result<(), KanbusError> {
+    let beads_dir = root.join(".beads");
+    if !beads_dir.exists() {
+        return Err(KanbusError::IssueOperation(
+            "no .beads directory".to_string(),
+        ));
+    }
+    let issues_path = beads_dir.join("issues.jsonl");
+    if !issues_path.exists() {
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
+    }
+    load_beads_issue_by_id(root, identifier)?;
+    let mut to_delete = if recursive {
+        get_beads_descendant_identifiers(root, identifier)?
+    } else {
+        vec![]
+    };
+    to_delete.push(identifier.to_string());
+    for issue_id in &to_delete {
+        delete_single_beads_issue(root, &issues_path, issue_id)?;
+    }
     Ok(())
 }
 

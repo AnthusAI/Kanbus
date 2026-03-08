@@ -116,5 +116,16 @@ Feature: Event history
     Given a Kanbus project with default configuration
     When I run the command "kanbus create Standalone Task --type task"
     And I capture the issue identifier
-    When I delete the last issue
-    Then the event log for the last issue should include event type "issue_deleted"
+    Then the event log for the last issue has at least one event
+    When I delete the last issue with --yes
+    Then the event log for the last issue should be empty
+
+  Scenario: Recursive delete prunes events for target and descendants
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-p" exists
+    And an issue "kanbus-c" exists with parent "kanbus-p"
+    When I add a comment to issue "kanbus-p" with text "parent note"
+    And I add a comment to issue "kanbus-c" with text "child note"
+    When I run "kanbus delete kanbus-p --recursive --yes"
+    Then there should be no events for issue "kanbus-p"
+    And there should be no events for issue "kanbus-c"

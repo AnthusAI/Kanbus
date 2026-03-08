@@ -149,6 +149,41 @@ pub fn rollback_event_files(paths: &[PathBuf]) {
     }
 }
 
+/// Remove all event files whose `issue_id` is in `issue_ids`.
+///
+/// # Arguments
+/// * `events_dir` - Directory containing event JSON files.
+/// * `issue_ids` - Set of issue identifiers whose events should be removed.
+pub fn delete_events_for_issues(
+    events_dir: &Path,
+    issue_ids: &std::collections::HashSet<String>,
+) -> Result<(), KanbusError> {
+    if !events_dir.is_dir() || issue_ids.is_empty() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(events_dir).map_err(|e| KanbusError::Io(e.to_string()))? {
+        let entry = entry.map_err(|e| KanbusError::Io(e.to_string()))?;
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+        let bytes = match fs::read(&path) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let payload: Value = match serde_json::from_slice(&bytes) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        if let Some(id) = payload.get("issue_id").and_then(|v| v.as_str()) {
+            if issue_ids.contains(id) {
+                let _ = fs::remove_file(&path);
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn issue_created_payload(issue: &IssueData) -> Value {
     json!({
         "title": issue.title,

@@ -13,7 +13,7 @@ Feature: Beads interoperability end-to-end
     And stdout should not list issue "bdx-task"
 
   Scenario: Delete in Beads and see Kanbus list update
-    When I run "kanbus --beads delete bdx-task"
+    When I run "kanbus --beads delete bdx-task --yes"
     Then the command should succeed
     And beads issues.jsonl should not contain "bdx-task"
     When I run "kanbus --beads list"

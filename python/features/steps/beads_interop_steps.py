@@ -70,7 +70,7 @@ def when_update_last_beads_issue(context: object, status: str) -> None:
 def when_delete_last_beads_issue(context: object) -> None:
     identifier = context.last_beads_issue_id
     assert identifier, "last beads issue id missing"
-    run_cli(context, f"kanbus --beads delete {identifier}")
+    run_cli(context, f"kanbus --beads delete {identifier} --yes")
 
 
 @then("the last created beads issue should exist in beads issues.jsonl")

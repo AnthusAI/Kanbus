@@ -35,7 +35,10 @@ def _load_issue_events(context: object, issue_id: str) -> list[tuple[str, dict]]
         if not events_dir.exists():
             continue
         for path in events_dir.glob("*.json"):
-            payload = json.loads(path.read_text(encoding="utf-8"))
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
             if payload.get("issue_id") == issue_id:
                 events.append((path.name, payload))
     return events
@@ -156,6 +159,17 @@ def when_remove_dependency(context: object, target: str) -> None:
 def when_delete_last_issue(context: object) -> None:
     identifier = _last_issue_id(context)
     run_cli(context, f"kanbus delete {identifier}")
+
+
+@when("I delete the last issue with --yes")
+def when_delete_last_issue_yes(context: object) -> None:
+    identifier = _last_issue_id(context)
+    run_cli(context, f"kanbus delete {identifier} --yes")
+
+
+@when('I add a comment to issue "{identifier}" with text "{text}"')
+def when_add_comment_to_issue(context: object, identifier: str, text: str) -> None:
+    run_cli(context, f'kanbus comment {identifier} "{text}"')
 
 
 @then('the event log for the last issue should include event type "{event_type}"')
@@ -408,3 +422,23 @@ def then_event_log_dependency_removed(
             found = True
             break
     assert found, f"expected dependency_removed event for {dependency_type} -> {target}"
+
+
+@then("the event log for the last issue has at least one event")
+def then_event_log_has_events(context: object) -> None:
+    identifier = _last_issue_id(context)
+    events = _load_issue_events(context, identifier)
+    assert len(events) >= 1, "expected at least one event for the last issue"
+
+
+@then("the event log for the last issue should be empty")
+def then_event_log_empty(context: object) -> None:
+    identifier = _last_issue_id(context)
+    events = _load_issue_events(context, identifier)
+    assert len(events) == 0, f"expected no events for {identifier}, found {len(events)}"
+
+
+@then('there should be no events for issue "{identifier}"')
+def then_no_events_for_issue(context: object, identifier: str) -> None:
+    events = _load_issue_events(context, identifier)
+    assert len(events) == 0, f"expected no events for {identifier}, found {len(events)}"

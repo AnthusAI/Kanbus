@@ -309,16 +309,25 @@ fn then_default_config_missing(world: &mut KanbusWorld) {
     assert!(!cwd.join("project").join("config.yaml").exists());
 }
 
-#[then("a \"project/issues\" directory should exist and be empty")]
-fn then_issues_directory_empty(world: &mut KanbusWorld) {
+#[then("a \"project/issues\" directory should exist and contain only guard files")]
+fn then_issues_directory_only_guards(world: &mut KanbusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
     let issues_dir = cwd.join("project").join("issues");
     assert!(issues_dir.is_dir());
-    assert!(issues_dir
+    let names: std::collections::HashSet<String> = issues_dir
         .read_dir()
         .expect("read issues dir")
-        .next()
-        .is_none());
+        .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
+        .collect();
+    let expected: std::collections::HashSet<String> =
+        ["AGENTS.md".to_string(), "DO_NOT_EDIT".to_string()]
+            .into_iter()
+            .collect();
+    assert_eq!(
+        names, expected,
+        "expected only guard files, got {:?}",
+        names
+    );
 }
 
 #[then("a \"project/wiki\" directory should not exist")]
@@ -343,22 +352,26 @@ fn then_command_failed_generic(world: &mut KanbusWorld) {
     assert_ne!(world.exit_code, Some(0));
 }
 
-#[then("project/AGENTS.md should be created with the warning")]
+#[then("project/issues/ and project/events/ should contain AGENTS.md with the warning")]
 fn then_project_agents_created(world: &mut KanbusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
-    let path = cwd.join("project").join("AGENTS.md");
-    assert!(path.is_file());
-    let content = std::fs::read_to_string(path).expect("read project AGENTS");
-    assert!(content.contains("DO NOT EDIT HERE"));
-    assert!(content.contains("sin against The Way"));
+    for subdir in ["issues", "events"] {
+        let path = cwd.join("project").join(subdir).join("AGENTS.md");
+        assert!(path.is_file(), "expected {}", path.display());
+        let content = fs::read_to_string(&path).expect("read project AGENTS");
+        assert!(content.contains("DO NOT EDIT HERE"));
+        assert!(content.contains("The Way") || content.contains("Kanbus"));
+    }
 }
 
-#[then("project/DO_NOT_EDIT should be created with the warning")]
+#[then("project/issues/ and project/events/ should contain DO_NOT_EDIT with the warning")]
 fn then_project_do_not_edit_created(world: &mut KanbusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
-    let path = cwd.join("project").join("DO_NOT_EDIT");
-    assert!(path.is_file());
-    let content = std::fs::read_to_string(path).expect("read DO_NOT_EDIT");
-    assert!(content.contains("DO NOT EDIT ANYTHING IN project/"));
-    assert!(content.contains("The Way"));
+    for subdir in ["issues", "events"] {
+        let path = cwd.join("project").join(subdir).join("DO_NOT_EDIT");
+        assert!(path.is_file(), "expected {}", path.display());
+        let content = fs::read_to_string(&path).expect("read DO_NOT_EDIT");
+        assert!(content.contains("DO NOT EDIT"));
+        assert!(content.contains("The Way"));
+    }
 }

@@ -224,6 +224,7 @@ fn run_cli_command_with_stdin(world: &mut KanbusWorld, command: &str, input: &st
         .args(args)
         .current_dir(cwd)
         .env("KANBUS_NO_DAEMON", "1")
+        .env("KANBUS_FORCE_INTERACTIVE", "1")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

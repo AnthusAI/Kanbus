@@ -197,8 +197,15 @@ fn load_issue_events(world: &KanbusWorld, issue_id: &str) -> Vec<(String, Value)
         if !events_dir.exists() {
             continue;
         }
-        for entry in fs::read_dir(&events_dir).expect("read events dir") {
-            let entry = entry.expect("event entry");
+        let entries = match fs::read_dir(&events_dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
             let path = entry.path();
             if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
                 continue;
@@ -208,8 +215,14 @@ fn load_issue_events(world: &KanbusWorld, issue_id: &str) -> Vec<(String, Value)
                 .and_then(|value| value.to_str())
                 .unwrap_or_default()
                 .to_string();
-            let contents = fs::read_to_string(&path).expect("read event");
-            let record: Value = serde_json::from_str(&contents).expect("parse event");
+            let contents = match fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            let record: Value = match serde_json::from_str(&contents) {
+                Ok(r) => r,
+                Err(_) => continue,
+            };
             if record.get("issue_id").and_then(|value| value.as_str()) == Some(issue_id) {
                 events.push((filename, record));
             }
@@ -360,6 +373,17 @@ fn when_remove_dependency(world: &mut KanbusWorld, target: String) {
 fn when_delete_last_issue(world: &mut KanbusWorld) {
     let identifier = last_issue_id(world);
     run_cli(world, &format!("kanbus delete {identifier}"));
+}
+
+#[when("I delete the last issue with --yes")]
+fn when_delete_last_issue_yes(world: &mut KanbusWorld) {
+    let identifier = last_issue_id(world);
+    run_cli(world, &format!("kanbus delete {identifier} --yes"));
+}
+
+#[when(expr = "I add a comment to issue {string} with text {string}")]
+fn when_add_comment_to_issue(world: &mut KanbusWorld, identifier: String, text: String) {
+    run_cli(world, &format!("kanbus comment {identifier} \"{text}\""));
 }
 
 #[then(expr = "the event log for the last issue should include event type {string}")]
@@ -671,5 +695,38 @@ fn then_event_log_dependency_removed(
     assert!(
         found,
         "expected dependency_removed event for {dependency_type} -> {target}"
+    );
+}
+
+#[then("the event log for the last issue has at least one event")]
+fn then_event_log_has_events(world: &mut KanbusWorld) {
+    let identifier = last_issue_id(world);
+    let events = load_issue_events(world, &identifier);
+    assert!(
+        events.len() >= 1,
+        "expected at least one event for the last issue"
+    );
+}
+
+#[then("the event log for the last issue should be empty")]
+fn then_event_log_empty(world: &mut KanbusWorld) {
+    let identifier = last_issue_id(world);
+    let events = load_issue_events(world, &identifier);
+    assert!(
+        events.is_empty(),
+        "expected no events for {}, found {}",
+        identifier,
+        events.len()
+    );
+}
+
+#[then(expr = "there should be no events for issue {string}")]
+fn then_no_events_for_issue(world: &mut KanbusWorld, identifier: String) {
+    let events = load_issue_events(world, &identifier);
+    assert!(
+        events.is_empty(),
+        "expected no events for {}, found {}",
+        identifier,
+        events.len()
     );
 }

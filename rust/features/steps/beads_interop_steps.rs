@@ -307,7 +307,10 @@ fn when_update_last_beads_issue(world: &mut KanbusWorld, status: String) {
 #[when("I delete the last created beads issue")]
 fn when_delete_last_beads_issue(world: &mut KanbusWorld) {
     let identifier = capture_last_beads_issue_id(world).expect("last beads issue id missing");
-    run_cli(world, &format!("kanbus --beads delete {}", identifier));
+    run_cli(
+        world,
+        &format!("kanbus --beads delete {} --yes", identifier),
+    );
 }
 
 #[then("the last created beads issue should exist in beads issues.jsonl")]

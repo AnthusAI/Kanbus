@@ -302,6 +302,23 @@ fn given_issue_exists_with_status(world: &mut KanbusWorld, identifier: String, s
     write_issue_file(&project_dir, &issue);
 }
 
+#[given(expr = "an issue {string} exists with parent {string}")]
+fn given_issue_exists_with_parent(world: &mut KanbusWorld, identifier: String, parent_id: String) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_overrides(
+        &project_dir,
+        identifier,
+        "task".to_string(),
+        "open".to_string(),
+        "Title".to_string(),
+        "".to_string(),
+        Some(parent_id),
+        Vec::new(),
+        None,
+        2,
+    );
+}
+
 #[given(expr = "a {string} issue {string} exists")]
 fn given_typed_issue_exists(world: &mut KanbusWorld, issue_type: String, identifier: String) {
     let project_dir = load_project_dir(world);
