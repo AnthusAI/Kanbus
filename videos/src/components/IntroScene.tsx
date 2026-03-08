@@ -3,10 +3,11 @@ import { useCurrentFrame, useVideoConfig } from "../remotion-shim";
 import { AnimatedPictogramVideo, type PictogramType } from "./AnimatedPictogramVideo";
 import { VideoFeatureFrame } from "./VideoFeatureFrame";
 
-type IntroSceneMode = "opening" | "feature-list" | "cta";
+type IntroSceneMode = "kanban-home" | "git-sync-home" | "feature" | "cta";
 
 type IntroSceneProps = {
   mode?: IntroSceneMode;
+  feature?: PictogramType;
   showDebugGuides?: boolean;
 };
 
@@ -76,9 +77,6 @@ const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
   },
 ];
 
-const TRANSITION_FRAMES = 12;
-const SECONDS_PER_FEATURE = 2.8;
-const OPENING_SPLIT_SECONDS = 12;
 
 function StaticIntroFrame({
   headline,
@@ -172,65 +170,47 @@ function FeatureSlide({
 }
 
 export const IntroScene: React.FC<IntroSceneProps> = ({
-  mode = "feature-list",
+  mode = "feature",
+  feature,
   showDebugGuides = false,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  if (mode === "opening") {
-    const splitFrame = Math.max(1, Math.round(fps * OPENING_SPLIT_SECONDS));
-    const transitionStart = Math.max(0, splitFrame - TRANSITION_FRAMES);
-    const inTransition = frame >= transitionStart && frame < splitFrame;
-    const progress = inTransition
-      ? Math.min(1, Math.max(0, (frame - transitionStart) / TRANSITION_FRAMES))
-      : frame >= splitFrame
-        ? 1
-        : 0;
-    const firstX = progress * -100;
-    const secondX = (1 - progress) * 100;
-
+  if (mode === "kanban-home") {
     return (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          overflow: "hidden",
-          backgroundColor: "var(--background)",
-        }}
-      >
-        <div style={{ position: "absolute", inset: 0, transform: `translateX(${firstX}%)` }}>
-          <StaticIntroFrame
-            headline="Repository Kanban"
-            subhead="Accessible board + CLI from plain files."
-            bodyPrimary="Kanbus gives your team and agents one shared workflow: a live board backed by repository-native issue files."
-            type="kanban-home"
-            scale={1.017}
-            leftRatio={0.24}
-            allowRightOverflow={true}
-            allowPictogramOverflow={true}
-            showDebugGuides={showDebugGuides}
-            frame={frame}
-            fps={fps}
-          />
-        </div>
-        <div style={{ position: "absolute", inset: 0, transform: `translateX(${secondX}%)` }}>
-          <StaticIntroFrame
-            headline="Git Synchronization"
-            subhead="Use Git as the bus for kanban boards."
-            bodyPrimary="Board updates become normal file changes, so review, history, branching, and collaboration stay native to your existing engineering workflow."
-            type="git-sync-home"
-            scale={1.08}
-            leftRatio={0.34}
-            framePadding="0px 28px"
-            allowRightOverflow={true}
-            allowPictogramOverflow={true}
-            showDebugGuides={showDebugGuides}
-            frame={frame}
-            fps={fps}
-          />
-        </div>
-      </div>
+      <StaticIntroFrame
+        headline="Repository Kanban"
+        subhead="Accessible board + CLI from plain files."
+        bodyPrimary="Kanbus gives your team and agents one shared workflow: a live board backed by repository-native issue files."
+        type="kanban-home"
+        scale={1.017}
+        leftRatio={0.24}
+        allowRightOverflow={true}
+        allowPictogramOverflow={true}
+        showDebugGuides={showDebugGuides}
+        frame={frame}
+        fps={fps}
+      />
+    );
+  }
+
+  if (mode === "git-sync-home") {
+    return (
+      <StaticIntroFrame
+        headline="Git Synchronization"
+        subhead="Use Git as the bus for kanban boards."
+        bodyPrimary="Board updates become normal file changes, so review, history, branching, and collaboration stay native to your existing engineering workflow."
+        type="git-sync-home"
+        scale={1.08}
+        leftRatio={0.34}
+        framePadding="0px 28px"
+        allowRightOverflow={true}
+        allowPictogramOverflow={true}
+        showDebugGuides={showDebugGuides}
+        frame={frame}
+        fps={fps}
+      />
     );
   }
 
@@ -249,51 +229,15 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
     );
   }
 
-  const framesPerFeature = Math.max(1, Math.round(fps * SECONDS_PER_FEATURE));
-  const featureIndex = Math.min(
-    FEATURE_SPOTLIGHTS.length - 1,
-    Math.floor(frame / framesPerFeature),
-  );
-  const frameInFeature = frame % framesPerFeature;
-  const hasNext = featureIndex < FEATURE_SPOTLIGHTS.length - 1;
-  const transitionStart = framesPerFeature - TRANSITION_FRAMES;
-  const isTransitionWindow = hasNext && frameInFeature >= transitionStart;
-
-  const transitionProgress = isTransitionWindow
-    ? Math.min(1, Math.max(0, (frameInFeature - transitionStart) / TRANSITION_FRAMES))
-    : 0;
-
-  const currentFeature = FEATURE_SPOTLIGHTS[featureIndex];
-  const nextFeature = hasNext ? FEATURE_SPOTLIGHTS[featureIndex + 1] : null;
-
-  const currentX = isTransitionWindow ? -transitionProgress * 100 : 0;
-  const nextX = isTransitionWindow ? (1 - transitionProgress) * 100 : 100;
+  const spotlight = FEATURE_SPOTLIGHTS.find((f) => f.type === feature) ?? FEATURE_SPOTLIGHTS[0];
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        overflow: "hidden",
-        backgroundColor: "var(--background)",
-      }}
-    >
-      <FeatureSlide
-        feature={currentFeature}
-        translateX={currentX}
-        showDebugGuides={showDebugGuides}
-        frame={frame}
-        fps={fps}
-      />
-      {nextFeature ? (
-        <FeatureSlide
-          feature={nextFeature}
-          translateX={nextX}
-          showDebugGuides={showDebugGuides}
-          frame={frame}
-          fps={fps}
-        />
-      ) : null}
-    </div>
+    <FeatureSlide
+      feature={spotlight}
+      translateX={0}
+      showDebugGuides={showDebugGuides}
+      frame={frame}
+      fps={fps}
+    />
   );
 };

@@ -23,6 +23,7 @@ if (typeof window !== "undefined") {
     const frameTarget = new EventTarget();
     let currentFrame = 0;
     let currentFps = 24;
+    let currentSceneDurationFrames = 240;
 
     w.Babulus = {
       components: new Map(),
@@ -85,7 +86,7 @@ if (typeof window !== "undefined") {
         }, []);
         return frame;
       },
-      useVideoConfig: () => ({ fps: currentFps, width: 1920, height: 1080, durationFrames: 240 }),
+      useVideoConfig: () => ({ fps: currentFps, width: 1920, height: 1080, durationFrames: currentSceneDurationFrames }),
       spring: spring,
       interpolate: interpolate,
       _updateFrame: (frame: number, fps: number) => {
@@ -99,6 +100,11 @@ if (typeof window !== "undefined") {
     // animations start from 0 at the beginning of each scene
     window.addEventListener("timeline:tick", ((e: CustomEvent) => {
        const localFrame = e.detail.sceneLocalFrame ?? e.detail.frame;
+       // Update scene duration so useVideoConfig().durationFrames reflects the
+       // actual scene length from the timing overlay (not a hardcoded guess).
+       if (e.detail.sceneDurationSec != null && e.detail.fps) {
+         currentSceneDurationFrames = Math.round(e.detail.sceneDurationSec * e.detail.fps);
+       }
        w.Babulus._updateFrame(localFrame, e.detail.fps);
     }) as EventListener);
   }
