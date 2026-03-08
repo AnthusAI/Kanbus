@@ -105,19 +105,28 @@ async function navigateToWikiPage(page, relativePath) {
 }
 
 async function ensureWikiEditMode(page) {
+  await expect(page.getByTestId("wiki-view")).toBeVisible({ timeout: 15000 });
   const editor = page.locator(".wiki-editor textarea").first();
   if ((await editor.count()) > 0 && (await editor.isVisible().catch(() => false))) {
     return;
   }
-  const editToggle = page.getByTestId("wiki-view-mode-edit");
-  if ((await editToggle.count()) > 0) {
-    if ((await editToggle.getAttribute("data-active")) !== "true") {
-      await editToggle.first().click({ force: true });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const editToggle = page.getByTestId("wiki-view-mode-edit");
+    if ((await editToggle.count()) > 0) {
+      if ((await editToggle.getAttribute("data-active")) !== "true") {
+        await editToggle.first().click({ force: true });
+      }
+    } else {
+      const editButton = page.getByRole("button", { name: /^Edit$/ }).first();
+      if ((await editButton.count()) > 0) {
+        await editButton.click({ force: true });
+      }
     }
-  } else {
-    const editButton = page.getByRole("button", { name: /^Edit$/ }).first();
-    if ((await editButton.count()) > 0) {
-      await editButton.click({ force: true });
+    if ((await editor.count()) > 0 && (await editor.isVisible().catch(() => false))) {
+      return;
+    }
+    if (attempt < 2) {
+      await page.waitForTimeout(250);
     }
   }
   await expect(editor).toBeVisible({ timeout: 15000 });
