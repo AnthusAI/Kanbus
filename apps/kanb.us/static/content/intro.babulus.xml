@@ -1,13 +1,13 @@
 <vml id="intro" title="Intro to Kanbus" fps="24" width="1920" height="1080" poster="18s">
   <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
 
-  <scene id="opening" title="Kanban Overview and Git Synchronization">
+  <scene id="overview" title="Kanban Overview">
     <layer id="background" z="-1">
       <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="content" z="0">
-      <intro-scene props='{"mode":"opening"}' />
+      <intro-scene props='{"mode":"kanban-home"}' />
     </layer>
 
     <music
@@ -29,6 +29,16 @@
       <pause seconds="0.2s" />
       <voice>You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use.</voice>
     </cue>
+  </scene>
+
+  <scene id="git-sync" title="Git Synchronization">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"git-sync-home"}' />
+    </layer>
 
     <cue id="git_bus" label="Git Synchronization">
       <voice>Git synchronization is the core idea: use Git as the bus for Kanban boards.</voice>
@@ -37,25 +47,117 @@
     </cue>
   </scene>
 
-  <transition id="push-1" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
-
-  <scene id="feature-tour" title="Feature Tour">
+  <scene id="feature-cli" title="Agent-Ready CLI">
     <layer id="background" z="-1">
       <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="content" z="0">
-      <intro-scene props='{"mode":"feature-list"}' />
+      <intro-scene props='{"mode":"feature","feature":"cli"}' />
     </layer>
 
-    <cue id="feature_list" label="Feature Tour">
-      <voice>From there, pick the capabilities you need: an agent-ready CLI, Jira synchronization, local tasks, virtual projects, and Beads compatibility.</voice>
-      <pause seconds="0.2s" />
-      <voice>You also get a VS Code plugin, an integrated wiki, and policy as code so humans and agents operate from one shared workflow.</voice>
+    <cue id="feature_cli" label="Agent-Ready CLI">
+      <voice>The agent-ready CLI lets you create, update, and move work from your terminal without leaving repository-native workflows.</voice>
     </cue>
   </scene>
 
-  <transition id="push-2" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+  <scene id="feature-jira" title="Jira Synchronization">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"jira"}' />
+    </layer>
+
+    <cue id="feature_jira" label="Jira Synchronization">
+      <voice>Jira synchronization brings existing Jira projects into the repo so agents and humans work from the same source of truth.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-local" title="Local Tasks">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"local"}' />
+    </layer>
+
+    <cue id="feature_local" label="Local Tasks">
+      <voice>Local tasks let you draft privately and promote to the shared board only when work is ready for team visibility.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-virtual" title="Virtual Projects">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"virtual"}' />
+    </layer>
+
+    <cue id="feature_virtual" label="Virtual Projects">
+      <voice>Virtual projects aggregate cross-repository execution into a single view for planning and delivery coordination.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-beads" title="Beads Compatibility">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"beads"}' />
+    </layer>
+
+    <cue id="feature_beads" label="Beads Compatibility">
+      <voice>Beads compatibility lets you open existing data immediately and evolve your process incrementally while teams keep shipping.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-vscode" title="VS Code Plugin">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"vscode"}' />
+    </layer>
+
+    <cue id="feature_vscode" label="VS Code Plugin">
+      <voice>The VS Code plugin lets you inspect and update board state without context switching away from the files you are editing.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-wiki" title="Integrated Wiki">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"wiki"}' />
+    </layer>
+
+    <cue id="feature_wiki" label="Integrated Wiki">
+      <voice>The integrated wiki renders current issue lists inside docs so plans, status updates, and execution context stay synchronized.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-policy" title="Policy as Code">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"policy"}' />
+    </layer>
+
+    <cue id="feature_policy" label="Policy as Code">
+      <voice>Policy as code lets you define standards once and apply them consistently across CLI usage, automation, and collaborative workflows.</voice>
+    </cue>
+  </scene>
 
   <scene id="cta" title="Get Started">
     <layer id="background" z="-1">
