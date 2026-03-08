@@ -9,6 +9,7 @@ from kanbus.models import IssueData, OverlayConfig
 from kanbus.overlay import (
     OverlayIssueRecord,
     gc_overlay,
+    reconcile_overlay,
     overlay_issue_path,
     resolve_issue_with_overlay,
     write_overlay_issue,
@@ -83,3 +84,36 @@ def test_gc_overlay_removes_stale_overlay() -> None:
         )
         gc_overlay(project_dir, OverlayConfig(enabled=True, ttl_s=86400))
         assert not overlay_issue_path(project_dir, "kanbus-2").exists()
+
+
+def test_reconcile_prunes_and_removes_resolved_overlay() -> None:
+    base_time = datetime.now(timezone.utc)
+    with tempfile.TemporaryDirectory() as tmp:
+        project_dir = Path(tmp) / "project"
+        issues_dir = project_dir / "issues"
+        issues_dir.mkdir(parents=True, exist_ok=True)
+        base_issue = _issue("kanbus-3", base_time)
+        issue_path = issues_dir / "kanbus-3.json"
+        issue_path.write_text(
+            json.dumps(base_issue.model_dump(by_alias=True, mode="json"), indent=2),
+            encoding="utf-8",
+        )
+        overlay_path = overlay_issue_path(project_dir, "kanbus-3")
+        overlay_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "overlay_ts": base_time.isoformat().replace("+00:00", "Z"),
+            "overlay_event_id": "evt-1",
+            "overrides": {"title": "Overlay test"},
+            "issue": base_issue.model_dump(by_alias=True, mode="json"),
+        }
+        overlay_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        stats = reconcile_overlay(
+            project_dir,
+            OverlayConfig(enabled=True, ttl_s=86400),
+            prune=True,
+            dry_run=False,
+        )
+        assert stats.issues_scanned == 1
+        assert stats.issues_removed == 1
+        assert stats.fields_pruned == 1
+        assert not overlay_path.exists()

@@ -117,14 +117,16 @@ Merge rule:
 2. Else if an overlay snapshot is newer, return the overlay issue.
 3. Else return the Git-backed issue.
 
-## Overlay GC and hooks
+## Overlay reconcile, GC, and hooks
 
+- `overlay reconcile --prune` removes converged speculative fields and drops empty overlay records.
 - `overlay gc` sweeps stale overlay snapshots and tombstones.
-- `overlay install-hooks` installs git hooks to run GC on `post-merge`, `post-checkout`, and `post-rewrite`.
+- `overlay install-hooks` installs git hooks to run reconcile + GC on `post-merge`, `post-checkout`, and `post-rewrite`.
 
 Example:
 
 ```bash
+kanbus overlay reconcile --all --prune
 kanbus overlay gc --all
 kanbus overlay install-hooks
 ```
@@ -135,6 +137,7 @@ kanbus overlay install-hooks
 kanbus gossip broker [--socket PATH]
 kanbus gossip watch [--project LABEL] [--transport auto|uds|mqtt] [--broker auto|off|mqtt://...|mqtts://...] [--autostart|--no-autostart] [--keepalive|--no-keepalive]
 kanbus gossip watch [..] [--print]
+kanbus overlay reconcile [--project LABEL] [--all] [--prune] [--dry-run]
 kanbus overlay gc [--project LABEL] [--all]
 kanbus overlay install-hooks
 ```

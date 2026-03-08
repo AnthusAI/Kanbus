@@ -22,6 +22,7 @@ class OverlayIssueRecord:
     issue: IssueData
     overlay_ts: str
     overlay_event_id: Optional[str]
+    overrides: Optional[dict[str, object]] = None
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,7 @@ def write_overlay_issue(
     payload = {
         "overlay_ts": overlay_ts,
         "overlay_event_id": overlay_event_id,
+        "overrides": None,
         "issue": issue.model_dump(by_alias=True, mode="json"),
     }
     path = overlay_issue_path(project_dir, issue.identifier)
@@ -96,7 +98,19 @@ def load_overlay_issue(
         issue=issue,
         overlay_ts=payload.get("overlay_ts", ""),
         overlay_event_id=payload.get("overlay_event_id"),
+        overrides=payload.get("overrides"),
     )
+
+
+@dataclass(frozen=True)
+class OverlayReconcileStats:
+    """Aggregate overlay reconcile results."""
+
+    projects: int = 0
+    issues_scanned: int = 0
+    issues_updated: int = 0
+    issues_removed: int = 0
+    fields_pruned: int = 0
 
 
 def load_tombstone(project_dir: Path, issue_id: str) -> Optional[OverlayTombstone]:
@@ -154,6 +168,14 @@ def resolve_issue_with_overlay(
             overlay_issue.overlay_event_id,
             base_event_id,
         ):
+            if (
+                base_issue is not None
+                and overlay_issue.overrides
+                and isinstance(overlay_issue.overrides, dict)
+            ):
+                merged = _apply_overrides(base_issue, overlay_issue.overrides)
+                if merged is not None:
+                    return _tag_issue(merged, project_label)
             return _tag_issue(overlay_issue.issue, project_label)
         elif base_updated and not _overlay_is_newer(
             overlay_issue.overlay_ts,
@@ -281,6 +303,90 @@ def gc_overlay(project_dir: Path, config: OverlayConfig) -> None:
                 _remove_path(entry)
 
 
+def reconcile_overlay(
+    project_dir: Path,
+    config: OverlayConfig,
+    prune: bool,
+    dry_run: bool,
+) -> OverlayReconcileStats:
+    """Reconcile overlay snapshots against canonical issue files."""
+    stats = OverlayReconcileStats()
+    if not config.enabled:
+        return stats
+    issues_dir = overlay_root(project_dir) / "issues"
+    if not issues_dir.exists():
+        return stats
+
+    issues_scanned = 0
+    issues_updated = 0
+    issues_removed = 0
+    fields_pruned = 0
+
+    for entry in issues_dir.glob("*.json"):
+        issue_id = entry.stem
+        overlay_issue = load_overlay_issue(project_dir, issue_id)
+        if overlay_issue is None:
+            if not dry_run:
+                _remove_path(entry)
+            continue
+        base_path = project_dir / "issues" / f"{issue_id}.json"
+        if not base_path.exists():
+            continue
+        try:
+            base_issue = IssueData.model_validate(
+                json.loads(base_path.read_text(encoding="utf-8"))
+            )
+        except Exception:
+            continue
+
+        issues_scanned += 1
+        overrides = (
+            dict(overlay_issue.overrides)
+            if isinstance(overlay_issue.overrides, dict)
+            else _diff_issue_fields(base_issue, overlay_issue.issue)
+        )
+        if prune:
+            before = len(overrides)
+            base_values = _issue_to_map(base_issue)
+            overrides = {
+                key: value
+                for key, value in overrides.items()
+                if base_values.get(key) != value
+            }
+            fields_pruned += before - len(overrides)
+        if not overrides:
+            issues_removed += 1
+            if not dry_run:
+                _remove_path(entry)
+            continue
+
+        merged_issue = _apply_overrides(base_issue, overrides)
+        if merged_issue is None:
+            continue
+        needs_write = (
+            merged_issue != overlay_issue.issue
+            or dict(overrides) != dict(overlay_issue.overrides or {})
+        )
+        if needs_write:
+            issues_updated += 1
+            if not dry_run:
+                payload = {
+                    "overlay_ts": overlay_issue.overlay_ts,
+                    "overlay_event_id": overlay_issue.overlay_event_id,
+                    "overrides": overrides,
+                    "issue": merged_issue.model_dump(by_alias=True, mode="json"),
+                }
+                entry.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    return OverlayReconcileStats(
+        projects=0,
+        issues_scanned=issues_scanned,
+        issues_updated=issues_updated,
+        issues_removed=issues_removed,
+        fields_pruned=fields_pruned,
+    )
+
+
 def _tag_issue(
     issue: Optional[IssueData], project_label: Optional[str]
 ) -> Optional[IssueData]:
@@ -383,8 +489,44 @@ def gc_overlay_for_projects(
     return len(selected)
 
 
+def reconcile_overlay_for_projects(
+    root: Path,
+    project_label: Optional[str],
+    all_projects: bool,
+    prune: bool,
+    dry_run: bool,
+) -> OverlayReconcileStats:
+    """Run overlay reconcile for one or more projects."""
+    if project_label and all_projects:
+        raise ValueError("cannot combine --project with --all")
+    configuration = load_project_configuration(get_configuration_path(root))
+    labeled = resolve_labeled_projects(root)
+    if not labeled:
+        return OverlayReconcileStats()
+    if all_projects:
+        selected = labeled
+    else:
+        label = project_label or configuration.project_key
+        selected = [project for project in labeled if project.label == label]
+        if not selected:
+            raise ValueError(f"unknown project label: {label}")
+    aggregate = OverlayReconcileStats(projects=len(selected))
+    for project in selected:
+        stats = reconcile_overlay(
+            project.project_dir, configuration.overlay, prune=prune, dry_run=dry_run
+        )
+        aggregate = OverlayReconcileStats(
+            projects=aggregate.projects,
+            issues_scanned=aggregate.issues_scanned + stats.issues_scanned,
+            issues_updated=aggregate.issues_updated + stats.issues_updated,
+            issues_removed=aggregate.issues_removed + stats.issues_removed,
+            fields_pruned=aggregate.fields_pruned + stats.fields_pruned,
+        )
+    return aggregate
+
+
 def install_overlay_hooks(root: Path) -> None:
-    """Install git hooks to run overlay GC after git operations."""
+    """Install git hooks to run overlay reconcile/gc after git operations."""
     hooks_dir = _resolve_git_hooks_dir(root)
     hooks_dir.mkdir(parents=True, exist_ok=True)
     hook_block = _overlay_hook_block()
@@ -392,7 +534,10 @@ def install_overlay_hooks(root: Path) -> None:
         hook_path = hooks_dir / hook
         if hook_path.exists():
             existing = hook_path.read_text(encoding="utf-8")
-            if "Kanbus overlay cache GC" in existing:
+            if (
+                "Kanbus overlay cache maintenance" in existing
+                or "Kanbus overlay cache GC" in existing
+            ):
                 continue
             contents = existing.rstrip() + "\n\n" + hook_block
         else:
@@ -414,20 +559,55 @@ def _resolve_git_hooks_dir(root: Path) -> Path:
     path = Path(result.stdout.strip())
     if not path.is_absolute():
         path = root / path
+    if path == Path("/dev/null"):
+        raise RuntimeError(
+            "git hooks are disabled (core.hooksPath=/dev/null); run `git config --unset core.hooksPath` to enable hook installation"
+        )
+    if path.exists() and not path.is_dir():
+        raise RuntimeError(f"git hooks path is not a directory: {path}")
     return path
 
 
 def _overlay_hook_block() -> str:
     return "\n".join(
         [
-            "# Kanbus overlay cache GC",
+            "# Kanbus overlay cache maintenance",
             "if command -v kanbus >/dev/null 2>&1; then",
+            "  kanbus overlay reconcile --all --prune >/dev/null 2>&1 || true",
             "  kanbus overlay gc --all >/dev/null 2>&1 || true",
             "elif command -v kbs >/dev/null 2>&1; then",
+            "  kbs overlay reconcile --all --prune >/dev/null 2>&1 || true",
             "  kbs overlay gc --all >/dev/null 2>&1 || true",
             "fi",
         ]
     )
+
+
+def _issue_to_map(issue: IssueData) -> dict[str, object]:
+    return dict(issue.model_dump(by_alias=True, mode="json"))
+
+
+def _issue_from_map(payload: dict[str, object]) -> Optional[IssueData]:
+    try:
+        return IssueData.model_validate(payload)
+    except Exception:
+        return None
+
+
+def _apply_overrides(
+    base_issue: IssueData, overrides: dict[str, object]
+) -> Optional[IssueData]:
+    merged = _issue_to_map(base_issue)
+    merged.update(overrides)
+    return _issue_from_map(merged)
+
+
+def _diff_issue_fields(base_issue: IssueData, overlay_issue: IssueData) -> dict[str, object]:
+    base_payload = _issue_to_map(base_issue)
+    overlay_payload = _issue_to_map(overlay_issue)
+    return {
+        key: value for key, value in overlay_payload.items() if base_payload.get(key) != value
+    }
 
 
 def _ensure_executable(path: Path) -> None:

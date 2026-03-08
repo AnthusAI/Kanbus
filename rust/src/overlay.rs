@@ -19,6 +19,8 @@ pub struct OverlayIssueRecord {
     pub overlay_ts: String,
     #[serde(default)]
     pub overlay_event_id: Option<String>,
+    #[serde(default)]
+    pub overrides: Option<BTreeMap<String, Value>>,
     pub issue: IssueData,
 }
 
@@ -58,6 +60,7 @@ pub fn write_overlay_issue(
     let payload = OverlayIssueRecord {
         overlay_ts: overlay_ts.to_string(),
         overlay_event_id,
+        overrides: None,
         issue: issue.clone(),
     };
     let path = overlay_issue_path(project_dir, &issue.identifier);
@@ -67,6 +70,15 @@ pub fn write_overlay_issue(
     let contents = serde_json::to_string_pretty(&payload)
         .map_err(|error| KanbusError::Io(error.to_string()))?;
     fs::write(path, contents).map_err(|error| KanbusError::Io(error.to_string()))
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct OverlayReconcileStats {
+    pub projects: usize,
+    pub issues_scanned: usize,
+    pub issues_updated: usize,
+    pub issues_removed: usize,
+    pub fields_pruned: usize,
 }
 
 pub fn write_tombstone(
@@ -146,6 +158,13 @@ pub fn resolve_issue_with_overlay(
                 overlay_record.overlay_event_id.as_deref(),
                 base_event_id.as_deref(),
             ) {
+                if let (Some(base_issue), Some(overrides)) =
+                    (base_issue.as_ref(), overlay_record.overrides.as_ref())
+                {
+                    if let Ok(merged) = apply_overrides(base_issue, overrides) {
+                        return Ok(Some(tag_issue(merged, project_label)));
+                    }
+                }
                 return Ok(Some(tag_issue(overlay_record.issue, project_label)));
             }
             let _ = fs::remove_file(overlay_issue_path(
@@ -318,6 +337,88 @@ pub fn gc_overlay(project_dir: &Path, config: &OverlayConfig) -> Result<(), Kanb
     Ok(())
 }
 
+pub fn reconcile_overlay(
+    project_dir: &Path,
+    config: &OverlayConfig,
+    prune: bool,
+    dry_run: bool,
+) -> Result<OverlayReconcileStats, KanbusError> {
+    let mut stats = OverlayReconcileStats::default();
+    if !config.enabled {
+        return Ok(stats);
+    }
+    let issues_dir = overlay_root(project_dir).join("issues");
+    if !issues_dir.exists() {
+        return Ok(stats);
+    }
+    for entry in fs::read_dir(&issues_dir).map_err(|error| KanbusError::Io(error.to_string()))? {
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+        let issue_id = path
+            .file_stem()
+            .and_then(|name| name.to_str())
+            .unwrap_or("");
+        let mut record = match load_overlay_issue(project_dir, issue_id)? {
+            Some(record) => record,
+            None => {
+                if !dry_run {
+                    let _ = fs::remove_file(path);
+                }
+                continue;
+            }
+        };
+        let base_path = project_dir.join("issues").join(format!("{issue_id}.json"));
+        if !base_path.exists() {
+            continue;
+        }
+        let base_issue = match read_issue_from_file(&base_path) {
+            Ok(issue) => issue,
+            Err(_) => continue,
+        };
+        stats.issues_scanned += 1;
+
+        let mut overrides = match record.overrides.clone() {
+            Some(existing) => existing,
+            None => diff_issue_fields(&base_issue, &record.issue)?,
+        };
+        if prune {
+            let before = overrides.len();
+            let base_values = issue_to_map(&base_issue)?;
+            overrides.retain(|key, value| match base_values.get(key) {
+                Some(base_value) => base_value != value,
+                None => true,
+            });
+            stats.fields_pruned += before.saturating_sub(overrides.len());
+        }
+
+        if overrides.is_empty() {
+            stats.issues_removed += 1;
+            if !dry_run {
+                let _ = fs::remove_file(path);
+            }
+            continue;
+        }
+
+        let merged_issue = apply_overrides(&base_issue, &overrides)?;
+        let needs_write = issue_to_map(&record.issue)? != issue_to_map(&merged_issue)?
+            || record.overrides.as_ref() != Some(&overrides);
+        if needs_write {
+            stats.issues_updated += 1;
+            if !dry_run {
+                record.issue = merged_issue;
+                record.overrides = Some(overrides);
+                let contents = serde_json::to_string_pretty(&record)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                fs::write(path, contents).map_err(|error| KanbusError::Io(error.to_string()))?;
+            }
+        }
+    }
+    Ok(stats)
+}
+
 pub fn gc_overlay_for_projects(
     root: &Path,
     project_label: Option<String>,
@@ -354,6 +455,53 @@ pub fn gc_overlay_for_projects(
     Ok(selected.len())
 }
 
+pub fn reconcile_overlay_for_projects(
+    root: &Path,
+    project_label: Option<String>,
+    all_projects: bool,
+    prune: bool,
+    dry_run: bool,
+) -> Result<OverlayReconcileStats, KanbusError> {
+    if project_label.is_some() && all_projects {
+        return Err(KanbusError::IssueOperation(
+            "cannot combine --project with --all".to_string(),
+        ));
+    }
+    let configuration = load_project_configuration(&get_configuration_path(root)?)?;
+    let labeled = resolve_labeled_projects(root)?;
+    if labeled.is_empty() {
+        return Ok(OverlayReconcileStats::default());
+    }
+    let selected = if all_projects {
+        labeled
+    } else {
+        let label = project_label.unwrap_or_else(|| configuration.project_key.clone());
+        let selected: Vec<_> = labeled
+            .into_iter()
+            .filter(|project| project.label == label)
+            .collect();
+        if selected.is_empty() {
+            return Err(KanbusError::IssueOperation(format!(
+                "unknown project label: {label}"
+            )));
+        }
+        selected
+    };
+    let mut aggregate = OverlayReconcileStats {
+        projects: selected.len(),
+        ..OverlayReconcileStats::default()
+    };
+    for project in &selected {
+        let stats =
+            reconcile_overlay(&project.project_dir, &configuration.overlay, prune, dry_run)?;
+        aggregate.issues_scanned += stats.issues_scanned;
+        aggregate.issues_updated += stats.issues_updated;
+        aggregate.issues_removed += stats.issues_removed;
+        aggregate.fields_pruned += stats.fields_pruned;
+    }
+    Ok(aggregate)
+}
+
 pub fn install_overlay_hooks(root: &Path) -> Result<(), KanbusError> {
     let hooks_dir = resolve_git_hooks_dir(root)?;
     fs::create_dir_all(&hooks_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -363,7 +511,9 @@ pub fn install_overlay_hooks(root: &Path) -> Result<(), KanbusError> {
         let contents = if path.exists() {
             let existing =
                 fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
-            if existing.contains("Kanbus overlay cache GC") {
+            if existing.contains("Kanbus overlay cache maintenance")
+                || existing.contains("Kanbus overlay cache GC")
+            {
                 continue;
             }
             format!("{}\n\n{}", existing.trim_end(), hook_block)
@@ -390,19 +540,33 @@ fn resolve_git_hooks_dir(root: &Path) -> Result<PathBuf, KanbusError> {
     }
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let path = PathBuf::from(stdout);
-    if path.is_absolute() {
-        Ok(path)
+    let resolved = if path.is_absolute() {
+        path
     } else {
-        Ok(root.join(path))
+        root.join(path)
+    };
+    if resolved == PathBuf::from("/dev/null") {
+        return Err(KanbusError::IssueOperation(
+            "git hooks are disabled (core.hooksPath=/dev/null); run `git config --unset core.hooksPath` to enable hook installation".to_string(),
+        ));
     }
+    if resolved.exists() && !resolved.is_dir() {
+        return Err(KanbusError::IssueOperation(format!(
+            "git hooks path is not a directory: {}",
+            resolved.display()
+        )));
+    }
+    Ok(resolved)
 }
 
 fn overlay_hook_block() -> String {
     [
-        "# Kanbus overlay cache GC",
+        "# Kanbus overlay cache maintenance",
         "if command -v kanbus >/dev/null 2>&1; then",
+        "  kanbus overlay reconcile --all --prune >/dev/null 2>&1 || true",
         "  kanbus overlay gc --all >/dev/null 2>&1 || true",
         "elif command -v kbs >/dev/null 2>&1; then",
+        "  kbs overlay reconcile --all --prune >/dev/null 2>&1 || true",
         "  kbs overlay gc --all >/dev/null 2>&1 || true",
         "fi",
     ]
@@ -506,10 +670,57 @@ fn extract_event_id(issue: &IssueData) -> Option<String> {
     }
 }
 
+fn issue_to_map(issue: &IssueData) -> Result<BTreeMap<String, Value>, KanbusError> {
+    let value = serde_json::to_value(issue).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let object = value
+        .as_object()
+        .ok_or_else(|| KanbusError::Io("issue serialization is not an object".to_string()))?;
+    Ok(object
+        .iter()
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect())
+}
+
+fn issue_from_map(map: &BTreeMap<String, Value>) -> Result<IssueData, KanbusError> {
+    serde_json::from_value(Value::Object(
+        map.iter()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect(),
+    ))
+    .map_err(|error| KanbusError::Io(error.to_string()))
+}
+
+fn apply_overrides(
+    base_issue: &IssueData,
+    overrides: &BTreeMap<String, Value>,
+) -> Result<IssueData, KanbusError> {
+    let mut merged = issue_to_map(base_issue)?;
+    for (key, value) in overrides {
+        merged.insert(key.clone(), value.clone());
+    }
+    issue_from_map(&merged)
+}
+
+fn diff_issue_fields(
+    base_issue: &IssueData,
+    overlay_issue: &IssueData,
+) -> Result<BTreeMap<String, Value>, KanbusError> {
+    let base = issue_to_map(base_issue)?;
+    let overlay = issue_to_map(overlay_issue)?;
+    let mut diff = BTreeMap::new();
+    for (key, value) in overlay {
+        if base.get(&key) != Some(&value) {
+            diff.insert(key, value);
+        }
+    }
+    Ok(diff)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::{Duration, TimeZone, Utc};
+    use std::collections::BTreeMap;
     use tempfile::TempDir;
 
     fn issue(identifier: &str, updated_at: DateTime<Utc>) -> IssueData {
@@ -544,6 +755,7 @@ mod tests {
         let overlay_record = OverlayIssueRecord {
             overlay_ts: overlay_time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
             overlay_event_id: None,
+            overrides: None,
             issue: overlay_issue.clone(),
         };
         let temp_dir = TempDir::new().expect("tempdir");
@@ -598,5 +810,145 @@ mod tests {
         .expect("gc overlay");
         let overlay_path = overlay_issue_path(project_dir, "kanbus-2");
         assert!(!overlay_path.exists());
+    }
+
+    #[test]
+    fn reconcile_prunes_converged_fields() {
+        let now = Utc::now();
+        let base_issue = issue("kanbus-3", now);
+        let mut overlay_issue = base_issue.clone();
+        overlay_issue.priority = 1;
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path();
+        let issues_dir = project_dir.join("issues");
+        fs::create_dir_all(&issues_dir).expect("issues dir");
+        let issue_path = issues_dir.join("kanbus-3.json");
+        fs::write(
+            &issue_path,
+            serde_json::to_vec(&base_issue).expect("serialize"),
+        )
+        .expect("write issue");
+
+        let record = OverlayIssueRecord {
+            overlay_ts: now.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            overlay_event_id: Some("evt-1".to_string()),
+            overrides: Some(BTreeMap::from([
+                ("title".to_string(), Value::String(base_issue.title.clone())),
+                (
+                    "priority".to_string(),
+                    Value::Number(serde_json::Number::from(1)),
+                ),
+            ])),
+            issue: overlay_issue,
+        };
+        let overlay_path = overlay_issue_path(project_dir, "kanbus-3");
+        fs::create_dir_all(overlay_path.parent().expect("parent")).expect("overlay dir");
+        fs::write(
+            &overlay_path,
+            serde_json::to_string_pretty(&record).expect("serialize record"),
+        )
+        .expect("write overlay");
+
+        let stats = reconcile_overlay(
+            project_dir,
+            &OverlayConfig {
+                enabled: true,
+                ttl_s: 86_400,
+            },
+            true,
+            false,
+        )
+        .expect("reconcile");
+        assert_eq!(stats.issues_scanned, 1);
+        assert_eq!(stats.issues_updated, 1);
+        assert_eq!(stats.fields_pruned, 1);
+        let payload = fs::read_to_string(&overlay_path).expect("read overlay");
+        let updated: OverlayIssueRecord = serde_json::from_str(&payload).expect("parse overlay");
+        let overrides = updated.overrides.expect("overrides");
+        assert_eq!(overrides.len(), 1);
+        assert!(overrides.contains_key("priority"));
+        assert_eq!(updated.issue.priority, 1);
+    }
+
+    #[test]
+    fn reconcile_removes_empty_override_entry() {
+        let now = Utc::now();
+        let base_issue = issue("kanbus-4", now);
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path();
+        let issues_dir = project_dir.join("issues");
+        fs::create_dir_all(&issues_dir).expect("issues dir");
+        let issue_path = issues_dir.join("kanbus-4.json");
+        fs::write(
+            &issue_path,
+            serde_json::to_vec(&base_issue).expect("serialize"),
+        )
+        .expect("write issue");
+
+        let record = OverlayIssueRecord {
+            overlay_ts: now.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            overlay_event_id: Some("evt-2".to_string()),
+            overrides: Some(BTreeMap::from([(
+                "title".to_string(),
+                Value::String(base_issue.title.clone()),
+            )])),
+            issue: base_issue.clone(),
+        };
+        let overlay_path = overlay_issue_path(project_dir, "kanbus-4");
+        fs::create_dir_all(overlay_path.parent().expect("parent")).expect("overlay dir");
+        fs::write(
+            &overlay_path,
+            serde_json::to_string_pretty(&record).expect("serialize record"),
+        )
+        .expect("write overlay");
+
+        let stats = reconcile_overlay(
+            project_dir,
+            &OverlayConfig {
+                enabled: true,
+                ttl_s: 86_400,
+            },
+            true,
+            false,
+        )
+        .expect("reconcile");
+        assert_eq!(stats.issues_removed, 1);
+        assert!(!overlay_path.exists());
+    }
+
+    #[test]
+    fn resolve_uses_override_fields_when_present() {
+        let now = Utc::now();
+        let mut base_issue = issue("kanbus-5", now);
+        base_issue.title = "Canonical".to_string();
+        let mut overlay_issue = base_issue.clone();
+        overlay_issue.title = "Stale snapshot title".to_string();
+        overlay_issue.priority = 1;
+        let record = OverlayIssueRecord {
+            overlay_ts: (now + Duration::seconds(10))
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            overlay_event_id: Some("evt-3".to_string()),
+            overrides: Some(BTreeMap::from([(
+                "priority".to_string(),
+                Value::Number(serde_json::Number::from(1)),
+            )])),
+            issue: overlay_issue,
+        };
+        let temp_dir = TempDir::new().expect("tempdir");
+        let resolved = resolve_issue_with_overlay(
+            temp_dir.path(),
+            Some(base_issue),
+            Some(record),
+            None,
+            &OverlayConfig {
+                enabled: true,
+                ttl_s: 86_400,
+            },
+            None,
+        )
+        .expect("resolve")
+        .expect("resolved issue");
+        assert_eq!(resolved.title, "Canonical");
+        assert_eq!(resolved.priority, 1);
     }
 }

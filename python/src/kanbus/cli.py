@@ -72,7 +72,11 @@ from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
 from kanbus.gossip import GossipError, run_gossip_broker, run_gossip_watch
-from kanbus.overlay import gc_overlay_for_projects, install_overlay_hooks
+from kanbus.overlay import (
+    gc_overlay_for_projects,
+    install_overlay_hooks,
+    reconcile_overlay_for_projects,
+)
 
 
 def _deprecated_console_control(command: str) -> click.ClickException:
@@ -1934,6 +1938,37 @@ def overlay_gc(project_label: Optional[str], all_projects: bool) -> None:
     except (ConfigurationError, ProjectMarkerError, ValueError) as error:
         raise click.ClickException(str(error)) from error
     click.echo(f"overlay gc complete ({count} project(s))")
+
+
+@overlay.command("reconcile")
+@click.option("--project", "project_label", default=None)
+@click.option("--all", "all_projects", is_flag=True, default=False)
+@click.option("--prune", is_flag=True, default=False)
+@click.option("--dry-run", "dry_run", is_flag=True, default=False)
+def overlay_reconcile(
+    project_label: Optional[str],
+    all_projects: bool,
+    prune: bool,
+    dry_run: bool,
+) -> None:
+    """Reconcile overlay cache entries against canonical issue files."""
+    root = Path.cwd()
+    try:
+        stats = reconcile_overlay_for_projects(
+            root,
+            project_label=project_label,
+            all_projects=all_projects,
+            prune=prune,
+            dry_run=dry_run,
+        )
+    except (ConfigurationError, ProjectMarkerError, ValueError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(
+        "overlay reconcile complete "
+        f"(projects={stats.projects}, scanned={stats.issues_scanned}, "
+        f"updated={stats.issues_updated}, removed={stats.issues_removed}, "
+        f"pruned={stats.fields_pruned})"
+    )
 
 
 @overlay.command("install-hooks")

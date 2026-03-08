@@ -237,6 +237,7 @@ fn given_overlay_issue(world: &mut KanbusWorld, identifier: String, timestamp: S
     world.overlay_issue_record = Some(OverlayIssueRecord {
         overlay_ts: updated_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
         overlay_event_id: None,
+        overrides: None,
         issue: overlay_issue,
     });
 }
