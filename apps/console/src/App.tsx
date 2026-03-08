@@ -664,6 +664,7 @@ export default function App() {
   const viewModeAutoCorrected = React.useRef(false);
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
+  const lastSnapshotSuccessAtRef = React.useRef<number>(Date.now());
   useAppearance();
   const config = snapshot?.config;
   const issues = useMemo(() => {
@@ -770,6 +771,7 @@ export default function App() {
         if (!isMounted) {
           return;
         }
+        lastSnapshotSuccessAtRef.current = Date.now();
         setSnapshot(data);
         setError(null);
         setAuthReady(true);
@@ -777,11 +779,18 @@ export default function App() {
         unsubscribe = subscribeToSnapshots(
           apiBase,
           (nextSnapshot) => {
+            lastSnapshotSuccessAtRef.current = Date.now();
             setSnapshot(nextSnapshot);
             setError(null);
             setErrorTime(null);
           },
           () => {
+            const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
+            // EventSource reconnects are expected in some gateway paths.
+            // Only surface a hard outage when snapshots have actually gone stale.
+            if (staleMs < 15_000) {
+              return;
+            }
             setError("SSE connection issue. Attempting to reconnect.");
             setErrorTime(Date.now());
           }
