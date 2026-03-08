@@ -134,6 +134,7 @@ If Mosquitto is installed, Kanbus will autostart it and record `~/.kanbus/run/br
 ### Overlay maintenance
 
 ```bash
+kanbus overlay reconcile --all --prune
 kanbus overlay gc --all
 kanbus overlay install-hooks
 ```

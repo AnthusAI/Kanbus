@@ -717,7 +717,22 @@ enum OverlayCommands {
         #[arg(long)]
         all: bool,
     },
-    /// Install git hooks that run overlay GC.
+    /// Reconcile overlay snapshots against canonical issue files.
+    Reconcile {
+        /// Filter to a single project label.
+        #[arg(long = "project")]
+        project: Option<String>,
+        /// Reconcile all labeled projects.
+        #[arg(long)]
+        all: bool,
+        /// Remove fields from speculative overrides once canonical data matches.
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        prune: bool,
+        /// Show what would change without writing files.
+        #[arg(long = "dry-run", action = clap::ArgAction::SetTrue)]
+        dry_run: bool,
+    },
+    /// Install git hooks that run overlay reconcile + GC.
     #[command(name = "install-hooks")]
     InstallHooks,
 }
@@ -2065,6 +2080,24 @@ fn execute_command(
             OverlayCommands::Gc { project, all } => {
                 let count = crate::overlay::gc_overlay_for_projects(root, project, all)?;
                 Ok(Some(format!("overlay gc complete ({count} project(s))")))
+            }
+            OverlayCommands::Reconcile {
+                project,
+                all,
+                prune,
+                dry_run,
+            } => {
+                let stats = crate::overlay::reconcile_overlay_for_projects(
+                    root, project, all, prune, dry_run,
+                )?;
+                Ok(Some(format!(
+                    "overlay reconcile complete (projects={}, scanned={}, updated={}, removed={}, pruned={})",
+                    stats.projects,
+                    stats.issues_scanned,
+                    stats.issues_updated,
+                    stats.issues_removed,
+                    stats.fields_pruned
+                )))
             }
             OverlayCommands::InstallHooks => {
                 crate::overlay::install_overlay_hooks(root)?;

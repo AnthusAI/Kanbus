@@ -193,6 +193,7 @@ kanbus gossip watch --transport mqtt --broker auto
 ### Overlay maintenance
 
 ```bash
+kanbus overlay reconcile --all --prune
 kanbus overlay gc --all
 kanbus overlay install-hooks
 ```

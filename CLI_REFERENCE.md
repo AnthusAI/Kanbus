@@ -148,9 +148,17 @@ Sweep overlay cache entries.
 kanbus overlay gc [--project <label>] [--all]
 ```
 
+### `kanbus overlay reconcile`
+
+Reconcile speculative overlay entries against canonical issue files and optionally prune converged fields.
+
+```bash
+kanbus overlay reconcile [--project <label>] [--all] [--prune] [--dry-run]
+```
+
 ### `kanbus overlay install-hooks`
 
-Install git hooks to run overlay GC after merges/checkouts.
+Install git hooks to run overlay reconcile + GC after merges/checkouts.
 
 ```bash
 kanbus overlay install-hooks
