@@ -43,7 +43,7 @@
       "id": "deep_dive",
       "title": "Virtual Projects Deep Dive",
       "startSec": 5.625,
-      "endSec": 36,
+      "endSec": 35.8375,
       "layers": [
         {
           "id": "background",
@@ -189,13 +189,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 12.7125,
+          "endSec": 12.6375,
           "text": "Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 12.7125,
+              "endSec": 12.6375,
               "text": "Don't context switch between repositories. Kanbus allows you to mount other projects into your current workspace."
             }
           ],
@@ -204,20 +204,20 @@
         {
           "id": "unified",
           "label": "Unified Workflow",
-          "startSec": 12.7125,
-          "endSec": 20.65,
+          "startSec": 12.6375,
+          "endSec": 20.5875,
           "text": "Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 12.7125,
-              "endSec": 13.2125,
+              "startSec": 12.6375,
+              "endSec": 13.1375,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 13.2125,
-              "endSec": 20.65,
+              "startSec": 13.1375,
+              "endSec": 20.5875,
               "text": "Aggregate issues from all configured projects into a single list. Query, filter, and track work across your entire stack."
             }
           ],
@@ -226,20 +226,20 @@
         {
           "id": "shared",
           "label": "Shared Config",
-          "startSec": 20.65,
-          "endSec": 28.0625,
+          "startSec": 20.5875,
+          "endSec": 27.7,
           "text": "Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 20.65,
-              "endSec": 21.15,
+              "startSec": 20.5875,
+              "endSec": 21.0875,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 21.15,
-              "endSec": 28.0625,
+              "startSec": 21.0875,
+              "endSec": 27.7,
               "text": "Add virtual projects to your team's configuration file, and everyone gets the same unified view automatically."
             }
           ],
@@ -248,20 +248,20 @@
         {
           "id": "local",
           "label": "Local Overrides",
-          "startSec": 28.0625,
-          "endSec": 36,
+          "startSec": 27.7,
+          "endSec": 35.8375,
           "text": "Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 28.0625,
-              "endSec": 28.5625,
+              "startSec": 27.7,
+              "endSec": 28.2,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 28.5625,
-              "endSec": 36,
+              "startSec": 28.2,
+              "endSec": 35.8375,
               "text": "Need to track a dependency just for yourself? Use a private, git-ignored configuration to customize your personal workflow."
             }
           ],
@@ -295,7 +295,7 @@
       "kind": "scene",
       "sceneId": "deep_dive",
       "startSec": 5.625,
-      "endSec": 36
+      "endSec": 35.8375
     }
   ],
   "posterTimeSec": 2,

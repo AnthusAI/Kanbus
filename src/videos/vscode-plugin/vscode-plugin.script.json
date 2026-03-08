@@ -43,7 +43,7 @@
       "id": "deep_dive",
       "title": "VS Code Plugin Deep Dive",
       "startSec": 5.625,
-      "endSec": 34.375,
+      "endSec": 34.425,
       "layers": [
         {
           "id": "background",
@@ -189,13 +189,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 11.5625,
+          "endSec": 11.6625,
           "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 11.5625,
+              "endSec": 11.6625,
               "text": "Manage your project without leaving your code. Open your Kanban board directly in a VS Code tab."
             }
           ],
@@ -204,20 +204,20 @@
         {
           "id": "workflow",
           "label": "Workflow",
-          "startSec": 11.5625,
-          "endSec": 19.2125,
+          "startSec": 11.6625,
+          "endSec": 19.3875,
           "text": "Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 11.5625,
-              "endSec": 12.0625,
+              "startSec": 11.6625,
+              "endSec": 12.1625,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 12.0625,
-              "endSec": 19.2125,
+              "startSec": 12.1625,
+              "endSec": 19.3875,
               "text": "Drag issues, edit details, and filter tasks while your code remains visible right next to it. Zero context switching."
             }
           ],
@@ -226,20 +226,20 @@
         {
           "id": "access",
           "label": "Access",
-          "startSec": 19.2125,
-          "endSec": 28.025,
+          "startSec": 19.3875,
+          "endSec": 27.95,
           "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 19.2125,
-              "endSec": 19.7125,
+              "startSec": 19.3875,
+              "endSec": 19.8875,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 19.7125,
-              "endSec": 28.025,
+              "startSec": 19.8875,
+              "endSec": 27.95,
               "text": "Access the board instantly from the Activity Bar or Command Palette. Click an issue ID in a comment to jump straight to the details."
             }
           ],
@@ -248,20 +248,20 @@
         {
           "id": "install",
           "label": "Install",
-          "startSec": 28.025,
-          "endSec": 34.375,
+          "startSec": 27.95,
+          "endSec": 34.425,
           "text": "The Kanbus extension is open source and available for free. Install it from the Marketplace today.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 28.025,
-              "endSec": 28.525,
+              "startSec": 27.95,
+              "endSec": 28.45,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 28.525,
-              "endSec": 34.375,
+              "startSec": 28.45,
+              "endSec": 34.425,
               "text": "The Kanbus extension is open source and available for free. Install it from the Marketplace today."
             }
           ],
@@ -295,7 +295,7 @@
       "kind": "scene",
       "sceneId": "deep_dive",
       "startSec": 5.625,
-      "endSec": 34.375
+      "endSec": 34.425
     }
   ],
   "posterTimeSec": 2,

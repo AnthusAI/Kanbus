@@ -43,7 +43,7 @@
       "id": "deep_dive",
       "title": "Core Management Deep Dive",
       "startSec": 5.625,
-      "endSec": 37.3375,
+      "endSec": 37.2375,
       "layers": [
         {
           "id": "background",
@@ -189,13 +189,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 12.5625,
+          "endSec": 12.5375,
           "text": "Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 12.5625,
+              "endSec": 12.5375,
               "text": "Create tasks, stories, and bugs instantly. Add descriptions, set priorities, and assign ownership in a single line."
             }
           ],
@@ -204,20 +204,20 @@
         {
           "id": "filter",
           "label": "Filter",
-          "startSec": 12.5625,
-          "endSec": 20.4625,
+          "startSec": 12.5375,
+          "endSec": 20.4,
           "text": "Find exactly what you need with powerful query filters. List all open issues, or filter by status, priority, or assignee.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 12.5625,
-              "endSec": 13.0625,
+              "startSec": 12.5375,
+              "endSec": 13.0375,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 13.0625,
-              "endSec": 20.4625,
+              "startSec": 13.0375,
+              "endSec": 20.4,
               "text": "Find exactly what you need with powerful query filters. List all open issues, or filter by status, priority, or assignee."
             }
           ],
@@ -226,20 +226,20 @@
         {
           "id": "hierarchy",
           "label": "Hierarchy",
-          "startSec": 20.4625,
-          "endSec": 28.625,
+          "startSec": 20.4,
+          "endSec": 28.549999999999997,
           "text": "Group related tasks under an Epic to track larger initiatives. Creating a child task automatically links it to the parent.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 20.4625,
-              "endSec": 20.9625,
+              "startSec": 20.4,
+              "endSec": 20.9,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 20.9625,
-              "endSec": 28.625,
+              "startSec": 20.9,
+              "endSec": 28.549999999999997,
               "text": "Group related tasks under an Epic to track larger initiatives. Creating a child task automatically links it to the parent."
             }
           ],
@@ -248,20 +248,20 @@
         {
           "id": "workflow",
           "label": "Workflow",
-          "startSec": 28.625,
-          "endSec": 37.3375,
+          "startSec": 28.549999999999997,
+          "endSec": 37.2375,
           "text": "Move an issue to In Progress and assign it to yourself in one move. Keep your project moving forward without leaving the terminal.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 28.625,
-              "endSec": 29.125,
+              "startSec": 28.549999999999997,
+              "endSec": 29.049999999999997,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 29.125,
-              "endSec": 37.3375,
+              "startSec": 29.049999999999997,
+              "endSec": 37.2375,
               "text": "Move an issue to In Progress and assign it to yourself in one move. Keep your project moving forward without leaving the terminal."
             }
           ],
@@ -295,7 +295,7 @@
       "kind": "scene",
       "sceneId": "deep_dive",
       "startSec": 5.625,
-      "endSec": 37.3375
+      "endSec": 37.2375
     }
   ],
   "posterTimeSec": 2,
