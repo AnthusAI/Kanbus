@@ -661,7 +661,7 @@ def main(argv: list[str]) -> int:
 
             rust_delete = run_kanbus_rust(
                 rust_binary,
-                ["--beads", "delete", python_child_id],
+                ["--beads", "delete", python_child_id, "--yes"],
                 cwd=beads_repo,
                 env=env,
             )
