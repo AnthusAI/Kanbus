@@ -1,54 +1,56 @@
 //! Lambda handler for the console backend.
 
 use std::collections::hash_map::DefaultHasher;
-use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::time::Duration;
 
-use bytes::Bytes;
+use base64::Engine as _;
 use chrono::Utc;
-use futures_util::stream::{self, Stream, StreamExt};
-use http_body::Frame;
-use http_body_util::StreamBody;
-use lambda_http::{
-    http::StatusCode, run_with_streaming_response, service_fn, Error, Request, Response,
-};
-use tokio::sync::Mutex;
-use tokio_stream::wrappers::IntervalStream;
+use lambda_http::{http::StatusCode, run, service_fn, Body, Error, Request, Response};
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
 
 const EFS_ROOT: &str = "/mnt/data";
 const DEFAULT_ASSETS_ROOT: &str = "/opt/apps/console/dist";
+const REALTIME_MODE: &str = "mqtt_iot";
+const AUTH_MODE_NONE: &str = "none";
+const AUTH_MODE_COGNITO_PKCE: &str = "cognito_pkce";
 
-type BoxedStream = Pin<Box<dyn Stream<Item = Result<Frame<Bytes>, Infallible>> + Send>>;
-type StreamBodyType = StreamBody<BoxedStream>;
-type ResponseType = Response<StreamBodyType>;
+type ResponseType = Response<Body>;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    run_with_streaming_response(service_fn(handler)).await
+    run(service_fn(handler)).await
 }
 
 async fn handler(request: Request) -> Result<ResponseType, Error> {
     let path = request.uri().path();
-    let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
+    let query = request.uri().query().unwrap_or_default().to_string();
+    let raw_segments: Vec<&str> = path
+        .trim_start_matches('/')
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect();
+    let segments = normalize_segments(raw_segments);
     if segments.is_empty() {
-        return Ok(not_found());
+        return Ok(asset_response("index.html"));
+    }
+    if segments == vec!["api", "auth", "bootstrap"] {
+        return handle_auth_bootstrap(None, None);
+    }
+    if segments == vec!["auth", "callback"] || segments == vec!["auth", "logout"] {
+        return Ok(asset_response("index.html"));
     }
     if segments[0] == "assets" {
         let asset_path = segments[1..].join("/");
         return Ok(asset_response(&format!("assets/{asset_path}")));
     }
     if segments.len() < 2 {
-        return Ok(not_found());
+        return Ok(asset_response("index.html"));
     }
     let account = segments[0];
     let project = segments[1];
-    let store_root = FileStore::resolve_tenant_root(Path::new(EFS_ROOT), account, project);
+    let store_root = resolve_store_root(Path::new(EFS_ROOT), account, project);
     let store = FileStore::new(store_root);
     if segments.len() < 3 {
         return Ok(asset_response("index.html"));
@@ -63,15 +65,219 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
     if segments.len() < 4 {
         return Ok(not_found());
     }
+    let token_from_query = query_param(&query, "access_token");
     match segments[3] {
-        "config" => handle_config(&store),
-        "issues" => match segments.get(4) {
-            Some(identifier) => handle_issue(&store, identifier),
-            None => handle_issues(&store),
+        "telemetry" => match segments.get(4) {
+            Some(&"console") => Ok(no_content()),
+            _ => Ok(not_found()),
         },
-        "events" => handle_events(&store),
+        "config" => {
+            if let Err(response) = enforce_tenant_claims(&request, account, project, None) {
+                return Ok(response);
+            }
+            handle_config(&store)
+        }
+        "issues" => match segments.get(4) {
+            Some(identifier) => {
+                if let Err(response) = enforce_tenant_claims(&request, account, project, None) {
+                    return Ok(response);
+                }
+                handle_issue(&store, identifier)
+            }
+            None => {
+                if let Err(response) = enforce_tenant_claims(&request, account, project, None) {
+                    return Ok(response);
+                }
+                handle_issues(&store)
+            }
+        },
+        "events" => match segments.get(4) {
+            Some(&"realtime") => {
+                if let Err(response) =
+                    enforce_tenant_claims(&request, account, project, token_from_query.as_deref())
+                {
+                    return Ok(response);
+                }
+                handle_realtime_events(&store)
+            }
+            Some(_) => Ok(not_found()),
+            None => {
+                if let Err(response) =
+                    enforce_tenant_claims(&request, account, project, token_from_query.as_deref())
+                {
+                    return Ok(response);
+                }
+                handle_events(&store)
+            }
+        },
+        "realtime" => match segments.get(4) {
+            Some(&"bootstrap") => {
+                if let Err(response) = enforce_tenant_claims(&request, account, project, None) {
+                    return Ok(response);
+                }
+                handle_realtime_bootstrap(account, project)
+            }
+            _ => Ok(not_found()),
+        },
+        "auth" => match segments.get(4) {
+            Some(&"bootstrap") => handle_auth_bootstrap(Some(account), Some(project)),
+            _ => Ok(not_found()),
+        },
         _ => Ok(not_found()),
     }
+}
+
+fn normalize_segments(segments: Vec<&str>) -> Vec<&str> {
+    if let Ok(stage) = std::env::var("KANBUS_API_STAGE") {
+        if segments.first().copied() == Some(stage.as_str()) {
+            return segments[1..].to_vec();
+        }
+    }
+    if segments.len() >= 4 && segments[2] != "api" && segments[3] == "api" {
+        return segments[1..].to_vec();
+    }
+    segments
+}
+
+fn resolve_store_root(base: &Path, account: &str, project: &str) -> std::path::PathBuf {
+    let tenant_root = FileStore::resolve_tenant_root(base, account, project);
+    if tenant_root.join(".kanbus.yml").is_file() {
+        return tenant_root;
+    }
+    let repo_root = tenant_root.join("repo");
+    if repo_root.join(".kanbus.yml").is_file() {
+        return repo_root;
+    }
+    tenant_root
+}
+
+#[derive(Debug, serde::Serialize)]
+struct AuthBootstrapResponse {
+    mode: String,
+    cognito_domain_url: Option<String>,
+    cognito_client_id: Option<String>,
+    cognito_redirect_uri: Option<String>,
+    cognito_logout_uri: Option<String>,
+    cognito_issuer: Option<String>,
+    identity_pool_id: Option<String>,
+    tenant_account_claim_key: String,
+    tenant_project_claim_key: String,
+    account: Option<String>,
+    project: Option<String>,
+}
+
+fn handle_auth_bootstrap(
+    _account: Option<&str>,
+    _project: Option<&str>,
+) -> Result<ResponseType, Error> {
+    let auth_mode =
+        std::env::var("KANBUS_AUTH_MODE").unwrap_or_else(|_| AUTH_MODE_NONE.to_string());
+    if auth_mode == AUTH_MODE_NONE {
+        return json_response(&AuthBootstrapResponse {
+            mode: AUTH_MODE_NONE.to_string(),
+            cognito_domain_url: None,
+            cognito_client_id: None,
+            cognito_redirect_uri: None,
+            cognito_logout_uri: None,
+            cognito_issuer: None,
+            identity_pool_id: None,
+            tenant_account_claim_key: tenant_account_claim_key(),
+            tenant_project_claim_key: tenant_project_claim_key(),
+            account: None,
+            project: None,
+        });
+    }
+    json_response(&AuthBootstrapResponse {
+        mode: AUTH_MODE_COGNITO_PKCE.to_string(),
+        cognito_domain_url: std::env::var("KANBUS_COGNITO_DOMAIN_URL").ok(),
+        cognito_client_id: std::env::var("KANBUS_COGNITO_CLIENT_ID").ok(),
+        cognito_redirect_uri: std::env::var("KANBUS_COGNITO_REDIRECT_URI").ok(),
+        cognito_logout_uri: std::env::var("KANBUS_COGNITO_LOGOUT_URI").ok(),
+        cognito_issuer: std::env::var("KANBUS_COGNITO_ISSUER").ok(),
+        identity_pool_id: std::env::var("KANBUS_IDENTITY_POOL_ID").ok(),
+        tenant_account_claim_key: tenant_account_claim_key(),
+        tenant_project_claim_key: tenant_project_claim_key(),
+        account: None,
+        project: None,
+    })
+}
+
+fn tenant_account_claim_key() -> String {
+    std::env::var("KANBUS_TENANT_ACCOUNT_CLAIM_KEY")
+        .unwrap_or_else(|_| "custom:account".to_string())
+}
+
+fn tenant_project_claim_key() -> String {
+    std::env::var("KANBUS_TENANT_PROJECT_CLAIM_KEY")
+        .unwrap_or_else(|_| "custom:project".to_string())
+}
+
+fn query_param(query: &str, key: &str) -> Option<String> {
+    query
+        .split('&')
+        .filter_map(|pair| pair.split_once('='))
+        .find_map(|(k, v)| if k == key { Some(v.to_string()) } else { None })
+}
+
+fn bearer_token(request: &Request) -> Option<String> {
+    request.headers().get("Authorization").and_then(|raw| {
+        let value = raw.to_str().ok()?;
+        let trimmed = value.trim();
+        trimmed
+            .strip_prefix("Bearer ")
+            .or_else(|| trimmed.strip_prefix("bearer "))
+            .map(std::string::ToString::to_string)
+    })
+}
+
+fn decode_jwt_claims(token: &str) -> Option<serde_json::Value> {
+    let payload = token.split('.').nth(1)?;
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload)
+        .ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
+#[allow(clippy::result_large_err)]
+fn enforce_tenant_claims(
+    request: &Request,
+    account: &str,
+    project: &str,
+    token_from_query: Option<&str>,
+) -> Result<(), ResponseType> {
+    let auth_mode =
+        std::env::var("KANBUS_AUTH_MODE").unwrap_or_else(|_| AUTH_MODE_NONE.to_string());
+    if auth_mode == AUTH_MODE_NONE {
+        return Ok(());
+    }
+    let token = bearer_token(request)
+        .or_else(|| token_from_query.map(std::string::ToString::to_string))
+        .ok_or_else(unauthorized)?;
+    let claims = decode_jwt_claims(&token).ok_or_else(unauthorized)?;
+    let account_key = tenant_account_claim_key();
+    let project_key = tenant_project_claim_key();
+    let claim_account = claims
+        .get(&account_key)
+        .and_then(|value| value.as_str())
+        .unwrap_or_default();
+    let claim_project = claims
+        .get(&project_key)
+        .and_then(|value| value.as_str())
+        .unwrap_or_default();
+    if claim_account != account || claim_project != project {
+        return Err(forbidden());
+    }
+    Ok(())
+}
+
+fn unauthorized() -> ResponseType {
+    error_response("unauthorized", StatusCode::UNAUTHORIZED)
+        .unwrap_or_else(|_| Response::new(body_from_text("{\"error\":\"unauthorized\"}")))
+}
+
+fn forbidden() -> ResponseType {
+    error_response("forbidden", StatusCode::FORBIDDEN)
+        .unwrap_or_else(|_| Response::new(body_from_text("{\"error\":\"forbidden\"}")))
 }
 
 fn handle_config(store: &FileStore) -> Result<ResponseType, Error> {
@@ -106,14 +312,65 @@ fn handle_issue(store: &FileStore, identifier: &str) -> Result<ResponseType, Err
 }
 
 fn handle_events(store: &FileStore) -> Result<ResponseType, Error> {
-    let stream = sse_stream(store.clone());
+    let (payload, _) = snapshot_payload(store);
     Response::builder()
         .status(StatusCode::OK)
         .header("Content-Type", "text/event-stream")
         .header("Cache-Control", "no-cache")
         .header("Connection", "keep-alive")
-        .body(StreamBody::new(stream))
+        .body(Body::Text(format!("data: {payload}\n\n")))
         .map_err(Error::from)
+}
+
+fn handle_realtime_events(store: &FileStore) -> Result<ResponseType, Error> {
+    // Cloud compatibility endpoint for the existing frontend notification stream.
+    // In Lambda mode this currently reuses snapshot-based SSE fallback behavior.
+    handle_events(store)
+}
+
+#[derive(Debug, serde::Serialize)]
+struct RealtimeBootstrapResponse {
+    mode: &'static str,
+    region: String,
+    iot_endpoint: String,
+    iot_wss_url: String,
+    topic: String,
+    account: String,
+    project: String,
+    mqtt_custom_authorizer_name: Option<String>,
+}
+
+fn handle_realtime_bootstrap(account: &str, project: &str) -> Result<ResponseType, Error> {
+    let payload = match build_realtime_bootstrap(account, project) {
+        Ok(payload) => payload,
+        Err(message) => {
+            return error_response(message, StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    json_response(&payload)
+}
+
+fn build_realtime_bootstrap(
+    account: &str,
+    project: &str,
+) -> Result<RealtimeBootstrapResponse, String> {
+    let iot_endpoint = std::env::var("KANBUS_IOT_DATA_ENDPOINT")
+        .map_err(|_| "KANBUS_IOT_DATA_ENDPOINT is not configured".to_string())?;
+    let region = std::env::var("AWS_REGION")
+        .or_else(|_| std::env::var("AWS_DEFAULT_REGION"))
+        .map_err(|_| "AWS_REGION is not configured".to_string())?;
+    let topic = format!("projects/{account}/{project}/events");
+    let iot_wss_url = format!("wss://{iot_endpoint}/mqtt");
+    Ok(RealtimeBootstrapResponse {
+        mode: REALTIME_MODE,
+        region,
+        iot_endpoint,
+        iot_wss_url,
+        topic,
+        account: account.to_string(),
+        project: project.to_string(),
+        mqtt_custom_authorizer_name: std::env::var("KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME").ok(),
+    })
 }
 
 fn json_response<T: serde::Serialize>(value: &T) -> Result<ResponseType, Error> {
@@ -133,6 +390,13 @@ fn error_response(message: impl Into<String>, status: StatusCode) -> Result<Resp
         .header("Content-Type", "application/json")
         .body(body_from_text(body))
         .map_err(Error::from)
+}
+
+fn no_content() -> ResponseType {
+    Response::builder()
+        .status(StatusCode::NO_CONTENT)
+        .body(Body::Empty)
+        .unwrap_or_else(|_| Response::new(Body::Empty))
 }
 
 fn not_found() -> ResponseType {
@@ -196,30 +460,6 @@ fn asset_response(path: &str) -> ResponseType {
         .unwrap_or_else(|_| Response::new(body_from_text("{\"error\":\"asset response failed\"}")))
 }
 
-fn sse_stream(store: FileStore) -> BoxedStream {
-    let (initial_payload, initial_fingerprint) = snapshot_payload(&store);
-    let last_fingerprint = Arc::new(Mutex::new(initial_fingerprint));
-    let initial = stream::once(async move { Ok(Frame::data(Bytes::from(initial_payload))) });
-    let updates_store = store.clone();
-    let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
-    let updates_last = Arc::clone(&last_fingerprint);
-    let updates = interval.filter_map(move |_| {
-        let store = updates_store.clone();
-        let last_fingerprint = Arc::clone(&updates_last);
-        async move {
-            let (payload, fingerprint) = snapshot_payload(&store);
-            let mut guard = last_fingerprint.lock().await;
-            if *guard == fingerprint {
-                None
-            } else {
-                *guard = fingerprint;
-                Some(Ok(Frame::data(Bytes::from(payload))))
-            }
-        }
-    });
-    Box::pin(initial.chain(updates))
-}
-
 fn snapshot_payload(store: &FileStore) -> (String, u64) {
     let (payload, fingerprint) = match store.build_snapshot() {
         Ok(snapshot) => {
@@ -239,7 +479,7 @@ fn snapshot_payload(store: &FileStore) -> (String, u64) {
             (payload.clone(), hash_payload(&payload))
         }
     };
-    (format!("data: {payload}\n\n"), fingerprint)
+    (payload, fingerprint)
 }
 
 fn snapshot_fingerprint(snapshot: &kanbus::console_backend::ConsoleSnapshot) -> u64 {
@@ -257,13 +497,180 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
     hasher.finish()
 }
 
-fn body_from_text(text: impl Into<String>) -> StreamBodyType {
-    let bytes = Bytes::from(text.into());
-    let stream = stream::once(async move { Ok(Frame::data(bytes)) });
-    StreamBody::new(Box::pin(stream))
+fn body_from_text(text: impl Into<String>) -> Body {
+    Body::Text(text.into())
 }
 
-fn body_from_bytes(bytes: Vec<u8>) -> StreamBodyType {
-    let stream = stream::once(async move { Ok(Frame::data(Bytes::from(bytes))) });
-    StreamBody::new(Box::pin(stream))
+fn body_from_bytes(bytes: Vec<u8>) -> Body {
+    Body::Binary(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use std::sync::{Mutex, OnceLock};
+
+    fn realtime_env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env lock")
+    }
+
+    fn clear_realtime_env() {
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::remove_var("KANBUS_AUTH_MODE");
+            env::remove_var("KANBUS_COGNITO_DOMAIN_URL");
+            env::remove_var("KANBUS_COGNITO_CLIENT_ID");
+            env::remove_var("KANBUS_COGNITO_REDIRECT_URI");
+            env::remove_var("KANBUS_COGNITO_LOGOUT_URI");
+            env::remove_var("KANBUS_COGNITO_ISSUER");
+            env::remove_var("KANBUS_IDENTITY_POOL_ID");
+            env::remove_var("KANBUS_TENANT_ACCOUNT_CLAIM_KEY");
+            env::remove_var("KANBUS_TENANT_PROJECT_CLAIM_KEY");
+            env::remove_var("KANBUS_IOT_DATA_ENDPOINT");
+            env::remove_var("KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME");
+            env::remove_var("KANBUS_API_STAGE");
+            env::remove_var("AWS_REGION");
+            env::remove_var("AWS_DEFAULT_REGION");
+        }
+    }
+
+    #[test]
+    fn is_console_route_detects_supported_paths() {
+        assert!(is_console_route(""));
+        assert!(is_console_route("issues"));
+        assert!(is_console_route("issues/kanbus-1"));
+        assert!(is_console_route("issues/kanbus-parent/all"));
+        assert!(!is_console_route("assets/app.js"));
+    }
+
+    #[test]
+    fn hash_helpers_are_stable_for_same_payload() {
+        let one = hash_payload("payload");
+        let two = hash_payload("payload");
+        let bytes_hash = hash_bytes(b"payload");
+        assert_eq!(one, two);
+        assert_eq!(one, bytes_hash);
+    }
+
+    #[test]
+    fn normalize_segments_strips_configured_stage_prefix() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_API_STAGE", "dev");
+        }
+        let normalized = normalize_segments(vec!["dev", "anthus", "kanbus", "api", "config"]);
+        assert_eq!(normalized, vec!["anthus", "kanbus", "api", "config"]);
+    }
+
+    #[test]
+    fn normalize_segments_falls_back_to_api_shape_detection() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        let normalized = normalize_segments(vec!["prod", "anthus", "kanbus", "api", "issues"]);
+        assert_eq!(normalized, vec!["anthus", "kanbus", "api", "issues"]);
+    }
+
+    #[test]
+    fn resolve_store_root_prefers_repo_checkout_when_present() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let base = temp.path();
+        let tenant_repo = base.join("anthus").join("kanbus").join("repo");
+        std::fs::create_dir_all(&tenant_repo).expect("create repo root");
+        std::fs::write(tenant_repo.join(".kanbus.yml"), "project_key: kbs").expect("write config");
+
+        let resolved = resolve_store_root(base, "anthus", "kanbus");
+        assert_eq!(resolved, tenant_repo);
+    }
+
+    #[test]
+    fn realtime_bootstrap_builds_tenant_scoped_topic() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var(
+                "KANBUS_IOT_DATA_ENDPOINT",
+                "a1b2c3-ats.iot.us-east-1.amazonaws.com",
+            );
+            env::set_var("AWS_REGION", "us-east-1");
+        }
+        let payload = build_realtime_bootstrap("acct", "proj").expect("bootstrap payload");
+        assert_eq!(payload.mode, REALTIME_MODE);
+        assert_eq!(payload.region, "us-east-1");
+        assert_eq!(
+            payload.iot_wss_url,
+            "wss://a1b2c3-ats.iot.us-east-1.amazonaws.com/mqtt"
+        );
+        assert_eq!(payload.topic, "projects/acct/proj/events");
+        assert_eq!(payload.account, "acct");
+        assert_eq!(payload.project, "proj");
+        assert_eq!(payload.mqtt_custom_authorizer_name, None);
+
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var(
+                "KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME",
+                "kanbus-mqtt-token-dev",
+            );
+        }
+        let payload_with_authorizer =
+            build_realtime_bootstrap("acct", "proj").expect("bootstrap payload");
+        assert_eq!(
+            payload_with_authorizer
+                .mqtt_custom_authorizer_name
+                .as_deref(),
+            Some("kanbus-mqtt-token-dev")
+        );
+    }
+
+    #[test]
+    fn realtime_bootstrap_requires_endpoint_and_region() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        let missing_endpoint = build_realtime_bootstrap("acct", "proj")
+            .expect_err("missing endpoint should return error");
+        assert!(missing_endpoint.contains("KANBUS_IOT_DATA_ENDPOINT"));
+
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var(
+                "KANBUS_IOT_DATA_ENDPOINT",
+                "a1b2c3-ats.iot.us-east-1.amazonaws.com",
+            );
+        }
+        let missing_region = build_realtime_bootstrap("acct", "proj")
+            .expect_err("missing region should return error");
+        assert!(missing_region.contains("AWS_REGION"));
+    }
+
+    #[test]
+    fn auth_bootstrap_defaults_to_none_mode() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        let response = handle_auth_bootstrap(Some("anthus"), Some("kanbus")).expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[test]
+    fn query_param_extracts_expected_value() {
+        let value = query_param("access_token=abc&foo=bar", "access_token");
+        assert_eq!(value.as_deref(), Some("abc"));
+        assert_eq!(query_param("foo=bar", "access_token"), None);
+    }
+
+    #[test]
+    fn decode_jwt_claims_parses_payload() {
+        let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(r#"{"custom:account":"anthus","custom:project":"kanbus"}"#);
+        let token = format!("aaa.{payload}.bbb");
+        let claims = decode_jwt_claims(&token).expect("claims");
+        assert_eq!(claims["custom:account"], "anthus");
+        assert_eq!(claims["custom:project"], "kanbus");
+    }
 }

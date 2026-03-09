@@ -15,6 +15,19 @@ from kanbus.models import ProjectConfiguration
 SORT_PRESETS = ("fifo", "priority-first", "recently-updated")
 SORT_FIELDS = ("priority", "created_at", "updated_at", "id")
 SORT_DIRECTIONS = ("asc", "desc")
+HOOK_EVENTS = {
+    "issue.create",
+    "issue.update",
+    "issue.close",
+    "issue.delete",
+    "issue.comment",
+    "issue.dependency",
+    "issue.promote",
+    "issue.localize",
+    "issue.show",
+    "issue.list",
+    "issue.ready",
+}
 
 
 class ConfigurationError(RuntimeError):
@@ -48,6 +61,7 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
             merged["virtual_projects"] = {**main_vp, **override_vp}
     _reject_legacy_fields(merged)
     _normalize_virtual_projects(merged)
+    _apply_environment_overrides(merged)
 
     try:
         configuration = ProjectConfiguration.model_validate(merged)
@@ -66,6 +80,76 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
             raise ConfigurationError("; ".join(workflow_errors))
 
     return configuration
+
+
+def _apply_environment_overrides(merged: dict) -> None:
+    realtime = merged.setdefault("realtime", {})
+    overlay = merged.setdefault("overlay", {})
+    topics = realtime.setdefault("topics", {})
+
+    transport = os.environ.get("KANBUS_REALTIME_TRANSPORT")
+    if transport:
+        realtime["transport"] = transport
+
+    broker = os.environ.get("KANBUS_REALTIME_BROKER")
+    if broker:
+        realtime["broker"] = broker
+
+    autostart = _parse_bool_env("KANBUS_REALTIME_AUTOSTART")
+    if autostart is not None:
+        realtime["autostart"] = autostart
+
+    keepalive = _parse_bool_env("KANBUS_REALTIME_KEEPALIVE")
+    if keepalive is not None:
+        realtime["keepalive"] = keepalive
+
+    socket_path = os.environ.get("KANBUS_REALTIME_UDS_SOCKET_PATH")
+    if socket_path is not None and socket_path != "":
+        realtime["uds_socket_path"] = socket_path
+
+    mqtt_custom_authorizer_name = os.environ.get(
+        "KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME"
+    )
+    if mqtt_custom_authorizer_name:
+        realtime["mqtt_custom_authorizer_name"] = mqtt_custom_authorizer_name
+
+    mqtt_api_token = os.environ.get("KANBUS_REALTIME_MQTT_API_TOKEN")
+    if mqtt_api_token:
+        realtime["mqtt_api_token"] = mqtt_api_token
+
+    project_events = os.environ.get("KANBUS_REALTIME_TOPICS_PROJECT_EVENTS")
+    if project_events:
+        topics["project_events"] = project_events
+
+    overlay_enabled = _parse_bool_env("KANBUS_OVERLAY_ENABLED")
+    if overlay_enabled is not None:
+        overlay["enabled"] = overlay_enabled
+
+    overlay_ttl_s = _parse_int_env("KANBUS_OVERLAY_TTL_S")
+    if overlay_ttl_s is not None:
+        overlay["ttl_s"] = overlay_ttl_s
+
+
+def _parse_bool_env(name: str) -> bool | None:
+    raw = os.environ.get(name)
+    if raw is None:
+        return None
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
+def _parse_int_env(name: str) -> int | None:
+    raw = os.environ.get(name)
+    if raw is None:
+        return None
+    try:
+        return int(raw.strip())
+    except (TypeError, ValueError):
+        return None
 
 
 def _load_dotenv(path: Path) -> None:
@@ -155,6 +239,14 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     errors: List[str] = []
     if not configuration.project_directory:
         errors.append("project_directory must not be empty")
+
+    if configuration.wiki_directory is not None:
+        wd = configuration.wiki_directory
+        if wd.startswith("/") or (len(wd) >= 2 and wd[1] == ":"):
+            errors.append("wiki_directory must not escape project root")
+        elif ".." in wd:
+            if wd.count("..") > 1 or not wd.replace("\\", "/").startswith("../"):
+                errors.append("wiki_directory must not escape project root")
 
     for label in configuration.virtual_projects:
         if label == configuration.project_key:
@@ -284,9 +376,37 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
                     f"transition_labels references invalid from-status '{labeled_from}' in workflow '{workflow_name}'"
                 )
 
+    _validate_hooks(configuration, errors)
     _validate_sort_order(configuration, errors)
 
     return errors
+
+
+def _validate_hooks(configuration: ProjectConfiguration, errors: List[str]) -> None:
+    hooks_config = configuration.hooks
+    for phase_name, phase_map in (
+        ("before", hooks_config.before),
+        ("after", hooks_config.after),
+    ):
+        for event_name, hooks in phase_map.items():
+            if event_name not in HOOK_EVENTS:
+                errors.append(
+                    f"hooks.{phase_name} contains unknown event '{event_name}'"
+                )
+                continue
+            if not hooks:
+                errors.append(
+                    f"hooks.{phase_name}.{event_name} must define at least one hook"
+                )
+                continue
+            seen_ids: set[str] = set()
+            for hook in hooks:
+                if hook.id in seen_ids:
+                    errors.append(
+                        f"hooks.{phase_name}.{event_name} has duplicate id '{hook.id}'"
+                    )
+                else:
+                    seen_ids.add(hook.id)
 
 
 def _validate_sort_order(

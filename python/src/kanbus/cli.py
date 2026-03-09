@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -22,12 +23,17 @@ from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
 from kanbus.issue_creation import IssueCreationError, create_issue
 from kanbus.issue_close import IssueCloseError, close_issue
 from kanbus.issue_comment import IssueCommentError, add_comment
-from kanbus.issue_delete import IssueDeleteError, delete_issue
+from kanbus.issue_delete import (
+    IssueDeleteError,
+    delete_issue,
+    get_descendant_identifiers,
+)
 from kanbus.beads_write import (
     BeadsDeleteError,
     BeadsWriteError,
     create_beads_issue,
     delete_beads_issue,
+    get_beads_descendant_identifiers,
     update_beads_issue,
 )
 from kanbus.issue_display import format_issue_for_display
@@ -65,13 +71,51 @@ from kanbus.dependency_tree import (
     build_dependency_tree,
     render_dependency_tree,
 )
-from kanbus.wiki import WikiError, WikiRenderRequest, render_wiki_page
+from kanbus.wiki import (
+    WikiError,
+    WikiRenderRequest,
+    list_wiki_pages,
+    render_wiki_page,
+)
+from kanbus.text_editor import (
+    TextEditorError,
+    edit_view,
+    edit_str_replace,
+    edit_create,
+    edit_insert,
+)
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 from kanbus.console_ui_state import fetch_console_ui_state
-from kanbus.notification_publisher import publish_notification
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
+from kanbus.gossip import GossipError, run_gossip_broker, run_gossip_watch
+from kanbus.overlay import (
+    gc_overlay_for_projects,
+    install_overlay_hooks,
+    reconcile_overlay_for_projects,
+)
+from kanbus.hooks import (
+    HookEvent,
+    HookExecutionError,
+    HookPhase,
+    list_hooks,
+    run_lifecycle_hooks,
+    serialize_issue,
+    validate_hooks,
+)
+
+
+def _deprecated_console_control(command: str) -> click.ClickException:
+    return click.ClickException(
+        f"`kanbus console {command}` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
+    )
+
+
+def _deprecated_create_focus() -> click.ClickException:
+    return click.ClickException(
+        "`kanbus create --focus` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
+    )
 
 
 def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool, bool]:
@@ -87,12 +131,39 @@ def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool,
     return configuration.beads_compatibility, False
 
 
+def _resolve_beads_root(cwd: Path) -> Path:
+    """Resolve the repository root for Beads-mode operations.
+
+    When beads compatibility is enabled, the data lives under `.beads/` at the
+    repository root. Users may run `kanbus` from a subdirectory (e.g. `python/`);
+    in that case, Beads mode should still work by walking upward.
+    """
+    try:
+        marker = get_configuration_path(cwd)
+        return marker.parent
+    except (ProjectMarkerError, ConfigurationError):
+        pass
+
+    current: Optional[Path] = cwd
+    while current is not None:
+        if (current / ".beads").is_dir():
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return cwd
+
+
 @click.group()
 @click.version_option(__version__, prog_name="kanbus")
 @click.option("--beads", "beads_mode", is_flag=True, default=False)
 @click.option("--no-guidance", is_flag=True, default=False)
+@click.option("--no-hooks", is_flag=True, default=False)
 @click.pass_context
-def cli(context: click.Context, beads_mode: bool, no_guidance: bool) -> None:
+def cli(
+    context: click.Context, beads_mode: bool, no_guidance: bool, no_hooks: bool
+) -> None:
     """Kanbus issue tracker CLI.
 
     \b
@@ -114,6 +185,7 @@ def cli(context: click.Context, beads_mode: bool, no_guidance: bool) -> None:
         "beads_mode": resolved,
         "beads_mode_forced": forced,
         "no_guidance": no_guidance,
+        "no_hooks": no_hooks,
     }
     _maybe_prompt_project_repair(context)
 
@@ -121,7 +193,18 @@ def cli(context: click.Context, beads_mode: bool, no_guidance: bool) -> None:
 def _should_check_project_structure(context: click.Context) -> bool:
     if context.invoked_subcommand is None:
         return False
-    return context.invoked_subcommand not in {"init", "setup", "repair"}
+    return context.invoked_subcommand not in {"init", "setup", "repair", "edit"}
+
+
+def _delete_terminal_is_interactive() -> bool:
+    if os.getenv("KANBUS_FORCE_INTERACTIVE") == "1":
+        return True
+    return bool(
+        getattr(sys.stdin, "isatty", None)
+        and sys.stdin.isatty()
+        and getattr(sys.stdout, "isatty", None)
+        and sys.stdout.isatty()
+    )
 
 
 def _maybe_prompt_project_repair(context: click.Context) -> None:
@@ -241,6 +324,13 @@ def repair(yes: bool) -> None:
 @click.option("--label", "labels", multiple=True)
 @click.option("--description", default="")
 @click.option("--local", "local_issue", is_flag=True, default=False)
+@click.option(
+    "--focus",
+    "focus_issue",
+    is_flag=True,
+    default=False,
+    help="Deprecated. UI control commands are temporarily unavailable.",
+)
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
 @click.pass_context
 def create(
@@ -253,6 +343,7 @@ def create(
     labels: tuple[str, ...],
     description: str,
     local_issue: bool,
+    focus_issue: bool,
     no_validate: bool,
 ) -> None:
     """Create a new issue in the current project.
@@ -285,6 +376,8 @@ def create(
     description_text = description.strip()
     if not title_text:
         raise click.ClickException("title is required")
+    if focus_issue:
+        raise _deprecated_create_focus()
 
     quality_result = None
     if description_text:
@@ -300,8 +393,26 @@ def create(
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     if beads_mode:
+        root = _resolve_beads_root(root)
         if local_issue:
             raise click.ClickException("beads mode does not support local issues")
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_CREATE,
+            operation={
+                "title": title_text,
+                "issue_type": issue_type,
+                "priority": priority,
+                "assignee": assignee,
+                "parent": parent,
+                "labels": list(labels),
+                "description": description_text,
+                "local": False,
+            },
+            root=root,
+            beads_mode=True,
+        )
         try:
             issue = create_beads_issue(
                 root=root,
@@ -323,8 +434,33 @@ def create(
         )
         if quality_result:
             emit_signals(quality_result, "description", issue_id=issue.identifier)
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_CREATE,
+            operation={"issue": serialize_issue(issue)},
+            root=root,
+            beads_mode=True,
+        )
         return
 
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_CREATE,
+        operation={
+            "title": title_text,
+            "issue_type": issue_type,
+            "priority": priority,
+            "assignee": assignee,
+            "parent": parent,
+            "labels": list(labels),
+            "description": description_text,
+            "local": local_issue,
+        },
+        root=root,
+        beads_mode=False,
+    )
     try:
         result = create_issue(
             root=root,
@@ -350,7 +486,15 @@ def create(
     )
     if quality_result:
         emit_signals(quality_result, "description", issue_id=result.issue.identifier)
-    _emit_policy_guidance(context, [result.issue], "create")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_CREATE,
+        operation={"issue": serialize_issue(result.issue)},
+        issues_for_policy=[result.issue],
+        root=root,
+        beads_mode=False,
+    )
 
 
 @cli.command("show")
@@ -379,6 +523,18 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
             pass
 
     if beads_mode:
+        root = _resolve_beads_root(root)
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_SHOW,
+        operation={"identifier": identifier, "as_json": as_json},
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+    if beads_mode:
         try:
             issue = load_beads_issue(root, identifier)
         except MigrationError as error:
@@ -395,17 +551,47 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
     if as_json:
         payload = issue.model_dump(by_alias=True, mode="json")
         click.echo(json.dumps(payload, indent=2, sort_keys=False))
-        _emit_policy_guidance(context, [issue], "view")
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_SHOW,
+            operation={"identifier": identifier, "as_json": True, "issue": payload},
+            issues_for_policy=[issue],
+            root=root,
+            beads_mode=beads_mode,
+        )
         return
+
+    all_issues = None
+    if not beads_mode:
+        try:
+            from kanbus.console_snapshot import get_issues_for_root
+
+            all_issues = list(get_issues_for_root(root))
+        except Exception:
+            pass
 
     click.echo(
         format_issue_for_display(
             issue,
             configuration=configuration,
             project_context=False,
+            all_issues=all_issues,
         )
     )
-    _emit_policy_guidance(context, [issue], "view")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_SHOW,
+        operation={
+            "identifier": identifier,
+            "as_json": False,
+            "issue": serialize_issue(issue),
+        },
+        issues_for_policy=[issue],
+        root=root,
+        beads_mode=beads_mode,
+    )
 
 
 @cli.command("update")
@@ -494,6 +680,7 @@ def update(
     final_assignee = assignee or (get_current_user() if claim else None)
 
     if beads_mode:
+        root = _resolve_beads_root(root)
         if parent is not None:
             raise click.ClickException("parent update not supported in beads mode")
         before_issue = load_beads_issue(root, identifier)
@@ -518,6 +705,30 @@ def update(
             proposed_issue.labels = [
                 label for label in proposed_issue.labels if label not in remove_labels
             ]
+
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_UPDATE,
+            operation={
+                "identifier": identifier,
+                "changes": {
+                    "title": title.strip() if title else None,
+                    "description": description.strip() if description else None,
+                    "status": status,
+                    "priority": priority,
+                    "assignee": final_assignee,
+                    "parent": None,
+                    "add_labels": list(add_labels),
+                    "remove_labels": list(remove_labels),
+                    "set_labels": parsed_set_labels,
+                },
+                "before_issue": serialize_issue(before_issue),
+                "proposed_issue": serialize_issue(proposed_issue),
+            },
+            root=root,
+            beads_mode=True,
+        )
 
         if not no_validate:
             from kanbus.policy_context import (
@@ -597,6 +808,7 @@ def update(
             )
         except BeadsWriteError as error:
             raise click.ClickException(str(error)) from error
+        updated_issue = load_beads_issue(root, identifier)
         formatted_identifier = format_issue_key(identifier, project_context=False)
         click.echo(f"Updated {formatted_identifier}")
         if update_quality_result:
@@ -606,9 +818,48 @@ def update(
                 issue_id=identifier,
                 is_update=True,
             )
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_UPDATE,
+            operation={
+                "identifier": identifier,
+                "issue": serialize_issue(updated_issue),
+            },
+            root=root,
+            beads_mode=True,
+        )
         return
 
     # Regular Kanbus mode
+    before_issue_snapshot: IssueData | None = None
+    try:
+        before_issue_snapshot = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        before_issue_snapshot = None
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "identifier": identifier,
+            "changes": {
+                "title": title.strip() if title else None,
+                "description": description.strip() if description else None,
+                "status": status,
+                "priority": priority,
+                "assignee": final_assignee,
+                "parent": parent,
+                "add_labels": list(add_labels),
+                "remove_labels": list(remove_labels),
+                "set_labels": parsed_set_labels,
+            },
+            "before_issue": serialize_issue(before_issue_snapshot),
+        },
+        root=root,
+        beads_mode=False,
+    )
     try:
         updated_issue = update_issue(
             root=root,
@@ -634,7 +885,18 @@ def update(
         emit_signals(
             update_quality_result, "description", issue_id=identifier, is_update=True
         )
-    _emit_policy_guidance(context, [updated_issue], "update")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "identifier": identifier,
+            "issue": serialize_issue(updated_issue),
+        },
+        issues_for_policy=[updated_issue],
+        root=root,
+        beads_mode=False,
+    )
 
 
 @cli.group("bulk")
@@ -672,6 +934,26 @@ def bulk_update(
         raise click.ClickException(
             "bulk update requires at least one setter (--set-status or --set-assignee)"
         )
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "bulk": True,
+            "selectors": {
+                "ids": list(ids),
+                "where_type": where_type,
+                "where_status": where_status,
+            },
+            "changes": {
+                "status": set_status,
+                "assignee": set_assignee,
+            },
+        },
+        root=root,
+        beads_mode=False,
+    )
 
     updated: list[IssueData] = []
     seen: set[str] = set()
@@ -733,8 +1015,19 @@ def bulk_update(
             updated.append(updated_issue)
 
     click.echo(f"Updated {len(updated)} issue(s)")
-    if updated:
-        _emit_policy_guidance(context, updated, "update")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "bulk": True,
+            "issue_ids": [issue.identifier for issue in updated],
+            "count": len(updated),
+        },
+        issues_for_policy=updated,
+        root=root,
+        beads_mode=False,
+    )
 
 
 @cli.command("close")
@@ -747,13 +1040,53 @@ def close(context: click.Context, identifier: str) -> None:
     :type identifier: str
     """
     root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        root = _resolve_beads_root(root)
+
+    before_issue = None
+    if beads_mode:
+        try:
+            before_issue = load_beads_issue(root, identifier)
+        except MigrationError:
+            before_issue = None
+    else:
+        try:
+            before_issue = load_issue_from_project(root, identifier).issue
+        except IssueLookupError:
+            before_issue = None
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_CLOSE,
+        operation={
+            "identifier": identifier,
+            "before_issue": serialize_issue(before_issue),
+        },
+        root=root,
+        beads_mode=beads_mode,
+    )
+
     try:
-        issue = close_issue(root, identifier)
-    except IssueCloseError as error:
+        if beads_mode:
+            update_beads_issue(root, identifier, status="closed")
+            issue = load_beads_issue(root, identifier)
+        else:
+            issue = close_issue(root, identifier)
+    except (IssueCloseError, BeadsWriteError, MigrationError) as error:
         raise click.ClickException(str(error)) from error
     formatted_identifier = format_issue_key(identifier, project_context=False)
     click.echo(f"Closed {formatted_identifier}")
-    _emit_policy_guidance(context, [issue], "close")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_CLOSE,
+        operation={"identifier": identifier, "issue": serialize_issue(issue)},
+        issues_for_policy=[issue],
+        root=root,
+        beads_mode=beads_mode,
+    )
 
 
 @cli.command("move")
@@ -785,6 +1118,17 @@ def move(
     if beads_mode:
         raise click.ClickException("move is not supported in beads mode")
 
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "identifier": identifier,
+            "changes": {"issue_type": issue_type, "status": status},
+        },
+        root=root,
+        beads_mode=False,
+    )
     try:
         updated_issue = update_issue(
             root=root,
@@ -807,83 +1151,285 @@ def move(
 
     formatted_identifier = format_issue_key(identifier, project_context=False)
     click.echo(f"Moved {formatted_identifier} to type {updated_issue.issue_type}")
-    _emit_policy_guidance(context, [updated_issue], "update")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={"identifier": identifier, "issue": serialize_issue(updated_issue)},
+        issues_for_policy=[updated_issue],
+        root=root,
+        beads_mode=False,
+    )
 
 
 @cli.command("delete")
 @click.argument("identifier")
+@click.option("--yes", "yes_flag", is_flag=True, default=False)
+@click.option("--recursive", is_flag=True, default=False)
 @click.pass_context
-def delete(context: click.Context, identifier: str) -> None:
-    """Delete an issue.
+def delete(
+    context: click.Context, identifier: str, yes_flag: bool, recursive: bool
+) -> None:
+    """Delete an issue and its event history.
 
+    Prompts for confirmation unless --yes is given. With --recursive, also
+    prompts to delete descendant issues.
+
+    :param context: Click context.
+    :type context: click.Context
     :param identifier: Issue identifier.
     :type identifier: str
+    :param yes_flag: Skip confirmation prompts.
+    :type yes_flag: bool
+    :param recursive: Allow deleting descendants after confirmation.
+    :type recursive: bool
     """
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode"))
     issue_for_guidance: IssueData | None = None
+    issue_for_hooks: IssueData | None = None
 
-    # Check if beads_compatibility is enabled in config
     if not beads_mode:
         try:
             config = load_project_configuration(get_configuration_path(root))
             if config.beads_compatibility:
                 beads_mode = True
         except (ConfigurationError, ProjectMarkerError):
-            # Treat unreadable/missing project config as standard Kanbus mode.
             pass
 
     if not beads_mode:
         try:
             lookup = load_issue_from_project(root, identifier)
             issue_for_guidance = lookup.issue
+            issue_for_hooks = lookup.issue
         except IssueLookupError:
             issue_for_guidance = None
+            issue_for_hooks = None
 
     if beads_mode:
+        root = _resolve_beads_root(root)
         try:
-            delete_beads_issue(root, identifier)
+            issue_for_hooks = load_beads_issue(root, identifier)
+        except MigrationError:
+            issue_for_hooks = None
+        if not yes_flag:
+            if not _delete_terminal_is_interactive():
+                raise click.ClickException(
+                    "delete requires confirmation (re-run with --yes)"
+                )
+            if not click.confirm(
+                f'Delete "{identifier}" and its event history?', default=False
+            ):
+                click.echo("Delete cancelled.")
+                return
+        beads_recursive = recursive
+        if recursive and not yes_flag:
+            beads_descendants = get_beads_descendant_identifiers(root, identifier)
+            if beads_descendants:
+                formatted_desc = ", ".join(beads_descendants)
+                if len(beads_descendants) > 5:
+                    formatted_desc = (
+                        ", ".join(beads_descendants[:5])
+                        + f" and {len(beads_descendants) - 5} more"
+                    )
+                if not click.confirm(
+                    f"Also delete {len(beads_descendants)} descendant(s): {formatted_desc}?",
+                    default=False,
+                ):
+                    beads_recursive = False
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_DELETE,
+            operation={
+                "identifier": identifier,
+                "recursive": beads_recursive,
+                "before_issue": serialize_issue(issue_for_hooks),
+            },
+            root=root,
+            beads_mode=True,
+        )
+        try:
+            delete_beads_issue(root, identifier, recursive=beads_recursive)
         except BeadsDeleteError as error:
             raise click.ClickException(str(error)) from error
-    else:
+        formatted_identifier = format_issue_key(identifier, project_context=False)
+        click.echo(f"Deleted {formatted_identifier}")
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_DELETE,
+            operation={
+                "identifier": identifier,
+                "recursive": beads_recursive,
+                "before_issue": serialize_issue(issue_for_hooks),
+            },
+            root=root,
+            beads_mode=True,
+        )
+        return
+
+    if not yes_flag:
+        if not _delete_terminal_is_interactive():
+            raise click.ClickException(
+                "delete requires confirmation (re-run with --yes)"
+            )
+        if not click.confirm(
+            f'Delete "{identifier}" and its event history?', default=False
+        ):
+            click.echo("Delete cancelled.")
+            return
+
+    try:
+        lookup = load_issue_from_project(root, identifier)
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+
+    descendants: list[str] = []
+    if recursive:
+        descendants = get_descendant_identifiers(lookup.project_dir, identifier)
+    if descendants and not yes_flag:
+        formatted_desc = ", ".join(descendants)
+        if len(descendants) > 5:
+            formatted_desc = (
+                ", ".join(descendants[:5]) + f" and {len(descendants) - 5} more"
+            )
+        if not click.confirm(
+            f"Also delete {len(descendants)} descendant(s): {formatted_desc}?",
+            default=False,
+        ):
+            descendants = []
+
+    to_delete = descendants + [identifier]
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_DELETE,
+        operation={
+            "identifier": identifier,
+            "recursive": recursive,
+            "deleted_ids": list(to_delete),
+            "before_issue": serialize_issue(issue_for_hooks),
+        },
+        root=root,
+        beads_mode=False,
+    )
+    for issue_id in to_delete:
         try:
-            delete_issue(root, identifier)
+            delete_issue(root, issue_id)
         except IssueDeleteError as error:
             raise click.ClickException(str(error)) from error
-    formatted_identifier = format_issue_key(identifier, project_context=False)
-    click.echo(f"Deleted {formatted_identifier}")
-    if issue_for_guidance is not None:
-        _emit_policy_guidance(context, [issue_for_guidance], "delete")
+        formatted_identifier = format_issue_key(issue_id, project_context=False)
+        click.echo(f"Deleted {formatted_identifier}")
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_DELETE,
+        operation={
+            "identifier": identifier,
+            "recursive": recursive,
+            "deleted_ids": list(to_delete),
+            "before_issue": serialize_issue(issue_for_hooks),
+        },
+        issues_for_policy=(
+            [issue_for_guidance] if issue_for_guidance is not None else []
+        ),
+        root=root,
+        beads_mode=False,
+    )
 
 
 @cli.command("promote")
 @click.argument("identifier")
-def promote(identifier: str) -> None:
+@click.pass_context
+def promote(context: click.Context, identifier: str) -> None:
     """Promote a local issue to the shared project.
 
     :param identifier: Issue identifier.
     :type identifier: str
     """
     root = Path.cwd()
+    before_issue = None
+    try:
+        before_issue = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        before_issue = None
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_PROMOTE,
+        operation={
+            "identifier": identifier,
+            "before_issue": serialize_issue(before_issue),
+        },
+        root=root,
+        beads_mode=False,
+    )
     try:
         promote_issue(root, identifier)
     except IssueTransferError as error:
         raise click.ClickException(str(error)) from error
+    after_issue = None
+    try:
+        after_issue = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        after_issue = None
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_PROMOTE,
+        operation={"identifier": identifier, "issue": serialize_issue(after_issue)},
+        root=root,
+        beads_mode=False,
+    )
 
 
 @cli.command("localize")
 @click.argument("identifier")
-def localize(identifier: str) -> None:
+@click.pass_context
+def localize(context: click.Context, identifier: str) -> None:
     """Move a shared issue into project-local.
 
     :param identifier: Issue identifier.
     :type identifier: str
     """
     root = Path.cwd()
+    before_issue = None
+    try:
+        before_issue = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        before_issue = None
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_LOCALIZE,
+        operation={
+            "identifier": identifier,
+            "before_issue": serialize_issue(before_issue),
+        },
+        root=root,
+        beads_mode=False,
+    )
     try:
         localize_issue(root, identifier)
     except IssueTransferError as error:
         raise click.ClickException(str(error)) from error
+    after_issue = None
+    try:
+        after_issue = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        after_issue = None
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_LOCALIZE,
+        operation={"identifier": identifier, "issue": serialize_issue(after_issue)},
+        root=root,
+        beads_mode=False,
+    )
 
 
 @cli.command("comment")
@@ -942,6 +1488,20 @@ def comment(
         except ContentValidationError as error:
             raise click.ClickException(str(error)) from error
 
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_COMMENT,
+        operation={
+            "identifier": identifier,
+            "comment_text": comment_text,
+            "comment_length": len(comment_text),
+        },
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+    result_comment = None
     try:
         if beads_mode:
             from kanbus.beads_write import add_beads_comment, BeadsWriteError
@@ -971,6 +1531,32 @@ def comment(
             )
     except IssueCommentError as error:
         raise click.ClickException(str(error)) from error
+
+    after_issue = None
+    if beads_mode:
+        try:
+            after_issue = load_beads_issue(root, identifier)
+        except MigrationError:
+            after_issue = None
+    elif result_comment is not None:
+        after_issue = result_comment.issue
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_COMMENT,
+        operation={
+            "identifier": identifier,
+            "issue": serialize_issue(after_issue),
+            "comment_id": (
+                result_comment.comment.id
+                if result_comment is not None and result_comment.comment.id is not None
+                else None
+            ),
+        },
+        root=root,
+        beads_mode=beads_mode,
+    )
 
 
 @cli.command("list")
@@ -1031,6 +1617,29 @@ def list_command(
     """
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        root = _resolve_beads_root(root)
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_LIST,
+        operation={
+            "status": status,
+            "issue_type": issue_type,
+            "assignee": assignee,
+            "label": label,
+            "sort": sort,
+            "search": search,
+            "projects": list(projects),
+            "no_local": no_local,
+            "local_only": local_only,
+            "limit": limit,
+            "porcelain": porcelain,
+            "full_ids": full_ids,
+        },
+        root=root,
+        beads_mode=beads_mode,
+    )
     try:
         issues = list_issues(
             root,
@@ -1088,7 +1697,26 @@ def list_command(
             configuration=configuration,
         )
         click.echo(line)
-    _emit_policy_guidance(context, issues, "list")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_LIST,
+        operation={
+            "status": status,
+            "issue_type": issue_type,
+            "assignee": assignee,
+            "label": label,
+            "sort": sort,
+            "search": search,
+            "projects": list(projects),
+            "no_local": no_local,
+            "local_only": local_only,
+            "issue_ids": [issue.identifier for issue in issues],
+        },
+        issues_for_policy=issues,
+        root=root,
+        beads_mode=beads_mode,
+    )
 
 
 def _issue_sort_timestamp(issue: IssueData) -> float:
@@ -1098,32 +1726,72 @@ def _issue_sort_timestamp(issue: IssueData) -> float:
     return timestamp.timestamp()
 
 
-def _emit_policy_guidance(
+def _run_lifecycle_hooks_for_context(
     context: click.Context,
-    issues: list[IssueData],
-    operation: str,
+    *,
+    phase: HookPhase,
+    event: HookEvent,
+    operation: dict[str, object] | None = None,
+    issues_for_policy: list[IssueData] | None = None,
+    root: Path | None = None,
+    beads_mode: bool | None = None,
 ) -> None:
-    """Emit non-blocking policy guidance for the given issues."""
-    if not issues:
-        return
+    """Run lifecycle hooks with context-aware global controls."""
     if not context.obj:
         return
-    if context.obj.get("beads_mode"):
-        return
     try:
-        from kanbus.policy_context import PolicyOperation
-        from kanbus.policy_guidance import emit_guidance_for_issues
-
-        policy_operation = PolicyOperation(operation)
-        emit_guidance_for_issues(
-            Path.cwd(),
-            issues,
-            policy_operation,
+        run_lifecycle_hooks(
+            root=root or Path.cwd(),
+            phase=phase,
+            event=event,
+            actor=get_current_user(),
+            beads_mode=(
+                bool(context.obj.get("beads_mode", False))
+                if beads_mode is None
+                else beads_mode
+            ),
+            operation=operation or {},
+            issues_for_policy=issues_for_policy,
+            no_hooks=bool(context.obj.get("no_hooks", False)),
             no_guidance=bool(context.obj.get("no_guidance", False)),
         )
-    except Exception:
-        # Guidance hooks are intentionally non-blocking.
+    except HookExecutionError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.group("hooks")
+def hooks_group() -> None:
+    """Inspect and validate lifecycle hook configuration."""
+
+
+@hooks_group.command("list")
+def hooks_list_command() -> None:
+    """List configured hooks and built-in providers."""
+    root = Path.cwd()
+    rows = list_hooks(root)
+    if not rows:
+        click.echo("No hooks configured.")
         return
+
+    for row in rows:
+        timeout = row["timeout_ms"] if row["timeout_ms"] is not None else "default"
+        click.echo(
+            f"[{row['source']}] {row['phase']} {row['event']} {row['id']}\n"
+            f"  command: {row['command']}\n"
+            f"  blocking: {row['blocking']} timeout_ms: {timeout}"
+        )
+
+
+@hooks_group.command("validate")
+def hooks_validate_command() -> None:
+    """Validate hook commands, IDs, and event bindings."""
+    root = Path.cwd()
+    issues = validate_hooks(root)
+    if issues:
+        lines = [f"Found {len(issues)} hook validation issue(s):"]
+        lines.extend([f"- {issue}" for issue in issues])
+        raise click.ClickException("\n".join(lines))
+    click.echo("Hook configuration is valid.")
 
 
 @cli.group("wiki")
@@ -1144,6 +1812,87 @@ def render_wiki(page: str) -> None:
     try:
         output = render_wiki_page(request)
     except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@wiki.command("list")
+def wiki_list() -> None:
+    """List wiki pages."""
+    root = Path.cwd()
+    try:
+        pages = list_wiki_pages(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    for path in pages:
+        click.echo(path)
+
+
+@cli.group("edit")
+def edit_group() -> None:
+    """File edit commands mirroring the Anthropic text editor tool."""
+
+
+@edit_group.command("view")
+@click.argument("path", type=click.Path())
+@click.option(
+    "--view-range",
+    nargs=2,
+    type=int,
+    default=None,
+    help="Start and end line numbers (1-indexed; -1 for end).",
+)
+def edit_view_cmd(path: str, view_range: tuple[int, int] | None) -> None:
+    """View file contents or list directory."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_view(root, path_obj, view_range)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@edit_group.command("str-replace")
+@click.argument("path", type=click.Path())
+@click.option("--old-str", required=True)
+@click.option("--new-str", required=True)
+def edit_str_replace_cmd(path: str, old_str: str, new_str: str) -> None:
+    """Replace exact text in file (must match exactly one location)."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_str_replace(root, path_obj, old_str, new_str)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@edit_group.command("create")
+@click.argument("path", type=click.Path())
+@click.option("--file-text", required=True)
+def edit_create_cmd(path: str, file_text: str) -> None:
+    """Create a new file with the given content."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_create(root, path_obj, file_text)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@edit_group.command("insert")
+@click.argument("path", type=click.Path())
+@click.option("--insert-line", type=int, required=True)
+@click.option("--insert-text", required=True)
+def edit_insert_cmd(path: str, insert_line: int, insert_text: str) -> None:
+    """Insert text after the given line number (0 = beginning)."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_insert(root, path_obj, insert_line, insert_text)
+    except TextEditorError as error:
         raise click.ClickException(str(error)) from error
     click.echo(output)
 
@@ -1435,47 +2184,20 @@ def console_snapshot() -> None:
 @click.option("--comment", default=None, help="Comment ID to scroll to.")
 def console_focus(identifier: str, comment: Optional[str]) -> None:
     """Focus on an issue and its descendants in the console."""
-    from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
-
-    root = Path.cwd()
-    try:
-        result = load_issue_from_project(root, identifier)
-        issue_id = result.issue.identifier
-    except IssueLookupError as error:
-        raise click.ClickException(str(error)) from error
-    event: dict = {
-        "type": "issue_focused",
-        "issue_id": issue_id,
-    }
-    if comment:
-        event["comment_id"] = comment
-    publish_notification(root, event)
-    if comment:
-        click.echo(f"Focused on issue {issue_id} (comment {comment})")
-    else:
-        click.echo(f"Focused on issue {issue_id}")
+    raise _deprecated_console_control("focus")
 
 
 @console.command("unfocus")
 def console_unfocus() -> None:
     """Clear the current focus filter in the console."""
-    root = Path.cwd()
-    publish_notification(
-        root, {"type": "ui_control", "action": {"action": "clear_focus"}}
-    )
-    click.echo("Cleared focus filter")
+    raise _deprecated_console_control("unfocus")
 
 
 @console.command("view")
 @click.argument("mode", type=click.Choice(["initiatives", "epics", "issues"]))
 def console_view(mode: str) -> None:
     """Switch the console to a different view mode."""
-    root = Path.cwd()
-    publish_notification(
-        root,
-        {"type": "ui_control", "action": {"action": "set_view_mode", "mode": mode}},
-    )
-    click.echo(f"Switched to {mode} view")
+    raise _deprecated_console_control("view")
 
 
 @console.command("search")
@@ -1483,24 +2205,86 @@ def console_view(mode: str) -> None:
 @click.option("--clear", is_flag=True, help="Clear the active search query.")
 def console_search(query: Optional[str], clear: bool) -> None:
     """Set or clear the search query in the console."""
-    root = Path.cwd()
-    if clear:
-        search_query = ""
-    elif query:
-        search_query = query
-    else:
-        raise click.UsageError("Provide a query or use --clear.")
-    publish_notification(
-        root,
-        {
-            "type": "ui_control",
-            "action": {"action": "set_search", "query": search_query},
-        },
-    )
-    if clear or not search_query:
-        click.echo("Cleared search query")
-    else:
-        click.echo(f"Set search query to: {search_query}")
+    raise _deprecated_console_control("search")
+
+
+@console.command("maximize")
+def console_maximize() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("maximize")
+
+
+@console.command("restore")
+def console_restore() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("restore")
+
+
+@console.command("close-detail")
+def console_close_detail() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("close-detail")
+
+
+@console.command("toggle-settings")
+def console_toggle_settings() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("toggle-settings")
+
+
+@console.command("reload")
+def console_reload() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("reload")
+
+
+@console.command("set-setting")
+@click.argument("key")
+@click.argument("value")
+def console_set_setting(key: str, value: str) -> None:
+    """Deprecated console command."""
+    _ = (key, value)
+    raise _deprecated_console_control("set-setting")
+
+
+@console.command("collapse")
+@click.argument("column")
+def console_collapse(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("collapse")
+
+
+@console.command("collapse-column")
+@click.argument("column")
+def console_collapse_column(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("collapse-column")
+
+
+@console.command("expand")
+@click.argument("column")
+def console_expand(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("expand")
+
+
+@console.command("expand-column")
+@click.argument("column")
+def console_expand_column(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("expand-column")
+
+
+@console.command("select")
+@click.argument("identifier")
+def console_select(identifier: str) -> None:
+    """Deprecated console command."""
+    _ = identifier
+    raise _deprecated_console_control("select")
 
 
 @console.command("status")
@@ -1675,6 +2459,19 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
             pass
 
     if is_remove:
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_DEPENDENCY,
+            operation={
+                "action": "remove",
+                "identifier": identifier,
+                "dependency_type": dep_type,
+                "target": target,
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
         if beads_mode:
             try:
                 from kanbus.beads_write import remove_beads_dependency
@@ -1687,7 +2484,33 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
                 remove_dependency(root, identifier, target, dep_type)
             except DependencyError as error:
                 raise click.ClickException(str(error)) from error
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_DEPENDENCY,
+            operation={
+                "action": "remove",
+                "identifier": identifier,
+                "dependency_type": dep_type,
+                "target": target,
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
     else:
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_DEPENDENCY,
+            operation={
+                "action": "add",
+                "identifier": identifier,
+                "dependency_type": dep_type,
+                "target": target,
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
         if beads_mode:
             try:
                 from kanbus.beads_write import add_beads_dependency
@@ -1700,6 +2523,19 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
                 add_dependency(root, identifier, target, dep_type)
             except DependencyError as error:
                 raise click.ClickException(str(error)) from error
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_DEPENDENCY,
+            operation={
+                "action": "add",
+                "identifier": identifier,
+                "dependency_type": dep_type,
+                "target": target,
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
 
 
 @cli.command("ready")
@@ -1710,6 +2546,16 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
     """List issues that are ready (not blocked)."""
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        root = _resolve_beads_root(root)
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_READY,
+        operation={"no_local": no_local, "local_only": local_only},
+        root=root,
+        beads_mode=beads_mode,
+    )
     try:
         issues = list_ready_issues(
             root,
@@ -1723,7 +2569,19 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
         project_path = issue.custom.get("project_path")
         prefix = f"{project_path} " if project_path else ""
         click.echo(f"{prefix}{issue.identifier}")
-    _emit_policy_guidance(context, issues, "ready")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_READY,
+        operation={
+            "no_local": no_local,
+            "local_only": local_only,
+            "issue_ids": [issue.identifier for issue in issues],
+        },
+        issues_for_policy=issues,
+        root=root,
+        beads_mode=beads_mode,
+    )
 
 
 @cli.command("doctor")
@@ -1775,6 +2633,118 @@ def daemon_stop() -> None:
     except DaemonClientError as error:
         raise click.ClickException(str(error)) from error
     click.echo(json.dumps(result, indent=2, sort_keys=False))
+
+
+@cli.group()
+def gossip() -> None:
+    """Realtime gossip commands."""
+
+
+@gossip.command("broker")
+@click.option("--socket", "socket_path", type=click.Path(path_type=Path))
+def gossip_broker(socket_path: Optional[Path]) -> None:
+    """Run a local UDS gossip broker."""
+    root = Path.cwd()
+    try:
+        run_gossip_broker(root, socket_path)
+    except GossipError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@gossip.command("watch")
+@click.option("--project", "project_label", default=None)
+@click.option("--transport", default=None)
+@click.option("--broker", default=None)
+@click.option("--autostart/--no-autostart", default=None)
+@click.option("--keepalive/--no-keepalive", default=None)
+@click.option(
+    "--print/--no-print",
+    "print_envelopes",
+    default=False,
+    help="Print each received envelope as JSON (NDJSON) to stdout.",
+)
+def gossip_watch(
+    project_label: Optional[str],
+    transport: Optional[str],
+    broker: Optional[str],
+    autostart: Optional[bool],
+    keepalive: Optional[bool],
+    print_envelopes: bool,
+) -> None:
+    """Watch gossip notifications and update overlay cache."""
+    root = Path.cwd()
+    try:
+        run_gossip_watch(
+            root,
+            project_label,
+            transport,
+            broker,
+            autostart,
+            keepalive,
+            print_envelopes,
+        )
+    except GossipError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.group()
+def overlay() -> None:
+    """Overlay cache commands."""
+
+
+@overlay.command("gc")
+@click.option("--project", "project_label", default=None)
+@click.option("--all", "all_projects", is_flag=True, default=False)
+def overlay_gc(project_label: Optional[str], all_projects: bool) -> None:
+    """Sweep overlay cache entries."""
+    root = Path.cwd()
+    try:
+        count = gc_overlay_for_projects(root, project_label, all_projects)
+    except (ConfigurationError, ProjectMarkerError, ValueError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f"overlay gc complete ({count} project(s))")
+
+
+@overlay.command("reconcile")
+@click.option("--project", "project_label", default=None)
+@click.option("--all", "all_projects", is_flag=True, default=False)
+@click.option("--prune", is_flag=True, default=False)
+@click.option("--dry-run", "dry_run", is_flag=True, default=False)
+def overlay_reconcile(
+    project_label: Optional[str],
+    all_projects: bool,
+    prune: bool,
+    dry_run: bool,
+) -> None:
+    """Reconcile overlay cache entries against canonical issue files."""
+    root = Path.cwd()
+    try:
+        stats = reconcile_overlay_for_projects(
+            root,
+            project_label=project_label,
+            all_projects=all_projects,
+            prune=prune,
+            dry_run=dry_run,
+        )
+    except (ConfigurationError, ProjectMarkerError, ValueError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(
+        "overlay reconcile complete "
+        f"(projects={stats.projects}, scanned={stats.issues_scanned}, "
+        f"updated={stats.issues_updated}, removed={stats.issues_removed}, "
+        f"pruned={stats.fields_pruned})"
+    )
+
+
+@overlay.command("install-hooks")
+def overlay_install_hooks() -> None:
+    """Install git hooks to run overlay gc after git operations."""
+    root = Path.cwd()
+    try:
+        install_overlay_hooks(root)
+    except (ConfigurationError, ProjectMarkerError, OSError, RuntimeError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo("overlay hooks installed")
 
 
 def _format_project_marker_error(error: ProjectMarkerError) -> str:

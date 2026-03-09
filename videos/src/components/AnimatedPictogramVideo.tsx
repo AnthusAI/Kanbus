@@ -4,6 +4,7 @@ import {
   type FeaturePictogramType,
 } from "../../../apps/kanb.us/src/components/FeaturePictogram";
 import { AnimatedPictogram } from "../../../apps/kanb.us/src/components/AnimatedPictogram";
+import { VideoFeatureFrame } from "./VideoFeatureFrame";
 
 export type PictogramType =
   | "git"
@@ -17,7 +18,8 @@ export type PictogramType =
   | "virtual"
   | "vscode"
   | "wiki"
-  | "policy";
+  | "policy"
+  | "hooks";
 
 const HOME_TYPE_MAP: Record<PictogramType, FeaturePictogramType> = {
   git: "kanban-board",
@@ -32,6 +34,7 @@ const HOME_TYPE_MAP: Record<PictogramType, FeaturePictogramType> = {
   vscode: "vscode-plugin",
   wiki: "integrated-wiki",
   policy: "policy-as-code",
+  hooks: "lifecycle-hooks",
 };
 
 export function AnimatedPictogramVideo({
@@ -40,17 +43,25 @@ export function AnimatedPictogramVideo({
   scale = 1,
   innerPadding = 0,
   allowOverflow = false,
+  headline,
+  subhead,
+  frame,
+  fps,
 }: {
   type?: PictogramType;
   style?: React.CSSProperties;
   scale?: number;
   innerPadding?: number;
   allowOverflow?: boolean;
+  headline?: string;
+  subhead?: string;
+  frame?: number;
+  fps?: number;
 }) {
   const homeType = HOME_TYPE_MAP[type] || HOME_TYPE_MAP.git;
   const isGitSyncHome = type === "git-sync-home";
 
-  return (
+  const pictogram = (
     <div
       style={{
         display: "flex",
@@ -63,24 +74,25 @@ export function AnimatedPictogramVideo({
         background: "transparent",
         ...(style || { width: "100%", height: "100%" }),
       }}
-      >
+    >
       {isGitSyncHome ? (
         <div
           style={{
             width: "100%",
-            height: "100%",
-            minHeight: 0,
             transform: `scale(${scale})`,
-            transformOrigin: "center center",
+            transformOrigin: "60% center",
           }}
         >
           <AnimatedPictogram
             showTitle={false}
             framed={false}
-            className="w-full h-full"
+            frame={frame}
+            fps={fps}
+            className="w-full"
             style={{
               width: "100%",
               height: "100%",
+              aspectRatio: "unset",
               ["--glow-center" as any]: "transparent",
               ["--glow-edge" as any]: "transparent",
             }}
@@ -89,13 +101,16 @@ export function AnimatedPictogramVideo({
       ) : (
         <FeaturePictogram
           type={homeType}
-          className="w-full h-full min-h-0"
+          frame={frame}
+          fps={fps}
+          allowOverflow={scale !== 1}
+          className="w-full min-h-0"
           style={{
             width: "100%",
             height: "100%",
-            minHeight: 0,
+            aspectRatio: "unset",
             transform: `scale(${scale})`,
-            transformOrigin: "center center",
+            transformOrigin: "60% center",
             borderRadius: 0,
             // Flatten for video scenes: no glow gradients, no decorative backdrop.
             ["--glow-center" as any]: "transparent",
@@ -105,4 +120,16 @@ export function AnimatedPictogramVideo({
       )}
     </div>
   );
+
+  if (headline && subhead) {
+    return (
+      <VideoFeatureFrame
+        headline={headline}
+        subhead={subhead}
+        rightPanel={pictogram}
+      />
+    );
+  }
+
+  return pictogram;
 }

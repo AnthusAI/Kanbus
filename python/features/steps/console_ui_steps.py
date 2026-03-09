@@ -42,19 +42,25 @@ def _allocate_port() -> int:
         return sock.getsockname()[1]
 
 
-def _wait_for_server(port: int, timeout: float = 10.0) -> bool:
-    """Poll GET /api/config until the server responds with 200."""
-    url = f"http://127.0.0.1:{port}/api/config"
+def _wait_for_server(port: int, timeout: float = 10.0) -> int | None:
+    """Poll GET /api/config until the server responds with 200.
+
+    kbsc can auto-fallback to nearby ports if the requested port is busy.
+    Return the responding port when available.
+    """
+    candidates = [port, *range(port + 1, port + 17)]
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        try:
-            with urllib.request.urlopen(url, timeout=0.5) as resp:
-                if resp.status == 200:
-                    return True
-        except (urllib.error.URLError, OSError):
-            pass
+        for candidate in candidates:
+            try:
+                url = f"http://127.0.0.1:{candidate}/api/config"
+                with urllib.request.urlopen(url, timeout=0.5) as resp:
+                    if resp.status == 200:
+                        return candidate
+            except (urllib.error.URLError, OSError):
+                continue
         time.sleep(0.1)
-    return False
+    return None
 
 
 def _build_kbsc_if_needed(binary: Path) -> None:
@@ -216,8 +222,9 @@ def given_console_server_is_running(context: object) -> None:
     _write_console_port_to_config(working_directory, port)
     proc = _start_kbsc(working_directory, port)
     context.console_server_process = proc
-    context.console_server_port = port
-    assert _wait_for_server(port), f"kbsc did not become ready on port {port}"
+    ready_port = _wait_for_server(port)
+    assert ready_port is not None, f"kbsc did not become ready on port {port}"
+    context.console_server_port = ready_port
 
 
 @given('the console focused issue is "{issue_id}"')
@@ -282,9 +289,11 @@ def when_console_server_is_restarted(context: object) -> None:
     working_directory = Path(context.working_directory)
     new_proc = _start_kbsc(working_directory, port)
     context.console_server_process = new_proc
-    assert _wait_for_server(
-        port
+    ready_port = _wait_for_server(port)
+    assert (
+        ready_port is not None
     ), f"kbsc did not become ready on port {port} after restart"
+    context.console_server_port = ready_port
 
 
 @given("local storage is cleared")

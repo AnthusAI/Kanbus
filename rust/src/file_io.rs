@@ -10,6 +10,10 @@ use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
     DEFAULT_PROJECT_MANAGEMENT_TEMPLATE, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
 };
+use crate::wiki_templates::{
+    DEFAULT_WIKI_INDEX, DEFAULT_WIKI_INDEX_FILENAME, DEFAULT_WIKI_WHATS_NEXT,
+    DEFAULT_WIKI_WHATS_NEXT_FILENAME,
+};
 use serde_json;
 use serde_yaml;
 
@@ -135,8 +139,21 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), KanbusE
         std::fs::write(&template_path, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
+    let wiki_dir = project_dir.join("wiki");
+    std::fs::create_dir(&wiki_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::write(
+        wiki_dir.join(DEFAULT_WIKI_INDEX_FILENAME),
+        DEFAULT_WIKI_INDEX,
+    )
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::write(
+        wiki_dir.join(DEFAULT_WIKI_WHATS_NEXT_FILENAME),
+        DEFAULT_WIKI_WHATS_NEXT,
+    )
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
     write_project_guard_files(&project_dir)?;
     write_tool_block_files(root)?;
+    ensure_gitignore_entry(root, "project/.overlay/")?;
     if create_local {
         ensure_project_local_directory(&project_dir)?;
     }
@@ -157,27 +174,29 @@ pub fn resolve_root(cwd: &Path) -> PathBuf {
     cwd.to_path_buf()
 }
 
-fn write_project_guard_files(project_dir: &Path) -> Result<(), KanbusError> {
-    let agents_path = project_dir.join("AGENTS.md");
+fn write_guard_files_in_subdir(subdir: &Path, folder_name: &str) -> Result<(), KanbusError> {
+    let agents_path = subdir.join("AGENTS.md");
     let agents_content = [
         "# DO NOT EDIT HERE",
         "",
-        "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
-        "Do not read or write in this folder. Do not inspect issue JSON with tools like cat or jq. Use Kanbus commands instead.",
+        &format!(
+            "Do not read or write in this folder ({}/). Use Kanbus commands instead.",
+            folder_name
+        ),
+        "Do not inspect issue JSON with tools like cat or jq.",
         "",
-        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+        "See ../../AGENTS.md and ../../CONTRIBUTING_AGENT.md for required process.",
     ]
     .join("\n")
         + "\n";
     std::fs::write(&agents_path, agents_content)
         .map_err(|error| KanbusError::Io(error.to_string()))?;
 
-    let do_not_edit = project_dir.join("DO_NOT_EDIT");
+    let do_not_edit = subdir.join("DO_NOT_EDIT");
     let do_not_edit_content = [
-        "DO NOT EDIT ANYTHING IN project/",
+        &format!("DO NOT EDIT THIS FOLDER ({}/)", folder_name),
         "This folder is guarded by The Way.",
-        "Do not inspect issue JSON with tools like cat or jq.",
-        "All changes must go through Kanbus (see ../AGENTS.md and ../CONTRIBUTING_AGENT.md).",
+        "All changes must go through Kanbus (see ../../AGENTS.md and ../../CONTRIBUTING_AGENT.md).",
     ]
     .join("\n")
         + "\n";
@@ -186,11 +205,58 @@ fn write_project_guard_files(project_dir: &Path) -> Result<(), KanbusError> {
     Ok(())
 }
 
+fn write_project_guard_files(project_dir: &Path) -> Result<(), KanbusError> {
+    let issues_dir = project_dir.join("issues");
+    let events_dir = project_dir.join("events");
+    if issues_dir.exists() {
+        write_guard_files_in_subdir(&issues_dir, "issues")?;
+    }
+    if events_dir.exists() {
+        write_guard_files_in_subdir(&events_dir, "events")?;
+    }
+    let root_agents_path = project_dir.join("AGENTS.md");
+    let root_content = [
+        "# Project directory",
+        "",
+        "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
+        "You may edit wiki/ (e.g. Markdown) directly.",
+        "",
+        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+    ]
+    .join("\n")
+        + "\n";
+    std::fs::write(&root_agents_path, root_content)
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    Ok(())
+}
+
 fn write_project_guard_files_if_missing(project_dir: &Path) -> Result<(), KanbusError> {
-    let agents_path = project_dir.join("AGENTS.md");
-    let do_not_edit = project_dir.join("DO_NOT_EDIT");
-    if !agents_path.exists() || !do_not_edit.exists() {
-        write_project_guard_files(project_dir)?;
+    let issues_dir = project_dir.join("issues");
+    let events_dir = project_dir.join("events");
+    for (subdir, folder_name) in [(&issues_dir, "issues"), (&events_dir, "events")] {
+        if !subdir.exists() {
+            continue;
+        }
+        let agents_path = subdir.join("AGENTS.md");
+        let do_not_edit = subdir.join("DO_NOT_EDIT");
+        if !agents_path.exists() || !do_not_edit.exists() {
+            write_guard_files_in_subdir(subdir, folder_name)?;
+        }
+    }
+    let root_agents_path = project_dir.join("AGENTS.md");
+    if !root_agents_path.exists() {
+        let root_content = [
+            "# Project directory",
+            "",
+            "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
+            "You may edit wiki/ (e.g. Markdown) directly.",
+            "",
+            "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+        ]
+        .join("\n")
+            + "\n";
+        std::fs::write(&root_agents_path, root_content)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     Ok(())
 }
@@ -198,7 +264,7 @@ fn write_project_guard_files_if_missing(project_dir: &Path) -> Result<(), Kanbus
 fn write_tool_block_files(root: &Path) -> Result<(), KanbusError> {
     let cursorignore = root.join(".cursorignore");
     if !cursorignore.exists() {
-        std::fs::write(&cursorignore, "project/\n")
+        std::fs::write(&cursorignore, "project/issues/\nproject/events/\n")
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
 
@@ -209,8 +275,10 @@ fn write_tool_block_files(root: &Path) -> Result<(), KanbusError> {
         let payload = serde_json::json!({
             "permissions": {
                 "deny": [
-                    "Read(./project/**)",
-                    "Edit(./project/**)"
+                    "Read(./project/issues/**)",
+                    "Edit(./project/issues/**)",
+                    "Read(./project/events/**)",
+                    "Edit(./project/events/**)"
                 ]
             }
         });
@@ -225,9 +293,9 @@ fn write_tool_block_files(root: &Path) -> Result<(), KanbusError> {
     let vscode_settings = vscode_dir.join("settings.json");
     if !vscode_settings.exists() {
         let payload = serde_json::json!({
-            "files.exclude": {"**/project/**": true},
-            "files.watcherExclude": {"**/project/**": true},
-            "search.exclude": {"**/project/**": true},
+            "files.exclude": {"**/project/issues/**": true, "**/project/events/**": true},
+            "files.watcherExclude": {"**/project/issues/**": true, "**/project/events/**": true},
+            "search.exclude": {"**/project/issues/**": true, "**/project/events/**": true},
         });
         let content = serde_json::to_string_pretty(&payload)
             .map_err(|error| KanbusError::Io(error.to_string()))?;

@@ -43,6 +43,13 @@ export const VIDEOS: VideoEntry[] = [
     poster: "kanban-board.jpg"
   },
   {
+    id: "realtime-collaboration",
+    title: "Realtime Collaboration",
+    description: "Gossip + overlay cache for distributed realtime updates across agents and humans.",
+    filename: "realtime-collaboration.mp4",
+    poster: "realtime-collaboration.jpg"
+  },
+  {
     id: "virtual-projects",
     title: "Virtual Projects",
     description: "Aggregate issues from multiple repositories into a single view.",
@@ -69,6 +76,13 @@ export const VIDEOS: VideoEntry[] = [
     description: "Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically.",
     filename: "policy-as-code.mp4",
     poster: "policy-as-code.jpg"
+  },
+  {
+    id: "lifecycle-hooks",
+    title: "Lifecycle Hooks",
+    description: "Run project-defined before/after integrations on issue lifecycle events, with policy guidance unified in the same hook engine.",
+    filename: "lifecycle-hooks.mp4",
+    poster: "lifecycle-hooks.jpg"
   }
 ];
 

@@ -74,7 +74,7 @@ export function CliDemoVideo({ style }: { style?: React.CSSProperties }) {
         position: "relative",
         width: "100%",
         maxWidth: "896px",
-        backgroundColor: "var(--card)",
+        backgroundColor: "#14171d",
         borderRadius: "12px",
         overflow: "hidden",
         fontFamily: "monospace",
@@ -85,7 +85,7 @@ export function CliDemoVideo({ style }: { style?: React.CSSProperties }) {
       }}>
         {/* Title bar */}
         <div style={{
-          backgroundColor: "var(--card-muted)",
+          backgroundColor: "#1e222b",
           padding: "12px 16px",
           display: "flex",
           alignItems: "center",

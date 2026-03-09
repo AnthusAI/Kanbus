@@ -10,6 +10,7 @@ from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.issue_files import read_issue_from_file
 from kanbus.migration import MigrationError, load_beads_issues
 from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.overlay import apply_overlay_to_issues
 from kanbus.project import (
     ProjectMarkerError,
     find_project_local_directory,
@@ -39,6 +40,22 @@ def build_console_snapshot(root: Path) -> Dict[str, object]:
         "issues": [issue.model_dump(by_alias=True, mode="json") for issue in issues],
         "updated_at": updated_at,
     }
+
+
+def get_issues_for_root(root: Path) -> List[IssueData]:
+    """Load issues for the given repository root using the same logic as the console.
+
+    Respects beads_compatibility and virtual_projects. Use this when you need
+    the canonical issue list (e.g. for wiki render) without building a full snapshot.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: List of issues.
+    :rtype: List[IssueData]
+    :raises ConsoleSnapshotError: If loading fails.
+    """
+    project_dir, config = _load_project_context(root)
+    return _load_console_issues(root, project_dir, config)
 
 
 def _load_project_context(root: Path) -> tuple[Path, ProjectConfiguration]:
@@ -97,8 +114,17 @@ def _load_console_issues(
             except Exception as error:
                 raise ConsoleSnapshotError("issue file is invalid") from error
 
-    issues.sort(key=lambda issue: issue.identifier)
-    return issues
+    shared = [issue for issue in issues if issue.custom.get("source") == "shared"]
+    local = [issue for issue in issues if issue.custom.get("source") == "local"]
+    shared = apply_overlay_to_issues(
+        project_dir,
+        shared,
+        configuration.overlay,
+        project_label=configuration.project_key,
+    )
+    merged = [*shared, *local]
+    merged.sort(key=lambda issue: issue.identifier)
+    return merged
 
 
 def _load_issues_with_virtual_projects(
@@ -116,10 +142,17 @@ def _load_issues_with_virtual_projects(
         if issues_dir.is_dir():
             try:
                 shared = _read_issues_from_dir(issues_dir)
-                for issue in shared:
-                    all_issues.append(
-                        _tag_issue(issue, project_label=project.label, source="shared")
-                    )
+                tagged_shared = [
+                    _tag_issue(issue, project_label=project.label, source="shared")
+                    for issue in shared
+                ]
+                tagged_shared = apply_overlay_to_issues(
+                    project.project_dir,
+                    tagged_shared,
+                    configuration.overlay,
+                    project_label=project.label,
+                )
+                all_issues.extend(tagged_shared)
             except PermissionError as error:
                 raise ConsoleSnapshotError(str(error)) from error
             except Exception as error:

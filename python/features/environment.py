@@ -21,6 +21,7 @@ def before_scenario(context: object, scenario: object) -> None:
     :type scenario: object
     """
     context._unset_env_vars = []
+    context._tracked_env_vars = set()
     if "skip" in getattr(scenario, "tags", []):
         scenario.skip("Marked with @skip")
         return
@@ -38,11 +39,14 @@ def before_scenario(context: object, scenario: object) -> None:
 
 
 def before_all(context: object) -> None:
-    """Run extra coverage helpers before the suite."""
+    """Run optional coverage helpers before the suite."""
+    import os
+
+    if os.environ.get("KANBUS_ENABLE_COVERAGE_HELPER") != "1":
+        return
     try:
         _run_coverage_helper()
     except Exception:
-        # Coverage helper failures should not block the suite.
         return
 
 
@@ -77,6 +81,8 @@ def after_scenario(context: object, scenario: object) -> None:
 
         if original_value is not None:
             os.environ[name] = original_value
+        else:
+            os.environ.pop(name, None)
     context._unset_env_vars = []
     thread = getattr(context, "daemon_thread", None)
     if thread is not None:

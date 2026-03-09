@@ -13,7 +13,6 @@ const PolicyAsCodePage = () => {
   return (
     <Layout>
       <Hero
-        eyebrow="New Feature"
         title="Policy as Code"
         subtitle="Kairotic guardrails for agents: enforce hard rules and inject guidance at the right moment, not only in a giant upfront prompt."
         rightPane={<FeaturePictogram type="policy-as-code" />}

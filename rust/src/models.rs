@@ -70,6 +70,15 @@ fn default_jira_sync_direction() -> String {
     "pull".to_string()
 }
 
+/// AI provider configuration for wiki summarization.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiConfiguration {
+    /// AI provider identifier (e.g. openai).
+    pub provider: String,
+    /// Model identifier (e.g. gpt-4o).
+    pub model: String,
+}
+
 /// Snyk vulnerability synchronization configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnykConfiguration {
@@ -140,6 +149,116 @@ pub struct VirtualProjectConfig {
     pub path: String,
 }
 
+/// Realtime topic templates.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RealtimeTopics {
+    pub project_events: String,
+}
+
+impl Default for RealtimeTopics {
+    fn default() -> Self {
+        Self {
+            project_events: "projects/{project}/events".to_string(),
+        }
+    }
+}
+
+/// Realtime gossip configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RealtimeConfig {
+    pub transport: String,
+    pub broker: String,
+    pub autostart: bool,
+    pub keepalive: bool,
+    pub uds_socket_path: Option<String>,
+    pub mqtt_custom_authorizer_name: Option<String>,
+    pub mqtt_api_token: Option<String>,
+    pub topics: RealtimeTopics,
+}
+
+impl Default for RealtimeConfig {
+    fn default() -> Self {
+        Self {
+            transport: "auto".to_string(),
+            broker: "auto".to_string(),
+            autostart: true,
+            keepalive: false,
+            uds_socket_path: None,
+            mqtt_custom_authorizer_name: None,
+            mqtt_api_token: None,
+            topics: RealtimeTopics::default(),
+        }
+    }
+}
+
+/// Overlay cache configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OverlayConfig {
+    pub enabled: bool,
+    pub ttl_s: u64,
+}
+
+impl Default for OverlayConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            ttl_s: 86_400,
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_hooks_timeout_ms() -> u64 {
+    5_000
+}
+
+/// One external hook entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HookDefinition {
+    pub id: String,
+    pub command: Vec<String>,
+    #[serde(default)]
+    pub blocking: Option<bool>,
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
+    #[serde(default)]
+    pub cwd: Option<String>,
+    #[serde(default)]
+    pub env: BTreeMap<String, String>,
+}
+
+/// Lifecycle hook engine configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HooksConfiguration {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub run_in_beads_mode: bool,
+    #[serde(default = "default_hooks_timeout_ms")]
+    pub default_timeout_ms: u64,
+    #[serde(default)]
+    pub before: BTreeMap<String, Vec<HookDefinition>>,
+    #[serde(default)]
+    pub after: BTreeMap<String, Vec<HookDefinition>>,
+}
+
+impl Default for HooksConfiguration {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            run_in_beads_mode: true,
+            default_timeout_ms: default_hooks_timeout_ms(),
+            before: BTreeMap::new(),
+            after: BTreeMap::new(),
+        }
+    }
+}
+
 /// Project configuration loaded from .kanbus.yml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -178,10 +297,19 @@ pub struct ProjectConfiguration {
     #[serde(default)]
     pub beads_compatibility: bool,
     #[serde(default)]
+    pub wiki_directory: Option<String>,
+    #[serde(default)]
+    pub ai: Option<AiConfiguration>,
+    #[serde(default)]
     pub jira: Option<JiraConfiguration>,
     #[serde(default)]
     pub snyk: Option<SnykConfiguration>,
     #[serde(default)]
+    pub realtime: RealtimeConfig,
+    #[serde(default)]
+    pub overlay: OverlayConfig,
+    #[serde(default)]
+    pub hooks: HooksConfiguration,
     pub github_security: Option<GithubSecurityConfiguration>,
 }
 

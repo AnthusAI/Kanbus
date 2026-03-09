@@ -1,22 +1,60 @@
-# Kanbus Test Coverage Report (Feb 19, 2026)
+# Kanbus Coverage Policy (March 6, 2026)
 
-## Rust
-- Runner: `CARGO_TARGET_DIR=/tmp/kanbus-target cargo test --test cucumber -- --fail-fast`.
-- Latest run: **0 failures**, **40 skipped** (dependency interop Given steps still skipped). All executed scenarios passed. Full suite (non fail-fast) still pending.
-- Coverage: tarpaulin not run tonight; functional parity verified for executed scenarios.
+## Baseline
 
-## Python
-- Runner sequence (coverage combined):
-  - `coverage run -m pytest python/tests`
-  - `coverage run -a -m behave`
-  - `coverage xml`
-- Latest results: **528/528 scenarios passing** (0 skipped) + 4 pytest unit tests.
-- Coverage with `.coveragerc`: **99% line coverage** (coverage.xml at repo root). Remaining misses: `python/src/kanbusr/__init__.py` (3 stub lines).
+Coverage ratchet baseline is frozen in `config/coverage-baselines.json`:
 
-## Release gate (tonight)
-- Temporary threshold: **95% overall**. Python now meets it (99%); Rust scenarios green for fail-fast run. Decide if a full Rust suite run is required before release.
+- `python_line_coverage: 80.5`
+- `rust_line_coverage: 65.0`
+- `max_gap_points: 15.5`
 
-## Next actions
-1) Run full Rust cucumber suite (without `--fail-fast`) to confirm no hidden failures.
-2) If desired, add a tiny test for `kanbusr/__init__.py` or mark it as vendor/omit to hit 100% Python.
-3) Consider unskipping dependency interop Given steps to remove skips and align with spec.
+Baselines only move via explicit `--update-baseline`.
+
+## CI Enforcement
+
+CI generates both artifacts and enforces ratchet rules:
+
+- Python: `coverage-python/coverage.xml`
+  - `coverage run --source=kanbus -m pytest`
+  - `KANBUS_ENABLE_COVERAGE_HELPER=0 coverage run --append --source=kanbus -m behave`
+- Rust: `coverage-rust/cobertura.xml`
+  - `cargo llvm-cov --all-features --lib --bins --tests`
+
+Blocking gate:
+
+```bash
+python tools/coverage_ratchet.py \
+  --python-xml coverage-python/coverage.xml \
+  --rust-xml coverage-rust/cobertura.xml \
+  --baseline-file config/coverage-baselines.json
+```
+
+Machine-readable output for CI annotations:
+
+```bash
+python tools/coverage_ratchet.py \
+  --python-xml coverage-python/coverage.xml \
+  --rust-xml coverage-rust/cobertura.xml \
+  --baseline-file config/coverage-baselines.json \
+  --json
+```
+
+## Rust Console Parity Gate
+
+Rust has a dedicated console parity lane:
+
+```bash
+cd rust
+KANBUS_CUCUMBER_ONLY_CONSOLE=1 cargo test --locked --test cucumber -- --fail-fast
+```
+
+## Coverage Delta Reporting
+
+Use this report to identify shared-module parity gaps:
+
+```bash
+python tools/coverage_parity_report.py \
+  --python-xml coverage-python/coverage.xml \
+  --rust-xml coverage-rust/cobertura.xml \
+  --limit 25
+```

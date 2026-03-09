@@ -13,7 +13,7 @@
   --scrollbar-size: 8px;
   --scrollbar-thumb: var(--card-muted);
   --scrollbar-track: transparent;
-  --layout-transition: 0.35s;
+  --layout-transition: 0.42s;
   --app-padding: 4px;
 }
 
@@ -793,8 +793,8 @@ html[data-motion="reduced"] .sidebar-column {
 
 .view-track {
   display: flex;
-  flex: 0 0 200%;
-  width: 200%;
+  flex: 0 0 300%;
+  width: 300%;
   height: 100%;
   min-width: 0;
   transform: translateX(0);
@@ -806,13 +806,9 @@ html[data-motion="reduced"] .sidebar-column {
   transition: transform var(--layout-transition) linear;
 }
 
-.view-track-metrics {
-  transform: translateX(-50%);
-}
-
 .view-panel {
-  flex: 0 0 50%;
-  width: 50%;
+  flex: 0 0 33.3333%;
+  width: 33.3333%;
   height: 100%;
   min-width: 0;
   display: flex;
@@ -1043,3 +1039,80 @@ html[data-motion="reduced"] .sidebar-column {
 @media (prefers-color-scheme: dark) {
   --issue-priority-bg: var(--issue-priority-bg-dark);
 }
+
+/* Wiki workspace */
+.wiki-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+}
+
+.wiki-split-container.is-resizing .wiki-edit-pane,
+.wiki-split-container.is-resizing .wiki-preview-pane {
+  transition: none;
+}
+
+.wiki-directory-listing {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 2rem;
+  overflow: auto;
+  height: 100%;
+}
+
+.wiki-editor {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.wiki-editor textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  flex: 1 1 auto;
+  resize: none;
+  background: var(--background);
+  color: var(--text-foreground);
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+
+.wiki-preview {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 0.75rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wiki-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.wiki-empty-state {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.wiki-error {
+  background: var(--card-muted);
+  color: var(--text-muted);
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+}
+

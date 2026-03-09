@@ -80,6 +80,7 @@ pub fn add_dependency(
         dependency_payload(dependency_type, target_id),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir =
         events_dir_for_issue_path(&source_lookup.project_dir, &source_lookup.issue_path)?;
     match write_events_batch(&events_dir, &[event]) {
@@ -90,17 +91,16 @@ pub fn add_dependency(
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(
-        root,
-        NotificationEvent::IssueUpdated {
-            issue_id: updated_issue.identifier.clone(),
-            fields_changed: vec!["dependencies".to_string()],
-            issue_data: updated_issue.clone(),
-        },
-    );
+    if source_lookup.issue_path.parent() == Some(source_lookup.project_dir.join("issues").as_path())
+    {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &source_lookup.project_dir,
+            &updated_issue,
+            Some(event_id),
+            "issue.mutated",
+        );
+    }
 
     Ok(updated_issue)
 }
@@ -153,6 +153,7 @@ pub fn remove_dependency(
         dependency_payload(dependency_type, target_id),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_issue_path(&project_dir, &issue_path)?;
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -162,17 +163,15 @@ pub fn remove_dependency(
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(
-        root,
-        NotificationEvent::IssueUpdated {
-            issue_id: updated_issue.identifier.clone(),
-            fields_changed: vec!["dependencies".to_string()],
-            issue_data: updated_issue.clone(),
-        },
-    );
+    if issue_path.parent() == Some(project_dir.join("issues").as_path()) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &project_dir,
+            &updated_issue,
+            Some(event_id),
+            "issue.mutated",
+        );
+    }
 
     Ok(updated_issue)
 }

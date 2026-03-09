@@ -1,0 +1,50 @@
+<vml id="realtime-collaboration" title="Realtime Collaboration" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="Realtime Collaboration">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <animated-pictogram-video props='{"type": "git-sync-home", "headline": "Realtime Collaboration", "subhead": "Instant updates across agents and humans"}' />
+    </layer>
+    <cue id="hook_voice" label="Hook">
+      <voice>Realtime Collaboration keeps humans and agents in sync while Git remains the source of truth.</voice>
+    </cue>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="deep_dive" title="Realtime Collaboration Deep Dive">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="title" z="2">
+      <title props='{"text":"Realtime Collaboration","x":960,"y":120}' />
+    </layer>
+    <layer id="subtitle" z="2">
+      <subtitle props='{"text":"Gossip + overlay cache, with Git as SSOT","x":960,"y":200}' />
+    </layer>
+    <layer id="diagram" z="1">
+      <realtime-collaboration-demo-video props='{"style":{"padding":"180px 24px 24px"}}' />
+    </layer>
+
+    <cue id="gossip" label="Gossip">
+      <pause seconds="0.6s" />
+      <voice>Every change still writes issue JSON and an event log entry. Gossip publishes a small notification so other tools react immediately.</voice>
+    </cue>
+    <cue id="overlay" label="Overlay">
+      <pause seconds="0.6s" />
+      <voice>Watchers write a disposable overlay snapshot, so you can see updates before a pull lands. Overlay never resolves conflicts.</voice>
+    </cue>
+    <cue id="transports" label="Transports">
+      <pause seconds="0.6s" />
+      <voice>Use a local Unix socket broker on one machine, or MQTT for LAN and cloud. Mosquitto can autostart locally when available.</voice>
+    </cue>
+    <cue id="close" label="Close">
+      <pause seconds="0.6s" />
+      <voice>Best-effort realtime, Git-authoritative history. Start a broker, run watch, and keep moving.</voice>
+    </cue>
+  </scene>
+</vml>
+

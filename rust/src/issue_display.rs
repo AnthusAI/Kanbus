@@ -4,6 +4,7 @@ use owo_colors::{AnsiColors, OwoColorize};
 
 use crate::ids::format_issue_key;
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::wiki;
 
 fn dim(text: &str, use_color: bool) -> String {
     if use_color {
@@ -105,12 +106,33 @@ fn type_color(
     })
 }
 
+fn render_description_and_comments(
+    issue: &IssueData,
+    all_issues: &[IssueData],
+) -> (String, Vec<String>) {
+    let description = if issue.description.is_empty() {
+        String::new()
+    } else {
+        wiki::render_template_string(&issue.description, all_issues)
+            .unwrap_or_else(|_| issue.description.clone())
+    };
+    let comments: Vec<String> = issue
+        .comments
+        .iter()
+        .map(|c| {
+            wiki::render_template_string(&c.text, all_issues).unwrap_or_else(|_| c.text.clone())
+        })
+        .collect();
+    (description, comments)
+}
+
 /// Format an issue for human-readable display.
 pub fn format_issue_for_display(
     issue: &IssueData,
     configuration: Option<&ProjectConfiguration>,
     use_color: bool,
     project_context: bool,
+    all_issues: Option<&[IssueData]>,
 ) -> String {
     let labels = if issue.labels.is_empty() {
         "-".to_string()
@@ -161,9 +183,18 @@ pub fn format_issue_for_display(
             paint(&value, final_color, use_color)
         ));
     }
-    if !issue.description.is_empty() {
+    let (description, comments_texts) = if let Some(issues) = all_issues {
+        render_description_and_comments(issue, issues)
+    } else {
+        (
+            issue.description.clone(),
+            issue.comments.iter().map(|c| c.text.clone()).collect(),
+        )
+    };
+
+    if !description.is_empty() {
         lines.push(dim("Description:", use_color));
-        lines.push(paint(&issue.description, None, use_color));
+        lines.push(paint(&description, None, use_color));
     }
     if !issue.dependencies.is_empty() {
         lines.push(dim("Dependencies:", use_color));
@@ -176,7 +207,7 @@ pub fn format_issue_for_display(
     }
     if !issue.comments.is_empty() {
         lines.push(dim("Comments:", use_color));
-        for comment in &issue.comments {
+        for (i, comment) in issue.comments.iter().enumerate() {
             let author = if comment.author.is_empty() {
                 "unknown"
             } else {
@@ -189,17 +220,21 @@ pub fn format_issue_for_display(
                 .chars()
                 .take(6)
                 .collect::<String>();
+            let text = comments_texts
+                .get(i)
+                .map(|s| s.as_str())
+                .unwrap_or(&comment.text);
             if prefix.is_empty() {
                 lines.push(format!(
                     "  {} {}",
                     dim(&format!("{author}:"), use_color),
-                    comment.text
+                    text
                 ));
             } else {
                 lines.push(format!(
                     "  [{prefix}] {} {}",
                     dim(&format!("{author}:"), use_color),
-                    comment.text
+                    text
                 ));
             }
         }

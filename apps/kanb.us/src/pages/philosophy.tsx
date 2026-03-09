@@ -49,12 +49,12 @@ const PhilosophyPage = () => {
                   Beads
                 </a>{" "}
                 and is intended as a spiritual successor that embraces the elegant domain-specific cognitive framework it
-                pioneered. We are deeply grateful to the Beads author and community for proving the concept so well.
+                pioneered. Deep gratitude to the Beads author and community for proving the concept so well.
               </p>
               <p>Kanbus represents the next generation of this idea, improved for the era of AI agents:</p>
               <ul className="list-disc list-inside space-y-2 ml-4">
                 <li>
-                  <strong>Thinner layer over Git:</strong> We removed the secondary SQLite database to eliminate
+                  <strong>Thinner layer over Git:</strong> Kanbus removes the secondary SQLite database to eliminate
                   synchronization complexity.
                 </li>
                 <li>
@@ -62,11 +62,11 @@ const PhilosophyPage = () => {
                   agents work in parallel.
                 </li>
                 <li>
-                  <strong>Focused Cognitive Model:</strong> We stripped away 100+ unused attributes to focus on the core
+                  <strong>Focused Cognitive Model:</strong> Kanbus strips away 100+ unused attributes to focus on the core
                   cognitive framework, reducing context pollution for AI models.
                 </li>
                 <li>
-                  <strong>Standard Nomenclature:</strong> We use standard terms (Epics, Tasks) to leverage the massive
+                  <strong>Standard Nomenclature:</strong> Kanbus uses standard terms (Epics, Tasks) to leverage the massive
                   pre-training AI models already have on these concepts.
                 </li>
               </ul>
@@ -93,7 +93,7 @@ const PhilosophyPage = () => {
               {
                 title: "3. Helpful Cognitive Model",
                 body:
-                  "The task model should unburden your mind, not add to it. We stripped away 100+ unused attributes to focus on a core, elegant framework (Status, Priority, Dependencies). This helps AI agents focus on solving problems, not navigating the tool."
+                  "The task model should unburden your mind, not add to it. Kanbus strips away 100+ unused attributes to focus on a core, elegant framework (Status, Priority, Dependencies). This helps AI agents focus on solving problems, not navigating the tool."
               },
               {
                 title: "4. Agent-Native",
@@ -103,7 +103,7 @@ const PhilosophyPage = () => {
               {
                 title: "5. Git-Native Scoping",
                 body:
-                  "We don't need complex roles to handle private tasks. Just use .gitignore. Kanbus respects your directory structure: run it at the root to see everything, or in a subfolder to focus on that module. It leverages the tools you already use."
+                  "No complex roles needed to handle private tasks. Just use .gitignore. Kanbus respects your directory structure: run it at the root to see everything, or in a subfolder to focus on that module. It leverages the tools you already use."
               }
             ].map((card) => (
               <Card key={card.title} className="p-8 bg-card">

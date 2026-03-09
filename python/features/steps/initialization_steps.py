@@ -69,16 +69,29 @@ def then_default_config_missing(context: object) -> None:
     assert not (context.working_directory / "project" / "config.yaml").exists()
 
 
-@then('a "project/issues" directory should exist and be empty')
-def then_issues_directory_empty(context: object) -> None:
+@then('a "project/issues" directory should exist and contain only guard files')
+def then_issues_directory_only_guards(context: object) -> None:
     issues_dir = context.working_directory / "project" / "issues"
     assert issues_dir.is_dir()
-    assert list(issues_dir.iterdir()) == []
+    names = {p.name for p in issues_dir.iterdir()}
+    assert names == {
+        "AGENTS.md",
+        "DO_NOT_EDIT",
+    }, f"expected only guard files, got {names}"
 
 
-@then('a "project/wiki" directory should not exist')
-def then_wiki_directory_missing(context: object) -> None:
-    assert not (context.working_directory / "project" / "wiki").exists()
+@then('the file "{path}" should exist')
+def then_file_exists(context: object, path: str) -> None:
+    full_path = context.working_directory / path
+    assert full_path.exists(), f"expected file {path} to exist"
+    assert full_path.is_file(), f"expected {path} to be a file"
+
+
+@then('the file "{path}" should contain "{text}"')
+def then_file_contains(context: object, path: str, text: str) -> None:
+    full_path = context.working_directory / path
+    content = full_path.read_text(encoding="utf-8")
+    assert text in content, f"expected {path} to contain {text!r}"
 
 
 @then('a "project-local/issues" directory should exist')
@@ -100,19 +113,21 @@ def then_command_failed_generic(context: object) -> None:
     assert context.result.exit_code != 0
 
 
-@then("project/AGENTS.md should be created with the warning")
-def then_project_agents_created(context: object) -> None:
-    path = context.working_directory / "project" / "AGENTS.md"
-    assert path.is_file()
-    content = path.read_text(encoding="utf-8")
-    assert "DO NOT EDIT HERE" in content
-    assert "sin against The Way" in content
+@then("project/issues/ and project/events/ should contain AGENTS.md with the warning")
+def then_issues_events_agents_created(context: object) -> None:
+    for subdir in ("issues", "events"):
+        path = context.working_directory / "project" / subdir / "AGENTS.md"
+        assert path.is_file(), f"expected {path}"
+        content = path.read_text(encoding="utf-8")
+        assert "DO NOT EDIT HERE" in content
+        assert "The Way" in content or "Kanbus" in content
 
 
-@then("project/DO_NOT_EDIT should be created with the warning")
-def then_project_do_not_edit_created(context: object) -> None:
-    path = context.working_directory / "project" / "DO_NOT_EDIT"
-    assert path.is_file()
-    content = path.read_text(encoding="utf-8")
-    assert "DO NOT EDIT ANYTHING IN project/" in content
-    assert "The Way" in content
+@then("project/issues/ and project/events/ should contain DO_NOT_EDIT with the warning")
+def then_issues_events_do_not_edit_created(context: object) -> None:
+    for subdir in ("issues", "events"):
+        path = context.working_directory / "project" / subdir / "DO_NOT_EDIT"
+        assert path.is_file(), f"expected {path}"
+        content = path.read_text(encoding="utf-8")
+        assert "DO NOT EDIT" in content
+        assert "The Way" in content

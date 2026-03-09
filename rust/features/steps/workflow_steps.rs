@@ -7,7 +7,10 @@ use cucumber::{given, then, when};
 use serde_json::Value;
 
 use kanbus::file_io::load_project_directory;
-use kanbus::models::{IssueData, PriorityDefinition, ProjectConfiguration, StatusDefinition};
+use kanbus::models::{
+    HooksConfiguration, IssueData, OverlayConfig, PriorityDefinition, ProjectConfiguration,
+    RealtimeConfig, StatusDefinition,
+};
 use kanbus::workflows::get_workflow_for_issue_type;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -299,6 +302,23 @@ fn given_issue_exists_with_status(world: &mut KanbusWorld, identifier: String, s
     write_issue_file(&project_dir, &issue);
 }
 
+#[given(expr = "an issue {string} exists with parent {string}")]
+fn given_issue_exists_with_parent(world: &mut KanbusWorld, identifier: String, parent_id: String) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_overrides(
+        &project_dir,
+        identifier,
+        "task".to_string(),
+        "open".to_string(),
+        "Title".to_string(),
+        "".to_string(),
+        Some(parent_id),
+        Vec::new(),
+        None,
+        2,
+    );
+}
+
 #[given(expr = "a {string} issue {string} exists")]
 fn given_typed_issue_exists(world: &mut KanbusWorld, issue_type: String, identifier: String) {
     let project_dir = load_project_dir(world);
@@ -499,6 +519,11 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         snyk: None,
         github_security: None,
         transition_labels: BTreeMap::new(),
+        realtime: RealtimeConfig::default(),
+        overlay: OverlayConfig::default(),
+        hooks: HooksConfiguration::default(),
+        wiki_directory: None,
+        ai: None,
     };
     match get_workflow_for_issue_type(&configuration, &issue_type) {
         Ok(_) => world.workflow_error = None,

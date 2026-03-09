@@ -7,14 +7,17 @@ from pathlib import Path
 from typing import List
 
 from kanbus.cache import collect_issue_file_mtimes, load_cache_if_valid, write_cache
+from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.daemon_client import is_daemon_enabled, request_index_list
 from kanbus.index import build_index_from_directory
 from kanbus.issue_files import read_issue_from_file
-from kanbus.models import IssueData
+from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration
+from kanbus.overlay import apply_overlay_to_issues
 from kanbus.project import (
     ProjectMarkerError,
     discover_project_directories,
     find_project_local_directory,
+    get_configuration_path,
     load_project_directory,
     resolve_labeled_projects,
     resolve_project_path,
@@ -87,13 +90,31 @@ def list_issues(
     if not project_dirs:
         raise IssueListingError("project not initialized")
 
+    root_configuration: ProjectConfiguration | None = None
+    project_labels: dict[Path, str] = {}
+    try:
+        root_configuration = load_project_configuration(get_configuration_path(root))
+        project_labels = {
+            project.project_dir: project.label
+            for project in resolve_labeled_projects(root)
+        }
+    except (ProjectMarkerError, ConfigurationError):
+        root_configuration = None
+
     if len(project_dirs) > 1:
+        overlay_configs = _resolve_overlay_configs(project_dirs, root_configuration)
         issues = _list_issues_across_projects(
-            root, project_dirs, include_local, local_only
+            root,
+            project_dirs,
+            include_local,
+            local_only,
+            overlay_configs,
+            project_labels,
         )
         return _apply_query(issues, status, issue_type, assignee, label, sort, search)
 
     project_dir = project_dirs[0]
+    overlay_config = _overlay_config_for_project(project_dir, root_configuration)
     if not os.access(project_dir, os.R_OK | os.X_OK):
         raise IssueListingError("Permission denied")
     local_dir = None
@@ -107,6 +128,8 @@ def list_issues(
                 local_dir,
                 include_local,
                 local_only,
+                overlay_config,
+                project_labels.get(project_dir),
             )
             return _apply_query(
                 issues, status, issue_type, assignee, label, sort, search
@@ -132,6 +155,13 @@ def list_issues(
             ]
         except Exception as error:
             raise IssueListingError(str(error)) from error
+
+    shared_issues = apply_overlay_to_issues(
+        project_dir,
+        shared_issues,
+        overlay_config,
+        project_label=project_labels.get(project_dir),
+    )
 
     if include_local and local_dir is not None:
         try:
@@ -176,7 +206,19 @@ def _list_with_project_filter(
     allowed = set(project_filter)
     filtered_projects = [project for project in labeled if project.label in allowed]
     project_dirs = [project.project_dir for project in filtered_projects]
-    issues = _list_issues_across_projects(root, project_dirs, include_local, local_only)
+    try:
+        configuration = load_project_configuration(get_configuration_path(root))
+    except (ProjectMarkerError, ConfigurationError) as error:
+        raise IssueListingError(str(error)) from error
+    project_labels = {project.project_dir: project.label for project in labeled}
+    issues = _list_issues_across_projects(
+        root,
+        project_dirs,
+        include_local,
+        local_only,
+        configuration,
+        project_labels,
+    )
     return _apply_query(issues, status, issue_type, assignee, label, sort, search)
 
 
@@ -207,9 +249,17 @@ def _list_issues_with_local(
     local_dir: Path | None,
     include_local: bool,
     local_only: bool,
+    overlay_config: OverlayConfig,
+    project_label: str | None,
 ) -> List[IssueData]:
     shared_issues = _list_issues_for_project(project_dir)
     shared_tagged = [_tag_issue_source(issue, "shared") for issue in shared_issues]
+    shared_tagged = apply_overlay_to_issues(
+        project_dir,
+        shared_tagged,
+        overlay_config,
+        project_label=project_label,
+    )
 
     local_tagged: List[IssueData] = []
     if local_dir is not None:
@@ -232,6 +282,8 @@ def _list_issues_across_projects(
     project_dirs: List[Path],
     include_local: bool,
     local_only: bool,
+    overlay_configs: dict[Path, OverlayConfig],
+    project_labels: dict[Path, str],
 ) -> List[IssueData]:
     issues: List[IssueData] = []
     for project_dir in sorted(project_dirs):
@@ -245,6 +297,8 @@ def _list_issues_across_projects(
             local_dir,
             include_local,
             local_only,
+            overlay_configs.get(project_dir, OverlayConfig(enabled=False)),
+            project_labels.get(project_dir),
         )
         project_issues = [
             _tag_issue_project(issue, root, project_dir) for issue in project_issues
@@ -305,3 +359,26 @@ def _apply_query(
     filtered = filter_issues(issues, status, issue_type, assignee, label)
     searched = search_issues(filtered, search)
     return sort_issues(searched, sort)
+
+
+def _overlay_config_for_project(
+    project_dir: Path, root_configuration: ProjectConfiguration | None
+) -> OverlayConfig:
+    if root_configuration is not None:
+        return root_configuration.overlay
+    config_path = project_dir.parent / ".kanbus.yml"
+    if not config_path.is_file():
+        return OverlayConfig(enabled=False)
+    try:
+        return load_project_configuration(config_path).overlay
+    except (ConfigurationError, ProjectMarkerError, RuntimeError):
+        return OverlayConfig(enabled=False)
+
+
+def _resolve_overlay_configs(
+    project_dirs: List[Path], root_configuration: ProjectConfiguration | None
+) -> dict[Path, OverlayConfig]:
+    return {
+        project_dir: _overlay_config_for_project(project_dir, root_configuration)
+        for project_dir in project_dirs
+    }

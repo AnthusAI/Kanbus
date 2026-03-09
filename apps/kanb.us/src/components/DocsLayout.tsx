@@ -15,12 +15,14 @@ const sidebarLinks: SidebarLink[] = [
   { label: "Features", href: "#", isHeader: true },
   { label: "Core Management", href: "/docs/features/core-management" },
   { label: "Kanban Board", href: "/docs/features/kanban-board" },
+  { label: "Realtime Collaboration", href: "/docs/features/realtime-collaboration" },
   { label: "Jira Sync", href: "/docs/features/jira-sync" },
   { label: "Local Tasks", href: "/docs/features/local-tasks" },
   { label: "Virtual Projects", href: "/docs/features/virtual-projects" },
   { label: "Beads Mode", href: "/docs/features/beads-compatibility" },
   { label: "VS Code Plugin", href: "/docs/features/vscode-plugin" },
   { label: "Policy as Code", href: "/docs/features/policy-as-code" },
+  { label: "Lifecycle Hooks", href: "/docs/features/lifecycle-hooks" },
   { label: "Agile Metrics", href: "/docs/features/agile-metrics" }
 ];
 

@@ -7,6 +7,8 @@ Welcome to the Kanbus documentation site. Kanbus is a git-backed project managem
 - [Getting Started](GETTING_STARTED.md)
 - [CLI Reference](CLI_REFERENCE.md)
 - [Configuration](CONFIGURATION.md)
+- [Lifecycle Hooks](LIFECYCLE_HOOKS.md)
+- [Realtime Collaboration](REALTIME.md)
 - [Wiki Guide](WIKI_GUIDE.md)
 - [Troubleshooting](TROUBLESHOOTING.md)
 - [Migration from Beads](MIGRATION.md)

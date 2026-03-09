@@ -1,13 +1,13 @@
-<vml id="intro" title="Intro to Kanbus" fps="24" width="1920" height="1080" poster="24s">
-  <voiceover provider="openai" model="gpt-4o-mini-tts" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+<vml id="intro" title="Intro to Kanbus" fps="24" width="1920" height="1080" poster="18s">
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
 
-  <scene id="hook" title="What is Kanbus?" duration="27s">
+  <scene id="overview" title="Kanban Overview">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
     <layer id="content" z="0">
-      <intro-scene />
+      <intro-scene props='{"mode":"kanban-home"}' />
     </layer>
 
     <music
@@ -23,118 +23,169 @@
       fade-out-duration="3s"
     />
 
-    <cue id="hook" label="Hook">
-      <pause seconds="0.6s" />
-      <voice>What if your project tracker was just files in your repository? No SaaS login. No per-seat costs. No external database to maintain.</voice>
-      <pause seconds="0.3s" />
-      <voice>Kanbus is a lightweight issue tracker that lives entirely in your Git repo. Issues, plans, and execution stay connected in one place—right next to your code.</voice>
+    <cue id="overview" label="Kanban Overview">
+      <pause seconds="0.4s" />
+      <voice>Kanbus is a high-level, accessible way to run Kanban directly from your repository.</voice>
+      <pause seconds="0.2s" />
+      <voice>You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use.</voice>
     </cue>
   </scene>
 
-  <transition id="push-1" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
-
-  <scene id="files" title="Files Are the Database" duration="35s">
+  <scene id="git-sync" title="Git Synchronization">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
-    <layer id="title" z="1">
-      <title props='{"text":"Files Are the Database","x":960,"y":150}' />
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"git-sync-home"}' />
     </layer>
 
-    <cue id="one_file" label="One File Per Issue">
-      <voice>Every issue is a single JSON file. Not one giant file that causes merge conflicts every time two people touch it—one file per issue.</voice>
-      <pause seconds="0.3s" />
-      <voice>That means your team and your AI agents can create, update, and close issues in parallel without stepping on each other. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time.</voice>
-    </cue>
-
-    <cue id="no_friction" label="No Friction">
-      <pause seconds="0.3s" />
-      <voice>There's no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly.</voice>
+    <cue id="git_bus" label="Git Synchronization">
+      <voice>Git synchronization is the core idea: use Git as the bus for Kanban boards.</voice>
+      <pause seconds="0.2s" />
+      <voice>Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects.</voice>
     </cue>
   </scene>
 
-  <transition id="push-2" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
-
-  <scene id="agents" title="Built for AI Agents" duration="36s">
+  <scene id="feature-cli" title="Agent-Ready CLI">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
-    <layer id="title" z="1">
-      <title props='{"text":"Built for AI Agents","x":960,"y":150}' />
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"cli"}' />
     </layer>
 
-    <cue id="agent_native" label="Agent-Native">
-      <voice>Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would.</voice>
-      <pause seconds="0.3s" />
-      <voice>No API keys. No web latency. Just native file and command-line access to the full project tracker.</voice>
-    </cue>
-
-    <cue id="wiki" label="Live Wiki">
-      <pause seconds="0.3s" />
-      <voice>Kanbus also includes an integrated wiki with live templates. Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot.</voice>
+    <cue id="feature_cli" label="Agent-Ready CLI">
+      <voice>The agent-ready CLI lets you create, update, and move work from your terminal without leaving repository-native workflows.</voice>
     </cue>
   </scene>
 
-  <transition id="push-3" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
-
-  <scene id="sync" title="Jira Sync and Local Tasks" duration="23s">
+  <scene id="feature-jira" title="Jira Synchronization">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
-    <layer id="title" z="1">
-      <title props='{"text":"Connected, Not Isolated","x":960,"y":150}' />
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"jira"}' />
     </layer>
 
-    <cue id="jira_sync" label="Jira Sync">
-      <voice>Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access.</voice>
-    </cue>
-
-    <cue id="local_tasks" label="Local Tasks">
-      <pause seconds="0.3s" />
-      <voice>And for your own work-in-progress, local tasks stay off Git until you're ready. Draft ideas, experiment, and promote tasks to the shared board when they're ready for the team.</voice>
+    <cue id="feature_jira" label="Jira Synchronization">
+      <voice>Jira synchronization brings existing Jira projects into the repo so agents and humans work from the same source of truth.</voice>
     </cue>
   </scene>
 
-  <transition id="push-4" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
-
-  <scene id="tools" title="Three Ways to Use It" duration="31s">
+  <scene id="feature-local" title="Local Tasks">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
-    <layer id="title" z="1">
-      <title props='{"text":"Three Ways to Use It","x":960,"y":150}' />
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"local"}' />
     </layer>
 
-    <cue id="implementations" label="Implementations">
-      <voice>Kanbus gives you three ways to work. A Python CLI that installs with pip—perfect for scripting and AI tool integrations. A Rust CLI for high-performance use in CI/CD pipelines and large repositories. And a web console: a single binary with an embedded React frontend. Download it, run it, and you have a full Kanban board—no configuration, no npm, no separate assets.</voice>
-    </cue>
-
-    <cue id="shared_store" label="Shared Datastore">
-      <pause seconds="0.3s" />
-      <voice>Multiple projects can even share a data store while keeping issues namespaced per project. Track work across codebases with centralized visibility.</voice>
+    <cue id="feature_local" label="Local Tasks">
+      <voice>Local tasks let you draft privately and promote to the shared board only when work is ready for team visibility.</voice>
     </cue>
   </scene>
 
-  <transition id="push-5" effect="slide" duration="12f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
-
-  <scene id="cta" title="Get Started" duration="14s">
+  <scene id="feature-virtual" title="Virtual Projects">
     <layer id="background" z="-1">
-      <background props='{"color":"#fdfdfd"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
 
-    <layer id="title" z="1">
-      <title props='{"text":"Get Started","x":960,"y":150}' />
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"virtual"}' />
+    </layer>
+
+    <cue id="feature_virtual" label="Virtual Projects">
+      <voice>Virtual projects aggregate cross-repository execution into a single view for planning and delivery coordination.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-beads" title="Beads Compatibility">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"beads"}' />
+    </layer>
+
+    <cue id="feature_beads" label="Beads Compatibility">
+      <voice>Beads compatibility lets you open existing data immediately and evolve your process incrementally while teams keep shipping.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-vscode" title="VS Code Plugin">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"vscode"}' />
+    </layer>
+
+    <cue id="feature_vscode" label="VS Code Plugin">
+      <voice>The VS Code plugin lets you inspect and update board state without context switching away from the files you are editing.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-wiki" title="Integrated Wiki">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"wiki"}' />
+    </layer>
+
+    <cue id="feature_wiki" label="Integrated Wiki">
+      <voice>The integrated wiki renders current issue lists inside docs so plans, status updates, and execution context stay synchronized.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-policy" title="Policy as Code">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"policy"}' />
+    </layer>
+
+    <cue id="feature_policy" label="Policy as Code">
+      <voice>Policy as code lets you define standards once and apply them consistently across CLI usage, automation, and collaborative workflows.</voice>
+    </cue>
+  </scene>
+
+  <scene id="feature-hooks" title="Lifecycle Hooks">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"hooks"}' />
+    </layer>
+
+    <cue id="feature_hooks" label="Lifecycle Hooks">
+      <voice>Lifecycle hooks let projects pull external logic at command boundaries, with policy guidance aligned in the same execution model.</voice>
+    </cue>
+  </scene>
+
+  <scene id="cta" title="Get Started">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"cta"}' />
     </layer>
 
     <cue id="cta" label="Get Started">
-      <voice>Kanbus. A tiny Jira clone for your repo. Files are the database. Agents are first-class citizens. And everything stays in Git.</voice>
-      <pause seconds="0.3s" />
-      <voice>Visit kanb.us to get started.</voice>
-      <pause seconds="0.5s" />
+      <voice>Get started at kanb.us.</voice>
+      <pause seconds="0.2s" />
+      <voice>Install Kanbus, connect your repository, and run the same board workflow for humans and AI agents.</voice>
     </cue>
   </scene>
 </vml>

@@ -199,6 +199,13 @@ def given_issue_exists(context: object, identifier: str) -> None:
     _write_issue_with_overrides(context, identifier, "task", "open")
 
 
+@given('an issue "{identifier}" exists with parent "{parent_id}"')
+def given_issue_exists_with_parent(
+    context: object, identifier: str, parent_id: str
+) -> None:
+    _write_issue_with_overrides(context, identifier, "task", "open", parent=parent_id)
+
+
 @given('an issue "{identifier}" exists with status "{status}"')
 def given_issue_exists_with_status(
     context: object, identifier: str, status: str

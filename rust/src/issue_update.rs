@@ -297,39 +297,16 @@ pub fn update_issue(
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let mut fields_changed = Vec::new();
-    if status.is_some() {
-        fields_changed.push("status".to_string());
+    if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
+        let event_id = events.first().map(|event| event.event_id.clone());
+        crate::gossip::publish_issue_mutation(
+            root,
+            &lookup.project_dir,
+            &updated_issue,
+            event_id,
+            "issue.mutated",
+        );
     }
-    if title.is_some() {
-        fields_changed.push("title".to_string());
-    }
-    if description.is_some() {
-        fields_changed.push("description".to_string());
-    }
-    if assignee.is_some() || claim {
-        fields_changed.push("assignee".to_string());
-    }
-    if priority.is_some() {
-        fields_changed.push("priority".to_string());
-    }
-    if parent.is_some() {
-        fields_changed.push("parent".to_string());
-    }
-    if resolved_type.is_some() {
-        fields_changed.push("type".to_string());
-    }
-    let _ = publish_notification(
-        root,
-        NotificationEvent::IssueUpdated {
-            issue_id: updated_issue.identifier.clone(),
-            fields_changed,
-            issue_data: updated_issue.clone(),
-        },
-    );
 
     Ok(updated_issue)
 }
@@ -363,4 +340,68 @@ fn find_duplicate_title(
         }
     }
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    use tempfile::TempDir;
+
+    fn issue(identifier: &str, title: &str) -> IssueData {
+        let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        IssueData {
+            identifier: identifier.to_string(),
+            title: title.to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: timestamp,
+            updated_at: timestamp,
+            closed_at: None,
+            custom: std::collections::BTreeMap::new(),
+        }
+    }
+
+    fn write_issue(issues_dir: &Path, issue: &IssueData) {
+        std::fs::write(
+            issues_dir.join(format!("{}.json", issue.identifier)),
+            serde_json::to_vec(issue).expect("serialize issue"),
+        )
+        .expect("write issue");
+    }
+
+    #[test]
+    fn find_duplicate_title_matches_case_insensitively() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues");
+        write_issue(&issues_dir, &issue("kanbus-aaa", "Duplicate Title"));
+        write_issue(&issues_dir, &issue("kanbus-bbb", "Different"));
+
+        let duplicate =
+            find_duplicate_title(&issues_dir, "duplicate title", "kanbus-bbb").expect("lookup");
+
+        assert_eq!(duplicate.as_deref(), Some("kanbus-aaa"));
+    }
+
+    #[test]
+    fn find_duplicate_title_ignores_current_identifier_and_invalid_json() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues");
+        write_issue(&issues_dir, &issue("kanbus-aaa", "Current"));
+        std::fs::write(issues_dir.join("broken.json"), "{").expect("write invalid");
+
+        let duplicate = find_duplicate_title(&issues_dir, "Current", "kanbus-aaa").expect("lookup");
+
+        assert!(duplicate.is_none());
+    }
 }

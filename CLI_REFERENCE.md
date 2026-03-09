@@ -1,6 +1,6 @@
 # CLI Reference
 
-This reference describes the intended Kanbus CLI for the first release. It is based on the current specification and will be kept in parity with both implementations.
+This reference describes the intended Kanbus CLI for the first release. It is based on the current specification and will be kept in parity with both implementations. Rust installs `kbs` with identical subcommands.
 
 ## Global Flags
 
@@ -121,6 +121,49 @@ Example:
 kanbus list --status open --sort priority --limit 10
 ```
 
+## Realtime Gossip + Overlay
+
+### `kanbus gossip broker`
+
+Run a local UDS broker.
+
+```bash
+kanbus gossip broker [--socket <path>]
+```
+
+### `kanbus gossip watch`
+
+Watch gossip notifications and update the overlay cache.
+
+```bash
+kanbus gossip watch [--project <label>] [--transport auto|uds|mqtt] [--broker auto|off|mqtt://...|mqtts://...] [--autostart|--no-autostart] [--keepalive|--no-keepalive]
+kanbus gossip watch [..] [--print]
+```
+
+### `kanbus overlay gc`
+
+Sweep overlay cache entries.
+
+```bash
+kanbus overlay gc [--project <label>] [--all]
+```
+
+### `kanbus overlay reconcile`
+
+Reconcile speculative overlay entries against canonical issue files and optionally prune converged fields.
+
+```bash
+kanbus overlay reconcile [--project <label>] [--all] [--prune] [--dry-run]
+```
+
+### `kanbus overlay install-hooks`
+
+Install git hooks to run overlay reconcile + GC after merges/checkouts.
+
+```bash
+kanbus overlay install-hooks
+```
+
 ### `kanbus ready`
 
 List open issues with no open blockers.
@@ -213,6 +256,58 @@ List available wiki pages.
 kanbus wiki list
 ```
 
+## Edit (Text Editor)
+
+File edit commands mirroring the [Anthropic text editor tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/text-editor-tool) for agent compatibility. Use these for view, replace, create, and insert operations with strict single-match replacement semantics.
+
+### `kanbus edit view`
+
+View file contents or list a directory. Optionally restrict output to a line range.
+
+```bash
+kanbus edit view <path> [--view-range <start> <end>]
+```
+
+- `<path>` File or directory path (relative to repository root)
+- `--view-range <start> <end>` Line numbers (1-indexed; -1 for end). Example: `--view-range 2 5`
+
+### `kanbus edit str-replace`
+
+Replace exact text in a file. Requires exactly one match; errors on 0 or multiple matches.
+
+```bash
+kanbus edit str-replace <path> --old-str <text> --new-str <text>
+```
+
+- `--old-str <text>` Exact text to find (must match exactly one occurrence)
+- `--new-str <text>` Replacement text
+
+### `kanbus edit create`
+
+Create a new file. Fails if the file already exists.
+
+```bash
+kanbus edit create <path> --file-text <text>
+```
+
+### `kanbus edit insert`
+
+Insert text after a given line number. Line 0 inserts at the beginning; otherwise 1-indexed.
+
+```bash
+kanbus edit insert <path> --insert-line <n> --insert-text <text>
+```
+
+Examples:
+
+```bash
+kanbus edit view project/wiki/index.md
+kanbus edit view project/wiki/ --view-range 1 10
+kanbus edit str-replace foo.txt --old-str "old" --new-str "new"
+kanbus edit create newfile.txt --file-text "initial content"
+kanbus edit insert foo.txt --insert-line 0 --insert-text "header"
+```
+
 ## Console
 
 ### `kanbus console snapshot`
@@ -221,6 +316,15 @@ Emit a JSON snapshot for the console server.
 
 ```bash
 kanbus console snapshot
+```
+
+### Deprecated console controls
+
+The legacy CLI-to-console control channel has been removed. These commands now fail with a migration hint while control messaging is moved to pub/sub:
+
+```bash
+kanbus console focus|unfocus|view|search|maximize|restore|close-detail|toggle-settings|reload|set-setting|collapse-column|expand-column|select
+kanbus create --focus
 ```
 
 ## Maintenance

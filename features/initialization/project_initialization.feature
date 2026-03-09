@@ -7,20 +7,22 @@ Feature: Project initialization
     Given an empty git repository
     When I run "kanbus init"
     Then a "project" directory should exist
-    And a "project/issues" directory should exist and be empty
-    And a "project/wiki" directory should not exist
+    And a "project/issues" directory should exist and contain only guard files
+    And the file "project/wiki/index.md" should exist
+    And the file "project/wiki/whats-next.md" should exist
+    And the file "project/wiki/index.md" should contain "whats-next.md"
     And a ".kanbus.yml" file should be created
     And a "CONTRIBUTING_AGENT.template.md" file should be created
     And CONTRIBUTING_AGENT.template.md should contain "This is The Way."
     And CONTRIBUTING_AGENT.template.md should contain "As a <role>, I want <capability>, so that <benefit>."
-    And project/AGENTS.md should be created with the warning
-    And project/DO_NOT_EDIT should be created with the warning
+    And project/issues/ and project/events/ should contain AGENTS.md with the warning
+    And project/issues/ and project/events/ should contain DO_NOT_EDIT with the warning
 
   Scenario: Initialize with a project-local directory
     Given an empty git repository
     When I run "kanbus init --local"
     Then a "project" directory should exist
-    And a "project/issues" directory should exist and be empty
+    And a "project/issues" directory should exist and contain only guard files
     And a "project-local/issues" directory should exist
     And .gitignore should include "project-local/"
     And a "CONTRIBUTING_AGENT.template.md" file should be created

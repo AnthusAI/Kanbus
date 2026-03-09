@@ -13,6 +13,16 @@ mod step_definitions;
 
 use step_definitions::initialization_steps::KanbusWorld;
 
+fn env_flag(name: &str) -> bool {
+    std::env::var(name)
+        .ok()
+        .map(|value| {
+            let normalized = value.trim().to_ascii_lowercase();
+            matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+        })
+        .unwrap_or(false)
+}
+
 #[derive(Clone, Debug, Default)]
 struct RecursiveFeatureParser;
 
@@ -82,17 +92,29 @@ async fn main() {
     if !features_dir.exists() {
         panic!("features directory missing at {}", features_dir.display());
     }
+    let include_console = env_flag("KANBUS_CUCUMBER_INCLUDE_CONSOLE");
+    let only_console = env_flag("KANBUS_CUCUMBER_ONLY_CONSOLE");
     #[cfg(tarpaulin)]
     cover_additional_paths();
     KanbusWorld::cucumber::<PathBuf>()
         .with_parser(RecursiveFeatureParser::default())
         .max_concurrent_scenarios(1)
-        .filter_run_and_exit(features_dir, |feature, _, scenario| {
+        .filter_run_and_exit(features_dir, move |feature, _, scenario| {
             let scenario_has_wip = scenario.tags.iter().any(|tag| tag == "wip");
             let feature_has_wip = feature.tags.iter().any(|tag| tag == "wip");
             let scenario_has_console = scenario.tags.iter().any(|tag| tag == "console");
             let feature_has_console = feature.tags.iter().any(|tag| tag == "console");
-            !(scenario_has_wip || feature_has_wip || scenario_has_console || feature_has_console)
+            if scenario_has_wip || feature_has_wip {
+                return false;
+            }
+            let has_console = scenario_has_console || feature_has_console;
+            if only_console {
+                return has_console;
+            }
+            if !include_console && has_console {
+                return false;
+            }
+            true
         })
         .await;
 }

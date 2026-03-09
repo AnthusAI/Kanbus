@@ -1363,3 +1363,120 @@ fn severity_to_priority(severity: &str) -> i32 {
         _ => 3,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use tempfile::TempDir;
+
+    #[test]
+    fn severity_to_priority_maps_expected_values() {
+        assert_eq!(severity_to_priority("critical"), 0);
+        assert_eq!(severity_to_priority("high"), 1);
+        assert_eq!(severity_to_priority("medium"), 2);
+        assert_eq!(severity_to_priority("low"), 3);
+    }
+
+    #[test]
+    fn vuln_title_formats_dependency_and_code_issues() {
+        let dependency = json!({
+            "attributes": {
+                "key": "SNYK-DEP-1",
+                "type": "package_vulnerability",
+                "coordinates": [{
+                    "representations": [{
+                        "dependency": { "package_name": "requests", "package_version": "2.0.0" }
+                    }]
+                }]
+            }
+        });
+        let code = json!({
+            "attributes": {
+                "key": "SNYK-CODE-1",
+                "type": "code",
+                "title": "Unsanitized input"
+            }
+        });
+
+        assert_eq!(vuln_title(&dependency), "[Snyk] SNYK-DEP-1 in requests");
+        assert_eq!(vuln_title(&code), "[Snyk Code] Unsanitized input");
+    }
+
+    #[test]
+    fn extract_source_location_supports_region_and_line_shapes() {
+        let with_region = json!({
+            "attributes": {
+                "coordinates": [{
+                    "representations": [{
+                        "source_location": {
+                            "file": "src/main.py",
+                            "region": {
+                                "start": { "line": 10, "column": 2 },
+                                "end": { "line": 12, "column": 4 }
+                            }
+                        }
+                    }]
+                }]
+            }
+        });
+        let with_line = json!({
+            "attributes": {
+                "coordinates": [{
+                    "representations": [{
+                        "sourceLocation": {
+                            "file": "src/legacy.py",
+                            "line": 7,
+                            "col": 9
+                        }
+                    }]
+                }]
+            }
+        });
+
+        assert_eq!(
+            extract_source_location(&with_region),
+            Some((
+                "src/main.py".to_string(),
+                Some(10),
+                Some(2),
+                Some(12),
+                Some(4)
+            ))
+        );
+        assert_eq!(
+            extract_source_location(&with_line),
+            Some(("src/legacy.py".to_string(), Some(7), Some(9), None, None))
+        );
+    }
+
+    #[test]
+    fn extract_classes_handles_strings_and_objects() {
+        let issue = json!({
+            "attributes": {
+                "classes": [
+                    "security",
+                    { "source": "CWE", "id": "79" },
+                    { "source": "missing-id" }
+                ]
+            }
+        });
+        assert_eq!(
+            extract_classes(&issue),
+            vec!["security".to_string(), "CWE-79".to_string()]
+        );
+    }
+
+    #[test]
+    fn build_snippet_includes_context_lines() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let source_path = temp_dir.path().join("src").join("app.py");
+        std::fs::create_dir_all(source_path.parent().expect("parent")).expect("create src");
+        std::fs::write(&source_path, "line1\nline2\nline3\nline4\nline5\n").expect("write source");
+
+        let snippet =
+            build_snippet(temp_dir.path(), "src/app.py", Some(3), Some(3)).expect("snippet");
+        assert!(snippet.contains("Snippet (src/app.py:1-5)"));
+        assert!(snippet.contains("   3 | line3"));
+    }
+}

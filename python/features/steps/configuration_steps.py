@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,6 +15,19 @@ from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 
 from features.steps.shared import ensure_git_repository, initialize_default_project
+
+
+def _track_env_restore(context: object, name: str) -> None:
+    tracked = context.__dict__.get("_tracked_env_vars")
+    if tracked is None:
+        tracked = set()
+        context._tracked_env_vars = tracked
+    if name in tracked:
+        return
+    if not hasattr(context, "_unset_env_vars"):
+        context._unset_env_vars = []
+    context._unset_env_vars.append((name, os.environ.get(name)))
+    tracked.add(name)
 
 
 @given("a Kanbus project with an invalid configuration containing unknown fields")
@@ -321,6 +335,26 @@ def given_no_file_exists(context: object, filename: str) -> None:
     context.working_directory = repository
 
 
+@given('a Kanbus project with a file "kanbus.yml" containing:')
+def given_project_with_kanbus_yml_containing(context: object) -> None:
+    """Create kanbus.yml merging default config with the given YAML (context.text)."""
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    config_path = repository / "kanbus.yml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["project_key"] = "KAN"
+    payload["hierarchy"] = ["initiative", "epic", "issue", "subtask"]
+    payload["types"] = []
+    custom = yaml.safe_load(context.text) if context.text else {}
+    if custom:
+        payload.update(custom)
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 @given(
     'a Kanbus project with a file "{filename}" containing an unknown top-level field'
 )
@@ -346,6 +380,27 @@ def given_env_var_not_set(context: object, name: str) -> None:
     if not hasattr(context, "environment_overrides"):
         context.environment_overrides = {}
     context.environment_overrides.pop(name, None)
+    _track_env_restore(context, name)
+    os.environ.pop(name, None)
+
+
+@given('the environment variable "{name}" is set to "{value}"')
+def given_env_var_set(context: object, name: str, value: str) -> None:
+    if not hasattr(context, "environment_overrides"):
+        context.environment_overrides = {}
+    context.environment_overrides[name] = value
+    _track_env_restore(context, name)
+    os.environ[name] = value
+
+
+@given("the environment variable {name} is not set")
+def given_env_var_not_set_unquoted(context: object, name: str) -> None:
+    given_env_var_not_set(context, name)
+
+
+@given('the environment variable {name} is set to "{value}"')
+def given_env_var_set_unquoted(context: object, name: str, value: str) -> None:
+    given_env_var_set(context, name, value)
 
 
 @given("a Kanbus project with an invalid configuration containing empty hierarchy")
@@ -639,6 +694,31 @@ def then_time_zone_should_match(context: object, time_zone: str) -> None:
     assert context.configuration.time_zone == time_zone
 
 
+@then('the realtime transport should be "{transport}"')
+def then_realtime_transport_should_match(context: object, transport: str) -> None:
+    assert context.configuration.realtime.transport == transport
+
+
+@then('the realtime broker should be "{broker}"')
+def then_realtime_broker_should_match(context: object, broker: str) -> None:
+    assert context.configuration.realtime.broker == broker
+
+
+@then("the realtime autostart should be false")
+def then_realtime_autostart_false(context: object) -> None:
+    assert context.configuration.realtime.autostart is False
+
+
+@then("the overlay enabled should be false")
+def then_overlay_enabled_false(context: object) -> None:
+    assert context.configuration.overlay.enabled is False
+
+
+@then("the overlay ttl should be 120")
+def then_overlay_ttl_should_be_120(context: object) -> None:
+    assert context.configuration.overlay.ttl_s == 120
+
+
 @then('the configuration should have virtual project "{label}"')
 def then_configuration_has_virtual_project(context: object, label: str) -> None:
     assert label in context.configuration.virtual_projects
@@ -662,7 +742,6 @@ def then_sort_order_category_preset(
 # Configuration standardization steps
 
 
-@given("the environment variable KANBUS_PROJECT_KEY is not set")
 def given_kanbus_project_key_not_set(context: object) -> None:
     """Ensure KANBUS_PROJECT_KEY environment variable is not set."""
     import os
@@ -755,9 +834,11 @@ def given_kanbus_yml_missing_workflow(context: object) -> None:
 
 @when("I load the configuration")
 def when_load_config(context: object) -> None:
-    """Load configuration from kanbus.yml."""
+    """Load configuration from kanbus.yml or .kanbus.yml."""
     repository = Path(context.working_directory)
-    config_path = repository / "kanbus.yml"
+    kanbus_yml = repository / "kanbus.yml"
+    dot_kanbus = repository / ".kanbus.yml"
+    config_path = kanbus_yml if kanbus_yml.exists() else dot_kanbus
 
     # Check if this test requires validation that's not yet implemented
     if getattr(context, "validation_not_implemented", False):
@@ -843,8 +924,31 @@ def then_project_key_matches(context: object, expected: str) -> None:
 @then('the hierarchy should be "{expected}"')
 def then_hierarchy_matches(context: object, expected: str) -> None:
     """Verify hierarchy matches expected value."""
-    # For now, just verify the expected format
-    assert ">" in expected, "Hierarchy should use > separator"
+    configuration = getattr(context, "configuration", None)
+    if configuration is None:
+        raise AssertionError("No configuration loaded")
+
+    if ">" in expected:
+        parts = [part.strip() for part in expected.split(">")]
+    else:
+        parts = [part.strip() for part in expected.split(",")]
+    parts = [part for part in parts if part]
+    assert (
+        configuration.hierarchy == parts
+    ), f"Expected hierarchy {parts}, got {configuration.hierarchy}"
+
+
+@then('the AI provider should be "{expected}"')
+def then_ai_provider_matches(context: object, expected: str) -> None:
+    """Verify AI provider matches expected value."""
+    configuration = getattr(context, "configuration", None)
+    if configuration is None:
+        raise AssertionError("No configuration loaded")
+    if configuration.ai is None:
+        raise AssertionError("No AI configuration in .kanbus.yml")
+    assert (
+        configuration.ai.provider == expected
+    ), f"Expected AI provider '{expected}', got '{configuration.ai.provider}'"
 
 
 @then('the default priority should be "{expected}"')

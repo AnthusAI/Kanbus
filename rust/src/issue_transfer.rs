@@ -56,6 +56,7 @@ pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusE
         transfer_payload("local", "shared"),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_project(&project_dir);
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -65,6 +66,13 @@ pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusE
             return Err(error);
         }
     }
+    crate::gossip::publish_issue_mutation(
+        root,
+        &project_dir,
+        &issue,
+        Some(event_id),
+        "issue.mutated",
+    );
     Ok(issue)
 }
 
@@ -107,6 +115,7 @@ pub fn localize_issue(root: &Path, identifier: &str) -> Result<IssueData, Kanbus
         transfer_payload("shared", "local"),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = match events_dir_for_local(&project_dir) {
         Ok(path) => path,
         Err(error) => {
@@ -123,5 +132,6 @@ pub fn localize_issue(root: &Path, identifier: &str) -> Result<IssueData, Kanbus
             return Err(error);
         }
     }
+    crate::gossip::publish_issue_deleted(root, &project_dir, &issue.identifier, Some(event_id));
     Ok(issue)
 }

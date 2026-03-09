@@ -2,10 +2,10 @@
   "items": [
     {
       "type": "tts",
-      "sceneId": "opening",
+      "sceneId": "overview",
       "cueId": "overview",
       "startSec": 0,
-      "endSec": 14.1125,
+      "endSec": 14.100000000000001,
       "segments": [
         {
           "type": "pause",
@@ -16,97 +16,214 @@
         {
           "type": "tts",
           "startSec": 0.4,
-          "endSec": 5.4625,
+          "endSec": 5.525,
           "text": "Kanbus is a high-level, accessible way to run Kanban directly from your repository.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/opening--overview--tts--c4a0f42e2675--1.wav",
-          "durationSec": 5.0625,
-          "rawDurationSec": 5.0625,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/overview--overview--tts--af48571017d1--1.wav",
+          "durationSec": 5.125,
+          "rawDurationSec": 5.125,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 5.4625,
-          "endSec": 5.6625000000000005,
+          "startSec": 5.525,
+          "endSec": 5.7250000000000005,
           "seconds": 0.2
         },
         {
           "type": "tts",
-          "startSec": 5.6625000000000005,
-          "endSec": 14.1125,
+          "startSec": 5.7250000000000005,
+          "endSec": 14.100000000000001,
           "text": "You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/opening--overview--tts--1eafffb46aba--1.wav",
-          "durationSec": 8.45,
-          "rawDurationSec": 8.45,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/overview--overview--tts--2e4df80ce626--1.wav",
+          "durationSec": 8.375,
+          "rawDurationSec": 8.375,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "opening",
+      "sceneId": "git-sync",
       "cueId": "git_bus",
-      "startSec": 14.1125,
-      "endSec": 28.0625,
+      "startSec": 14.100000000000001,
+      "endSec": 27.975,
       "segments": [
         {
           "type": "tts",
-          "startSec": 14.1125,
-          "endSec": 18.762500000000003,
+          "startSec": 14.100000000000001,
+          "endSec": 18.6875,
           "text": "Git synchronization is the core idea: use Git as the bus for Kanban boards.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/opening--git_bus--tts--c6c93d6f5b34--1.wav",
-          "durationSec": 4.65,
-          "rawDurationSec": 4.65,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/git-sync--git_bus--tts--240cdf8f2e15--1.wav",
+          "durationSec": 4.5875,
+          "rawDurationSec": 4.5875,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 18.762500000000003,
-          "endSec": 18.962500000000002,
+          "startSec": 18.6875,
+          "endSec": 18.8875,
           "seconds": 0.2
         },
         {
           "type": "tts",
-          "startSec": 18.962500000000002,
-          "endSec": 28.0625,
+          "startSec": 18.8875,
+          "endSec": 27.975,
           "text": "Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/opening--git_bus--tts--fd20551076eb--1.wav",
-          "durationSec": 9.1,
-          "rawDurationSec": 9.1,
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/git-sync--git_bus--tts--ba801c4b34c0--1.wav",
+          "durationSec": 9.0875,
+          "rawDurationSec": 9.0875,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "feature-tour",
-      "cueId": "feature_list",
-      "startSec": 28.5625,
-      "endSec": 44.9625,
+      "sceneId": "feature-cli",
+      "cueId": "feature_cli",
+      "startSec": 27.975,
+      "endSec": 35.475,
       "segments": [
         {
           "type": "tts",
-          "startSec": 28.5625,
-          "endSec": 37.05,
-          "text": "From there, pick the capabilities you need: an agent-ready CLI, Jira synchronization, local tasks, virtual projects, and Beads compatibility.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-tour--feature_list--tts--c93fd74827c9--1.wav",
-          "durationSec": 8.4875,
-          "rawDurationSec": 8.4875,
+          "startSec": 27.975,
+          "endSec": 35.475,
+          "text": "The agent-ready CLI lets you create, update, and move work from your terminal without leaving repository-native workflows.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-cli--feature_cli--tts--a4f1dd31d1f2--1.wav",
+          "durationSec": 7.5,
+          "rawDurationSec": 7.5,
           "trimEndSec": 0
-        },
-        {
-          "type": "pause",
-          "startSec": 37.05,
-          "endSec": 37.25,
-          "seconds": 0.2
-        },
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "feature-jira",
+      "cueId": "feature_jira",
+      "startSec": 35.475,
+      "endSec": 43.112500000000004,
+      "segments": [
         {
           "type": "tts",
-          "startSec": 37.25,
-          "endSec": 44.9625,
-          "text": "You also get a VS Code plugin, an integrated wiki, and policy as code so humans and agents operate from one shared workflow.",
-          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-tour--feature_list--tts--e598b5f5b043--1.wav",
-          "durationSec": 7.7125,
-          "rawDurationSec": 7.7125,
+          "startSec": 35.475,
+          "endSec": 43.112500000000004,
+          "text": "Jira synchronization brings existing Jira projects into the repo so agents and humans work from the same source of truth.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-jira--feature_jira--tts--b496ee5ceba9--1.wav",
+          "durationSec": 7.6375,
+          "rawDurationSec": 7.6375,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "feature-local",
+      "cueId": "feature_local",
+      "startSec": 43.112500000000004,
+      "endSec": 50.112500000000004,
+      "segments": [
+        {
+          "type": "tts",
+          "startSec": 43.112500000000004,
+          "endSec": 50.112500000000004,
+          "text": "Local tasks let you draft privately and promote to the shared board only when work is ready for team visibility.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-local--feature_local--tts--8553b58395a2--1.wav",
+          "durationSec": 7,
+          "rawDurationSec": 7,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "feature-virtual",
+      "cueId": "feature_virtual",
+      "startSec": 50.112500000000004,
+      "endSec": 57.225,
+      "segments": [
+        {
+          "type": "tts",
+          "startSec": 50.112500000000004,
+          "endSec": 57.225,
+          "text": "Virtual projects aggregate cross-repository execution into a single view for planning and delivery coordination.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-virtual--feature_virtual--tts--3484558d4f93--1.wav",
+          "durationSec": 7.1125,
+          "rawDurationSec": 7.1125,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "feature-beads",
+      "cueId": "feature_beads",
+      "startSec": 57.225,
+      "endSec": 64.7875,
+      "segments": [
+        {
+          "type": "tts",
+          "startSec": 57.225,
+          "endSec": 64.7875,
+          "text": "Beads compatibility lets you open existing data immediately and evolve your process incrementally while teams keep shipping.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-beads--feature_beads--tts--6280de542434--1.wav",
+          "durationSec": 7.5625,
+          "rawDurationSec": 7.5625,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "feature-vscode",
+      "cueId": "feature_vscode",
+      "startSec": 64.7875,
+      "endSec": 72.32499999999999,
+      "segments": [
+        {
+          "type": "tts",
+          "startSec": 64.7875,
+          "endSec": 72.32499999999999,
+          "text": "The VS Code plugin lets you inspect and update board state without context switching away from the files you are editing.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-vscode--feature_vscode--tts--403ee7cb3f03--1.wav",
+          "durationSec": 7.5375,
+          "rawDurationSec": 7.5375,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "feature-wiki",
+      "cueId": "feature_wiki",
+      "startSec": 72.32499999999999,
+      "endSec": 80.17499999999998,
+      "segments": [
+        {
+          "type": "tts",
+          "startSec": 72.32499999999999,
+          "endSec": 80.17499999999998,
+          "text": "The integrated wiki renders current issue lists inside docs so plans, status updates, and execution context stay synchronized.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-wiki--feature_wiki--tts--809a4050bc12--1.wav",
+          "durationSec": 7.85,
+          "rawDurationSec": 7.85,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "feature-policy",
+      "cueId": "feature_policy",
+      "startSec": 80.17499999999998,
+      "endSec": 88.36249999999998,
+      "segments": [
+        {
+          "type": "tts",
+          "startSec": 80.17499999999998,
+          "endSec": 88.36249999999998,
+          "text": "Policy as code lets you define standards once and apply them consistently across CLI usage, automation, and collaborative workflows.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/feature-policy--feature_policy--tts--9fa946da8e6d--1.wav",
+          "durationSec": 8.1875,
+          "rawDurationSec": 8.1875,
           "trimEndSec": 0
         }
       ]
@@ -115,33 +232,33 @@
       "type": "tts",
       "sceneId": "cta",
       "cueId": "cta",
-      "startSec": 52.0625,
-      "endSec": 59.462500000000006,
+      "startSec": 88.36249999999998,
+      "endSec": 95.88749999999999,
       "segments": [
         {
           "type": "tts",
-          "startSec": 52.0625,
-          "endSec": 53.3875,
+          "startSec": 88.36249999999998,
+          "endSec": 89.67499999999998,
           "text": "Get started at kanb.us.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/cta--cta--tts--480563fcefb6--1.wav",
-          "durationSec": 1.325,
-          "rawDurationSec": 1.325,
+          "durationSec": 1.3125,
+          "rawDurationSec": 1.3125,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 53.3875,
-          "endSec": 53.587500000000006,
+          "startSec": 89.67499999999998,
+          "endSec": 89.87499999999999,
           "seconds": 0.2
         },
         {
           "type": "tts",
-          "startSec": 53.587500000000006,
-          "endSec": 59.462500000000006,
+          "startSec": 89.87499999999999,
+          "endSec": 95.88749999999999,
           "text": "Install Kanbus, connect your repository, and run the same board workflow for humans and AI agents.",
           "segmentPath": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/segments/cta--cta--tts--7da02dde765e--1.wav",
-          "durationSec": 5.875,
-          "rawDurationSec": 5.875,
+          "durationSec": 6.0125,
+          "rawDurationSec": 6.0125,
           "trimEndSec": 0
         }
       ]
@@ -154,66 +271,114 @@
         "kind": "narration",
         "clips": [
           {
-            "id": "opening--overview--tts--c4a0f42e2675--1",
+            "id": "overview--overview--tts--af48571017d1--1",
             "kind": "file",
             "startSec": 0.4,
-            "durationSec": 5.0625,
-            "src": "/videoml/intro/env/development/segments/opening--overview--tts--c4a0f42e2675--1.wav",
+            "durationSec": 5.125,
+            "src": "/videoml/intro/env/development/segments/overview--overview--tts--af48571017d1--1.wav",
             "volume": 1
           },
           {
-            "id": "opening--overview--tts--1eafffb46aba--1",
+            "id": "overview--overview--tts--2e4df80ce626--1",
             "kind": "file",
-            "startSec": 5.6625000000000005,
-            "durationSec": 8.45,
-            "src": "/videoml/intro/env/development/segments/opening--overview--tts--1eafffb46aba--1.wav",
+            "startSec": 5.7250000000000005,
+            "durationSec": 8.375,
+            "src": "/videoml/intro/env/development/segments/overview--overview--tts--2e4df80ce626--1.wav",
             "volume": 1
           },
           {
-            "id": "opening--git_bus--tts--c6c93d6f5b34--1",
+            "id": "git-sync--git_bus--tts--240cdf8f2e15--1",
             "kind": "file",
-            "startSec": 14.1125,
-            "durationSec": 4.65,
-            "src": "/videoml/intro/env/development/segments/opening--git_bus--tts--c6c93d6f5b34--1.wav",
+            "startSec": 14.100000000000001,
+            "durationSec": 4.5875,
+            "src": "/videoml/intro/env/development/segments/git-sync--git_bus--tts--240cdf8f2e15--1.wav",
             "volume": 1
           },
           {
-            "id": "opening--git_bus--tts--fd20551076eb--1",
+            "id": "git-sync--git_bus--tts--ba801c4b34c0--1",
             "kind": "file",
-            "startSec": 18.962500000000002,
-            "durationSec": 9.1,
-            "src": "/videoml/intro/env/development/segments/opening--git_bus--tts--fd20551076eb--1.wav",
+            "startSec": 18.8875,
+            "durationSec": 9.0875,
+            "src": "/videoml/intro/env/development/segments/git-sync--git_bus--tts--ba801c4b34c0--1.wav",
             "volume": 1
           },
           {
-            "id": "feature-tour--feature_list--tts--c93fd74827c9--1",
+            "id": "feature-cli--feature_cli--tts--a4f1dd31d1f2--1",
             "kind": "file",
-            "startSec": 28.5625,
-            "durationSec": 8.4875,
-            "src": "/videoml/intro/env/development/segments/feature-tour--feature_list--tts--c93fd74827c9--1.wav",
+            "startSec": 27.975,
+            "durationSec": 7.5,
+            "src": "/videoml/intro/env/development/segments/feature-cli--feature_cli--tts--a4f1dd31d1f2--1.wav",
             "volume": 1
           },
           {
-            "id": "feature-tour--feature_list--tts--e598b5f5b043--1",
+            "id": "feature-jira--feature_jira--tts--b496ee5ceba9--1",
             "kind": "file",
-            "startSec": 37.25,
-            "durationSec": 7.7125,
-            "src": "/videoml/intro/env/development/segments/feature-tour--feature_list--tts--e598b5f5b043--1.wav",
+            "startSec": 35.475,
+            "durationSec": 7.6375,
+            "src": "/videoml/intro/env/development/segments/feature-jira--feature_jira--tts--b496ee5ceba9--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "feature-local--feature_local--tts--8553b58395a2--1",
+            "kind": "file",
+            "startSec": 43.112500000000004,
+            "durationSec": 7,
+            "src": "/videoml/intro/env/development/segments/feature-local--feature_local--tts--8553b58395a2--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "feature-virtual--feature_virtual--tts--3484558d4f93--1",
+            "kind": "file",
+            "startSec": 50.112500000000004,
+            "durationSec": 7.1125,
+            "src": "/videoml/intro/env/development/segments/feature-virtual--feature_virtual--tts--3484558d4f93--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "feature-beads--feature_beads--tts--6280de542434--1",
+            "kind": "file",
+            "startSec": 57.225,
+            "durationSec": 7.5625,
+            "src": "/videoml/intro/env/development/segments/feature-beads--feature_beads--tts--6280de542434--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "feature-vscode--feature_vscode--tts--403ee7cb3f03--1",
+            "kind": "file",
+            "startSec": 64.7875,
+            "durationSec": 7.5375,
+            "src": "/videoml/intro/env/development/segments/feature-vscode--feature_vscode--tts--403ee7cb3f03--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "feature-wiki--feature_wiki--tts--809a4050bc12--1",
+            "kind": "file",
+            "startSec": 72.32499999999999,
+            "durationSec": 7.85,
+            "src": "/videoml/intro/env/development/segments/feature-wiki--feature_wiki--tts--809a4050bc12--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "feature-policy--feature_policy--tts--9fa946da8e6d--1",
+            "kind": "file",
+            "startSec": 80.17499999999998,
+            "durationSec": 8.1875,
+            "src": "/videoml/intro/env/development/segments/feature-policy--feature_policy--tts--9fa946da8e6d--1.wav",
             "volume": 1
           },
           {
             "id": "cta--cta--tts--480563fcefb6--1",
             "kind": "file",
-            "startSec": 52.0625,
-            "durationSec": 1.325,
+            "startSec": 88.36249999999998,
+            "durationSec": 1.3125,
             "src": "/videoml/intro/env/development/segments/cta--cta--tts--480563fcefb6--1.wav",
             "volume": 1
           },
           {
             "id": "cta--cta--tts--7da02dde765e--1",
             "kind": "file",
-            "startSec": 53.587500000000006,
-            "durationSec": 5.875,
+            "startSec": 89.87499999999999,
+            "durationSec": 6.0125,
             "src": "/videoml/intro/env/development/segments/cta--cta--tts--7da02dde765e--1.wav",
             "volume": 1
           }
@@ -233,18 +398,18 @@
             "variants": [
               {
                 "variant": 0,
-                "seed": 1715670075,
-                "path": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/music/bed--v1--e6430c3a3b9b.wav",
-                "durationSec": 62.0625
+                "seed": 615907505,
+                "path": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/music/bed--v1--a4b600b06b5c.wav",
+                "durationSec": 95.88749999999999
               }
             ],
             "chosen": {
               "variant": 0,
-              "seed": 1715670075,
-              "path": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/music/bed--v1--e6430c3a3b9b.wav",
-              "durationSec": 62.0625
+              "seed": 615907505,
+              "path": "/Users/ryan.porter/Projects/Kanbus/.videoml/out/intro/env/development/music/bed--v1--a4b600b06b5c.wav",
+              "durationSec": 95.88749999999999
             },
-            "src": "/videoml/env/development/music/bed/bed--v1--e6430c3a3b9b.wav",
+            "src": "/videoml/env/development/music/bed/bed--v1--a4b600b06b5c.wav",
             "playThrough": true,
             "volumeEnvelope": [
               {
@@ -260,11 +425,11 @@
                 "volume": 0.12
               },
               {
-                "atSec": 57.0625,
+                "atSec": 90.88749999999999,
                 "volume": 0.12
               },
               {
-                "atSec": 60.0625,
+                "atSec": 93.88749999999999,
                 "volume": 0.7
               }
             ]

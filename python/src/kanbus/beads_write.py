@@ -17,13 +17,14 @@ from kanbus.event_history import (
     build_update_events,
     comment_payload,
     create_event,
+    delete_events_for_issues,
     dependency_payload,
     events_dir_for_project,
     issue_created_payload,
-    issue_deleted_payload,
     now_timestamp,
     write_events_batch,
 )
+from kanbus.gossip import publish_issue_deleted, publish_issue_mutation
 from kanbus.migration import load_beads_issue
 from kanbus.project import load_project_directory
 
@@ -170,9 +171,8 @@ def create_beads_issue(
     )
     try:
         project_dir = load_project_directory(root)
-    except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
-        raise BeadsWriteError(str(error)) from error
+    except Exception:  # noqa: BLE001
+        return issue
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
@@ -188,6 +188,38 @@ def create_beads_issue(
     except Exception as error:  # noqa: BLE001
         issues_path.write_text(original_contents, encoding="utf-8")
         raise BeadsWriteError(str(error)) from error
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception:
+        updated_issue = None
+    if updated_issue is not None:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            updated_issue,
+            event.event_id,
+            "issue.mutated",
+        )
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception:
+        updated_issue = None
+    if updated_issue is not None:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            updated_issue,
+            event.event_id,
+            "issue.mutated",
+        )
+
+    publish_issue_mutation(
+        root,
+        project_dir,
+        issue,
+        event.event_id,
+        "issue.mutated",
+    )
 
     return issue
 
@@ -288,15 +320,23 @@ def update_beads_issue(
     events = build_update_events(before_issue, updated_issue, actor_id, occurred_at)
     try:
         project_dir = load_project_directory(root)
-    except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
-        raise BeadsWriteError(str(error)) from error
+    except Exception:  # noqa: BLE001
+        return updated_issue
     events_dir = events_dir_for_project(project_dir)
     try:
         write_events_batch(events_dir, events)
     except Exception as error:  # noqa: BLE001
         issues_path.write_text(original_contents, encoding="utf-8")
         raise BeadsWriteError(str(error)) from error
+
+    event_id = events[0].event_id if events else None
+    publish_issue_mutation(
+        root,
+        project_dir,
+        updated_issue,
+        event_id,
+        "issue.mutated",
+    )
 
     return updated_issue
 
@@ -353,13 +393,28 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
         for record in records:
             json.dump(record, handle, separators=(",", ":"))
             handle.write("\n")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception as error:  # noqa: BLE001
+        raise BeadsWriteError(str(error)) from error
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception:
+        updated_issue = None
+    if updated_issue is not None:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            updated_issue,
+            None,
+            "issue.mutated",
+        )
     if created_comment_id is None:
         raise BeadsWriteError("comment id is required")
     try:
         project_dir = load_project_directory(root)
-    except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
-        raise BeadsWriteError(str(error)) from error
+    except Exception:  # noqa: BLE001
+        return
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
@@ -379,42 +434,52 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
         raise BeadsWriteError(str(error)) from error
 
 
-def delete_beads_issue(root: Path, identifier: str) -> None:
-    """Delete a Beads-compatible issue from .beads/issues.jsonl.
+def get_beads_descendant_identifiers(root: Path, identifier: str) -> List[str]:
+    """Return Beads descendant issue identifiers in leaf-first order.
 
-    Child issues with the deleted issue as parent will have their parent field cleared.
-
-    :param root: Repository root path.
+    :param root: Repository root containing .beads/issues.jsonl.
     :type root: Path
-    :param identifier: Issue identifier to delete.
+    :param identifier: Root issue identifier.
     :type identifier: str
-    :raises BeadsDeleteError: If the issue cannot be found or written.
+    :return: List of descendant IDs, deepest first.
+    :rtype: List[str]
     """
     beads_dir = root / ".beads"
-    if not beads_dir.exists():
-        raise BeadsDeleteError("no .beads directory")
     issues_path = beads_dir / "issues.jsonl"
     if not issues_path.exists():
-        raise BeadsDeleteError("no issues.jsonl")
-    original_contents = issues_path.read_text(encoding="utf-8")
-    try:
-        deleted_issue = load_beads_issue(root, identifier)
-    except Exception as error:  # noqa: BLE001
-        raise BeadsDeleteError(str(error)) from error
-
+        return []
     records = _load_beads_records(issues_path)
-    remaining = [record for record in records if record.get("id") != identifier]
+    parent_to_children: Dict[str, List[str]] = {}
+    for record in records:
+        rid = record.get("id")
+        if not rid:
+            continue
+        parent = record.get("parent")
+        if parent is not None:
+            parent_to_children.setdefault(str(parent), []).append(str(rid))
+    depth: Dict[str, int] = {identifier: 0}
+    queue: List[str] = [identifier]
+    while queue:
+        parent_id = queue.pop(0)
+        for child_id in parent_to_children.get(parent_id, []):
+            if child_id not in depth:
+                depth[child_id] = depth[parent_id] + 1
+                queue.append(child_id)
+    descendants = [k for k in depth if k != identifier]
+    return sorted(descendants, key=lambda x: -depth[x])
+
+
+def _delete_single_beads_issue(root: Path, issues_path: Path, identifier: str) -> None:
+    """Remove one issue from .beads/issues.jsonl and prune its events."""
+    original_contents = issues_path.read_text(encoding="utf-8")
+    records = _load_beads_records(issues_path)
+    remaining = [r for r in records if r.get("id") != identifier]
     if len(remaining) == len(records):
         raise BeadsDeleteError("not found")
-
-    # Clear parent field and parent-child dependencies from child issues
     for record in remaining:
-        # Clear direct parent field if it exists
         if record.get("parent") == identifier:
             record["parent"] = None
             record["updated_at"] = datetime.now(timezone.utc).isoformat()
-
-        # Remove parent-child dependencies pointing to the deleted issue
         dependencies = record.get("dependencies", [])
         if dependencies:
             new_deps = [
@@ -428,31 +493,51 @@ def delete_beads_issue(root: Path, identifier: str) -> None:
             if len(new_deps) != len(dependencies):
                 record["dependencies"] = new_deps
                 record["updated_at"] = datetime.now(timezone.utc).isoformat()
-
     with issues_path.open("w", encoding="utf-8") as handle:
         for record in remaining:
             handle.write(json.dumps(record) + "\n")
-
     try:
         project_dir = load_project_directory(root)
     except Exception as error:  # noqa: BLE001
         issues_path.write_text(original_contents, encoding="utf-8")
         raise BeadsWriteError(str(error)) from error
-    occurred_at = now_timestamp()
-    actor_id = get_current_user()
-    event = create_event(
-        issue_id=identifier,
-        event_type="issue_deleted",
-        actor_id=actor_id,
-        payload=issue_deleted_payload(deleted_issue),
-        occurred_at=occurred_at,
-    )
     events_dir = events_dir_for_project(project_dir)
+    delete_events_for_issues(events_dir, {identifier})
+    publish_issue_deleted(root, project_dir, identifier, None)
+
+
+def delete_beads_issue(root: Path, identifier: str, recursive: bool = False) -> None:
+    """Delete a Beads-compatible issue from .beads/issues.jsonl and prune its events.
+
+    Child issues with the deleted issue as parent will have their parent field cleared.
+    When recursive is True, deletes all descendants first (leaf-first), then the target.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier to delete.
+    :type identifier: str
+    :param recursive: If True, also delete all descendants.
+    :type recursive: bool
+    :raises BeadsDeleteError: If the issue cannot be found or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsDeleteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsDeleteError("no issues.jsonl")
     try:
-        write_events_batch(events_dir, [event])
+        load_beads_issue(root, identifier)
     except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
         raise BeadsDeleteError(str(error)) from error
+
+    to_delete: List[str] = []
+    if recursive:
+        to_delete = get_beads_descendant_identifiers(root, identifier)
+    to_delete.append(identifier)
+
+    for issue_id in to_delete:
+        _delete_single_beads_issue(root, issues_path, issue_id)
 
 
 def _load_beads_records(issues_path: Path) -> List[Dict[str, object]]:
@@ -598,14 +683,13 @@ def add_beads_dependency(
             handle.write("\n")
     try:
         project_dir = load_project_directory(root)
-    except Exception as error:  # noqa: BLE001
-        issues_path.write_text(original_contents, encoding="utf-8")
-        raise BeadsWriteError(str(error)) from error
+    except Exception:  # noqa: BLE001
+        return
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
         issue_id=identifier,
-        event_type="dependency_removed",
+        event_type="dependency_added",
         actor_id=actor_id,
         payload=dependency_payload(dependency_type, target),
         occurred_at=occurred_at,
@@ -640,6 +724,7 @@ def remove_beads_dependency(
     if not issues_path.exists():
         raise BeadsWriteError("no issues.jsonl")
 
+    original_contents = issues_path.read_text(encoding="utf-8")
     records = _load_beads_records(issues_path)
     found = False
 
@@ -678,3 +763,22 @@ def remove_beads_dependency(
         for record in records:
             json.dump(record, handle, separators=(",", ":"))
             handle.write("\n")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception:  # noqa: BLE001
+        return
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=identifier,
+        event_type="dependency_removed",
+        actor_id=actor_id,
+        payload=dependency_payload(dependency_type, target),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
