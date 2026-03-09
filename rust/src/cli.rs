@@ -56,8 +56,8 @@ use crate::rich_text_signals::{
     apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
 };
 use crate::snyk_sync::pull_from_snyk;
-use crate::users::get_current_user;
 use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
+use crate::users::get_current_user;
 use crate::wiki::{list_wiki_pages, render_wiki_page, WikiRenderRequest};
 
 /// Kanbus CLI arguments.
@@ -991,7 +991,10 @@ fn beads_root(root: &Path) -> std::path::PathBuf {
 fn should_check_project_structure(command: &Commands) -> bool {
     !matches!(
         command,
-        Commands::Init { .. } | Commands::Setup { .. } | Commands::Repair { .. } | Commands::Edit { .. }
+        Commands::Init { .. }
+            | Commands::Setup { .. }
+            | Commands::Repair { .. }
+            | Commands::Edit { .. }
     )
 }
 

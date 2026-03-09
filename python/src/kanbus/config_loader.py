@@ -390,10 +390,14 @@ def _validate_hooks(configuration: ProjectConfiguration, errors: List[str]) -> N
     ):
         for event_name, hooks in phase_map.items():
             if event_name not in HOOK_EVENTS:
-                errors.append(f"hooks.{phase_name} contains unknown event '{event_name}'")
+                errors.append(
+                    f"hooks.{phase_name} contains unknown event '{event_name}'"
+                )
                 continue
             if not hooks:
-                errors.append(f"hooks.{phase_name}.{event_name} must define at least one hook")
+                errors.append(
+                    f"hooks.{phase_name}.{event_name} must define at least one hook"
+                )
                 continue
             seen_ids: set[str] = set()
             for hook in hooks:

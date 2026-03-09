@@ -50,7 +50,9 @@ fn then_first_after_second_in_file(
     let full_path = cwd.join(path);
     let content = fs::read_to_string(&full_path).expect("read file");
     let first_index = content.find(&first).expect("first value not found in file");
-    let second_index = content.find(&second).expect("second value not found in file");
+    let second_index = content
+        .find(&second)
+        .expect("second value not found in file");
     assert!(
         second_index < first_index,
         "{first:?} did not appear after {second:?}"
@@ -71,7 +73,9 @@ fn then_first_before_second_in_file(
     let full_path = cwd.join(path);
     let content = fs::read_to_string(&full_path).expect("read file");
     let first_index = content.find(&first).expect("first value not found in file");
-    let second_index = content.find(&second).expect("second value not found in file");
+    let second_index = content
+        .find(&second)
+        .expect("second value not found in file");
     assert!(
         first_index < second_index,
         "{first:?} did not appear before {second:?}"
