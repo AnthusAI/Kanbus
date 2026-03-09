@@ -57,6 +57,7 @@ use crate::rich_text_signals::{
 };
 use crate::snyk_sync::pull_from_snyk;
 use crate::users::get_current_user;
+use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::wiki::{list_wiki_pages, render_wiki_page, WikiRenderRequest};
 
 /// Kanbus CLI arguments.
@@ -352,6 +353,11 @@ enum Commands {
         #[command(subcommand)]
         command: WikiCommands,
     },
+    /// File edit commands mirroring the Anthropic text editor tool.
+    Edit {
+        #[command(subcommand)]
+        command: EditCommands,
+    },
     /// Console helpers.
     Console {
         #[command(subcommand)]
@@ -511,6 +517,49 @@ enum SnykCommands {
         /// Override parent epic issue ID to attach bugs to.
         #[arg(long)]
         parent_epic: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum EditCommands {
+    /// View file contents or list directory.
+    View {
+        /// File or directory path.
+        path: String,
+        /// Start and end line numbers (1-indexed; -1 for end).
+        #[arg(long = "view-range", num_args = 2)]
+        view_range: Option<Vec<i32>>,
+    },
+    /// Replace exact text in file (must match exactly one location).
+    #[command(name = "str-replace")]
+    StrReplace {
+        /// File path.
+        path: String,
+        /// Exact text to replace.
+        #[arg(long = "old-str")]
+        old_str: String,
+        /// Replacement text.
+        #[arg(long = "new-str")]
+        new_str: String,
+    },
+    /// Create a new file with the given content.
+    Create {
+        /// File path.
+        path: String,
+        /// Content to write.
+        #[arg(long = "file-text")]
+        file_text: String,
+    },
+    /// Insert text after the given line number (0 = beginning).
+    Insert {
+        /// File path.
+        path: String,
+        /// Line number after which to insert.
+        #[arg(long = "insert-line")]
+        insert_line: i32,
+        /// Text to insert.
+        #[arg(long = "insert-text")]
+        insert_text: String,
     },
 }
 
@@ -940,7 +989,10 @@ fn beads_root(root: &Path) -> std::path::PathBuf {
 }
 
 fn should_check_project_structure(command: &Commands) -> bool {
-    !matches!(command, Commands::Init { .. } | Commands::Setup { .. })
+    !matches!(
+        command,
+        Commands::Init { .. } | Commands::Setup { .. } | Commands::Repair { .. } | Commands::Edit { .. }
+    )
 }
 
 fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), KanbusError> {
@@ -2674,6 +2726,43 @@ fn execute_command(
             WikiCommands::List => {
                 let pages = list_wiki_pages(root)?;
                 let output = pages.join("\n");
+                Ok(Some(output))
+            }
+        },
+        Commands::Edit { command } => match command {
+            EditCommands::View { path, view_range } => {
+                let path_buf = Path::new(&path).to_path_buf();
+                let range = view_range.and_then(|v| {
+                    if v.len() == 2 {
+                        Some((v[0], v[1]))
+                    } else {
+                        None
+                    }
+                });
+                let output = edit_view(root, &path_buf, range)?;
+                Ok(Some(output))
+            }
+            EditCommands::StrReplace {
+                path,
+                old_str,
+                new_str,
+            } => {
+                let path_buf = Path::new(&path).to_path_buf();
+                let output = edit_str_replace(root, &path_buf, &old_str, &new_str)?;
+                Ok(Some(output))
+            }
+            EditCommands::Create { path, file_text } => {
+                let path_buf = Path::new(&path).to_path_buf();
+                let output = edit_create(root, &path_buf, &file_text)?;
+                Ok(Some(output))
+            }
+            EditCommands::Insert {
+                path,
+                insert_line,
+                insert_text,
+            } => {
+                let path_buf = Path::new(&path).to_path_buf();
+                let output = edit_insert(root, &path_buf, insert_line, &insert_text)?;
                 Ok(Some(output))
             }
         },
