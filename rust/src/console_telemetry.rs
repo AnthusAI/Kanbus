@@ -131,6 +131,7 @@ fn flatten_args(args: Option<Vec<serde_json::Value>>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::default_project_configuration;
     use tempfile::TempDir;
 
     #[test]
@@ -146,6 +147,62 @@ mod tests {
 
         assert_eq!(resolved, output_path);
         assert!(resolved.parent().expect("parent").is_dir());
+    }
+
+    #[test]
+    fn resolve_output_path_defaults_to_kanbus_telemetry_log() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let resolved = resolve_output_path(temp_dir.path(), None).expect("resolve path");
+        assert!(resolved.ends_with(".kanbus/telemetry/console.log"));
+        assert!(resolved.parent().expect("parent").is_dir());
+    }
+
+    #[test]
+    fn open_output_file_creates_and_appends() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let path = temp_dir.path().join("telemetry.log");
+        {
+            let mut first = open_output_file(&path).expect("open first");
+            writeln!(first, "line-one").expect("write first");
+        }
+        {
+            let mut second = open_output_file(&path).expect("open second");
+            writeln!(second, "line-two").expect("write second");
+        }
+        let contents = std::fs::read_to_string(path).expect("read file");
+        assert!(contents.contains("line-one"));
+        assert!(contents.contains("line-two"));
+    }
+
+    #[test]
+    fn resolve_telemetry_url_prefers_override() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let url = resolve_telemetry_url(temp_dir.path(), Some("http://example/events".into()))
+            .expect("resolve url");
+        assert_eq!(url, "http://example/events");
+    }
+
+    #[test]
+    fn resolve_telemetry_url_reads_console_port_from_config() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let mut config = default_project_configuration();
+        config.console_port = Some(6200);
+        let yaml = serde_yaml::to_string(&config).expect("serialize config");
+        std::fs::write(temp_dir.path().join(".kanbus.yml"), yaml).expect("write config");
+
+        let url = resolve_telemetry_url(temp_dir.path(), None).expect("resolve url");
+        assert_eq!(url, "http://127.0.0.1:6200/api/telemetry/console/events");
+    }
+
+    #[test]
+    fn resolve_telemetry_url_falls_back_to_default_port() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let config = default_project_configuration();
+        let yaml = serde_yaml::to_string(&config).expect("serialize config");
+        std::fs::write(temp_dir.path().join(".kanbus.yml"), yaml).expect("write config");
+
+        let url = resolve_telemetry_url(temp_dir.path(), None).expect("resolve url");
+        assert_eq!(url, "http://127.0.0.1:5174/api/telemetry/console/events");
     }
 
     #[test]
@@ -166,6 +223,17 @@ mod tests {
     }
 
     #[test]
+    fn format_telemetry_line_uses_received_at_and_flattened_args_fallback() {
+        let payload = r#"{"args":["hello",123],"received_at":"2026-03-06T10:00:00Z"}"#;
+        let formatted = format_telemetry_line(payload);
+        assert!(formatted.contains("[2026-03-06T10:00:00Z]"));
+        assert!(formatted.contains("[log]"));
+        assert!(formatted.contains("[unknown-session]"));
+        assert!(formatted.contains("hello 123"));
+        assert!(formatted.contains("(unknown-source)"));
+    }
+
+    #[test]
     fn flatten_args_joins_stringified_values() {
         let args = Some(vec![
             serde_json::Value::String("hello".to_string()),
@@ -176,5 +244,11 @@ mod tests {
         let flattened = flatten_args(args);
 
         assert_eq!(flattened.as_deref(), Some("hello 123 {\"k\":\"v\"}"));
+    }
+
+    #[test]
+    fn flatten_args_handles_none_and_empty_vec() {
+        assert_eq!(flatten_args(None), None);
+        assert_eq!(flatten_args(Some(Vec::new())), None);
     }
 }
