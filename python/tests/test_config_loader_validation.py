@@ -62,6 +62,13 @@ def test_load_project_configuration_unknown_and_validation_errors(tmp_path: Path
         config_loader.load_project_configuration(bad_cfg)
 
 
+def test_load_project_configuration_raises_from_validation_errors(tmp_path: Path) -> None:
+    bad_cfg = tmp_path / ".kanbus.yml"
+    bad_cfg.write_text("project_directory: ''\n", encoding="utf-8")
+    with pytest.raises(config_loader.ConfigurationError, match="project_directory must not be empty"):
+        config_loader.load_project_configuration(bad_cfg)
+
+
 def test_load_project_configuration_validates_kanbus_yaml_type_workflow_bindings(
     tmp_path: Path,
 ) -> None:
@@ -131,6 +138,12 @@ def test_load_data_and_override_wrap_os_errors(tmp_path: Path, monkeypatch: pyte
         config_loader._load_override_configuration(override)
 
 
+def test_load_override_configuration_returns_empty_for_null_yaml(tmp_path: Path) -> None:
+    override = tmp_path / ".kanbus.override.yml"
+    override.write_text("null\n", encoding="utf-8")
+    assert config_loader._load_override_configuration(override) == {}
+
+
 def test_load_dotenv_missing_or_unreadable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config_loader._load_dotenv(tmp_path / "missing.env")
 
@@ -184,12 +197,46 @@ def test_validate_project_configuration_status_workflow_and_transition_errors() 
     assert "references invalid from-status" in joined
 
 
+def test_validate_project_configuration_additional_duplicate_and_wiki_paths() -> None:
+    cfg = _base_config()
+    cfg.wiki_directory = "..\\..\\outside"
+    cfg.hierarchy = ["initiative", "initiative"]
+    cfg.categories[1].name = cfg.categories[0].name
+    cfg.statuses[1].name = cfg.statuses[0].name
+
+    errors = config_loader.validate_project_configuration(cfg)
+    joined = " | ".join(errors)
+    assert "wiki_directory must not escape project root" in joined
+    assert "duplicate type name" in joined
+    assert "duplicate category name" in joined
+    assert "duplicate status name" in joined
+
+
 def test_validate_project_configuration_transition_labels_missing_workflow() -> None:
     cfg = _base_config()
     cfg.transition_labels = {}
 
     errors = config_loader.validate_project_configuration(cfg)
     assert "transition_labels must not be empty" in " | ".join(errors)
+
+
+def test_validate_project_configuration_transition_label_missing_paths() -> None:
+    cfg = _base_config()
+    cfg.transition_labels = {"default": {"open": {"backlog": "x"}}}
+    cfg.workflows = {"default": {"open": ["closed"]}}
+    errors = config_loader.validate_project_configuration(cfg)
+    joined = " | ".join(errors)
+    assert "missing transition 'open' -> 'closed'" in joined
+    assert "references invalid transition 'open' -> 'backlog'" in joined
+
+    cfg.transition_labels = {"default": {"open": {}}}
+    errors = config_loader.validate_project_configuration(cfg)
+    assert "missing from-status" in " | ".join(errors)
+
+    cfg.transition_labels = {"default": {"open": {"closed": "x"}}}
+    cfg.workflows = {"default": {"open": ["closed"]}, "epic": {"open": ["closed"]}}
+    errors = config_loader.validate_project_configuration(cfg)
+    assert "transition_labels missing workflow 'epic'" in " | ".join(errors)
 
 
 def test_validate_hooks_and_sort_order_paths() -> None:
@@ -223,6 +270,13 @@ def test_validate_sort_order_non_mapping_categories() -> None:
     cfg.sort_order = {"categories": "fifo"}
     errors = config_loader.validate_project_configuration(cfg)
     assert "sort_order.categories must be a mapping" in " | ".join(errors)
+
+
+def test_validate_sort_order_category_rule_is_validated() -> None:
+    cfg = _base_config()
+    cfg.sort_order = {"categories": {"To do": []}}
+    errors = config_loader.validate_project_configuration(cfg)
+    assert "sort_order.categories.To do must not be an empty list" in " | ".join(errors)
 
 
 def test_validate_sort_rule_non_list_and_empty_and_non_dict() -> None:
