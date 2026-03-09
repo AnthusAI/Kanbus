@@ -673,4 +673,9 @@ mod tests {
         assert_eq!(claims["custom:account"], "anthus");
         assert_eq!(claims["custom:project"], "kanbus");
     }
+
+    #[test]
+    fn decode_jwt_claims_rejects_invalid_token_shape() {
+        assert!(decode_jwt_claims("not-a-jwt").is_none());
+    }
 }

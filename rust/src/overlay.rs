@@ -951,4 +951,18 @@ mod tests {
         assert_eq!(resolved.title, "Canonical");
         assert_eq!(resolved.priority, 1);
     }
+
+    #[test]
+    fn parse_ts_and_expiry_helpers_handle_invalid_timestamps() {
+        let now = Utc::now();
+        assert!(parse_ts("not-a-timestamp").is_none());
+        assert!(!is_expired("not-a-timestamp", 60, now));
+    }
+
+    #[test]
+    fn overlay_hook_block_contains_expected_commands() {
+        let block = overlay_hook_block();
+        assert!(block.contains("kanbus overlay reconcile --all --prune"));
+        assert!(block.contains("kbs overlay gc --all"));
+    }
 }

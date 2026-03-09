@@ -1647,4 +1647,10 @@ mod tests {
         let parsed = parse_json_body(&Bytes::from("not-json"));
         assert_eq!(parsed, serde_json::Value::String("not-json".to_string()));
     }
+
+    #[test]
+    fn parse_json_body_parses_valid_json() {
+        let parsed = parse_json_body(&Bytes::from(r#"{"ok":true}"#));
+        assert_eq!(parsed["ok"], serde_json::Value::Bool(true));
+    }
 }
