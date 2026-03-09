@@ -27,6 +27,15 @@ def test_parse_broker_url_supports_default_and_explicit_ports() -> None:
     assert endpoint_explicit.scheme == "mqtts"
 
 
+def test_parse_broker_url_rejects_invalid_values() -> None:
+    try:
+        gossip._parse_broker_url("not-a-url")
+    except gossip.GossipError as error:
+        assert "invalid broker url" in str(error)
+    else:
+        raise AssertionError("expected GossipError")
+
+
 def test_uds_socket_path_prefers_xdg_runtime_dir(monkeypatch) -> None:
     monkeypatch.setenv("XDG_RUNTIME_DIR", "/tmp/runtime-test")
     socket_path = gossip._uds_socket_path()
@@ -41,6 +50,16 @@ def test_write_and_load_broker_metadata_round_trip(
     payload = {"kind": "mosquitto", "endpoint": "mqtt://127.0.0.1:1883"}
     gossip._write_broker_metadata(payload)
     assert gossip._load_broker_metadata() == payload
+
+
+def test_load_broker_metadata_returns_none_for_invalid_json(
+    tmp_path: Path, monkeypatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "broker.json").write_text("{invalid-json", encoding="utf-8")
+    monkeypatch.setattr(gossip, "_broker_run_dir", lambda: run_dir)
+    assert gossip._load_broker_metadata() is None
 
 
 def test_resolve_project_label_falls_back_to_project_key(monkeypatch, tmp_path: Path) -> None:
