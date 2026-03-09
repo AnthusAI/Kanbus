@@ -1602,8 +1602,19 @@ fn serve_asset_from_filesystem(state: &AppState, asset_path: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
+    use std::sync::Mutex;
+    use std::sync::OnceLock;
     use std::sync::{Arc, Mutex as StdMutex};
     use tokio::sync::{broadcast, RwLock};
+
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env lock")
+    }
 
     fn test_state(base_root: PathBuf, assets_root: PathBuf, multi_tenant: bool) -> AppState {
         let (telemetry_tx, _) = broadcast::channel(8);
@@ -1672,10 +1683,87 @@ mod tests {
     }
 
     #[test]
+    fn parse_json_body_returns_null_for_empty_payload() {
+        let parsed = parse_json_body(&Bytes::new());
+        assert_eq!(parsed, serde_json::Value::Null);
+    }
+
+    #[test]
+    fn telemetry_payload_wraps_non_object_values() {
+        let rendered = build_telemetry_payload(JsonValue::String("raw".to_string()), None);
+        let parsed: serde_json::Value = serde_json::from_str(&rendered).expect("json");
+        assert_eq!(parsed["payload"], "raw");
+        assert!(parsed.get("received_at").is_some());
+    }
+
+    #[test]
     fn store_for_root_returns_none_for_multi_tenant_mode() {
         let temp = tempfile::tempdir().expect("tempdir");
         let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
         assert!(store_for_root(&state).is_none());
+    }
+
+    #[test]
+    fn store_for_root_uses_base_root_in_single_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+        let store = store_for_root(&state).expect("store");
+        assert_eq!(store.root(), temp.path());
+    }
+
+    #[test]
+    fn local_auth_bootstrap_preserves_optional_tenant_fields() {
+        let scoped = build_local_auth_bootstrap(Some("acct".to_string()), Some("proj".to_string()));
+        assert_eq!(scoped.mode, "none");
+        assert_eq!(scoped.account.as_deref(), Some("acct"));
+        assert_eq!(scoped.project.as_deref(), Some("proj"));
+        assert_eq!(scoped.tenant_account_claim_key, "custom:account");
+        assert_eq!(scoped.tenant_project_claim_key, "custom:project");
+    }
+
+    #[test]
+    fn open_telemetry_log_requires_env_and_writes_startup_line() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let log_path = temp.path().join("logs").join("console.log");
+
+        unsafe {
+            env::remove_var("CONSOLE_LOG_PATH");
+        }
+        assert!(open_telemetry_log(temp.path()).is_none());
+
+        unsafe {
+            env::set_var("CONSOLE_LOG_PATH", &log_path);
+        }
+        let handle = open_telemetry_log(temp.path()).expect("telemetry log handle");
+        drop(handle);
+        let contents = std::fs::read_to_string(&log_path).expect("read log");
+        assert!(contents.contains("\"type\":\"startup\""));
+
+        unsafe {
+            env::remove_var("CONSOLE_LOG_PATH");
+        }
+    }
+
+    #[test]
+    fn write_telemetry_log_records_null_and_json_payloads() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let log_path = temp.path().join("telemetry.log");
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+            .expect("open log");
+
+        let mut state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+        state.telemetry_log = Some(Arc::new(StdMutex::new(file)));
+
+        write_telemetry_log(&state, &Bytes::from("   "));
+        write_telemetry_log(&state, &Bytes::from(r#"{"level":"info"}"#));
+
+        let contents = std::fs::read_to_string(&log_path).expect("read log");
+        assert!(contents.contains("\"payload\":null"));
+        assert!(contents.contains("\"payload\":{\"level\":\"info\"}"));
     }
 
     #[test]
