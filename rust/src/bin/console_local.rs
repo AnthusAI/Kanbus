@@ -1859,4 +1859,102 @@ mod tests {
         assert_eq!(conflict.status(), StatusCode::CONFLICT);
         assert_eq!(io.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
+
+    #[tokio::test]
+    async fn update_ui_state_persists_focus_and_clear_events() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        let state = test_state(root.clone(), root.clone(), false);
+        let focus = NotificationEvent::IssueFocused {
+            issue_id: "kanbus-123".to_string(),
+            user: None,
+            comment_id: Some("cmt-1".to_string()),
+        };
+
+        update_ui_state_from_event(&state, &focus).await;
+        let persisted = load_state(&root).expect("load state");
+        assert_eq!(persisted.focused_issue_id.as_deref(), Some("kanbus-123"));
+        assert_eq!(persisted.focused_comment_id.as_deref(), Some("cmt-1"));
+
+        let clear = NotificationEvent::UiControl {
+            action: UiControlAction::ClearFocus,
+        };
+        update_ui_state_from_event(&state, &clear).await;
+        let cleared = load_state(&root).expect("load cleared state");
+        assert!(cleared.focused_issue_id.is_none());
+        assert!(cleared.focused_comment_id.is_none());
+    }
+
+    #[tokio::test]
+    async fn update_ui_state_persists_view_mode_and_search() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        let state = test_state(root.clone(), root.clone(), false);
+
+        let view_mode = NotificationEvent::UiControl {
+            action: UiControlAction::SetViewMode {
+                mode: "issues".to_string(),
+            },
+        };
+        update_ui_state_from_event(&state, &view_mode).await;
+
+        let search = NotificationEvent::UiControl {
+            action: UiControlAction::SetSearch {
+                query: "auth".to_string(),
+            },
+        };
+        update_ui_state_from_event(&state, &search).await;
+        let persisted = load_state(&root).expect("load state");
+        assert_eq!(persisted.view_mode.as_deref(), Some("issues"));
+        assert_eq!(persisted.search_query.as_deref(), Some("auth"));
+
+        let clear_search = NotificationEvent::UiControl {
+            action: UiControlAction::SetSearch {
+                query: String::new(),
+            },
+        };
+        update_ui_state_from_event(&state, &clear_search).await;
+        let cleared = load_state(&root).expect("load cleared state");
+        assert!(cleared.search_query.is_none());
+    }
+
+    #[tokio::test]
+    async fn update_ui_state_ignores_non_persisted_controls() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        let state = test_state(root.clone(), root.clone(), false);
+        let path = state_path(&root).expect("state path");
+        assert!(!path.exists());
+
+        let no_op = NotificationEvent::UiControl {
+            action: UiControlAction::MaximizeDetail,
+        };
+        update_ui_state_from_event(&state, &no_op).await;
+        assert!(!path.exists());
+
+        let issue_updated = NotificationEvent::IssueUpdated {
+            issue_id: "kanbus-1".to_string(),
+            fields_changed: vec!["status".to_string()],
+            issue_data: kanbus::models::IssueData {
+                identifier: "kanbus-1".to_string(),
+                title: "Issue".to_string(),
+                description: String::new(),
+                issue_type: "task".to_string(),
+                status: "open".to_string(),
+                priority: 2,
+                assignee: None,
+                creator: None,
+                parent: None,
+                labels: Vec::new(),
+                dependencies: Vec::new(),
+                comments: Vec::new(),
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                closed_at: None,
+                custom: std::collections::BTreeMap::new(),
+            },
+        };
+        update_ui_state_from_event(&state, &issue_updated).await;
+        assert!(!path.exists());
+    }
 }
