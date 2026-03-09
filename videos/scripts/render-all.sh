@@ -3,6 +3,10 @@ set -e
 SCRIPTS_ROOT=..
 OUT=out
 BABULUS_BUNDLE=node_modules/babulus/public/babulus-standard.js
+export PATH="$(pwd)/node_modules/.bin:$PATH"
+
+echo "=== Rebuilding browser-components bundle ==="
+npm run bundle:components
 
 render_video() {
   local id=$1
