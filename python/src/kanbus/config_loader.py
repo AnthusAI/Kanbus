@@ -15,6 +15,19 @@ from kanbus.models import ProjectConfiguration
 SORT_PRESETS = ("fifo", "priority-first", "recently-updated")
 SORT_FIELDS = ("priority", "created_at", "updated_at", "id")
 SORT_DIRECTIONS = ("asc", "desc")
+HOOK_EVENTS = {
+    "issue.create",
+    "issue.update",
+    "issue.close",
+    "issue.delete",
+    "issue.comment",
+    "issue.dependency",
+    "issue.promote",
+    "issue.localize",
+    "issue.show",
+    "issue.list",
+    "issue.ready",
+}
 
 
 class ConfigurationError(RuntimeError):
@@ -363,9 +376,33 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
                     f"transition_labels references invalid from-status '{labeled_from}' in workflow '{workflow_name}'"
                 )
 
+    _validate_hooks(configuration, errors)
     _validate_sort_order(configuration, errors)
 
     return errors
+
+
+def _validate_hooks(configuration: ProjectConfiguration, errors: List[str]) -> None:
+    hooks_config = configuration.hooks
+    for phase_name, phase_map in (
+        ("before", hooks_config.before),
+        ("after", hooks_config.after),
+    ):
+        for event_name, hooks in phase_map.items():
+            if event_name not in HOOK_EVENTS:
+                errors.append(f"hooks.{phase_name} contains unknown event '{event_name}'")
+                continue
+            if not hooks:
+                errors.append(f"hooks.{phase_name}.{event_name} must define at least one hook")
+                continue
+            seen_ids: set[str] = set()
+            for hook in hooks:
+                if hook.id in seen_ids:
+                    errors.append(
+                        f"hooks.{phase_name}.{event_name} has duplicate id '{hook.id}'"
+                    )
+                else:
+                    seen_ids.add(hook.id)
 
 
 def _validate_sort_order(

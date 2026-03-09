@@ -124,6 +124,7 @@ pub struct KanbusWorld {
     pub uds_subscriber: Option<std::os::unix::net::UnixStream>,
     pub uds_published_id: Option<String>,
     pub mosquitto_startup: Option<kanbus::gossip::BrokerStartup>,
+    pub ai_call_count_after_first_render: Option<usize>,
 }
 
 impl Drop for KanbusWorld {
@@ -331,10 +332,24 @@ fn then_issues_directory_only_guards(world: &mut KanbusWorld) {
     );
 }
 
-#[then("a \"project/wiki\" directory should not exist")]
-fn then_wiki_directory_missing(world: &mut KanbusWorld) {
+#[then(expr = "the file {string} should exist")]
+fn then_file_exists(world: &mut KanbusWorld, path: String) {
     let cwd = world.working_directory.as_ref().expect("cwd");
-    assert!(!cwd.join("project").join("wiki").exists());
+    let full_path = cwd.join(&path);
+    assert!(full_path.exists(), "expected file {} to exist", path);
+    assert!(full_path.is_file(), "expected {} to be a file", path);
+}
+
+#[then(expr = "the file {string} should contain {string}")]
+fn then_file_contains(world: &mut KanbusWorld, path: String, text: String) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let content = fs::read_to_string(cwd.join(&path)).expect("read file");
+    assert!(
+        content.contains(&text),
+        "expected {} to contain {:?}",
+        path,
+        text
+    );
 }
 
 #[then("a \"project-local/issues\" directory should exist")]

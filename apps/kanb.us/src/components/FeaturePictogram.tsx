@@ -13,7 +13,8 @@ export type FeaturePictogramType =
   | "integrated-wiki"
   | "policy-as-code"
   | "agile-metrics"
-  | "git-native-storage";
+  | "git-native-storage"
+  | "lifecycle-hooks";
 
 // Interpolates a value from a keyframe sequence at normalized time t in [0, 1].
 // values and times must have the same length; times must be in [0, 1] ascending.

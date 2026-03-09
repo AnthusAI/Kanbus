@@ -8,7 +8,9 @@ Feature: Project initialization
     When I run "kanbus init"
     Then a "project" directory should exist
     And a "project/issues" directory should exist and contain only guard files
-    And a "project/wiki" directory should not exist
+    And the file "project/wiki/index.md" should exist
+    And the file "project/wiki/whats-next.md" should exist
+    And the file "project/wiki/index.md" should contain "whats-next.md"
     And a ".kanbus.yml" file should be created
     And a "CONTRIBUTING_AGENT.template.md" file should be created
     And CONTRIBUTING_AGENT.template.md should contain "This is The Way."

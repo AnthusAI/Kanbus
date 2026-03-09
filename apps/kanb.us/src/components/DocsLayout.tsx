@@ -22,6 +22,7 @@ const sidebarLinks: SidebarLink[] = [
   { label: "Beads Mode", href: "/docs/features/beads-compatibility" },
   { label: "VS Code Plugin", href: "/docs/features/vscode-plugin" },
   { label: "Policy as Code", href: "/docs/features/policy-as-code" },
+  { label: "Lifecycle Hooks", href: "/docs/features/lifecycle-hooks" },
   { label: "Agile Metrics", href: "/docs/features/agile-metrics" }
 ];
 

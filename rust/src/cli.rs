@@ -31,6 +31,9 @@ use crate::file_io::{
     canonicalize_path, detect_repairable_project_issues, ensure_git_repository,
     get_configuration_path, initialize_project, repair_project_structure, resolve_root,
 };
+use crate::hooks::{
+    list_hooks, run_lifecycle_hooks, serialize_issue, validate_hooks, HookEvent, HookPhase,
+};
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
 use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
@@ -84,6 +87,9 @@ pub struct Cli {
     /// Disable policy guidance hooks for this command.
     #[arg(long = "no-guidance")]
     no_guidance: bool,
+    /// Disable all lifecycle hooks for this command.
+    #[arg(long = "no-hooks")]
+    no_hooks: bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -360,6 +366,11 @@ enum Commands {
     Overlay {
         #[command(subcommand)]
         command: OverlayCommands,
+    },
+    /// Lifecycle hook commands.
+    Hooks {
+        #[command(subcommand)]
+        command: HooksCommands,
     },
     /// Policy management commands.
     Policy {
@@ -747,6 +758,14 @@ enum OverlayCommands {
 }
 
 #[derive(Debug, Subcommand)]
+enum HooksCommands {
+    /// List configured lifecycle hooks and built-in providers.
+    List,
+    /// Validate hook commands, IDs, and event bindings.
+    Validate,
+}
+
+#[derive(Debug, Subcommand)]
 enum CommentCommands {
     /// Update a comment by id prefix.
     Update {
@@ -876,8 +895,16 @@ where
     let root = canonicalize_path(&root).unwrap_or(root);
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
     let no_guidance = cli.no_guidance;
+    let no_hooks = cli.no_hooks;
     maybe_prompt_project_repair(&cli.command, &root)?;
-    let stdout = execute_command(cli.command, &root, beads_mode, beads_forced, no_guidance);
+    let stdout = execute_command(
+        cli.command,
+        &root,
+        beads_mode,
+        beads_forced,
+        no_guidance,
+        no_hooks,
+    );
     let captured_stderr = take_captured_stderr().unwrap_or_default();
     let stdout = stdout?;
 
@@ -977,12 +1004,35 @@ fn deprecated_create_focus_error() -> KanbusError {
     )
 }
 
+fn run_lifecycle_hooks_for_context(
+    root: &Path,
+    phase: HookPhase,
+    event: HookEvent,
+    operation: serde_json::Value,
+    issues_for_policy: &[IssueData],
+    beads_mode: bool,
+    no_hooks: bool,
+    no_guidance: bool,
+) -> Result<(), KanbusError> {
+    run_lifecycle_hooks(
+        root,
+        phase,
+        event,
+        operation,
+        issues_for_policy,
+        beads_mode,
+        no_hooks,
+        no_guidance,
+    )
+}
+
 fn execute_command(
     command: Commands,
     root: &Path,
     beads_mode: bool,
     _beads_forced: bool,
     no_guidance: bool,
+    no_hooks: bool,
 ) -> Result<Option<String>, KanbusError> {
     let root_for_beads = beads_root(root);
     match command {
@@ -1069,12 +1119,31 @@ fn execute_command(
             if focus {
                 return Err(deprecated_create_focus_error());
             }
+            if beads_mode && local {
+                return Err(KanbusError::IssueOperation(
+                    "beads mode does not support local issues".to_string(),
+                ));
+            }
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueCreate,
+                serde_json::json!({
+                    "title": title_text.clone(),
+                    "issue_type": issue_type.clone(),
+                    "priority": priority,
+                    "assignee": assignee.clone(),
+                    "parent": parent.clone(),
+                    "labels": label.clone(),
+                    "description": if description_text.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(description_text.clone()) },
+                    "local": local,
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             if beads_mode {
-                if local {
-                    return Err(KanbusError::IssueOperation(
-                        "beads mode does not support local issues".to_string(),
-                    ));
-                }
                 let issue = create_beads_issue(
                     &root_for_beads,
                     &title_text,
@@ -1094,6 +1163,19 @@ fn execute_command(
                 if let Some(ref qr) = quality_result {
                     emit_signals(qr, "description", Some(&issue.identifier), None, false);
                 }
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueCreate,
+                    serde_json::json!({
+                        "issue": serialize_issue(&issue),
+                        "local": local,
+                    }),
+                    std::slice::from_ref(&issue),
+                    beads_mode,
+                    no_hooks,
+                    no_guidance,
+                )?;
                 return Ok(Some(output));
             }
             let request = IssueCreationRequest {
@@ -1122,12 +1204,19 @@ fn execute_command(
             if let Some(ref qr) = quality_result {
                 emit_signals(qr, "description", Some(&issue.identifier), None, false);
             }
-            crate::policy_guidance::emit_guidance_for_issues(
+            run_lifecycle_hooks_for_context(
                 root,
+                HookPhase::After,
+                HookEvent::IssueCreate,
+                serde_json::json!({
+                    "issue": serialize_issue(&issue),
+                    "local": local,
+                }),
                 std::slice::from_ref(&issue),
-                crate::policy_context::PolicyOperation::Create,
+                beads_mode,
+                no_hooks,
                 no_guidance,
-            );
+            )?;
             Ok(Some(output))
         }
         Commands::Show {
@@ -1137,6 +1226,22 @@ fn execute_command(
         } => {
             let lookup_root = project_root.as_deref().unwrap_or(root);
             let beads_root_for_show = beads_root(lookup_root);
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueShow,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "json": json,
+                    "project_root": project_root
+                        .as_ref()
+                        .map(|value| value.display().to_string()),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             let (issue, configuration) = if beads_mode {
                 let mut beads_issue = load_beads_issue_by_id(&beads_root_for_show, &identifier)?;
                 // Normalize comment ids for display consistency
@@ -1183,46 +1288,43 @@ fn execute_command(
                     Err(error) => return Err(error),
                 }
             };
-            if json {
-                let payload =
-                    serde_json::to_string_pretty(&issue).expect("failed to serialize issue");
-                if !beads_mode {
-                    crate::policy_guidance::emit_guidance_for_issues(
-                        root,
-                        std::slice::from_ref(&issue),
-                        crate::policy_context::PolicyOperation::View,
-                        no_guidance,
-                    );
-                }
-                return Ok(Some(payload));
-            }
-            let use_color = should_use_color();
-            let all_issues = if beads_mode {
-                None
+            let output = if json {
+                serde_json::to_string_pretty(&issue).expect("failed to serialize issue")
             } else {
-                let store = crate::console_backend::FileStore::new(lookup_root);
-                if let Ok(config) = store.load_config() {
-                    store.load_issues(&config).ok()
-                } else {
+                let use_color = should_use_color();
+                let all_issues = if beads_mode {
                     None
-                }
+                } else {
+                    let store = crate::console_backend::FileStore::new(lookup_root);
+                    if let Ok(config) = store.load_config() {
+                        store.load_issues(&config).ok()
+                    } else {
+                        None
+                    }
+                };
+                format_issue_for_display(
+                    &issue,
+                    configuration.as_ref(),
+                    use_color,
+                    false,
+                    all_issues.as_deref(),
+                )
             };
-            let rendered = format_issue_for_display(
-                &issue,
-                configuration.as_ref(),
-                use_color,
-                false,
-                all_issues.as_deref(),
-            );
-            if !beads_mode {
-                crate::policy_guidance::emit_guidance_for_issues(
-                    root,
-                    std::slice::from_ref(&issue),
-                    crate::policy_context::PolicyOperation::View,
-                    no_guidance,
-                );
-            }
-            Ok(Some(rendered))
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueShow,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "json": json,
+                    "issue": serialize_issue(&issue),
+                }),
+                std::slice::from_ref(&issue),
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
+            Ok(Some(output))
         }
         Commands::Update {
             identifier,
@@ -1275,6 +1377,37 @@ fn execute_command(
                     validate_code_blocks(text)?;
                 }
             }
+            let before_issue_for_hooks = if beads_mode {
+                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+            } else {
+                load_issue_from_project(root, &identifier)
+                    .ok()
+                    .map(|lookup| lookup.issue)
+            };
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueUpdate,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "title": title_value,
+                    "description": final_description_value,
+                    "status": status.clone(),
+                    "priority": priority,
+                    "assignee": assignee_value.clone(),
+                    "add_labels": add_labels.clone(),
+                    "remove_labels": remove_labels.clone(),
+                    "set_labels": set_labels.clone(),
+                    "parent": parent.clone(),
+                    "claim": claim,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
+            let after_issue_for_hooks: Option<IssueData>;
             if beads_mode {
                 if parent.is_some() {
                     return Err(KanbusError::IssueOperation(
@@ -1406,6 +1539,7 @@ fn execute_command(
                     &remove_labels,
                     set_labels.as_deref(),
                 )?;
+                after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, &identifier).ok();
             } else {
                 let updated_issue = update_issue(
                     root,
@@ -1423,17 +1557,38 @@ fn execute_command(
                     parent.as_deref(),
                     None,
                 )?;
-                crate::policy_guidance::emit_guidance_for_issues(
-                    root,
-                    &[updated_issue],
-                    crate::policy_context::PolicyOperation::Update,
-                    no_guidance,
-                );
+                after_issue_for_hooks = Some(updated_issue);
             }
             let formatted_identifier = format_issue_key(&identifier, false);
             if let Some(ref qr) = update_quality_result {
                 emit_signals(qr, "description", Some(&identifier), None, true);
             }
+            let issues_for_policy = after_issue_for_hooks
+                .as_ref()
+                .map(|issue| vec![issue.clone()])
+                .unwrap_or_default();
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueUpdate,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "status": status,
+                    "priority": priority,
+                    "assignee": assignee_value,
+                    "add_labels": add_labels,
+                    "remove_labels": remove_labels,
+                    "set_labels": set_labels,
+                    "parent": parent,
+                    "claim": claim,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &issues_for_policy,
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             Ok(Some(format!("Updated {}", formatted_identifier)))
         }
         Commands::Move {
@@ -1447,6 +1602,24 @@ fn execute_command(
                     "move is not supported in beads mode".to_string(),
                 ));
             }
+            let before_issue_for_hooks = load_issue_from_project(root, &identifier)
+                .ok()
+                .map(|lookup| lookup.issue);
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueUpdate,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "issue_type": issue_type.clone(),
+                    "status": status.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             let moved_issue = update_issue(
                 root,
                 &identifier,
@@ -1463,12 +1636,22 @@ fn execute_command(
                 None,
                 Some(&issue_type),
             )?;
-            crate::policy_guidance::emit_guidance_for_issues(
+            run_lifecycle_hooks_for_context(
                 root,
+                HookPhase::After,
+                HookEvent::IssueUpdate,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "issue_type": issue_type.clone(),
+                    "status": status.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": serialize_issue(&moved_issue),
+                }),
                 std::slice::from_ref(&moved_issue),
-                crate::policy_context::PolicyOperation::Update,
+                beads_mode,
+                no_hooks,
                 no_guidance,
-            );
+            )?;
             let formatted_identifier = format_issue_key(&identifier, false);
             Ok(Some(format!(
                 "Moved {} to type {}",
@@ -1500,6 +1683,22 @@ fn execute_command(
                             .to_string(),
                     ));
                 }
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::Before,
+                    HookEvent::IssueUpdate,
+                    serde_json::json!({
+                        "ids": ids.clone(),
+                        "where_type": where_type.clone(),
+                        "where_status": where_status.clone(),
+                        "set_status": set_status.clone(),
+                        "set_assignee": set_assignee.clone(),
+                    }),
+                    &[],
+                    beads_mode,
+                    no_hooks,
+                    no_guidance,
+                )?;
 
                 let mut selected = Vec::new();
                 let mut seen = HashSet::new();
@@ -1563,18 +1762,48 @@ fn execute_command(
                     }
                 }
 
-                if !selected.is_empty() {
-                    crate::policy_guidance::emit_guidance_for_issues(
-                        root,
-                        &selected,
-                        crate::policy_context::PolicyOperation::Update,
-                        no_guidance,
-                    );
-                }
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueUpdate,
+                    serde_json::json!({
+                        "ids": ids,
+                        "where_type": where_type,
+                        "where_status": where_status,
+                        "set_status": set_status,
+                        "set_assignee": set_assignee,
+                        "updated_issue_ids": selected.iter().map(|issue| issue.identifier.clone()).collect::<Vec<_>>(),
+                    }),
+                    &selected,
+                    beads_mode,
+                    no_hooks,
+                    no_guidance,
+                )?;
                 Ok(Some(format!("Updated {} issue(s)", selected.len())))
             }
         },
         Commands::Close { identifier } => {
+            let before_issue_for_hooks = if beads_mode {
+                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+            } else {
+                load_issue_from_project(root, &identifier)
+                    .ok()
+                    .map(|lookup| lookup.issue)
+            };
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueClose,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
+            let after_issue_for_hooks: Option<IssueData>;
             if beads_mode {
                 update_beads_issue(
                     &root_for_beads,
@@ -1588,16 +1817,30 @@ fn execute_command(
                     &[],
                     None,
                 )?;
+                after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, &identifier).ok();
             } else {
                 let closed_issue = close_issue(root, &identifier)?;
-                crate::policy_guidance::emit_guidance_for_issues(
-                    root,
-                    &[closed_issue],
-                    crate::policy_context::PolicyOperation::Close,
-                    no_guidance,
-                );
+                after_issue_for_hooks = Some(closed_issue);
             }
             let formatted_identifier = format_issue_key(&identifier, false);
+            let issues_for_policy = after_issue_for_hooks
+                .as_ref()
+                .map(|issue| vec![issue.clone()])
+                .unwrap_or_default();
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueClose,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &issues_for_policy,
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             Ok(Some(format!("Closed {}", formatted_identifier)))
         }
         Commands::Delete {
@@ -1605,8 +1848,8 @@ fn execute_command(
             yes: yes_flag,
             recursive,
         } => {
-            let issue_for_guidance = if beads_mode {
-                None
+            let issue_for_hooks = if beads_mode {
+                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
             } else {
                 load_issue_from_project(root, &identifier)
                     .ok()
@@ -1659,8 +1902,37 @@ fn execute_command(
                         }
                     }
                 }
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::Before,
+                    HookEvent::IssueDelete,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "recursive": beads_recursive,
+                        "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    beads_mode,
+                    no_hooks,
+                    no_guidance,
+                )?;
                 delete_beads_issue(&root_for_beads, &identifier, beads_recursive)?;
                 let formatted_identifier = format_issue_key(&identifier, false);
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueDelete,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "recursive": beads_recursive,
+                        "deleted_issue_ids": vec![identifier],
+                        "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    beads_mode,
+                    no_hooks,
+                    no_guidance,
+                )?;
                 return Ok(Some(format!("Deleted {}", formatted_identifier)));
             }
             if !yes_flag {
@@ -1708,6 +1980,21 @@ fn execute_command(
                     descendants.clear();
                 }
             }
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueDelete,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "recursive": recursive,
+                    "candidate_descendants": descendants.clone(),
+                    "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             descendants.push(identifier.clone());
             let mut deleted_lines = Vec::new();
             for issue_id in &descendants {
@@ -1715,14 +2002,25 @@ fn execute_command(
                 let formatted_identifier = format_issue_key(issue_id, false);
                 deleted_lines.push(format!("Deleted {}", formatted_identifier));
             }
-            if let Some(issue) = issue_for_guidance {
-                crate::policy_guidance::emit_guidance_for_issues(
-                    root,
-                    &[issue],
-                    crate::policy_context::PolicyOperation::Delete,
-                    no_guidance,
-                );
-            }
+            let issues_for_policy = issue_for_hooks
+                .as_ref()
+                .map(|issue| vec![issue.clone()])
+                .unwrap_or_default();
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueDelete,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "recursive": recursive,
+                    "deleted_issue_ids": descendants,
+                    "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &issues_for_policy,
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             Ok(Some(deleted_lines.join("\n")))
         }
         Commands::Comment {
@@ -1819,6 +2117,28 @@ fn execute_command(
                 if !no_validate {
                     validate_code_blocks(&repaired_comment_text)?;
                 }
+                let before_issue_for_hooks = if beads_mode {
+                    load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+                } else {
+                    load_issue_from_project(root, &identifier)
+                        .ok()
+                        .map(|lookup| lookup.issue)
+                };
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::Before,
+                    HookEvent::IssueComment,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "text": repaired_comment_text.clone(),
+                        "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    beads_mode,
+                    no_hooks,
+                    no_guidance,
+                )?;
+                let after_issue_for_hooks: Option<IssueData>;
                 if beads_mode {
                     add_beads_comment(
                         &root_for_beads,
@@ -1833,6 +2153,8 @@ fn execute_command(
                         None,
                         false,
                     );
+                    after_issue_for_hooks =
+                        load_beads_issue_by_id(&root_for_beads, &identifier).ok();
                 } else {
                     let comment_result = add_comment(
                         root,
@@ -1847,16 +2169,92 @@ fn execute_command(
                         comment_result.comment.id.as_deref(),
                         false,
                     );
+                    after_issue_for_hooks = Some(comment_result.issue);
                 }
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueComment,
+                    serde_json::json!({
+                        "identifier": identifier,
+                        "text": repaired_comment_text,
+                        "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                        "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    beads_mode,
+                    no_hooks,
+                    no_guidance,
+                )?;
                 Ok(None)
             }
         },
         Commands::Promote { identifier } => {
-            promote_issue(root, &identifier)?;
+            let before_issue_for_hooks = load_issue_from_project(root, &identifier)
+                .ok()
+                .map(|lookup| lookup.issue);
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssuePromote,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
+            let issue = promote_issue(root, &identifier)?;
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssuePromote,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": serialize_issue(&issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             Ok(None)
         }
         Commands::Localize { identifier } => {
-            localize_issue(root, &identifier)?;
+            let before_issue_for_hooks = load_issue_from_project(root, &identifier)
+                .ok()
+                .map(|lookup| lookup.issue);
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueLocalize,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
+            let issue = localize_issue(root, &identifier)?;
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueLocalize,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": serialize_issue(&issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             Ok(None)
         }
         Commands::List {
@@ -1872,6 +2270,27 @@ fn execute_command(
             porcelain,
             full_ids,
         } => {
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueList,
+                serde_json::json!({
+                    "status": status.clone(),
+                    "issue_type": issue_type.clone(),
+                    "assignee": assignee.clone(),
+                    "label": label.clone(),
+                    "sort": sort.clone(),
+                    "search": search.clone(),
+                    "projects": project.clone(),
+                    "no_local": no_local,
+                    "local_only": local_only,
+                    "porcelain": porcelain,
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             let issues = if beads_mode {
                 if local_only || no_local {
                     return Err(KanbusError::IssueOperation(
@@ -1951,12 +2370,27 @@ fn execute_command(
                     )
                 })
                 .collect::<Vec<_>>();
-            crate::policy_guidance::emit_guidance_for_issues(
+            run_lifecycle_hooks_for_context(
                 root,
+                HookPhase::After,
+                HookEvent::IssueList,
+                serde_json::json!({
+                    "status": status,
+                    "issue_type": issue_type,
+                    "assignee": assignee,
+                    "label": label,
+                    "sort": sort,
+                    "search": search,
+                    "projects": project,
+                    "no_local": no_local,
+                    "local_only": local_only,
+                    "issue_ids": issues.iter().map(|issue| issue.identifier.clone()).collect::<Vec<_>>(),
+                }),
                 &issues,
-                crate::policy_context::PolicyOperation::List,
+                beads_mode,
+                no_hooks,
                 no_guidance,
-            );
+            )?;
             Ok(Some(lines.join("\n")))
         }
         Commands::Validate => {
@@ -2043,6 +2477,30 @@ fn execute_command(
                 (args[1].clone(), args[2].clone())
             };
 
+            let before_issue_for_hooks = if beads_mode {
+                load_beads_issue_by_id(&root_for_beads, identifier).ok()
+            } else {
+                load_issue_from_project(root, identifier)
+                    .ok()
+                    .map(|lookup| lookup.issue)
+            };
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueDependency,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "dependency_type": dependency_type.clone(),
+                    "target": target.clone(),
+                    "remove": is_remove,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
+            let after_issue_for_hooks: Option<IssueData>;
             if beads_mode {
                 if is_remove {
                     remove_beads_dependency(
@@ -2054,17 +2512,54 @@ fn execute_command(
                 } else {
                     add_beads_dependency(&root_for_beads, identifier, &target, &dependency_type)?;
                 }
+                after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, identifier).ok();
             } else if is_remove {
-                remove_dependency(root, identifier, &target, &dependency_type)?;
+                after_issue_for_hooks = Some(remove_dependency(
+                    root,
+                    identifier,
+                    &target,
+                    &dependency_type,
+                )?);
             } else {
-                add_dependency(root, identifier, &target, &dependency_type)?;
+                after_issue_for_hooks =
+                    Some(add_dependency(root, identifier, &target, &dependency_type)?);
             }
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueDependency,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "dependency_type": dependency_type,
+                    "target": target,
+                    "remove": is_remove,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             Ok(None)
         }
         Commands::Ready {
             no_local,
             local_only,
         } => {
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueReady,
+                serde_json::json!({
+                    "no_local": no_local,
+                    "local_only": local_only,
+                }),
+                &[],
+                beads_mode,
+                no_hooks,
+                no_guidance,
+            )?;
             let issues: Vec<IssueData> = if beads_mode {
                 if local_only || no_local {
                     return Err(KanbusError::IssueOperation(
@@ -2082,12 +2577,20 @@ fn execute_command(
             for issue in &issues {
                 lines.push(format_ready_line(issue));
             }
-            crate::policy_guidance::emit_guidance_for_issues(
+            run_lifecycle_hooks_for_context(
                 root,
+                HookPhase::After,
+                HookEvent::IssueReady,
+                serde_json::json!({
+                    "no_local": no_local,
+                    "local_only": local_only,
+                    "issue_ids": issues.iter().map(|issue| issue.identifier.clone()).collect::<Vec<_>>(),
+                }),
                 &issues,
-                crate::policy_context::PolicyOperation::Ready,
+                beads_mode,
+                no_hooks,
                 no_guidance,
-            );
+            )?;
             Ok(Some(lines.join("\n")))
         }
         Commands::Jira { command } => match command {
@@ -2241,6 +2744,50 @@ fn execute_command(
             OverlayCommands::InstallHooks => {
                 crate::overlay::install_overlay_hooks(root)?;
                 Ok(Some("overlay hooks installed".to_string()))
+            }
+        },
+        Commands::Hooks { command } => match command {
+            HooksCommands::List => {
+                let mut rows = list_hooks(root);
+                rows.sort_by(|a, b| {
+                    a.source
+                        .cmp(&b.source)
+                        .then(a.phase.cmp(&b.phase))
+                        .then(a.event.cmp(&b.event))
+                        .then(a.id.cmp(&b.id))
+                });
+                if rows.is_empty() {
+                    return Ok(Some("No hooks configured.".to_string()));
+                }
+                let lines = rows
+                    .iter()
+                    .map(|row| {
+                        let timeout = row
+                            .timeout_ms
+                            .map(|value| value.to_string())
+                            .unwrap_or_else(|| "default".to_string());
+                        format!(
+                            "[{}] {} {} {}\n  command: {}\n  blocking: {} timeout_ms: {}",
+                            row.source,
+                            row.phase,
+                            row.event,
+                            row.id,
+                            row.command,
+                            row.blocking,
+                            timeout
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                Ok(Some(lines.join("\n")))
+            }
+            HooksCommands::Validate => {
+                let issues = validate_hooks(root);
+                if issues.is_empty() {
+                    return Ok(Some("Hook configuration is valid.".to_string()));
+                }
+                let mut lines = vec![format!("Found {} hook validation issue(s):", issues.len())];
+                lines.extend(issues.iter().map(|issue| format!("- {issue}")));
+                Err(KanbusError::IssueOperation(lines.join("\n")))
             }
         },
         Commands::Policy { command } => match command {

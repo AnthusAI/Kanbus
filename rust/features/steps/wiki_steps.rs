@@ -296,6 +296,126 @@ fn then_rendered_wiki_has_issue_link(world: &mut KanbusWorld, identifier: String
     );
 }
 
+#[given("a Kanbus project with AI configured")]
+fn given_project_with_ai_configured(world: &mut KanbusWorld) {
+    std::env::set_var("KANBUS_NO_DAEMON", "1");
+    let temp_dir = TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    world.working_directory = Some(repo_path.clone());
+    world.temp_dir = Some(temp_dir);
+    run_cli(world, "kanbus init");
+    assert_eq!(world.exit_code, Some(0));
+
+    let config_path = repo_path.join(".kanbus.yml");
+    let contents = fs::read_to_string(&config_path).expect("read config");
+    let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
+    let mut ai_block = Mapping::new();
+    ai_block.insert(
+        Value::String("provider".to_string()),
+        Value::String("openai".to_string()),
+    );
+    ai_block.insert(
+        Value::String("model".to_string()),
+        Value::String("gpt-4o".to_string()),
+    );
+    mapping.insert(Value::String("ai".to_string()), Value::Mapping(ai_block));
+    let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
+    fs::write(config_path, yaml).expect("write config");
+
+    world.jira_unset_env_vars.push((
+        String::from("KANBUS_TEST_AI_MOCK"),
+        std::env::var("KANBUS_TEST_AI_MOCK").ok(),
+    ));
+    std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
+}
+
+fn ai_call_count(world: &KanbusWorld) -> usize {
+    let project_dir = load_project_dir(world);
+    let log_path = project_dir.join(".cache").join("ai_calls.log");
+    if log_path.exists() {
+        fs::read_to_string(&log_path)
+            .unwrap_or_default()
+            .lines()
+            .filter(|l| !l.is_empty())
+            .count()
+    } else {
+        0
+    }
+}
+
+#[then("the AI provider API should be called")]
+fn then_ai_provider_api_called(world: &mut KanbusWorld) {
+    let count = ai_call_count(world);
+    assert!(count >= 1, "expected at least 1 API call, got {}", count);
+    world.ai_call_count_after_first_render = Some(count);
+}
+
+#[then("the AI provider API should not be called")]
+fn then_ai_provider_api_not_called(world: &mut KanbusWorld) {
+    let count = ai_call_count(world);
+    let expected = world.ai_call_count_after_first_render.unwrap_or(1);
+    assert_eq!(
+        count, expected,
+        "expected no new API calls (count should be {}), got {}",
+        expected, count
+    );
+}
+
+#[then("a cached rendered file should exist")]
+fn then_cached_rendered_file_exists(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let cache_dir = project_dir.join(".cache").join("wiki_render");
+    assert!(
+        cache_dir.exists(),
+        "expected cache dir {} to exist",
+        cache_dir.display()
+    );
+    let md_files: Vec<_> = fs::read_dir(&cache_dir)
+        .unwrap_or_else(|_| panic!("read dir {}", cache_dir.display()))
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "md"))
+        .collect();
+    assert!(
+        !md_files.is_empty(),
+        "expected at least one cached .md file in {}",
+        cache_dir.display()
+    );
+}
+
+#[then("the command should use the cache")]
+fn then_command_uses_cache(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let log_path = project_dir.join(".cache").join("wiki_cache_hits.log");
+    assert!(
+        log_path.exists(),
+        "expected cache hit log {} to exist",
+        log_path.display()
+    );
+    let content = fs::read_to_string(&log_path).unwrap_or_default();
+    let lines: Vec<_> = content.lines().filter(|l| !l.is_empty()).collect();
+    assert!(
+        !lines.is_empty(),
+        "expected at least 1 cache hit, got {}",
+        lines.len()
+    );
+}
+
+#[then(expr = "the rendered wiki should contain a generated summary for {string}")]
+fn then_rendered_wiki_has_generated_summary(world: &mut KanbusWorld, identifier: String) {
+    let stdout = world.stdout.as_ref().expect("stdout");
+    let expected = format!("Generated summary for {}", identifier);
+    assert!(
+        stdout.contains(&expected),
+        "expected {expected:?} in output"
+    );
+}
+
 #[given(expr = "a Kanbus project with wiki_directory set to {string}")]
 fn given_project_with_wiki_directory(world: &mut KanbusWorld, value: String) {
     std::env::set_var("KANBUS_NO_DAEMON", "1");

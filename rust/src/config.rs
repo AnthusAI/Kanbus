@@ -5,8 +5,8 @@ use std::path::Path;
 
 use crate::error::KanbusError;
 use crate::models::{
-    CategoryDefinition, OverlayConfig, PriorityDefinition, ProjectConfiguration, RealtimeConfig,
-    StatusDefinition,
+    CategoryDefinition, HooksConfiguration, OverlayConfig, PriorityDefinition,
+    ProjectConfiguration, RealtimeConfig, StatusDefinition,
 };
 
 /// Return the default project configuration.
@@ -253,6 +253,8 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         jira: None,
         snyk: None,
         wiki_directory: None,
+        ai: None,
+        hooks: HooksConfiguration::default(),
     }
 }
 

@@ -117,6 +117,19 @@ class PriorityDefinition(BaseModel):
     color: Optional[str] = None
 
 
+class AiConfiguration(BaseModel):
+    """AI provider configuration for wiki summarization.
+
+    :param provider: AI provider identifier (e.g. openai).
+    :type provider: str
+    :param model: Model identifier (e.g. gpt-4o).
+    :type model: str
+    """
+
+    provider: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+
+
 class JiraConfiguration(BaseModel):
     """Jira synchronization configuration."""
 
@@ -180,6 +193,31 @@ class OverlayConfig(BaseModel):
     ttl_s: int = 86400
 
 
+class HookDefinition(BaseModel):
+    """Hook definition for an event/phase binding."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    command: List[str] = Field(min_length=1)
+    blocking: Optional[bool] = None
+    timeout_ms: Optional[int] = Field(default=None, ge=1)
+    cwd: Optional[str] = None
+    env: Dict[str, str] = Field(default_factory=dict)
+
+
+class HooksConfiguration(BaseModel):
+    """Lifecycle hook engine configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    run_in_beads_mode: bool = True
+    default_timeout_ms: int = Field(default=5000, ge=1)
+    before: Dict[str, List[HookDefinition]] = Field(default_factory=dict)
+    after: Dict[str, List[HookDefinition]] = Field(default_factory=dict)
+
+
 class ProjectConfiguration(BaseModel):
     """Project configuration loaded from .kanbus.yml.
 
@@ -225,6 +263,8 @@ class ProjectConfiguration(BaseModel):
     :type realtime: RealtimeConfig
     :param overlay: Overlay cache configuration.
     :type overlay: OverlayConfig
+    :param hooks: Lifecycle hook configuration.
+    :type hooks: HooksConfiguration
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -253,7 +293,9 @@ class ProjectConfiguration(BaseModel):
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False
     wiki_directory: Optional[str] = None
+    ai: Optional[AiConfiguration] = None
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
     realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
     overlay: OverlayConfig = Field(default_factory=OverlayConfig)
+    hooks: HooksConfiguration = Field(default_factory=HooksConfiguration)

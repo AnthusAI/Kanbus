@@ -80,9 +80,18 @@ def then_issues_directory_only_guards(context: object) -> None:
     }, f"expected only guard files, got {names}"
 
 
-@then('a "project/wiki" directory should not exist')
-def then_wiki_directory_missing(context: object) -> None:
-    assert not (context.working_directory / "project" / "wiki").exists()
+@then('the file "{path}" should exist')
+def then_file_exists(context: object, path: str) -> None:
+    full_path = context.working_directory / path
+    assert full_path.exists(), f"expected file {path} to exist"
+    assert full_path.is_file(), f"expected {path} to be a file"
+
+
+@then('the file "{path}" should contain "{text}"')
+def then_file_contains(context: object, path: str, text: str) -> None:
+    full_path = context.working_directory / path
+    content = full_path.read_text(encoding="utf-8")
+    assert text in content, f"expected {path} to contain {text!r}"
 
 
 @then('a "project-local/issues" directory should exist')
