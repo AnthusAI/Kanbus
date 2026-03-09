@@ -339,6 +339,51 @@ def test_fetch_snyk_issues_for_type_raises_on_non_ok(monkeypatch) -> None:
         raise AssertionError("expected SnykSyncError")
 
 
+def test_fetch_snyk_issues_for_type_handles_pagination(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_get(url: str, headers: dict, timeout: int) -> _FakeResponse:
+        calls.append(url)
+        if len(calls) == 1:
+            return _FakeResponse(
+                ok=True,
+                status_code=200,
+                payload={
+                    "data": [
+                        {
+                            "attributes": {
+                                "key": "S-1",
+                                "effective_severity_level": "high",
+                            }
+                        }
+                    ],
+                    "links": {"next": "/rest/orgs/org/issues?page=2"},
+                },
+            )
+        return _FakeResponse(
+            ok=True,
+            status_code=200,
+            payload={
+                "data": [
+                    {
+                        "attributes": {
+                            "key": "S-2",
+                            "effective_severity_level": "medium",
+                        }
+                    }
+                ],
+                "links": {},
+            },
+        )
+
+    monkeypatch.setattr(snyk_sync.requests, "get", fake_get)
+    issues = snyk_sync._fetch_snyk_issues_for_type(
+        org_id="org", token="token", min_priority=2, issue_type="code"
+    )
+    assert [item["attributes"]["key"] for item in issues] == ["S-1", "S-2"]
+    assert len(calls) == 2
+
+
 def test_fetch_all_snyk_issues_continues_when_non_package_type_fails(monkeypatch) -> None:
     def fake_fetch(org_id: str, token: str, min_priority: int, issue_type: str):
         if issue_type == "package_vulnerability":

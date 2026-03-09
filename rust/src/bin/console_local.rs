@@ -1690,6 +1690,14 @@ mod tests {
     }
 
     #[test]
+    fn store_for_uses_base_root_in_single_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+        let store = store_for(&state, "ignored", "ignored");
+        assert_eq!(store.root(), temp.path());
+    }
+
+    #[test]
     fn serve_asset_from_filesystem_blocks_path_traversal() {
         let temp = tempfile::tempdir().expect("tempdir");
         let assets = temp.path().join("assets");
@@ -1718,5 +1726,28 @@ mod tests {
                 .and_then(|value| value.to_str().ok()),
             Some("text/javascript")
         );
+    }
+
+    #[test]
+    fn serve_asset_respects_explicit_filesystem_root() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(&assets).expect("mkdir");
+        std::fs::write(assets.join("index.html"), "<html></html>").expect("write");
+        let state = test_state(temp.path().to_path_buf(), assets, false);
+
+        let response = serve_asset(&state, "index.html");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[test]
+    fn wiki_error_to_response_maps_status_codes() {
+        let invalid = wiki_error_to_response(WikiServiceError::InvalidPath("bad".to_string()));
+        let conflict = wiki_error_to_response(WikiServiceError::Conflict("exists".to_string()));
+        let io = wiki_error_to_response(WikiServiceError::Io("disk".to_string()));
+
+        assert_eq!(invalid.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(conflict.status(), StatusCode::CONFLICT);
+        assert_eq!(io.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 }
