@@ -1,0 +1,26 @@
+{
+  "id": "f61b82efe5e84397228bea10e976d1bc56e710df14a5b486b41164f38e2029e3",
+  "compositionId": "lifecycle-hooks",
+  "env": "development",
+  "createdAt": "2026-03-09T02:55:43.686Z",
+  "source": {
+    "dslPath": "/Users/ryan.porter/Projects/Kanbus/videos/content/lifecycle-hooks.babulus.xml"
+  },
+  "artifacts": [
+    {
+      "kind": "script",
+      "path": "script.44533241579e.json",
+      "sha256": "44533241579e7d74d2b567f4acfaf35d0a83d97cf34c91847caad2bbaded0931"
+    },
+    {
+      "kind": "timeline",
+      "path": "timeline.a165dd098089.json",
+      "sha256": "a165dd098089ffcc0c36ca6d8c22acd8deff364a3bf2d4b2641361277200275b"
+    },
+    {
+      "kind": "audio",
+      "path": "audio.090802229383.wav",
+      "sha256": "0908022293834cfc44a7fb07f6066014efb508791d01e31f5a92f908db947c46"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "segments": {
+    "/Users/ryan.porter/Projects/Kanbus/src/videos/lifecycle-hooks/env/development/segments/hook--hook_voice--tts--4142a228b2e5--1.wav": {
+      "key": "4142a228b2e5ae3017cb62796281bdbb0b66dc93bd830d57e67d0306c8385c89",
+      "durationSec": 5.8625,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "hook",
+        "cueId": "hook_voice",
+        "text": "Lifecycle hooks let Kanbus pull project-defined automation before and after issue operations.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 5.8625,
+        "trimEndSec": 0
+      }
+    },
+    "/Users/ryan.porter/Projects/Kanbus/src/videos/lifecycle-hooks/env/development/segments/deep_dive--before_hooks--tts--778764518869--1.wav": {
+      "key": "7787645188692bdd54a828d3f895577161f4de82212e2c3bd3875a7ef60d61c0",
+      "durationSec": 7.55,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "deep_dive",
+        "cueId": "before_hooks",
+        "text": "Before hooks run on mutating operations and are fail closed by default, so required checks can stop invalid transitions.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 7.55,
+        "trimEndSec": 0
+      }
+    },
+    "/Users/ryan.porter/Projects/Kanbus/src/videos/lifecycle-hooks/env/development/segments/deep_dive--after_hooks--tts--d547a4671b79--1.wav": {
+      "key": "d547a4671b79a95df85623858bc3b66a3b60838153c8f152cd04f6f39274adea",
+      "durationSec": 6.65,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "deep_dive",
+        "cueId": "after_hooks",
+        "text": "After hooks run as observers. They surface warnings if needed, while keeping successful commands successful.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 6.65,
+        "trimEndSec": 0
+      }
+    },
+    "/Users/ryan.porter/Projects/Kanbus/src/videos/lifecycle-hooks/env/development/segments/deep_dive--policy_alignment--tts--e393da64fb40--1.wav": {
+      "key": "e393da64fb4036e8bcbcf0b6f6f2d5683726f437034fc8e7f7f8145a0afa9b95",
+      "durationSec": 7.3,
+      "meta": {
+        "provider": "openai",
+        "sceneId": "deep_dive",
+        "cueId": "policy_alignment",
+        "text": "Policy guidance is aligned as a built-in hook provider, so project hooks and policy hooks share one lifecycle engine.",
+        "sample_rate_hz": 24000,
+        "format": "wav",
+        "rawDurationSec": 7.3,
+        "trimEndSec": 0
+      }
+    }
+  },
+  "sfx": {},
+  "music": {}
+}

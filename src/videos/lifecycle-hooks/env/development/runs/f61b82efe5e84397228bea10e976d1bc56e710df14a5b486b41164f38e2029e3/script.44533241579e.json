@@ -1,0 +1,310 @@
+{
+  "scenes": [
+    {
+      "id": "hook",
+      "title": "Lifecycle Hooks",
+      "startSec": 0,
+      "endSec": 5.8625,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "animated-pictogram-video-0",
+              "type": "AnimatedPictogramVideo",
+              "props": {
+                "type": "hooks",
+                "headline": "Lifecycle Hooks",
+                "subhead": "Project-defined automation on every command boundary",
+                "sceneStartSec": 0
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "hook_voice",
+          "label": "Hook",
+          "startSec": 0,
+          "endSec": 5.8625,
+          "text": "Lifecycle hooks let Kanbus pull project-defined automation before and after issue operations.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 0,
+              "endSec": 5.8625,
+              "text": "Lifecycle hooks let Kanbus pull project-defined automation before and after issue operations."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "deep_dive",
+      "title": "Lifecycle Hooks Deep Dive",
+      "startSec": 6.4875,
+      "endSec": 29.4875,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 5.8625
+              }
+            }
+          ]
+        },
+        {
+          "id": "title",
+          "zIndex": 2,
+          "components": [
+            {
+              "id": "title-0",
+              "type": "Title",
+              "props": {
+                "text": "Lifecycle Hooks",
+                "x": 960,
+                "y": 120,
+                "sceneStartSec": 5.8625
+              }
+            }
+          ]
+        },
+        {
+          "id": "subtitle",
+          "zIndex": 2,
+          "components": [
+            {
+              "id": "subtitle-0",
+              "type": "Subtitle",
+              "props": {
+                "text": "Before and after integrations with policy alignment",
+                "x": 960,
+                "y": 200,
+                "sceneStartSec": 5.8625
+              }
+            }
+          ]
+        },
+        {
+          "id": "left-content",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "text-block-0",
+              "type": "TextBlock",
+              "props": {
+                "text": "Fail-closed pre-hooks",
+                "x": 530,
+                "y": 360,
+                "size": 38,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 700,
+                "font": "sans",
+                "sceneStartSec": 5.8625
+              }
+            },
+            {
+              "id": "text-block-1",
+              "type": "TextBlock",
+              "props": {
+                "text": "Block mutating operations when a required external check fails or times out.",
+                "x": 530,
+                "y": 470,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 700,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 26,
+                "borderRadius": 14,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5.8625
+              }
+            },
+            {
+              "id": "text-block-2",
+              "type": "TextBlock",
+              "props": {
+                "text": "Observer-style post-hooks",
+                "x": 530,
+                "y": 690,
+                "size": 38,
+                "weight": 800,
+                "align": "center",
+                "maxWidth": 700,
+                "font": "sans",
+                "sceneStartSec": 5.8625
+              }
+            },
+            {
+              "id": "text-block-3",
+              "type": "TextBlock",
+              "props": {
+                "text": "Run notifications, analytics, and enrichment after successful commands without rolling them back.",
+                "x": 530,
+                "y": 800,
+                "size": 28,
+                "align": "center",
+                "maxWidth": 700,
+                "font": "serif",
+                "background": "var(--card)",
+                "padding": 26,
+                "borderRadius": 14,
+                "border": "1px solid var(--border)",
+                "sceneStartSec": 5.8625
+              }
+            }
+          ]
+        },
+        {
+          "id": "right-visual",
+          "zIndex": 1,
+          "components": [
+            {
+              "id": "animated-pictogram-video-0",
+              "type": "AnimatedPictogramVideo",
+              "props": {
+                "type": "hooks",
+                "style": {
+                  "position": "absolute",
+                  "left": 980,
+                  "top": 280,
+                  "width": "860px",
+                  "height": "520px"
+                },
+                "sceneStartSec": 5.8625
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "before_hooks",
+          "label": "Before hooks",
+          "startSec": 6.4875,
+          "endSec": 14.5375,
+          "text": "Before hooks run on mutating operations and are fail closed by default, so required checks can stop invalid transitions.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 6.4875,
+              "endSec": 6.9875,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 6.9875,
+              "endSec": 14.5375,
+              "text": "Before hooks run on mutating operations and are fail closed by default, so required checks can stop invalid transitions."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "after_hooks",
+          "label": "After hooks",
+          "startSec": 14.5375,
+          "endSec": 21.6875,
+          "text": "After hooks run as observers. They surface warnings if needed, while keeping successful commands successful.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 14.5375,
+              "endSec": 15.0375,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 15.0375,
+              "endSec": 21.6875,
+              "text": "After hooks run as observers. They surface warnings if needed, while keeping successful commands successful."
+            }
+          ],
+          "bullets": []
+        },
+        {
+          "id": "policy_alignment",
+          "label": "Policy alignment",
+          "startSec": 21.6875,
+          "endSec": 29.4875,
+          "text": "Policy guidance is aligned as a built-in hook provider, so project hooks and policy hooks share one lifecycle engine.",
+          "segments": [
+            {
+              "type": "pause",
+              "startSec": 21.6875,
+              "endSec": 22.1875,
+              "durationSec": 0.5
+            },
+            {
+              "type": "tts",
+              "startSec": 22.1875,
+              "endSec": 29.4875,
+              "text": "Policy guidance is aligned as a built-in hook provider, so project hooks and policy hooks share one lifecycle engine."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "kind": "scene",
+      "sceneId": "hook",
+      "startSec": 0,
+      "endSec": 5.8625
+    },
+    {
+      "kind": "transition",
+      "id": "push-1",
+      "startSec": 5.8625,
+      "endSec": 6.4875,
+      "effect": "slide",
+      "ease": "power2.inOut",
+      "props": {
+        "direction": "left"
+      },
+      "mode": "insert",
+      "fromSceneId": "hook",
+      "toSceneId": "deep_dive"
+    },
+    {
+      "kind": "scene",
+      "sceneId": "deep_dive",
+      "startSec": 6.4875,
+      "endSec": 29.4875
+    }
+  ],
+  "posterTimeSec": 2,
+  "fps": 24,
+  "meta": {
+    "fps": 24,
+    "width": 1920,
+    "height": 1080
+  }
+}
