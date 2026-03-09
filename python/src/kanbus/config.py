@@ -122,4 +122,5 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     },
     "beads_compatibility": False,
     "wiki_directory": None,
+    "github_security": None,
 }

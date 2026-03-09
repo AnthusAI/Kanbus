@@ -35,6 +35,7 @@ use crate::hooks::{
     list_hooks, run_lifecycle_hooks, serialize_issue, validate_hooks, HookEvent,
     HookExecutionOptions, HookPhase,
 };
+use crate::github_security_sync::{pull_dependabot_from_github, pull_dependabot_from_github_beads};
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
 use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
@@ -339,6 +340,12 @@ enum Commands {
         #[command(subcommand)]
         command: SnykCommands,
     },
+    /// GitHub security synchronization commands.
+    #[command(name = "github", visible_alias = "gh")]
+    GithubSecurity {
+        #[command(subcommand)]
+        command: GithubSecurityCommands,
+    },
     /// Migrate Beads issues into Kanbus.
     Migrate,
     /// Run environment diagnostics.
@@ -561,6 +568,37 @@ enum EditCommands {
         /// Text to insert.
         #[arg(long = "insert-text")]
         insert_text: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum GithubSecurityCommands {
+    /// Dependabot synchronization commands.
+    Dependabot {
+        #[command(subcommand)]
+        command: DependabotCommands,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum DependabotCommands {
+    /// Pull Dependabot alerts from GitHub into Kanbus.
+    Pull {
+        /// Show what would be done without writing any files.
+        #[arg(long)]
+        dry_run: bool,
+        /// Override GitHub repository slug (owner/repo).
+        #[arg(long)]
+        repo: Option<String>,
+        /// Override minimum severity (critical, high, medium, low).
+        #[arg(long)]
+        min_severity: Option<String>,
+        /// Override Dependabot alert state filter.
+        #[arg(long)]
+        state: Option<String>,
+        /// Override parent epic issue ID to attach findings to.
+        #[arg(long)]
+        parent_epic: Option<String>,
     },
 }
 
@@ -2638,6 +2676,67 @@ fn execute_command(
                     result.pulled, result.updated, result.skipped
                 )))
             }
+        },
+        Commands::GithubSecurity { command } => match command {
+            GithubSecurityCommands::Dependabot { command } => match command {
+                DependabotCommands::Pull {
+                    dry_run,
+                    repo,
+                    min_severity,
+                    state,
+                    parent_epic,
+                } => {
+                    let config_path = get_configuration_path(root)?;
+                    let configuration = load_project_configuration(&config_path)?;
+                    let mut github_security_config = configuration
+                        .github_security
+                        .clone()
+                        .unwrap_or(crate::models::GithubSecurityConfiguration {
+                            repo: None,
+                            dependabot: None,
+                        });
+                    let mut dependabot_config = github_security_config
+                        .dependabot
+                        .clone()
+                        .unwrap_or_default();
+                    if let Some(value) = min_severity {
+                        dependabot_config.min_severity = value;
+                    }
+                    if let Some(value) = state {
+                        dependabot_config.state = value;
+                    }
+                    if parent_epic.is_some() {
+                        dependabot_config.parent_epic = parent_epic;
+                    }
+                    if repo.is_some() {
+                        github_security_config.repo = repo;
+                    }
+                    github_security_config.dependabot = Some(dependabot_config);
+
+                    if dry_run {
+                        println!("Dry run — no files will be written.\n");
+                    }
+
+                    let result = if beads_mode {
+                        pull_dependabot_from_github_beads(
+                            &root_for_beads,
+                            &github_security_config,
+                            dry_run,
+                        )?
+                    } else {
+                        pull_dependabot_from_github(
+                            root,
+                            &github_security_config,
+                            &configuration.project_key,
+                            dry_run,
+                        )?
+                    };
+                    Ok(Some(format!(
+                        "pulled {} new, updated {} existing, skipped {} duplicates",
+                        result.pulled, result.updated, result.skipped
+                    )))
+                }
+            },
         },
         Commands::Migrate => {
             let result = migrate_from_beads(&root_for_beads)?;
