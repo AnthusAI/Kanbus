@@ -135,6 +135,31 @@ def test_load_beads_records_and_dedupe(tmp_path: Path) -> None:
     assert len(deduped_tied) == 1
     assert deduped_tied[0]["notes"] == "long payload plus"
 
+    unique_latest_records = [
+        _record("kanbus-4", updated_at="2026-03-09T00:00:00Z"),
+        _record("kanbus-4", updated_at="2026-03-10T00:00:00Z"),
+    ]
+    deduped_unique_latest = migration._dedupe_beads_records(
+        unique_latest_records, issues_path
+    )
+    assert len(deduped_unique_latest) == 1
+    assert deduped_unique_latest[0]["updated_at"] == "2026-03-10T00:00:00Z"
+
+    class _FlakyIdRecord(dict):
+        def __init__(self):
+            super().__init__(_record("kanbus-5"))
+            self._id_calls = 0
+
+        def get(self, key, default=None):
+            if key == "id":
+                self._id_calls += 1
+                if self._id_calls >= 2:
+                    return None
+            return super().get(key, default)
+
+    with pytest.raises(MigrationError, match="missing id"):
+        migration._dedupe_beads_records([_FlakyIdRecord()], issues_path)
+
 
 def test_load_configuration_for_beads_builds_expected_defaults(tmp_path: Path) -> None:
     records = [

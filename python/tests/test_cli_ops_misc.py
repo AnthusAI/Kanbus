@@ -91,6 +91,16 @@ def test_dep_add_remove_paths_with_modes(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert added == [("kanbus-1", "kanbus-2", "blocked-by")]
 
     monkeypatch.setattr(
+        "kanbus.beads_write.remove_beads_dependency",
+        lambda *_a: (_ for _ in ()).throw(cli.BeadsWriteError("beads remove fail")),
+    )
+    result_remove_beads_fail = _run(
+        ["dep", "kanbus-1", "remove", "blocked-by", "kanbus-2"]
+    )
+    assert result_remove_beads_fail.exit_code != 0
+    assert "beads remove fail" in result_remove_beads_fail.output
+
+    monkeypatch.setattr(
         "kanbus.beads_write.add_beads_dependency",
         lambda *_a: (_ for _ in ()).throw(cli.BeadsWriteError("beads add fail")),
     )
@@ -324,7 +334,9 @@ def test_snyk_and_jira_pull_and_aliases(monkeypatch: pytest.MonkeyPatch, tmp_pat
         "load_project_configuration",
         lambda _p: (_ for _ in ()).throw(ConfigurationError("cfg fail")),
     )
-    assert _run(["snyk", "pull"]).exit_code != 0
+    result_snyk_cfg = _run(["snyk", "pull"])
+    assert result_snyk_cfg.exit_code != 0
+    assert "cfg fail" in result_snyk_cfg.output
 
     cfg_no_snyk = build_project_configuration().model_copy(update={"snyk": None})
     monkeypatch.setattr(cli, "load_project_configuration", lambda _p: cfg_no_snyk)
@@ -363,6 +375,15 @@ def test_snyk_and_jira_pull_and_aliases(monkeypatch: pytest.MonkeyPatch, tmp_pat
     result_no_jira = _run(["jira", "pull"])
     assert result_no_jira.exit_code != 0
     assert "no jira configuration" in result_no_jira.output
+
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: (_ for _ in ()).throw(ConfigurationError("jira cfg fail")),
+    )
+    result_jira_cfg = _run(["jira", "pull"])
+    assert result_jira_cfg.exit_code != 0
+    assert "jira cfg fail" in result_jira_cfg.output
 
     cfg_bad_sync = cfg_with_snyk.model_copy(
         update={

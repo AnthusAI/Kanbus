@@ -136,3 +136,30 @@ def test_maybe_prompt_project_repair_permission_and_noninteractive_paths(
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False)
     monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: False)
     cli._maybe_prompt_project_repair(context)
+
+
+def test_maybe_prompt_project_repair_includes_missing_issues_in_prompt(
+    monkeypatch, tmp_path: Path
+) -> None:
+    context = click.Context(click.Command("kanbus"))
+    context.invoked_subcommand = "list"
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(
+        cli,
+        "detect_repairable_project_issues",
+        lambda _root, allow_uninitialized: SimpleNamespace(
+            missing_project_dir=False,
+            missing_issues_dir=True,
+            missing_events_dir=False,
+        ),
+    )
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
+    prompts: list[str] = []
+    monkeypatch.setattr(
+        cli.click,
+        "confirm",
+        lambda prompt, default=False: prompts.append(prompt) or False,
+    )
+    cli._maybe_prompt_project_repair(context)
+    assert prompts and "project/issues" in prompts[0]
