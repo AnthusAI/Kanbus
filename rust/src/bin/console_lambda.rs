@@ -559,7 +559,10 @@ mod tests {
         assert!(is_console_route("issues"));
         assert!(is_console_route("issues/kanbus-1"));
         assert!(is_console_route("issues/kanbus-parent/all"));
+        assert!(is_console_route("initiatives"));
+        assert!(is_console_route("epics"));
         assert!(!is_console_route("assets/app.js"));
+        assert!(!is_console_route("issues/a/b/c"));
     }
 
     #[test]

@@ -219,3 +219,77 @@ def test_publish_envelope_autostarts_and_terminates_when_not_keepalive(monkeypat
     gossip._publish_envelope(Path("."), configuration, "topic/three", envelope)
     assert published == ["topic/three"]
     assert process.terminated is True
+
+
+def test_publish_envelope_returns_when_broker_off(monkeypatch) -> None:
+    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket"))
+    mqtt_called = {"value": False}
+    uds_called = {"value": False}
+    monkeypatch.setattr(
+        gossip,
+        "_publish_mqtt",
+        lambda *_args, **_kwargs: mqtt_called.__setitem__("value", True),
+    )
+    monkeypatch.setattr(
+        gossip,
+        "_publish_uds",
+        lambda *_args, **_kwargs: uds_called.__setitem__("value", True),
+    )
+    configuration = SimpleNamespace(
+        realtime=SimpleNamespace(
+            transport="mqtt",
+            broker="off",
+            autostart=True,
+            keepalive=False,
+        )
+    )
+    envelope = gossip.GossipEnvelope(
+        id="env-off",
+        ts="2026-01-01T00:00:00Z",
+        project="kanbus",
+        type="issue.mutated",
+        issue_id="KAN-OFF",
+        producer_id="producer-off",
+    )
+    gossip._publish_envelope(Path("."), configuration, "topic/off", envelope)
+    assert mqtt_called["value"] is False
+    assert uds_called["value"] is False
+
+
+def test_publish_envelope_handles_missing_mosquitto(monkeypatch) -> None:
+    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket"))
+    monkeypatch.setattr(
+        gossip,
+        "resolve_broker_endpoint",
+        lambda _broker: gossip.BrokerEndpoint(
+            scheme="mqtt", host="127.0.0.1", port=1883, url="mqtt://127.0.0.1:1883"
+        ),
+    )
+    monkeypatch.setattr(gossip, "broker_is_reachable", lambda _endpoint: False)
+    monkeypatch.setattr(gossip, "ensure_mosquitto", lambda _endpoint: None)
+
+    printed = {"value": False}
+    monkeypatch.setattr(
+        gossip,
+        "_print_mosquitto_missing",
+        lambda: printed.__setitem__("value", True),
+    )
+
+    configuration = SimpleNamespace(
+        realtime=SimpleNamespace(
+            transport="mqtt",
+            broker="auto",
+            autostart=True,
+            keepalive=False,
+        )
+    )
+    envelope = gossip.GossipEnvelope(
+        id="env-missing",
+        ts="2026-01-01T00:00:00Z",
+        project="kanbus",
+        type="issue.mutated",
+        issue_id="KAN-MISS",
+        producer_id="producer-miss",
+    )
+    gossip._publish_envelope(Path("."), configuration, "topic/miss", envelope)
+    assert printed["value"] is True
