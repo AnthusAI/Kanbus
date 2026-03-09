@@ -4,13 +4,20 @@
 //! This is used by CLI query commands (`kbs console status`, `kbs console get focus`, etc.)
 //! and is persisted to `.kanbus/.cache/console_state.json` across server restarts.
 
+use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::KanbusError;
 
 const STATE_FILE_NAME: &str = "console_state.json";
+static STATE_CACHE: OnceLock<Mutex<HashMap<PathBuf, ConsoleUiState>>> = OnceLock::new();
+
+fn state_cache() -> &'static Mutex<HashMap<PathBuf, ConsoleUiState>> {
+    STATE_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 /// Cached record of the last URL route pushed to console clients.
 ///
@@ -67,6 +74,11 @@ pub fn state_path(root: &Path) -> Result<PathBuf, KanbusError> {
 /// Returns `Default::default()` if the file does not exist (not an error).
 pub fn load_state(root: &Path) -> Result<ConsoleUiState, KanbusError> {
     let path = resolve_state_path(root)?;
+    if let Ok(guard) = state_cache().lock() {
+        if let Some(state) = guard.get(&path) {
+            return Ok(state.clone());
+        }
+    }
     if !path.exists() {
         return Ok(ConsoleUiState::default());
     }
@@ -79,11 +91,11 @@ pub fn load_state(root: &Path) -> Result<ConsoleUiState, KanbusError> {
 /// Creates parent directories if they do not exist.
 pub fn save_state(root: &Path, state: &ConsoleUiState) -> Result<(), KanbusError> {
     let path = resolve_state_path(root)?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| KanbusError::Io(e.to_string()))?;
-    }
-    let json = serde_json::to_string_pretty(state).map_err(|e| KanbusError::Io(e.to_string()))?;
-    std::fs::write(&path, json).map_err(|e| KanbusError::Io(e.to_string()))
+    let mut guard = state_cache()
+        .lock()
+        .map_err(|_| KanbusError::IssueOperation("console state cache lock poisoned".to_string()))?;
+    guard.insert(path, state.clone());
+    Ok(())
 }
 
 #[cfg(test)]
