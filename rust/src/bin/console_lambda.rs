@@ -538,6 +538,21 @@ mod tests {
         }
     }
 
+    fn jwt_with_claims(
+        account_key: &str,
+        account: &str,
+        project_key: &str,
+        project: &str,
+    ) -> String {
+        let payload = serde_json::json!({
+            account_key: account,
+            project_key: project,
+        });
+        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(serde_json::to_vec(&payload).expect("serialize claims"));
+        format!("aaa.{encoded}.bbb")
+    }
+
     #[test]
     fn is_console_route_detects_supported_paths() {
         assert!(is_console_route(""));
@@ -677,5 +692,41 @@ mod tests {
     #[test]
     fn decode_jwt_claims_rejects_invalid_token_shape() {
         assert!(decode_jwt_claims("not-a-jwt").is_none());
+    }
+
+    #[test]
+    fn bearer_token_supports_standard_and_lowercase_prefix() {
+        let mut req_upper = Request::new(Body::Empty);
+        req_upper
+            .headers_mut()
+            .insert("Authorization", "Bearer token-123".parse().expect("header"));
+        let mut req_lower = Request::new(Body::Empty);
+        req_lower
+            .headers_mut()
+            .insert("Authorization", "bearer token-456".parse().expect("header"));
+
+        assert_eq!(bearer_token(&req_upper).as_deref(), Some("token-123"));
+        assert_eq!(bearer_token(&req_lower).as_deref(), Some("token-456"));
+    }
+
+    #[test]
+    fn enforce_tenant_claims_validates_expected_tenant() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+        }
+        let token = jwt_with_claims("custom:account", "anthus", "custom:project", "kanbus");
+        let request = Request::new(Body::Empty);
+
+        let ok = enforce_tenant_claims(&request, "anthus", "kanbus", Some(&token));
+        assert!(ok.is_ok());
+
+        let forbidden_result = enforce_tenant_claims(&request, "other", "kanbus", Some(&token));
+        assert_eq!(
+            forbidden_result.expect_err("should fail").status(),
+            StatusCode::FORBIDDEN
+        );
     }
 }
