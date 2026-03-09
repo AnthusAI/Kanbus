@@ -44,6 +44,17 @@ def test_vuln_title_for_dependency_and_code() -> None:
     assert snyk_sync._vuln_title(code_issue) == "[Snyk Code] Unsanitized input"
 
 
+def test_vuln_title_dependency_without_package_name() -> None:
+    dependency_issue = {
+        "attributes": {
+            "key": "SNYK-EMPTY",
+            "type": "package_vulnerability",
+            "coordinates": [{"representations": [{"dependency": {}}]}],
+        }
+    }
+    assert snyk_sync._vuln_title(dependency_issue) == "[Snyk] SNYK-EMPTY"
+
+
 def test_extract_source_location_handles_region_and_line_column() -> None:
     issue_with_region = {
         "attributes": {
@@ -116,6 +127,13 @@ def test_build_snippet_renders_context_window(tmp_path: Path) -> None:
 
     assert "### Snippet (src/app.py:1-5)" in snippet
     assert "   3 | line 3" in snippet
+
+
+def test_build_snippet_returns_empty_for_empty_file(tmp_path: Path) -> None:
+    source_file = tmp_path / "src" / "empty.py"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_text("", encoding="utf-8")
+    assert snyk_sync._build_snippet(tmp_path, "src/empty.py", 1, 1) == ""
 
 
 def test_map_snyk_to_kanbus_sets_core_custom_fields(tmp_path: Path) -> None:
