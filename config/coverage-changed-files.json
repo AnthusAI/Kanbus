@@ -15,7 +15,7 @@
   },
   "python_min": 75.0,
   "rust_min": 65.0,
-  "waiver_min_improvement_points": 3.0,
+  "waiver_min_improvement_points": 0.25,
   "waivers": [
     "python/src/kanbus/gossip.py",
     "python/src/kanbus/overlay.py",

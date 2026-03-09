@@ -4,9 +4,9 @@
 
 Coverage ratchet baseline is frozen in `config/coverage-baselines.json`:
 
-- `python_line_coverage: 78.82`
-- `rust_line_coverage: 68.0329`
-- `max_gap_points: 10.7871`
+- `python_line_coverage: 79.41`
+- `rust_line_coverage: 78.1616`
+- `max_gap_points: 1.2484`
 
 Baselines only move via explicit `--update-baseline`.
 
