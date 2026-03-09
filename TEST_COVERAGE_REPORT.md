@@ -69,3 +69,38 @@ python tools/coverage_parity_report.py \
   --rust-xml coverage-rust/cobertura.xml \
   --limit 25
 ```
+
+## Coverage Uplift Status Log
+
+Last updated: March 9, 2026 (`feature/coverage-uplift`).
+
+Recent pushed checkpoints:
+
+- `5b59914` `test(py): complete ai summarize branch coverage`
+- `551f09a` `test(rust): expand beads write helper branch coverage`
+- `ffafecd` `test(rust): deepen gossip helper and uds branch coverage`
+- `bcb03f6` `test(rust): expand snyk sync helper coverage`
+- `69a667c` `test(py): drive snyk sync module to full targeted coverage`
+- `4f278d9` `test(py): drive overlay module to full targeted coverage`
+- `1f4f104` `test(py): drive gossip module to full targeted coverage`
+
+Local validation snapshots run during these checkpoints:
+
+- Rust targeted lanes:
+  - `cd rust && cargo test --locked --lib gossip`
+  - `cd rust && cargo test --locked --lib beads_write`
+  - `cd rust && cargo test --locked --lib snyk_sync`
+- Python targeted lanes:
+  - `conda run -n py311 pytest -q python/tests/test_ai_summarize.py`
+  - `pytest -q python/tests/test_overlay.py`
+  - `pytest -q python/tests/test_snyk_sync.py`
+- Cross-language gate:
+  - `conda run -n py311 python tools/coverage_ratchet.py --python-xml coverage-python/coverage.xml --rust-xml coverage-rust/cobertura.xml --baseline-file config/coverage-baselines.json`
+  - Result at last run: `python_line_coverage=79.41`, `rust_line_coverage=78.16`, `status=passing`.
+
+Known resume points:
+
+- Re-generate fresh combined coverage artifacts before next ratchet bump so new tests are reflected in `coverage-python/coverage.xml` and `coverage-rust/cobertura.xml`.
+- Next largest remaining uplift targets:
+  - Python: `cli.py`, `beads_write.py`, `console_snapshot.py`, `console_ui_state.py`
+  - Rust: `overlay.rs`, `beads_write.rs`, `gossip.rs`, `console_local.rs`, `console_lambda.rs`
