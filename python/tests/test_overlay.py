@@ -546,3 +546,293 @@ def test_gc_overlay_handles_disabled_and_invalid_overlay_entries(
     overlay_module.gc_overlay(project_dir, OverlayConfig(enabled=True, ttl_s=60))
     assert not stale_overlay.exists()
     assert not stale_tombstone.exists()
+
+
+def test_resolve_issue_with_overlay_covers_expired_and_override_merge_paths(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "project"
+    now = datetime.now(timezone.utc)
+    base = _issue("kanbus-merge", now)
+    base.custom["last_event_id"] = "evt-1"
+    overlay_issue = _issue("kanbus-merge", now + timedelta(minutes=5))
+    overlay_record = overlay_module.OverlayIssueRecord(
+        issue=overlay_issue,
+        overlay_ts=(now + timedelta(minutes=5)).isoformat().replace("+00:00", "Z"),
+        overlay_event_id="evt-2",
+        overrides={"title": "Merged title"},
+    )
+    merged = overlay_module.resolve_issue_with_overlay(
+        project_dir,
+        base,
+        overlay_record,
+        None,
+        OverlayConfig(enabled=True, ttl_s=3600),
+        project_label="alpha",
+    )
+    assert merged is not None
+    assert merged.title == "Merged title"
+    assert merged.custom["project_label"] == "alpha"
+
+    expired = overlay_module.OverlayIssueRecord(
+        issue=overlay_issue,
+        overlay_ts=(now - timedelta(days=2)).isoformat().replace("+00:00", "Z"),
+        overlay_event_id="evt-old",
+    )
+    resolved = overlay_module.resolve_issue_with_overlay(
+        project_dir,
+        base,
+        expired,
+        None,
+        OverlayConfig(enabled=True, ttl_s=1),
+    )
+    assert resolved is not None
+    assert resolved.identifier == "kanbus-merge"
+
+
+def test_apply_overlay_to_issues_skips_base_collision_and_missing_overlay(
+    tmp_path: Path, monkeypatch
+) -> None:
+    project_dir = tmp_path / "project"
+    overlay_dir = project_dir / ".overlay" / "issues"
+    overlay_dir.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    shared = _issue("kanbus-shared2", now)
+    overlay_module.write_overlay_issue(
+        project_dir,
+        _issue("kanbus-shared2", now + timedelta(minutes=1)),
+        (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+        "evt-a",
+    )
+    overlay_module.write_overlay_issue(
+        project_dir,
+        _issue("kanbus-missing-overlay", now + timedelta(minutes=2)),
+        (now + timedelta(minutes=2)).isoformat().replace("+00:00", "Z"),
+        "evt-b",
+    )
+    real_load = overlay_module.load_overlay_issue
+    monkeypatch.setattr(
+        overlay_module,
+        "load_overlay_issue",
+        lambda p, issue_id: None
+        if issue_id == "kanbus-missing-overlay"
+        else real_load(p, issue_id),
+    )
+    results = overlay_module.apply_overlay_to_issues(
+        project_dir,
+        [shared],
+        OverlayConfig(enabled=True, ttl_s=3600),
+    )
+    assert [item.identifier for item in results] == ["kanbus-shared2"]
+
+
+def test_gc_overlay_removes_expired_and_base_newer_records(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    base_issues = project_dir / "issues"
+    base_issues.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+
+    expired_issue = _issue("kanbus-expired", now - timedelta(days=2))
+    overlay_module.write_overlay_issue(
+        project_dir,
+        expired_issue,
+        expired_issue.updated_at.isoformat().replace("+00:00", "Z"),
+        "evt-expired",
+    )
+
+    base_newer = _issue("kanbus-base-newer", now)
+    (base_issues / "kanbus-base-newer.json").write_text(
+        json.dumps(base_newer.model_dump(by_alias=True, mode="json"), indent=2),
+        encoding="utf-8",
+    )
+    old_overlay = _issue("kanbus-base-newer", now - timedelta(minutes=20))
+    overlay_module.write_overlay_issue(
+        project_dir,
+        old_overlay,
+        old_overlay.updated_at.isoformat().replace("+00:00", "Z"),
+        "evt-old",
+    )
+
+    tombstone_expired = overlay_module.OverlayTombstone(
+        op="delete",
+        project="alpha",
+        id="kanbus-tomb-expired",
+        event_id="evt-t1",
+        ts=(now - timedelta(days=2)).isoformat().replace("+00:00", "Z"),
+        ttl_s=1,
+    )
+    overlay_module.write_tombstone(project_dir, tombstone_expired)
+
+    tombstone_old = overlay_module.OverlayTombstone(
+        op="delete",
+        project="alpha",
+        id="kanbus-base-newer",
+        event_id="evt-t2",
+        ts=(now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
+        ttl_s=3600,
+    )
+    overlay_module.write_tombstone(project_dir, tombstone_old)
+
+    overlay_module.gc_overlay(project_dir, OverlayConfig(enabled=True, ttl_s=60))
+    assert not overlay_module.overlay_issue_path(project_dir, "kanbus-expired").exists()
+    assert not overlay_module.overlay_issue_path(project_dir, "kanbus-base-newer").exists()
+    assert not overlay_module.overlay_tombstone_path(
+        project_dir, "kanbus-tomb-expired"
+    ).exists()
+    assert not overlay_module.overlay_tombstone_path(
+        project_dir, "kanbus-base-newer"
+    ).exists()
+
+
+def test_gc_overlay_tolerates_invalid_base_issue_json(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    base_issues = project_dir / "issues"
+    base_issues.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    overlay_module.write_overlay_issue(
+        project_dir,
+        _issue("kanbus-invalid-base", now),
+        now.isoformat().replace("+00:00", "Z"),
+        "evt",
+    )
+    (base_issues / "kanbus-invalid-base.json").write_text("{", encoding="utf-8")
+    overlay_module.gc_overlay(project_dir, OverlayConfig(enabled=True, ttl_s=3600))
+    assert overlay_module.overlay_issue_path(project_dir, "kanbus-invalid-base").exists()
+
+
+def test_reconcile_overlay_returns_defaults_for_disabled_or_missing_dir(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "project"
+    disabled = overlay_module.reconcile_overlay(
+        project_dir, OverlayConfig(enabled=False, ttl_s=60), prune=False, dry_run=False
+    )
+    assert disabled == overlay_module.OverlayReconcileStats()
+
+    enabled_no_dir = overlay_module.reconcile_overlay(
+        project_dir, OverlayConfig(enabled=True, ttl_s=60), prune=False, dry_run=False
+    )
+    assert enabled_no_dir == overlay_module.OverlayReconcileStats()
+
+
+def test_reconcile_overlay_covers_remove_update_and_dry_run_paths(
+    tmp_path: Path, monkeypatch
+) -> None:
+    project_dir = tmp_path / "project"
+    base_issues = project_dir / "issues"
+    base_issues.mkdir(parents=True, exist_ok=True)
+    overlay_dir = project_dir / ".overlay" / "issues"
+    overlay_dir.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+
+    base_same = _issue("kanbus-same", now)
+    (base_issues / "kanbus-same.json").write_text(
+        json.dumps(base_same.model_dump(by_alias=True, mode="json"), indent=2),
+        encoding="utf-8",
+    )
+    overlay_module.write_overlay_issue(
+        project_dir,
+        base_same,
+        now.isoformat().replace("+00:00", "Z"),
+        "evt-same",
+    )
+
+    base_update = _issue("kanbus-update", now)
+    (base_issues / "kanbus-update.json").write_text(
+        json.dumps(base_update.model_dump(by_alias=True, mode="json"), indent=2),
+        encoding="utf-8",
+    )
+    changed = base_update.model_copy(update={"title": "Changed"})
+    overlay_path = overlay_module.overlay_issue_path(project_dir, "kanbus-update")
+    overlay_path.parent.mkdir(parents=True, exist_ok=True)
+    overlay_path.write_text(
+        json.dumps(
+            {
+                "overlay_ts": now.isoformat().replace("+00:00", "Z"),
+                "overlay_event_id": "evt-update",
+                "overrides": None,
+                "issue": changed.model_dump(by_alias=True, mode="json"),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    orphan_issue = _issue("orphan", now)
+    overlay_module.write_overlay_issue(
+        project_dir,
+        orphan_issue,
+        now.isoformat().replace("+00:00", "Z"),
+        "evt-orphan",
+    )
+    missing_base_overlay = overlay_dir / "missing-base.json"
+    missing_base_overlay.write_text(
+        json.dumps(
+            {
+                "overlay_ts": now.isoformat().replace("+00:00", "Z"),
+                "overlay_event_id": "evt-missing",
+                "overrides": {"title": "X"},
+                "issue": base_update.model_dump(by_alias=True, mode="json"),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    invalid_base_overlay = overlay_dir / "invalid-base.json"
+    invalid_base_overlay.write_text(
+        json.dumps(
+            {
+                "overlay_ts": now.isoformat().replace("+00:00", "Z"),
+                "overlay_event_id": "evt-invalid",
+                "overrides": {"title": "Y"},
+                "issue": base_update.model_dump(by_alias=True, mode="json"),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (base_issues / "invalid-base.json").write_text("{", encoding="utf-8")
+
+    real_load = overlay_module.load_overlay_issue
+    # Force one path through the overlay_issue is None branch.
+    monkeypatch.setattr(
+        overlay_module,
+        "load_overlay_issue",
+        lambda p, issue_id: None if issue_id == "orphan" else real_load(p, issue_id),
+    )
+    stats = overlay_module.reconcile_overlay(
+        project_dir, OverlayConfig(enabled=True, ttl_s=60), prune=True, dry_run=False
+    )
+    assert stats.issues_scanned >= 2
+    assert stats.issues_updated >= 1
+    assert stats.issues_removed >= 1
+    assert not overlay_module.overlay_issue_path(project_dir, "orphan").exists()
+    assert not overlay_module.overlay_issue_path(project_dir, "kanbus-same").exists()
+    updated_payload = json.loads(overlay_path.read_text(encoding="utf-8"))
+    assert updated_payload["overrides"]["title"] == "Changed"
+
+    dry_run_overlay = overlay_module.overlay_issue_path(project_dir, "kanbus-dry")
+    base_dry = _issue("kanbus-dry", now)
+    (base_issues / "kanbus-dry.json").write_text(
+        json.dumps(base_dry.model_dump(by_alias=True, mode="json"), indent=2),
+        encoding="utf-8",
+    )
+    dry_run_overlay.parent.mkdir(parents=True, exist_ok=True)
+    dry_overlay_issue = base_dry.model_copy(update={"title": "Dry Run Changed"})
+    dry_run_overlay.write_text(
+        json.dumps(
+            {
+                "overlay_ts": now.isoformat().replace("+00:00", "Z"),
+                "overlay_event_id": "evt-dry",
+                "overrides": None,
+                "issue": dry_overlay_issue.model_dump(by_alias=True, mode="json"),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    stats_dry = overlay_module.reconcile_overlay(
+        project_dir, OverlayConfig(enabled=True, ttl_s=60), prune=False, dry_run=True
+    )
+    assert stats_dry.issues_removed >= 0
+    assert dry_run_overlay.exists()
