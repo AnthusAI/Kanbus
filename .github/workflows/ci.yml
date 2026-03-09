@@ -153,7 +153,7 @@ jobs:
           heartbeat() { while sleep 60; do echo "[heartbeat] rust coverage running $(date -u)"; done; }
           heartbeat &
           hb_pid=$!
-          timeout 1800s bash -lc 'time stdbuf -oL KANBUS_CUCUMBER_INCLUDE_CONSOLE=1 cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"'
+          timeout 1800s bash -lc 'time KANBUS_CUCUMBER_INCLUDE_CONSOLE=1 stdbuf -oL cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"'
           timeout 600s bash -lc 'time stdbuf -oL cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobertura.xml'
           kill $hb_pid || true
 
