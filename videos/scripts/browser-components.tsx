@@ -47,6 +47,16 @@ if (typeof window !== "undefined") {
           --glow-center: rgba(255, 255, 255, 0.9);
           --glow-edge: rgba(255, 255, 255, 0);
         }
+
+        /* Pictogram scoped tokens — resolved from @radix-ui/colors/gray + blue */
+        .pictogram {
+          --background: #f0f0f0;
+          --card: #fcfcfc;
+          --card-muted: #e8e8e8;
+          --column: #e0e0e0;
+          --border: #d9d9d9;
+          --accent-blue: #5eb1ef;
+        }
       `;
       document.head.appendChild(style);
     }
