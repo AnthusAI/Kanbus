@@ -247,6 +247,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::*;
     use chrono::TimeZone;
+    use tempfile::TempDir;
 
     #[test]
     fn create_issue_adds_blocked_dependency_for_zero_suffix() {
@@ -268,5 +269,71 @@ mod tests {
         assert!(index.by_parent.is_empty());
         assert!(index.by_label.is_empty());
         assert!(index.reverse_dependencies.is_empty());
+    }
+
+    #[test]
+    fn add_issue_to_index_populates_lookup_maps() {
+        let now = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        let mut issue = create_issue("kanbus-000020", now);
+        issue.parent = Some("kanbus-parent".to_string());
+        issue.labels.push("extra".to_string());
+
+        let mut index = create_index();
+        add_issue_to_index(&mut index, issue);
+
+        assert!(index.by_id.contains_key("kanbus-000020"));
+        assert!(!index
+            .by_status
+            .get("open")
+            .unwrap_or(&Vec::new())
+            .is_empty());
+        assert!(!index.by_type.get("task").unwrap_or(&Vec::new()).is_empty());
+        assert!(!index
+            .by_parent
+            .get("kanbus-parent")
+            .unwrap_or(&Vec::new())
+            .is_empty());
+        assert!(!index
+            .by_label
+            .get("benchmark")
+            .unwrap_or(&Vec::new())
+            .is_empty());
+        assert!(!index
+            .by_label
+            .get("extra")
+            .unwrap_or(&Vec::new())
+            .is_empty());
+        assert!(!index
+            .reverse_dependencies
+            .get("kanbus-000001")
+            .unwrap_or(&Vec::new())
+            .is_empty());
+    }
+
+    #[test]
+    fn build_index_parallel_reads_json_and_ignores_other_files() {
+        let temp = TempDir::new().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir");
+
+        let now = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        let issue_a = create_issue("kanbus-000001", now);
+        let issue_b = create_issue("kanbus-000002", now);
+        std::fs::write(
+            issues_dir.join("kanbus-000001.json"),
+            serde_json::to_string_pretty(&issue_a).expect("json"),
+        )
+        .expect("write");
+        std::fs::write(
+            issues_dir.join("kanbus-000002.json"),
+            serde_json::to_string_pretty(&issue_b).expect("json"),
+        )
+        .expect("write");
+        std::fs::write(issues_dir.join("README.txt"), "ignore me").expect("write");
+
+        let index = build_index_parallel(&issues_dir).expect("build index");
+        assert_eq!(index.by_id.len(), 2);
+        assert!(index.by_id.contains_key("kanbus-000001"));
+        assert!(index.by_id.contains_key("kanbus-000002"));
     }
 }
