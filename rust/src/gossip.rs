@@ -1212,4 +1212,32 @@ mod tests {
         std::env::remove_var("XDG_RUNTIME_DIR");
         assert_eq!(path, PathBuf::from("/tmp/kanbus-runtime/kanbus/bus.sock"));
     }
+
+    #[test]
+    fn resolve_broker_endpoint_auto_defaults_when_no_metadata() {
+        let endpoint = resolve_broker_endpoint("auto").expect("endpoint");
+        assert_eq!(endpoint.host, "127.0.0.1");
+        assert_eq!(endpoint.port, 1883);
+        assert_eq!(endpoint.scheme, "mqtt");
+    }
+
+    #[test]
+    fn broker_is_reachable_detects_active_listener() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let port = listener.local_addr().expect("addr").port();
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtt".to_string(),
+            host: "127.0.0.1".to_string(),
+            port,
+        };
+        assert!(broker_is_reachable(&endpoint));
+        drop(listener);
+    }
+
+    #[test]
+    fn find_free_port_returns_bindable_port() {
+        let port = find_free_port(1883).expect("free port");
+        let listener = std::net::TcpListener::bind(("127.0.0.1", port)).expect("bind");
+        drop(listener);
+    }
 }
