@@ -1,15 +1,28 @@
 import React from "react";
-import { Layout, Section, Hero, FeaturePictogram } from "../../components";
+import { Layout, Section, Hero, FeaturePictogram, FullVideoPlayer } from "../../components";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 import { CodeBlock } from "../../components/CodeBlock";
+import { getVideoById } from "../../content/videos";
+import { getVideoSrc } from "../../lib/getVideoSrc";
 
 const LifecycleHooksPage = () => {
+  const featureVideo = getVideoById("lifecycle-hooks");
+  const videoPoster = featureVideo?.poster ? getVideoSrc(featureVideo.poster) : undefined;
+  const videoSrc = featureVideo ? getVideoSrc(featureVideo.filename) : "";
+
   return (
     <Layout>
       <Hero
         title="Lifecycle Hooks"
         subtitle="Run project-defined logic on Kanbus lifecycle events with a first-class hook engine shared by Python and Rust."
         rightPane={<FeaturePictogram type="lifecycle-hooks" />}
+        bottomPane={
+          videoSrc ? (
+            <div className="w-full flex flex-col items-center justify-center mt-12 mb-8 gap-12">
+              <FullVideoPlayer src={videoSrc} poster={videoPoster} videoId="lifecycle-hooks" />
+            </div>
+          ) : null
+        }
       />
 
       <div className="space-y-12">

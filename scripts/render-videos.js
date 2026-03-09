@@ -17,6 +17,7 @@ const COMPOSITION_IDS = [
   "virtual-projects",
   "vscode-plugin",
   "policy-as-code",
+  "lifecycle-hooks",
   "realtime-collaboration",
 ];
 

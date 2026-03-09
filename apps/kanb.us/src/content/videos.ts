@@ -76,6 +76,13 @@ export const VIDEOS: VideoEntry[] = [
     description: "Define project rules using Gherkin BDD syntax. Enforce workflows, validations, and standards automatically.",
     filename: "policy-as-code.mp4",
     poster: "policy-as-code.jpg"
+  },
+  {
+    id: "lifecycle-hooks",
+    title: "Lifecycle Hooks",
+    description: "Run project-defined before/after integrations on issue lifecycle events, with policy guidance unified in the same hook engine.",
+    filename: "lifecycle-hooks.mp4",
+    poster: "lifecycle-hooks.jpg"
   }
 ];
 

@@ -27,6 +27,7 @@ render_video beads-compatibility
 render_video virtual-projects
 render_video vscode-plugin
 render_video policy-as-code
+render_video lifecycle-hooks
 render_video realtime-collaboration
 
 echo "=== All renders complete ==="

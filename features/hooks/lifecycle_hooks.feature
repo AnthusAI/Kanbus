@@ -127,6 +127,8 @@ Feature: Lifecycle hooks
     And hook log "hook.log" should contain "after-ready"
 
   Scenario: Beads-mode hook execution works when enabled
+    Given a Kanbus project with beads compatibility enabled
+    And a lifecycle hook recorder script at "test-hooks/record-hook.sh"
     Given the Kanbus hooks configuration is:
       """
       enabled: true
@@ -202,7 +204,7 @@ Feature: Lifecycle hooks
     When I run "kanbus --no-hooks create \"No hooks via flag\" --type task"
     Then the command should succeed
     And hook log "hook.log" should not contain "after-create-disabled"
-    And the environment variable KANBUS_NO_HOOKS is set to "1"
+    Given the environment variable KANBUS_NO_HOOKS is set to "1"
     When I run "kanbus create \"No hooks via env\" --type task"
     Then the command should succeed
     And hook log "hook.log" should not contain "after-create-disabled"

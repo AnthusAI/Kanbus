@@ -75,6 +75,13 @@ const FEATURE_SPOTLIGHTS: FeatureSpotlight[] = [
       "Define standards once and apply them consistently across CLI usage, automation, and collaborative workflows.",
     type: "policy",
   },
+  {
+    headline: "Lifecycle Hooks",
+    subhead: "Pull hooks at each command boundary.",
+    bodyPrimary:
+      "Attach project-defined automation to before and after lifecycle events, with policy guidance aligned in the same execution model.",
+    type: "hooks",
+  },
 ];
 
 
