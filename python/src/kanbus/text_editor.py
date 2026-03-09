@@ -32,7 +32,9 @@ def edit_view(root: Path, path: Path, view_range: tuple[int, int] | None = None)
     if not resolved.exists():
         raise TextEditorError("file or directory not found")
     if resolved.is_dir():
-        entries = sorted(resolved.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+        entries = sorted(
+            resolved.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())
+        )
         return "\n".join(p.name + ("/" if p.is_dir() else "") for p in entries)
     content = resolved.read_text(encoding="utf-8")
     lines = content.splitlines()
@@ -72,7 +74,9 @@ def edit_str_replace(root: Path, path: Path, old_str: str, new_str: str) -> str:
     if count == 0:
         raise TextEditorError("no match found for replacement")
     if count > 1:
-        raise TextEditorError(f"found {count} matches for replacement text; provide more context for a unique match")
+        raise TextEditorError(
+            f"found {count} matches for replacement text; provide more context for a unique match"
+        )
     new_content = content.replace(old_str, new_str, 1)
     resolved.write_text(new_content, encoding="utf-8")
     return "Successfully replaced text at exactly one location."
@@ -130,5 +134,7 @@ def edit_insert(root: Path, path: Path, insert_line: int, insert_text: str) -> s
         raise TextEditorError("insert_line exceeds file length")
     idx = insert_line
     new_lines = lines[:idx] + insert_text.splitlines() + lines[idx:]
-    resolved.write_text("\n".join(new_lines) + ("\n" if new_lines else ""), encoding="utf-8")
+    resolved.write_text(
+        "\n".join(new_lines) + ("\n" if new_lines else ""), encoding="utf-8"
+    )
     return "Successfully inserted text."

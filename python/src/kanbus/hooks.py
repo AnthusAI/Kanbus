@@ -452,6 +452,8 @@ def _parse_hook_event(value: str) -> HookEvent | None:
 
 
 def _now_utc_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace(
-        "+00:00", "Z"
+    return (
+        datetime.now(timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
     )

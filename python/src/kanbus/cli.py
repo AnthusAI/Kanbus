@@ -1332,7 +1332,9 @@ def delete(
             "deleted_ids": list(to_delete),
             "before_issue": serialize_issue(issue_for_hooks),
         },
-        issues_for_policy=[issue_for_guidance] if issue_for_guidance is not None else [],
+        issues_for_policy=(
+            [issue_for_guidance] if issue_for_guidance is not None else []
+        ),
         root=root,
         beads_mode=False,
     )
@@ -1358,7 +1360,10 @@ def promote(context: click.Context, identifier: str) -> None:
         context,
         phase=HookPhase.BEFORE,
         event=HookEvent.ISSUE_PROMOTE,
-        operation={"identifier": identifier, "before_issue": serialize_issue(before_issue)},
+        operation={
+            "identifier": identifier,
+            "before_issue": serialize_issue(before_issue),
+        },
         root=root,
         beads_mode=False,
     )
@@ -1401,7 +1406,10 @@ def localize(context: click.Context, identifier: str) -> None:
         context,
         phase=HookPhase.BEFORE,
         event=HookEvent.ISSUE_LOCALIZE,
-        operation={"identifier": identifier, "before_issue": serialize_issue(before_issue)},
+        operation={
+            "identifier": identifier,
+            "before_issue": serialize_issue(before_issue),
+        },
         root=root,
         beads_mode=False,
     )
@@ -1827,7 +1835,13 @@ def edit_group() -> None:
 
 @edit_group.command("view")
 @click.argument("path", type=click.Path())
-@click.option("--view-range", nargs=2, type=int, default=None, help="Start and end line numbers (1-indexed; -1 for end).")
+@click.option(
+    "--view-range",
+    nargs=2,
+    type=int,
+    default=None,
+    help="Start and end line numbers (1-indexed; -1 for end).",
+)
 def edit_view_cmd(path: str, view_range: tuple[int, int] | None) -> None:
     """View file contents or list directory."""
     root = Path.cwd()

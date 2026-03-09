@@ -23,9 +23,10 @@ pub fn edit_view(
     path: &Path,
     view_range: Option<(i32, i32)>,
 ) -> Result<String, KanbusError> {
-    let resolved = root.join(path).canonicalize().map_err(|e| {
-        KanbusError::IssueOperation(format!("file or directory not found: {}", e))
-    })?;
+    let resolved = root
+        .join(path)
+        .canonicalize()
+        .map_err(|e| KanbusError::IssueOperation(format!("file or directory not found: {}", e)))?;
     let root_canonical = root
         .canonicalize()
         .map_err(|e| KanbusError::Io(e.to_string()))?;
