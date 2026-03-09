@@ -528,4 +528,198 @@ mod tests {
             WikiServiceError::InvalidPath(message) if message == "bad path"
         ));
     }
+
+    #[test]
+    fn wiki_list_prefix_supports_default_and_external_wiki_directory() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        let store = FileStore::new(temp.path());
+        assert_eq!(wiki_list_prefix(&store).expect("default prefix"), "project/wiki");
+
+        write_config(temp.path(), "wiki_directory: ../docs/wiki\n");
+        let store = FileStore::new(temp.path());
+        assert_eq!(
+            wiki_list_prefix(&store).expect("external prefix"),
+            "docs/wiki"
+        );
+    }
+
+    #[test]
+    fn list_pages_collects_nested_markdown_and_sorts() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        let root = temp.path().join("project").join("wiki");
+        std::fs::create_dir_all(root.join("guides")).expect("create guides");
+        std::fs::write(root.join("zeta.md"), "# zeta").expect("write zeta");
+        std::fs::write(root.join("guides").join("alpha.md"), "# alpha").expect("write alpha");
+        std::fs::write(root.join("notes.txt"), "ignore").expect("write txt");
+
+        let store = FileStore::new(temp.path());
+        let pages = list_pages(&store).expect("list pages");
+        assert_eq!(pages.pages, vec!["guides/alpha.md", "zeta.md"]);
+    }
+
+    #[test]
+    fn get_page_returns_content_and_not_found() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        let root = temp.path().join("project").join("wiki");
+        std::fs::create_dir_all(&root).expect("create wiki root");
+        std::fs::write(root.join("readme.md"), "hello wiki").expect("write page");
+        let store = FileStore::new(temp.path());
+
+        let page = get_page(&store, "readme.md").expect("get page");
+        assert_eq!(page.path, "readme.md");
+        assert_eq!(page.content, "hello wiki");
+        assert!(page.exists);
+
+        let missing = get_page(&store, "missing.md").expect_err("missing page");
+        assert!(matches!(missing, WikiServiceError::NotFound(_)));
+    }
+
+    #[test]
+    fn create_update_rename_delete_page_cover_success_and_conflicts() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        let store = FileStore::new(temp.path());
+
+        let created = create_page(
+            &store,
+            &WikiCreateRequest {
+                path: "docs/guide.md".to_string(),
+                content: Some("v1".to_string()),
+                overwrite: None,
+            },
+        )
+        .expect("create page");
+        assert_eq!(created.path, "docs/guide.md");
+        assert!(created.created);
+
+        let create_conflict = create_page(
+            &store,
+            &WikiCreateRequest {
+                path: "docs/guide.md".to_string(),
+                content: Some("v2".to_string()),
+                overwrite: Some(false),
+            },
+        )
+        .expect_err("create conflict");
+        assert!(matches!(create_conflict, WikiServiceError::Conflict(_)));
+
+        let overwritten = create_page(
+            &store,
+            &WikiCreateRequest {
+                path: "docs/guide.md".to_string(),
+                content: Some("v2".to_string()),
+                overwrite: Some(true),
+            },
+        )
+        .expect("overwrite create");
+        assert_eq!(overwritten.path, "docs/guide.md");
+
+        let updated = update_page(
+            &store,
+            &WikiUpdateRequest {
+                path: "docs/guide.md".to_string(),
+                content: "v3".to_string(),
+            },
+        )
+        .expect("update page");
+        assert!(updated.updated);
+
+        let update_missing = update_page(
+            &store,
+            &WikiUpdateRequest {
+                path: "docs/missing.md".to_string(),
+                content: "nope".to_string(),
+            },
+        )
+        .expect_err("update missing");
+        assert!(matches!(update_missing, WikiServiceError::NotFound(_)));
+
+        let rename = rename_page(
+            &store,
+            &WikiRenameRequest {
+                from_path: "docs/guide.md".to_string(),
+                to_path: "docs/archive/guide.md".to_string(),
+                overwrite: None,
+            },
+        )
+        .expect("rename page");
+        assert_eq!(rename.from_path, "docs/guide.md");
+        assert_eq!(rename.to_path, "docs/archive/guide.md");
+        assert!(rename.renamed);
+
+        create_page(
+            &store,
+            &WikiCreateRequest {
+                path: "docs/conflict.md".to_string(),
+                content: Some("left".to_string()),
+                overwrite: None,
+            },
+        )
+        .expect("create source");
+        create_page(
+            &store,
+            &WikiCreateRequest {
+                path: "docs/archive/conflict.md".to_string(),
+                content: Some("right".to_string()),
+                overwrite: None,
+            },
+        )
+        .expect("create target");
+        let rename_conflict = rename_page(
+            &store,
+            &WikiRenameRequest {
+                from_path: "docs/conflict.md".to_string(),
+                to_path: "docs/archive/conflict.md".to_string(),
+                overwrite: Some(false),
+            },
+        )
+        .expect_err("rename conflict");
+        assert!(matches!(rename_conflict, WikiServiceError::Conflict(_)));
+
+        let deleted = delete_page(&store, "docs/archive/guide.md").expect("delete page");
+        assert_eq!(deleted.path, "docs/archive/guide.md");
+        assert!(deleted.deleted);
+
+        let delete_missing = delete_page(&store, "docs/archive/guide.md").expect_err("missing");
+        assert!(matches!(delete_missing, WikiServiceError::NotFound(_)));
+    }
+
+    #[test]
+    fn render_page_not_found_and_draft_error_cleanup_path() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        let store = FileStore::new(temp.path());
+
+        let missing = render_page(
+            &store,
+            &WikiRenderRequestPayload {
+                path: "drafts/missing.md".to_string(),
+                content: None,
+            },
+        )
+        .expect_err("missing render page");
+        assert!(matches!(missing, WikiServiceError::NotFound(_)));
+
+        let draft_error = render_page(
+            &store,
+            &WikiRenderRequestPayload {
+                path: "drafts/test.md".to_string(),
+                content: Some("# Draft".to_string()),
+            },
+        )
+        .expect_err("draft render error");
+        assert!(matches!(draft_error, WikiServiceError::Render(_)));
+
+        let drafts_dir = temp.path().join("project").join("wiki").join("drafts");
+        let leftovers = std::fs::read_dir(&drafts_dir)
+            .expect("read drafts dir")
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .filter(|name| name.starts_with("test.tmp.") && name.ends_with(".md"))
+            .collect::<Vec<_>>();
+        assert!(leftovers.is_empty());
+    }
 }
