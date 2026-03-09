@@ -477,4 +477,46 @@ mod tests {
         assert_eq!(result.issue.issue_type, "not-a-real-type");
         assert_eq!(result.issue.priority, 250);
     }
+
+    #[test]
+    fn create_issue_local_writes_issue_and_events_to_project_local() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "Local issue");
+        req.local = true;
+        let result = create_issue(&req).expect("local create should succeed");
+
+        let shared_path = temp
+            .path()
+            .join("project")
+            .join("issues")
+            .join(format!("{}.json", result.issue.identifier));
+        let local_path = temp
+            .path()
+            .join("project-local")
+            .join("issues")
+            .join(format!("{}.json", result.issue.identifier));
+        assert!(!shared_path.exists());
+        assert!(local_path.exists());
+
+        let local_events_dir = temp.path().join("project-local").join("events");
+        let event_count = std::fs::read_dir(&local_events_dir)
+            .expect("read local events")
+            .filter_map(Result::ok)
+            .count();
+        assert!(event_count >= 1);
+    }
+
+    #[test]
+    fn create_issue_resolves_parent_from_prefix() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let parent = create_issue(&request(temp.path(), "Parent task")).expect("create parent");
+
+        let mut child_req = request(temp.path(), "Child task");
+        child_req.issue_type = Some("sub-task".to_string());
+        child_req.parent = Some(parent.issue.identifier.chars().take(12).collect());
+        let child = create_issue(&child_req).expect("create child");
+        assert_eq!(child.issue.parent.as_deref(), Some(parent.issue.identifier.as_str()));
+    }
 }
