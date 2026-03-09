@@ -88,6 +88,10 @@ Hosted UI + identity pool principal tag mapping now uses Cognito custom attribut
 - `custom:account`
 - `custom:project`
 
+Current limitation: one user currently maps to one tenant pair (`account` + `project`) per session.
+Supporting one user across multiple tenants requires a membership-based authorization model
+instead of single-value claim parity.
+
 ## Webhook sync note
 
 Webhook ingress currently expects:
@@ -98,6 +102,18 @@ Webhook ingress currently expects:
 
 The stack provisions a Secrets Manager secret and passes its ARN to webhook ingress.
 Rotate this secret and configure GitHub webhook delivery to use the same value.
+
+## How tenant projects are created in v1
+
+There is no central tenant registry resource yet. A tenant project becomes active when the
+tuple `<account>/<project>` is used and synced.
+
+- Tenant route/API usage is `/{account}/{project}/...`.
+- Webhook ingress carries tenant headers (`X-Kanbus-Account`, `X-Kanbus-Project`).
+- Sync worker clones/syncs the webhook repo URL into:
+  - `/mnt/data/{account}/{project}/repo`
+
+This means cloud project existence is currently operationally defined by EFS presence and sync history.
 
 ## Automated pre-acceptance validation
 
@@ -130,3 +146,16 @@ The script enforces gates in order:
 5. Token admin + authorizer + CLI parity.
 6. Webhook -> SQS -> worker -> IoT event.
 7. Browser realtime hard gate (MQTT primary, no SSE-only pass).
+
+## Cross-Mac realtime operator flow
+
+Detailed runtime/auth/tenant operations are documented in:
+
+- `docs/CLOUD_CONSOLE_RUNTIME.md` (Operator Runbook section)
+
+That runbook includes:
+
+- how a new `<account>/<project>` becomes active on EFS,
+- Cognito claim mapping for browser access,
+- CLI MQTT API-token lifecycle (create/list/revoke),
+- exact two-Mac MQTT validation commands.
