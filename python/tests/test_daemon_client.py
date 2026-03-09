@@ -44,11 +44,17 @@ def test_request_index_list_happy_path_and_disabled(
     socket_path = root / "sock"
     socket_path.write_text("", encoding="utf-8")
     monkeypatch.setattr(daemon_client, "get_daemon_socket_path", lambda _r: socket_path)
-    monkeypatch.setattr(daemon_client, "spawn_daemon", lambda _r: (_ for _ in ()).throw(RuntimeError("should not spawn")))
+    monkeypatch.setattr(
+        daemon_client,
+        "spawn_daemon",
+        lambda _r: (_ for _ in ()).throw(RuntimeError("should not spawn")),
+    )
     monkeypatch.setattr(
         daemon_client,
         "_request_with_recovery",
-        lambda _s, request, _r: ok_response(request.request_id, {"issues": [{"id": "kanbus-1"}]}),
+        lambda _s, request, _r: ok_response(
+            request.request_id, {"issues": [{"id": "kanbus-1"}]}
+        ),
     )
     monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
 
@@ -157,7 +163,9 @@ def test_request_with_recovery_non_connection_error_passthrough(
     monkeypatch.setattr(
         daemon_client,
         "send_request",
-        lambda *_a: (_ for _ in ()).throw(daemon_client.DaemonClientError("empty daemon response")),
+        lambda *_a: (_ for _ in ()).throw(
+            daemon_client.DaemonClientError("empty daemon response")
+        ),
     )
     with pytest.raises(daemon_client.DaemonClientError, match="empty daemon response"):
         daemon_client._request_with_recovery(socket_path, request, tmp_path)
@@ -201,11 +209,15 @@ def test_request_with_recovery_exhausts_retries(
     monkeypatch.setattr(
         daemon_client,
         "send_request",
-        lambda *_a: (_ for _ in ()).throw(daemon_client.DaemonClientError("daemon connection failed")),
+        lambda *_a: (_ for _ in ()).throw(
+            daemon_client.DaemonClientError("daemon connection failed")
+        ),
     )
     monkeypatch.setattr(daemon_client, "spawn_daemon", lambda _r: None)
     monkeypatch.setattr(daemon_client.time, "sleep", lambda *_a: None)
-    with pytest.raises(daemon_client.DaemonClientError, match="daemon connection failed"):
+    with pytest.raises(
+        daemon_client.DaemonClientError, match="daemon connection failed"
+    ):
         daemon_client._request_with_recovery(socket_path, request, tmp_path)
 
 
@@ -270,11 +282,15 @@ def test_send_request_success_empty_and_connection_failures(
         raise OSError("socket down")
 
     monkeypatch.setattr(daemon_client.socket, "socket", raising_socket)
-    with pytest.raises(daemon_client.DaemonClientError, match="daemon connection failed"):
+    with pytest.raises(
+        daemon_client.DaemonClientError, match="daemon connection failed"
+    ):
         daemon_client.send_request(socket_path, request)
 
 
-def test_spawn_daemon_invokes_subprocess(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_spawn_daemon_invokes_subprocess(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = tmp_path
     captured: dict[str, object] = {}
 

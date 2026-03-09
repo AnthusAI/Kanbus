@@ -13,7 +13,9 @@ from kanbus.project import ProjectMarkerError
 from test_helpers import build_project_configuration
 
 
-def test_ensure_git_repository_success_and_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_ensure_git_repository_success_and_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(
         file_io.subprocess,
         "run",
@@ -39,14 +41,21 @@ def test_initialize_project_creates_structure_and_files(tmp_path: Path) -> None:
     assert (tmp_path / ".cursorignore").exists()
     assert (tmp_path / ".claude" / "settings.json").exists()
     assert (tmp_path / ".vscode" / "settings.json").exists()
-    assert (tmp_path / ".gitignore").read_text(encoding="utf-8").strip() == "project/.overlay/"
+    assert (tmp_path / ".gitignore").read_text(
+        encoding="utf-8"
+    ).strip() == "project/.overlay/"
     assert (tmp_path / file_io.DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME).exists()
-    assert (tmp_path / "project" / "wiki" / file_io.DEFAULT_WIKI_INDEX_FILENAME).exists()
-    assert (tmp_path / "project" / "wiki" / file_io.DEFAULT_WIKI_WHATS_NEXT_FILENAME).exists()
+    assert (
+        tmp_path / "project" / "wiki" / file_io.DEFAULT_WIKI_INDEX_FILENAME
+    ).exists()
+    assert (
+        tmp_path / "project" / "wiki" / file_io.DEFAULT_WIKI_WHATS_NEXT_FILENAME
+    ).exists()
 
 
-
-def test_initialize_project_with_existing_project_or_local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_initialize_project_with_existing_project_or_local(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     (tmp_path / "project").mkdir()
     with pytest.raises(file_io.InitializationError, match="already initialized"):
         file_io.initialize_project(tmp_path)
@@ -66,7 +75,9 @@ def test_initialize_project_with_existing_project_or_local(tmp_path: Path, monke
 def test_ensure_gitignore_entry_appends_and_dedupes(tmp_path: Path) -> None:
     file_io._ensure_gitignore_entry(tmp_path, "project/.overlay/")
     file_io._ensure_gitignore_entry(tmp_path, "project/.overlay/")
-    assert (tmp_path / ".gitignore").read_text(encoding="utf-8") == "project/.overlay/\n"
+    assert (tmp_path / ".gitignore").read_text(
+        encoding="utf-8"
+    ) == "project/.overlay/\n"
 
 
 def test_guard_file_writers(tmp_path: Path) -> None:
@@ -104,7 +115,9 @@ def test_write_tool_block_files_create_and_preserve_existing(tmp_path: Path) -> 
 
     claude_settings = tmp_path / ".claude" / "settings.json"
     vscode_settings = tmp_path / ".vscode" / "settings.json"
-    assert json.loads(claude_settings.read_text(encoding="utf-8"))["permissions"]["deny"]
+    assert json.loads(claude_settings.read_text(encoding="utf-8"))["permissions"][
+        "deny"
+    ]
     assert json.loads(vscode_settings.read_text(encoding="utf-8"))["files.exclude"]
 
     (tmp_path / ".cursorignore").write_text("custom\n", encoding="utf-8")
@@ -116,13 +129,18 @@ def test_write_tool_block_files_create_and_preserve_existing(tmp_path: Path) -> 
     assert vscode_settings.read_text(encoding="utf-8") == "custom"
 
 
-def test_detect_repairable_project_issues_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_detect_repairable_project_issues_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(
         file_io,
         "get_configuration_path",
         lambda _root: (_ for _ in ()).throw(ProjectMarkerError("missing")),
     )
-    assert file_io.detect_repairable_project_issues(tmp_path, allow_uninitialized=True) is None
+    assert (
+        file_io.detect_repairable_project_issues(tmp_path, allow_uninitialized=True)
+        is None
+    )
     with pytest.raises(ProjectMarkerError, match="missing"):
         file_io.detect_repairable_project_issues(tmp_path, allow_uninitialized=False)
 
@@ -139,20 +157,27 @@ def test_detect_repairable_project_issues_paths(tmp_path: Path, monkeypatch: pyt
     monkeypatch.setattr(file_io, "get_configuration_path", lambda _root: config_path)
     monkeypatch.setattr(file_io, "load_project_configuration", lambda _path: config)
 
-    missing_project = file_io.detect_repairable_project_issues(tmp_path, allow_uninitialized=False)
+    missing_project = file_io.detect_repairable_project_issues(
+        tmp_path, allow_uninitialized=False
+    )
     assert missing_project is not None
     assert missing_project.missing_project_dir is True
 
     project_dir = tmp_path / "project"
     project_dir.mkdir()
-    missing_subdirs = file_io.detect_repairable_project_issues(tmp_path, allow_uninitialized=False)
+    missing_subdirs = file_io.detect_repairable_project_issues(
+        tmp_path, allow_uninitialized=False
+    )
     assert missing_subdirs is not None
     assert missing_subdirs.missing_issues_dir is True
     assert missing_subdirs.missing_events_dir is True
 
     (project_dir / "issues").mkdir()
     (project_dir / "events").mkdir()
-    assert file_io.detect_repairable_project_issues(tmp_path, allow_uninitialized=False) is None
+    assert (
+        file_io.detect_repairable_project_issues(tmp_path, allow_uninitialized=False)
+        is None
+    )
 
 
 def test_repair_project_structure_and_existing_vscode(tmp_path: Path) -> None:

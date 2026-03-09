@@ -100,7 +100,9 @@ def test_summarize_issue_mock_and_default_paths(monkeypatch) -> None:
         == "Generated summary for kanbus-6"
     )
     monkeypatch.delenv("KANBUS_TEST_AI_MOCK", raising=False)
-    assert ai_summarize.summarize_issue(issue, "short", _ai_config()) == "Summary: Title"
+    assert (
+        ai_summarize.summarize_issue(issue, "short", _ai_config()) == "Summary: Title"
+    )
 
 
 def test_make_ai_summarize_supports_issue_dict_input_and_no_cache(
@@ -112,7 +114,9 @@ def test_make_ai_summarize_supports_issue_dict_input_and_no_cache(
     assert fn(issue, "short") == "Summary: From dict"
 
 
-def test_make_ai_summarize_returns_not_configured_when_ai_missing(tmp_path: Path) -> None:
+def test_make_ai_summarize_returns_not_configured_when_ai_missing(
+    tmp_path: Path,
+) -> None:
     issue = {"identifier": "kanbus-8", "title": "No AI", "updated_at": "2026-03-09"}
     fn = ai_summarize.make_ai_summarize({"kanbus-8": issue}, None, tmp_path)
     assert fn("kanbus-8") == "(AI summarization not configured)"

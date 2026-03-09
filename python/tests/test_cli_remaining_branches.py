@@ -23,7 +23,9 @@ def _run(args: list[str]) -> object:
     return CliRunner().invoke(cli.cli, args)
 
 
-def test_run_lifecycle_hooks_helper_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_run_lifecycle_hooks_helper_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     context = click.Context(click.Command("kanbus"))
     context.obj = None
     cli._run_lifecycle_hooks_for_context(
@@ -71,7 +73,9 @@ def test_dep_parser_and_beads_remove_error_paths(
         cli.dep.callback(("tree", "kanbus-1", "--unknown", "value"))
 
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(
         cli,
         "load_project_configuration",
@@ -79,7 +83,9 @@ def test_dep_parser_and_beads_remove_error_paths(
     )
     monkeypatch.setattr(
         "kanbus.beads_write.remove_beads_dependency",
-        lambda *_a, **_k: (_ for _ in ()).throw(cli.BeadsWriteError("beads remove fail")),
+        lambda *_a, **_k: (_ for _ in ()).throw(
+            cli.BeadsWriteError("beads remove fail")
+        ),
     )
     with context.scope(cleanup=False):
         with pytest.raises(click.ClickException, match="beads remove fail"):
@@ -90,7 +96,9 @@ def test_snyk_and_jira_configuration_error_callbacks(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(
         cli,
         "load_project_configuration",
@@ -124,8 +132,14 @@ def test_show_update_and_comment_remaining_paths(
         return build_project_configuration()
 
     monkeypatch.setattr(cli, "load_project_configuration", _load_config_show_then_ok)
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(cli, "load_issue_from_project", lambda *_a, **_k: SimpleNamespace(issue=build_issue("kanbus-1")))
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        cli,
+        "load_issue_from_project",
+        lambda *_a, **_k: SimpleNamespace(issue=build_issue("kanbus-1")),
+    )
     monkeypatch.setattr(cli, "format_issue_for_display", lambda *_a, **_k: "shown")
     result_show = _run(["show", "kanbus-1"])
     assert result_show.exit_code == 0
@@ -150,8 +164,12 @@ def test_show_update_and_comment_remaining_paths(
     monkeypatch.setattr(cli, "update_issue", lambda **_k: build_issue("kanbus-1"))
     emitted: list[str] = []
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: emitted.append("emit"))
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, project_context=False: identifier)
-    result_update_regular = _run(["update", "kanbus-1", "--description", "desc", "--no-validate"])
+    monkeypatch.setattr(
+        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+    )
+    result_update_regular = _run(
+        ["update", "kanbus-1", "--description", "desc", "--no-validate"]
+    )
     assert result_update_regular.exit_code == 0
     assert emitted
 
@@ -160,19 +178,25 @@ def test_show_update_and_comment_remaining_paths(
         "load_project_configuration",
         lambda _p: build_project_configuration(beads_compatibility=True),
     )
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr("kanbus.beads_write.add_beads_comment", lambda *_a, **_k: None)
     monkeypatch.setattr(
         cli,
         "load_beads_issue",
         lambda *_a, **_k: (_ for _ in ()).throw(MigrationError("after missing")),
     )
-    result_comment_beads_after_missing = _run(["comment", "kanbus-1", "hello", "--no-validate"])
+    result_comment_beads_after_missing = _run(
+        ["comment", "kanbus-1", "hello", "--no-validate"]
+    )
     assert result_comment_beads_after_missing.exit_code == 0
 
     monkeypatch.setattr(
         "kanbus.beads_write.add_beads_comment",
-        lambda *_a, **_k: (_ for _ in ()).throw(cli.BeadsWriteError("beads comment fail")),
+        lambda *_a, **_k: (_ for _ in ()).throw(
+            cli.BeadsWriteError("beads comment fail")
+        ),
     )
     result_comment_beads_fail = _run(["comment", "kanbus-1", "hello", "--no-validate"])
     assert result_comment_beads_fail.exit_code != 0
@@ -187,7 +211,9 @@ def test_show_update_and_comment_remaining_paths(
         "add_comment",
         lambda **_k: (_ for _ in ()).throw(IssueCommentError("comment fail")),
     )
-    result_comment_regular_fail = _run(["comment", "kanbus-1", "hello", "--no-validate"])
+    result_comment_regular_fail = _run(
+        ["comment", "kanbus-1", "hello", "--no-validate"]
+    )
     assert result_comment_regular_fail.exit_code != 0
     assert "comment fail" in result_comment_regular_fail.output
 
@@ -210,16 +236,24 @@ def test_create_update_move_delete_list_and_dep_remaining_paths(
     monkeypatch.setattr(cli, "validate_code_blocks", lambda _t: None)
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
     monkeypatch.setattr(cli, "format_issue_for_display", lambda *_a, **_k: "formatted")
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, project_context=False: identifier)
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+    )
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
 
     issue = build_issue("kanbus-1")
     monkeypatch.setattr(
         cli,
         "create_issue",
-        lambda **_k: SimpleNamespace(issue=issue, configuration=build_project_configuration()),
+        lambda **_k: SimpleNamespace(
+            issue=issue, configuration=build_project_configuration()
+        ),
     )
-    result_create_regular = _run(["create", "x", "--description", "desc", "--no-validate"])
+    result_create_regular = _run(
+        ["create", "x", "--description", "desc", "--no-validate"]
+    )
     assert result_create_regular.exit_code == 0
 
     monkeypatch.setattr(cli, "_resolve_beads_mode", lambda _ctx, _beads: (True, True))
@@ -229,7 +263,9 @@ def test_create_update_move_delete_list_and_dep_remaining_paths(
         "load_project_configuration",
         lambda _p: build_project_configuration(beads_compatibility=True),
     )
-    result_create_beads = _run(["create", "x", "--description", "desc", "--no-validate"])
+    result_create_beads = _run(
+        ["create", "x", "--description", "desc", "--no-validate"]
+    )
     assert result_create_beads.exit_code == 0
     monkeypatch.setattr(cli, "_resolve_beads_mode", lambda _ctx, _beads: (False, False))
 
@@ -323,12 +359,14 @@ def test_create_update_move_delete_list_and_dep_remaining_paths(
     monkeypatch.setattr(
         cli,
         "get_configuration_path",
-        lambda _r: (_ for _ in ()).throw(cli.ProjectMarkerError("project not initialized")),
+        lambda _r: (_ for _ in ()).throw(
+            cli.ProjectMarkerError("project not initialized")
+        ),
     )
     jira_context = click.Context(cli.jira_pull)
     jira_context.obj = {"beads_mode": False, "no_hooks": False, "no_guidance": False}
     with jira_context.scope(cleanup=False):
-        with pytest.raises(click.ClickException, match="Run \\\"kanbus init\\\""):
+        with pytest.raises(click.ClickException, match='Run \\"kanbus init\\"'):
             cli.jira_pull.callback(False)
 
 

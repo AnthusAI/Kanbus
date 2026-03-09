@@ -629,7 +629,8 @@ Feature: Validation checks
 "#,
         );
 
-        let violations = validate_policy_documents(&context, &[("policy.policy".to_string(), feature)]);
+        let violations =
+            validate_policy_documents(&context, &[("policy.policy".to_string(), feature)]);
         assert_eq!(violations.len(), 2);
         let rendered = violations
             .into_iter()
@@ -658,7 +659,11 @@ Feature: Multiple failures
             mode: PolicyEvaluationMode::Enforcement,
         };
 
-        let result = evaluate_policies_with_options(&context, &[("policy.policy".to_string(), feature)], &options);
+        let result = evaluate_policies_with_options(
+            &context,
+            &[("policy.policy".to_string(), feature)],
+            &options,
+        );
         match result {
             Err(errors) => {
                 assert!(errors.len() >= 2);
@@ -710,7 +715,8 @@ Feature: Rule naming
 "#,
         );
 
-        let violations = validate_policy_documents(&context, &[("policy.policy".to_string(), feature)]);
+        let violations =
+            validate_policy_documents(&context, &[("policy.policy".to_string(), feature)]);
         assert_eq!(violations.len(), 1);
         let rendered = violations[0].to_string();
         assert!(rendered.contains("Assignment checks / Missing step mapping"));

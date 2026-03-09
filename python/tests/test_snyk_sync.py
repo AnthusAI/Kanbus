@@ -207,7 +207,9 @@ def test_detect_repo_from_git_normalizes_github_remote(tmp_path: Path) -> None:
     assert snyk_sync._detect_repo_from_git(tmp_path) == "AnthusAI/Kanbus"
 
 
-def test_detect_repo_from_git_returns_none_for_non_github_remote(tmp_path: Path) -> None:
+def test_detect_repo_from_git_returns_none_for_non_github_remote(
+    tmp_path: Path,
+) -> None:
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(
         ["git", "remote", "add", "origin", "ssh://gitlab.example.com/team/repo.git"],
@@ -219,7 +221,9 @@ def test_detect_repo_from_git_returns_none_for_non_github_remote(tmp_path: Path)
 
 
 class _FakeResponse:
-    def __init__(self, ok: bool, status_code: int, payload: dict, text: str = "") -> None:
+    def __init__(
+        self, ok: bool, status_code: int, payload: dict, text: str = ""
+    ) -> None:
         self.ok = ok
         self.status_code = status_code
         self._payload = payload
@@ -262,7 +266,10 @@ def test_fetch_snyk_projects_handles_pagination_and_repo_filter(monkeypatch) -> 
                 "data": [
                     {
                         "id": "p2",
-                        "attributes": {"name": "AnthusAI/Kanbus", "target_file": "repo-root"},
+                        "attributes": {
+                            "name": "AnthusAI/Kanbus",
+                            "target_file": "repo-root",
+                        },
                     }
                 ],
                 "links": {},
@@ -331,9 +338,7 @@ def test_fetch_snyk_issues_for_type_applies_severity_threshold(monkeypatch) -> N
                             "effective_severity_level": "critical",
                         }
                     },
-                    {
-                        "attributes": {"key": "S-2", "effective_severity_level": "low"}
-                    },
+                    {"attributes": {"key": "S-2", "effective_severity_level": "low"}},
                     {"attributes": {"effective_severity_level": "high"}},
                 ],
                 "links": {},
@@ -407,7 +412,9 @@ def test_fetch_snyk_issues_for_type_handles_pagination(monkeypatch) -> None:
     assert len(calls) == 2
 
 
-def test_fetch_all_snyk_issues_continues_when_non_package_type_fails(monkeypatch) -> None:
+def test_fetch_all_snyk_issues_continues_when_non_package_type_fails(
+    monkeypatch,
+) -> None:
     def fake_fetch(org_id: str, token: str, min_priority: int, issue_type: str):
         if issue_type == "package_vulnerability":
             return [{"attributes": {"key": "S-OK"}}]
@@ -442,9 +449,7 @@ def test_fetch_all_snyk_issues_raises_when_package_type_fails(monkeypatch) -> No
 
 
 def test_fetch_v1_enrichment_skips_non_ok_and_uses_issue_id(monkeypatch) -> None:
-    def fake_post(
-        url: str, headers: dict, json: dict, timeout: int
-    ) -> _FakeResponse:
+    def fake_post(url: str, headers: dict, json: dict, timeout: int) -> _FakeResponse:
         if "project-a" in url:
             return _FakeResponse(ok=False, status_code=500, payload={}, text="fail")
         return _FakeResponse(
@@ -484,7 +489,9 @@ def test_fetch_v1_enrichment_continues_when_request_raises(monkeypatch) -> None:
     assert enriched == {"SNYK-2": {"issueData": {"id": "SNYK-2"}}}
 
 
-def test_map_snyk_to_kanbus_code_includes_location_custom_fields(tmp_path: Path) -> None:
+def test_map_snyk_to_kanbus_code_includes_location_custom_fields(
+    tmp_path: Path,
+) -> None:
     source_file = tmp_path / "src" / "vuln.py"
     source_file.parent.mkdir(parents=True)
     source_file.write_text("a\nb\nc\nd\ne\n", encoding="utf-8")
@@ -856,9 +863,17 @@ def test_resolve_snyk_epics_creates_initiative_and_both_epics(
         code_priority=None,
     )
     assert epics == {"dependency": "kanbus-dep-1", "code": "kanbus-code-1"}
-    assert read_issue_from_file(issues_dir / "kanbus-init-1.json").issue_type == "initiative"
-    assert read_issue_from_file(issues_dir / "kanbus-dep-1.json").parent == "kanbus-init-1"
-    assert read_issue_from_file(issues_dir / "kanbus-code-1.json").parent == "kanbus-init-1"
+    assert (
+        read_issue_from_file(issues_dir / "kanbus-init-1.json").issue_type
+        == "initiative"
+    )
+    assert (
+        read_issue_from_file(issues_dir / "kanbus-dep-1.json").parent == "kanbus-init-1"
+    )
+    assert (
+        read_issue_from_file(issues_dir / "kanbus-code-1.json").parent
+        == "kanbus-init-1"
+    )
 
 
 def test_find_existing_snyk_initiative_and_epic_filters_non_matching(
@@ -942,7 +957,9 @@ def test_resolve_file_task_creates_new_task_and_dry_run_skip_write(
         all_existing=set(),
     )
     assert created == "kanbus-task-new-1"
-    assert read_issue_from_file(issues_dir / "kanbus-task-new-1.json").issue_type == "task"
+    assert (
+        read_issue_from_file(issues_dir / "kanbus-task-new-1.json").issue_type == "task"
+    )
 
     dry_created = snyk_sync._resolve_file_task(
         issues_dir=issues_dir,
@@ -975,7 +992,9 @@ def test_detect_repo_from_git_https_and_exception(tmp_path: Path, monkeypatch) -
     assert snyk_sync._detect_repo_from_git(tmp_path) is None
 
 
-def test_build_file_task_index_defaults_missing_category_to_dependency(tmp_path: Path) -> None:
+def test_build_file_task_index_defaults_missing_category_to_dependency(
+    tmp_path: Path,
+) -> None:
     issues_dir = tmp_path / "issues"
     issues_dir.mkdir()
     task = build_issue(
@@ -1000,7 +1019,9 @@ def test_extract_source_location_and_classes_cover_skip_paths() -> None:
     assert snyk_sync._extract_classes(classes_issue) == []
 
 
-def test_build_snippet_handles_io_error_and_max_window(tmp_path: Path, monkeypatch) -> None:
+def test_build_snippet_handles_io_error_and_max_window(
+    tmp_path: Path, monkeypatch
+) -> None:
     src = tmp_path / "src" / "many.txt"
     src.parent.mkdir(parents=True)
     src.write_text("\n".join(f"line {idx}" for idx in range(1, 200)), encoding="utf-8")
@@ -1008,7 +1029,11 @@ def test_build_snippet_handles_io_error_and_max_window(tmp_path: Path, monkeypat
     assert "### Snippet (src/many.txt:" in snippet
     assert snippet.count("\n") < 60
 
-    monkeypatch.setattr(Path, "read_text", lambda self, encoding=None: (_ for _ in ()).throw(OSError("denied")))
+    monkeypatch.setattr(
+        Path,
+        "read_text",
+        lambda self, encoding=None: (_ for _ in ()).throw(OSError("denied")),
+    )
     assert snyk_sync._build_snippet(tmp_path, "src/many.txt", 10, 10) == ""
 
 
@@ -1042,7 +1067,14 @@ def test_map_snyk_to_kanbus_covers_code_line_only_and_dependency_fix_variants() 
                     "is_upgradeable": False,
                     "is_pinnable": True,
                     "is_fixable_snyk": False,
-                    "representations": [{"dependency": {"package_name": "pkg", "package_version": "1.0"}}],
+                    "representations": [
+                        {
+                            "dependency": {
+                                "package_name": "pkg",
+                                "package_version": "1.0",
+                            }
+                        }
+                    ],
                 }
             ],
             "problems": [],
@@ -1069,7 +1101,12 @@ def test_map_snyk_to_kanbus_covers_code_line_only_and_dependency_fix_variants() 
                 {
                     "is_upgradeable": False,
                     "representations": [
-                        {"dependency": {"package_name": "openssl", "package_version": "1.0"}}
+                        {
+                            "dependency": {
+                                "package_name": "openssl",
+                                "package_version": "1.0",
+                            }
+                        }
                     ],
                 }
             ],
@@ -1122,7 +1159,13 @@ def test_map_snyk_to_kanbus_code_location_with_column_without_end() -> None:
             "coordinates": [
                 {
                     "representations": [
-                        {"source_location": {"file": "src/code.py", "line": 12, "column": 4}}
+                        {
+                            "source_location": {
+                                "file": "src/code.py",
+                                "line": 12,
+                                "column": 4,
+                            }
+                        }
                     ]
                 }
             ],
@@ -1247,7 +1290,9 @@ def test_pull_from_snyk_missing_issues_dir_raises(tmp_path: Path, monkeypatch) -
 
     project_dir = tmp_path / "project"
     project_dir.mkdir(parents=True)
-    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
+    monkeypatch.setattr(
+        project_module, "load_project_directory", lambda root: project_dir
+    )
     try:
         snyk_sync.pull_from_snyk(tmp_path, config, "kanbus")
     except snyk_sync.SnykSyncError as error:
@@ -1266,7 +1311,9 @@ def test_pull_from_snyk_updated_path_and_skip_missing_project_map(
 
     import kanbus.project as project_module
 
-    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
+    monkeypatch.setattr(
+        project_module, "load_project_directory", lambda root: project_dir
+    )
     monkeypatch.setattr(
         snyk_sync, "_detect_repo_from_git", lambda root: "AnthusAI/Kanbus"
     )
@@ -1306,7 +1353,9 @@ def test_pull_from_snyk_updated_path_and_skip_missing_project_map(
         lambda *args, **kwargs: {"dependency": "kanbus-epic"},
     )
     monkeypatch.setattr(
-        snyk_sync, "_build_snyk_key_index", lambda *_args: {"SNYK-UPD-1": "kanbus-existing-1"}
+        snyk_sync,
+        "_build_snyk_key_index",
+        lambda *_args: {"SNYK-UPD-1": "kanbus-existing-1"},
     )
     monkeypatch.setattr(snyk_sync, "_build_file_task_index", lambda *_args: {})
     monkeypatch.setattr(
@@ -1359,7 +1408,9 @@ def test_pull_from_snyk_skips_when_no_epic_for_category(
 
     import kanbus.project as project_module
 
-    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
+    monkeypatch.setattr(
+        project_module, "load_project_directory", lambda root: project_dir
+    )
     monkeypatch.setattr(
         snyk_sync, "_detect_repo_from_git", lambda root: "AnthusAI/Kanbus"
     )
@@ -1390,7 +1441,9 @@ def test_pull_from_snyk_skips_when_no_epic_for_category(
     monkeypatch.setattr(
         snyk_sync,
         "_resolve_file_task",
-        lambda *args, **kwargs: called.__setitem__("resolve_task", called["resolve_task"] + 1),
+        lambda *args, **kwargs: called.__setitem__(
+            "resolve_task", called["resolve_task"] + 1
+        ),
     )
     monkeypatch.setattr(
         snyk_sync,
@@ -1415,7 +1468,9 @@ def test_pull_from_snyk_updated_path_preserves_created_at_when_existing_readable
 
     import kanbus.project as project_module
 
-    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
+    monkeypatch.setattr(
+        project_module, "load_project_directory", lambda root: project_dir
+    )
     monkeypatch.setattr(
         snyk_sync, "_detect_repo_from_git", lambda root: "AnthusAI/Kanbus"
     )
@@ -1440,10 +1495,14 @@ def test_pull_from_snyk_updated_path_preserves_created_at_when_existing_readable
     )
     monkeypatch.setattr(snyk_sync, "_fetch_v1_enrichment", lambda *_args: {})
     monkeypatch.setattr(
-        snyk_sync, "_resolve_snyk_epics", lambda *args, **kwargs: {"dependency": "kanbus-epic"}
+        snyk_sync,
+        "_resolve_snyk_epics",
+        lambda *args, **kwargs: {"dependency": "kanbus-epic"},
     )
     monkeypatch.setattr(
-        snyk_sync, "_build_snyk_key_index", lambda *_args: {"SNYK-UPD-READ": "kanbus-existing-2"}
+        snyk_sync,
+        "_build_snyk_key_index",
+        lambda *_args: {"SNYK-UPD-READ": "kanbus-existing-2"},
     )
     monkeypatch.setattr(snyk_sync, "_build_file_task_index", lambda *_args: {})
     monkeypatch.setattr(
@@ -1489,8 +1548,12 @@ def test_pull_from_snyk_groups_dedups_and_writes_issues(
 
     import kanbus.project as project_module
 
-    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
-    monkeypatch.setattr(snyk_sync, "_detect_repo_from_git", lambda root: "AnthusAI/Kanbus")
+    monkeypatch.setattr(
+        project_module, "load_project_directory", lambda root: project_dir
+    )
+    monkeypatch.setattr(
+        snyk_sync, "_detect_repo_from_git", lambda root: "AnthusAI/Kanbus"
+    )
     monkeypatch.setattr(
         snyk_sync,
         "_fetch_snyk_projects",
@@ -1557,21 +1620,19 @@ def test_pull_from_snyk_groups_dedups_and_writes_issues(
     monkeypatch.setattr(
         snyk_sync,
         "_resolve_file_task",
-        lambda issues_dir,
-        project_key,
-        target_file,
-        category,
-        ctx,
-        file_task_index,
-        all_existing: f"kanbus-task-{category}",
+        lambda issues_dir, project_key, target_file, category, ctx, file_task_index, all_existing: f"kanbus-task-{category}",
     )
     next_id = {"value": 0}
 
     def fake_generate_issue_identifier(request):
         next_id["value"] += 1
-        return SimpleNamespace(identifier=f"{request.prefix}-new-{next_id['value']:03d}")
+        return SimpleNamespace(
+            identifier=f"{request.prefix}-new-{next_id['value']:03d}"
+        )
 
-    monkeypatch.setattr(snyk_sync, "generate_issue_identifier", fake_generate_issue_identifier)
+    monkeypatch.setattr(
+        snyk_sync, "generate_issue_identifier", fake_generate_issue_identifier
+    )
     monkeypatch.setattr(
         snyk_sync,
         "_map_snyk_to_kanbus",
@@ -1585,7 +1646,9 @@ def test_pull_from_snyk_groups_dedups_and_writes_issues(
         ),
     )
 
-    config = SnykConfiguration.model_validate({"org_id": "org", "min_severity": "medium"})
+    config = SnykConfiguration.model_validate(
+        {"org_id": "org", "min_severity": "medium"}
+    )
     result = snyk_sync.pull_from_snyk(tmp_path, config, "kanbus", dry_run=False)
 
     assert result.pulled == 2

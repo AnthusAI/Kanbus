@@ -175,8 +175,11 @@ mod tests {
     fn write_issue(path: &Path, id: &str) {
         let issue = make_issue(id);
         fs::create_dir_all(path.parent().expect("issue parent")).expect("create issue parent");
-        fs::write(path, serde_json::to_string_pretty(&issue).expect("serialize issue"))
-            .expect("write issue");
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&issue).expect("serialize issue"),
+        )
+        .expect("write issue");
     }
 
     #[test]
@@ -189,7 +192,10 @@ mod tests {
         let localized = localize_issue(temp.path(), "kanbus-1").expect("localize issue");
         assert_eq!(localized.identifier, "kanbus-1");
         assert!(!shared_path.exists());
-        assert!(temp.path().join("project-local/issues/kanbus-1.json").exists());
+        assert!(temp
+            .path()
+            .join("project-local/issues/kanbus-1.json")
+            .exists());
     }
 
     #[test]
@@ -209,8 +215,14 @@ mod tests {
     fn localize_issue_rejects_when_target_already_exists() {
         let temp = tempfile::tempdir().expect("tempdir");
         write_project_config(temp.path());
-        write_issue(&temp.path().join("project/issues/kanbus-1.json"), "kanbus-1");
-        write_issue(&temp.path().join("project-local/issues/kanbus-1.json"), "kanbus-1");
+        write_issue(
+            &temp.path().join("project/issues/kanbus-1.json"),
+            "kanbus-1",
+        );
+        write_issue(
+            &temp.path().join("project-local/issues/kanbus-1.json"),
+            "kanbus-1",
+        );
 
         let result = localize_issue(temp.path(), "kanbus-1");
         match result {
@@ -223,8 +235,14 @@ mod tests {
     fn promote_issue_rejects_when_target_already_exists() {
         let temp = tempfile::tempdir().expect("tempdir");
         write_project_config(temp.path());
-        write_issue(&temp.path().join("project/issues/kanbus-1.json"), "kanbus-1");
-        write_issue(&temp.path().join("project-local/issues/kanbus-1.json"), "kanbus-1");
+        write_issue(
+            &temp.path().join("project/issues/kanbus-1.json"),
+            "kanbus-1",
+        );
+        write_issue(
+            &temp.path().join("project-local/issues/kanbus-1.json"),
+            "kanbus-1",
+        );
 
         let result = promote_issue(temp.path(), "kanbus-1");
         match result {
@@ -237,7 +255,10 @@ mod tests {
     fn localize_issue_rejects_when_issue_is_only_in_project_local() {
         let temp = tempfile::tempdir().expect("tempdir");
         write_project_config(temp.path());
-        write_issue(&temp.path().join("project-local/issues/kanbus-1.json"), "kanbus-1");
+        write_issue(
+            &temp.path().join("project-local/issues/kanbus-1.json"),
+            "kanbus-1",
+        );
 
         let result = localize_issue(temp.path(), "kanbus-1");
         match result {
@@ -267,7 +288,10 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         write_project_config(temp.path());
         fs::create_dir_all(temp.path().join("project-local/issues")).expect("create local issues");
-        write_issue(&temp.path().join("project/issues/kanbus-1.json"), "kanbus-1");
+        write_issue(
+            &temp.path().join("project/issues/kanbus-1.json"),
+            "kanbus-1",
+        );
 
         let result = promote_issue(temp.path(), "kanbus-1");
         match result {
@@ -285,10 +309,16 @@ mod tests {
         fs::create_dir_all(temp.path().join("project/issues")).expect("create shared issues");
         fs::create_dir_all(temp.path().join("project-local/issues")).expect("create local issues");
 
-        fs::write(temp.path().join("project/issues/kanbus-shared.json"), "{bad json")
-            .expect("write invalid shared issue");
-        fs::write(temp.path().join("project-local/issues/kanbus-local.json"), "{bad json")
-            .expect("write invalid local issue");
+        fs::write(
+            temp.path().join("project/issues/kanbus-shared.json"),
+            "{bad json",
+        )
+        .expect("write invalid shared issue");
+        fs::write(
+            temp.path().join("project-local/issues/kanbus-local.json"),
+            "{bad json",
+        )
+        .expect("write invalid local issue");
 
         let localize = localize_issue(temp.path(), "kanbus-shared")
             .expect_err("localize should fail for invalid json");

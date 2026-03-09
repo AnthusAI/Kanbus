@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -96,12 +96,19 @@ def test_pull_from_jira_updates_and_pulls_with_dry_run_and_write_paths(
     issues_dir = project_dir / "issues"
     issues_dir.mkdir(parents=True)
 
-    monkeypatch.setattr("kanbus.project.load_project_directory", lambda _root: project_dir)
+    monkeypatch.setattr(
+        "kanbus.project.load_project_directory", lambda _root: project_dir
+    )
 
-    issues = [_jira_issue("KAN-1", summary="Existing"), _jira_issue("KAN-2", summary="New", parent="KAN-1")]
+    issues = [
+        _jira_issue("KAN-1", summary="Existing"),
+        _jira_issue("KAN-2", summary="New", parent="KAN-1"),
+    ]
     monkeypatch.setattr(jira_sync, "_fetch_all_jira_issues", lambda *_args: issues)
 
-    monkeypatch.setattr(jira_sync, "list_issue_identifiers", lambda _dir: {"kanbus-aaaa111"})
+    monkeypatch.setattr(
+        jira_sync, "list_issue_identifiers", lambda _dir: {"kanbus-aaaa111"}
+    )
     monkeypatch.setattr(
         jira_sync,
         "_build_jira_key_index",
@@ -117,10 +124,16 @@ def test_pull_from_jira_updates_and_pulls_with_dry_run_and_write_paths(
 
     existing_issue = build_issue("kanbus-aaaa111")
     read_calls: list[Path] = []
-    monkeypatch.setattr(jira_sync, "read_issue_from_file", lambda p: read_calls.append(p) or existing_issue)
+    monkeypatch.setattr(
+        jira_sync,
+        "read_issue_from_file",
+        lambda p: read_calls.append(p) or existing_issue,
+    )
 
     writes: list[Path] = []
-    monkeypatch.setattr(jira_sync, "write_issue_to_file", lambda issue, path: writes.append(path))
+    monkeypatch.setattr(
+        jira_sync, "write_issue_to_file", lambda issue, path: writes.append(path)
+    )
 
     result_dry = jira_sync.pull_from_jira(tmp_path, cfg, "kanbus", dry_run=True)
     assert result_dry.updated == 1
@@ -136,15 +149,23 @@ def test_pull_from_jira_updates_and_pulls_with_dry_run_and_write_paths(
     assert read_calls
 
     # Existing read failure should be ignored.
-    monkeypatch.setattr(jira_sync, "read_issue_from_file", lambda _p: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        jira_sync,
+        "read_issue_from_file",
+        lambda _p: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
     jira_sync.pull_from_jira(tmp_path, cfg, "kanbus", dry_run=True)
 
 
-def test_fetch_all_jira_issues_pagination_and_error(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fetch_all_jira_issues_pagination_and_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     cfg = _jira_config()
 
     class Response:
-        def __init__(self, ok: bool, payload: dict, status_code: int = 200, text: str = ""):
+        def __init__(
+            self, ok: bool, payload: dict, status_code: int = 200, text: str = ""
+        ):
             self.ok = ok
             self._payload = payload
             self.status_code = status_code
@@ -169,7 +190,9 @@ def test_fetch_all_jira_issues_pagination_and_error(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(
         jira_sync.requests,
         "get",
-        lambda *args, **kwargs: Response(False, {}, status_code=401, text="unauthorized"),
+        lambda *args, **kwargs: Response(
+            False, {}, status_code=401, text="unauthorized"
+        ),
     )
     with pytest.raises(JiraSyncError, match="Jira API returned 401"):
         jira_sync._fetch_all_jira_issues(cfg, "u@example.com", "tok")
@@ -219,10 +242,17 @@ def test_map_jira_to_kanbus_and_support_helpers() -> None:
     assert "Hello" in jira_sync._extract_adf_text(issue["fields"]["description"])
     assert jira_sync._extract_adf_text(123) == ""
 
-    assert jira_sync._extract_adf_content({"content": [{"type": "text", "text": "a"}]}) == "a"
+    assert (
+        jira_sync._extract_adf_content({"content": [{"type": "text", "text": "a"}]})
+        == "a"
+    )
     assert (
         jira_sync._extract_adf_content(
-            {"content": [{"type": "paragraph", "content": [{"type": "text", "text": "b"}]}]}
+            {
+                "content": [
+                    {"type": "paragraph", "content": [{"type": "text", "text": "b"}]}
+                ]
+            }
         )
         == "b"
     )
@@ -253,4 +283,6 @@ def test_map_jira_to_kanbus_and_support_helpers() -> None:
     assert jira_sync._parse_jira_datetime(None) is None
     assert jira_sync._parse_jira_datetime("bad") is None
 
-    assert jira_sync.issue_path_for_identifier(Path("/x"), "kanbus-1") == Path("/x/kanbus-1.json")
+    assert jira_sync.issue_path_for_identifier(Path("/x"), "kanbus-1") == Path(
+        "/x/kanbus-1.json"
+    )

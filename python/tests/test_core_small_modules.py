@@ -51,7 +51,9 @@ def test_run_doctor_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     expected_dir = tmp_path / "project"
     monkeypatch.setattr(doctor, "ensure_git_repository", lambda _root: None)
     monkeypatch.setattr(doctor, "load_project_directory", lambda _root: expected_dir)
-    monkeypatch.setattr(doctor, "get_configuration_path", lambda _root: tmp_path / "config.yaml")
+    monkeypatch.setattr(
+        doctor, "get_configuration_path", lambda _root: tmp_path / "config.yaml"
+    )
     monkeypatch.setattr(doctor, "load_project_configuration", lambda _path: object())
 
     result = doctor.run_doctor(tmp_path)
@@ -74,8 +76,12 @@ def test_run_doctor_wraps_errors(
     message: str,
 ) -> None:
     monkeypatch.setattr(doctor, "ensure_git_repository", lambda _root: None)
-    monkeypatch.setattr(doctor, "load_project_directory", lambda _root: tmp_path / "project")
-    monkeypatch.setattr(doctor, "get_configuration_path", lambda _root: tmp_path / "config.yaml")
+    monkeypatch.setattr(
+        doctor, "load_project_directory", lambda _root: tmp_path / "project"
+    )
+    monkeypatch.setattr(
+        doctor, "get_configuration_path", lambda _root: tmp_path / "config.yaml"
+    )
 
     def raise_error(_arg):
         raise exc_type(message)
@@ -102,7 +108,9 @@ def test_hierarchy_returns_empty_for_unknown_or_terminal_parent() -> None:
 def test_validate_parent_child_relationship_rejects_invalid_pair() -> None:
     configuration = build_project_configuration()
     with pytest.raises(hierarchy.InvalidHierarchyError, match="cannot have child"):
-        hierarchy.validate_parent_child_relationship(configuration, "epic", "initiative")
+        hierarchy.validate_parent_child_relationship(
+            configuration, "epic", "initiative"
+        )
 
 
 def test_load_policies_returns_empty_for_missing_directory(tmp_path: Path) -> None:
@@ -136,7 +144,9 @@ def test_load_policies_wraps_parse_errors(
 
     monkeypatch.setattr(policy_loader, "Parser", BrokenParser)
 
-    with pytest.raises(policy_loader.PolicyLoadError, match="failed to parse bad.policy"):
+    with pytest.raises(
+        policy_loader.PolicyLoadError, match="failed to parse bad.policy"
+    ):
         policy_loader.load_policies(policies_dir)
 
 

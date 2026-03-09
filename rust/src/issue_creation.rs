@@ -517,6 +517,9 @@ mod tests {
         child_req.issue_type = Some("sub-task".to_string());
         child_req.parent = Some(parent.issue.identifier.chars().take(12).collect());
         let child = create_issue(&child_req).expect("create child");
-        assert_eq!(child.issue.parent.as_deref(), Some(parent.issue.identifier.as_str()));
+        assert_eq!(
+            child.issue.parent.as_deref(),
+            Some(parent.issue.identifier.as_str())
+        );
     }
 }

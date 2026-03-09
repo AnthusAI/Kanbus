@@ -46,7 +46,9 @@ def test_policy_context_parent_issue_handles_missing_parent() -> None:
     context.proposed_issue = context.proposed_issue.model_copy(update={"parent": None})
     assert context.parent_issue() is None
 
-    context.proposed_issue = context.proposed_issue.model_copy(update={"parent": "nope"})
+    context.proposed_issue = context.proposed_issue.model_copy(
+        update={"parent": "nope"}
+    )
     assert context.parent_issue() is None
 
     context.transition = None

@@ -1137,7 +1137,9 @@ mod tests {
             .expect("set hooksPath /dev/null");
         let dev_null_error =
             resolve_git_hooks_dir(temp_dir.path()).expect_err("dev/null should be rejected");
-        assert!(dev_null_error.to_string().contains("git hooks are disabled"));
+        assert!(dev_null_error
+            .to_string()
+            .contains("git hooks are disabled"));
 
         let file_path = temp_dir.path().join("hooks-file");
         fs::write(&file_path, "not-a-directory").expect("write hooks file");
@@ -1187,7 +1189,9 @@ mod tests {
         let temp_dir = TempDir::new().expect("tempdir");
         let gc = gc_overlay_for_projects(temp_dir.path(), Some("alpha".to_string()), true)
             .expect_err("gc should reject --project with --all");
-        assert!(gc.to_string().contains("cannot combine --project with --all"));
+        assert!(gc
+            .to_string()
+            .contains("cannot combine --project with --all"));
 
         let reconcile = reconcile_overlay_for_projects(
             temp_dir.path(),

@@ -137,8 +137,11 @@ mod tests {
     fn write_issue(path: &Path, id: &str, parent: Option<&str>) {
         let issue = make_issue(id, parent);
         fs::create_dir_all(path.parent().expect("issue parent")).expect("create issue parent");
-        fs::write(path, serde_json::to_string_pretty(&issue).expect("serialize issue"))
-            .expect("write issue");
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&issue).expect("serialize issue"),
+        )
+        .expect("write issue");
     }
 
     fn write_event(path: &Path, issue_id: &str) {
@@ -147,8 +150,11 @@ mod tests {
             "issue_id": issue_id,
             "event_id": format!("evt-{issue_id}"),
         });
-        fs::write(path, serde_json::to_string_pretty(&payload).expect("serialize event"))
-            .expect("write event");
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&payload).expect("serialize event"),
+        )
+        .expect("write event");
     }
 
     #[test]
@@ -171,14 +177,15 @@ mod tests {
             Some("kanbus-child"),
         );
         write_issue(
-            &temp.path().join("project-local/issues/kanbus-local-child.json"),
+            &temp
+                .path()
+                .join("project-local/issues/kanbus-local-child.json"),
             "kanbus-local-child",
             Some("kanbus-parent"),
         );
 
-        let descendants =
-            get_descendant_identifiers(&temp.path().join("project"), "kanbus-parent")
-                .expect("descendants");
+        let descendants = get_descendant_identifiers(&temp.path().join("project"), "kanbus-parent")
+            .expect("descendants");
         assert_eq!(descendants.len(), 3);
         assert_eq!(descendants[0], "kanbus-grandchild");
         assert!(descendants.contains(&"kanbus-child".to_string()));

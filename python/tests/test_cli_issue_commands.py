@@ -9,7 +9,6 @@ import pytest
 from kanbus import cli
 from kanbus.content_validation import ContentValidationError
 from kanbus.issue_close import IssueCloseError
-from kanbus.issue_comment import IssueCommentError
 from kanbus.issue_creation import IssueCreationError
 from kanbus.issue_lookup import IssueLookupError
 from kanbus.issue_transfer import IssueTransferError
@@ -70,7 +69,9 @@ def test_create_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr(
         cli,
         "create_issue",
-        lambda **_k: SimpleNamespace(issue=issue, configuration=build_project_configuration()),
+        lambda **_k: SimpleNamespace(
+            issue=issue, configuration=build_project_configuration()
+        ),
     )
     result_regular_ok = _run(["create", "x", "--no-validate"])
     assert result_regular_ok.exit_code == 0
@@ -92,8 +93,14 @@ def test_show_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 
     issue = build_issue("kanbus-1")
 
-    monkeypatch.setattr(cli, "load_project_configuration", lambda _p: build_project_configuration(beads_compatibility=True))
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(beads_compatibility=True),
+    )
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(cli, "_resolve_beads_root", lambda _r: tmp_path)
     monkeypatch.setattr(cli, "load_beads_issue", lambda _r, _i: issue)
 
@@ -118,9 +125,16 @@ def test_show_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         "load_project_configuration",
         lambda _p: build_project_configuration(beads_compatibility=False),
     )
-    monkeypatch.setattr(cli, "load_issue_from_project", lambda _r, _i: SimpleNamespace(issue=issue))
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr("kanbus.console_snapshot.get_issues_for_root", lambda _r: (_ for _ in ()).throw(RuntimeError("ignore")))
+    monkeypatch.setattr(
+        cli, "load_issue_from_project", lambda _r, _i: SimpleNamespace(issue=issue)
+    )
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        "kanbus.console_snapshot.get_issues_for_root",
+        lambda _r: (_ for _ in ()).throw(RuntimeError("ignore")),
+    )
     result_regular_ok = _run(["show", "kanbus-1"])
     assert result_regular_ok.exit_code == 0
 
@@ -136,7 +150,9 @@ def test_show_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 def test_update_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, project_context=False: identifier)
+    monkeypatch.setattr(
+        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+    )
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
     monkeypatch.setattr(
         cli,
@@ -160,20 +176,30 @@ def test_update_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     issue = build_issue("kanbus-1")
     monkeypatch.setattr(cli, "load_beads_issue", lambda _r, _i: issue)
     monkeypatch.setattr(cli, "update_beads_issue", lambda *_a, **_k: None)
-    result_beads_ok = _run(["--beads", "update", "kanbus-1", "--set-labels", "a,b", "--no-validate"])
+    result_beads_ok = _run(
+        ["--beads", "update", "kanbus-1", "--set-labels", "a,b", "--no-validate"]
+    )
     assert result_beads_ok.exit_code == 0
     assert "Updated kanbus-1" in result_beads_ok.output
 
     monkeypatch.setattr(
         cli,
         "update_beads_issue",
-        lambda *_a, **_k: (_ for _ in ()).throw(cli.BeadsWriteError("beads update fail")),
+        lambda *_a, **_k: (_ for _ in ()).throw(
+            cli.BeadsWriteError("beads update fail")
+        ),
     )
     result_beads_fail = _run(["--beads", "update", "kanbus-1", "--no-validate"])
     assert result_beads_fail.exit_code != 0
 
-    monkeypatch.setattr(cli, "load_project_configuration", lambda _p: (_ for _ in ()).throw(cli.ProjectMarkerError("pm")))
-    monkeypatch.setattr(cli, "load_issue_from_project", lambda _r, _i: SimpleNamespace(issue=issue))
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: (_ for _ in ()).throw(cli.ProjectMarkerError("pm")),
+    )
+    monkeypatch.setattr(
+        cli, "load_issue_from_project", lambda _r, _i: SimpleNamespace(issue=issue)
+    )
     monkeypatch.setattr(cli, "update_issue", lambda **_k: issue)
     result_regular_ok = _run(["update", "kanbus-1", "--claim", "--no-validate"])
     assert result_regular_ok.exit_code == 0
@@ -192,7 +218,9 @@ def test_close_move_promote_localize_comment_paths(
 ) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, project_context=False: identifier)
+    monkeypatch.setattr(
+        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+    )
     issue = build_issue("kanbus-1")
 
     monkeypatch.setattr(cli, "close_issue", lambda _r, _i: issue)
@@ -230,13 +258,23 @@ def test_close_move_promote_localize_comment_paths(
     )
     assert _run(["close", "kanbus-1"]).exit_code != 0
 
-    monkeypatch.setattr(cli, "load_project_configuration", lambda _p: build_project_configuration(beads_compatibility=False))
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(beads_compatibility=False),
+    )
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(cli, "update_issue", lambda **_k: issue)
     result_move = _run(["move", "kanbus-1", "bug"])
     assert result_move.exit_code == 0
 
-    monkeypatch.setattr(cli, "load_project_configuration", lambda _p: build_project_configuration(beads_compatibility=True))
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(beads_compatibility=True),
+    )
     assert _run(["move", "kanbus-1", "bug"]).exit_code != 0
 
     monkeypatch.setattr(
@@ -244,12 +282,18 @@ def test_close_move_promote_localize_comment_paths(
         "update_issue",
         lambda **_k: (_ for _ in ()).throw(IssueUpdateError("move fail")),
     )
-    monkeypatch.setattr(cli, "load_project_configuration", lambda _p: build_project_configuration(beads_compatibility=False))
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(beads_compatibility=False),
+    )
     assert _run(["move", "kanbus-1", "bug"]).exit_code != 0
 
     monkeypatch.setattr(cli, "promote_issue", lambda *_a: None)
     monkeypatch.setattr(cli, "localize_issue", lambda *_a: None)
-    monkeypatch.setattr(cli, "load_issue_from_project", lambda _r, _i: SimpleNamespace(issue=issue))
+    monkeypatch.setattr(
+        cli, "load_issue_from_project", lambda _r, _i: SimpleNamespace(issue=issue)
+    )
     assert _run(["promote", "kanbus-1"]).exit_code == 0
     assert _run(["localize", "kanbus-1"]).exit_code == 0
 
@@ -282,7 +326,11 @@ def test_close_move_promote_localize_comment_paths(
     )
     assert _run(["localize", "kanbus-1"]).exit_code != 0
 
-    monkeypatch.setattr(cli, "apply_text_quality_signals", lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]))
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
     monkeypatch.setattr(cli, "validate_code_blocks", lambda _t: None)
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
     monkeypatch.setattr(
@@ -290,7 +338,9 @@ def test_close_move_promote_localize_comment_paths(
         "load_project_configuration",
         lambda _p: build_project_configuration(beads_compatibility=True),
     )
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr("kanbus.beads_write.add_beads_comment", lambda *_a, **_k: None)
     monkeypatch.setattr(cli, "load_beads_issue", lambda *_a, **_k: issue)
     body_file = tmp_path / "comment.txt"
@@ -313,7 +363,11 @@ def test_close_move_promote_localize_comment_paths(
     result_comment = _run(["comment", "kanbus-1", "hello"])
     assert result_comment.exit_code == 0
 
-    monkeypatch.setattr(cli, "validate_code_blocks", lambda _t: (_ for _ in ()).throw(ContentValidationError("bad comment")))
+    monkeypatch.setattr(
+        cli,
+        "validate_code_blocks",
+        lambda _t: (_ for _ in ()).throw(ContentValidationError("bad comment")),
+    )
     assert _run(["comment", "kanbus-1", "hello"]).exit_code != 0
 
 
@@ -327,7 +381,9 @@ def test_update_beads_policy_signal_and_delete_beads_compat_paths(
         "load_project_configuration",
         lambda _p: build_project_configuration(beads_compatibility=True),
     )
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(cli, "_resolve_beads_root", lambda _r: tmp_path)
     monkeypatch.setattr(
         cli,
@@ -340,10 +396,18 @@ def test_update_beads_policy_signal_and_delete_beads_compat_paths(
         lambda _root: tmp_path / "project",
     )
     (tmp_path / "project" / "policies").mkdir(parents=True)
-    monkeypatch.setattr("kanbus.policy_loader.load_policies", lambda _p: [("p.policy", object())])
-    monkeypatch.setattr("kanbus.policy_evaluator.evaluate_policies", lambda *_a, **_k: [])
-    monkeypatch.setattr("kanbus.workflows.validate_status_value", lambda *_a, **_k: None)
-    monkeypatch.setattr("kanbus.workflows.validate_status_transition", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "kanbus.policy_loader.load_policies", lambda _p: [("p.policy", object())]
+    )
+    monkeypatch.setattr(
+        "kanbus.policy_evaluator.evaluate_policies", lambda *_a, **_k: []
+    )
+    monkeypatch.setattr(
+        "kanbus.workflows.validate_status_value", lambda *_a, **_k: None
+    )
+    monkeypatch.setattr(
+        "kanbus.workflows.validate_status_transition", lambda *_a, **_k: None
+    )
 
     before_issue = build_issue("kanbus-1", labels=["keep", "drop"])
     load_calls = {"count": 0}
@@ -363,7 +427,9 @@ def test_update_beads_policy_signal_and_delete_beads_compat_paths(
     monkeypatch.setattr(cli, "load_beads_issue", _load_beads_issue)
     monkeypatch.setattr(cli, "load_beads_issues", lambda _r: [before_issue])
     monkeypatch.setattr(cli, "update_beads_issue", lambda *_a, **_k: None)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, project_context=False: identifier)
+    monkeypatch.setattr(
+        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+    )
     emitted: list[str] = []
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: emitted.append("emit"))
 

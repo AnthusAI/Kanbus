@@ -342,7 +342,12 @@ mod tests {
 
     #[test]
     fn format_issue_line_handles_porcelain_and_plain_modes() {
-        let issue = sample_issue("kanbus-abcdef123456", "task", "open", Some("kanbus-111111111111"));
+        let issue = sample_issue(
+            "kanbus-abcdef123456",
+            "task",
+            "open",
+            Some("kanbus-111111111111"),
+        );
         let widths = compute_widths(std::slice::from_ref(&issue), false);
 
         let porcelain = format_issue_line(&issue, Some(&widths), true, false, None, Some(false));
@@ -373,9 +378,18 @@ mod tests {
     #[test]
     fn color_helpers_cover_configured_and_fallback_paths() {
         let config = sample_configuration();
-        assert_eq!(status_color("open", Some(&config)), Some(AnsiColors::BrightGreen));
-        assert_eq!(priority_color(2, Some(&config)), Some(AnsiColors::BrightCyan));
-        assert_eq!(type_color("task", Some(&config)), Some(AnsiColors::BrightMagenta));
+        assert_eq!(
+            status_color("open", Some(&config)),
+            Some(AnsiColors::BrightGreen)
+        );
+        assert_eq!(
+            priority_color(2, Some(&config)),
+            Some(AnsiColors::BrightCyan)
+        );
+        assert_eq!(
+            type_color("task", Some(&config)),
+            Some(AnsiColors::BrightMagenta)
+        );
 
         assert_eq!(status_color("closed", None), Some(AnsiColors::Green));
         assert_eq!(priority_color(0, None), Some(AnsiColors::Red));

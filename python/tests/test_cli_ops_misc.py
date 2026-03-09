@@ -26,7 +26,9 @@ def _run(args: list[str]) -> object:
     return CliRunner().invoke(cli.cli, args)
 
 
-def test_dep_tree_and_usage_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_dep_tree_and_usage_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
 
     result_tree_missing = _run(["dep", "tree"])
@@ -38,7 +40,9 @@ def test_dep_tree_and_usage_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert "depth must be a number" in result_tree_bad_depth.output
 
     monkeypatch.setattr(cli, "build_dependency_tree", lambda *_a: {"tree": True})
-    monkeypatch.setattr(cli, "render_dependency_tree", lambda tree, fmt: f"rendered {fmt}")
+    monkeypatch.setattr(
+        cli, "render_dependency_tree", lambda tree, fmt: f"rendered {fmt}"
+    )
     result_tree = _run(["dep", "tree", "kanbus-1", "--format", "json"])
     assert result_tree.exit_code == 0
     assert "rendered json" in result_tree.output
@@ -65,13 +69,17 @@ def test_dep_tree_and_usage_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert "dependency target is required" in result_add_missing_target.output
 
 
-def test_dep_add_remove_paths_with_modes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_dep_add_remove_paths_with_modes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     calls: list[tuple[str, str]] = []
     monkeypatch.setattr(
         cli,
         "_run_lifecycle_hooks_for_context",
-        lambda context, phase, event, operation, root, beads_mode, issues_for_policy=None: calls.append((phase.value, operation["action"])),
+        lambda context, phase, event, operation, root, beads_mode, issues_for_policy=None: calls.append(
+            (phase.value, operation["action"])
+        ),
     )
 
     monkeypatch.setattr(
@@ -79,7 +87,9 @@ def test_dep_add_remove_paths_with_modes(monkeypatch: pytest.MonkeyPatch, tmp_pa
         "load_project_configuration",
         lambda _p: build_project_configuration(beads_compatibility=True),
     )
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
     added: list[tuple[str, str, str]] = []
     monkeypatch.setattr(
         "kanbus.beads_write.add_beads_dependency",
@@ -114,7 +124,9 @@ def test_dep_add_remove_paths_with_modes(monkeypatch: pytest.MonkeyPatch, tmp_pa
         lambda _p: (_ for _ in ()).throw(ProjectMarkerError("project not initialized")),
     )
     removed: list[tuple[str, str, str]] = []
-    monkeypatch.setattr(cli, "remove_dependency", lambda _r, i, t, d: removed.append((i, t, d)))
+    monkeypatch.setattr(
+        cli, "remove_dependency", lambda _r, i, t, d: removed.append((i, t, d))
+    )
 
     result_remove = _run(["dep", "kanbus-1", "remove", "blocked-by", "kanbus-2"])
     assert result_remove.exit_code == 0
@@ -146,7 +158,9 @@ def test_dep_add_remove_paths_with_modes(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert calls
 
 
-def test_ready_command_success_and_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_ready_command_success_and_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_resolve_beads_root", lambda _cwd: tmp_path / "repo")
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
@@ -174,10 +188,14 @@ def test_ready_command_success_and_error(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert "ready fail" in result_fail.output
 
 
-def test_doctor_migrate_and_daemon_commands(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_doctor_migrate_and_daemon_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
 
-    monkeypatch.setattr(cli, "run_doctor", lambda _r: SimpleNamespace(project_dir="/tmp/project"))
+    monkeypatch.setattr(
+        cli, "run_doctor", lambda _r: SimpleNamespace(project_dir="/tmp/project")
+    )
     assert "ok /tmp/project" in _run(["doctor"]).output
 
     monkeypatch.setattr(
@@ -188,7 +206,9 @@ def test_doctor_migrate_and_daemon_commands(monkeypatch: pytest.MonkeyPatch, tmp
     result_doctor_fail = _run(["doctor"])
     assert result_doctor_fail.exit_code != 0
 
-    monkeypatch.setattr(cli, "migrate_from_beads", lambda _r: SimpleNamespace(issue_count=5))
+    monkeypatch.setattr(
+        cli, "migrate_from_beads", lambda _r: SimpleNamespace(issue_count=5)
+    )
     assert "migrated 5 issues" in _run(["migrate"]).output
 
     monkeypatch.setattr(
@@ -242,7 +262,9 @@ def test_doctor_migrate_and_daemon_commands(monkeypatch: pytest.MonkeyPatch, tmp
     assert result_stop_fail.exit_code != 0
 
 
-def test_gossip_overlay_and_project_marker_format(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_gossip_overlay_and_project_marker_format(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
 
     monkeypatch.setattr(cli, "run_gossip_broker", lambda *_a: None)
@@ -318,7 +340,9 @@ def test_gossip_overlay_and_project_marker_format(monkeypatch: pytest.MonkeyPatc
     assert cli._format_project_marker_error(ProjectMarkerError("other")) == "other"
 
 
-def test_snyk_and_jira_pull_and_aliases(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_snyk_and_jira_pull_and_aliases(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
 
     monkeypatch.setattr(
@@ -328,7 +352,9 @@ def test_snyk_and_jira_pull_and_aliases(monkeypatch: pytest.MonkeyPatch, tmp_pat
     )
     assert _run(["snyk", "pull"]).exit_code != 0
 
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(
         cli,
         "load_project_configuration",
@@ -362,7 +388,9 @@ def test_snyk_and_jira_pull_and_aliases(monkeypatch: pytest.MonkeyPatch, tmp_pat
     result_snyk = _run(["snyk", "pull", "--dry-run", "--min-severity", "high"])
     assert result_snyk.exit_code == 0
     assert "Dry run" in result_snyk.output
-    assert "pulled 1 new, updated 2 existing, skipped 3 duplicates" in result_snyk.output
+    assert (
+        "pulled 1 new, updated 2 existing, skipped 3 duplicates" in result_snyk.output
+    )
 
     monkeypatch.setattr(
         "kanbus.snyk_sync.pull_from_snyk",

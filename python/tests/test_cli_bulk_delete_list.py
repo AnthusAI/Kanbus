@@ -25,7 +25,9 @@ def test_bulk_update_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
 
-    result_beads = _run(["--beads", "bulk", "update", "--id", "kanbus-1", "--set-status", "done"])
+    result_beads = _run(
+        ["--beads", "bulk", "update", "--id", "kanbus-1", "--set-status", "done"]
+    )
     assert result_beads.exit_code != 0
     assert "not supported in beads mode" in result_beads.output
 
@@ -119,7 +121,9 @@ def test_bulk_update_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     assert "second update fail" in result_second_update_fail.output
 
 
-def test_delete_paths_regular_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_delete_paths_regular_mode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
     monkeypatch.setattr(
@@ -158,7 +162,9 @@ def test_delete_paths_regular_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         lambda *_a, **_k: ["d1", "d2", "d3", "d4", "d5", "d6"],
     )
     deleted: list[str] = []
-    monkeypatch.setattr(cli, "delete_issue", lambda _root, issue_id: deleted.append(issue_id))
+    monkeypatch.setattr(
+        cli, "delete_issue", lambda _root, issue_id: deleted.append(issue_id)
+    )
 
     result_recursive = _run(["delete", "kanbus-1", "--recursive"])
     assert result_recursive.exit_code == 0
@@ -188,12 +194,18 @@ def test_delete_paths_regular_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert "delete fail" in result_delete_fail.output
 
 
-def test_delete_paths_beads_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_delete_paths_beads_mode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
     monkeypatch.setattr(cli, "_resolve_beads_root", lambda _cwd: tmp_path)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, project_context=False: identifier)
-    monkeypatch.setattr(cli, "load_beads_issue", lambda *_a, **_k: build_issue("kanbus-1"))
+    monkeypatch.setattr(
+        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+    )
+    monkeypatch.setattr(
+        cli, "load_beads_issue", lambda *_a, **_k: build_issue("kanbus-1")
+    )
 
     monkeypatch.setattr(cli, "_delete_terminal_is_interactive", lambda: False)
     result_non_interactive = _run(["--beads", "delete", "kanbus-1"])
@@ -244,7 +256,8 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     monkeypatch.setattr(
         cli,
         "compute_widths",
-        lambda issues, project_context: widths_calls.append(project_context) or {"id": 8},
+        lambda issues, project_context: widths_calls.append(project_context)
+        or {"id": 8},
     )
     monkeypatch.setattr(
         cli,
@@ -263,7 +276,9 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         "load_project_configuration",
         lambda _p: build_project_configuration(),
     )
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
 
     result_regular = _run(["list", "--limit", "1", "--full-ids"])
     assert result_regular.exit_code == 0
@@ -312,7 +327,9 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     beads_issue_a = build_issue("kanbus-3", priority=3)
     beads_issue_b = build_issue("kanbus-2", priority=1)
     monkeypatch.setattr(cli, "_resolve_beads_root", lambda _cwd: tmp_path)
-    monkeypatch.setattr(cli, "list_issues", lambda *_a, **_k: [beads_issue_a, beads_issue_b])
+    monkeypatch.setattr(
+        cli, "list_issues", lambda *_a, **_k: [beads_issue_a, beads_issue_b]
+    )
     monkeypatch.setattr(
         cli,
         "compute_widths",

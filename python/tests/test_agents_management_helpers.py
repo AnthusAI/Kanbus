@@ -36,7 +36,9 @@ def test_find_kanbus_sections_and_replace() -> None:
 
 def test_insert_kanbus_section_places_after_h1() -> None:
     lines = ["# Agent Instructions", "", "## Existing", "text"]
-    inserted = agents._insert_kanbus_section(lines, ["## Project management with Kanbus"])
+    inserted = agents._insert_kanbus_section(
+        lines, ["## Project management with Kanbus"]
+    )
     assert inserted.startswith("# Agent Instructions")
     assert "## Project management with Kanbus" in inserted
 

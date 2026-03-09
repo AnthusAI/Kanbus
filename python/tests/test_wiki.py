@@ -48,7 +48,9 @@ def test_wiki_context_query_count_issue_and_invalid_sort() -> None:
         context.query(sort="bad")
 
 
-def test_wiki_render_cache_helpers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wiki_render_cache_helpers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     page = tmp_path / "page.md"
     page.write_text("hello", encoding="utf-8")
     issues = [build_issue("kanbus-1")]
@@ -63,7 +65,11 @@ def test_wiki_render_cache_helpers(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert wiki._wiki_render_read_cache(cache_dir, "k1") == "content"
 
     # Read errors should return None.
-    monkeypatch.setattr(Path, "read_text", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")))
+    monkeypatch.setattr(
+        Path,
+        "read_text",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
+    )
     assert wiki._wiki_render_read_cache(cache_dir, "k1") is None
 
 
@@ -77,7 +83,9 @@ def test_wiki_render_log_cache_hit(tmp_path: Path) -> None:
 def test_load_ai_config_and_project_dir_success_and_failures(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    cfg = build_project_configuration().model_copy(update={"project_directory": "project"})
+    cfg = build_project_configuration().model_copy(
+        update={"project_directory": "project"}
+    )
     cfg_path = tmp_path / ".kanbus.yml"
 
     monkeypatch.setattr(project, "get_configuration_path", lambda _root: cfg_path)
@@ -117,7 +125,9 @@ def test_render_template_string_success_and_errors() -> None:
 
 
 def test_render_wiki_page_raises_for_missing_page(tmp_path: Path) -> None:
-    request = wiki.WikiRenderRequest(root=tmp_path, page_path=Path("project/wiki/missing.md"))
+    request = wiki.WikiRenderRequest(
+        root=tmp_path, page_path=Path("project/wiki/missing.md")
+    )
     with pytest.raises(wiki.WikiError, match="wiki page not found"):
         wiki.render_wiki_page(request)
 
@@ -136,7 +146,9 @@ def test_render_wiki_page_wraps_console_snapshot_errors(
     )
 
     with pytest.raises(wiki.WikiError, match="snapshot failed"):
-        wiki.render_wiki_page(wiki.WikiRenderRequest(root=tmp_path, page_path=Path("project/wiki/p.md")))
+        wiki.render_wiki_page(
+            wiki.WikiRenderRequest(root=tmp_path, page_path=Path("project/wiki/p.md"))
+        )
 
 
 def test_render_wiki_page_cache_hit_returns_cached_content(
@@ -146,13 +158,19 @@ def test_render_wiki_page_cache_hit_returns_cached_content(
     page.parent.mkdir(parents=True)
     page.write_text("{{ 1 }}", encoding="utf-8")
 
-    monkeypatch.setattr(wiki, "get_issues_for_root", lambda _root: [build_issue("kanbus-1")])
-    monkeypatch.setattr(wiki, "_load_ai_config_and_project_dir", lambda _root: (None, "project"))
+    monkeypatch.setattr(
+        wiki, "get_issues_for_root", lambda _root: [build_issue("kanbus-1")]
+    )
+    monkeypatch.setattr(
+        wiki, "_load_ai_config_and_project_dir", lambda _root: (None, "project")
+    )
     monkeypatch.setattr(wiki, "_wiki_render_cache_key", lambda _p, _issues: "k")
     monkeypatch.setattr(wiki, "_wiki_render_read_cache", lambda _dir, _key: "cached")
 
     logged: list[str] = []
-    monkeypatch.setattr(wiki, "_wiki_render_log_cache_hit", lambda _dir: logged.append("hit"))
+    monkeypatch.setattr(
+        wiki, "_wiki_render_log_cache_hit", lambda _dir: logged.append("hit")
+    )
 
     rendered = wiki.render_wiki_page(
         wiki.WikiRenderRequest(root=tmp_path, page_path=Path("project/wiki/p.md"))
@@ -168,12 +186,21 @@ def test_render_wiki_page_renders_and_writes_cache(
     page.parent.mkdir(parents=True)
     page.write_text("Count={{ count(status='open') }}", encoding="utf-8")
 
-    issues = [build_issue("kanbus-1", status="open"), build_issue("kanbus-2", status="closed")]
+    issues = [
+        build_issue("kanbus-1", status="open"),
+        build_issue("kanbus-2", status="closed"),
+    ]
     monkeypatch.setattr(wiki, "get_issues_for_root", lambda _root: issues)
-    monkeypatch.setattr(wiki, "_load_ai_config_and_project_dir", lambda _root: (None, "project"))
+    monkeypatch.setattr(
+        wiki, "_load_ai_config_and_project_dir", lambda _root: (None, "project")
+    )
     monkeypatch.setattr(wiki, "_wiki_render_cache_key", lambda _p, _issues: "k")
     monkeypatch.setattr(wiki, "_wiki_render_read_cache", lambda _dir, _key: None)
-    monkeypatch.setattr(wiki, "make_ai_summarize", lambda *_args, **_kwargs: (lambda *_a, **_k: "summary"))
+    monkeypatch.setattr(
+        wiki,
+        "make_ai_summarize",
+        lambda *_args, **_kwargs: (lambda *_a, **_k: "summary"),
+    )
     monkeypatch.chdir(tmp_path)
 
     writes: list[str] = []
@@ -197,11 +224,19 @@ def test_render_wiki_page_wraps_template_errors(
     page.parent.mkdir(parents=True)
     page.write_text("{% for x in %}", encoding="utf-8")
 
-    monkeypatch.setattr(wiki, "get_issues_for_root", lambda _root: [build_issue("kanbus-1")])
-    monkeypatch.setattr(wiki, "_load_ai_config_and_project_dir", lambda _root: (None, "project"))
+    monkeypatch.setattr(
+        wiki, "get_issues_for_root", lambda _root: [build_issue("kanbus-1")]
+    )
+    monkeypatch.setattr(
+        wiki, "_load_ai_config_and_project_dir", lambda _root: (None, "project")
+    )
     monkeypatch.setattr(wiki, "_wiki_render_cache_key", lambda _p, _issues: "k")
     monkeypatch.setattr(wiki, "_wiki_render_read_cache", lambda _dir, _key: None)
-    monkeypatch.setattr(wiki, "make_ai_summarize", lambda *_args, **_kwargs: (lambda *_a, **_k: "summary"))
+    monkeypatch.setattr(
+        wiki,
+        "make_ai_summarize",
+        lambda *_args, **_kwargs: (lambda *_a, **_k: "summary"),
+    )
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(wiki.WikiError):
@@ -217,11 +252,19 @@ def test_render_wiki_page_re_raises_wiki_error_from_template_context(
     page.parent.mkdir(parents=True)
     page.write_text("{{ count(status=1) }}", encoding="utf-8")
 
-    monkeypatch.setattr(wiki, "get_issues_for_root", lambda _root: [build_issue("kanbus-1")])
-    monkeypatch.setattr(wiki, "_load_ai_config_and_project_dir", lambda _root: (None, "project"))
+    monkeypatch.setattr(
+        wiki, "get_issues_for_root", lambda _root: [build_issue("kanbus-1")]
+    )
+    monkeypatch.setattr(
+        wiki, "_load_ai_config_and_project_dir", lambda _root: (None, "project")
+    )
     monkeypatch.setattr(wiki, "_wiki_render_cache_key", lambda _p, _issues: "k")
     monkeypatch.setattr(wiki, "_wiki_render_read_cache", lambda _dir, _key: None)
-    monkeypatch.setattr(wiki, "make_ai_summarize", lambda *_args, **_kwargs: (lambda *_a, **_k: "summary"))
+    monkeypatch.setattr(
+        wiki,
+        "make_ai_summarize",
+        lambda *_args, **_kwargs: (lambda *_a, **_k: "summary"),
+    )
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(wiki.WikiError, match="invalid query parameter"):
@@ -254,7 +297,9 @@ def test_list_wiki_pages_success_absolute_relative_and_errors(
     cfg_outside = build_project_configuration().model_copy(
         update={"project_directory": "project", "wiki_directory": "../docs/wiki"}
     )
-    monkeypatch.setattr(config_loader, "load_project_configuration", lambda _path: cfg_outside)
+    monkeypatch.setattr(
+        config_loader, "load_project_configuration", lambda _path: cfg_outside
+    )
 
     outside_wiki = tmp_path / "docs" / "wiki"
     outside_wiki.mkdir(parents=True)
@@ -267,7 +312,9 @@ def test_list_wiki_pages_success_absolute_relative_and_errors(
     cfg_missing = build_project_configuration().model_copy(
         update={"project_directory": "project", "wiki_directory": "wiki-missing"}
     )
-    monkeypatch.setattr(config_loader, "load_project_configuration", lambda _path: cfg_missing)
+    monkeypatch.setattr(
+        config_loader, "load_project_configuration", lambda _path: cfg_missing
+    )
     assert wiki.list_wiki_pages(tmp_path) == []
 
     monkeypatch.setattr(

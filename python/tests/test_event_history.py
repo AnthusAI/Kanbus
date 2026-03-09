@@ -48,13 +48,24 @@ def test_events_dir_helpers_handle_project_and_local_paths(tmp_path: Path) -> No
 
     assert event_history.events_dir_for_project(project_dir) == project_dir / "events"
     assert event_history.events_dir_for_local(project_dir) == local_dir / "events"
-    assert event_history.events_dir_for_issue_path(project_dir, issue_path) == local_dir / "events"
     assert (
-        event_history.events_dir_for_issue_path(project_dir, project_dir / "issues" / "x.json")
+        event_history.events_dir_for_issue_path(project_dir, issue_path)
+        == local_dir / "events"
+    )
+    assert (
+        event_history.events_dir_for_issue_path(
+            project_dir, project_dir / "issues" / "x.json"
+        )
         == project_dir / "events"
     )
-    assert event_history.events_dir_for_issue(project_dir, "kanbus-1") == local_dir / "events"
-    assert event_history.events_dir_for_issue(project_dir, "missing") == project_dir / "events"
+    assert (
+        event_history.events_dir_for_issue(project_dir, "kanbus-1")
+        == local_dir / "events"
+    )
+    assert (
+        event_history.events_dir_for_issue(project_dir, "missing")
+        == project_dir / "events"
+    )
 
 
 def test_events_dir_for_local_raises_when_parent_missing() -> None:
@@ -123,7 +134,9 @@ def test_write_events_batch_rolls_back_on_failure(tmp_path: Path) -> None:
     assert list(events_dir.glob("*.json")) == []
 
 
-def test_delete_events_for_issues_handles_invalid_json_and_empty_inputs(tmp_path: Path) -> None:
+def test_delete_events_for_issues_handles_invalid_json_and_empty_inputs(
+    tmp_path: Path,
+) -> None:
     events_dir = tmp_path / "events"
     events_dir.mkdir(parents=True, exist_ok=True)
     keep = events_dir / "keep.json"
@@ -173,7 +186,9 @@ def test_payload_helpers_and_field_update_diff() -> None:
         "comment_id": "c1",
         "comment_author": "ryan",
     }
-    assert event_history.comment_updated_payload("c1", "ryan")["changed_fields"] == ["text"]
+    assert event_history.comment_updated_payload("c1", "ryan")["changed_fields"] == [
+        "text"
+    ]
     assert event_history.dependency_payload("blocks", "kanbus-2") == {
         "dependency_type": "blocks",
         "target_id": "kanbus-2",
@@ -199,5 +214,13 @@ def test_build_update_events_emits_transition_and_field_updated() -> None:
         actor_id="agent",
         occurred_at="2026-03-09T00:00:00.000Z",
     )
-    assert [event.event_type for event in events] == ["state_transition", "field_updated"]
-    assert event_history.build_update_events(after, after, "agent", "2026-03-09T00:00:00.000Z") == []
+    assert [event.event_type for event in events] == [
+        "state_transition",
+        "field_updated",
+    ]
+    assert (
+        event_history.build_update_events(
+            after, after, "agent", "2026-03-09T00:00:00.000Z"
+        )
+        == []
+    )

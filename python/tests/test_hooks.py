@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -41,7 +40,14 @@ def _hook(
     return HookDefinition.model_validate(payload)
 
 
-def _hooks_config(before: dict[str, list[HookDefinition]] | None = None, after: dict[str, list[HookDefinition]] | None = None, *, enabled: bool = True, run_in_beads_mode: bool = True, default_timeout_ms: int = 5000) -> HooksConfiguration:
+def _hooks_config(
+    before: dict[str, list[HookDefinition]] | None = None,
+    after: dict[str, list[HookDefinition]] | None = None,
+    *,
+    enabled: bool = True,
+    run_in_beads_mode: bool = True,
+    default_timeout_ms: int = 5000,
+) -> HooksConfiguration:
     return HooksConfiguration.model_validate(
         {
             "enabled": enabled,
@@ -126,10 +132,14 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
 
     def ok_run(*_args, **kwargs):
         calls.append(kwargs)
-        return subprocess.CompletedProcess(args=["cmd"], returncode=0, stdout="", stderr="")
+        return subprocess.CompletedProcess(
+            args=["cmd"], returncode=0, stdout="", stderr=""
+        )
 
     monkeypatch.setattr(hooks.subprocess, "run", ok_run)
-    result = handler.run(hook=hook, invocation=invocation, project_root=tmp_path, timeout_ms=200)
+    result = handler.run(
+        hook=hook, invocation=invocation, project_root=tmp_path, timeout_ms=200
+    )
     assert result.succeeded is True
     assert result.timed_out is False
     assert result.message == "ok"
@@ -138,26 +148,45 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     assert json.loads(calls[0]["input"])["event"] == "issue.update"
 
     def fail_run(*_args, **_kwargs):
-        return subprocess.CompletedProcess(args=["cmd"], returncode=7, stdout="", stderr="bad")
+        return subprocess.CompletedProcess(
+            args=["cmd"], returncode=7, stdout="", stderr="bad"
+        )
 
     monkeypatch.setattr(hooks.subprocess, "run", fail_run)
-    fail = handler.run(hook=_hook("h2", ["cmd"]), invocation=invocation, project_root=tmp_path, timeout_ms=10)
+    fail = handler.run(
+        hook=_hook("h2", ["cmd"]),
+        invocation=invocation,
+        project_root=tmp_path,
+        timeout_ms=10,
+    )
     assert fail.succeeded is False
     assert fail.exit_code == 7
     assert fail.message == "bad"
 
     def fail_no_stderr(*_args, **_kwargs):
-        return subprocess.CompletedProcess(args=["cmd"], returncode=8, stdout="", stderr="")
+        return subprocess.CompletedProcess(
+            args=["cmd"], returncode=8, stdout="", stderr=""
+        )
 
     monkeypatch.setattr(hooks.subprocess, "run", fail_no_stderr)
-    fail2 = handler.run(hook=_hook("h3", ["cmd"]), invocation=invocation, project_root=tmp_path, timeout_ms=10)
+    fail2 = handler.run(
+        hook=_hook("h3", ["cmd"]),
+        invocation=invocation,
+        project_root=tmp_path,
+        timeout_ms=10,
+    )
     assert fail2.message == "exit code 8"
 
     def timeout_run(*_args, **_kwargs):
         raise subprocess.TimeoutExpired(cmd=["cmd"], timeout=1)
 
     monkeypatch.setattr(hooks.subprocess, "run", timeout_run)
-    timeout = handler.run(hook=_hook("h4", ["cmd"]), invocation=invocation, project_root=tmp_path, timeout_ms=10)
+    timeout = handler.run(
+        hook=_hook("h4", ["cmd"]),
+        invocation=invocation,
+        project_root=tmp_path,
+        timeout_ms=10,
+    )
     assert timeout.succeeded is False
     assert timeout.timed_out is True
 
@@ -165,7 +194,12 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
         raise OSError("nope")
 
     monkeypatch.setattr(hooks.subprocess, "run", os_error_run)
-    os_error = handler.run(hook=_hook("h5", ["cmd"]), invocation=invocation, project_root=tmp_path, timeout_ms=10)
+    os_error = handler.run(
+        hook=_hook("h5", ["cmd"]),
+        invocation=invocation,
+        project_root=tmp_path,
+        timeout_ms=10,
+    )
     assert os_error.succeeded is False
     assert os_error.timed_out is False
     assert "nope" in os_error.message
@@ -202,19 +236,45 @@ def test_hooks_for_event_and_blocking_helpers() -> None:
         after={HookEvent.ISSUE_CREATE.value: [after_hook]},
     )
 
-    assert hooks._hooks_for_event(cfg, HookPhase.BEFORE, HookEvent.ISSUE_CREATE) == [before_hook]
-    assert hooks._hooks_for_event(cfg, HookPhase.AFTER, HookEvent.ISSUE_CREATE) == [after_hook]
+    assert hooks._hooks_for_event(cfg, HookPhase.BEFORE, HookEvent.ISSUE_CREATE) == [
+        before_hook
+    ]
+    assert hooks._hooks_for_event(cfg, HookPhase.AFTER, HookEvent.ISSUE_CREATE) == [
+        after_hook
+    ]
 
-    assert hooks._effective_blocking(HookPhase.AFTER, HookEvent.ISSUE_CREATE, before_hook) is False
-    assert hooks._effective_blocking(HookPhase.BEFORE, HookEvent.ISSUE_CREATE, _hook("x", ["echo"], blocking=True)) is True
-    assert hooks._effective_blocking(HookPhase.BEFORE, HookEvent.ISSUE_SHOW, _hook("x2", ["echo"])) is False
-    assert hooks._effective_blocking(HookPhase.BEFORE, HookEvent.ISSUE_CREATE, _hook("x3", ["echo"])) is True
+    assert (
+        hooks._effective_blocking(HookPhase.AFTER, HookEvent.ISSUE_CREATE, before_hook)
+        is False
+    )
+    assert (
+        hooks._effective_blocking(
+            HookPhase.BEFORE,
+            HookEvent.ISSUE_CREATE,
+            _hook("x", ["echo"], blocking=True),
+        )
+        is True
+    )
+    assert (
+        hooks._effective_blocking(
+            HookPhase.BEFORE, HookEvent.ISSUE_SHOW, _hook("x2", ["echo"])
+        )
+        is False
+    )
+    assert (
+        hooks._effective_blocking(
+            HookPhase.BEFORE, HookEvent.ISSUE_CREATE, _hook("x3", ["echo"])
+        )
+        is True
+    )
 
     events = hooks._policy_events()
     assert events == sorted(events, key=lambda e: e.value)
 
 
-def test_list_hooks_includes_external_and_builtin_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_list_hooks_includes_external_and_builtin_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     cfg = _hooks_config(
         before={
             "issue.create": [_hook("b1", ["echo", "ok"])],
@@ -223,12 +283,22 @@ def test_list_hooks_includes_external_and_builtin_rows(monkeypatch: pytest.Monke
         after={"issue.update": [_hook("a1", ["echo", "ok"], timeout_ms=10)]},
         default_timeout_ms=55,
     )
-    monkeypatch.setattr(hooks, "_resolve_hook_configuration", lambda _root: (cfg, Path("/repo")))
+    monkeypatch.setattr(
+        hooks, "_resolve_hook_configuration", lambda _root: (cfg, Path("/repo"))
+    )
 
     rows = hooks.list_hooks(Path("/repo"))
-    assert any(row["source"] == "external" and row["id"] == "b1" and row["timeout_ms"] == 55 for row in rows)
-    assert any(row["source"] == "external" and row["id"] == "a1" and row["timeout_ms"] == 10 for row in rows)
-    assert any(row["source"] == "built-in" and row["id"] == "policy-guidance" for row in rows)
+    assert any(
+        row["source"] == "external" and row["id"] == "b1" and row["timeout_ms"] == 55
+        for row in rows
+    )
+    assert any(
+        row["source"] == "external" and row["id"] == "a1" and row["timeout_ms"] == 10
+        for row in rows
+    )
+    assert any(
+        row["source"] == "built-in" and row["id"] == "policy-guidance" for row in rows
+    )
 
 
 def test_validate_hooks_reports_all_validation_problems(
@@ -255,8 +325,14 @@ def test_validate_hooks_reports_all_validation_problems(
         },
     )
 
-    monkeypatch.setattr(hooks, "_resolve_hook_configuration", lambda _root: (cfg, tmp_path))
-    monkeypatch.setattr(hooks.shutil, "which", lambda executable: "/usr/bin/echo" if executable == "echo" else None)
+    monkeypatch.setattr(
+        hooks, "_resolve_hook_configuration", lambda _root: (cfg, tmp_path)
+    )
+    monkeypatch.setattr(
+        hooks.shutil,
+        "which",
+        lambda executable: "/usr/bin/echo" if executable == "echo" else None,
+    )
 
     issues = hooks.validate_hooks(tmp_path)
 
@@ -314,7 +390,9 @@ def test_run_lifecycle_hooks_short_circuits_and_blocking_failure(
 
     # Blocking failure on before/mutating event raises.
     cfg = _hooks_config(before={HookEvent.ISSUE_CREATE.value: [_hook("b1", ["echo"])]})
-    monkeypatch.setattr(hooks, "_resolve_hook_configuration", lambda _root: (cfg, tmp_path))
+    monkeypatch.setattr(
+        hooks, "_resolve_hook_configuration", lambda _root: (cfg, tmp_path)
+    )
 
     class FailHandler:
         def run(self, **_kwargs):
@@ -345,7 +423,9 @@ def test_run_lifecycle_hooks_nonblocking_warning_and_after_policy_provider(
     before_cfg = _hooks_config(
         before={HookEvent.ISSUE_SHOW.value: [_hook("s1", ["echo"], blocking=False)]}
     )
-    monkeypatch.setattr(hooks, "_resolve_hook_configuration", lambda _root: (before_cfg, tmp_path))
+    monkeypatch.setattr(
+        hooks, "_resolve_hook_configuration", lambda _root: (before_cfg, tmp_path)
+    )
 
     class WarnHandler:
         def run(self, **_kwargs):
@@ -372,8 +452,12 @@ def test_run_lifecycle_hooks_nonblocking_warning_and_after_policy_provider(
     assert any("Hook warning (issue.show/before/s1): warn" in line for line in warned)
 
     # AFTER phase always invokes policy provider hook.
-    after_cfg = _hooks_config(after={HookEvent.ISSUE_UPDATE.value: [_hook("a1", ["echo"])]})
-    monkeypatch.setattr(hooks, "_resolve_hook_configuration", lambda _root: (after_cfg, tmp_path))
+    after_cfg = _hooks_config(
+        after={HookEvent.ISSUE_UPDATE.value: [_hook("a1", ["echo"])]}
+    )
+    monkeypatch.setattr(
+        hooks, "_resolve_hook_configuration", lambda _root: (after_cfg, tmp_path)
+    )
 
     class OkHandler:
         def run(self, **_kwargs):
@@ -389,8 +473,17 @@ def test_run_lifecycle_hooks_nonblocking_warning_and_after_policy_provider(
     monkeypatch.setattr(hooks, "ExternalCommandHookHandler", lambda: OkHandler())
     called: list[tuple[Path, HookEvent, bool, bool, int]] = []
 
-    def fake_provider(*, project_root: Path, event: HookEvent, issues_for_policy, beads_mode: bool, no_guidance: bool) -> None:
-        called.append((project_root, event, beads_mode, no_guidance, len(issues_for_policy)))
+    def fake_provider(
+        *,
+        project_root: Path,
+        event: HookEvent,
+        issues_for_policy,
+        beads_mode: bool,
+        no_guidance: bool,
+    ) -> None:
+        called.append(
+            (project_root, event, beads_mode, no_guidance, len(issues_for_policy))
+        )
 
     monkeypatch.setattr(hooks, "_run_policy_guidance_provider", fake_provider)
 
@@ -406,7 +499,9 @@ def test_run_lifecycle_hooks_nonblocking_warning_and_after_policy_provider(
     assert called == [(tmp_path, HookEvent.ISSUE_UPDATE, False, True, 1)]
 
 
-def test_run_policy_guidance_provider_all_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_policy_guidance_provider_all_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     issue = build_issue("kanbus-1")
 
     # No-op cases.
@@ -434,7 +529,9 @@ def test_run_policy_guidance_provider_all_paths(monkeypatch: pytest.MonkeyPatch)
 
     calls: list[tuple[str, int, bool]] = []
 
-    def fake_emit(project_root: Path, issues_for_policy, operation, *, no_guidance: bool) -> None:
+    def fake_emit(
+        project_root: Path, issues_for_policy, operation, *, no_guidance: bool
+    ) -> None:
         calls.append((str(project_root), len(issues_for_policy), no_guidance))
 
     monkeypatch.setattr("kanbus.policy_guidance.emit_guidance_for_issues", fake_emit)
@@ -462,7 +559,10 @@ def test_run_policy_guidance_provider_all_paths(monkeypatch: pytest.MonkeyPatch)
         beads_mode=False,
         no_guidance=False,
     )
-    assert any("Hook warning (issue.update/after/policy-guidance): guidance boom" in line for line in warned)
+    assert any(
+        "Hook warning (issue.update/after/policy-guidance): guidance boom" in line
+        for line in warned
+    )
 
 
 def test_parse_and_path_and_now_helpers() -> None:
@@ -479,20 +579,28 @@ def test_parse_and_path_and_now_helpers() -> None:
     assert "T" in now
 
 
-def test_validate_hooks_path_executable_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validate_hooks_path_executable_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Cover branch where executable is a path and exists.
     script = tmp_path / "bin" / "hook.sh"
     script.parent.mkdir(parents=True)
     script.write_text("echo ok", encoding="utf-8")
 
-    cfg = _hooks_config(before={HookEvent.ISSUE_CREATE.value: [_hook("ok", [str(script)])]})
-    monkeypatch.setattr(hooks, "_resolve_hook_configuration", lambda _root: (cfg, tmp_path))
+    cfg = _hooks_config(
+        before={HookEvent.ISSUE_CREATE.value: [_hook("ok", [str(script)])]}
+    )
+    monkeypatch.setattr(
+        hooks, "_resolve_hook_configuration", lambda _root: (cfg, tmp_path)
+    )
 
     issues = hooks.validate_hooks(tmp_path)
     assert issues == []
 
 
-def test_external_handler_absolute_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_external_handler_absolute_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     handler = hooks.ExternalCommandHookHandler()
     invocation = hooks.HookInvocation(
         schema_version=hooks.HOOK_SCHEMA_VERSION,
@@ -509,10 +617,14 @@ def test_external_handler_absolute_cwd(tmp_path: Path, monkeypatch: pytest.Monke
 
     def ok_run(*_args, **kwargs):
         seen_cwd.append(Path(kwargs["cwd"]))
-        return subprocess.CompletedProcess(args=["cmd"], returncode=0, stdout="", stderr="")
+        return subprocess.CompletedProcess(
+            args=["cmd"], returncode=0, stdout="", stderr=""
+        )
 
     monkeypatch.setattr(hooks.subprocess, "run", ok_run)
     hook = _hook("x", ["cmd"], cwd=str(abs_cwd))
-    result = handler.run(hook=hook, invocation=invocation, project_root=tmp_path, timeout_ms=1)
+    result = handler.run(
+        hook=hook, invocation=invocation, project_root=tmp_path, timeout_ms=1
+    )
     assert result.succeeded is True
     assert seen_cwd == [abs_cwd]

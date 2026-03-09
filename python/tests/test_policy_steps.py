@@ -134,15 +134,23 @@ def test_given_filters_cover_matching_and_skipping_paths() -> None:
     context = build_context()
     assert run_step(context, 'the issue type is "task"') == (StepOutcome.PASS, None)
     assert run_step(context, 'the issue type is "bug"') == (StepOutcome.SKIP, None)
-    assert run_step(context, 'the issue has label "security"') == (StepOutcome.PASS, None)
-    assert run_step(context, 'the issue has label "missing"') == (StepOutcome.SKIP, None)
+    assert run_step(context, 'the issue has label "security"') == (
+        StepOutcome.PASS,
+        None,
+    )
+    assert run_step(context, 'the issue has label "missing"') == (
+        StepOutcome.SKIP,
+        None,
+    )
     assert run_step(context, "the issue has a parent") == (StepOutcome.PASS, None)
     assert run_step(context, "the issue priority is 2") == (StepOutcome.PASS, None)
     assert run_step(context, "the issue priority is 1") == (StepOutcome.SKIP, None)
     assert run_step(context, 'the issue status is "open"') == (StepOutcome.PASS, None)
     assert run_step(context, 'the issue status is "closed"') == (StepOutcome.SKIP, None)
     no_parent = build_context()
-    no_parent.proposed_issue = no_parent.proposed_issue.model_copy(update={"parent": None})
+    no_parent.proposed_issue = no_parent.proposed_issue.model_copy(
+        update={"parent": None}
+    )
     assert run_step(no_parent, "the issue has a parent") == (StepOutcome.SKIP, None)
 
 
@@ -168,7 +176,10 @@ def test_when_filters_cover_operations_and_transition_paths() -> None:
     transition_to_closed.transition = StatusTransition(
         from_status="in_progress", to_status="closed"
     )
-    assert run_step(transition_to_closed, "closing an issue") == (StepOutcome.PASS, None)
+    assert run_step(transition_to_closed, "closing an issue") == (
+        StepOutcome.PASS,
+        None,
+    )
 
     create_context = build_context()
     create_context.operation = PolicyOperation.CREATE
@@ -218,7 +229,9 @@ def test_then_field_assertions_cover_success_and_error_messages() -> None:
         StepOutcome.PASS,
         None,
     )
-    fail_outcome, fail_message = run_step(context, 'the issue must not have field "parent"')
+    fail_outcome, fail_message = run_step(
+        context, 'the issue must not have field "parent"'
+    )
     assert fail_outcome == StepOutcome.FAIL
     assert fail_message == 'issue has field "parent" set but should not'
     assert run_step(context, 'the issue must not have field "unknown"') == (
@@ -249,11 +262,18 @@ def test_then_child_parent_label_and_description_constraints() -> None:
         StepOutcome.PASS,
         None,
     )
-    child = build_issue("kanbus-sub", title="Sub", parent="kanbus-child", status="in_progress")
-    other_child = build_issue("kanbus-sub2", title="Sub2", parent="kanbus-child", status="open")
+    child = build_issue(
+        "kanbus-sub", title="Sub", parent="kanbus-child", status="in_progress"
+    )
+    other_child = build_issue(
+        "kanbus-sub2", title="Sub2", parent="kanbus-child", status="open"
+    )
     context.all_issues.extend([child, other_child])
 
-    assert run_step(context, 'all child issues must have status "open"')[0] == StepOutcome.FAIL
+    assert (
+        run_step(context, 'all child issues must have status "open"')[0]
+        == StepOutcome.FAIL
+    )
     all_match = build_context()
     all_match_child = build_issue(
         "kanbus-sub-ok", title="Sub OK", parent="kanbus-child", status="open"
@@ -267,19 +287,30 @@ def test_then_child_parent_label_and_description_constraints() -> None:
         StepOutcome.PASS,
         None,
     )
-    assert run_step(context, 'no child issues may have status "open"')[0] == StepOutcome.FAIL
+    assert (
+        run_step(context, 'no child issues may have status "open"')[0]
+        == StepOutcome.FAIL
+    )
     assert run_step(context, "the issue must have at least 2 child issues") == (
         StepOutcome.PASS,
         None,
     )
-    assert run_step(context, "the issue must have at least 3 child issues")[0] == StepOutcome.FAIL
+    assert (
+        run_step(context, "the issue must have at least 3 child issues")[0]
+        == StepOutcome.FAIL
+    )
     assert run_step(context, 'the parent issue must have status "open"') == (
         StepOutcome.PASS,
         None,
     )
-    assert run_step(context, 'the parent issue must have status "closed"')[0] == StepOutcome.FAIL
+    assert (
+        run_step(context, 'the parent issue must have status "closed"')[0]
+        == StepOutcome.FAIL
+    )
     no_parent = build_context()
-    no_parent.proposed_issue = no_parent.proposed_issue.model_copy(update={"parent": None})
+    no_parent.proposed_issue = no_parent.proposed_issue.model_copy(
+        update={"parent": None}
+    )
     assert run_step(no_parent, 'the parent issue must have status "open"') == (
         StepOutcome.FAIL,
         "issue has no parent",
@@ -288,7 +319,10 @@ def test_then_child_parent_label_and_description_constraints() -> None:
         StepOutcome.PASS,
         None,
     )
-    assert run_step(context, "the issue must have at least 2 labels")[0] == StepOutcome.FAIL
+    assert (
+        run_step(context, "the issue must have at least 2 labels")[0]
+        == StepOutcome.FAIL
+    )
     assert run_step(context, 'the issue must have label "security"') == (
         StepOutcome.PASS,
         None,
@@ -320,8 +354,14 @@ def test_then_title_pattern_and_custom_field_handlers() -> None:
     invalid_pattern = run_step(context, 'the title must match pattern "["')
     assert invalid_pattern[0] == StepOutcome.FAIL
     assert "invalid regex pattern" in (invalid_pattern[1] or "")
-    assert run_step(context, 'the custom field "team" is set') == (StepOutcome.PASS, None)
-    assert run_step(context, 'the custom field "missing" is set') == (StepOutcome.SKIP, None)
+    assert run_step(context, 'the custom field "team" is set') == (
+        StepOutcome.PASS,
+        None,
+    )
+    assert run_step(context, 'the custom field "missing" is set') == (
+        StepOutcome.SKIP,
+        None,
+    )
     assert run_step(context, 'the custom field "team" must be set') == (
         StepOutcome.PASS,
         None,
@@ -343,8 +383,13 @@ def test_then_title_pattern_and_custom_field_handlers() -> None:
         'custom field "missing" is not set',
     )
     title_miss = build_context()
-    title_miss.proposed_issue = title_miss.proposed_issue.model_copy(update={"title": "Other"})
-    assert run_step(title_miss, 'the title must match pattern "^Child$"')[0] == StepOutcome.FAIL
+    title_miss.proposed_issue = title_miss.proposed_issue.model_copy(
+        update={"title": "Other"}
+    )
+    assert (
+        run_step(title_miss, 'the title must match pattern "^Child$"')[0]
+        == StepOutcome.FAIL
+    )
 
 
 def test_suggest_and_explain_handlers_are_callable() -> None:

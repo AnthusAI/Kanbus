@@ -106,7 +106,16 @@ mod tests {
         let rendered: Vec<String> = variants.into_iter().map(|e| e.to_string()).collect();
         assert_eq!(
             rendered,
-            vec!["init", "io", "id", "cfg", "transition", "hierarchy", "issue", "protocol"]
+            vec![
+                "init",
+                "io",
+                "id",
+                "cfg",
+                "transition",
+                "hierarchy",
+                "issue",
+                "protocol"
+            ]
         );
     }
 

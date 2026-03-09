@@ -45,12 +45,10 @@ def test_repair_escape_sequences_repairs_literal_newline_sequences() -> None:
     assert repaired == "one\ntwo"
 
 
-
 def test_repair_escape_sequences_returns_original_when_no_change() -> None:
     repaired, changed = rich_text_signals.repair_escape_sequences("one\ntwo")
     assert changed is False
     assert repaired == "one\ntwo"
-
 
 
 def test_apply_text_quality_signals_repairs_and_emits_suggestions() -> None:
@@ -62,14 +60,14 @@ def test_apply_text_quality_signals_repairs_and_emits_suggestions() -> None:
     assert len(result.suggestions) == 2
 
 
-
-def test_apply_text_quality_signals_skips_suggestions_when_markdown_and_diagram_present() -> None:
+def test_apply_text_quality_signals_skips_suggestions_when_markdown_and_diagram_present() -> (
+    None
+):
     text = "# H\n```mermaid\nA-->B\n```"
     result = rich_text_signals.apply_text_quality_signals(text)
     assert result.escape_sequences_repaired is False
     assert result.warnings == []
     assert result.suggestions == []
-
 
 
 def test_emit_signals_prints_warnings_suggestions_and_comment_hint(
@@ -82,7 +80,9 @@ def test_emit_signals_prints_warnings_suggestions_and_comment_hint(
     )
 
     lines: list[str] = []
-    monkeypatch.setattr(rich_text_signals.click, "echo", lambda msg, err=True: lines.append(msg))
+    monkeypatch.setattr(
+        rich_text_signals.click, "echo", lambda msg, err=True: lines.append(msg)
+    )
 
     rich_text_signals.emit_signals(
         result,
@@ -98,23 +98,29 @@ def test_emit_signals_prints_warnings_suggestions_and_comment_hint(
     assert "kbs comment update kanbus-1 c1" in lines[3]
 
 
-
-def test_emit_signals_without_suggestions_has_no_hint(monkeypatch: pytest.MonkeyPatch) -> None:
-    result = rich_text_signals.TextQualityResult(text="t", warnings=["w"], suggestions=[])
+def test_emit_signals_without_suggestions_has_no_hint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = rich_text_signals.TextQualityResult(
+        text="t", warnings=["w"], suggestions=[]
+    )
     lines: list[str] = []
-    monkeypatch.setattr(rich_text_signals.click, "echo", lambda msg, err=True: lines.append(msg))
+    monkeypatch.setattr(
+        rich_text_signals.click, "echo", lambda msg, err=True: lines.append(msg)
+    )
 
     rich_text_signals.emit_signals(result, context="description", issue_id="kanbus-1")
 
     assert lines == ["w"]
 
 
-
 def test_emit_follow_up_hint_uses_description_update_when_no_comment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     lines: list[str] = []
-    monkeypatch.setattr(rich_text_signals.click, "echo", lambda msg, err=True: lines.append(msg))
+    monkeypatch.setattr(
+        rich_text_signals.click, "echo", lambda msg, err=True: lines.append(msg)
+    )
 
     rich_text_signals._emit_follow_up_hint(
         context="description",

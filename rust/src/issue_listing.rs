@@ -407,8 +407,8 @@ fn apply_query(
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
-    use tempfile::TempDir;
     use std::env;
+    use tempfile::TempDir;
 
     fn issue(identifier: &str, title: &str) -> IssueData {
         let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
@@ -542,7 +542,10 @@ mod tests {
         )
         .expect("combined");
         assert_eq!(combined.len(), 2);
-        let ids = combined.into_iter().map(|item| item.identifier).collect::<Vec<_>>();
+        let ids = combined
+            .into_iter()
+            .map(|item| item.identifier)
+            .collect::<Vec<_>>();
         assert!(ids.contains(&"kanbus-shared".to_string()));
         assert!(ids.contains(&"kanbus-local".to_string()));
     }
@@ -554,17 +557,14 @@ mod tests {
         std::fs::create_dir_all(project_dir.join("issues")).expect("create shared issues");
 
         env::set_var("KANBUS_TEST_LOCAL_LISTING_ERROR", "1");
-        let result = list_issues_with_local(
-            &project_dir,
-            None,
-            false,
-            &disabled_overlay_config(),
-            None,
-        );
+        let result =
+            list_issues_with_local(&project_dir, None, false, &disabled_overlay_config(), None);
         env::remove_var("KANBUS_TEST_LOCAL_LISTING_ERROR");
 
         match result {
-            Err(KanbusError::IssueOperation(message)) => assert_eq!(message, "local listing failed"),
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "local listing failed")
+            }
             other => panic!("expected local listing error, got {other:?}"),
         }
     }

@@ -53,7 +53,9 @@ def test_resolve_beads_mode_uses_commandline_override() -> None:
     assert cli._resolve_beads_mode(context, beads_mode=True) == (True, True)
 
 
-def test_maybe_prompt_project_repair_repairs_when_confirmed(monkeypatch, tmp_path: Path) -> None:
+def test_maybe_prompt_project_repair_repairs_when_confirmed(
+    monkeypatch, tmp_path: Path
+) -> None:
     context = click.Context(click.Command("kanbus"))
     context.invoked_subcommand = "list"
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
@@ -88,7 +90,9 @@ def test_maybe_prompt_project_repair_repairs_when_confirmed(monkeypatch, tmp_pat
     assert messages == ["Project structure repaired."]
 
 
-def test_maybe_prompt_project_repair_skips_when_no_plan(monkeypatch, tmp_path: Path) -> None:
+def test_maybe_prompt_project_repair_skips_when_no_plan(
+    monkeypatch, tmp_path: Path
+) -> None:
     context = click.Context(click.Command("kanbus"))
     context.invoked_subcommand = "list"
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)

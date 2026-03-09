@@ -10,11 +10,15 @@ from kanbus.config_loader import ConfigurationError
 from test_helpers import build_project_configuration
 
 
-def test_discover_project_directories_from_root_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_discover_project_directories_from_root_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     (tmp_path / ".kanbus.yml").write_text("x", encoding="utf-8")
     p1 = tmp_path / "project"
     p1.mkdir()
-    monkeypatch.setattr(project, "_resolve_project_directories_from_config", lambda _cfg: [p1])
+    monkeypatch.setattr(
+        project, "_resolve_project_directories_from_config", lambda _cfg: [p1]
+    )
 
     discovered = project.discover_project_directories(tmp_path)
     assert discovered == [p1.resolve()]
@@ -41,7 +45,9 @@ def test_discover_project_directories_raises_for_missing_configured_path(
 ) -> None:
     (tmp_path / ".kanbus.yml").write_text("x", encoding="utf-8")
     missing = tmp_path / "missing"
-    monkeypatch.setattr(project, "_resolve_project_directories_from_config", lambda _cfg: [missing])
+    monkeypatch.setattr(
+        project, "_resolve_project_directories_from_config", lambda _cfg: [missing]
+    )
 
     with pytest.raises(project.ProjectMarkerError, match="kanbus path not found"):
         project.discover_project_directories(tmp_path)
@@ -57,8 +63,12 @@ def test_discover_project_directories_workspace_config_fallback(
     proj = workspace / "project"
     proj.mkdir()
 
-    monkeypatch.setattr(project, "_discover_workspace_config_paths", lambda _root: [cfg])
-    monkeypatch.setattr(project, "_resolve_project_directories_from_config", lambda _cfg: [proj])
+    monkeypatch.setattr(
+        project, "_discover_workspace_config_paths", lambda _root: [cfg]
+    )
+    monkeypatch.setattr(
+        project, "_resolve_project_directories_from_config", lambda _cfg: [proj]
+    )
 
     discovered = project.discover_project_directories(tmp_path)
     assert discovered == [proj.resolve()]
@@ -68,13 +78,17 @@ def test_discover_project_directories_handles_workspace_config_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cfg = tmp_path / "workspace" / ".kanbus.yml"
-    monkeypatch.setattr(project, "_discover_workspace_config_paths", lambda _root: [cfg])
+    monkeypatch.setattr(
+        project, "_discover_workspace_config_paths", lambda _root: [cfg]
+    )
     monkeypatch.setattr(
         project,
         "_resolve_project_directories_from_config",
         lambda _cfg: (_ for _ in ()).throw(project.ProjectMarkerError("bad config")),
     )
-    monkeypatch.setattr(project, "_discover_legacy_project_directories", lambda _root: [])
+    monkeypatch.setattr(
+        project, "_discover_legacy_project_directories", lambda _root: []
+    )
 
     assert project.discover_project_directories(tmp_path) == []
 
@@ -85,7 +99,9 @@ def test_discover_project_directories_uses_legacy_when_no_workspace_results(
     legacy = tmp_path / "nested" / "project"
     legacy.mkdir(parents=True)
     monkeypatch.setattr(project, "_discover_workspace_config_paths", lambda _root: [])
-    monkeypatch.setattr(project, "_discover_legacy_project_directories", lambda _root: [legacy])
+    monkeypatch.setattr(
+        project, "_discover_legacy_project_directories", lambda _root: [legacy]
+    )
 
     discovered = project.discover_project_directories(tmp_path)
     assert discovered == [legacy.resolve()]
@@ -95,18 +111,24 @@ def test_discover_kanbus_projects_empty_without_config(tmp_path: Path) -> None:
     assert project.discover_kanbus_projects(tmp_path) == []
 
 
-def test_discover_kanbus_projects_from_root_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_discover_kanbus_projects_from_root_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = tmp_path / ".kanbus.yml"
     cfg.write_text("x", encoding="utf-8")
     p1 = tmp_path / "project"
     p1.mkdir()
-    monkeypatch.setattr(project, "_resolve_project_directories_from_config", lambda _cfg: [p1])
+    monkeypatch.setattr(
+        project, "_resolve_project_directories_from_config", lambda _cfg: [p1]
+    )
 
     discovered = project.discover_kanbus_projects(tmp_path)
     assert discovered == [p1.resolve()]
 
 
-def test_resolve_labeled_projects_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_labeled_projects_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = tmp_path / ".kanbus.yml"
     cfg.write_text("x", encoding="utf-8")
     primary = tmp_path / "project"
@@ -118,29 +140,41 @@ def test_resolve_labeled_projects_success(tmp_path: Path, monkeypatch: pytest.Mo
     )
 
     monkeypatch.setattr(project, "get_configuration_path", lambda _root: cfg)
-    monkeypatch.setattr(project, "load_project_configuration", lambda _cfg: configuration)
+    monkeypatch.setattr(
+        project, "load_project_configuration", lambda _cfg: configuration
+    )
 
     resolved = project.resolve_labeled_projects(tmp_path)
     labels = [p.label for p in resolved]
     assert labels == [configuration.project_key, "ops"]
 
 
-def test_resolve_labeled_projects_wraps_config_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_labeled_projects_wraps_config_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = tmp_path / ".kanbus.yml"
     cfg.write_text("x", encoding="utf-8")
     monkeypatch.setattr(project, "get_configuration_path", lambda _root: cfg)
-    monkeypatch.setattr(project, "load_project_configuration", lambda _cfg: (_ for _ in ()).throw(RuntimeError("bad")))
+    monkeypatch.setattr(
+        project,
+        "load_project_configuration",
+        lambda _cfg: (_ for _ in ()).throw(RuntimeError("bad")),
+    )
 
     with pytest.raises(project.ProjectMarkerError, match="bad"):
         project.resolve_labeled_projects(tmp_path)
 
 
-def test_resolve_labeled_project_directories_raises_for_missing_virtual(tmp_path: Path) -> None:
+def test_resolve_labeled_project_directories_raises_for_missing_virtual(
+    tmp_path: Path,
+) -> None:
     configuration = build_project_configuration(
         project_directory="project", virtual_projects={"ops": {"path": "missing"}}
     )
 
-    with pytest.raises(project.ProjectMarkerError, match="virtual project path not found"):
+    with pytest.raises(
+        project.ProjectMarkerError, match="virtual project path not found"
+    ):
         project._resolve_labeled_project_directories(tmp_path, configuration)
 
 
@@ -149,7 +183,9 @@ def test_resolve_project_directories_raises_for_missing_virtual(tmp_path: Path) 
         project_directory="project", virtual_projects={"ops": {"path": "missing"}}
     )
 
-    with pytest.raises(project.ProjectMarkerError, match="virtual project path not found"):
+    with pytest.raises(
+        project.ProjectMarkerError, match="virtual project path not found"
+    ):
         project._resolve_project_directories(tmp_path, configuration)
 
 
@@ -164,9 +200,15 @@ def test_resolve_project_directories_includes_existing_virtual(tmp_path: Path) -
     assert resolved == [tmp_path / "project", (tmp_path / "vp").resolve()]
 
 
-def test_resolve_project_directories_from_config_wraps_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_project_directories_from_config_wraps_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = tmp_path / ".kanbus.yml"
-    monkeypatch.setattr(project, "_load_configuration", lambda _cfg: (_ for _ in ()).throw(RuntimeError("oops")))
+    monkeypatch.setattr(
+        project,
+        "_load_configuration",
+        lambda _cfg: (_ for _ in ()).throw(RuntimeError("oops")),
+    )
 
     with pytest.raises(project.ProjectMarkerError, match="oops"):
         project._resolve_project_directories_from_config(cfg)
@@ -180,7 +222,9 @@ def test_resolve_project_directories_from_config_success(
     configuration = build_project_configuration()
     expected = [tmp_path / "project"]
     monkeypatch.setattr(project, "_load_configuration", lambda _cfg: configuration)
-    monkeypatch.setattr(project, "_resolve_project_directories", lambda _base, _c: expected)
+    monkeypatch.setattr(
+        project, "_resolve_project_directories", lambda _base, _c: expected
+    )
 
     resolved = project._resolve_project_directories_from_config(cfg)
     assert resolved == expected
@@ -194,7 +238,9 @@ def test_apply_ignore_paths_for_config(tmp_path: Path) -> None:
     configuration = build_project_configuration(project_directory="project")
     configuration.ignore_paths = ["drop"]
 
-    filtered = project._apply_ignore_paths_for_config(tmp_path, configuration, [keep, drop])
+    filtered = project._apply_ignore_paths_for_config(
+        tmp_path, configuration, [keep, drop]
+    )
     assert filtered == [keep]
 
 
@@ -285,7 +331,9 @@ def test_normalize_project_directories_deduplicates_and_sorts(tmp_path: Path) ->
     assert normalized == [a.resolve(), b.resolve()]
 
 
-def test_resolve_project_path_tolerates_forced_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_project_path_tolerates_forced_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("KANBUS_TEST_CANONICALIZE_FAILURE", "1")
     path = tmp_path / "x"
     assert project.resolve_project_path(path) == path
@@ -330,14 +378,18 @@ def test_load_project_directory_wraps_configuration_errors(
     cfg.write_text("x", encoding="utf-8")
     monkeypatch.setattr(project, "_find_configuration_file", lambda _root: cfg)
     monkeypatch.setattr(
-        project, "_load_configuration", lambda _marker: (_ for _ in ()).throw(RuntimeError("bad config"))
+        project,
+        "_load_configuration",
+        lambda _marker: (_ for _ in ()).throw(RuntimeError("bad config")),
     )
 
     with pytest.raises(project.ProjectMarkerError, match="bad config"):
         project.load_project_directory(tmp_path)
 
 
-def test_load_project_directory_discovery_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_project_directory_discovery_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(project, "_find_configuration_file", lambda _root: None)
     monkeypatch.setattr(project, "discover_project_directories", lambda _root: [])
     with pytest.raises(project.ProjectMarkerError, match="project not initialized"):
@@ -352,7 +404,9 @@ def test_load_project_directory_discovery_errors(tmp_path: Path, monkeypatch: py
         project.load_project_directory(tmp_path)
 
 
-def test_load_project_directory_discovery_single_result(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_project_directory_discovery_single_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     p1 = tmp_path / "project"
     p1.mkdir()
     monkeypatch.setattr(project, "_find_configuration_file", lambda _root: None)
@@ -360,7 +414,9 @@ def test_load_project_directory_discovery_single_result(tmp_path: Path, monkeypa
     assert project.load_project_directory(tmp_path) == p1
 
 
-def test_get_configuration_path_variants(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_configuration_path_variants(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = tmp_path / ".kanbus.yml"
     cfg.write_text("x", encoding="utf-8")
 
@@ -446,7 +502,9 @@ def test_legacy_discovery_skips_symlink_and_non_root_oserror(
     assert child / "project" in projects
 
 
-def test_load_configuration_delegates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_configuration_delegates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = tmp_path / ".kanbus.yml"
     cfg.write_text("x", encoding="utf-8")
     expected = build_project_configuration()

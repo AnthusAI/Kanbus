@@ -13,7 +13,9 @@ def test_get_console_state_path_uses_project_cache_dir(
     tmp_path: Path, monkeypatch
 ) -> None:
     project_dir = tmp_path / "project"
-    monkeypatch.setattr(console_ui_state, "load_project_directory", lambda _root: project_dir)
+    monkeypatch.setattr(
+        console_ui_state, "load_project_directory", lambda _root: project_dir
+    )
 
     path = console_ui_state.get_console_state_path(tmp_path)
 
@@ -35,7 +37,9 @@ def test_fetch_console_ui_state_uses_explicit_port_and_parses_json(
 def test_fetch_console_ui_state_uses_configured_console_port(
     tmp_path: Path, monkeypatch
 ) -> None:
-    monkeypatch.setattr("kanbus.project.get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        "kanbus.project.get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(
         "kanbus.config_loader.load_project_configuration",
         lambda _path: type("Cfg", (), {"console_port": 6011})(),

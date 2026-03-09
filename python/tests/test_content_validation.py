@@ -34,10 +34,26 @@ def test_validate_code_blocks_dispatches_supported_languages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[str, str]] = []
-    monkeypatch.setattr(content_validation, "_validate_json", lambda b: calls.append(("json", b.language)))
-    monkeypatch.setattr(content_validation, "_validate_yaml", lambda b: calls.append(("yaml", b.language)))
-    monkeypatch.setattr(content_validation, "_validate_gherkin", lambda b: calls.append(("gherkin", b.language)))
-    monkeypatch.setattr(content_validation, "_validate_external", lambda b, tool: calls.append((tool, b.language)))
+    monkeypatch.setattr(
+        content_validation,
+        "_validate_json",
+        lambda b: calls.append(("json", b.language)),
+    )
+    monkeypatch.setattr(
+        content_validation,
+        "_validate_yaml",
+        lambda b: calls.append(("yaml", b.language)),
+    )
+    monkeypatch.setattr(
+        content_validation,
+        "_validate_gherkin",
+        lambda b: calls.append(("gherkin", b.language)),
+    )
+    monkeypatch.setattr(
+        content_validation,
+        "_validate_external",
+        lambda b, tool: calls.append((tool, b.language)),
+    )
 
     text = "\n".join(
         [
@@ -96,19 +112,17 @@ def test_validate_json_and_yaml_raise_content_validation_error() -> None:
         content_validation._validate_yaml(CodeBlock("yaml", "a: [", 9))
 
 
-def test_validate_gherkin_errors_for_empty_missing_feature_and_missing_scenario() -> None:
+def test_validate_gherkin_errors_for_empty_missing_feature_and_missing_scenario() -> (
+    None
+):
     with pytest.raises(ContentValidationError, match="empty content"):
         content_validation._validate_gherkin(CodeBlock("gherkin", "   ", 3))
 
     with pytest.raises(ContentValidationError, match="expected Feature keyword"):
-        content_validation._validate_gherkin(
-            CodeBlock("gherkin", "Scenario: only", 4)
-        )
+        content_validation._validate_gherkin(CodeBlock("gherkin", "Scenario: only", 4))
 
     with pytest.raises(ContentValidationError, match="expected at least one Scenario"):
-        content_validation._validate_gherkin(
-            CodeBlock("gherkin", "Feature: X", 5)
-        )
+        content_validation._validate_gherkin(CodeBlock("gherkin", "Feature: X", 5))
 
     content_validation._validate_gherkin(
         CodeBlock("gherkin", "Feature: X\nScenario Outline: Y", 6)
@@ -128,13 +142,17 @@ def test_validate_external_prints_install_hint_when_tool_missing(
 def test_validate_external_runs_tool_and_handles_error_timeout_and_unknown_tool(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(content_validation.shutil, "which", lambda _tool: "/usr/bin/fake")
+    monkeypatch.setattr(
+        content_validation.shutil, "which", lambda _tool: "/usr/bin/fake"
+    )
 
     seen_args: list[list[str]] = []
 
     def fake_run(args: list[str], capture_output: bool, text: bool, timeout: int):
         seen_args.append(args)
-        return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
+        return subprocess.CompletedProcess(
+            args=args, returncode=0, stdout="", stderr=""
+        )
 
     monkeypatch.setattr(content_validation.subprocess, "run", fake_run)
 
@@ -142,11 +160,15 @@ def test_validate_external_runs_tool_and_handles_error_timeout_and_unknown_tool(
     assert seen_args[0][0] == "mmdc"
 
     def fail_run(args: list[str], capture_output: bool, text: bool, timeout: int):
-        return subprocess.CompletedProcess(args=args, returncode=1, stdout="", stderr="bad syntax")
+        return subprocess.CompletedProcess(
+            args=args, returncode=1, stdout="", stderr="bad syntax"
+        )
 
     monkeypatch.setattr(content_validation.subprocess, "run", fail_run)
     with pytest.raises(ContentValidationError, match="invalid plantuml"):
-        content_validation._validate_external(CodeBlock("plantuml", "@startuml", 2), "plantuml")
+        content_validation._validate_external(
+            CodeBlock("plantuml", "@startuml", 2), "plantuml"
+        )
 
     def timeout_run(args: list[str], capture_output: bool, text: bool, timeout: int):
         raise subprocess.TimeoutExpired(cmd=args, timeout=timeout)
