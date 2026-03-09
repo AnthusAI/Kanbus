@@ -752,6 +752,32 @@ beads_compatibility: false
         clear_realtime_env();
         let response = handle_auth_bootstrap(Some("anthus"), Some("kanbus")).expect("response");
         assert_eq!(response.status(), StatusCode::OK);
+        let payload = body_to_string(response.body());
+        assert!(payload.contains("\"mode\":\"none\""));
+        assert!(payload.contains("\"account\":\"anthus\""));
+        assert!(payload.contains("\"project\":\"kanbus\""));
+    }
+
+    #[test]
+    fn auth_bootstrap_cognito_mode_includes_env_configuration() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+            env::set_var("KANBUS_COGNITO_DOMAIN_URL", "https://auth.example.com");
+            env::set_var("KANBUS_COGNITO_CLIENT_ID", "client-id");
+            env::set_var("KANBUS_COGNITO_REDIRECT_URI", "https://app.example.com/callback");
+            env::set_var("KANBUS_COGNITO_LOGOUT_URI", "https://app.example.com/logout");
+            env::set_var("KANBUS_COGNITO_ISSUER", "https://issuer.example.com");
+            env::set_var("KANBUS_IDENTITY_POOL_ID", "us-east-1:pool");
+        }
+        let response = handle_auth_bootstrap(Some("anthus"), Some("kanbus")).expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let payload = body_to_string(response.body());
+        assert!(payload.contains("\"mode\":\"cognito_pkce\""));
+        assert!(payload.contains("\"cognito_client_id\":\"client-id\""));
+        assert!(payload.contains("\"identity_pool_id\":\"us-east-1:pool\""));
     }
 
     #[test]
@@ -861,6 +887,26 @@ beads_compatibility: false
     }
 
     #[test]
+    fn enforce_tenant_claims_prefers_bearer_header_over_query_token() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+        }
+        let valid = jwt_with_claims("custom:account", "anthus", "custom:project", "kanbus");
+        let invalid = jwt_with_claims("custom:account", "other", "custom:project", "kanbus");
+        let mut request = Request::new(Body::Empty);
+        request.headers_mut().insert(
+            "Authorization",
+            format!("Bearer {valid}").parse().expect("header"),
+        );
+
+        let result = enforce_tenant_claims(&request, "anthus", "kanbus", Some(&invalid));
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn tenant_claim_keys_support_env_overrides() {
         let _guard = realtime_env_guard();
         clear_realtime_env();
@@ -909,6 +955,17 @@ beads_compatibility: false
     }
 
     #[test]
+    fn asset_response_returns_server_error_when_assets_root_missing() {
+        let _guard = realtime_env_guard();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("CONSOLE_ASSETS_ROOT", "/tmp/kanbus-missing-assets-root");
+        }
+        let response = asset_response("index.html");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
     fn asset_response_serves_existing_asset_from_override_root() {
         let _guard = realtime_env_guard();
         let temp = tempfile::tempdir().expect("tempdir");
@@ -933,6 +990,16 @@ beads_compatibility: false
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         let payload = body_to_string(response.body());
         assert!(payload.contains("KANBUS_IOT_DATA_ENDPOINT"));
+    }
+
+    #[test]
+    fn handle_config_and_issues_return_internal_error_for_invalid_store() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let store = FileStore::new(temp.path());
+        let config = handle_config(&store).expect("config response");
+        let issues = handle_issues(&store).expect("issues response");
+        assert_eq!(config.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(issues.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     #[test]
