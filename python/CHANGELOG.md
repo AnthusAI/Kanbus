@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## [0.17.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-py-0.16.0...kanbus-py-0.17.0) (2026-03-09)
+
+
+### Features
+
+* AI-powered wiki, lifecycle hooks, and init default pages ([b9fd52d](https://github.com/AnthusAI/Kanbus/commit/b9fd52d7deea1a3b748461538022b1e8fc741895))
+* **console:** add wiki workspace with deep links, resize, and tests ([52f8c9f](https://github.com/AnthusAI/Kanbus/commit/52f8c9f0ac5574bd87a389be2f9ae493fe3fbc13))
+* **event-history:** expand event coverage and fix beads dependency events ([a249c23](https://github.com/AnthusAI/Kanbus/commit/a249c23e0d81109e99cbafa595e84ded6ef9d77d))
+* **realtime:** ship pub-sub collaboration hub, overlay cache, and docs ([a0a55bf](https://github.com/AnthusAI/Kanbus/commit/a0a55bff0a5d56656d6794ca1b7fffdc9f38ddc9))
+* **sync:** add GitHub Dependabot pull sync with Beads support and Rust/Python parity ([df13ee7](https://github.com/AnthusAI/Kanbus/commit/df13ee73327c47d02ab3dd149f2adc68e574a239))
+
+
+### Bug Fixes
+
+* **ci:** add wiki panel console steps and apply fmt ([acf63b1](https://github.com/AnthusAI/Kanbus/commit/acf63b109acf3f95d1411946484100b35b800b73))
+* **ci:** address clippy and overlay test regressions ([961968e](https://github.com/AnthusAI/Kanbus/commit/961968e9099cc74a55f9a9bbde35545393586c8f))
+* **ci:** apply black formatting to event_history_steps.py ([5c4bea1](https://github.com/AnthusAI/Kanbus/commit/5c4bea1e25e6d52b8edbb1e7ccfca0d860fbecb8))
+* **ci:** restore parity env and normalize formatting ([cce8253](https://github.com/AnthusAI/Kanbus/commit/cce825378721d9eca8ed15a5731213eed163fe77))
+* **ci:** restore rust hooks clippy compliance and behave env cleanup ([eaee32f](https://github.com/AnthusAI/Kanbus/commit/eaee32fdf677e4aaac7ad6d9dc9789cc306f3c26))
+* **ci:** stabilize wiki ui step and recover python coverage ([1607dea](https://github.com/AnthusAI/Kanbus/commit/1607dea8f741653368f86bdac9a77da9912011cb))
+* **console:** accept mqtt realtime config in python snapshot path ([03399e7](https://github.com/AnthusAI/Kanbus/commit/03399e7da6ba96d44aec4da70afc5238a886e1c5))
+* **python:** log ignored exception in dependabot sync created_at preservation ([bb9411c](https://github.com/AnthusAI/Kanbus/commit/bb9411cc3f76550cf0a1901d3a7452739551053e))
+* quality gates - behave config steps, delete --yes, clippy, list_format ([5505cec](https://github.com/AnthusAI/Kanbus/commit/5505cec79ef6763b2c3df61e6fad5a7b98094d98))
+
 ## [0.16.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-py-0.15.0...kanbus-py-0.16.0) (2026-03-06)
 
 
