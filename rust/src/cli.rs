@@ -31,11 +31,11 @@ use crate::file_io::{
     canonicalize_path, detect_repairable_project_issues, ensure_git_repository,
     get_configuration_path, initialize_project, repair_project_structure, resolve_root,
 };
+use crate::github_security_sync::{pull_dependabot_from_github, pull_dependabot_from_github_beads};
 use crate::hooks::{
     list_hooks, run_lifecycle_hooks, serialize_issue, validate_hooks, HookEvent,
     HookExecutionOptions, HookPhase,
 };
-use crate::github_security_sync::{pull_dependabot_from_github, pull_dependabot_from_github_beads};
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
 use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};

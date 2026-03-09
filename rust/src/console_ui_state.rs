@@ -91,9 +91,16 @@ pub fn load_state(root: &Path) -> Result<ConsoleUiState, KanbusError> {
 /// Creates parent directories if they do not exist.
 pub fn save_state(root: &Path, state: &ConsoleUiState) -> Result<(), KanbusError> {
     let path = resolve_state_path(root)?;
-    let mut guard = state_cache()
-        .lock()
-        .map_err(|_| KanbusError::IssueOperation("console state cache lock poisoned".to_string()))?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    let json =
+        serde_json::to_string_pretty(state).map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::write(&path, json).map_err(|error| KanbusError::Io(error.to_string()))?;
+
+    let mut guard = state_cache().lock().map_err(|_| {
+        KanbusError::IssueOperation("console state cache lock poisoned".to_string())
+    })?;
     guard.insert(path, state.clone());
     Ok(())
 }
