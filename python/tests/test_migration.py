@@ -38,7 +38,9 @@ def test_load_beads_issues_and_issue_error_paths(tmp_path: Path) -> None:
     with pytest.raises(MigrationError, match="no issues.jsonl"):
         migration.load_beads_issues(tmp_path)
 
-    (beads / "issues.jsonl").write_text(json.dumps(_record("kanbus-1")) + "\n", encoding="utf-8")
+    (beads / "issues.jsonl").write_text(
+        json.dumps(_record("kanbus-1")) + "\n", encoding="utf-8"
+    )
     issues = migration.load_beads_issues(tmp_path)
     assert len(issues) == 1
     assert issues[0].identifier == "kanbus-1"
@@ -48,7 +50,9 @@ def test_load_beads_issues_and_issue_error_paths(tmp_path: Path) -> None:
         migration.load_beads_issue(tmp_path, "missing")
 
 
-def test_migrate_from_beads_error_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_migrate_from_beads_error_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(
         migration,
         "ensure_git_repository",
@@ -66,8 +70,12 @@ def test_migrate_from_beads_error_paths(tmp_path: Path, monkeypatch: pytest.Monk
     with pytest.raises(MigrationError, match="no issues.jsonl"):
         migration.migrate_from_beads(tmp_path)
 
-    (beads / "issues.jsonl").write_text(json.dumps(_record("kanbus-1")) + "\n", encoding="utf-8")
-    monkeypatch.setattr(migration, "discover_project_directories", lambda _root: [Path("project")])
+    (beads / "issues.jsonl").write_text(
+        json.dumps(_record("kanbus-1")) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        migration, "discover_project_directories", lambda _root: [Path("project")]
+    )
     with pytest.raises(MigrationError, match="already initialized"):
         migration.migrate_from_beads(tmp_path)
 
@@ -78,7 +86,9 @@ def test_migrate_from_beads_success_writes_issues(
     beads = tmp_path / ".beads"
     beads.mkdir()
     records = [_record("kanbus-1"), _record("kanbus-2")]
-    (beads / "issues.jsonl").write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+    (beads / "issues.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8"
+    )
 
     project_dir = tmp_path / "project"
     (project_dir / "issues").mkdir(parents=True)
@@ -86,7 +96,9 @@ def test_migrate_from_beads_success_writes_issues(
     monkeypatch.setattr(migration, "ensure_git_repository", lambda _root: None)
     monkeypatch.setattr(migration, "discover_project_directories", lambda _root: [])
     monkeypatch.setattr(migration, "initialize_project", lambda _root: None)
-    monkeypatch.setattr(migration, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        migration, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(
         migration,
         "load_project_configuration",
@@ -94,7 +106,9 @@ def test_migrate_from_beads_success_writes_issues(
     )
 
     writes: list[Path] = []
-    monkeypatch.setattr(migration, "write_issue_to_file", lambda issue, path: writes.append(path))
+    monkeypatch.setattr(
+        migration, "write_issue_to_file", lambda issue, path: writes.append(path)
+    )
 
     result = migration.migrate_from_beads(tmp_path)
     assert result.issue_count == 2
@@ -104,7 +118,9 @@ def test_migrate_from_beads_success_writes_issues(
 
 def test_load_beads_records_and_dedupe(tmp_path: Path) -> None:
     issues_path = tmp_path / "issues.jsonl"
-    issues_path.write_text("\n" + json.dumps(_record("kanbus-1")) + "\n", encoding="utf-8")
+    issues_path.write_text(
+        "\n" + json.dumps(_record("kanbus-1")) + "\n", encoding="utf-8"
+    )
 
     records = migration._load_beads_records(issues_path)
     assert len(records) == 1
@@ -129,7 +145,9 @@ def test_load_beads_records_and_dedupe(tmp_path: Path) -> None:
     tied_records = [
         _record("kanbus-3", updated_at="2026-03-09T00:00:00Z", notes="short"),
         _record("kanbus-3", updated_at="2026-03-10T00:00:00Z", notes="long payload"),
-        _record("kanbus-3", updated_at="2026-03-10T00:00:00Z", notes="long payload plus"),
+        _record(
+            "kanbus-3", updated_at="2026-03-10T00:00:00Z", notes="long payload plus"
+        ),
     ]
     deduped_tied = migration._dedupe_beads_records(tied_records, issues_path)
     assert len(deduped_tied) == 1
@@ -181,7 +199,9 @@ def test_convert_record_and_validations(monkeypatch: pytest.MonkeyPatch) -> None
         "kanbus-1",
         issue_type="feature",
         dependencies=[{"type": "parent-child", "depends_on_id": "kanbus-parent"}],
-        comments=[{"id": 1, "author": "A", "text": "Hi", "created_at": "2026-03-09T00:00:00Z"}],
+        comments=[
+            {"id": 1, "author": "A", "text": "Hi", "created_at": "2026-03-09T00:00:00Z"}
+        ],
         owner="owner",
         notes="notes",
         acceptance_criteria="ac",
@@ -226,7 +246,9 @@ def test_convert_dependencies_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     }
 
     warnings: list[str] = []
-    monkeypatch.setattr(migration.click, "echo", lambda msg, err=True: warnings.append(msg))
+    monkeypatch.setattr(
+        migration.click, "echo", lambda msg, err=True: warnings.append(msg)
+    )
 
     parent, deps = migration._convert_dependencies(
         [
@@ -245,7 +267,9 @@ def test_convert_dependencies_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     assert any("multiple parents" in w for w in warnings)
 
     with pytest.raises(MigrationError, match="invalid dependency"):
-        migration._convert_dependencies([{"type": "blocks"}], "x", record_by_id, cfg, "task")
+        migration._convert_dependencies(
+            [{"type": "blocks"}], "x", record_by_id, cfg, "task"
+        )
 
     with pytest.raises(MigrationError, match="missing dependency"):
         migration._convert_dependencies(
@@ -272,7 +296,9 @@ def test_convert_dependencies_invalid_hierarchy_suggests_and_drops_parent(
     cfg = build_project_configuration()
     record_by_id = {"p": _record("p", issue_type="story")}
     warnings: list[str] = []
-    monkeypatch.setattr(migration.click, "echo", lambda msg, err=True: warnings.append(msg))
+    monkeypatch.setattr(
+        migration.click, "echo", lambda msg, err=True: warnings.append(msg)
+    )
 
     parent, deps = migration._convert_dependencies(
         [{"type": "parent-child", "depends_on_id": "p"}],
@@ -300,7 +326,11 @@ def test_comment_conversion_and_uuid() -> None:
     assert comment.text == "B"
 
     with pytest.raises(MigrationError, match="invalid comment"):
-        migration._convert_comment("kanbus-1", {"author": "", "text": "x", "created_at": "2026-03-09T00:00:00Z"}, 0)
+        migration._convert_comment(
+            "kanbus-1",
+            {"author": "", "text": "x", "created_at": "2026-03-09T00:00:00Z"},
+            0,
+        )
 
 
 def test_timestamp_normalization_and_validation_helpers() -> None:
@@ -310,7 +340,10 @@ def test_timestamp_normalization_and_validation_helpers() -> None:
     parsed_naive = migration._parse_timestamp("2026-03-09T00:00:00", "updated_at")
     assert parsed_naive.tzinfo == timezone.utc
 
-    assert migration._normalize_fractional_seconds("2026-03-09T00:00:00Z") == "2026-03-09T00:00:00Z"
+    assert (
+        migration._normalize_fractional_seconds("2026-03-09T00:00:00Z")
+        == "2026-03-09T00:00:00Z"
+    )
     assert (
         migration._normalize_fractional_seconds("2026-03-09T00:00:00.1+00:00")
         == "2026-03-09T00:00:00.100000+00:00"
@@ -319,8 +352,14 @@ def test_timestamp_normalization_and_validation_helpers() -> None:
         migration._normalize_fractional_seconds("2026-03-09T00:00:00.123456789+00:00")
         == "2026-03-09T00:00:00.123456+00:00"
     )
-    assert migration._normalize_fractional_seconds("2026-03-09T00:00:00.ab+00:00") == "2026-03-09T00:00:00.ab+00:00"
-    assert migration._normalize_fractional_seconds("2026-03-09T00:00:00.123456") == "2026-03-09T00:00:00.123456"
+    assert (
+        migration._normalize_fractional_seconds("2026-03-09T00:00:00.ab+00:00")
+        == "2026-03-09T00:00:00.ab+00:00"
+    )
+    assert (
+        migration._normalize_fractional_seconds("2026-03-09T00:00:00.123456")
+        == "2026-03-09T00:00:00.123456"
+    )
 
     with pytest.raises(MigrationError, match="updated_at is required"):
         migration._parse_timestamp(None, "updated_at")

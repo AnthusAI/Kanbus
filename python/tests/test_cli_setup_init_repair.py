@@ -19,8 +19,12 @@ def _run(args: list[str]) -> object:
 def test_setup_agents_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     calls: list[tuple[str, bool]] = []
-    monkeypatch.setattr(cli, "ensure_agents_file", lambda root, force: calls.append(("agents", force)))
-    monkeypatch.setattr(cli, "_ensure_project_guard_files", lambda root: calls.append(("guards", False)))
+    monkeypatch.setattr(
+        cli, "ensure_agents_file", lambda root, force: calls.append(("agents", force))
+    )
+    monkeypatch.setattr(
+        cli, "_ensure_project_guard_files", lambda root: calls.append(("guards", False))
+    )
 
     result = _run(["setup", "agents", "--force"])
     assert result.exit_code == 0
@@ -120,7 +124,9 @@ def test_repair_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
 
     monkeypatch.setattr(cli.click, "confirm", lambda *_a, **_k: True)
     repaired: list[Path] = []
-    monkeypatch.setattr(cli, "repair_project_structure", lambda root, _plan: repaired.append(root))
+    monkeypatch.setattr(
+        cli, "repair_project_structure", lambda root, _plan: repaired.append(root)
+    )
     cli.repair.callback(False)
     assert "Project structure repaired." in messages[-1]
     assert repaired == [tmp_path]
@@ -133,7 +139,9 @@ def test_resolve_beads_mode_projectmarker_and_config_error(
     context.get_parameter_source = lambda _name: cli.click.core.ParameterSource.DEFAULT
 
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
-    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(
         cli,
         "load_project_configuration",

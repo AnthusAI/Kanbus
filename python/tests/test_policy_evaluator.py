@@ -82,7 +82,10 @@ def test_is_explain_step_and_iter_policy_rule_units() -> None:
     nested_scenario = _scenario("Nested", [_step("When", "b")])
     rule = SimpleNamespace(
         name="RuleA",
-        children=[SimpleNamespace(scenario=nested_scenario), SimpleNamespace(other=True)],
+        children=[
+            SimpleNamespace(scenario=nested_scenario),
+            SimpleNamespace(other=True),
+        ],
     )
     doc = _doc_with_children(
         [
@@ -108,7 +111,9 @@ def test_policy_structure_violation_carries_issue_id() -> None:
     assert violation.issue_id == "kanbus-1"
 
 
-def test_validate_policy_documents_reports_unknown_and_orphan_explain(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validate_policy_documents_reports_unknown_and_orphan_explain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ctx = _context()
     registry = _FakeRegistry(
         {
@@ -269,7 +274,9 @@ def test_evaluate_scenario_guidance_and_explain_attachment() -> None:
     assert violation_report.violation.explanations == ["explain-fail"]
 
 
-def test_evaluate_scenario_explain_without_target_and_guidance_mode_fail_behavior() -> None:
+def test_evaluate_scenario_explain_without_target_and_guidance_mode_fail_behavior() -> (
+    None
+):
     ctx = _context()
     registry = _FakeRegistry(
         {
@@ -348,7 +355,9 @@ def test_evaluate_policies_report_and_wrappers(monkeypatch: pytest.MonkeyPatch) 
     assert len(report.violations) == 1
 
     # collect_all True should include scenario violation too.
-    monkeypatch.setattr(policy_evaluator, "validate_policy_documents", lambda _ctx, _docs: [])
+    monkeypatch.setattr(
+        policy_evaluator, "validate_policy_documents", lambda _ctx, _docs: []
+    )
     monkeypatch.setattr(
         policy_evaluator,
         "evaluate_scenario",

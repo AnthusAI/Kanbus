@@ -44,7 +44,9 @@ def test_generate_comment_id_shape() -> None:
     assert len(generated) >= 8
 
 
-def test_ensure_comment_ids_changed_and_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ensure_comment_ids_changed_and_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     issue = build_issue("kanbus-1")
     issue.comments = [_c("a", None), _c("b", "bb")]
     monkeypatch.setattr(issue_comment, "_generate_comment_id", lambda: "gen-1")
@@ -64,21 +66,37 @@ def test_add_comment_success_and_failures(monkeypatch: pytest.MonkeyPatch) -> No
     issue_path = project_dir / "issues" / "kanbus-1.json"
     issue = build_issue("kanbus-1")
     issue.comments = [_c("old", None)]
-    lookup = SimpleNamespace(issue=issue, issue_path=issue_path, project_dir=project_dir)
+    lookup = SimpleNamespace(
+        issue=issue, issue_path=issue_path, project_dir=project_dir
+    )
 
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
     ids = iter(["existing-id", "new-id"])
     monkeypatch.setattr(issue_comment, "_generate_comment_id", lambda: next(ids))
     writes: list[object] = []
-    monkeypatch.setattr(issue_comment, "write_issue_to_file", lambda *_a: writes.append("w"))
-    monkeypatch.setattr(issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
+    monkeypatch.setattr(
+        issue_comment, "write_issue_to_file", lambda *_a: writes.append("w")
+    )
+    monkeypatch.setattr(
+        issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
     monkeypatch.setattr(issue_comment, "get_current_user", lambda: "dev")
-    monkeypatch.setattr(issue_comment, "comment_payload", lambda _id, _author: {"ok": True})
-    monkeypatch.setattr(issue_comment, "create_event", lambda **_kwargs: SimpleNamespace(event_id="evt-1"))
-    monkeypatch.setattr(issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events"))
+    monkeypatch.setattr(
+        issue_comment, "comment_payload", lambda _id, _author: {"ok": True}
+    )
+    monkeypatch.setattr(
+        issue_comment,
+        "create_event",
+        lambda **_kwargs: SimpleNamespace(event_id="evt-1"),
+    )
+    monkeypatch.setattr(
+        issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events")
+    )
     monkeypatch.setattr(issue_comment, "write_events_batch", lambda *_a: None)
     published: list[str] = []
-    monkeypatch.setattr(issue_comment, "publish_issue_mutation", lambda *_a: published.append("pub"))
+    monkeypatch.setattr(
+        issue_comment, "publish_issue_mutation", lambda *_a: published.append("pub")
+    )
 
     result = issue_comment.add_comment(root, "kanbus-1", "dev", "new")
     assert result.comment.id == "new-id"
@@ -113,17 +131,25 @@ def test_add_comment_success_and_failures(monkeypatch: pytest.MonkeyPatch) -> No
 def test_ensure_issue_comment_ids(monkeypatch: pytest.MonkeyPatch) -> None:
     issue = build_issue("kanbus-1")
     issue.comments = [_c("old", None)]
-    lookup = SimpleNamespace(issue=issue, issue_path=Path("/repo/project/issues/kanbus-1.json"))
+    lookup = SimpleNamespace(
+        issue=issue, issue_path=Path("/repo/project/issues/kanbus-1.json")
+    )
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
     monkeypatch.setattr(issue_comment, "_generate_comment_id", lambda: "id-1")
     wrote: list[str] = []
-    monkeypatch.setattr(issue_comment, "write_issue_to_file", lambda *_a: wrote.append("w"))
+    monkeypatch.setattr(
+        issue_comment, "write_issue_to_file", lambda *_a: wrote.append("w")
+    )
 
     updated = issue_comment.ensure_issue_comment_ids(Path("/repo"), "kanbus-1")
     assert updated.comments[0].id == "id-1"
     assert wrote == ["w"]
 
-    monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: (_ for _ in ()).throw(issue_comment.IssueLookupError("missing")))
+    monkeypatch.setattr(
+        issue_comment,
+        "load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(issue_comment.IssueLookupError("missing")),
+    )
     with pytest.raises(issue_comment.IssueCommentError, match="missing"):
         issue_comment.ensure_issue_comment_ids(Path("/repo"), "x")
 
@@ -134,57 +160,95 @@ def test_update_comment_success_and_paths(monkeypatch: pytest.MonkeyPatch) -> No
     issue_path = project_dir / "issues" / "kanbus-1.json"
     issue = build_issue("kanbus-1")
     issue.comments = [_c("old", "abc123")]
-    lookup = SimpleNamespace(issue=issue, issue_path=issue_path, project_dir=project_dir)
+    lookup = SimpleNamespace(
+        issue=issue, issue_path=issue_path, project_dir=project_dir
+    )
 
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
     monkeypatch.setattr(issue_comment, "write_issue_to_file", lambda *_a: None)
-    monkeypatch.setattr(issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
+    monkeypatch.setattr(
+        issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
     monkeypatch.setattr(issue_comment, "get_current_user", lambda: "dev")
-    monkeypatch.setattr(issue_comment, "comment_updated_payload", lambda *_a: {"ok": True})
-    monkeypatch.setattr(issue_comment, "create_event", lambda **_kwargs: SimpleNamespace(event_id="evt-2"))
-    monkeypatch.setattr(issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events"))
+    monkeypatch.setattr(
+        issue_comment, "comment_updated_payload", lambda *_a: {"ok": True}
+    )
+    monkeypatch.setattr(
+        issue_comment,
+        "create_event",
+        lambda **_kwargs: SimpleNamespace(event_id="evt-2"),
+    )
+    monkeypatch.setattr(
+        issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events")
+    )
     monkeypatch.setattr(issue_comment, "write_events_batch", lambda *_a: None)
     monkeypatch.setattr(issue_comment, "publish_issue_mutation", lambda *_a: None)
 
     updated = issue_comment.update_comment(root, "kanbus-1", "abc", "new text")
     assert updated.comments[0].text == "new text"
 
-    monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: (_ for _ in ()).throw(issue_comment.IssueLookupError("missing")))
+    monkeypatch.setattr(
+        issue_comment,
+        "load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(issue_comment.IssueLookupError("missing")),
+    )
     with pytest.raises(issue_comment.IssueCommentError, match="missing"):
         issue_comment.update_comment(root, "x", "abc", "new")
 
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
     no_id_issue = build_issue("kanbus-1")
     no_id_issue.comments = [_c("old", None)]
-    monkeypatch.setattr(issue_comment, "_ensure_comment_ids", lambda _issue: (no_id_issue, False))
+    monkeypatch.setattr(
+        issue_comment, "_ensure_comment_ids", lambda _issue: (no_id_issue, False)
+    )
     monkeypatch.setattr(issue_comment, "_find_comment_index", lambda *_a: 0)
     with pytest.raises(issue_comment.IssueCommentError, match="comment id is required"):
         issue_comment.update_comment(root, "kanbus-1", "abc", "new")
 
 
-def test_update_delete_comment_event_failure_rolls_back(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_update_delete_comment_event_failure_rolls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     root = Path("/repo")
     project_dir = Path("/repo/project")
     issue_path = project_dir / "local" / "kanbus-1.json"
     issue = build_issue("kanbus-1")
     issue.comments = [_c("old", "abc123")]
-    lookup = SimpleNamespace(issue=issue, issue_path=issue_path, project_dir=project_dir)
+    lookup = SimpleNamespace(
+        issue=issue, issue_path=issue_path, project_dir=project_dir
+    )
 
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
     writes: list[str] = []
-    monkeypatch.setattr(issue_comment, "write_issue_to_file", lambda *_a: writes.append("w"))
-    monkeypatch.setattr(issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
+    monkeypatch.setattr(
+        issue_comment, "write_issue_to_file", lambda *_a: writes.append("w")
+    )
+    monkeypatch.setattr(
+        issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
     monkeypatch.setattr(issue_comment, "get_current_user", lambda: "dev")
-    monkeypatch.setattr(issue_comment, "comment_updated_payload", lambda *_a: {"ok": True})
+    monkeypatch.setattr(
+        issue_comment, "comment_updated_payload", lambda *_a: {"ok": True}
+    )
     monkeypatch.setattr(issue_comment, "comment_payload", lambda *_a: {"ok": True})
-    monkeypatch.setattr(issue_comment, "create_event", lambda **_kwargs: SimpleNamespace(event_id="evt-3"))
-    monkeypatch.setattr(issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events"))
+    monkeypatch.setattr(
+        issue_comment,
+        "create_event",
+        lambda **_kwargs: SimpleNamespace(event_id="evt-3"),
+    )
+    monkeypatch.setattr(
+        issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events")
+    )
     monkeypatch.setattr(
         issue_comment,
         "write_events_batch",
         lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
     )
-    monkeypatch.setattr(issue_comment, "publish_issue_mutation", lambda *_a: (_ for _ in ()).throw(RuntimeError("should not publish")))
+    monkeypatch.setattr(
+        issue_comment,
+        "publish_issue_mutation",
+        lambda *_a: (_ for _ in ()).throw(RuntimeError("should not publish")),
+    )
 
     with pytest.raises(issue_comment.IssueCommentError, match="event fail"):
         issue_comment.update_comment(root, "kanbus-1", "abc", "new")
@@ -193,24 +257,38 @@ def test_update_delete_comment_event_failure_rolls_back(monkeypatch: pytest.Monk
     assert len(writes) >= 4
 
 
-def test_delete_comment_success_lookup_error_and_missing_id(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_delete_comment_success_lookup_error_and_missing_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     root = Path("/repo")
     project_dir = Path("/repo/project")
     issue_path = project_dir / "issues" / "kanbus-1.json"
     issue = build_issue("kanbus-1")
     issue.comments = [_c("old", "abc123")]
-    lookup = SimpleNamespace(issue=issue, issue_path=issue_path, project_dir=project_dir)
+    lookup = SimpleNamespace(
+        issue=issue, issue_path=issue_path, project_dir=project_dir
+    )
 
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
     monkeypatch.setattr(issue_comment, "write_issue_to_file", lambda *_a: None)
-    monkeypatch.setattr(issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
+    monkeypatch.setattr(
+        issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
     monkeypatch.setattr(issue_comment, "get_current_user", lambda: "dev")
     monkeypatch.setattr(issue_comment, "comment_payload", lambda *_a: {"ok": True})
-    monkeypatch.setattr(issue_comment, "create_event", lambda **_kwargs: SimpleNamespace(event_id="evt-4"))
-    monkeypatch.setattr(issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events"))
+    monkeypatch.setattr(
+        issue_comment,
+        "create_event",
+        lambda **_kwargs: SimpleNamespace(event_id="evt-4"),
+    )
+    monkeypatch.setattr(
+        issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events")
+    )
     monkeypatch.setattr(issue_comment, "write_events_batch", lambda *_a: None)
     published: list[str] = []
-    monkeypatch.setattr(issue_comment, "publish_issue_mutation", lambda *_a: published.append("pub"))
+    monkeypatch.setattr(
+        issue_comment, "publish_issue_mutation", lambda *_a: published.append("pub")
+    )
 
     updated = issue_comment.delete_comment(root, "kanbus-1", "abc")
     assert updated.comments == []
@@ -227,7 +305,9 @@ def test_delete_comment_success_lookup_error_and_missing_id(monkeypatch: pytest.
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
     no_id_issue = build_issue("kanbus-1")
     no_id_issue.comments = [_c("old", None)]
-    monkeypatch.setattr(issue_comment, "_ensure_comment_ids", lambda _issue: (no_id_issue, False))
+    monkeypatch.setattr(
+        issue_comment, "_ensure_comment_ids", lambda _issue: (no_id_issue, False)
+    )
     monkeypatch.setattr(issue_comment, "_find_comment_index", lambda *_a: 0)
     with pytest.raises(issue_comment.IssueCommentError, match="comment id is required"):
         issue_comment.delete_comment(root, "kanbus-1", "abc")

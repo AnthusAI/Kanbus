@@ -1767,8 +1767,11 @@ mod tests {
 
         let mut parent = make_issue("kanbus-parent", "epic", "Configured");
         parent.labels = vec!["snyk".into(), "security".into()];
-        write_issue_to_file(&parent, &issue_path_for_identifier(&issues_dir, "kanbus-parent"))
-            .expect("write parent");
+        write_issue_to_file(
+            &parent,
+            &issue_path_for_identifier(&issues_dir, "kanbus-parent"),
+        )
+        .expect("write parent");
 
         let mut all_existing = HashSet::from([String::from("kanbus-parent")]);
         let mut ctx = SnykContext {
@@ -1828,8 +1831,8 @@ mod tests {
         let code_id = epics.get("code").expect("code epic id");
         assert_ne!(dep_id, code_id);
 
-        let dep_issue =
-            read_issue_from_file(&issue_path_for_identifier(&issues_dir, dep_id)).expect("dep epic");
+        let dep_issue = read_issue_from_file(&issue_path_for_identifier(&issues_dir, dep_id))
+            .expect("dep epic");
         let code_issue = read_issue_from_file(&issue_path_for_identifier(&issues_dir, code_id))
             .expect("code epic");
         assert_eq!(dep_issue.title, SNYK_DEP_EPIC_TITLE);

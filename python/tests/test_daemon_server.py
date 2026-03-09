@@ -25,8 +25,12 @@ def test_daemon_core_warm_start_uses_cache_or_builds_index(
 
     built_index = IssueIndex(by_id={"kanbus-1": build_issue("kanbus-1")})
     monkeypatch.setattr(daemon_server, "load_cache_if_valid", lambda *_a: None)
-    monkeypatch.setattr(daemon_server, "build_index_from_directory", lambda _d: built_index)
-    monkeypatch.setattr(daemon_server, "collect_issue_file_mtimes", lambda _d: {"x": 1.0})
+    monkeypatch.setattr(
+        daemon_server, "build_index_from_directory", lambda _d: built_index
+    )
+    monkeypatch.setattr(
+        daemon_server, "collect_issue_file_mtimes", lambda _d: {"x": 1.0}
+    )
     called: dict[str, bool] = {}
     monkeypatch.setattr(
         daemon_server, "write_cache", lambda *_a: called.setdefault("write_cache", True)
@@ -120,7 +124,9 @@ def test_daemon_core_load_index_rebuild_and_cached(
     built = IssueIndex(by_id={"kanbus-1": build_issue("kanbus-1")})
     monkeypatch.setattr(daemon_server, "load_cache_if_valid", lambda *_a: None)
     monkeypatch.setattr(daemon_server, "build_index_from_directory", lambda _d: built)
-    monkeypatch.setattr(daemon_server, "collect_issue_file_mtimes", lambda _d: {"k": 1.0})
+    monkeypatch.setattr(
+        daemon_server, "collect_issue_file_mtimes", lambda _d: {"k": 1.0}
+    )
     monkeypatch.setattr(daemon_server, "write_cache", lambda *_a: None)
     assert [issue.identifier for issue in core._load_index()] == ["kanbus-1"]
 
@@ -149,7 +155,9 @@ def test_raw_request_and_response_error_helpers(tmp_path: Path) -> None:
     assert mismatch.error is not None
     assert mismatch.error.code == "protocol_version_mismatch"
 
-    internal = daemon_server._build_internal_error_response("req-3", RuntimeError("boom"))
+    internal = daemon_server._build_internal_error_response(
+        "req-3", RuntimeError("boom")
+    )
     assert internal.error is not None
     assert internal.error.message == "boom"
 
@@ -179,7 +187,9 @@ def test_handle_request_for_testing_and_raw_payload_for_testing(
     monkeypatch.setattr(
         daemon_server.DaemonCore,
         "handle_request",
-        lambda _self, _req: (_ for _ in ()).throw(ProtocolError("protocol version mismatch")),
+        lambda _self, _req: (_ for _ in ()).throw(
+            ProtocolError("protocol version mismatch")
+        ),
     )
     response = daemon_server.handle_request_for_testing(tmp_path, request)
     assert response.status == "error"
@@ -211,7 +221,9 @@ def test_handle_request_for_testing_and_raw_payload_for_testing(
     assert raw_response.status == "ok"
 
 
-def test_run_daemon_invokes_server_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_daemon_invokes_server_lifecycle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     calls: list[str] = []
 
     class FakeServer:
@@ -252,7 +264,9 @@ def test_daemon_server_init_and_proxy_methods(
         captured["handler"] = handler_cls
 
     monkeypatch.setattr(
-        daemon_server.socketserver.ThreadingUnixStreamServer, "__init__", fake_super_init
+        daemon_server.socketserver.ThreadingUnixStreamServer,
+        "__init__",
+        fake_super_init,
     )
 
     server = daemon_server.DaemonServer(root)
@@ -262,11 +276,14 @@ def test_daemon_server_init_and_proxy_methods(
     assert not socket_path.exists()
 
     calls: dict[str, object] = {}
-    monkeypatch.setattr(server.core, "warm_start", lambda: calls.setdefault("warm", True))
+    monkeypatch.setattr(
+        server.core, "warm_start", lambda: calls.setdefault("warm", True)
+    )
     monkeypatch.setattr(
         server.core,
         "handle_request",
-        lambda request: calls.setdefault("request", request) or ResponseEnvelope(
+        lambda request: calls.setdefault("request", request)
+        or ResponseEnvelope(
             protocol_version="1.0", request_id="req", status="ok", result={}
         ),
     )
@@ -287,9 +304,14 @@ def test_daemon_request_handler_handle_writes_response_and_shutdown(
     handler.server = type(
         "Server",
         (),
-        {"core": object(), "shutdown": lambda self: shutdown_called.setdefault("shutdown", True)},
+        {
+            "core": object(),
+            "shutdown": lambda self: shutdown_called.setdefault("shutdown", True),
+        },
     )()
-    handler.rfile = io.BytesIO(b'{"request_id":"r","action":"shutdown","protocol_version":"1.0","payload":{}}\n')
+    handler.rfile = io.BytesIO(
+        b'{"request_id":"r","action":"shutdown","protocol_version":"1.0","payload":{}}\n'
+    )
     handler.wfile = io.BytesIO()
 
     response = ResponseEnvelope(

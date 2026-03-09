@@ -16,7 +16,9 @@ def _run(args: list[str]) -> object:
     return runner.invoke(cli.cli, args)
 
 
-def test_console_snapshot_success_and_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_console_snapshot_success_and_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "build_console_snapshot", lambda _root: {"ok": True})
 
@@ -62,7 +64,9 @@ def test_console_deprecated_commands(args: list[str]) -> None:
     assert "deprecated" in result.output.lower()
 
 
-def test_console_status_and_get_commands(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_console_status_and_get_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
 
     monkeypatch.setattr(cli, "fetch_console_ui_state", lambda _root: None)
@@ -104,7 +108,9 @@ def test_console_status_and_get_commands(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert "Console server is not running." in _run(["console", "get", "search"]).output
 
 
-def test_validate_command_success_and_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_validate_command_success_and_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     called: list[Path] = []
     monkeypatch.setattr(cli, "validate_project", lambda root: called.append(root))
@@ -123,7 +129,9 @@ def test_validate_command_success_and_error(monkeypatch: pytest.MonkeyPatch, tmp
     assert "invalid project" in result_error.output
 
 
-def test_stats_command_success_and_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_stats_command_success_and_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(
         cli,

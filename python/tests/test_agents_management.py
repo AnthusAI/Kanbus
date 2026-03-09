@@ -50,13 +50,19 @@ def test_ensure_agents_file_creates_new_files(
 ) -> None:
     monkeypatch.setattr(agents, "build_project_management_text", lambda _root: "PM")
     calls: list[str] = []
-    monkeypatch.setattr(agents, "_write_project_guard_files", lambda _p: calls.append("guard"))
-    monkeypatch.setattr(agents, "_write_tool_block_files", lambda _p: calls.append("tools"))
+    monkeypatch.setattr(
+        agents, "_write_project_guard_files", lambda _p: calls.append("guard")
+    )
+    monkeypatch.setattr(
+        agents, "_write_tool_block_files", lambda _p: calls.append("tools")
+    )
 
     changed = agents.ensure_agents_file(tmp_path, force=False)
     assert changed is True
     assert (tmp_path / "AGENTS.md").exists()
-    assert (tmp_path / agents.PROJECT_MANAGEMENT_FILENAME).read_text(encoding="utf-8") == "PM"
+    assert (tmp_path / agents.PROJECT_MANAGEMENT_FILENAME).read_text(
+        encoding="utf-8"
+    ) == "PM"
     assert calls == []
 
 
@@ -70,8 +76,12 @@ def test_ensure_agents_file_existing_with_match_no_force_and_decline(
     monkeypatch.setattr(agents, "_confirm_overwrite", lambda: False)
 
     calls: list[str] = []
-    monkeypatch.setattr(agents, "_write_project_guard_files", lambda _p: calls.append("guard"))
-    monkeypatch.setattr(agents, "_write_tool_block_files", lambda _p: calls.append("tools"))
+    monkeypatch.setattr(
+        agents, "_write_project_guard_files", lambda _p: calls.append("guard")
+    )
+    monkeypatch.setattr(
+        agents, "_write_tool_block_files", lambda _p: calls.append("tools")
+    )
 
     changed = agents.ensure_agents_file(tmp_path, force=False)
     assert changed is False
@@ -114,10 +124,14 @@ def test_ensure_project_management_file_honors_force(tmp_path: Path) -> None:
     p = tmp_path / agents.PROJECT_MANAGEMENT_FILENAME
     p.write_text("old", encoding="utf-8")
 
-    agents._ensure_project_management_file(tmp_path, force=False, instructions_text="new")
+    agents._ensure_project_management_file(
+        tmp_path, force=False, instructions_text="new"
+    )
     assert p.read_text(encoding="utf-8") == "old"
 
-    agents._ensure_project_management_file(tmp_path, force=True, instructions_text="new")
+    agents._ensure_project_management_file(
+        tmp_path, force=True, instructions_text="new"
+    )
     assert p.read_text(encoding="utf-8") == "new"
 
 
@@ -125,22 +139,30 @@ def test_build_project_management_text_default_custom_and_template_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cfg = _config()
-    monkeypatch.setattr(agents, "_load_configuration_for_instructions", lambda _root: cfg)
+    monkeypatch.setattr(
+        agents, "_load_configuration_for_instructions", lambda _root: cfg
+    )
 
     rendered = agents.build_project_management_text(tmp_path)
     assert "KB" in rendered
 
     custom_template = tmp_path / "custom-template.md"
     custom_template.write_text("Project {{ project_key }}", encoding="utf-8")
-    cfg_custom = cfg.model_copy(update={"project_management_template": str(custom_template)})
-    monkeypatch.setattr(agents, "_load_configuration_for_instructions", lambda _root: cfg_custom)
+    cfg_custom = cfg.model_copy(
+        update={"project_management_template": str(custom_template)}
+    )
+    monkeypatch.setattr(
+        agents, "_load_configuration_for_instructions", lambda _root: cfg_custom
+    )
     rendered_custom = agents.build_project_management_text(tmp_path)
     assert rendered_custom == "Project KB"
 
     bad_template = tmp_path / "bad.md"
     bad_template.write_text("{% for x in %}", encoding="utf-8")
     cfg_bad = cfg.model_copy(update={"project_management_template": str(bad_template)})
-    monkeypatch.setattr(agents, "_load_configuration_for_instructions", lambda _root: cfg_bad)
+    monkeypatch.setattr(
+        agents, "_load_configuration_for_instructions", lambda _root: cfg_bad
+    )
     with pytest.raises(click.ClickException):
         agents.build_project_management_text(tmp_path)
 
@@ -156,7 +178,9 @@ def test_load_configuration_for_instructions_wraps_errors(
     with pytest.raises(click.ClickException, match="missing"):
         agents._load_configuration_for_instructions(tmp_path)
 
-    monkeypatch.setattr(agents, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr(
+        agents, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
     monkeypatch.setattr(
         agents,
         "load_project_configuration",
@@ -175,12 +199,16 @@ def test_resolve_project_management_template_path_paths(
 
     conventional = tmp_path / agents.DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME
     conventional.write_text("x", encoding="utf-8")
-    assert agents._resolve_project_management_template_path(tmp_path, cfg) == conventional
+    assert (
+        agents._resolve_project_management_template_path(tmp_path, cfg) == conventional
+    )
 
     custom = tmp_path / "custom.md"
     custom.write_text("x", encoding="utf-8")
     cfg_custom = cfg.model_copy(update={"project_management_template": "custom.md"})
-    assert agents._resolve_project_management_template_path(tmp_path, cfg_custom) == custom
+    assert (
+        agents._resolve_project_management_template_path(tmp_path, cfg_custom) == custom
+    )
 
     cfg_missing = cfg.model_copy(update={"project_management_template": "missing.md"})
     with pytest.raises(click.ClickException, match="template not found"):
@@ -201,7 +229,9 @@ def test_context_and_example_builders() -> None:
     assert any("kanbus create" in line for line in examples)
     assert any("kanbus close" in line for line in examples)
 
-    semantic = agents._build_semantic_release_mapping(["bug", "story", "chore", "other"])
+    semantic = agents._build_semantic_release_mapping(
+        ["bug", "story", "chore", "other"]
+    )
     assert semantic[0]["category"] == "fix"
     assert semantic[1]["category"] == "feat"
 
@@ -243,14 +273,19 @@ def test_header_section_utilities_and_replace_insert_paths() -> None:
     end = agents._find_section_end(lines, 3, 2)
     assert end == 4
 
-    matches = [agents.SectionMatch(start=2, end=4, level=2), agents.SectionMatch(start=4, end=8, level=2)]
+    matches = [
+        agents.SectionMatch(start=2, end=4, level=2),
+        agents.SectionMatch(start=4, end=8, level=2),
+    ]
     assert agents._is_in_sections(2, matches) is True
     assert agents._is_in_sections(1, matches) is False
 
     replaced = agents._replace_sections(lines, matches, matches[0], ["## X", "new"])
     assert "## X" in replaced
 
-    replaced_no_insert = agents._replace_sections(lines, [], agents.SectionMatch(0, 0, 1), ["## X"])
+    replaced_no_insert = agents._replace_sections(
+        lines, [], agents.SectionMatch(0, 0, 1), ["## X"]
+    )
     assert replaced_no_insert.endswith("## X\n")
 
     inserted = agents._insert_kanbus_section(["plain"], ["## K"])

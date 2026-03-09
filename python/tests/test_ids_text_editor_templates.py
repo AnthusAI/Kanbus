@@ -20,17 +20,33 @@ def test_id_uuid_sequence_and_generation() -> None:
 
 def test_format_issue_key_variants() -> None:
     assert ids.format_issue_key("12345", project_context=False) == "12345"
-    assert ids.format_issue_key("kanbus-abcdef123456", project_context=False) == "kanbus-abcdef"
+    assert (
+        ids.format_issue_key("kanbus-abcdef123456", project_context=False)
+        == "kanbus-abcdef"
+    )
     assert ids.format_issue_key("kanbus-abcdef123456", project_context=True) == "abcdef"
-    assert ids.format_issue_key("kanbus-abcdef123456.2", project_context=False) == "kanbus-abcdef.2"
+    assert (
+        ids.format_issue_key("kanbus-abcdef123456.2", project_context=False)
+        == "kanbus-abcdef.2"
+    )
     assert ids.format_issue_key("abcdef123456", project_context=False) == "abcdef"
 
 
 def test_matches_issue_identifier_paths() -> None:
     full = "kanbus-abcdef123456"
     assert ids.matches_issue_identifier(full, full) is True
-    assert ids.matches_issue_identifier(ids.format_issue_key(full, project_context=False), full) is True
-    assert ids.matches_issue_identifier(ids.format_issue_key(full, project_context=True), full) is True
+    assert (
+        ids.matches_issue_identifier(
+            ids.format_issue_key(full, project_context=False), full
+        )
+        is True
+    )
+    assert (
+        ids.matches_issue_identifier(
+            ids.format_issue_key(full, project_context=True), full
+        )
+        is True
+    )
     assert ids.matches_issue_identifier("x" * len(full), full) is False
     assert ids.matches_issue_identifier("kanbus-ab", full) is True
     assert ids.matches_issue_identifier("zzz", full) is False
@@ -38,7 +54,9 @@ def test_matches_issue_identifier_paths() -> None:
 
 def test_generate_issue_identifier_collision_failure() -> None:
     ids.set_test_uuid_sequence(["dup"] * 10)
-    req = ids.IssueIdentifierRequest(title="x", prefix="kanbus", existing_ids={"kanbus-dup"})
+    req = ids.IssueIdentifierRequest(
+        title="x", prefix="kanbus", existing_ids={"kanbus-dup"}
+    )
     with pytest.raises(RuntimeError, match="unable to generate unique id"):
         ids.generate_issue_identifier(req)
     ids.set_test_uuid_sequence(None)
@@ -75,7 +93,9 @@ def test_text_editor_view_errors(tmp_path: Path) -> None:
     root = tmp_path
     with pytest.raises(text_editor.TextEditorError, match="escapes repository root"):
         text_editor.edit_view(root, Path("../x"))
-    with pytest.raises(text_editor.TextEditorError, match="file or directory not found"):
+    with pytest.raises(
+        text_editor.TextEditorError, match="file or directory not found"
+    ):
         text_editor.edit_view(root, Path("missing.txt"))
 
 
@@ -84,7 +104,9 @@ def test_text_editor_str_replace_paths(tmp_path: Path) -> None:
     file_path = root / "replace.txt"
     file_path.write_text("hello world", encoding="utf-8")
 
-    assert "Successfully replaced" in text_editor.edit_str_replace(root, Path("replace.txt"), "hello", "hi")
+    assert "Successfully replaced" in text_editor.edit_str_replace(
+        root, Path("replace.txt"), "hello", "hi"
+    )
     assert file_path.read_text(encoding="utf-8") == "hi world"
 
     with pytest.raises(text_editor.TextEditorError, match="escapes repository root"):
@@ -114,7 +136,9 @@ def test_text_editor_create_and_insert(tmp_path: Path) -> None:
 
     target = root / "insert.txt"
     target.write_text("a\nb\n", encoding="utf-8")
-    assert "Successfully inserted" in text_editor.edit_insert(root, Path("insert.txt"), 1, "x")
+    assert "Successfully inserted" in text_editor.edit_insert(
+        root, Path("insert.txt"), 1, "x"
+    )
     assert target.read_text(encoding="utf-8") == "a\nx\nb\n"
 
     empty = root / "empty.txt"
@@ -136,10 +160,16 @@ def test_template_constants_are_expected() -> None:
     assert wiki_templates.DEFAULT_WIKI_INDEX_FILENAME == "index.md"
     assert wiki_templates.DEFAULT_WIKI_WHATS_NEXT_FILENAME == "whats-next.md"
     assert "What's Next" in wiki_templates.DEFAULT_WIKI_INDEX
-    assert "query(status=\"open\"" in wiki_templates.DEFAULT_WIKI_WHATS_NEXT
+    assert 'query(status="open"' in wiki_templates.DEFAULT_WIKI_WHATS_NEXT
 
     assert project_management_template.DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME.endswith(
         ".template.md"
     )
-    assert "This is The Way." in project_management_template.DEFAULT_PROJECT_MANAGEMENT_TEMPLATE
-    assert "{{ project_key }}" in project_management_template.DEFAULT_PROJECT_MANAGEMENT_TEMPLATE
+    assert (
+        "This is The Way."
+        in project_management_template.DEFAULT_PROJECT_MANAGEMENT_TEMPLATE
+    )
+    assert (
+        "{{ project_key }}"
+        in project_management_template.DEFAULT_PROJECT_MANAGEMENT_TEMPLATE
+    )

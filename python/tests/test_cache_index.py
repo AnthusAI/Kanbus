@@ -57,8 +57,12 @@ def test_add_issue_to_index_indexes_all_dimensions() -> None:
 
 
 def test_build_index_from_directory_filters_and_loads(tmp_path: Path) -> None:
-    _write_issue(tmp_path / "kanbus-2.json", "kanbus-2", issue_type="bug", status="closed")
-    _write_issue(tmp_path / "kanbus-1.json", "kanbus-1", issue_type="task", status="open")
+    _write_issue(
+        tmp_path / "kanbus-2.json", "kanbus-2", issue_type="bug", status="closed"
+    )
+    _write_issue(
+        tmp_path / "kanbus-1.json", "kanbus-1", issue_type="task", status="open"
+    )
     (tmp_path / "ignore.txt").write_text("x", encoding="utf-8")
 
     issue_index = index.build_index_from_directory(tmp_path)

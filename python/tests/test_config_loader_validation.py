@@ -16,11 +16,15 @@ def _base_config() -> ProjectConfiguration:
 
 
 def test_load_project_configuration_missing_file(tmp_path: Path) -> None:
-    with pytest.raises(config_loader.ConfigurationError, match="configuration file not found"):
+    with pytest.raises(
+        config_loader.ConfigurationError, match="configuration file not found"
+    ):
         config_loader.load_project_configuration(tmp_path / ".kanbus.yml")
 
 
-def test_load_project_configuration_merges_override_virtual_projects(tmp_path: Path) -> None:
+def test_load_project_configuration_merges_override_virtual_projects(
+    tmp_path: Path,
+) -> None:
     config_path = tmp_path / ".kanbus.yml"
     config_path.write_text(
         "\n".join(
@@ -50,10 +54,14 @@ def test_load_project_configuration_merges_override_virtual_projects(tmp_path: P
     assert set(cfg.virtual_projects.keys()) >= {"alpha", "beta"}
 
 
-def test_load_project_configuration_unknown_and_validation_errors(tmp_path: Path) -> None:
+def test_load_project_configuration_unknown_and_validation_errors(
+    tmp_path: Path,
+) -> None:
     unknown_cfg = tmp_path / "unknown.yml"
     unknown_cfg.write_text("unknown_field: true\n", encoding="utf-8")
-    with pytest.raises(config_loader.ConfigurationError, match="unknown configuration fields"):
+    with pytest.raises(
+        config_loader.ConfigurationError, match="unknown configuration fields"
+    ):
         config_loader.load_project_configuration(unknown_cfg)
 
     bad_cfg = tmp_path / "bad.yml"
@@ -62,10 +70,14 @@ def test_load_project_configuration_unknown_and_validation_errors(tmp_path: Path
         config_loader.load_project_configuration(bad_cfg)
 
 
-def test_load_project_configuration_raises_from_validation_errors(tmp_path: Path) -> None:
+def test_load_project_configuration_raises_from_validation_errors(
+    tmp_path: Path,
+) -> None:
     bad_cfg = tmp_path / ".kanbus.yml"
     bad_cfg.write_text("project_directory: ''\n", encoding="utf-8")
-    with pytest.raises(config_loader.ConfigurationError, match="project_directory must not be empty"):
+    with pytest.raises(
+        config_loader.ConfigurationError, match="project_directory must not be empty"
+    ):
         config_loader.load_project_configuration(bad_cfg)
 
 
@@ -104,7 +116,9 @@ def test_load_project_configuration_validates_kanbus_yaml_type_workflow_bindings
         encoding="utf-8",
     )
 
-    with pytest.raises(config_loader.ConfigurationError, match="missing workflow binding"):
+    with pytest.raises(
+        config_loader.ConfigurationError, match="missing workflow binding"
+    ):
         config_loader.load_project_configuration(cfg)
 
 
@@ -117,7 +131,9 @@ def test_validate_type_workflow_bindings_collects_missing_types() -> None:
     assert any("missing workflow binding" in e for e in errors)
 
 
-def test_load_data_and_override_wrap_os_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_data_and_override_wrap_os_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = tmp_path / "cfg.yml"
     cfg.write_text("project_key: x\n", encoding="utf-8")
     override = tmp_path / "override.yml"
@@ -138,18 +154,24 @@ def test_load_data_and_override_wrap_os_errors(tmp_path: Path, monkeypatch: pyte
         config_loader._load_override_configuration(override)
 
 
-def test_load_override_configuration_returns_empty_for_null_yaml(tmp_path: Path) -> None:
+def test_load_override_configuration_returns_empty_for_null_yaml(
+    tmp_path: Path,
+) -> None:
     override = tmp_path / ".kanbus.override.yml"
     override.write_text("null\n", encoding="utf-8")
     assert config_loader._load_override_configuration(override) == {}
 
 
-def test_load_dotenv_missing_or_unreadable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_dotenv_missing_or_unreadable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config_loader._load_dotenv(tmp_path / "missing.env")
 
     env_path = tmp_path / ".env"
     env_path.write_text("A=1\n", encoding="utf-8")
-    monkeypatch.setattr(Path, "read_text", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("x")))
+    monkeypatch.setattr(
+        Path, "read_text", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("x"))
+    )
     config_loader._load_dotenv(env_path)
 
 
@@ -242,7 +264,9 @@ def test_validate_project_configuration_transition_label_missing_paths() -> None
 def test_validate_hooks_and_sort_order_paths() -> None:
     cfg = _base_config()
     cfg.hooks.before = {
-        "unknown.event": [HookDefinition.model_validate({"id": "h1", "command": ["echo"]})],
+        "unknown.event": [
+            HookDefinition.model_validate({"id": "h1", "command": ["echo"]})
+        ],
         "issue.create": [],
     }
     cfg.hooks.after = {
@@ -292,12 +316,17 @@ def test_validate_sort_rule_non_list_and_empty_and_non_dict() -> None:
 
 def test_validate_sort_rule_non_string_key_message() -> None:
     errors: list[str] = []
-    config_loader._validate_sort_rule("x", [{1: "bad", "field": "priority", "direction": "asc"}], errors)
+    config_loader._validate_sort_rule(
+        "x", [{1: "bad", "field": "priority", "direction": "asc"}], errors
+    )
     assert "contains a non-string key" in " | ".join(errors)
 
 
 def test_reject_legacy_fields_preserves_virtual_projects_when_present() -> None:
-    data = {"virtual_projects": {"x": {"path": "x"}}, "external_projects": {"y": {"path": "y"}}}
+    data = {
+        "virtual_projects": {"x": {"path": "x"}},
+        "external_projects": {"y": {"path": "y"}},
+    }
     config_loader._reject_legacy_fields(data)
     assert data["virtual_projects"] == {"x": {"path": "x"}}
     assert "external_projects" not in data

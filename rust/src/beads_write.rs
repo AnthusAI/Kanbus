@@ -1658,7 +1658,12 @@ mod tests {
             .insert("parent".to_string(), json!("kanbus-parent"));
         write_beads_issue_records(
             tmp.path(),
-            &[beads_issue_record("kanbus-parent"), child, grandchild, child_two],
+            &[
+                beads_issue_record("kanbus-parent"),
+                child,
+                grandchild,
+                child_two,
+            ],
         );
 
         let descendants =

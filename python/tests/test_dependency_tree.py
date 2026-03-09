@@ -13,7 +13,10 @@ from test_helpers import build_issue
 
 def test_dependency_tree_node_to_dict() -> None:
     child = dependency_tree.DependencyTreeNode(
-        identifier="kanbus-2", title="Child", dependency_type="blocked-by", dependencies=[]
+        identifier="kanbus-2",
+        title="Child",
+        dependency_type="blocked-by",
+        dependencies=[],
     )
     root = dependency_tree.DependencyTreeNode(
         identifier="kanbus-1", title="Root", dependency_type=None, dependencies=[child]
@@ -29,27 +32,43 @@ def test_build_dependency_tree_wraps_project_errors_and_not_found(
     monkeypatch.setattr(
         dependency_tree,
         "load_project_directory",
-        lambda _r: (_ for _ in ()).throw(dependency_tree.ProjectMarkerError("bad project")),
+        lambda _r: (_ for _ in ()).throw(
+            dependency_tree.ProjectMarkerError("bad project")
+        ),
     )
     with pytest.raises(dependency_tree.DependencyTreeError, match="bad project"):
         dependency_tree.build_dependency_tree(tmp_path, "kanbus-1", None)
 
-    monkeypatch.setattr(dependency_tree, "load_project_directory", lambda _r: tmp_path / "project")
+    monkeypatch.setattr(
+        dependency_tree, "load_project_directory", lambda _r: tmp_path / "project"
+    )
     monkeypatch.setattr(dependency_tree, "_load_issues", lambda _d: {})
     with pytest.raises(dependency_tree.DependencyTreeError, match="not found"):
         dependency_tree.build_dependency_tree(tmp_path, "kanbus-1", None)
 
 
-def test_build_dependency_tree_and_depth_and_cycles(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_dependency_tree_and_depth_and_cycles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     a = build_issue("a", title="A")
     b = build_issue("b", title="B")
     c = build_issue("c", title="C")
-    a.dependencies = [DependencyLink.model_validate({"target": "b", "type": "blocked-by"})]
-    b.dependencies = [DependencyLink.model_validate({"target": "c", "type": "relates-to"})]
-    c.dependencies = [DependencyLink.model_validate({"target": "a", "type": "blocked-by"})]
+    a.dependencies = [
+        DependencyLink.model_validate({"target": "b", "type": "blocked-by"})
+    ]
+    b.dependencies = [
+        DependencyLink.model_validate({"target": "c", "type": "relates-to"})
+    ]
+    c.dependencies = [
+        DependencyLink.model_validate({"target": "a", "type": "blocked-by"})
+    ]
 
-    monkeypatch.setattr(dependency_tree, "load_project_directory", lambda _r: Path("/project"))
-    monkeypatch.setattr(dependency_tree, "_load_issues", lambda _d: {"a": a, "b": b, "c": c})
+    monkeypatch.setattr(
+        dependency_tree, "load_project_directory", lambda _r: Path("/project")
+    )
+    monkeypatch.setattr(
+        dependency_tree, "_load_issues", lambda _d: {"a": a, "b": b, "c": c}
+    )
 
     tree = dependency_tree.build_dependency_tree(Path("/repo"), "a", None)
     assert tree.identifier == "a"
@@ -106,7 +125,10 @@ def test_render_ascii_truncation_and_dot() -> None:
     current = chain
     for index in range(1, 6):
         nxt = dependency_tree.DependencyTreeNode(
-            identifier=f"n{index}", title=str(index), dependency_type=None, dependencies=[]
+            identifier=f"n{index}",
+            title=str(index),
+            dependency_type=None,
+            dependencies=[],
         )
         current.dependencies.append(nxt)
         current = nxt
@@ -118,7 +140,9 @@ def test_render_ascii_truncation_and_dot() -> None:
     assert "digraph dependencies" in dot
 
 
-def test_load_issues_reads_sorted_json_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_issues_reads_sorted_json_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     issues_dir = tmp_path / "issues"
     issues_dir.mkdir()
     (issues_dir / "b.json").write_text("{}", encoding="utf-8")

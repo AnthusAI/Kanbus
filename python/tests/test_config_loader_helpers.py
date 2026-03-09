@@ -34,7 +34,7 @@ def test_load_dotenv_sets_values_without_overwriting_existing(
             [
                 "# comment",
                 "PLAIN=one",
-                "export QUOTED=\"two\"",
+                'export QUOTED="two"',
                 "KEEP=from_file",
                 "INVALID_LINE",
             ]
@@ -82,7 +82,9 @@ def test_validate_sort_rule_captures_invalid_shapes() -> None:
     assert "missing 'direction'" in joined
 
 
-def test_load_configuration_data_handles_empty_and_invalid_mapping(tmp_path: Path) -> None:
+def test_load_configuration_data_handles_empty_and_invalid_mapping(
+    tmp_path: Path,
+) -> None:
     empty_cfg = tmp_path / "empty.yml"
     empty_cfg.write_text("", encoding="utf-8")
     assert config_loader._load_configuration_data(empty_cfg) == {}
@@ -137,13 +139,17 @@ def test_validate_canonical_config_overrides_rejects_hierarchy_override(
         raise AssertionError("expected ConfigurationError")
 
 
-def test_apply_environment_overrides_populates_nested_realtime_overlay(monkeypatch) -> None:
+def test_apply_environment_overrides_populates_nested_realtime_overlay(
+    monkeypatch,
+) -> None:
     monkeypatch.setenv("KANBUS_REALTIME_TRANSPORT", "mqtt")
     monkeypatch.setenv("KANBUS_REALTIME_BROKER", "mqtt://localhost:1883")
     monkeypatch.setenv("KANBUS_REALTIME_AUTOSTART", "true")
     monkeypatch.setenv("KANBUS_REALTIME_KEEPALIVE", "false")
     monkeypatch.setenv("KANBUS_REALTIME_UDS_SOCKET_PATH", "/tmp/kanbus.sock")
-    monkeypatch.setenv("KANBUS_REALTIME_TOPICS_PROJECT_EVENTS", "projects/{project}/events")
+    monkeypatch.setenv(
+        "KANBUS_REALTIME_TOPICS_PROJECT_EVENTS", "projects/{project}/events"
+    )
     monkeypatch.setenv("KANBUS_OVERLAY_ENABLED", "1")
     monkeypatch.setenv("KANBUS_OVERLAY_TTL_S", "42")
 

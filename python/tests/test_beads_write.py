@@ -7,7 +7,6 @@ from types import SimpleNamespace
 import pytest
 
 from kanbus import beads_write
-from kanbus.models import DependencyLink
 
 from test_helpers import build_issue
 
@@ -51,7 +50,9 @@ def test_slug_sequence_and_slug_generation(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_basic_helpers() -> None:
-    assert beads_write._beads_comment_uuid("kanbus-1", "1") == beads_write._beads_comment_uuid("kanbus-1", "1")
+    assert beads_write._beads_comment_uuid(
+        "kanbus-1", "1"
+    ) == beads_write._beads_comment_uuid("kanbus-1", "1")
 
     assert beads_write._derive_prefix({"kb-aaa", "kb-bbb"}) == "kb"
     with pytest.raises(beads_write.BeadsWriteError, match="invalid beads id"):
@@ -62,10 +63,14 @@ def test_basic_helpers() -> None:
     assert beads_write._generate_identifier({"kb-aaa"}, "kb", parent="kb-1") == "kb-1.1"
 
 
-def test_generate_identifier_collision_exhaustion(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_generate_identifier_collision_exhaustion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     existing = {"kb-aaa"}
     monkeypatch.setattr(beads_write, "_generate_slug", lambda: "aaa")
-    with pytest.raises(beads_write.BeadsWriteError, match="unable to generate unique id"):
+    with pytest.raises(
+        beads_write.BeadsWriteError, match="unable to generate unique id"
+    ):
         beads_write._generate_identifier(existing, "kb", parent=None)
 
 
@@ -124,10 +129,18 @@ def test_create_beads_issue_parent_not_found_and_event_rollback(
     with pytest.raises(beads_write.BeadsWriteError, match="not found"):
         beads_write.create_beads_issue(tmp_path, "x", None, None, None, "missing", None)
 
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: tmp_path / "project")
-    monkeypatch.setattr(beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
-    monkeypatch.setattr(beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1"))
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "load_project_directory", lambda _root: tmp_path / "project"
+    )
+    monkeypatch.setattr(
+        beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
+    monkeypatch.setattr(
+        beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1")
+    )
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(
         beads_write,
         "write_events_batch",
@@ -147,18 +160,32 @@ def test_create_beads_issue_parent_and_publish_paths(
     _write_jsonl(issues_path, [_record("kb-aaa"), _record("kb-aaa.1")])
 
     monkeypatch.setattr(beads_write, "get_current_user", lambda: "dev")
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: tmp_path / "project")
-    monkeypatch.setattr(beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
-    monkeypatch.setattr(beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1"))
-    monkeypatch.setattr(beads_write, "issue_created_payload", lambda _issue: {"ok": True})
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "load_project_directory", lambda _root: tmp_path / "project"
+    )
+    monkeypatch.setattr(
+        beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
+    monkeypatch.setattr(
+        beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1")
+    )
+    monkeypatch.setattr(
+        beads_write, "issue_created_payload", lambda _issue: {"ok": True}
+    )
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(beads_write, "write_events_batch", lambda *_a: None)
-    monkeypatch.setattr(beads_write, "load_beads_issue", lambda _r, _i: build_issue("kb-aaa.2"))
+    monkeypatch.setattr(
+        beads_write, "load_beads_issue", lambda _r, _i: build_issue("kb-aaa.2")
+    )
     published: list[tuple[str | None, str]] = []
     monkeypatch.setattr(
         beads_write,
         "publish_issue_mutation",
-        lambda _r, _p, issue, event_id, topic: published.append((event_id, issue.identifier)),
+        lambda _r, _p, issue, event_id, topic: published.append(
+            (event_id, issue.identifier)
+        ),
     )
 
     issue = beads_write.create_beads_issue(
@@ -185,11 +212,21 @@ def test_create_beads_issue_load_beads_issue_failures_after_event_write(
 
     monkeypatch.setattr(beads_write, "get_current_user", lambda: "dev")
     monkeypatch.setattr(beads_write, "_generate_slug", lambda: "bbb")
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: tmp_path / "project")
-    monkeypatch.setattr(beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
-    monkeypatch.setattr(beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1"))
-    monkeypatch.setattr(beads_write, "issue_created_payload", lambda _issue: {"ok": True})
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "load_project_directory", lambda _root: tmp_path / "project"
+    )
+    monkeypatch.setattr(
+        beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
+    monkeypatch.setattr(
+        beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1")
+    )
+    monkeypatch.setattr(
+        beads_write, "issue_created_payload", lambda _issue: {"ok": True}
+    )
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(beads_write, "write_events_batch", lambda *_a: None)
     monkeypatch.setattr(
         beads_write,
@@ -218,16 +255,24 @@ def test_create_beads_issue_load_beads_issue_failures_after_event_write(
     assert published == ["kb-bbb"]
 
 
-def test_update_beads_issue_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_update_beads_issue_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     issues_path = tmp_path / ".beads" / "issues.jsonl"
     _write_jsonl(issues_path, [_record("kb-aaa", labels=["a"])])
 
-    monkeypatch.setattr(beads_write, "load_beads_issue", lambda _root, _id: build_issue("kb-aaa"))
+    monkeypatch.setattr(
+        beads_write, "load_beads_issue", lambda _root, _id: build_issue("kb-aaa")
+    )
 
     with pytest.raises(beads_write.BeadsWriteError, match="not found"):
         beads_write.update_beads_issue(tmp_path, "missing")
 
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: (_ for _ in ()).throw(RuntimeError("no project")))
+    monkeypatch.setattr(
+        beads_write,
+        "load_project_directory",
+        lambda _root: (_ for _ in ()).throw(RuntimeError("no project")),
+    )
     updated = beads_write.update_beads_issue(
         tmp_path,
         "kb-aaa",
@@ -241,10 +286,20 @@ def test_update_beads_issue_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     )
     assert updated.identifier == "kb-aaa"
 
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: tmp_path / "project")
-    monkeypatch.setattr(beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
-    monkeypatch.setattr(beads_write, "build_update_events", lambda *_a: [SimpleNamespace(event_id="evt-1")])
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "load_project_directory", lambda _root: tmp_path / "project"
+    )
+    monkeypatch.setattr(
+        beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
+    monkeypatch.setattr(
+        beads_write,
+        "build_update_events",
+        lambda *_a: [SimpleNamespace(event_id="evt-1")],
+    )
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(
         beads_write,
         "write_events_batch",
@@ -299,11 +354,19 @@ def test_update_beads_issue_additional_error_and_publish_paths(
     with pytest.raises(beads_write.BeadsWriteError, match="after fail second"):
         beads_write.update_beads_issue(tmp_path, "kb-aaa", title="t2")
 
-    monkeypatch.setattr(beads_write, "load_beads_issue", lambda _root, _id: build_issue("kb-aaa"))
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: tmp_path / "project")
-    monkeypatch.setattr(beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
+    monkeypatch.setattr(
+        beads_write, "load_beads_issue", lambda _root, _id: build_issue("kb-aaa")
+    )
+    monkeypatch.setattr(
+        beads_write, "load_project_directory", lambda _root: tmp_path / "project"
+    )
+    monkeypatch.setattr(
+        beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
     monkeypatch.setattr(beads_write, "build_update_events", lambda *_a: [])
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(beads_write, "write_events_batch", lambda *_a: None)
     published: list[str | None] = []
     monkeypatch.setattr(
@@ -315,7 +378,9 @@ def test_update_beads_issue_additional_error_and_publish_paths(
     assert published == [None]
 
 
-def test_add_beads_comment_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_add_beads_comment_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     issues_path = tmp_path / ".beads" / "issues.jsonl"
     _write_jsonl(issues_path, [_record("kb-aaa")])
 
@@ -330,13 +395,23 @@ def test_add_beads_comment_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     with pytest.raises(beads_write.BeadsWriteError, match="no project"):
         beads_write.add_beads_comment(tmp_path, "kb-aaa", "a", "t")
 
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: tmp_path / "project")
-    monkeypatch.setattr(beads_write, "load_beads_issue", lambda _root, _id: build_issue("kb-aaa"))
-    monkeypatch.setattr(beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
+    monkeypatch.setattr(
+        beads_write, "load_project_directory", lambda _root: tmp_path / "project"
+    )
+    monkeypatch.setattr(
+        beads_write, "load_beads_issue", lambda _root, _id: build_issue("kb-aaa")
+    )
+    monkeypatch.setattr(
+        beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
     monkeypatch.setattr(beads_write, "get_current_user", lambda: "dev")
-    monkeypatch.setattr(beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1"))
+    monkeypatch.setattr(
+        beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1")
+    )
     monkeypatch.setattr(beads_write, "comment_payload", lambda *_a: {"ok": True})
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(
         beads_write,
         "write_events_batch",
@@ -362,17 +437,25 @@ def test_add_beads_comment_missing_dirs_and_load_issue_failure(
 
     issues_path = beads / "issues.jsonl"
     _write_jsonl(issues_path, [_record("a")])
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: tmp_path / "project")
+    monkeypatch.setattr(
+        beads_write, "load_project_directory", lambda _root: tmp_path / "project"
+    )
     monkeypatch.setattr(
         beads_write,
         "load_beads_issue",
         lambda _root, _id: (_ for _ in ()).throw(RuntimeError("load fail")),
     )
-    monkeypatch.setattr(beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
+    monkeypatch.setattr(
+        beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
     monkeypatch.setattr(beads_write, "get_current_user", lambda: "dev")
-    monkeypatch.setattr(beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1"))
+    monkeypatch.setattr(
+        beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1")
+    )
     monkeypatch.setattr(beads_write, "comment_payload", lambda *_a: {"ok": True})
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(beads_write, "write_events_batch", lambda *_a: None)
     beads_write.add_beads_comment(tmp_path, "a", "u", "t")
 
@@ -408,18 +491,28 @@ def test_add_beads_comment_missing_comments_key_and_second_project_lookup_fails(
         return value
 
     monkeypatch.setattr(beads_write, "load_project_directory", _load_project_directory)
-    monkeypatch.setattr(beads_write, "load_beads_issue", lambda _root, _id: build_issue("a"))
+    monkeypatch.setattr(
+        beads_write, "load_beads_issue", lambda _root, _id: build_issue("a")
+    )
     monkeypatch.setattr(beads_write, "publish_issue_mutation", lambda *_a: None)
-    monkeypatch.setattr(beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
+    monkeypatch.setattr(
+        beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
     monkeypatch.setattr(beads_write, "get_current_user", lambda: "dev")
-    monkeypatch.setattr(beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1"))
+    monkeypatch.setattr(
+        beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt-1")
+    )
     monkeypatch.setattr(beads_write, "comment_payload", lambda *_a: {"ok": True})
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(beads_write, "write_events_batch", lambda *_a: None)
     beads_write.add_beads_comment(tmp_path, "a", "u", "t")
 
 
-def test_descendants_and_delete_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_descendants_and_delete_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     issues_path = tmp_path / ".beads" / "issues.jsonl"
     _write_jsonl(
         issues_path,
@@ -432,13 +525,21 @@ def test_descendants_and_delete_paths(tmp_path: Path, monkeypatch: pytest.Monkey
         ],
     )
 
-    assert beads_write.get_beads_descendant_identifiers(tmp_path, "root") == ["g1", "c1", "c2"]
+    assert beads_write.get_beads_descendant_identifiers(tmp_path, "root") == [
+        "g1",
+        "c1",
+        "c2",
+    ]
 
     missing_root = tmp_path / "missing"
     assert beads_write.get_beads_descendant_identifiers(missing_root, "x") == []
 
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: tmp_path / "project")
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "load_project_directory", lambda _root: tmp_path / "project"
+    )
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(beads_write, "delete_events_for_issues", lambda *_a: None)
     monkeypatch.setattr(beads_write, "publish_issue_deleted", lambda *_a: None)
 
@@ -490,9 +591,15 @@ def test_delete_beads_issue_recursive_and_load_errors(
     issues_path = tmp_path / ".beads" / "issues.jsonl"
     _write_jsonl(issues_path, [_record("root"), _record("child", parent="root")])
 
-    monkeypatch.setattr(beads_write, "load_beads_issue", lambda _root, identifier: build_issue(identifier))
+    monkeypatch.setattr(
+        beads_write,
+        "load_beads_issue",
+        lambda _root, identifier: build_issue(identifier),
+    )
     called: list[str] = []
-    monkeypatch.setattr(beads_write, "_delete_single_beads_issue", lambda _r, _p, i: called.append(i))
+    monkeypatch.setattr(
+        beads_write, "_delete_single_beads_issue", lambda _r, _p, i: called.append(i)
+    )
 
     beads_write.delete_beads_issue(tmp_path, "root", recursive=True)
     assert called == ["child", "root"]
@@ -543,7 +650,9 @@ def test_add_and_remove_beads_dependency_paths(
         beads_write.add_beads_dependency(tmp_path / "x2", "a", "c", "blocked-by")
 
     # dependencies non-list branch, and no-project return path.
-    _write_jsonl(issues_path, [_record("a", dependencies={}), _record("c", dependencies=[])])
+    _write_jsonl(
+        issues_path, [_record("a", dependencies={}), _record("c", dependencies=[])]
+    )
     monkeypatch.setattr(
         beads_write,
         "load_project_directory",
@@ -551,12 +660,20 @@ def test_add_and_remove_beads_dependency_paths(
     )
     beads_write.add_beads_dependency(tmp_path, "a", "c", "blocked-by")
 
-    monkeypatch.setattr(beads_write, "load_project_directory", lambda _root: tmp_path / "project")
-    monkeypatch.setattr(beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z")
+    monkeypatch.setattr(
+        beads_write, "load_project_directory", lambda _root: tmp_path / "project"
+    )
+    monkeypatch.setattr(
+        beads_write, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
+    )
     monkeypatch.setattr(beads_write, "get_current_user", lambda: "dev")
-    monkeypatch.setattr(beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt"))
+    monkeypatch.setattr(
+        beads_write, "create_event", lambda **kwargs: SimpleNamespace(event_id="evt")
+    )
     monkeypatch.setattr(beads_write, "dependency_payload", lambda *_a: {"ok": True})
-    monkeypatch.setattr(beads_write, "events_dir_for_project", lambda _p: tmp_path / "events")
+    monkeypatch.setattr(
+        beads_write, "events_dir_for_project", lambda _p: tmp_path / "events"
+    )
     monkeypatch.setattr(
         beads_write,
         "write_events_batch",
@@ -585,7 +702,9 @@ def test_add_and_remove_beads_dependency_paths(
     with pytest.raises(beads_write.BeadsWriteError, match="no issues.jsonl"):
         beads_write.remove_beads_dependency(tmp_path / "y2", "a", "c", "blocked-by")
 
-    _write_jsonl(issues_path, [_record("a", dependencies={}), _record("c", dependencies=[])])
+    _write_jsonl(
+        issues_path, [_record("a", dependencies={}), _record("c", dependencies=[])]
+    )
     monkeypatch.setattr(
         beads_write,
         "load_project_directory",

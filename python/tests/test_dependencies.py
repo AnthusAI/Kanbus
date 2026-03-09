@@ -73,16 +73,22 @@ def test_build_dependency_graph_reads_blocked_by_only(
     assert graph.edges == {"a": ["b"]}
 
 
-def test_add_dependency_happy_path_and_duplicate(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_add_dependency_happy_path_and_duplicate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     project_dir = Path("/repo/project")
     issue_path = project_dir / "issues" / "kanbus-1.json"
     source = build_issue("kanbus-1")
-    lookup = SimpleNamespace(issue=source, project_dir=project_dir, issue_path=issue_path)
+    lookup = SimpleNamespace(
+        issue=source, project_dir=project_dir, issue_path=issue_path
+    )
 
     monkeypatch.setattr(dependencies, "load_issue_from_project", lambda _r, _id: lookup)
     monkeypatch.setattr(dependencies, "_ensure_no_cycle", lambda *_a: None)
     writes: list[object] = []
-    monkeypatch.setattr(dependencies, "write_issue_to_file", lambda issue, _path: writes.append(issue))
+    monkeypatch.setattr(
+        dependencies, "write_issue_to_file", lambda issue, _path: writes.append(issue)
+    )
     monkeypatch.setattr(dependencies, "now_timestamp", lambda: source.updated_at)
     monkeypatch.setattr(dependencies, "get_current_user", lambda: "dev")
     monkeypatch.setattr(
@@ -90,8 +96,12 @@ def test_add_dependency_happy_path_and_duplicate(monkeypatch: pytest.MonkeyPatch
         "create_event",
         lambda **_kwargs: SimpleNamespace(event_id="evt-1"),
     )
-    monkeypatch.setattr(dependencies, "dependency_payload", lambda _t, _id: {"ok": True})
-    monkeypatch.setattr(dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events"))
+    monkeypatch.setattr(
+        dependencies, "dependency_payload", lambda _t, _id: {"ok": True}
+    )
+    monkeypatch.setattr(
+        dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events")
+    )
     monkeypatch.setattr(dependencies, "write_events_batch", lambda *_a: None)
     published: list[str] = []
     monkeypatch.setattr(
@@ -100,17 +110,23 @@ def test_add_dependency_happy_path_and_duplicate(monkeypatch: pytest.MonkeyPatch
         lambda *_a: published.append("published"),
     )
 
-    updated = dependencies.add_dependency(Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by")
+    updated = dependencies.add_dependency(
+        Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by"
+    )
     assert any(dep.target == "kanbus-2" for dep in updated.dependencies)
     assert len(writes) == 1
     assert published == ["published"]
 
     lookup.issue = updated
-    same = dependencies.add_dependency(Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by")
+    same = dependencies.add_dependency(
+        Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by"
+    )
     assert same is updated
 
 
-def test_add_dependency_wraps_lookup_and_event_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_add_dependency_wraps_lookup_and_event_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         dependencies,
         "load_issue_from_project",
@@ -122,11 +138,15 @@ def test_add_dependency_wraps_lookup_and_event_errors(monkeypatch: pytest.Monkey
     project_dir = Path("/repo/project")
     issue_path = project_dir / "local" / "kanbus-1.json"
     source = build_issue("kanbus-1")
-    lookup = SimpleNamespace(issue=source, project_dir=project_dir, issue_path=issue_path)
+    lookup = SimpleNamespace(
+        issue=source, project_dir=project_dir, issue_path=issue_path
+    )
     monkeypatch.setattr(dependencies, "load_issue_from_project", lambda *_a: lookup)
     monkeypatch.setattr(dependencies, "_ensure_no_cycle", lambda *_a: None)
     writes: list[str] = []
-    monkeypatch.setattr(dependencies, "write_issue_to_file", lambda *_a: writes.append("w"))
+    monkeypatch.setattr(
+        dependencies, "write_issue_to_file", lambda *_a: writes.append("w")
+    )
     monkeypatch.setattr(dependencies, "now_timestamp", lambda: source.updated_at)
     monkeypatch.setattr(dependencies, "get_current_user", lambda: "dev")
     monkeypatch.setattr(
@@ -134,8 +154,12 @@ def test_add_dependency_wraps_lookup_and_event_errors(monkeypatch: pytest.Monkey
         "create_event",
         lambda **_kwargs: SimpleNamespace(event_id="evt-1"),
     )
-    monkeypatch.setattr(dependencies, "dependency_payload", lambda _t, _id: {"ok": True})
-    monkeypatch.setattr(dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events"))
+    monkeypatch.setattr(
+        dependencies, "dependency_payload", lambda _t, _id: {"ok": True}
+    )
+    monkeypatch.setattr(
+        dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events")
+    )
     monkeypatch.setattr(
         dependencies,
         "write_events_batch",
@@ -154,7 +178,9 @@ def test_remove_dependency_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     issue.dependencies = [
         DependencyLink.model_validate({"target": "kanbus-2", "type": "blocked-by"})
     ]
-    lookup = SimpleNamespace(issue=issue, project_dir=project_dir, issue_path=issue_path)
+    lookup = SimpleNamespace(
+        issue=issue, project_dir=project_dir, issue_path=issue_path
+    )
 
     monkeypatch.setattr(dependencies, "load_issue_from_project", lambda *_a: lookup)
     monkeypatch.setattr(dependencies, "write_issue_to_file", lambda *_a: None)
@@ -165,8 +191,12 @@ def test_remove_dependency_paths(monkeypatch: pytest.MonkeyPatch) -> None:
         "create_event",
         lambda **_kwargs: SimpleNamespace(event_id="evt-2"),
     )
-    monkeypatch.setattr(dependencies, "dependency_payload", lambda _t, _id: {"ok": True})
-    monkeypatch.setattr(dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events"))
+    monkeypatch.setattr(
+        dependencies, "dependency_payload", lambda _t, _id: {"ok": True}
+    )
+    monkeypatch.setattr(
+        dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events")
+    )
     monkeypatch.setattr(dependencies, "write_events_batch", lambda *_a: None)
     calls: list[str] = []
     monkeypatch.setattr(
@@ -175,7 +205,9 @@ def test_remove_dependency_paths(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda *_a: calls.append("pub"),
     )
 
-    updated = dependencies.remove_dependency(Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by")
+    updated = dependencies.remove_dependency(
+        Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by"
+    )
     assert updated.dependencies == []
     assert calls == ["pub"]
 
@@ -188,15 +220,21 @@ def test_remove_dependency_paths(monkeypatch: pytest.MonkeyPatch) -> None:
         dependencies.remove_dependency(Path("/repo"), "a", "b", "blocked-by")
 
 
-def test_remove_dependency_rolls_back_on_event_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_remove_dependency_rolls_back_on_event_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     project_dir = Path("/repo/project")
     issue_path = project_dir / "local" / "kanbus-1.json"
     issue = build_issue("kanbus-1")
-    lookup = SimpleNamespace(issue=issue, project_dir=project_dir, issue_path=issue_path)
+    lookup = SimpleNamespace(
+        issue=issue, project_dir=project_dir, issue_path=issue_path
+    )
 
     monkeypatch.setattr(dependencies, "load_issue_from_project", lambda *_a: lookup)
     writes: list[str] = []
-    monkeypatch.setattr(dependencies, "write_issue_to_file", lambda *_a: writes.append("w"))
+    monkeypatch.setattr(
+        dependencies, "write_issue_to_file", lambda *_a: writes.append("w")
+    )
     monkeypatch.setattr(dependencies, "now_timestamp", lambda: issue.updated_at)
     monkeypatch.setattr(dependencies, "get_current_user", lambda: "dev")
     monkeypatch.setattr(
@@ -204,8 +242,12 @@ def test_remove_dependency_rolls_back_on_event_failure(monkeypatch: pytest.Monke
         "create_event",
         lambda **_kwargs: SimpleNamespace(event_id="evt-2"),
     )
-    monkeypatch.setattr(dependencies, "dependency_payload", lambda _t, _id: {"ok": True})
-    monkeypatch.setattr(dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events"))
+    monkeypatch.setattr(
+        dependencies, "dependency_payload", lambda _t, _id: {"ok": True}
+    )
+    monkeypatch.setattr(
+        dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events")
+    )
     monkeypatch.setattr(
         dependencies,
         "write_events_batch",
@@ -213,14 +255,20 @@ def test_remove_dependency_rolls_back_on_event_failure(monkeypatch: pytest.Monke
     )
 
     with pytest.raises(dependencies.DependencyError, match="event fail"):
-        dependencies.remove_dependency(Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by")
+        dependencies.remove_dependency(
+            Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by"
+        )
     assert len(writes) == 2
 
 
 def test_list_ready_issues_modes_and_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(dependencies.DependencyError, match="local-only conflicts"):
-        dependencies.list_ready_issues(Path("/repo"), include_local=False, local_only=True)
-    with pytest.raises(dependencies.DependencyError, match="beads mode does not support"):
+        dependencies.list_ready_issues(
+            Path("/repo"), include_local=False, local_only=True
+        )
+    with pytest.raises(
+        dependencies.DependencyError, match="beads mode does not support"
+    ):
         dependencies.list_ready_issues(Path("/repo"), beads_mode=True, local_only=True)
 
     open_issue = build_issue("kanbus-open", status="open")
@@ -229,7 +277,11 @@ def test_list_ready_issues_modes_and_errors(monkeypatch: pytest.MonkeyPatch) -> 
     blocked.dependencies = [
         DependencyLink.model_validate({"target": "x", "type": "blocked-by"})
     ]
-    monkeypatch.setattr(dependencies, "load_beads_issues", lambda _r: [open_issue, closed_issue, blocked])
+    monkeypatch.setattr(
+        dependencies,
+        "load_beads_issues",
+        lambda _r: [open_issue, closed_issue, blocked],
+    )
     ready = dependencies.list_ready_issues(Path("/repo"), beads_mode=True)
     assert [issue.identifier for issue in ready] == ["kanbus-open"]
 
@@ -254,7 +306,9 @@ def test_list_ready_issues_modes_and_errors(monkeypatch: pytest.MonkeyPatch) -> 
         dependencies.list_ready_issues(Path("/repo"))
 
 
-def test_list_ready_issues_single_and_multi_project(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_list_ready_issues_single_and_multi_project(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     p1 = Path("/repo/a/project")
     p2 = Path("/repo/b/project")
     open_issue = build_issue("kanbus-open", status="open")
@@ -269,7 +323,9 @@ def test_list_ready_issues_single_and_multi_project(monkeypatch: pytest.MonkeyPa
     ready = dependencies.list_ready_issues(Path("/repo"))
     assert [issue.identifier for issue in ready] == ["kanbus-open"]
 
-    monkeypatch.setattr(dependencies, "discover_project_directories", lambda _r: [p2, p1])
+    monkeypatch.setattr(
+        dependencies, "discover_project_directories", lambda _r: [p2, p1]
+    )
     monkeypatch.setattr(
         dependencies,
         "_load_ready_issues_for_project",
@@ -292,8 +348,14 @@ def test_load_ready_issues_for_project_and_helpers(
 
     shared = build_issue("kanbus-shared")
     local = build_issue("kanbus-local")
-    monkeypatch.setattr(dependencies, "_load_issues_from_directory", lambda p: [shared] if "project-local" not in str(p) else [local])
-    monkeypatch.setattr(dependencies, "find_project_local_directory", lambda _p: local_dir)
+    monkeypatch.setattr(
+        dependencies,
+        "_load_issues_from_directory",
+        lambda p: [shared] if "project-local" not in str(p) else [local],
+    )
+    monkeypatch.setattr(
+        dependencies, "find_project_local_directory", lambda _p: local_dir
+    )
 
     all_issues = dependencies._load_ready_issues_for_project(
         root,
@@ -334,7 +396,9 @@ def test_load_ready_issues_for_project_and_helpers(
     assert [i.custom.get("source") for i in shared_only] == ["shared"]
 
 
-def test_render_project_path_and_load_from_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_render_project_path_and_load_from_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = tmp_path / "repo"
     project_dir = root / "project"
     project_dir.mkdir(parents=True)

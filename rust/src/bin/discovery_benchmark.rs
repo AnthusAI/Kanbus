@@ -423,7 +423,10 @@ mod tests {
         let serial_error = serial_load(&missing).expect_err("serial should fail");
         let parallel_error = parallel_load(&missing).expect_err("parallel should fail");
         assert!(serial_error.to_string().contains("serial load failed"));
-        assert!(parallel_error.to_string().contains("No such file") || parallel_error.to_string().contains("no such file"));
+        assert!(
+            parallel_error.to_string().contains("No such file")
+                || parallel_error.to_string().contains("no such file")
+        );
     }
 
     #[test]

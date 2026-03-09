@@ -269,7 +269,10 @@ mod tests {
         let ok = edit_str_replace(tmp.path(), Path::new("replace.txt"), "hello", "hi")
             .expect("replace success");
         assert_eq!(ok, "Successfully replaced text at exactly one location.");
-        assert_eq!(fs::read_to_string(&path).expect("read replaced"), "hi world");
+        assert_eq!(
+            fs::read_to_string(&path).expect("read replaced"),
+            "hi world"
+        );
 
         let no_match = edit_str_replace(tmp.path(), Path::new("replace.txt"), "absent", "x");
         match no_match {
@@ -320,8 +323,8 @@ mod tests {
             other => panic!("expected range error, got {other:?}"),
         }
 
-        let inserted = edit_insert(tmp.path(), Path::new("nested/new.txt"), 1, "middle")
-            .expect("insert line");
+        let inserted =
+            edit_insert(tmp.path(), Path::new("nested/new.txt"), 1, "middle").expect("insert line");
         assert_eq!(inserted, "Successfully inserted text.");
         assert_eq!(
             fs::read_to_string(tmp.path().join("nested/new.txt")).expect("read inserted"),

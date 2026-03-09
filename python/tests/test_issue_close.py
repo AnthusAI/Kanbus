@@ -38,7 +38,9 @@ def test_close_issue_wraps_update_errors(
     monkeypatch.setattr(
         issue_close,
         "update_issue",
-        lambda **_kwargs: (_ for _ in ()).throw(issue_close.IssueUpdateError("update failed")),
+        lambda **_kwargs: (_ for _ in ()).throw(
+            issue_close.IssueUpdateError("update failed")
+        ),
     )
 
     with pytest.raises(issue_close.IssueCloseError, match="update failed"):

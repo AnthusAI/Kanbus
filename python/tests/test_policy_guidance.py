@@ -16,7 +16,9 @@ from kanbus.policy_context import (
 from test_helpers import build_issue
 
 
-def test_guidance_is_enabled_honors_flag_and_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_guidance_is_enabled_honors_flag_and_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     assert policy_guidance.guidance_is_enabled(no_guidance=True) is False
 
     monkeypatch.setenv("KANBUS_NO_GUIDANCE", "1")
@@ -29,10 +31,14 @@ def test_guidance_is_enabled_honors_flag_and_env(monkeypatch: pytest.MonkeyPatch
     assert policy_guidance.guidance_is_enabled() is True
 
 
-def test_collect_guidance_for_issue_returns_empty_without_policies_dir(tmp_path: Path) -> None:
+def test_collect_guidance_for_issue_returns_empty_without_policies_dir(
+    tmp_path: Path,
+) -> None:
     issue = build_issue("kanbus-1")
     monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setattr(policy_guidance, "load_project_directory", lambda _root: tmp_path)
+    monkeypatch.setattr(
+        policy_guidance, "load_project_directory", lambda _root: tmp_path
+    )
     report = policy_guidance.collect_guidance_for_issue(
         tmp_path, issue, PolicyOperation.UPDATE
     )
@@ -47,7 +53,9 @@ def test_collect_guidance_for_issue_returns_empty_with_no_policy_documents(
     project_dir = tmp_path / "project"
     (project_dir / "policies").mkdir(parents=True)
 
-    monkeypatch.setattr(policy_guidance, "load_project_directory", lambda _root: project_dir)
+    monkeypatch.setattr(
+        policy_guidance, "load_project_directory", lambda _root: project_dir
+    )
     monkeypatch.setattr(policy_guidance, "load_policies", lambda _policies_dir: [])
 
     issue = build_issue("kanbus-1")
@@ -70,13 +78,25 @@ def test_collect_guidance_for_issue_builds_context_and_uses_guidance_mode(
     seen: dict[str, object] = {}
     documents = [("rules.feature", object())]
 
-    monkeypatch.setattr(policy_guidance, "load_project_directory", lambda _root: project_dir)
+    monkeypatch.setattr(
+        policy_guidance, "load_project_directory", lambda _root: project_dir
+    )
     monkeypatch.setattr(policy_guidance, "load_policies", lambda _d: documents)
-    monkeypatch.setattr(policy_guidance, "get_configuration_path", lambda _d: project_dir / "config.yaml")
-    monkeypatch.setattr(policy_guidance, "load_project_configuration", lambda _p: {"ok": True})
-    monkeypatch.setattr(policy_guidance, "load_issues_from_directory", lambda _d: all_issues)
+    monkeypatch.setattr(
+        policy_guidance,
+        "get_configuration_path",
+        lambda _d: project_dir / "config.yaml",
+    )
+    monkeypatch.setattr(
+        policy_guidance, "load_project_configuration", lambda _p: {"ok": True}
+    )
+    monkeypatch.setattr(
+        policy_guidance, "load_issues_from_directory", lambda _d: all_issues
+    )
 
-    def fake_evaluate(context: object, docs: object, options: object) -> PolicyEvaluationReport:
+    def fake_evaluate(
+        context: object, docs: object, options: object
+    ) -> PolicyEvaluationReport:
         seen["context"] = context
         seen["docs"] = docs
         seen["options"] = options
@@ -112,9 +132,13 @@ def test_collect_guidance_for_issue_builds_context_and_uses_guidance_mode(
     assert context.all_issues == all_issues
 
 
-def test_emit_guidance_for_issues_skips_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_emit_guidance_for_issues_skips_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     calls: list[str] = []
-    monkeypatch.setattr(policy_guidance, "guidance_is_enabled", lambda _no_guidance: False)
+    monkeypatch.setattr(
+        policy_guidance, "guidance_is_enabled", lambda _no_guidance: False
+    )
     monkeypatch.setattr(
         policy_guidance,
         "collect_guidance_for_issue",
@@ -159,7 +183,9 @@ def test_emit_guidance_for_issues_emits_sorted_deduped_items_and_converts_violat
         violations=[violation],
     )
 
-    monkeypatch.setattr(policy_guidance, "guidance_is_enabled", lambda _no_guidance: True)
+    monkeypatch.setattr(
+        policy_guidance, "guidance_is_enabled", lambda _no_guidance: True
+    )
     monkeypatch.setattr(
         policy_guidance,
         "collect_guidance_for_issue",
@@ -167,7 +193,9 @@ def test_emit_guidance_for_issues_emits_sorted_deduped_items_and_converts_violat
     )
 
     lines: list[str] = []
-    monkeypatch.setattr(policy_guidance.click, "echo", lambda msg, err=True: lines.append(msg))
+    monkeypatch.setattr(
+        policy_guidance.click, "echo", lambda msg, err=True: lines.append(msg)
+    )
 
     policy_guidance.emit_guidance_for_issues(
         Path("/repo"), [issue], PolicyOperation.UPDATE
@@ -175,7 +203,10 @@ def test_emit_guidance_for_issues_emits_sorted_deduped_items_and_converts_violat
 
     assert sum("GUIDANCE WARNING: missing owner" in line for line in lines) == 1
     assert sum("GUIDANCE SUGGESTION: consider tags" in line for line in lines) == 1
-    assert any("Guidance policy error (c.policy / Rule: S3): bad policy" in line for line in lines)
+    assert any(
+        "Guidance policy error (c.policy / Rule: S3): bad policy" in line
+        for line in lines
+    )
     assert any("  Explanation: owner helps triage" == line for line in lines)
     assert any("  Explanation: set assignee" == line for line in lines)
 
@@ -184,7 +215,9 @@ def test_emit_guidance_for_issues_ignores_collection_exceptions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     issue = build_issue("kanbus-1")
-    monkeypatch.setattr(policy_guidance, "guidance_is_enabled", lambda _no_guidance: True)
+    monkeypatch.setattr(
+        policy_guidance, "guidance_is_enabled", lambda _no_guidance: True
+    )
 
     def _boom(*_args, **_kwargs):
         raise RuntimeError("broken")
@@ -193,7 +226,9 @@ def test_emit_guidance_for_issues_ignores_collection_exceptions(
     monkeypatch.setattr(
         policy_guidance.click,
         "echo",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not echo")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("should not echo")
+        ),
     )
 
     policy_guidance.emit_guidance_for_issues(
@@ -219,7 +254,9 @@ def test_sorted_deduped_guidance_items_orders_warning_before_suggestion() -> Non
         step="Then suggest",
     )
 
-    result = policy_guidance.sorted_deduped_guidance_items([suggestion, warning, warning])
+    result = policy_guidance.sorted_deduped_guidance_items(
+        [suggestion, warning, warning]
+    )
 
     assert len(result) == 2
     assert result[0].severity == GuidanceSeverity.WARNING

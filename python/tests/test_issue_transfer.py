@@ -37,7 +37,9 @@ def test_promote_issue_moves_local_to_shared_and_emits_event(
         "load_issue_from_project",
         lambda _root, _id: SimpleNamespace(project_dir=project_dir),
     )
-    monkeypatch.setattr(issue_transfer, "find_project_local_directory", lambda _p: local_dir)
+    monkeypatch.setattr(
+        issue_transfer, "find_project_local_directory", lambda _p: local_dir
+    )
     monkeypatch.setattr(issue_transfer, "get_current_user", lambda: "tester")
     calls: dict[str, object] = {}
     monkeypatch.setattr(
@@ -74,9 +76,13 @@ def test_promote_issue_rolls_back_when_event_write_fails(
         "load_issue_from_project",
         lambda _root, _id: SimpleNamespace(project_dir=project_dir),
     )
-    monkeypatch.setattr(issue_transfer, "find_project_local_directory", lambda _p: local_dir)
     monkeypatch.setattr(
-        issue_transfer, "write_events_batch", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom"))
+        issue_transfer, "find_project_local_directory", lambda _p: local_dir
+    )
+    monkeypatch.setattr(
+        issue_transfer,
+        "write_events_batch",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
     with pytest.raises(issue_transfer.IssueTransferError, match="boom"):
@@ -86,7 +92,9 @@ def test_promote_issue_rolls_back_when_event_write_fails(
     assert not shared_issue.exists()
 
 
-def test_promote_issue_error_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_promote_issue_error_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = tmp_path
     project_dir = root / "project"
     monkeypatch.setattr(
@@ -107,7 +115,9 @@ def test_promote_issue_error_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         issue_transfer.promote_issue(root, "kanbus-missing")
 
     local_dir = root / "project-local"
-    monkeypatch.setattr(issue_transfer, "find_project_local_directory", lambda _p: local_dir)
+    monkeypatch.setattr(
+        issue_transfer, "find_project_local_directory", lambda _p: local_dir
+    )
     with pytest.raises(issue_transfer.IssueTransferError, match="not found"):
         issue_transfer.promote_issue(root, "kanbus-missing")
 
@@ -136,7 +146,9 @@ def test_localize_issue_moves_shared_to_local_and_emits_event(
         "load_issue_from_project",
         lambda _root, _id: SimpleNamespace(project_dir=project_dir),
     )
-    monkeypatch.setattr(issue_transfer, "ensure_project_local_directory", lambda _p: local_dir)
+    monkeypatch.setattr(
+        issue_transfer, "ensure_project_local_directory", lambda _p: local_dir
+    )
     monkeypatch.setattr(issue_transfer, "get_current_user", lambda: "tester")
     calls: dict[str, object] = {}
     monkeypatch.setattr(
@@ -173,9 +185,13 @@ def test_localize_issue_rolls_back_when_event_write_fails(
         "load_issue_from_project",
         lambda _root, _id: SimpleNamespace(project_dir=project_dir),
     )
-    monkeypatch.setattr(issue_transfer, "ensure_project_local_directory", lambda _p: local_dir)
     monkeypatch.setattr(
-        issue_transfer, "write_events_batch", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom"))
+        issue_transfer, "ensure_project_local_directory", lambda _p: local_dir
+    )
+    monkeypatch.setattr(
+        issue_transfer,
+        "write_events_batch",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
     with pytest.raises(issue_transfer.IssueTransferError, match="boom"):
@@ -185,7 +201,9 @@ def test_localize_issue_rolls_back_when_event_write_fails(
     assert not local_issue.exists()
 
 
-def test_localize_issue_error_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_localize_issue_error_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = tmp_path
     project_dir = root / "project"
     monkeypatch.setattr(
@@ -211,6 +229,8 @@ def test_localize_issue_error_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     local_issue = local_dir / "issues" / "kanbus-5.json"
     write_issue(shared_issue, "kanbus-5")
     write_issue(local_issue, "kanbus-5")
-    monkeypatch.setattr(issue_transfer, "ensure_project_local_directory", lambda _p: local_dir)
+    monkeypatch.setattr(
+        issue_transfer, "ensure_project_local_directory", lambda _p: local_dir
+    )
     with pytest.raises(issue_transfer.IssueTransferError, match="already exists"):
         issue_transfer.localize_issue(root, "kanbus-5")

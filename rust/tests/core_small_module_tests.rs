@@ -77,8 +77,7 @@ fn issue_files_roundtrip_and_listing() {
     let loaded = read_issue_from_file(&path).expect("read issue");
     assert_eq!(loaded.identifier, "kanbus-1");
 
-    fs::write(issues.join("kanbus-2.json"), "{}")
-        .expect("write second json");
+    fs::write(issues.join("kanbus-2.json"), "{}").expect("write second json");
     fs::write(issues.join("ignore.txt"), "x").expect("write non-json");
     let ids = list_issue_identifiers(&issues).expect("list ids");
     assert!(ids.contains("kanbus-1"));
@@ -129,8 +128,7 @@ fn workflows_validate_transitions_and_status_values() {
     let default_workflow = get_workflow_for_issue_type(&cfg, "task").expect("default workflow");
     assert!(default_workflow.contains_key("open"));
 
-    validate_status_transition(&cfg, "task", "open", "in_progress")
-        .expect("valid transition");
+    validate_status_transition(&cfg, "task", "open", "in_progress").expect("valid transition");
     match validate_status_transition(&cfg, "task", "open", "made_up") {
         Err(KanbusError::InvalidTransition(_)) => {}
         other => panic!("expected invalid transition, got {other:?}"),

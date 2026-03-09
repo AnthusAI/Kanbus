@@ -534,7 +534,10 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         write_config(temp.path(), "");
         let store = FileStore::new(temp.path());
-        assert_eq!(wiki_list_prefix(&store).expect("default prefix"), "project/wiki");
+        assert_eq!(
+            wiki_list_prefix(&store).expect("default prefix"),
+            "project/wiki"
+        );
 
         write_config(temp.path(), "wiki_directory: ../docs/wiki\n");
         let store = FileStore::new(temp.path());

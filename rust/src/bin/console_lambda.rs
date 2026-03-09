@@ -767,8 +767,14 @@ beads_compatibility: false
             env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
             env::set_var("KANBUS_COGNITO_DOMAIN_URL", "https://auth.example.com");
             env::set_var("KANBUS_COGNITO_CLIENT_ID", "client-id");
-            env::set_var("KANBUS_COGNITO_REDIRECT_URI", "https://app.example.com/callback");
-            env::set_var("KANBUS_COGNITO_LOGOUT_URI", "https://app.example.com/logout");
+            env::set_var(
+                "KANBUS_COGNITO_REDIRECT_URI",
+                "https://app.example.com/callback",
+            );
+            env::set_var(
+                "KANBUS_COGNITO_LOGOUT_URI",
+                "https://app.example.com/logout",
+            );
             env::set_var("KANBUS_COGNITO_ISSUER", "https://issuer.example.com");
             env::set_var("KANBUS_IDENTITY_POOL_ID", "us-east-1:pool");
         }
@@ -1025,8 +1031,7 @@ beads_compatibility: false
 
         let (_multi_temp, multi_store) =
             temp_store_with_issues(&["kanbus-abcdef01", "kanbus-abcdef02"]);
-        let ambiguous =
-            handle_issue(&multi_store, "kanbus-abcdef").expect("ambiguous response");
+        let ambiguous = handle_issue(&multi_store, "kanbus-abcdef").expect("ambiguous response");
         assert_eq!(ambiguous.status(), StatusCode::BAD_REQUEST);
     }
 

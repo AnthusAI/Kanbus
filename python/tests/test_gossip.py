@@ -54,9 +54,7 @@ def test_uds_socket_path_prefers_xdg_runtime_dir(monkeypatch) -> None:
     assert socket_path == Path("/tmp/runtime-test/kanbus/bus.sock")
 
 
-def test_write_and_load_broker_metadata_round_trip(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_write_and_load_broker_metadata_round_trip(tmp_path: Path, monkeypatch) -> None:
     run_dir = tmp_path / "run"
     monkeypatch.setattr(gossip, "_broker_run_dir", lambda: run_dir)
     payload = {"kind": "mosquitto", "endpoint": "mqtt://127.0.0.1:1883"}
@@ -83,7 +81,9 @@ def test_load_broker_metadata_returns_none_when_file_absent(
     assert gossip._load_broker_metadata() is None
 
 
-def test_resolve_project_label_falls_back_to_project_key(monkeypatch, tmp_path: Path) -> None:
+def test_resolve_project_label_falls_back_to_project_key(
+    monkeypatch, tmp_path: Path
+) -> None:
     root = tmp_path
     project_dir = tmp_path / "project"
     project_dir.mkdir()
@@ -122,17 +122,24 @@ def test_publish_envelope_uses_uds_transport_when_socket_exists(
     monkeypatch.setattr(
         gossip,
         "_publish_uds",
-        lambda topic, envelope, _realtime: published.append((topic, envelope.issue_id or "")),
+        lambda topic, envelope, _realtime: published.append(
+            (topic, envelope.issue_id or "")
+        ),
     )
     monkeypatch.setattr(
         gossip,
         "_publish_mqtt",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("mqtt path not expected")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("mqtt path not expected")
+        ),
     )
 
     configuration = SimpleNamespace(
         realtime=SimpleNamespace(
-            transport="auto", broker="mqtt://127.0.0.1:1883", autostart=True, keepalive=False
+            transport="auto",
+            broker="mqtt://127.0.0.1:1883",
+            autostart=True,
+            keepalive=False,
         )
     )
     envelope = gossip.GossipEnvelope(
@@ -148,8 +155,12 @@ def test_publish_envelope_uses_uds_transport_when_socket_exists(
     assert published == [("topic/one", "KAN-1")]
 
 
-def test_publish_envelope_skips_when_unreachable_and_autostart_disabled(monkeypatch) -> None:
-    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket"))
+def test_publish_envelope_skips_when_unreachable_and_autostart_disabled(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket")
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_broker_endpoint",
@@ -195,8 +206,12 @@ class _DummyProcess:
         self.terminated = True
 
 
-def test_publish_envelope_autostarts_and_terminates_when_not_keepalive(monkeypatch) -> None:
-    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket"))
+def test_publish_envelope_autostarts_and_terminates_when_not_keepalive(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket")
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_broker_endpoint",
@@ -243,7 +258,9 @@ def test_publish_envelope_autostarts_and_terminates_when_not_keepalive(monkeypat
 
 
 def test_publish_envelope_returns_when_broker_off(monkeypatch) -> None:
-    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket"))
+    monkeypatch.setattr(
+        gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket")
+    )
     mqtt_called = {"value": False}
     uds_called = {"value": False}
     monkeypatch.setattr(
@@ -278,7 +295,9 @@ def test_publish_envelope_returns_when_broker_off(monkeypatch) -> None:
 
 
 def test_publish_envelope_handles_missing_mosquitto(monkeypatch) -> None:
-    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket"))
+    monkeypatch.setattr(
+        gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket")
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_broker_endpoint",
@@ -326,7 +345,9 @@ def test_publish_issue_mutation_skips_when_config_lookup_fails(
     )
     called = {"value": False}
     monkeypatch.setattr(
-        gossip, "_publish_envelope", lambda *_args, **_kwargs: called.__setitem__("value", True)
+        gossip,
+        "_publish_envelope",
+        lambda *_args, **_kwargs: called.__setitem__("value", True),
     )
     gossip.publish_issue_mutation(
         root=tmp_path,
@@ -338,19 +359,27 @@ def test_publish_issue_mutation_skips_when_config_lookup_fails(
     assert called["value"] is False
 
 
-def test_publish_issue_mutation_skips_when_broker_off(monkeypatch, tmp_path: Path) -> None:
+def test_publish_issue_mutation_skips_when_broker_off(
+    monkeypatch, tmp_path: Path
+) -> None:
     configuration = SimpleNamespace(
         realtime=SimpleNamespace(
             broker="off",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         )
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "kanbus")
     called = {"value": False}
     monkeypatch.setattr(
-        gossip, "_publish_envelope", lambda *_args, **_kwargs: called.__setitem__("value", True)
+        gossip,
+        "_publish_envelope",
+        lambda *_args, **_kwargs: called.__setitem__("value", True),
     )
     gossip.publish_issue_mutation(
         root=tmp_path,
@@ -371,8 +400,12 @@ def test_publish_issue_deleted_invokes_publish_with_formatted_topic(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         )
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
 
     captured: dict[str, object] = {}
@@ -404,8 +437,12 @@ def test_publish_issue_deleted_prints_warning_on_publish_failure(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         )
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     monkeypatch.setattr(
         gossip,
@@ -435,8 +472,12 @@ def test_run_gossip_consumer_raises_for_unknown_project_filter(
         ),
         overlay=SimpleNamespace(enabled=False, ttl_s=60),
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_labeled_projects",
@@ -472,8 +513,12 @@ def test_run_gossip_consumer_autostarts_local_uds(monkeypatch, tmp_path: Path) -
         ),
         overlay=SimpleNamespace(enabled=False, ttl_s=60),
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_labeled_projects",
@@ -522,8 +567,12 @@ def test_run_gossip_consumer_broker_off_returns_when_not_error(
         ),
         overlay=SimpleNamespace(enabled=False, ttl_s=60),
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_labeled_projects",
@@ -563,8 +612,12 @@ def test_run_gossip_consumer_raises_when_broker_unreachable_and_autostart_disabl
         ),
         overlay=SimpleNamespace(enabled=False, ttl_s=60),
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_labeled_projects",
@@ -669,7 +722,9 @@ def test_run_gossip_broker_uses_fallback_socket_when_config_missing(
         "get_configuration_path",
         lambda _root: (_ for _ in ()).throw(gossip.ProjectMarkerError("missing")),
     )
-    monkeypatch.setattr(gossip, "_uds_socket_path", lambda *_args, **_kwargs: expected_socket)
+    monkeypatch.setattr(
+        gossip, "_uds_socket_path", lambda *_args, **_kwargs: expected_socket
+    )
     captured: dict[str, Path] = {}
     monkeypatch.setattr(
         gossip,
@@ -680,7 +735,9 @@ def test_run_gossip_broker_uses_fallback_socket_when_config_missing(
     assert captured["socket"] == expected_socket
 
 
-def test_resolve_broker_endpoint_auto_defaults_when_metadata_missing(monkeypatch) -> None:
+def test_resolve_broker_endpoint_auto_defaults_when_metadata_missing(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(gossip, "_load_broker_metadata", lambda: None)
     endpoint = gossip.resolve_broker_endpoint("auto")
     assert endpoint.host == "127.0.0.1"
@@ -700,7 +757,9 @@ def test_broker_is_reachable_handles_success_and_failure(monkeypatch) -> None:
         def __exit__(self, exc_type, exc, tb):
             return False
 
-    monkeypatch.setattr(gossip.socket, "create_connection", lambda *_args, **_kwargs: _Conn())
+    monkeypatch.setattr(
+        gossip.socket, "create_connection", lambda *_args, **_kwargs: _Conn()
+    )
     assert gossip.broker_is_reachable(endpoint) is True
 
     def _raise(*_args, **_kwargs):
@@ -715,7 +774,10 @@ def test_ensure_mosquitto_rejects_non_local_or_non_mqtt(monkeypatch) -> None:
         scheme="mqtts", host="127.0.0.1", port=8883, url="mqtts://127.0.0.1:8883"
     )
     remote = gossip.BrokerEndpoint(
-        scheme="mqtt", host="broker.example", port=1883, url="mqtt://broker.example:1883"
+        scheme="mqtt",
+        host="broker.example",
+        port=1883,
+        url="mqtt://broker.example:1883",
     )
     monkeypatch.setattr(gossip, "_mosquitto_available", lambda: True)
     assert gossip.ensure_mosquitto(mqtts) is None
@@ -730,7 +792,9 @@ def test_ensure_mosquitto_returns_none_when_binary_missing(monkeypatch) -> None:
     assert gossip.ensure_mosquitto(endpoint) is None
 
 
-def test_ensure_mosquitto_writes_config_and_metadata(monkeypatch, tmp_path: Path) -> None:
+def test_ensure_mosquitto_writes_config_and_metadata(
+    monkeypatch, tmp_path: Path
+) -> None:
     endpoint = gossip.BrokerEndpoint(
         scheme="mqtt", host="127.0.0.1", port=1883, url="mqtt://127.0.0.1:1883"
     )
@@ -796,7 +860,9 @@ def test_broadcast_payload_fans_out_and_prunes_dead_subscribers() -> None:
         ("topic/two", other_topic),
     ]
     gossip._broadcast_payload(
-        {"topic": "topic/one", "msg": {"id": "env-1"}}, subscribers, gossip.threading.Lock()
+        {"topic": "topic/one", "msg": {"id": "env-1"}},
+        subscribers,
+        gossip.threading.Lock(),
     )
     assert len(keep.messages) == 1
     assert b'"topic": "topic/one"' in keep.messages[0]
@@ -804,12 +870,14 @@ def test_broadcast_payload_fans_out_and_prunes_dead_subscribers() -> None:
     assert ("topic/two", other_topic) in subscribers
 
 
-def test_handle_uds_connection_handles_sub_pub_invalid_json_and_timeout(monkeypatch) -> None:
+def test_handle_uds_connection_handles_sub_pub_invalid_json_and_timeout(
+    monkeypatch,
+) -> None:
     class _Conn:
         def __init__(self) -> None:
             self._chunks = [
                 b'{"op":"sub","topic":"topic/one"}\n',
-                b'not-json\n',
+                b"not-json\n",
                 b'{"op":"pub","topic":"topic/one","msg":{"id":"env-1"}}\n',
                 socket.timeout(),
                 b"",
@@ -833,10 +901,14 @@ def test_handle_uds_connection_handles_sub_pub_invalid_json_and_timeout(monkeypa
     gossip._handle_uds_connection(conn, subscribers, gossip.threading.Lock())
     assert len(subscribers) == 1
     assert subscribers[0][0] == "topic/one"
-    assert seen_payloads == [{"op": "pub", "topic": "topic/one", "msg": {"id": "env-1"}}]
+    assert seen_payloads == [
+        {"op": "pub", "topic": "topic/one", "msg": {"id": "env-1"}}
+    ]
 
 
-def test_run_uds_subscription_subscribes_and_dispatches_valid_envelopes(monkeypatch) -> None:
+def test_run_uds_subscription_subscribes_and_dispatches_valid_envelopes(
+    monkeypatch,
+) -> None:
     class _Sock:
         def __init__(self) -> None:
             self.sent: list[bytes] = []
@@ -874,7 +946,9 @@ def test_run_uds_subscription_subscribes_and_dispatches_valid_envelopes(monkeypa
     assert seen_ids == ["env-1"]
 
 
-def test_run_gossip_watch_and_bridge_forward_expected_flags(monkeypatch, tmp_path: Path) -> None:
+def test_run_gossip_watch_and_bridge_forward_expected_flags(
+    monkeypatch, tmp_path: Path
+) -> None:
     calls: list[dict[str, object]] = []
 
     def _capture(*args, **kwargs) -> None:
@@ -906,8 +980,12 @@ def test_publish_issue_mutation_success_and_warning_paths(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         )
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     monkeypatch.setattr(gossip, "_now_iso", lambda: "2026-01-01T00:00:00Z")
     monkeypatch.setattr(gossip, "producer_id", lambda: "producer-1")
@@ -954,12 +1032,18 @@ def test_publish_issue_mutation_returns_when_project_label_missing(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         )
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: None)
     called = {"value": False}
     monkeypatch.setattr(
-        gossip, "_publish_envelope", lambda *_args, **_kwargs: called.__setitem__("value", True)
+        gossip,
+        "_publish_envelope",
+        lambda *_args, **_kwargs: called.__setitem__("value", True),
     )
     gossip.publish_issue_mutation(
         root=tmp_path,
@@ -980,8 +1064,12 @@ def test_publish_issue_deleted_returns_when_project_label_missing(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         )
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: None)
     called = {"value": False}
     monkeypatch.setattr(
@@ -1009,8 +1097,12 @@ def test_publish_issue_deleted_returns_on_config_error_and_broker_off(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         )
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     called = {"value": False}
     monkeypatch.setattr(
         gossip,
@@ -1036,8 +1128,12 @@ def test_run_gossip_consumer_handler_writes_overlay_and_tombstones(
         ),
         overlay=SimpleNamespace(enabled=True, ttl_s=77),
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(gossip, "resolve_labeled_projects", lambda _root: labeled)
     monkeypatch.setattr(
         gossip,
@@ -1048,7 +1144,9 @@ def test_run_gossip_consumer_handler_writes_overlay_and_tombstones(
     )
     monkeypatch.setattr(gossip, "broker_is_reachable", lambda _endpoint: True)
     monkeypatch.setattr(gossip, "producer_id", lambda: "self-producer")
-    monkeypatch.setattr(gossip, "_resolve_project_dir", lambda _root, label: project_dir)
+    monkeypatch.setattr(
+        gossip, "_resolve_project_dir", lambda _root, label: project_dir
+    )
 
     overlay_calls: list[str] = []
     tombstone_calls: list[str] = []
@@ -1140,8 +1238,12 @@ def test_run_gossip_consumer_returns_when_target_project_missing(
         ),
         overlay=SimpleNamespace(enabled=True, ttl_s=99),
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_labeled_projects",
@@ -1159,10 +1261,14 @@ def test_run_gossip_consumer_returns_when_target_project_missing(
     monkeypatch.setattr(gossip, "_resolve_project_dir", lambda _root, _label: None)
     calls = {"overlay": 0, "tombstone": 0}
     monkeypatch.setattr(
-        gossip, "write_overlay_issue", lambda *_args, **_kwargs: calls.__setitem__("overlay", 1)
+        gossip,
+        "write_overlay_issue",
+        lambda *_args, **_kwargs: calls.__setitem__("overlay", 1),
     )
     monkeypatch.setattr(
-        gossip, "write_tombstone", lambda *_args, **_kwargs: calls.__setitem__("tombstone", 1)
+        gossip,
+        "write_tombstone",
+        lambda *_args, **_kwargs: calls.__setitem__("tombstone", 1),
     )
     monkeypatch.setattr(
         gossip,
@@ -1197,8 +1303,12 @@ def test_run_gossip_consumer_broker_off_errors_when_requested(
         ),
         overlay=SimpleNamespace(enabled=False, ttl_s=60),
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_labeled_projects",
@@ -1227,8 +1337,12 @@ def test_run_gossip_consumer_autostarts_mqtt_process_and_terminates(
         ),
         overlay=SimpleNamespace(enabled=False, ttl_s=60),
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_labeled_projects",
@@ -1268,8 +1382,12 @@ def test_run_gossip_consumer_prints_missing_mosquitto_when_autostart_fails(
         ),
         overlay=SimpleNamespace(enabled=False, ttl_s=60),
     )
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     monkeypatch.setattr(
         gossip,
         "resolve_labeled_projects",
@@ -1294,7 +1412,9 @@ def test_run_gossip_consumer_prints_missing_mosquitto_when_autostart_fails(
     assert printed["value"] is True
 
 
-def test_run_uds_broker_binds_accepts_and_spawns_threads(monkeypatch, tmp_path: Path) -> None:
+def test_run_uds_broker_binds_accepts_and_spawns_threads(
+    monkeypatch, tmp_path: Path
+) -> None:
     socket_path = tmp_path / "uds" / "bus.sock"
     socket_path.parent.mkdir(parents=True, exist_ok=True)
     socket_path.write_text("stale", encoding="utf-8")
@@ -1366,11 +1486,19 @@ def test_ensure_local_uds_broker_returns_when_socket_already_exists(
     assert started["value"] is False
 
 
-def test_run_gossip_broker_uses_configured_realtime_socket(monkeypatch, tmp_path: Path) -> None:
+def test_run_gossip_broker_uses_configured_realtime_socket(
+    monkeypatch, tmp_path: Path
+) -> None:
     expected_socket = tmp_path / "configured.sock"
-    configuration = SimpleNamespace(realtime=SimpleNamespace(uds_socket_path=str(expected_socket)))
-    monkeypatch.setattr(gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml")
-    monkeypatch.setattr(gossip, "load_project_configuration", lambda _path: configuration)
+    configuration = SimpleNamespace(
+        realtime=SimpleNamespace(uds_socket_path=str(expected_socket))
+    )
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
     captured: dict[str, Path] = {}
     monkeypatch.setattr(
         gossip,
@@ -1564,11 +1692,15 @@ def test_publish_mqtt_and_subscription_handle_missing_paho(monkeypatch) -> None:
         raise AssertionError("expected GossipError")
 
 
-def test_project_and_path_helpers_cover_remaining_branches(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_project_and_path_helpers_cover_remaining_branches(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
     labeled = [SimpleNamespace(label="alpha", project_dir=tmp_path / "project")]
     monkeypatch.setattr(gossip, "resolve_labeled_projects", lambda _root: labeled)
     config = SimpleNamespace(project_key="fallback")
-    assert gossip._resolve_project_label(tmp_path, tmp_path / "project", config) == "alpha"
+    assert (
+        gossip._resolve_project_label(tmp_path, tmp_path / "project", config) == "alpha"
+    )
     assert gossip._resolve_project_dir(tmp_path, "alpha") == tmp_path / "project"
     monkeypatch.delenv("XDG_RUNTIME_DIR", raising=False)
     home = tmp_path / "home-dir"
@@ -1577,7 +1709,9 @@ def test_project_and_path_helpers_cover_remaining_branches(monkeypatch, tmp_path
     assert str(gossip._broker_run_dir()).endswith(".kanbus/run")
     monkeypatch.setattr(gossip.shutil, "which", lambda _name: "/usr/bin/mosquitto")
     assert gossip._mosquitto_available() is True
-    assert isinstance(gossip.resolve_broker_endpoint("mqtt://x:1883"), gossip.BrokerEndpoint)
+    assert isinstance(
+        gossip.resolve_broker_endpoint("mqtt://x:1883"), gossip.BrokerEndpoint
+    )
     gossip._print_mosquitto_missing()
     assert "Mosquitto not found" in capsys.readouterr().err
 
@@ -1622,5 +1756,7 @@ def test_handle_uds_connection_and_subscription_skip_blank_lines(monkeypatch) ->
 
 def test_broadcast_payload_ignores_non_string_topic() -> None:
     subscribers: list[tuple[str, object]] = [("topic/one", object())]
-    gossip._broadcast_payload({"topic": 123, "msg": {}}, subscribers, gossip.threading.Lock())
+    gossip._broadcast_payload(
+        {"topic": 123, "msg": {}}, subscribers, gossip.threading.Lock()
+    )
     assert len(subscribers) == 1

@@ -333,7 +333,9 @@ mod tests {
 
         let result = load_issues_from_dir(&issues_dir);
         match result {
-            Err(KanbusError::IssueOperation(message)) => assert_eq!(message, "issue file is invalid"),
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "issue file is invalid")
+            }
             other => panic!("expected invalid issue file error, got {other:?}"),
         }
     }

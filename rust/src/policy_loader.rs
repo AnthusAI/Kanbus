@@ -63,7 +63,11 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let missing = temp.path().join("missing");
         let as_file = temp.path().join("file.policy");
-        fs::write(&as_file, "Feature: file\n  Scenario: ignored\n    Given x\n").expect("write");
+        fs::write(
+            &as_file,
+            "Feature: file\n  Scenario: ignored\n    Given x\n",
+        )
+        .expect("write");
 
         let missing_result = load_policies(&missing).expect("missing path should be treated empty");
         assert!(missing_result.is_empty());

@@ -229,7 +229,9 @@ def test_project_reconcile_gc_reject_conflicting_selector_flags() -> None:
             raise AssertionError("expected ValueError")
 
 
-def test_gc_overlay_for_projects_selects_default_label(monkeypatch, tmp_path: Path) -> None:
+def test_gc_overlay_for_projects_selects_default_label(
+    monkeypatch, tmp_path: Path
+) -> None:
     configuration = SimpleNamespace(
         project_key="alpha",
         overlay=OverlayConfig(enabled=True, ttl_s=120),
@@ -244,7 +246,9 @@ def test_gc_overlay_for_projects_selects_default_label(monkeypatch, tmp_path: Pa
     monkeypatch.setattr(
         overlay_module, "load_project_configuration", lambda _path: configuration
     )
-    monkeypatch.setattr(overlay_module, "resolve_labeled_projects", lambda _root: labeled)
+    monkeypatch.setattr(
+        overlay_module, "resolve_labeled_projects", lambda _root: labeled
+    )
     seen: list[Path] = []
     monkeypatch.setattr(
         overlay_module,
@@ -297,7 +301,9 @@ def test_reconcile_overlay_for_projects_aggregates_stats(
     monkeypatch.setattr(
         overlay_module, "load_project_configuration", lambda _path: configuration
     )
-    monkeypatch.setattr(overlay_module, "resolve_labeled_projects", lambda _root: labeled)
+    monkeypatch.setattr(
+        overlay_module, "resolve_labeled_projects", lambda _root: labeled
+    )
     monkeypatch.setattr(
         overlay_module,
         "reconcile_overlay",
@@ -373,7 +379,9 @@ def test_resolve_git_hooks_dir_handles_non_repo_and_relative_path(
         "run",
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=".git/hooks\n"),
     )
-    assert overlay_module._resolve_git_hooks_dir(tmp_path) == tmp_path / ".git" / "hooks"
+    assert (
+        overlay_module._resolve_git_hooks_dir(tmp_path) == tmp_path / ".git" / "hooks"
+    )
 
 
 def test_issue_map_helpers_and_tagging_cover_edges() -> None:
@@ -444,7 +452,9 @@ def test_overlay_path_and_tombstone_round_trip(tmp_path: Path) -> None:
     assert loaded_overlay.overlay_event_id == "evt-1"
     assert loaded_tombstone is not None
     assert loaded_tombstone.project == "alpha"
-    assert overlay_module.overlay_tombstone_path(project_dir, "kanbus-roundtrip").exists()
+    assert overlay_module.overlay_tombstone_path(
+        project_dir, "kanbus-roundtrip"
+    ).exists()
 
 
 def test_resolve_issue_with_overlay_handles_disabled_and_tombstone_paths(
@@ -614,9 +624,9 @@ def test_apply_overlay_to_issues_skips_base_collision_and_missing_overlay(
     monkeypatch.setattr(
         overlay_module,
         "load_overlay_issue",
-        lambda p, issue_id: None
-        if issue_id == "kanbus-missing-overlay"
-        else real_load(p, issue_id),
+        lambda p, issue_id: (
+            None if issue_id == "kanbus-missing-overlay" else real_load(p, issue_id)
+        ),
     )
     results = overlay_module.apply_overlay_to_issues(
         project_dir,
@@ -675,7 +685,9 @@ def test_gc_overlay_removes_expired_and_base_newer_records(tmp_path: Path) -> No
 
     overlay_module.gc_overlay(project_dir, OverlayConfig(enabled=True, ttl_s=60))
     assert not overlay_module.overlay_issue_path(project_dir, "kanbus-expired").exists()
-    assert not overlay_module.overlay_issue_path(project_dir, "kanbus-base-newer").exists()
+    assert not overlay_module.overlay_issue_path(
+        project_dir, "kanbus-base-newer"
+    ).exists()
     assert not overlay_module.overlay_tombstone_path(
         project_dir, "kanbus-tomb-expired"
     ).exists()
@@ -697,7 +709,9 @@ def test_gc_overlay_tolerates_invalid_base_issue_json(tmp_path: Path) -> None:
     )
     (base_issues / "kanbus-invalid-base.json").write_text("{", encoding="utf-8")
     overlay_module.gc_overlay(project_dir, OverlayConfig(enabled=True, ttl_s=3600))
-    assert overlay_module.overlay_issue_path(project_dir, "kanbus-invalid-base").exists()
+    assert overlay_module.overlay_issue_path(
+        project_dir, "kanbus-invalid-base"
+    ).exists()
 
 
 def test_reconcile_overlay_returns_defaults_for_disabled_or_missing_dir(
@@ -844,9 +858,12 @@ def test_overlay_remaining_helper_branches(monkeypatch, tmp_path: Path) -> None:
     assert overlay_module._parse_ts("") is None
     assert overlay_module._is_expired("2026-01-01T00:00:00Z", 0, now) is False
     assert overlay_module._overlay_is_newer("bad-ts", now, None, None) is False
-    assert overlay_module._overlay_is_newer(
-        now.isoformat().replace("+00:00", "Z"), now, None, None
-    ) is True
+    assert (
+        overlay_module._overlay_is_newer(
+            now.isoformat().replace("+00:00", "Z"), now, None, None
+        )
+        is True
+    )
     assert overlay_module._tombstone_newer_than_base("bad-ts", now) is False
 
     issue = _issue("kanbus-evt", now)
@@ -907,10 +924,14 @@ def test_resolve_issue_with_overlay_covers_remove_paths(tmp_path: Path) -> None:
         OverlayConfig(enabled=True, ttl_s=3600),
     )
     assert resolved is not None
-    assert not overlay_module.overlay_tombstone_path(project_dir, "kanbus-paths").exists()
+    assert not overlay_module.overlay_tombstone_path(
+        project_dir, "kanbus-paths"
+    ).exists()
 
 
-def test_apply_overlay_to_issues_includes_overlay_only_resolved_issue(tmp_path: Path) -> None:
+def test_apply_overlay_to_issues_includes_overlay_only_resolved_issue(
+    tmp_path: Path,
+) -> None:
     project_dir = tmp_path / "project"
     now = datetime.now(timezone.utc)
     shared = _issue("kanbus-base", now)
@@ -963,8 +984,12 @@ def test_gc_overlay_tombstone_invalid_base_and_base_newer(tmp_path: Path) -> Non
     )
     overlay_module.write_tombstone(project_dir, removable)
     overlay_module.gc_overlay(project_dir, OverlayConfig(enabled=True, ttl_s=3600))
-    assert overlay_module.overlay_tombstone_path(project_dir, "kanbus-bad-base").exists()
-    assert not overlay_module.overlay_tombstone_path(project_dir, "kanbus-remove-tomb").exists()
+    assert overlay_module.overlay_tombstone_path(
+        project_dir, "kanbus-bad-base"
+    ).exists()
+    assert not overlay_module.overlay_tombstone_path(
+        project_dir, "kanbus-remove-tomb"
+    ).exists()
 
 
 def test_reconcile_overlay_covers_merge_none_and_selector_branches(
@@ -985,7 +1010,9 @@ def test_reconcile_overlay_covers_merge_none_and_selector_branches(
         now.isoformat().replace("+00:00", "Z"),
         "evt",
     )
-    monkeypatch.setattr(overlay_module, "_apply_overrides", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        overlay_module, "_apply_overrides", lambda *_args, **_kwargs: None
+    )
     stats = overlay_module.reconcile_overlay(
         project_dir, OverlayConfig(enabled=True, ttl_s=60), prune=False, dry_run=False
     )
@@ -1002,7 +1029,9 @@ def test_reconcile_overlay_covers_merge_none_and_selector_branches(
     monkeypatch.setattr(
         overlay_module, "load_project_configuration", lambda _path: configuration
     )
-    monkeypatch.setattr(overlay_module, "resolve_labeled_projects", lambda _root: labeled)
+    monkeypatch.setattr(
+        overlay_module, "resolve_labeled_projects", lambda _root: labeled
+    )
     assert overlay_module.gc_overlay_for_projects(tmp_path, None, True) == 1
     try:
         overlay_module.gc_overlay_for_projects(tmp_path, "missing", False)
@@ -1036,7 +1065,9 @@ def test_install_overlay_hooks_appends_block_when_existing_hook_has_other_conten
     hooks_dir.mkdir(parents=True, exist_ok=True)
     hook = hooks_dir / "post-merge"
     hook.write_text("#!/bin/sh\necho hello\n", encoding="utf-8")
-    monkeypatch.setattr(overlay_module, "_resolve_git_hooks_dir", lambda _root: hooks_dir)
+    monkeypatch.setattr(
+        overlay_module, "_resolve_git_hooks_dir", lambda _root: hooks_dir
+    )
     overlay_module.install_overlay_hooks(root)
     contents = hook.read_text(encoding="utf-8")
     assert "echo hello" in contents
