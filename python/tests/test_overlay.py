@@ -418,3 +418,131 @@ def test_diff_issue_fields_and_remove_path_and_ensure_executable(
         lambda self, _mode: (_ for _ in ()).throw(OSError("denied")),
     )
     overlay_module._ensure_executable(marker)
+
+
+def test_overlay_path_and_tombstone_round_trip(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    issue = _issue("kanbus-roundtrip", datetime.now(timezone.utc))
+    overlay_module.write_overlay_issue(
+        project_dir,
+        issue,
+        "2026-01-01T00:00:00Z",
+        "evt-1",
+    )
+    tombstone = overlay_module.OverlayTombstone(
+        op="delete",
+        project="alpha",
+        id="kanbus-roundtrip",
+        event_id="evt-2",
+        ts="2026-01-01T00:00:01Z",
+        ttl_s=60,
+    )
+    overlay_module.write_tombstone(project_dir, tombstone)
+    loaded_overlay = overlay_module.load_overlay_issue(project_dir, "kanbus-roundtrip")
+    loaded_tombstone = overlay_module.load_tombstone(project_dir, "kanbus-roundtrip")
+    assert loaded_overlay is not None
+    assert loaded_overlay.overlay_event_id == "evt-1"
+    assert loaded_tombstone is not None
+    assert loaded_tombstone.project == "alpha"
+    assert overlay_module.overlay_tombstone_path(project_dir, "kanbus-roundtrip").exists()
+
+
+def test_resolve_issue_with_overlay_handles_disabled_and_tombstone_paths(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "project"
+    now = datetime.now(timezone.utc)
+    base = _issue("kanbus-resolve", now)
+    assert (
+        overlay_module.resolve_issue_with_overlay(
+            project_dir,
+            base,
+            None,
+            None,
+            OverlayConfig(enabled=False, ttl_s=60),
+        )
+        == base
+    )
+    tombstone = overlay_module.OverlayTombstone(
+        op="delete",
+        project="alpha",
+        id="kanbus-resolve",
+        event_id="evt",
+        ts=(now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+        ttl_s=60,
+    )
+    assert (
+        overlay_module.resolve_issue_with_overlay(
+            project_dir,
+            base,
+            None,
+            tombstone,
+            OverlayConfig(enabled=True, ttl_s=60),
+        )
+        is None
+    )
+
+
+def test_apply_overlay_to_issues_handles_disabled_local_and_overlay_only_entries(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    shared = _issue("kanbus-shared", now)
+    local = _issue("kanbus-local", now)
+    local.custom["source"] = "local"
+
+    disabled = overlay_module.apply_overlay_to_issues(
+        project_dir, [shared, local], OverlayConfig(enabled=False, ttl_s=60)
+    )
+    assert [item.identifier for item in disabled] == ["kanbus-shared", "kanbus-local"]
+
+    overlay_only = _issue("kanbus-only", now + timedelta(minutes=2))
+    overlay_module.write_overlay_issue(
+        project_dir,
+        overlay_only,
+        overlay_only.updated_at.isoformat().replace("+00:00", "Z"),
+        "evt-only",
+    )
+    applied = overlay_module.apply_overlay_to_issues(
+        project_dir,
+        [shared, local],
+        OverlayConfig(enabled=True, ttl_s=3600),
+        project_label="alpha",
+    )
+    identifiers = [item.identifier for item in applied]
+    assert "kanbus-local" in identifiers
+    assert "kanbus-only" not in identifiers
+    assert identifiers == sorted(identifiers)
+
+
+def test_gc_overlay_handles_disabled_and_invalid_overlay_entries(
+    monkeypatch, tmp_path: Path
+) -> None:
+    project_dir = tmp_path / "project"
+    overlay_issue_dir = project_dir / ".overlay" / "issues"
+    overlay_tombstone_dir = project_dir / ".overlay" / "tombstones"
+    overlay_issue_dir.mkdir(parents=True, exist_ok=True)
+    overlay_tombstone_dir.mkdir(parents=True, exist_ok=True)
+    stale_overlay = overlay_issue_dir / "stale.json"
+    stale_overlay.write_text("{}", encoding="utf-8")
+    stale_tombstone = overlay_tombstone_dir / "stale.json"
+    stale_tombstone.write_text("{}", encoding="utf-8")
+
+    overlay_module.gc_overlay(project_dir, OverlayConfig(enabled=False, ttl_s=60))
+    assert stale_overlay.exists()
+
+    monkeypatch.setattr(
+        overlay_module,
+        "load_overlay_issue",
+        lambda _project_dir, _issue_id: None,
+    )
+    monkeypatch.setattr(
+        overlay_module,
+        "load_tombstone",
+        lambda _project_dir, _issue_id: None,
+    )
+    overlay_module.gc_overlay(project_dir, OverlayConfig(enabled=True, ttl_s=60))
+    assert not stale_overlay.exists()
+    assert not stale_tombstone.exists()
