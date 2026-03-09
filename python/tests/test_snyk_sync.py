@@ -182,3 +182,112 @@ def test_detect_repo_from_git_normalizes_github_remote(tmp_path: Path) -> None:
         capture_output=True,
     )
     assert snyk_sync._detect_repo_from_git(tmp_path) == "AnthusAI/Kanbus"
+
+
+class _FakeResponse:
+    def __init__(self, ok: bool, status_code: int, payload: dict, text: str = "") -> None:
+        self.ok = ok
+        self.status_code = status_code
+        self._payload = payload
+        self.text = text
+
+    def json(self) -> dict:
+        return self._payload
+
+
+def test_fetch_snyk_projects_handles_pagination_and_repo_filter(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_get(url: str, headers: dict, timeout: int) -> _FakeResponse:
+        calls.append(url)
+        if "limit=100" in url:
+            return _FakeResponse(
+                ok=True,
+                status_code=200,
+                payload={
+                    "data": [
+                        {
+                            "id": "p1",
+                            "attributes": {
+                                "name": "AnthusAI/Kanbus:requirements.txt",
+                                "target_file": "requirements.txt",
+                            },
+                        },
+                        {
+                            "id": "skip",
+                            "attributes": {"name": "Other/Repo:package.json"},
+                        },
+                    ],
+                    "links": {"next": "/rest/orgs/org/projects?page=2"},
+                },
+            )
+        return _FakeResponse(
+            ok=True,
+            status_code=200,
+            payload={
+                "data": [
+                    {
+                        "id": "p2",
+                        "attributes": {"name": "AnthusAI/Kanbus", "target_file": "repo-root"},
+                    }
+                ],
+                "links": {},
+            },
+        )
+
+    monkeypatch.setattr(snyk_sync.requests, "get", fake_get)
+    project_map = snyk_sync._fetch_snyk_projects(
+        org_id="org", token="token", repo_filter="AnthusAI/Kanbus"
+    )
+    assert project_map == {"p1": "requirements.txt", "p2": "repo-root"}
+    assert len(calls) == 2
+
+
+def test_fetch_snyk_issues_for_type_applies_severity_threshold(monkeypatch) -> None:
+    def fake_get(url: str, headers: dict, timeout: int) -> _FakeResponse:
+        return _FakeResponse(
+            ok=True,
+            status_code=200,
+            payload={
+                "data": [
+                    {
+                        "attributes": {
+                            "key": "S-1",
+                            "effective_severity_level": "critical",
+                        }
+                    },
+                    {
+                        "attributes": {"key": "S-2", "effective_severity_level": "low"}
+                    },
+                    {"attributes": {"effective_severity_level": "high"}},
+                ],
+                "links": {},
+            },
+        )
+
+    monkeypatch.setattr(snyk_sync.requests, "get", fake_get)
+    issues = snyk_sync._fetch_snyk_issues_for_type(
+        org_id="org", token="token", min_priority=1, issue_type="code"
+    )
+    assert [item["attributes"]["key"] for item in issues] == ["S-1"]
+
+
+def test_fetch_v1_enrichment_skips_non_ok_and_uses_issue_id(monkeypatch) -> None:
+    def fake_post(
+        url: str, headers: dict, json: dict, timeout: int
+    ) -> _FakeResponse:
+        if "project-a" in url:
+            return _FakeResponse(ok=False, status_code=500, payload={}, text="fail")
+        return _FakeResponse(
+            ok=True,
+            status_code=200,
+            payload={"issues": [{"issueData": {"id": "SNYK-1"}, "fixInfo": {}}]},
+        )
+
+    monkeypatch.setattr(snyk_sync.requests, "post", fake_post)
+    enriched = snyk_sync._fetch_v1_enrichment(
+        org_id="org",
+        token="token",
+        project_ids=["project-a", "project-b"],
+    )
+    assert "SNYK-1" in enriched

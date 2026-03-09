@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import time
+from types import SimpleNamespace
 
 from kanbus import gossip
 
@@ -39,3 +40,19 @@ def test_write_and_load_broker_metadata_round_trip(
     payload = {"kind": "mosquitto", "endpoint": "mqtt://127.0.0.1:1883"}
     gossip._write_broker_metadata(payload)
     assert gossip._load_broker_metadata() == payload
+
+
+def test_resolve_project_label_falls_back_to_project_key(monkeypatch, tmp_path: Path) -> None:
+    root = tmp_path
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    configuration = SimpleNamespace(project_key="kanbus")
+    monkeypatch.setattr(gossip, "resolve_labeled_projects", lambda _: [])
+    assert gossip._resolve_project_label(root, project_dir, configuration) == "kanbus"
+
+
+def test_resolve_project_dir_returns_none_for_missing_label(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(gossip, "resolve_labeled_projects", lambda _: [])
+    assert gossip._resolve_project_dir(tmp_path, "missing") is None
