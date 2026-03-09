@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 
 from kanbus import snyk_sync
 
@@ -152,3 +153,32 @@ def test_map_snyk_to_kanbus_sets_core_custom_fields(tmp_path: Path) -> None:
     assert mapped.parent == "kanbus-parent"
     assert mapped.custom["snyk_key"] == "SNYK-002"
     assert mapped.custom["snyk_severity"] == "high"
+
+
+def test_extract_classes_handles_string_and_object_shapes() -> None:
+    issue = {
+        "attributes": {
+            "classes": [
+                "OWASP-A1",
+                {"source": "CWE", "id": "79"},
+                {"source": "CAPEC", "id": "1"},
+                {"id": "missing-source"},
+            ]
+        }
+    }
+    assert snyk_sync._extract_classes(issue) == [
+        "OWASP-A1",
+        "CWE-79",
+        "CAPEC-1",
+    ]
+
+
+def test_detect_repo_from_git_normalizes_github_remote(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", "git@github.com:AnthusAI/Kanbus.git"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    assert snyk_sync._detect_repo_from_git(tmp_path) == "AnthusAI/Kanbus"
