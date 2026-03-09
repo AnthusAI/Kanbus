@@ -1367,8 +1367,31 @@ fn severity_to_priority(severity: &str) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Duration;
     use serde_json::json;
     use tempfile::TempDir;
+
+    fn make_issue(id: &str, issue_type: &str, title: &str) -> IssueData {
+        let now = Utc::now();
+        IssueData {
+            identifier: id.to_string(),
+            title: title.to_string(),
+            description: String::new(),
+            issue_type: issue_type.to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
 
     #[test]
     fn severity_to_priority_maps_expected_values() {
@@ -1686,5 +1709,241 @@ mod tests {
             .contains("Upgrade `openssl` to version 1.1.1u or later."));
         assert!(mapped.description.contains("CVE-2026-1111"));
         assert!(mapped.description.contains("CVE-2026-2222"));
+    }
+
+    #[test]
+    fn resolve_parent_epic_uses_existing_configured_id_when_file_exists() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+        let mut existing = make_issue("kanbus-parent", "epic", "Existing parent");
+        existing.labels = vec!["security".into(), "snyk".into()];
+        let existing_path = issue_path_for_identifier(&issues_dir, "kanbus-parent");
+        write_issue_to_file(&existing, &existing_path).expect("write issue");
+        let mut all_existing = HashSet::from([String::from("kanbus-parent")]);
+
+        let resolved = resolve_parent_epic(
+            &issues_dir,
+            "kanbus",
+            Some("kanbus-parent"),
+            false,
+            &mut all_existing,
+        )
+        .expect("resolve parent");
+        assert_eq!(resolved, "kanbus-parent");
+    }
+
+    #[test]
+    fn resolve_snyk_epics_returns_empty_when_no_categories_requested() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+        let mut all_existing = HashSet::new();
+        let mut ctx = SnykContext {
+            issues_dir: &issues_dir,
+            project_key: "kanbus",
+            dry_run: true,
+            all_existing: &mut all_existing,
+        };
+        let epics = resolve_snyk_epics(
+            &mut ctx,
+            None,
+            &SnykEpicOptions {
+                include_dependency: false,
+                include_code: false,
+                dependency_priority: None,
+                code_priority: None,
+            },
+        )
+        .expect("resolve epics");
+        assert!(epics.is_empty());
+    }
+
+    #[test]
+    fn find_existing_snyk_filters_and_prefers_latest() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+
+        let mut init_old = make_issue("kanbus-init-old", "initiative", SNYK_INITIATIVE_TITLE);
+        init_old.labels = vec!["snyk".into()];
+        init_old.updated_at = Utc::now() - Duration::days(2);
+        let mut init_new = make_issue("kanbus-init-new", "initiative", SNYK_INITIATIVE_TITLE);
+        init_new.labels = vec!["snyk".into()];
+        init_new.updated_at = Utc::now() - Duration::days(1);
+        let mut wrong = make_issue("kanbus-wrong", "initiative", "Wrong");
+        wrong.labels = vec!["snyk".into()];
+
+        write_issue_to_file(
+            &init_old,
+            &issue_path_for_identifier(&issues_dir, "kanbus-init-old"),
+        )
+        .expect("write");
+        write_issue_to_file(
+            &init_new,
+            &issue_path_for_identifier(&issues_dir, "kanbus-init-new"),
+        )
+        .expect("write");
+        write_issue_to_file(
+            &wrong,
+            &issue_path_for_identifier(&issues_dir, "kanbus-wrong"),
+        )
+        .expect("write");
+
+        let ids = HashSet::from([
+            String::from("kanbus-init-old"),
+            String::from("kanbus-init-new"),
+            String::from("kanbus-wrong"),
+        ]);
+        assert_eq!(
+            find_existing_snyk_initiative(&issues_dir, &ids),
+            Some("kanbus-init-new".to_string())
+        );
+
+        let mut epic_match = make_issue("kanbus-epic", "epic", SNYK_DEP_EPIC_TITLE);
+        epic_match.labels = vec!["snyk".into(), "security".into()];
+        epic_match.parent = Some("kanbus-init-new".to_string());
+        write_issue_to_file(
+            &epic_match,
+            &issue_path_for_identifier(&issues_dir, "kanbus-epic"),
+        )
+        .expect("write");
+        let ids_epic = HashSet::from([String::from("kanbus-epic")]);
+        assert_eq!(
+            find_existing_snyk_epic(
+                &issues_dir,
+                &ids_epic,
+                SNYK_DEP_EPIC_TITLE,
+                "kanbus-init-new"
+            ),
+            Some("kanbus-epic".to_string())
+        );
+    }
+
+    #[test]
+    fn resolve_file_task_updates_existing_task_metadata() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+        let mut task = make_issue("kanbus-task", "task", "requirements.txt");
+        task.parent = Some("old-parent".into());
+        task.priority = 3;
+        write_issue_to_file(
+            &task,
+            &issue_path_for_identifier(&issues_dir, "kanbus-task"),
+        )
+        .expect("write");
+
+        let mut all_existing = HashSet::from([String::from("kanbus-task")]);
+        let mut idx = BTreeMap::new();
+        idx.insert(
+            ("dependency".to_string(), "requirements.txt".to_string()),
+            "kanbus-task".to_string(),
+        );
+        let resolved = resolve_file_task(
+            &issues_dir,
+            "kanbus",
+            "requirements.txt",
+            "dependency",
+            &FileTaskContext {
+                epic_id: "new-parent",
+                priority: 1,
+                dry_run: false,
+            },
+            &idx,
+            &mut all_existing,
+        )
+        .expect("resolve task");
+        assert_eq!(resolved, "kanbus-task");
+        let updated =
+            read_issue_from_file(&issue_path_for_identifier(&issues_dir, "kanbus-task")).unwrap();
+        assert_eq!(updated.parent.as_deref(), Some("new-parent"));
+        assert_eq!(updated.priority, 1);
+        assert!(updated.labels.contains(&"snyk".to_string()));
+        assert!(updated.labels.contains(&"security".to_string()));
+    }
+
+    #[test]
+    fn resolve_file_task_creates_task_in_dry_run_without_writing() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+        let mut all_existing = HashSet::new();
+        let resolved = resolve_file_task(
+            &issues_dir,
+            "kanbus",
+            "pom.xml",
+            "dependency",
+            &FileTaskContext {
+                epic_id: "kanbus-epic",
+                priority: 2,
+                dry_run: true,
+            },
+            &BTreeMap::new(),
+            &mut all_existing,
+        )
+        .expect("resolve task");
+        assert!(resolved.starts_with("kanbus-"));
+        let path = issue_path_for_identifier(&issues_dir, &resolved);
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn build_file_task_index_defaults_missing_category_to_dependency() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+        let mut task = make_issue("kanbus-task-default", "task", "pom.xml");
+        task.custom.insert(
+            "snyk_target_file".to_string(),
+            serde_json::Value::String("pom.xml".to_string()),
+        );
+        write_issue_to_file(
+            &task,
+            &issue_path_for_identifier(&issues_dir, "kanbus-task-default"),
+        )
+        .expect("write");
+        let ids = HashSet::from([String::from("kanbus-task-default")]);
+        let index = build_file_task_index(&ids, &issues_dir);
+        assert_eq!(
+            index.get(&("dependency".to_string(), "pom.xml".to_string())),
+            Some(&"kanbus-task-default".to_string())
+        );
+    }
+
+    #[test]
+    fn map_snyk_to_kanbus_dependency_pin_fixed_in_branch() {
+        let issue = json!({
+            "attributes": {
+                "key": "SNYK-DEP-PIN",
+                "type": "package_vulnerability",
+                "effective_severity_level": "high",
+                "coordinates": [{
+                    "is_upgradeable": false,
+                    "representations": [{
+                        "dependency": {
+                            "package_name": "openssl",
+                            "package_version": "1.0"
+                        }
+                    }]
+                }],
+                "problems": []
+            }
+        });
+        let v1 = json!({
+            "issueData": {},
+            "fixInfo": { "fixedIn": ["1.2.3"] }
+        });
+        let mapped = map_snyk_to_kanbus(
+            &issue,
+            &Some("KAN-PIN".to_string()),
+            Some(&v1),
+            "requirements.txt",
+            Path::new("."),
+        )
+        .expect("map issue");
+        assert!(mapped
+            .description
+            .contains("Pin `openssl` to version 1.2.3 or later."));
     }
 }
