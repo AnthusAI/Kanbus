@@ -145,3 +145,30 @@ pub fn revoke_cloud_token(
     serde_json::to_string_pretty(&parsed)
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trim_base_removes_trailing_slashes() {
+        assert_eq!(
+            trim_base("https://api.example.com/"),
+            "https://api.example.com"
+        );
+        assert_eq!(
+            trim_base("https://api.example.com///"),
+            "https://api.example.com"
+        );
+        assert_eq!(
+            trim_base("https://api.example.com"),
+            "https://api.example.com"
+        );
+    }
+
+    #[test]
+    fn build_client_rejects_invalid_bearer_header_value() {
+        let error = build_client("bad\ntoken").expect_err("expected invalid header error");
+        assert!(error.to_string().contains("header"));
+    }
+}
