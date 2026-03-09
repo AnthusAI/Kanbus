@@ -181,6 +181,38 @@ pub fn sorted_deduped_guidance_items(items: &[GuidanceItem]) -> Vec<GuidanceItem
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::default_project_configuration;
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+
+    fn sample_issue(id: &str) -> IssueData {
+        IssueData {
+            identifier: id.to_string(),
+            title: "Sample".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    fn write_workspace_config(root: &Path) {
+        let mut config = default_project_configuration();
+        config.project_directory = "project".to_string();
+        let yaml = serde_yaml::to_string(&config).expect("serialize config");
+        std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
+        std::fs::create_dir_all(root.join("project/issues")).expect("create issues dir");
+    }
 
     #[test]
     fn guidance_enabled_respects_flag_and_env() {
@@ -261,5 +293,30 @@ mod tests {
         assert_eq!(result[1].policy_file, "a.yml");
         assert_eq!(result[1].step, "Then B");
         assert_eq!(result[2].policy_file, "b.yml");
+    }
+
+    #[test]
+    fn collect_guidance_returns_default_when_policies_dir_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_workspace_config(temp.path());
+        let issue = sample_issue("kanbus-1");
+
+        let report = collect_guidance_for_issue(temp.path(), &issue, PolicyOperation::Update)
+            .expect("collect guidance");
+        assert!(report.violations.is_empty());
+        assert!(report.guidance_items.is_empty());
+    }
+
+    #[test]
+    fn collect_guidance_returns_default_for_empty_policies_directory() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_workspace_config(temp.path());
+        std::fs::create_dir_all(temp.path().join("project/policies")).expect("create policies dir");
+        let issue = sample_issue("kanbus-2");
+
+        let report = collect_guidance_for_issue(temp.path(), &issue, PolicyOperation::Create)
+            .expect("collect guidance");
+        assert!(report.violations.is_empty());
+        assert!(report.guidance_items.is_empty());
     }
 }
