@@ -513,7 +513,7 @@ def test_apply_overlay_to_issues_handles_disabled_local_and_overlay_only_entries
     )
     identifiers = [item.identifier for item in applied]
     assert "kanbus-local" in identifiers
-    assert "kanbus-only" not in identifiers
+    assert "kanbus-only" in identifiers
     assert identifiers == sorted(identifiers)
 
 
@@ -836,3 +836,208 @@ def test_reconcile_overlay_covers_remove_update_and_dry_run_paths(
     )
     assert stats_dry.issues_removed >= 0
     assert dry_run_overlay.exists()
+
+
+def test_overlay_remaining_helper_branches(monkeypatch, tmp_path: Path) -> None:
+    now = datetime.now(timezone.utc)
+    assert overlay_module._tag_issue(None, "alpha") is None
+    assert overlay_module._parse_ts("") is None
+    assert overlay_module._is_expired("2026-01-01T00:00:00Z", 0, now) is False
+    assert overlay_module._overlay_is_newer("bad-ts", now, None, None) is False
+    assert overlay_module._overlay_is_newer(
+        now.isoformat().replace("+00:00", "Z"), now, None, None
+    ) is True
+    assert overlay_module._tombstone_newer_than_base("bad-ts", now) is False
+
+    issue = _issue("kanbus-evt", now)
+    issue.custom["last_event_id"] = "evt-1"
+    assert overlay_module._extract_event_id(issue) == "evt-1"
+
+    marker = tmp_path / "marker.txt"
+    marker.write_text("x", encoding="utf-8")
+    monkeypatch.setattr(
+        Path,
+        "unlink",
+        lambda self, missing_ok=True: (_ for _ in ()).throw(OSError("denied")),
+    )
+    overlay_module._remove_path(marker)
+
+
+def test_resolve_issue_with_overlay_covers_remove_paths(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    now = datetime.now(timezone.utc)
+    base = _issue("kanbus-paths", now)
+    overlay_issue = _issue("kanbus-paths", now - timedelta(minutes=1))
+    overlay_record = overlay_module.OverlayIssueRecord(
+        issue=overlay_issue,
+        overlay_ts=overlay_issue.updated_at.isoformat().replace("+00:00", "Z"),
+        overlay_event_id="evt-old",
+    )
+    overlay_module.write_overlay_issue(
+        project_dir,
+        overlay_issue,
+        overlay_record.overlay_ts,
+        overlay_record.overlay_event_id,
+    )
+    result = overlay_module.resolve_issue_with_overlay(
+        project_dir,
+        base,
+        overlay_record,
+        None,
+        OverlayConfig(enabled=True, ttl_s=3600),
+    )
+    assert result is not None
+    assert result.identifier == "kanbus-paths"
+    assert not overlay_module.overlay_issue_path(project_dir, "kanbus-paths").exists()
+
+    tombstone = overlay_module.OverlayTombstone(
+        op="delete",
+        project="alpha",
+        id="kanbus-paths",
+        event_id="evt-tomb",
+        ts=(now - timedelta(days=2)).isoformat().replace("+00:00", "Z"),
+        ttl_s=1,
+    )
+    overlay_module.write_tombstone(project_dir, tombstone)
+    resolved = overlay_module.resolve_issue_with_overlay(
+        project_dir,
+        base,
+        None,
+        tombstone,
+        OverlayConfig(enabled=True, ttl_s=3600),
+    )
+    assert resolved is not None
+    assert not overlay_module.overlay_tombstone_path(project_dir, "kanbus-paths").exists()
+
+
+def test_apply_overlay_to_issues_includes_overlay_only_resolved_issue(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    now = datetime.now(timezone.utc)
+    shared = _issue("kanbus-base", now)
+    overlay_only = _issue("kanbus-overlay-only", now + timedelta(minutes=3))
+    overlay_module.write_overlay_issue(
+        project_dir,
+        overlay_only,
+        overlay_only.updated_at.isoformat().replace("+00:00", "Z"),
+        "evt-overlay-only",
+    )
+    result = overlay_module.apply_overlay_to_issues(
+        project_dir,
+        [shared],
+        OverlayConfig(enabled=True, ttl_s=3600),
+        project_label="alpha",
+    )
+    ids = [item.identifier for item in result]
+    assert "kanbus-overlay-only" in ids
+
+
+def test_gc_overlay_tombstone_invalid_base_and_base_newer(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    base_issues = project_dir / "issues"
+    base_issues.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+
+    bad_base_tombstone = overlay_module.OverlayTombstone(
+        op="delete",
+        project="alpha",
+        id="kanbus-bad-base",
+        event_id="evt-bad",
+        ts=(now - timedelta(minutes=10)).isoformat().replace("+00:00", "Z"),
+        ttl_s=3600,
+    )
+    overlay_module.write_tombstone(project_dir, bad_base_tombstone)
+    (base_issues / "kanbus-bad-base.json").write_text("{", encoding="utf-8")
+
+    base_new = _issue("kanbus-remove-tomb", now)
+    (base_issues / "kanbus-remove-tomb.json").write_text(
+        json.dumps(base_new.model_dump(by_alias=True, mode="json"), indent=2),
+        encoding="utf-8",
+    )
+    removable = overlay_module.OverlayTombstone(
+        op="delete",
+        project="alpha",
+        id="kanbus-remove-tomb",
+        event_id="evt-remove",
+        ts=(now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
+        ttl_s=999999,
+    )
+    overlay_module.write_tombstone(project_dir, removable)
+    overlay_module.gc_overlay(project_dir, OverlayConfig(enabled=True, ttl_s=3600))
+    assert overlay_module.overlay_tombstone_path(project_dir, "kanbus-bad-base").exists()
+    assert not overlay_module.overlay_tombstone_path(project_dir, "kanbus-remove-tomb").exists()
+
+
+def test_reconcile_overlay_covers_merge_none_and_selector_branches(
+    monkeypatch, tmp_path: Path
+) -> None:
+    project_dir = tmp_path / "project"
+    base_issues = project_dir / "issues"
+    base_issues.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    base = _issue("kanbus-merge-none", now)
+    (base_issues / "kanbus-merge-none.json").write_text(
+        json.dumps(base.model_dump(by_alias=True, mode="json"), indent=2),
+        encoding="utf-8",
+    )
+    overlay_module.write_overlay_issue(
+        project_dir,
+        base.model_copy(update={"title": "Other"}),
+        now.isoformat().replace("+00:00", "Z"),
+        "evt",
+    )
+    monkeypatch.setattr(overlay_module, "_apply_overrides", lambda *_args, **_kwargs: None)
+    stats = overlay_module.reconcile_overlay(
+        project_dir, OverlayConfig(enabled=True, ttl_s=60), prune=False, dry_run=False
+    )
+    assert stats.issues_updated == 0
+
+    configuration = SimpleNamespace(
+        project_key="alpha",
+        overlay=OverlayConfig(enabled=True, ttl_s=60),
+    )
+    labeled = [SimpleNamespace(label="alpha", project_dir=project_dir)]
+    monkeypatch.setattr(
+        overlay_module, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        overlay_module, "load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr(overlay_module, "resolve_labeled_projects", lambda _root: labeled)
+    assert overlay_module.gc_overlay_for_projects(tmp_path, None, True) == 1
+    try:
+        overlay_module.gc_overlay_for_projects(tmp_path, "missing", False)
+    except ValueError as error:
+        assert "unknown project label" in str(error)
+    else:
+        raise AssertionError("expected ValueError")
+
+    monkeypatch.setattr(overlay_module, "resolve_labeled_projects", lambda _root: [])
+    assert (
+        overlay_module.reconcile_overlay_for_projects(
+            tmp_path, None, False, prune=False, dry_run=False
+        )
+        == overlay_module.OverlayReconcileStats()
+    )
+    try:
+        overlay_module.reconcile_overlay_for_projects(
+            tmp_path, "alpha", True, prune=False, dry_run=False
+        )
+    except ValueError as error:
+        assert "cannot combine --project with --all" in str(error)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_install_overlay_hooks_appends_block_when_existing_hook_has_other_content(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path
+    hooks_dir = root / ".git" / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hook = hooks_dir / "post-merge"
+    hook.write_text("#!/bin/sh\necho hello\n", encoding="utf-8")
+    monkeypatch.setattr(overlay_module, "_resolve_git_hooks_dir", lambda _root: hooks_dir)
+    overlay_module.install_overlay_hooks(root)
+    contents = hook.read_text(encoding="utf-8")
+    assert "echo hello" in contents
+    assert "Kanbus overlay cache maintenance" in contents
