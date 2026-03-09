@@ -246,7 +246,7 @@ def _resolve_parent_epic(
         if path.exists():
             return configured_id
 
-    existing_id = _find_existing_snyk_epic(issues_dir, all_existing)
+    existing_id = _find_existing_parent_epic(issues_dir, all_existing)
     if existing_id:
         return existing_id
 
@@ -287,6 +287,26 @@ def _resolve_parent_epic(
         write_issue_to_file(epic, _issue_path(issues_dir, epic_id))
 
     return epic_id
+
+
+def _find_existing_parent_epic(
+    issues_dir: Path, all_existing: Set[str]
+) -> Optional[str]:
+    """Find the most recent legacy single-parent Snyk epic."""
+    best_id: Optional[str] = None
+    best_updated: Optional[datetime] = None
+    for identifier in all_existing:
+        issue = read_issue_from_file(_issue_path(issues_dir, identifier))
+        if issue.issue_type != "epic":
+            continue
+        if issue.title != "Snyk Vulnerabilities":
+            continue
+        if "snyk" not in issue.labels:
+            continue
+        if best_updated is None or issue.updated_at > best_updated:
+            best_updated = issue.updated_at
+            best_id = issue.identifier
+    return best_id
 
 
 def _resolve_snyk_epics(

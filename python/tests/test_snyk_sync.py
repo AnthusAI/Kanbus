@@ -711,6 +711,99 @@ def test_resolve_file_task_updates_existing_task(tmp_path: Path) -> None:
     assert updated.custom["snyk_category"] == "dependency"
 
 
+def test_resolve_parent_epic_prefers_configured_existing_id(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    configured = build_issue("kanbus-configured", issue_type="epic", labels=["snyk"])
+    _write_issue(issues_dir, configured)
+
+    resolved = snyk_sync._resolve_parent_epic(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        configured_id="kanbus-configured",
+        dry_run=False,
+        all_existing={"kanbus-configured"},
+    )
+    assert resolved == "kanbus-configured"
+
+
+def test_resolve_parent_epic_reuses_existing_snyk_epic(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    existing = build_issue(
+        "kanbus-existing",
+        issue_type="epic",
+        title="Snyk Vulnerabilities",
+        labels=["security", "snyk"],
+    )
+    _write_issue(issues_dir, existing)
+
+    resolved = snyk_sync._resolve_parent_epic(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        configured_id=None,
+        dry_run=False,
+        all_existing={"kanbus-existing"},
+    )
+    assert resolved == "kanbus-existing"
+
+
+def test_build_snyk_key_index_and_file_task_index_skip_invalid_issue_files(
+    tmp_path: Path,
+) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    with_key = build_issue(
+        "kanbus-key",
+        issue_type="sub-task",
+        custom={"snyk_key": "SNYK-INDEX-1"},
+    )
+    with_task = build_issue(
+        "kanbus-task",
+        issue_type="task",
+        custom={"snyk_target_file": "requirements.txt", "snyk_category": "dependency"},
+    )
+    _write_issue(issues_dir, with_key)
+    _write_issue(issues_dir, with_task)
+    (issues_dir / "broken.json").write_text("{", encoding="utf-8")
+
+    key_index = snyk_sync._build_snyk_key_index(
+        {"kanbus-key", "kanbus-task", "broken"}, issues_dir
+    )
+    file_index = snyk_sync._build_file_task_index(
+        {"kanbus-key", "kanbus-task", "broken"}, issues_dir
+    )
+
+    assert key_index["SNYK-INDEX-1"] == "kanbus-key"
+    assert file_index[("dependency", "requirements.txt")] == "kanbus-task"
+
+
+def test_resolve_snyk_epics_with_configured_parent_maps_requested_categories(
+    tmp_path: Path, monkeypatch
+) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    calls: list[tuple[bool, bool]] = []
+    monkeypatch.setattr(
+        snyk_sync,
+        "_resolve_parent_epic",
+        lambda *args, **kwargs: (calls.append((True, True)) or "kanbus-parent"),
+    )
+    epics = snyk_sync._resolve_snyk_epics(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        configured_id="kanbus-parent",
+        dry_run=False,
+        all_existing=set(),
+        include_dependency=True,
+        include_code=False,
+        dependency_priority=1,
+        code_priority=2,
+    )
+    assert epics == {"dependency": "kanbus-parent"}
+    assert len(calls) == 1
+
+
 def test_pull_from_snyk_groups_dedups_and_writes_issues(
     tmp_path: Path, monkeypatch
 ) -> None:
