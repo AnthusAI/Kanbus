@@ -184,6 +184,17 @@ def test_detect_repo_from_git_normalizes_github_remote(tmp_path: Path) -> None:
     assert snyk_sync._detect_repo_from_git(tmp_path) == "AnthusAI/Kanbus"
 
 
+def test_detect_repo_from_git_returns_none_for_non_github_remote(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", "ssh://gitlab.example.com/team/repo.git"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    assert snyk_sync._detect_repo_from_git(tmp_path) is None
+
+
 class _FakeResponse:
     def __init__(self, ok: bool, status_code: int, payload: dict, text: str = "") -> None:
         self.ok = ok
@@ -241,6 +252,47 @@ def test_fetch_snyk_projects_handles_pagination_and_repo_filter(monkeypatch) -> 
     )
     assert project_map == {"p1": "requirements.txt", "p2": "repo-root"}
     assert len(calls) == 2
+
+
+def test_fetch_snyk_projects_uses_name_when_target_file_missing(monkeypatch) -> None:
+    def fake_get(url: str, headers: dict, timeout: int) -> _FakeResponse:
+        return _FakeResponse(
+            ok=True,
+            status_code=200,
+            payload={
+                "data": [
+                    {
+                        "id": "p3",
+                        "attributes": {"name": "AnthusAI/Kanbus:pyproject.toml"},
+                    }
+                ],
+                "links": {},
+            },
+        )
+
+    monkeypatch.setattr(snyk_sync.requests, "get", fake_get)
+    project_map = snyk_sync._fetch_snyk_projects(
+        org_id="org", token="token", repo_filter="AnthusAI/Kanbus"
+    )
+    assert project_map == {"p3": "AnthusAI/Kanbus:pyproject.toml"}
+
+
+def test_fetch_snyk_projects_raises_on_non_ok_response(monkeypatch) -> None:
+    def fake_get(url: str, headers: dict, timeout: int) -> _FakeResponse:
+        return _FakeResponse(
+            ok=False,
+            status_code=403,
+            payload={},
+            text="forbidden",
+        )
+
+    monkeypatch.setattr(snyk_sync.requests, "get", fake_get)
+    try:
+        snyk_sync._fetch_snyk_projects(org_id="org", token="token", repo_filter=None)
+    except snyk_sync.SnykSyncError as error:
+        assert "Snyk projects API returned 403" in str(error)
+    else:
+        raise AssertionError("expected SnykSyncError")
 
 
 def test_fetch_snyk_issues_for_type_applies_severity_threshold(monkeypatch) -> None:

@@ -729,4 +729,36 @@ mod tests {
             StatusCode::FORBIDDEN
         );
     }
+
+    #[test]
+    fn enforce_tenant_claims_requires_token_when_auth_enabled() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+        }
+        let request = Request::new(Body::Empty);
+        let result = enforce_tenant_claims(&request, "anthus", "kanbus", None);
+        assert_eq!(
+            result.expect_err("should fail").status(),
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    #[test]
+    fn enforce_tenant_claims_rejects_invalid_jwt_payload() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+        }
+        let request = Request::new(Body::Empty);
+        let result = enforce_tenant_claims(&request, "anthus", "kanbus", Some("invalid.jwt"));
+        assert_eq!(
+            result.expect_err("should fail").status(),
+            StatusCode::UNAUTHORIZED
+        );
+    }
 }
