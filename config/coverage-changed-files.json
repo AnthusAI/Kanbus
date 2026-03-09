@@ -1,0 +1,33 @@
+{
+  "file_baselines": {
+    "python/src/kanbus/gossip.py": 42.8571,
+    "python/src/kanbus/overlay.py": 63.7681,
+    "python/src/kanbus/snyk_sync.py": 25.3411,
+    "rust/src/beads_write.rs": 67.1028,
+    "rust/src/bin/console_lambda.rs": 46.3602,
+    "rust/src/bin/console_local.rs": 6.9085,
+    "rust/src/bin/discovery_benchmark.rs": 17.2414,
+    "rust/src/bin/index_benchmark.rs": 25.9804,
+    "rust/src/console_telemetry.rs": 58.3333,
+    "rust/src/gossip.rs": 40.6284,
+    "rust/src/overlay.rs": 61.7834,
+    "rust/src/snyk_sync.rs": 14.8541
+  },
+  "python_min": 75.0,
+  "rust_min": 65.0,
+  "waiver_min_improvement_points": 3.0,
+  "waivers": [
+    "python/src/kanbus/gossip.py",
+    "python/src/kanbus/overlay.py",
+    "python/src/kanbus/snyk_sync.py",
+    "rust/src/beads_write.rs",
+    "rust/src/bin/console_lambda.rs",
+    "rust/src/bin/console_local.rs",
+    "rust/src/bin/discovery_benchmark.rs",
+    "rust/src/bin/index_benchmark.rs",
+    "rust/src/console_telemetry.rs",
+    "rust/src/gossip.rs",
+    "rust/src/overlay.rs",
+    "rust/src/snyk_sync.rs"
+  ]
+}
