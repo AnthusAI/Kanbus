@@ -439,6 +439,28 @@ def test_fetch_v1_enrichment_skips_non_ok_and_uses_issue_id(monkeypatch) -> None
     assert "SNYK-1" in enriched
 
 
+def test_fetch_v1_enrichment_continues_when_request_raises(monkeypatch) -> None:
+    calls = {"count": 0}
+
+    def fake_post(url: str, headers: dict, json: dict, timeout: int) -> _FakeResponse:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("network failure")
+        return _FakeResponse(
+            ok=True,
+            status_code=200,
+            payload={"issues": [{"issueData": {"id": "SNYK-2"}}]},
+        )
+
+    monkeypatch.setattr(snyk_sync.requests, "post", fake_post)
+    enriched = snyk_sync._fetch_v1_enrichment(
+        org_id="org",
+        token="token",
+        project_ids=["project-a", "project-b"],
+    )
+    assert enriched == {"SNYK-2": {"issueData": {"id": "SNYK-2"}}}
+
+
 def test_map_snyk_to_kanbus_code_includes_location_custom_fields(tmp_path: Path) -> None:
     source_file = tmp_path / "src" / "vuln.py"
     source_file.parent.mkdir(parents=True)

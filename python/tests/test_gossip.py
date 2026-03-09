@@ -36,6 +36,15 @@ def test_parse_broker_url_rejects_invalid_values() -> None:
         raise AssertionError("expected GossipError")
 
 
+def test_parse_broker_url_rejects_invalid_port() -> None:
+    try:
+        gossip._parse_broker_url("mqtt://broker.example:not-a-port")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("expected ValueError")
+
+
 def test_uds_socket_path_prefers_xdg_runtime_dir(monkeypatch) -> None:
     monkeypatch.setenv("XDG_RUNTIME_DIR", "/tmp/runtime-test")
     socket_path = gossip._uds_socket_path()
@@ -58,6 +67,15 @@ def test_load_broker_metadata_returns_none_for_invalid_json(
     run_dir = tmp_path / "run"
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "broker.json").write_text("{invalid-json", encoding="utf-8")
+    monkeypatch.setattr(gossip, "_broker_run_dir", lambda: run_dir)
+    assert gossip._load_broker_metadata() is None
+
+
+def test_load_broker_metadata_returns_none_when_file_absent(
+    tmp_path: Path, monkeypatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(gossip, "_broker_run_dir", lambda: run_dir)
     assert gossip._load_broker_metadata() is None
 
