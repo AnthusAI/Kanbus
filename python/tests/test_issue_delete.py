@@ -126,3 +126,15 @@ def test_delete_issue_does_not_publish_for_local_issue_path(
 
     assert not issue_path.exists()
     assert published == []
+
+
+def test_delete_issue_wraps_lookup_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        issue_delete,
+        "load_issue_from_project",
+        lambda _r, _i: (_ for _ in ()).throw(issue_delete.IssueLookupError("missing")),
+    )
+    with pytest.raises(issue_delete.IssueDeleteError, match="missing"):
+        issue_delete.delete_issue(tmp_path, "kanbus-missing")
