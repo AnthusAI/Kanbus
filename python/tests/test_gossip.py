@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 import time
 from types import SimpleNamespace
@@ -56,3 +57,146 @@ def test_resolve_project_dir_returns_none_for_missing_label(
 ) -> None:
     monkeypatch.setattr(gossip, "resolve_labeled_projects", lambda _: [])
     assert gossip._resolve_project_dir(tmp_path, "missing") is None
+
+
+def test_resolve_broker_endpoint_auto_uses_metadata(monkeypatch) -> None:
+    monkeypatch.setattr(
+        gossip,
+        "_load_broker_metadata",
+        lambda: {"endpoint": "mqtt://127.0.0.1:2883"},
+    )
+    endpoint = gossip.resolve_broker_endpoint("auto")
+    assert endpoint.host == "127.0.0.1"
+    assert endpoint.port == 2883
+
+
+def test_publish_envelope_uses_uds_transport_when_socket_exists(
+    monkeypatch, tmp_path: Path
+) -> None:
+    socket_path = tmp_path / "bus.sock"
+    socket_path.parent.mkdir(parents=True, exist_ok=True)
+    socket_path.write_text("", encoding="utf-8")
+    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: socket_path)
+
+    published: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        gossip,
+        "_publish_uds",
+        lambda topic, envelope, _realtime: published.append((topic, envelope.issue_id or "")),
+    )
+    monkeypatch.setattr(
+        gossip,
+        "_publish_mqtt",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("mqtt path not expected")),
+    )
+
+    configuration = SimpleNamespace(
+        realtime=SimpleNamespace(
+            transport="auto", broker="mqtt://127.0.0.1:1883", autostart=True, keepalive=False
+        )
+    )
+    envelope = gossip.GossipEnvelope(
+        id="env-1",
+        ts="2026-01-01T00:00:00Z",
+        project="kanbus",
+        type="issue.mutated",
+        issue_id="KAN-1",
+        producer_id="producer-1",
+    )
+
+    gossip._publish_envelope(Path("."), configuration, "topic/one", envelope)
+    assert published == [("topic/one", "KAN-1")]
+
+
+def test_publish_envelope_skips_when_unreachable_and_autostart_disabled(monkeypatch) -> None:
+    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket"))
+    monkeypatch.setattr(
+        gossip,
+        "resolve_broker_endpoint",
+        lambda _broker: gossip.BrokerEndpoint(
+            scheme="mqtt", host="127.0.0.1", port=1883, url="mqtt://127.0.0.1:1883"
+        ),
+    )
+    monkeypatch.setattr(gossip, "broker_is_reachable", lambda _endpoint: False)
+
+    called = {"mqtt": False}
+
+    def _publish(*_args, **_kwargs) -> None:
+        called["mqtt"] = True
+
+    monkeypatch.setattr(gossip, "_publish_mqtt", _publish)
+
+    configuration = SimpleNamespace(
+        realtime=SimpleNamespace(
+            transport="mqtt",
+            broker="mqtt://127.0.0.1:1883",
+            autostart=False,
+            keepalive=False,
+        )
+    )
+    envelope = gossip.GossipEnvelope(
+        id="env-2",
+        ts="2026-01-01T00:00:00Z",
+        project="kanbus",
+        type="issue.deleted",
+        issue_id="KAN-2",
+        producer_id="producer-2",
+    )
+
+    gossip._publish_envelope(Path("."), configuration, "topic/two", envelope)
+    assert called["mqtt"] is False
+
+
+@dataclass
+class _DummyProcess:
+    terminated: bool = False
+
+    def terminate(self) -> None:
+        self.terminated = True
+
+
+def test_publish_envelope_autostarts_and_terminates_when_not_keepalive(monkeypatch) -> None:
+    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket"))
+    monkeypatch.setattr(
+        gossip,
+        "resolve_broker_endpoint",
+        lambda _broker: gossip.BrokerEndpoint(
+            scheme="mqtt", host="127.0.0.1", port=1883, url="mqtt://127.0.0.1:1883"
+        ),
+    )
+    monkeypatch.setattr(gossip, "broker_is_reachable", lambda _endpoint: False)
+
+    process = _DummyProcess()
+    monkeypatch.setattr(
+        gossip,
+        "ensure_mosquitto",
+        lambda endpoint: gossip.BrokerStartup(endpoint=endpoint, process=process),  # type: ignore[arg-type]
+    )
+
+    published: list[str] = []
+    monkeypatch.setattr(
+        gossip,
+        "_publish_mqtt",
+        lambda _endpoint, topic, _envelope: published.append(topic),
+    )
+
+    configuration = SimpleNamespace(
+        realtime=SimpleNamespace(
+            transport="mqtt",
+            broker="auto",
+            autostart=True,
+            keepalive=False,
+        )
+    )
+    envelope = gossip.GossipEnvelope(
+        id="env-3",
+        ts="2026-01-01T00:00:00Z",
+        project="kanbus",
+        type="issue.mutated",
+        issue_id="KAN-3",
+        producer_id="producer-3",
+    )
+
+    gossip._publish_envelope(Path("."), configuration, "topic/three", envelope)
+    assert published == ["topic/three"]
+    assert process.terminated is True
