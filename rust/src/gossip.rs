@@ -142,10 +142,7 @@ pub fn publish_issue_mutation(
     };
     let topic = project_topic(&configuration.realtime, &project_label);
     if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
-        eprintln!(
-            "warning: realtime publish failed for {}: {}",
-            issue.identifier, error
-        );
+        eprintln!("warning: realtime publish failed: {error}");
     }
 }
 
@@ -184,7 +181,7 @@ pub fn publish_issue_deleted(
     };
     let topic = project_topic(&configuration.realtime, &project_label);
     if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
-        eprintln!("warning: realtime publish failed for {issue_id}: {error}");
+        eprintln!("warning: realtime publish failed: {error}");
     }
 }
 

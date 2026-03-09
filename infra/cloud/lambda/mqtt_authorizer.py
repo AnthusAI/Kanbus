@@ -20,6 +20,9 @@ _AWS_REGION = os.environ.get("KANBUS_AWS_REGION", os.environ.get("AWS_REGION", "
 _COGNITO_USER_POOL_ID = os.environ.get("KANBUS_COGNITO_USER_POOL_ID", "")
 _TENANT_ACCOUNT_CLAIM_KEY = os.environ.get("KANBUS_TENANT_ACCOUNT_CLAIM_KEY", "custom:account")
 _TENANT_PROJECT_CLAIM_KEY = os.environ.get("KANBUS_TENANT_PROJECT_CLAIM_KEY", "custom:project")
+_HASH_SCHEME = "pbkdf2_sha256_v1"
+_HASH_ITERATIONS = max(int(os.environ.get("KANBUS_TOKEN_HASH_ITERATIONS", "210000")), 100000)
+_HASH_BYTES = 32
 
 _dynamodb = boto3.resource("dynamodb")
 _table = _dynamodb.Table(_TOKEN_TABLE)
@@ -42,7 +45,15 @@ def _load_pepper() -> str:
 
 def _hash_secret(raw_secret: str) -> str:
     pepper = _load_pepper()
-    return hashlib.sha256(f"{pepper}:{raw_secret}".encode("utf-8")).hexdigest()
+    derived = hashlib.pbkdf2_hmac(
+        "sha256",
+        raw_secret.encode("utf-8"),
+        pepper.encode("utf-8"),
+        _HASH_ITERATIONS,
+        dklen=_HASH_BYTES,
+    )
+    encoded = base64.urlsafe_b64encode(derived).decode("utf-8").rstrip("=")
+    return f"{_HASH_SCHEME}${_HASH_ITERATIONS}${encoded}"
 
 
 def _decode_password(raw_password: str | None) -> str | None:
@@ -220,8 +231,6 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                         "level": "info",
                         "result": "allow",
                         "source": "cognito_access_token",
-                        "account": account,
-                        "project": project,
                     }
                 )
             )
@@ -272,9 +281,6 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                     "level": "info",
                     "result": "allow",
                     "source": "api_token",
-                    "account": account,
-                    "project": project,
-                    "token_id": token_id,
                 }
             )
         )

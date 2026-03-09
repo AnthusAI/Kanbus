@@ -87,7 +87,30 @@ function decodeState(value: string): { returnTo: string } | null {
     if (!parsed.returnTo) {
       return null;
     }
-    return { returnTo: parsed.returnTo };
+    const returnTo = sanitizeReturnTo(parsed.returnTo);
+    if (!returnTo) {
+      return null;
+    }
+    return { returnTo };
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeReturnTo(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const target = new URL(trimmed, window.location.origin);
+    if (target.origin !== window.location.origin) {
+      return null;
+    }
+    if (!target.pathname.startsWith("/")) {
+      return null;
+    }
+    return `${target.pathname}${target.search}${target.hash}`;
   } catch {
     return null;
   }

@@ -49,8 +49,16 @@ def _load_pepper() -> str:
 
 def _hash_secret(raw_secret: str) -> str:
     pepper = _load_pepper()
-    digest = hashlib.sha256(f"{pepper}:{raw_secret}".encode("utf-8")).hexdigest()
-    return digest
+    iterations = max(int(os.environ.get("KANBUS_TOKEN_HASH_ITERATIONS", "210000")), 100000)
+    derived = hashlib.pbkdf2_hmac(
+        "sha256",
+        raw_secret.encode("utf-8"),
+        pepper.encode("utf-8"),
+        iterations,
+        dklen=32,
+    )
+    digest = base64.urlsafe_b64encode(derived).decode("utf-8").rstrip("=")
+    return f"pbkdf2_sha256_v1${iterations}${digest}"
 
 
 def _claims(event: dict[str, Any]) -> dict[str, str]:
