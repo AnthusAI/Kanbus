@@ -1504,4 +1504,35 @@ mod tests {
             Some("AnthusAI/Kanbus".to_string())
         );
     }
+
+    #[test]
+    fn severity_to_priority_defaults_unknown_to_lowest_priority() {
+        assert_eq!(severity_to_priority("unknown"), 3);
+    }
+
+    #[test]
+    fn build_snippet_returns_none_for_invalid_or_missing_input() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        assert!(build_snippet(temp_dir.path(), "missing.py", Some(1), Some(1)).is_none());
+        let source_path = temp_dir.path().join("src").join("app.py");
+        std::fs::create_dir_all(source_path.parent().expect("parent")).expect("mkdir");
+        std::fs::write(source_path, "line1\nline2\n").expect("write");
+        assert!(build_snippet(temp_dir.path(), "src/app.py", Some(0), Some(1)).is_none());
+    }
+
+    #[test]
+    fn extract_source_location_returns_none_without_file_path() {
+        let issue = json!({
+            "attributes": {
+                "coordinates": [{
+                    "representations": [{
+                        "source_location": {
+                            "region": { "start": { "line": 1, "column": 1 } }
+                        }
+                    }]
+                }]
+            }
+        });
+        assert_eq!(extract_source_location(&issue), None);
+    }
 }
