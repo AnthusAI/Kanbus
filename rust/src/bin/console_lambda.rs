@@ -677,6 +677,10 @@ mod tests {
         let value = query_param("access_token=abc&foo=bar", "access_token");
         assert_eq!(value.as_deref(), Some("abc"));
         assert_eq!(query_param("foo=bar", "access_token"), None);
+        assert_eq!(
+            query_param("access_token=&foo=bar", "access_token").as_deref(),
+            Some("")
+        );
     }
 
     #[test]
@@ -707,6 +711,18 @@ mod tests {
 
         assert_eq!(bearer_token(&req_upper).as_deref(), Some("token-123"));
         assert_eq!(bearer_token(&req_lower).as_deref(), Some("token-456"));
+    }
+
+    #[test]
+    fn bearer_token_returns_none_for_missing_or_invalid_prefix() {
+        let req_missing = Request::new(Body::Empty);
+        let mut req_invalid = Request::new(Body::Empty);
+        req_invalid
+            .headers_mut()
+            .insert("Authorization", "Token abc".parse().expect("header"));
+
+        assert!(bearer_token(&req_missing).is_none());
+        assert!(bearer_token(&req_invalid).is_none());
     }
 
     #[test]
