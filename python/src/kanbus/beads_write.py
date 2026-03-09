@@ -98,7 +98,6 @@ def create_beads_issue(
     if not issues_path.exists():
         raise BeadsWriteError("no issues.jsonl")
     original_contents = issues_path.read_text(encoding="utf-8")
-    original_contents = issues_path.read_text(encoding="utf-8")
 
     records = _load_beads_records(issues_path)
     if not records:

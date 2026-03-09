@@ -1,6 +1,6 @@
 import { Before, Given, When, Then } from "@cucumber/cucumber";
 import { expect } from "@playwright/test";
-import { mkdir, rm, writeFile, readFile, access } from "fs/promises";
+import { mkdir, rm, writeFile, access } from "fs/promises";
 import path from "path";
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
@@ -43,12 +43,6 @@ async function writeWikiPage(relativePath, content) {
   await writeFile(target, content, "utf-8");
 }
 
-async function readWikiPage(relativePath) {
-  const root = requireWikiRoot();
-  const target = path.join(root, relativePath);
-  return readFile(target, "utf-8");
-}
-
 function pathLeaf(relativePath) {
   return relativePath.replace(/^.*\//, "");
 }
@@ -59,32 +53,6 @@ function wikiPageButton(page, relativePath) {
     .locator(".wiki-directory-listing button")
     .filter({ hasText: leaf })
     .first();
-}
-
-async function clickWikiPage(page, relativePath) {
-  const leaf = pathLeaf(relativePath);
-  let button = wikiPageButton(page, relativePath);
-  try {
-    await expect(button).toBeVisible({ timeout: 4000 });
-    await button.click();
-    return;
-  } catch {
-    const wikiHome = page.getByRole("button", { name: "Wiki" }).first();
-    if ((await wikiHome.count()) > 0) {
-      await wikiHome.click();
-    }
-    button = wikiPageButton(page, relativePath);
-    try {
-      await expect(button).toBeVisible({ timeout: 15000 });
-      await button.click();
-      return;
-    } catch {
-      const crumb = page.getByTestId(`wiki-path-${leaf}`).or(page.getByRole("button", { name: relativePath })).first();
-      await expect(crumb).toBeVisible({ timeout: 15000 });
-      await crumb.click();
-      return;
-    }
-  }
 }
 
 function encodeWikiPath(pathValue) {

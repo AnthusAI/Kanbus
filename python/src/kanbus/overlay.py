@@ -161,7 +161,6 @@ def resolve_issue_with_overlay(
             _remove_path(
                 overlay_issue_path(project_dir, overlay_issue.issue.identifier)
             )
-            overlay_issue = None
         elif base_updated and _overlay_is_newer(
             overlay_issue.overlay_ts,
             base_updated,

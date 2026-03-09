@@ -117,7 +117,9 @@ class HookHandler(Protocol):
         invocation: HookInvocation,
         project_root: Path,
         timeout_ms: int,
-    ) -> HookResult: ...
+    ) -> HookResult:
+        """Abstract method; subclasses implement hook execution."""
+        pass
 
 
 class ExternalCommandHookHandler:
