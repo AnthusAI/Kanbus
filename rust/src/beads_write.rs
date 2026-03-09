@@ -1246,6 +1246,15 @@ fn next_beads_slug() -> Option<String> {
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::sync::{Mutex, OnceLock};
+    use tempfile::TempDir;
+
+    fn slug_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("slug lock")
+    }
 
     #[test]
     fn issue_id_match_handles_prefix_abbreviations() {
@@ -1282,6 +1291,7 @@ mod tests {
 
     #[test]
     fn generate_identifier_uses_test_slug_sequence() {
+        let _guard = slug_lock();
         set_test_beads_slug_sequence(Some(vec!["abc".to_string()]));
         let existing_ids = HashSet::from(["kanbus-def".to_string()]);
 
@@ -1305,5 +1315,130 @@ mod tests {
     fn next_child_suffix_defaults_to_one_when_no_children() {
         let existing_ids = HashSet::from(["kanbus-root".to_string()]);
         assert_eq!(next_child_suffix(&existing_ids, "kanbus-root"), 1);
+    }
+
+    #[test]
+    fn comment_id_value_supports_string_and_number_ids() {
+        assert_eq!(
+            comment_id_value(&json!({"id": "42", "text": "a"})),
+            Some("42".to_string())
+        );
+        assert_eq!(
+            comment_id_value(&json!({"id": 99, "text": "b"})),
+            Some("99".to_string())
+        );
+        assert_eq!(comment_id_value(&json!({"id": true})), None);
+        assert_eq!(comment_id_value(&json!({"text": "missing"})), None);
+    }
+
+    #[test]
+    fn match_comment_prefix_handles_required_not_found_and_single_match() {
+        let issue = "kanbus-123";
+        let comments = vec![
+            json!({"id": 1, "text": "first"}),
+            json!({"id": "2", "text": "second"}),
+        ];
+
+        let required_error = match_comment_prefix(issue, &comments, "  ").expect_err("required");
+        assert!(required_error
+            .to_string()
+            .contains("comment id is required"));
+
+        let not_found = match_comment_prefix(issue, &comments, "ffffffff").expect_err("not found");
+        assert!(not_found.to_string().contains("comment not found"));
+
+        let prefix = &beads_comment_uuid(issue, "1")[..8];
+        let index = match_comment_prefix(issue, &comments, prefix).expect("single match");
+        assert_eq!(index, 0);
+    }
+
+    #[test]
+    fn resolve_beads_identifier_handles_exact_prefix_ambiguous_and_missing() {
+        let records = vec![
+            json!({ "id": "kanbus-abc123" }),
+            json!({ "id": "kanbus-abc456" }),
+            json!({ "id": "kanbus-zzz999" }),
+        ];
+
+        let exact = resolve_beads_identifier(&records, "kanbus-zzz999").expect("exact");
+        assert_eq!(exact, "kanbus-zzz999");
+
+        let unique_prefix = resolve_beads_identifier(&records, "kanbus-abc1").expect("prefix");
+        assert_eq!(unique_prefix, "kanbus-abc123");
+
+        let ambiguous = resolve_beads_identifier(&records, "kanbus-abc").expect_err("ambiguous");
+        assert!(ambiguous.to_string().contains("ambiguous identifier"));
+
+        let missing = resolve_beads_identifier(&records, "kanbus-nope").expect_err("missing");
+        assert!(missing.to_string().contains("not found"));
+    }
+
+    #[test]
+    fn resolve_beads_index_returns_not_found_for_missing_identifier() {
+        let records = vec![json!({ "id": "kanbus-abc123" })];
+        let error = resolve_beads_index(&records, "kanbus-none").expect_err("missing");
+        assert!(error.to_string().contains("not found"));
+    }
+
+    #[test]
+    fn derive_prefix_rejects_invalid_or_empty_identifiers() {
+        let invalid_only = HashSet::from(["invalid".to_string()]);
+        let invalid_error = derive_prefix(&invalid_only).expect_err("invalid");
+        assert!(invalid_error.to_string().contains("invalid beads id"));
+
+        let empty = HashSet::new();
+        let empty_error = derive_prefix(&empty).expect_err("empty");
+        assert!(empty_error.to_string().contains("invalid beads id"));
+    }
+
+    #[test]
+    fn generate_identifier_supports_parent_and_increments_on_conflict() {
+        let _guard = slug_lock();
+        set_test_beads_slug_sequence(Some(vec!["abc".to_string(), "def".to_string()]));
+        let existing_ids = HashSet::from(["kanbus-abc".to_string(), "kanbus-parent.1".to_string()]);
+
+        let top_level = generate_identifier(&existing_ids, "kanbus", None).expect("top level");
+        assert_eq!(top_level, "kanbus-def");
+
+        let child =
+            generate_identifier(&existing_ids, "kanbus", Some("kanbus-parent")).expect("child");
+        assert_eq!(child, "kanbus-parent.2");
+        set_test_beads_slug_sequence(None);
+    }
+
+    #[test]
+    fn collect_ids_rejects_records_without_string_ids() {
+        let records = vec![json!({"id": 123})];
+        let error = collect_ids(&records).expect_err("invalid id");
+        assert!(error.to_string().contains("missing id"));
+    }
+
+    #[test]
+    fn load_and_write_beads_records_round_trip_and_reject_invalid_lines() {
+        let tmp = TempDir::new().expect("temp dir");
+        let path = tmp.path().join("issues.jsonl");
+        let records = vec![json!({"id":"kanbus-1"}), json!({"id":"kanbus-2"})];
+
+        std::fs::write(&path, "").expect("seed file");
+        write_beads_records(&path, &records).expect("write records");
+        let parsed = load_beads_records(&path).expect("load records");
+        assert_eq!(parsed, records);
+
+        std::fs::write(&path, "{\"id\":\"ok\"}\nnot-json\n").expect("write invalid lines");
+        let error = load_beads_records(&path).expect_err("invalid json line");
+        assert!(error.to_string().contains("expected ident"));
+    }
+
+    #[test]
+    fn append_record_appends_json_line() {
+        let tmp = TempDir::new().expect("temp dir");
+        let path = tmp.path().join("issues.jsonl");
+        std::fs::write(&path, "{\"id\":\"kanbus-1\"}\n").expect("seed file");
+
+        append_record(&path, json!({"id":"kanbus-2"})).expect("append record");
+        let contents = std::fs::read_to_string(&path).expect("read file");
+        assert!(contents.contains("{\"id\":\"kanbus-1\"}"));
+        assert!(contents.contains("{\"id\":\"kanbus-2\"}"));
+        assert!(contents.ends_with('\n'));
     }
 }
