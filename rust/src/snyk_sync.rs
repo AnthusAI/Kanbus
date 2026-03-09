@@ -1760,6 +1760,89 @@ mod tests {
     }
 
     #[test]
+    fn resolve_snyk_epics_uses_configured_parent_for_requested_categories() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+
+        let mut parent = make_issue("kanbus-parent", "epic", "Configured");
+        parent.labels = vec!["snyk".into(), "security".into()];
+        write_issue_to_file(&parent, &issue_path_for_identifier(&issues_dir, "kanbus-parent"))
+            .expect("write parent");
+
+        let mut all_existing = HashSet::from([String::from("kanbus-parent")]);
+        let mut ctx = SnykContext {
+            issues_dir: &issues_dir,
+            project_key: "kanbus",
+            dry_run: false,
+            all_existing: &mut all_existing,
+        };
+        let epics = resolve_snyk_epics(
+            &mut ctx,
+            Some("kanbus-parent"),
+            &SnykEpicOptions {
+                include_dependency: true,
+                include_code: true,
+                dependency_priority: Some(1),
+                code_priority: Some(2),
+            },
+        )
+        .expect("resolve configured epics");
+
+        assert_eq!(
+            epics.get("dependency").map(std::string::String::as_str),
+            Some("kanbus-parent")
+        );
+        assert_eq!(
+            epics.get("code").map(std::string::String::as_str),
+            Some("kanbus-parent")
+        );
+    }
+
+    #[test]
+    fn resolve_snyk_epics_creates_initiative_and_category_epics() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+
+        let mut all_existing = HashSet::new();
+        let mut ctx = SnykContext {
+            issues_dir: &issues_dir,
+            project_key: "kanbus",
+            dry_run: false,
+            all_existing: &mut all_existing,
+        };
+        let epics = resolve_snyk_epics(
+            &mut ctx,
+            None,
+            &SnykEpicOptions {
+                include_dependency: true,
+                include_code: true,
+                dependency_priority: Some(1),
+                code_priority: Some(0),
+            },
+        )
+        .expect("resolve epics");
+
+        let dep_id = epics.get("dependency").expect("dependency epic id");
+        let code_id = epics.get("code").expect("code epic id");
+        assert_ne!(dep_id, code_id);
+
+        let dep_issue =
+            read_issue_from_file(&issue_path_for_identifier(&issues_dir, dep_id)).expect("dep epic");
+        let code_issue = read_issue_from_file(&issue_path_for_identifier(&issues_dir, code_id))
+            .expect("code epic");
+        assert_eq!(dep_issue.title, SNYK_DEP_EPIC_TITLE);
+        assert_eq!(dep_issue.priority, 1);
+        assert_eq!(code_issue.title, SNYK_CODE_EPIC_TITLE);
+        assert_eq!(code_issue.priority, 0);
+        assert_eq!(dep_issue.issue_type, "epic");
+        assert_eq!(code_issue.issue_type, "epic");
+        assert!(dep_issue.labels.contains(&"dependency".to_string()));
+        assert!(code_issue.labels.contains(&"code".to_string()));
+    }
+
+    #[test]
     fn find_existing_snyk_filters_and_prefers_latest() {
         let temp_dir = TempDir::new().expect("tempdir");
         let issues_dir = temp_dir.path().join("issues");
