@@ -1479,4 +1479,29 @@ mod tests {
         assert!(snippet.contains("Snippet (src/app.py:1-5)"));
         assert!(snippet.contains("   3 | line3"));
     }
+
+    #[test]
+    fn detect_repo_from_git_normalizes_origin_url() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("git init");
+        std::process::Command::new("git")
+            .args([
+                "remote",
+                "add",
+                "origin",
+                "git@github.com:AnthusAI/Kanbus.git",
+            ])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("git remote add");
+
+        assert_eq!(
+            detect_repo_from_git(temp_dir.path()),
+            Some("AnthusAI/Kanbus".to_string())
+        );
+    }
 }

@@ -1290,4 +1290,20 @@ mod tests {
         assert_eq!(identifier, "kanbus-abc");
         set_test_beads_slug_sequence(None);
     }
+
+    #[test]
+    fn resolve_beads_index_returns_exact_match() {
+        let records = vec![
+            json!({ "id": "kanbus-aaaaaa" }),
+            json!({ "id": "kanbus-bbbbbb" }),
+        ];
+        let index = resolve_beads_index(&records, "kanbus-bbbbbb").expect("index");
+        assert_eq!(index, 1);
+    }
+
+    #[test]
+    fn next_child_suffix_defaults_to_one_when_no_children() {
+        let existing_ids = HashSet::from(["kanbus-root".to_string()]);
+        assert_eq!(next_child_suffix(&existing_ids, "kanbus-root"), 1);
+    }
 }

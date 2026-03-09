@@ -1068,6 +1068,7 @@ fn print_mosquitto_missing() {
 mod tests {
     use super::*;
     use crate::models::RealtimeTopics;
+    use std::path::PathBuf;
     use std::sync::mpsc;
     use tempfile::TempDir;
 
@@ -1191,5 +1192,24 @@ mod tests {
                 .and_then(|v| v.as_str()),
             Some("issue.mutated")
         );
+    }
+
+    #[test]
+    fn parse_broker_url_supports_default_and_explicit_ports() {
+        let default_endpoint = parse_broker_url("mqtt://broker.example").expect("endpoint");
+        assert_eq!(default_endpoint.host, "broker.example");
+        assert_eq!(default_endpoint.port, 1883);
+
+        let explicit_endpoint = parse_broker_url("mqtts://broker.example:8883").expect("endpoint");
+        assert_eq!(explicit_endpoint.host, "broker.example");
+        assert_eq!(explicit_endpoint.port, 8883);
+    }
+
+    #[test]
+    fn uds_socket_path_prefers_env_runtime_dir() {
+        std::env::set_var("XDG_RUNTIME_DIR", "/tmp/kanbus-runtime");
+        let path = uds_socket_path(None);
+        std::env::remove_var("XDG_RUNTIME_DIR");
+        assert_eq!(path, PathBuf::from("/tmp/kanbus-runtime/kanbus/bus.sock"));
     }
 }
