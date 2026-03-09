@@ -29,15 +29,11 @@ pub struct ConsoleUiState {
 }
 
 fn resolve_state_path(root: &Path) -> Result<PathBuf, KanbusError> {
-    let fallback = root.join(".kanbus").join(".cache").join(STATE_FILE_NAME);
-    let candidate = crate::daemon_paths::get_console_state_path(root).unwrap_or(fallback);
-
     let canonical_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    let absolute = if candidate.is_absolute() {
-        candidate
-    } else {
-        canonical_root.join(candidate)
-    };
+    let absolute = canonical_root
+        .join(".kanbus")
+        .join(".cache")
+        .join(STATE_FILE_NAME);
 
     if absolute
         .components()
