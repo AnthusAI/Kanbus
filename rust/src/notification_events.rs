@@ -201,4 +201,82 @@ mod tests {
         assert_eq!(focused_no_user.description(), "Issue kanbus-2 focused");
         assert!(ui.description().starts_with("UI control: "));
     }
+
+    #[test]
+    fn description_covers_created_deleted_and_focused_with_user() {
+        let issue = sample_issue("kanbus-3");
+        let created = NotificationEvent::IssueCreated {
+            issue_id: "kanbus-3".to_string(),
+            issue_data: issue.clone(),
+        };
+        let deleted = NotificationEvent::IssueDeleted {
+            issue_id: "kanbus-3".to_string(),
+        };
+        let focused = NotificationEvent::IssueFocused {
+            issue_id: "kanbus-3".to_string(),
+            user: Some("pair".to_string()),
+            comment_id: Some("cmt-1".to_string()),
+        };
+
+        assert_eq!(created.description(), "Issue kanbus-3 created");
+        assert_eq!(deleted.description(), "Issue kanbus-3 deleted");
+        assert_eq!(focused.description(), "Issue kanbus-3 focused by pair");
+    }
+
+    #[test]
+    fn ui_control_variants_serialize_with_expected_action_tags() {
+        let cases = vec![
+            (UiControlAction::ClearFocus, "clear_focus"),
+            (
+                UiControlAction::SetViewMode {
+                    mode: "board".into(),
+                },
+                "set_view_mode",
+            ),
+            (
+                UiControlAction::SetSearch {
+                    query: "abc".into(),
+                },
+                "set_search",
+            ),
+            (UiControlAction::MaximizeDetail, "maximize_detail"),
+            (UiControlAction::RestoreDetail, "restore_detail"),
+            (UiControlAction::CloseDetail, "close_detail"),
+            (UiControlAction::ToggleSettings, "toggle_settings"),
+            (
+                UiControlAction::SetSetting {
+                    key: "theme".into(),
+                    value: "light".into(),
+                },
+                "set_setting",
+            ),
+            (
+                UiControlAction::CollapseColumn {
+                    column_name: "todo".into(),
+                },
+                "collapse_column",
+            ),
+            (
+                UiControlAction::ExpandColumn {
+                    column_name: "doing".into(),
+                },
+                "expand_column",
+            ),
+            (
+                UiControlAction::SelectIssue {
+                    issue_id: "kanbus-1".into(),
+                },
+                "select_issue",
+            ),
+            (UiControlAction::ReloadPage, "reload_page"),
+        ];
+
+        for (action, expected_tag) in cases {
+            let event = NotificationEvent::UiControl { action };
+            let value = serde_json::to_value(&event).expect("serialize event");
+            assert_eq!(value["type"], "ui_control");
+            assert_eq!(value["action"]["action"], expected_tag);
+            assert_eq!(event.issue_id(), None);
+        }
+    }
 }

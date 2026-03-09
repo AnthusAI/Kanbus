@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import subprocess
 
 from kanbus import snyk_sync
+from kanbus.issue_files import read_issue_from_file, write_issue_to_file
+from kanbus.models import SnykConfiguration
+from test_helpers import build_issue
 
 
 def test_severity_to_priority_mapping() -> None:
@@ -578,3 +582,129 @@ def test_map_snyk_to_kanbus_dependency_uses_v1_fix_and_meta() -> None:
     assert "Upgrade `openssl` to version 1.1.1u or later." in mapped.description
     assert "CVE-2026-1111" in mapped.description
     assert "CVE-2026-2222" in mapped.description
+
+
+def _write_issue(issues_dir: Path, issue) -> None:
+    write_issue_to_file(issue, issues_dir / f"{issue.identifier}.json")
+
+
+def test_pull_from_snyk_requires_token(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("SNYK_TOKEN", raising=False)
+    config = SnykConfiguration.model_validate({"org_id": "org"})
+    try:
+        snyk_sync.pull_from_snyk(tmp_path, config, "kanbus")
+    except snyk_sync.SnykSyncError as error:
+        assert "SNYK_TOKEN environment variable is not set" in str(error)
+    else:
+        raise AssertionError("expected SnykSyncError")
+
+
+def test_resolve_snyk_epics_returns_empty_when_no_categories(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    epics = snyk_sync._resolve_snyk_epics(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        configured_id=None,
+        dry_run=False,
+        all_existing=set(),
+        include_dependency=False,
+        include_code=False,
+        dependency_priority=None,
+        code_priority=None,
+    )
+    assert epics == {}
+
+
+def test_find_existing_snyk_initiative_prefers_most_recent(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    older = build_issue(
+        "kanbus-1",
+        issue_type="initiative",
+        title=snyk_sync.SNYK_INITIATIVE_TITLE,
+        labels=["snyk"],
+    )
+    newer = build_issue(
+        "kanbus-2",
+        issue_type="initiative",
+        title=snyk_sync.SNYK_INITIATIVE_TITLE,
+        labels=["snyk"],
+    )
+    older.updated_at = datetime(2026, 3, 1, tzinfo=timezone.utc)
+    newer.updated_at = datetime(2026, 3, 2, tzinfo=timezone.utc)
+    _write_issue(issues_dir, older)
+    _write_issue(issues_dir, newer)
+
+    found = snyk_sync._find_existing_snyk_initiative(
+        issues_dir, {"kanbus-1", "kanbus-2"}
+    )
+    assert found == "kanbus-2"
+
+
+def test_resolve_snyk_epic_updates_existing_priority(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    existing = build_issue(
+        "kanbus-epic",
+        issue_type="epic",
+        title=snyk_sync.SNYK_DEP_EPIC_TITLE,
+        parent="kanbus-init",
+        priority=3,
+        labels=["snyk", "security", "dependency"],
+    )
+    _write_issue(issues_dir, existing)
+    all_existing = {"kanbus-epic"}
+
+    epic_id = snyk_sync._resolve_snyk_epic(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        parent_initiative="kanbus-init",
+        title=snyk_sync.SNYK_DEP_EPIC_TITLE,
+        category="dependency",
+        priority=1,
+        dry_run=False,
+        all_existing=all_existing,
+    )
+    assert epic_id == "kanbus-epic"
+    updated = read_issue_from_file(issues_dir / "kanbus-epic.json")
+    assert updated.priority == 1
+
+
+def test_resolve_file_task_updates_existing_task(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    task = build_issue(
+        "kanbus-task",
+        issue_type="task",
+        title="requirements.txt",
+        parent="kanbus-old-epic",
+        priority=3,
+        labels=[],
+        custom={"snyk_target_file": "requirements.txt"},
+    )
+    task.updated_at = datetime.now(timezone.utc) - timedelta(days=2)
+    _write_issue(issues_dir, task)
+
+    task_id = snyk_sync._resolve_file_task(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        target_file="requirements.txt",
+        category="dependency",
+        ctx=snyk_sync.FileTaskContext(
+            epic_id="kanbus-new-epic",
+            priority=1,
+            dry_run=False,
+        ),
+        file_task_index={("dependency", "requirements.txt"): "kanbus-task"},
+        all_existing={"kanbus-task"},
+    )
+
+    assert task_id == "kanbus-task"
+    updated = read_issue_from_file(issues_dir / "kanbus-task.json")
+    assert updated.parent == "kanbus-new-epic"
+    assert updated.priority == 1
+    assert "snyk" in updated.labels
+    assert "security" in updated.labels
+    assert updated.custom["snyk_target_file"] == "requirements.txt"
+    assert updated.custom["snyk_category"] == "dependency"
