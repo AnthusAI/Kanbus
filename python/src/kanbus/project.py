@@ -243,7 +243,7 @@ def _normalize_project_directories(paths: Iterable[Path]) -> List[Path]:
             continue
         seen.add(candidate)
         normalized.append(candidate)
-    return sorted(normalized, key=lambda item: str(item))
+    return sorted(normalized, key=str)
 
 
 def resolve_project_path(path: Path) -> Path:

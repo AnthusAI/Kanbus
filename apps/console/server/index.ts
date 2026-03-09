@@ -197,9 +197,7 @@ apiRouter.get("/auth/bootstrap", (_req, res) => {
 apiRouter.get("/realtime/bootstrap", (_req, res) => {
   const account = "";
   const project = "";
-  const topic = account && project
-    ? `projects/${account}/${project}/events`
-    : "projects/local/local/events";
+  const topic = "projects/local/local/events";
   res.json({
     mode: "sse",
     region: "local",

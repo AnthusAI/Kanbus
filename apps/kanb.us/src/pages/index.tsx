@@ -9,11 +9,10 @@ import {
   type TaskDetailIssue
 } from "@kanbus/ui";
 import { FEATURE_ENTRIES } from "../content/features";
-import { VIDEOS, getVideoById } from "../content/videos";
+import { VIDEOS } from "../content/videos";
 import { getVideoSrc } from "../lib/getVideoSrc";
 import { AnimatedPictogram } from "../components/AnimatedPictogram";
 import { CodeUiSync } from "../components/CodeUiSync";
-import { HoverVideoPlayer } from "../components/HoverVideoPlayer";
 import { FullVideoPlayer } from "../components/FullVideoPlayer";
 import { useInView } from "framer-motion";
 import "@kanbus/ui/styles/kanban.css"; // Explicit import
@@ -303,10 +302,7 @@ const IndexPage = () => {
           <div className="grid gap-6 md:grid-cols-2">
             {FEATURE_ENTRIES.map((feature) => {
               const videoId = feature.href.split('/').pop() || "";
-              const featureVideo = getVideoById(videoId);
-              const poster = featureVideo?.poster ? getVideoSrc(featureVideo.poster) : undefined;
-              const src = featureVideo ? getVideoSrc(featureVideo.filename) : "";
-              
+
               return (
                 <a key={feature.href} href={feature.href} className="group block h-full">
                   <div className="bg-card rounded-2xl p-6 md:p-8 h-full flex flex-col transition-all duration-300 group-hover:bg-card-muted/50 group-hover:shadow-lg">

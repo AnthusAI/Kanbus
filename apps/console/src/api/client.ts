@@ -254,7 +254,6 @@ export function subscribeToSnapshots(
   let lastMessageAt: number | null = null;
 
   source.onopen = () => {
-    const now = Date.now();
     openCount += 1;
     lastMessageAt = null;
   };
