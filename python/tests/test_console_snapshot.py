@@ -265,3 +265,192 @@ def test_load_issues_with_virtual_projects_wraps_beads_migration_error(
 
     with pytest.raises(console_snapshot.ConsoleSnapshotError, match="bad beads"):
         console_snapshot._load_issues_with_virtual_projects(repo_root, config)
+
+
+def test_load_project_context_success_and_config_path_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / ".kanbus.yml"
+    config = build_project_configuration(project_directory="project")
+    monkeypatch.setattr(console_snapshot, "get_configuration_path", lambda _root: config_path)
+    monkeypatch.setattr(console_snapshot, "load_project_configuration", lambda _p: config)
+    project_dir, loaded = console_snapshot._load_project_context(tmp_path)
+    assert project_dir == tmp_path / "project"
+    assert loaded.project_key == config.project_key
+
+    monkeypatch.setattr(
+        console_snapshot,
+        "get_configuration_path",
+        lambda _root: (_ for _ in ()).throw(ConfigurationError("bad path")),
+    )
+    with pytest.raises(console_snapshot.ConsoleSnapshotError, match="bad path"):
+        console_snapshot._load_project_context(tmp_path)
+
+
+def test_load_console_issues_virtual_and_not_dir_and_permission_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_dir = tmp_path / "project"
+    project_dir.mkdir(parents=True)
+    cfg_virtual = build_project_configuration(virtual_projects={"alpha": {"path": "project"}})
+    issue = build_issue("kanbus-v")
+    monkeypatch.setattr(console_snapshot, "_load_issues_with_virtual_projects", lambda *_a: [issue])
+    assert console_snapshot._load_console_issues(tmp_path, project_dir, cfg_virtual) == [issue]
+
+    issues_path = project_dir / "issues"
+    issues_path.write_text("not a dir", encoding="utf-8")
+    cfg = build_project_configuration()
+    with pytest.raises(console_snapshot.ConsoleSnapshotError, match="project/issues directory not found"):
+        console_snapshot._load_console_issues(tmp_path, project_dir, cfg)
+
+    issues_path.unlink()
+    issues_path.mkdir()
+    monkeypatch.setattr(
+        console_snapshot,
+        "_read_issues_from_dir",
+        lambda _p: (_ for _ in ()).throw(PermissionError("no read")),
+    )
+    with pytest.raises(console_snapshot.ConsoleSnapshotError, match="no read"):
+        console_snapshot._load_console_issues(tmp_path, project_dir, cfg)
+
+
+def test_load_console_issues_local_read_permission_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_dir = tmp_path / "project"
+    local_dir = tmp_path / "project-local"
+    (project_dir / "issues").mkdir(parents=True)
+    (local_dir / "issues").mkdir(parents=True)
+    cfg = build_project_configuration()
+    shared_issue = build_issue("kanbus-shared")
+
+    def fake_read(path: Path):
+        if "project-local" in str(path):
+            raise PermissionError("local denied")
+        return [shared_issue]
+
+    monkeypatch.setattr(console_snapshot, "_read_issues_from_dir", fake_read)
+    monkeypatch.setattr(console_snapshot, "find_project_local_directory", lambda _p: local_dir)
+
+    with pytest.raises(console_snapshot.ConsoleSnapshotError, match="local denied"):
+        console_snapshot._load_console_issues(tmp_path, project_dir, cfg)
+
+
+def test_load_console_issues_local_read_invalid_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_dir = tmp_path / "project"
+    local_dir = tmp_path / "project-local"
+    (project_dir / "issues").mkdir(parents=True)
+    (local_dir / "issues").mkdir(parents=True)
+    cfg = build_project_configuration()
+    shared_issue = build_issue("kanbus-shared")
+
+    def fake_read(path: Path):
+        if "project-local" in str(path):
+            raise ValueError("bad local")
+        return [shared_issue]
+
+    monkeypatch.setattr(console_snapshot, "_read_issues_from_dir", fake_read)
+    monkeypatch.setattr(console_snapshot, "find_project_local_directory", lambda _p: local_dir)
+
+    with pytest.raises(console_snapshot.ConsoleSnapshotError, match="issue file is invalid"):
+        console_snapshot._load_console_issues(tmp_path, project_dir, cfg)
+
+
+def test_load_issues_with_virtual_projects_shared_local_and_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    p1 = repo / "alpha" / "project"
+    p2 = repo / "beta" / "project"
+    (p1 / "issues").mkdir(parents=True)
+    (p1.parent / "project-local" / "issues").mkdir(parents=True)
+    p2.mkdir(parents=True)
+    (p2.parent / ".beads").mkdir(parents=True)
+    (p2.parent / ".beads" / "issues.jsonl").write_text("", encoding="utf-8")
+
+    labeled = [
+        SimpleNamespace(label="alpha", project_dir=p1),
+        SimpleNamespace(label="beta", project_dir=p2),
+    ]
+    cfg = build_project_configuration(
+        virtual_projects={"alpha": {"path": str(p1)}, "beta": {"path": str(p2)}}
+    )
+    shared_issue = build_issue("kanbus-a1")
+    local_issue = build_issue("kanbus-a2")
+    beads_issue = build_issue("kanbus-b1")
+
+    def fake_read(path: Path):
+        if path == p1 / "issues":
+            return [shared_issue]
+        if path == p1.parent / "project-local" / "issues":
+            return [local_issue]
+        return []
+
+    monkeypatch.setattr(console_snapshot, "resolve_labeled_projects", lambda _r: labeled)
+    monkeypatch.setattr(console_snapshot, "_read_issues_from_dir", fake_read)
+    monkeypatch.setattr(
+        console_snapshot,
+        "find_project_local_directory",
+        lambda project: p1.parent / "project-local" if project == p1 else None,
+    )
+    monkeypatch.setattr(console_snapshot, "load_beads_issues", lambda _repo: [beads_issue])
+
+    issues = console_snapshot._load_issues_with_virtual_projects(repo, cfg)
+    assert [issue.identifier for issue in issues] == ["kanbus-a1", "kanbus-a2", "kanbus-b1"]
+    assert {issue.custom.get("project_label") for issue in issues} == {"alpha", "beta"}
+
+    monkeypatch.setattr(
+        console_snapshot,
+        "_read_issues_from_dir",
+        lambda _p: (_ for _ in ()).throw(PermissionError("shared denied")),
+    )
+    with pytest.raises(console_snapshot.ConsoleSnapshotError, match="shared denied"):
+        console_snapshot._load_issues_with_virtual_projects(repo, cfg)
+
+    monkeypatch.setattr(
+        console_snapshot,
+        "_read_issues_from_dir",
+        lambda _p: (_ for _ in ()).throw(ValueError("shared invalid")),
+    )
+    with pytest.raises(console_snapshot.ConsoleSnapshotError, match="shared invalid"):
+        console_snapshot._load_issues_with_virtual_projects(repo, cfg)
+
+
+def test_load_issues_with_virtual_projects_local_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    project_dir = repo / "alpha" / "project"
+    (project_dir / "issues").mkdir(parents=True)
+    local_issues_dir = project_dir.parent / "project-local" / "issues"
+    local_issues_dir.mkdir(parents=True)
+
+    labeled = [SimpleNamespace(label="alpha", project_dir=project_dir)]
+    cfg = build_project_configuration(virtual_projects={"alpha": {"path": str(project_dir)}})
+    shared_issue = build_issue("kanbus-a1")
+
+    def permission_local(path: Path):
+        if path == local_issues_dir:
+            raise PermissionError("local denied")
+        return [shared_issue]
+
+    monkeypatch.setattr(console_snapshot, "resolve_labeled_projects", lambda _r: labeled)
+    monkeypatch.setattr(
+        console_snapshot,
+        "find_project_local_directory",
+        lambda _p: project_dir.parent / "project-local",
+    )
+    monkeypatch.setattr(console_snapshot, "_read_issues_from_dir", permission_local)
+    with pytest.raises(console_snapshot.ConsoleSnapshotError, match="local denied"):
+        console_snapshot._load_issues_with_virtual_projects(repo, cfg)
+
+    def invalid_local(path: Path):
+        if path == local_issues_dir:
+            raise ValueError("local bad")
+        return [shared_issue]
+
+    monkeypatch.setattr(console_snapshot, "_read_issues_from_dir", invalid_local)
+    with pytest.raises(console_snapshot.ConsoleSnapshotError, match="local bad"):
+        console_snapshot._load_issues_with_virtual_projects(repo, cfg)
