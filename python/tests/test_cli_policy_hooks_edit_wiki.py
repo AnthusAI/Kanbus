@@ -253,6 +253,13 @@ def test_policy_guide_list_steps_validate_commands(
     )
     monkeypatch.setattr("kanbus.policy_loader.load_policies", lambda _p: [("p.feature", doc)])
 
+    monkeypatch.setattr("kanbus.project.load_project_directory", lambda _r: tmp_path / "project-no-policies-dir")
+    (tmp_path / "project-no-policies-dir").mkdir(parents=True, exist_ok=True)
+    result_list_no_dir = _run(["policy", "list"])
+    assert result_list_no_dir.exit_code == 0
+    assert "No policies directory found" in result_list_no_dir.output
+
+    monkeypatch.setattr("kanbus.project.load_project_directory", lambda _r: tmp_path / "project")
     result_list = _run(["policy", "list"])
     assert result_list.exit_code == 0
     assert "p.feature" in result_list.output
@@ -276,6 +283,25 @@ def test_policy_guide_list_steps_validate_commands(
     result_list_rule = _run(["policy", "list"])
     assert result_list_rule.exit_code == 0
     assert "Rule: R1 / Nested" in result_list_rule.output
+
+    doc_skip_paths = SimpleNamespace(
+        feature=SimpleNamespace(
+            name="F3",
+            children=[
+                SimpleNamespace(other="ignored"),
+                SimpleNamespace(
+                    rule=SimpleNamespace(
+                        name="R2",
+                        children=[SimpleNamespace(other="ignored")],
+                    )
+                ),
+            ],
+        )
+    )
+    monkeypatch.setattr("kanbus.policy_loader.load_policies", lambda _p: [("skip.feature", doc_skip_paths)])
+    result_skip_paths = _run(["policy", "list"])
+    assert result_skip_paths.exit_code == 0
+    assert "skip.feature" in result_skip_paths.output
 
     monkeypatch.setattr("kanbus.policy_loader.load_policies", lambda _p: [])
     result_list_none = _run(["policy", "list"])

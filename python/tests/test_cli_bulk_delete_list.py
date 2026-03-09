@@ -93,6 +93,31 @@ def test_bulk_update_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     assert result_list_fail.exit_code != 0
     assert "list fail" in result_list_fail.output
 
+    call_order = {"count": 0}
+
+    def _update_issue_second_fails(**kwargs):
+        call_order["count"] += 1
+        if call_order["count"] == 2:
+            raise IssueUpdateError("second update fail")
+        return build_issue(kwargs["identifier"])
+
+    monkeypatch.setattr(cli, "update_issue", _update_issue_second_fails)
+    monkeypatch.setattr(cli, "list_issues", lambda *_a, **_k: [build_issue("kanbus-2")])
+    result_second_update_fail = _run(
+        [
+            "bulk",
+            "update",
+            "--id",
+            "kanbus-1",
+            "--where-status",
+            "open",
+            "--set-status",
+            "done",
+        ]
+    )
+    assert result_second_update_fail.exit_code != 0
+    assert "second update fail" in result_second_update_fail.output
+
 
 def test_delete_paths_regular_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
