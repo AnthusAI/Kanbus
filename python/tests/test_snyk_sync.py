@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import subprocess
+from types import SimpleNamespace
 
 from kanbus import snyk_sync
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
@@ -708,3 +709,124 @@ def test_resolve_file_task_updates_existing_task(tmp_path: Path) -> None:
     assert "security" in updated.labels
     assert updated.custom["snyk_target_file"] == "requirements.txt"
     assert updated.custom["snyk_category"] == "dependency"
+
+
+def test_pull_from_snyk_groups_dedups_and_writes_issues(
+    tmp_path: Path, monkeypatch
+) -> None:
+    project_dir = tmp_path / "project"
+    issues_dir = project_dir / "issues"
+    issues_dir.mkdir(parents=True)
+    monkeypatch.setenv("SNYK_TOKEN", "token")
+
+    import kanbus.project as project_module
+
+    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
+    monkeypatch.setattr(snyk_sync, "_detect_repo_from_git", lambda root: "AnthusAI/Kanbus")
+    monkeypatch.setattr(
+        snyk_sync,
+        "_fetch_snyk_projects",
+        lambda org_id, token, repo_filter: {
+            "p1": "requirements.txt",
+            "p2": "src/app.py",
+        },
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_fetch_all_snyk_issues",
+        lambda org_id, token, min_priority, issue_types: [
+            {
+                "relationships": {"scan_item": {"data": {"id": "p1"}}},
+                "attributes": {
+                    "key": "SNYK-DEP-1",
+                    "type": "package_vulnerability",
+                    "effective_severity_level": "high",
+                },
+            },
+            {
+                "relationships": {"scan_item": {"data": {"id": "p1"}}},
+                "attributes": {
+                    "key": "SNYK-DEP-1",
+                    "type": "package_vulnerability",
+                    "effective_severity_level": "high",
+                },
+            },
+            {
+                "relationships": {"scan_item": {"data": {"id": "p2"}}},
+                "attributes": {
+                    "key": "SNYK-CODE-1",
+                    "type": "code",
+                    "effective_severity_level": "medium",
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        snyk_sync, "_fetch_v1_enrichment", lambda org_id, token, project_ids: {}
+    )
+
+    epics_calls: list[tuple[bool, bool, int | None, int | None]] = []
+
+    def fake_resolve_epics(
+        issues_dir: Path,
+        project_key: str,
+        configured_id: str | None,
+        dry_run: bool,
+        all_existing: set[str],
+        include_dependency: bool,
+        include_code: bool,
+        dependency_priority: int | None,
+        code_priority: int | None,
+    ) -> dict[str, str]:
+        epics_calls.append(
+            (include_dependency, include_code, dependency_priority, code_priority)
+        )
+        return {"dependency": "kanbus-dep-epic", "code": "kanbus-code-epic"}
+
+    monkeypatch.setattr(snyk_sync, "_resolve_snyk_epics", fake_resolve_epics)
+    monkeypatch.setattr(snyk_sync, "_build_snyk_key_index", lambda *_args: {})
+    monkeypatch.setattr(snyk_sync, "_build_file_task_index", lambda *_args: {})
+    monkeypatch.setattr(
+        snyk_sync,
+        "_resolve_file_task",
+        lambda issues_dir,
+        project_key,
+        target_file,
+        category,
+        ctx,
+        file_task_index,
+        all_existing: f"kanbus-task-{category}",
+    )
+    next_id = {"value": 0}
+
+    def fake_generate_issue_identifier(request):
+        next_id["value"] += 1
+        return SimpleNamespace(identifier=f"{request.prefix}-new-{next_id['value']:03d}")
+
+    monkeypatch.setattr(snyk_sync, "generate_issue_identifier", fake_generate_issue_identifier)
+    monkeypatch.setattr(
+        snyk_sync,
+        "_map_snyk_to_kanbus",
+        lambda vuln, task_id, v1_data, target_file, root: build_issue(
+            "__placeholder__",
+            title=f"{target_file}:{vuln['attributes']['key']}",
+            issue_type="sub-task",
+            parent=task_id,
+            labels=["security", "snyk"],
+            custom={"snyk_key": vuln["attributes"]["key"]},
+        ),
+    )
+
+    config = SnykConfiguration.model_validate({"org_id": "org", "min_severity": "medium"})
+    result = snyk_sync.pull_from_snyk(tmp_path, config, "kanbus", dry_run=False)
+
+    assert result.pulled == 2
+    assert result.updated == 0
+    assert result.skipped == 0
+    assert epics_calls == [(True, True, 1, 2)]
+
+    written_files = sorted(path.name for path in issues_dir.glob("*.json"))
+    assert written_files == ["kanbus-new-001.json", "kanbus-new-002.json"]
+    for file_name in written_files:
+        written = read_issue_from_file(issues_dir / file_name)
+        assert written.parent in {"kanbus-task-dependency", "kanbus-task-code"}
