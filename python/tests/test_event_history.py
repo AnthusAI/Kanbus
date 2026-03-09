@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from kanbus import event_history
@@ -54,6 +55,16 @@ def test_events_dir_helpers_handle_project_and_local_paths(tmp_path: Path) -> No
     )
     assert event_history.events_dir_for_issue(project_dir, "kanbus-1") == local_dir / "events"
     assert event_history.events_dir_for_issue(project_dir, "missing") == project_dir / "events"
+
+
+def test_events_dir_for_local_raises_when_parent_missing() -> None:
+    fake_path = SimpleNamespace(parent=None)
+    try:
+        event_history.events_dir_for_local(fake_path)  # type: ignore[arg-type]
+    except RuntimeError as error:
+        assert "project-local path unavailable" in str(error)
+    else:
+        raise AssertionError("expected RuntimeError")
 
 
 def test_write_events_batch_and_rollback(tmp_path: Path) -> None:
