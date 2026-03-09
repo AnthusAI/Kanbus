@@ -508,8 +508,79 @@ fn body_from_bytes(bytes: Vec<u8>) -> Body {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
+    use kanbus::issue_files::write_issue_to_file;
+    use kanbus::models::IssueData;
+    use std::collections::BTreeMap;
     use std::env;
     use std::sync::{Mutex, OnceLock};
+
+    fn temp_store_with_issues(issue_ids: &[&str]) -> (tempfile::TempDir, FileStore) {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().to_path_buf();
+        std::fs::write(
+            root.join(".kanbus.yml"),
+            r#"
+project_directory: project
+project_key: kanbus
+hierarchy: [initiative, epic, task, sub-task]
+types: [bug, story, chore]
+workflows:
+  default:
+    open: [in_progress, closed, backlog]
+    in_progress: [open, blocked, closed]
+    blocked: [in_progress, closed]
+    closed: [open]
+    backlog: [open, closed]
+initial_status: open
+priorities:
+  0: { name: critical }
+  1: { name: high }
+  2: { name: medium }
+  3: { name: low }
+  4: { name: trivial }
+default_priority: 2
+statuses:
+  - { key: open, name: Open, category: todo }
+  - { key: in_progress, name: In Progress, category: doing }
+  - { key: blocked, name: Blocked, category: todo }
+  - { key: closed, name: Closed, category: done }
+  - { key: backlog, name: Backlog, category: todo }
+categories:
+  - { name: todo }
+  - { name: doing }
+  - { name: done }
+type_colors: {}
+beads_compatibility: false
+"#,
+        )
+        .expect("write config");
+        let issues_dir = root.join("project").join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues dir");
+        for issue_id in issue_ids {
+            let issue = IssueData {
+                identifier: (*issue_id).to_string(),
+                title: format!("Issue {issue_id}"),
+                description: String::new(),
+                issue_type: "task".to_string(),
+                status: "open".to_string(),
+                priority: 2,
+                assignee: None,
+                creator: None,
+                parent: None,
+                labels: vec![],
+                dependencies: vec![],
+                comments: vec![],
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                closed_at: None,
+                custom: BTreeMap::new(),
+            };
+            write_issue_to_file(&issue, &issues_dir.join(format!("{issue_id}.json")))
+                .expect("write issue");
+        }
+        (temp, FileStore::new(root))
+    }
 
     fn body_to_string(body: &Body) -> String {
         match body {
@@ -862,5 +933,60 @@ mod tests {
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         let payload = body_to_string(response.body());
         assert!(payload.contains("KANBUS_IOT_DATA_ENDPOINT"));
+    }
+
+    #[test]
+    fn handle_config_and_issues_return_snapshot_payloads() {
+        let (_temp, store) = temp_store_with_issues(&["kanbus-abc12345"]);
+
+        let config_response = handle_config(&store).expect("config response");
+        assert_eq!(config_response.status(), StatusCode::OK);
+        let config_payload = body_to_string(config_response.body());
+        assert!(config_payload.contains("\"project_key\":\"kanbus\""));
+
+        let issues_response = handle_issues(&store).expect("issues response");
+        assert_eq!(issues_response.status(), StatusCode::OK);
+        let issues_payload = body_to_string(issues_response.body());
+        assert!(issues_payload.contains("kanbus-abc12345"));
+    }
+
+    #[test]
+    fn handle_issue_returns_expected_not_found_and_ambiguous_statuses() {
+        let (_single_temp, single_store) = temp_store_with_issues(&["kanbus-abcdef01"]);
+        let missing = handle_issue(&single_store, "kanbus-missing").expect("missing response");
+        assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+
+        let (_multi_temp, multi_store) =
+            temp_store_with_issues(&["kanbus-abcdef01", "kanbus-abcdef02"]);
+        let ambiguous =
+            handle_issue(&multi_store, "kanbus-abcdef").expect("ambiguous response");
+        assert_eq!(ambiguous.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn handle_events_and_realtime_events_return_sse_responses() {
+        let (_temp, store) = temp_store_with_issues(&["kanbus-abc12345"]);
+
+        let events = handle_events(&store).expect("events response");
+        assert_eq!(events.status(), StatusCode::OK);
+        assert_eq!(
+            events
+                .headers()
+                .get("Content-Type")
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+        let payload = body_to_string(events.body());
+        assert!(payload.starts_with("data: "));
+
+        let realtime = handle_realtime_events(&store).expect("realtime response");
+        assert_eq!(realtime.status(), StatusCode::OK);
+        assert_eq!(
+            realtime
+                .headers()
+                .get("Content-Type")
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
     }
 }
