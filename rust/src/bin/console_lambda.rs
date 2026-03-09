@@ -511,6 +511,14 @@ mod tests {
     use std::env;
     use std::sync::{Mutex, OnceLock};
 
+    fn body_to_string(body: &Body) -> String {
+        match body {
+            Body::Text(text) => text.clone(),
+            Body::Binary(bytes) => String::from_utf8_lossy(bytes).to_string(),
+            Body::Empty => String::new(),
+        }
+    }
+
     fn realtime_env_guard() -> std::sync::MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(()))
@@ -779,5 +787,80 @@ mod tests {
             result.expect_err("should fail").status(),
             StatusCode::UNAUTHORIZED
         );
+    }
+
+    #[test]
+    fn tenant_claim_keys_support_env_overrides() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_TENANT_ACCOUNT_CLAIM_KEY", "acct");
+            env::set_var("KANBUS_TENANT_PROJECT_CLAIM_KEY", "proj");
+        }
+        assert_eq!(tenant_account_claim_key(), "acct");
+        assert_eq!(tenant_project_claim_key(), "proj");
+    }
+
+    #[test]
+    fn no_content_and_not_found_return_expected_statuses() {
+        let no_content_response = no_content();
+        assert_eq!(no_content_response.status(), StatusCode::NO_CONTENT);
+
+        let not_found_response = not_found();
+        assert_eq!(not_found_response.status(), StatusCode::NOT_FOUND);
+        let payload = body_to_string(not_found_response.body());
+        assert!(payload.contains("not found"));
+    }
+
+    #[test]
+    fn resolve_store_root_prefers_tenant_root_when_config_present() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let base = temp.path();
+        let tenant_root = base.join("anthus").join("kanbus");
+        std::fs::create_dir_all(&tenant_root).expect("create tenant root");
+        std::fs::write(tenant_root.join(".kanbus.yml"), "project_key: kbs").expect("write config");
+
+        let resolved = resolve_store_root(base, "anthus", "kanbus");
+        assert_eq!(resolved, tenant_root);
+    }
+
+    #[test]
+    fn asset_response_returns_not_found_for_missing_asset() {
+        let _guard = realtime_env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("CONSOLE_ASSETS_ROOT", temp.path());
+        }
+        let response = asset_response("missing.js");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn asset_response_serves_existing_asset_from_override_root() {
+        let _guard = realtime_env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets_root = temp.path().join("assets");
+        std::fs::create_dir_all(&assets_root).expect("create assets dir");
+        std::fs::write(assets_root.join("index.html"), "<h1>ok</h1>").expect("write html");
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("CONSOLE_ASSETS_ROOT", &assets_root);
+        }
+        let response = asset_response("index.html");
+        assert_eq!(response.status(), StatusCode::OK);
+        let payload = body_to_string(response.body());
+        assert!(payload.contains("ok"));
+    }
+
+    #[test]
+    fn handle_realtime_bootstrap_returns_internal_error_without_env() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        let response = handle_realtime_bootstrap("anthus", "kanbus").expect("response");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let payload = body_to_string(response.body());
+        assert!(payload.contains("KANBUS_IOT_DATA_ENDPOINT"));
     }
 }
