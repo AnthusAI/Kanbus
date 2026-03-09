@@ -21,6 +21,13 @@ def test_delete_terminal_is_interactive_respects_force_env(monkeypatch) -> None:
     assert cli._delete_terminal_is_interactive() is True
 
 
+def test_delete_terminal_is_interactive_false_without_tty(monkeypatch) -> None:
+    monkeypatch.delenv("KANBUS_FORCE_INTERACTIVE", raising=False)
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
+    assert cli._delete_terminal_is_interactive() is False
+
+
 def test_resolve_beads_root_finds_parent_beads_directory(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     nested = root / "python" / "subdir"
