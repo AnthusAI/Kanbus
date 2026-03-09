@@ -264,3 +264,30 @@ fn overlay_config_for_project(
         .map(|configuration| configuration.overlay)
         .unwrap_or_else(|_| disabled_overlay_config())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tombstone_expired_handles_zero_ttl_and_invalid_timestamp() {
+        assert!(!tombstone_expired("not-a-ts", 30));
+        assert!(!tombstone_expired("2026-03-09T00:00:00Z", 0));
+    }
+
+    #[test]
+    fn search_directories_includes_project_local_when_present() {
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        let workspace = tempdir.path();
+        let project_dir = workspace.join("project");
+        std::fs::create_dir_all(project_dir.join("issues")).expect("create issues");
+        std::fs::create_dir_all(workspace.join("project-local").join("issues"))
+            .expect("create local issues");
+
+        let dirs = search_directories(&project_dir);
+        assert!(dirs.iter().any(|path| path.ends_with("project/issues")));
+        assert!(dirs
+            .iter()
+            .any(|path| path.ends_with("project-local/issues")));
+    }
+}
