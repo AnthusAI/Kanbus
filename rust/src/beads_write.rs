@@ -1256,6 +1256,42 @@ mod tests {
             .expect("slug lock")
     }
 
+    fn beads_issue_record(identifier: &str) -> Value {
+        json!({
+            "id": identifier,
+            "title": format!("Issue {identifier}"),
+            "description": "",
+            "status": "open",
+            "priority": 2,
+            "issue_type": "task",
+            "created_at": "2024-01-01T00:00:00Z",
+            "created_by": "dev@example.com",
+            "updated_at": "2024-01-01T00:00:00Z",
+            "comments": []
+        })
+    }
+
+    fn write_beads_issue_records(root: &Path, records: &[Value]) {
+        let beads_dir = root.join(".beads");
+        std::fs::create_dir_all(&beads_dir).expect("create .beads");
+        let lines = records
+            .iter()
+            .map(|record| serde_json::to_string(record).expect("serialize record"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let contents = if lines.is_empty() {
+            String::new()
+        } else {
+            format!("{lines}\n")
+        };
+        std::fs::write(beads_dir.join("issues.jsonl"), contents).expect("write issues.jsonl");
+    }
+
+    fn load_beads_issue_records(root: &Path) -> Vec<Value> {
+        let path = root.join(".beads").join("issues.jsonl");
+        load_beads_records(&path).expect("load issues.jsonl")
+    }
+
     #[test]
     fn issue_id_match_handles_prefix_abbreviations() {
         assert!(issue_id_matches_beads("kanbus-abc", "kanbus-abcdef"));
@@ -1440,5 +1476,196 @@ mod tests {
         assert!(contents.contains("{\"id\":\"kanbus-1\"}"));
         assert!(contents.contains("{\"id\":\"kanbus-2\"}"));
         assert!(contents.ends_with('\n'));
+    }
+
+    #[test]
+    fn beads_comment_lifecycle_updates_issue_file() {
+        let tmp = TempDir::new().expect("temp dir");
+        write_beads_issue_records(tmp.path(), &[beads_issue_record("kanbus-aaa")]);
+
+        add_beads_comment(tmp.path(), "kanbus-aaa", "dev@example.com", "first")
+            .expect("add comment");
+        let comment_prefix = beads_comment_uuid("kanbus-aaa", "1")
+            .chars()
+            .take(8)
+            .collect::<String>();
+        update_beads_comment(tmp.path(), "kanbus-aaa", &comment_prefix, "updated")
+            .expect("update comment");
+        delete_beads_comment(tmp.path(), "kanbus-aaa", &comment_prefix).expect("delete comment");
+
+        let records = load_beads_issue_records(tmp.path());
+        let issue = records.first().expect("issue");
+        let comments = issue["comments"].as_array().expect("comments array");
+        assert!(comments.is_empty());
+        assert!(issue.get("updated_at").is_some());
+    }
+
+    #[test]
+    fn add_beads_comment_reports_not_found_for_missing_issue() {
+        let tmp = TempDir::new().expect("temp dir");
+        write_beads_issue_records(tmp.path(), &[beads_issue_record("kanbus-aaa")]);
+
+        let error = add_beads_comment(tmp.path(), "kanbus-missing", "dev@example.com", "text")
+            .expect_err("missing issue");
+        assert!(error.to_string().contains("not found"));
+    }
+
+    #[test]
+    fn add_and_remove_beads_dependency_supports_idempotent_and_cleanup() {
+        let tmp = TempDir::new().expect("temp dir");
+        write_beads_issue_records(
+            tmp.path(),
+            &[
+                beads_issue_record("kanbus-source"),
+                beads_issue_record("kanbus-target"),
+            ],
+        );
+
+        add_beads_dependency(tmp.path(), "kanbus-source", "kanbus-target", "blocked-by")
+            .expect("add dependency");
+        add_beads_dependency(tmp.path(), "kanbus-source", "kanbus-target", "blocked-by")
+            .expect("idempotent add");
+
+        let records = load_beads_issue_records(tmp.path());
+        let source = records
+            .iter()
+            .find(|record| record["id"] == "kanbus-source")
+            .expect("source issue");
+        let dependencies = source["dependencies"].as_array().expect("dependencies");
+        assert_eq!(dependencies.len(), 1);
+
+        remove_beads_dependency(tmp.path(), "kanbus-source", "kanbus-target", "blocked-by")
+            .expect("remove dependency");
+        let records = load_beads_issue_records(tmp.path());
+        let source = records
+            .iter()
+            .find(|record| record["id"] == "kanbus-source")
+            .expect("source issue");
+        assert!(source.get("dependencies").is_none());
+    }
+
+    #[test]
+    fn add_beads_dependency_rejects_parent_child_cycles() {
+        let tmp = TempDir::new().expect("temp dir");
+        let mut source = beads_issue_record("kanbus-child");
+        source
+            .as_object_mut()
+            .expect("source object")
+            .insert("parent".to_string(), json!("kanbus-parent"));
+        write_beads_issue_records(tmp.path(), &[source, beads_issue_record("kanbus-parent")]);
+
+        let error = add_beads_dependency(tmp.path(), "kanbus-child", "kanbus-parent", "blocked-by")
+            .expect_err("cycle rejection");
+        assert!(error.to_string().contains("cannot block on parent"));
+    }
+
+    #[test]
+    fn update_beads_issue_applies_field_and_label_updates() {
+        let tmp = TempDir::new().expect("temp dir");
+        let mut issue = beads_issue_record("kanbus-aaa");
+        issue
+            .as_object_mut()
+            .expect("issue object")
+            .insert("labels".to_string(), json!(["alpha"]));
+        write_beads_issue_records(tmp.path(), &[issue]);
+
+        let updated = update_beads_issue(
+            tmp.path(),
+            "kanbus-aaa",
+            Some("in_progress"),
+            None,
+            Some("Updated Title"),
+            None,
+            None,
+            &["beta".to_string(), "ALPHA".to_string()],
+            &["alpha".to_string()],
+            None,
+        )
+        .expect("update issue");
+
+        assert_eq!(updated.status, "in_progress");
+        assert_eq!(updated.title, "Updated Title");
+        assert_eq!(updated.labels, vec!["beta"]);
+
+        let no_update_error = update_beads_issue(
+            tmp.path(),
+            "kanbus-aaa",
+            None,
+            None,
+            None,
+            None,
+            None,
+            &[],
+            &[],
+            None,
+        )
+        .expect_err("no updates");
+        assert!(no_update_error.to_string().contains("no updates requested"));
+    }
+
+    #[test]
+    fn create_beads_issue_generates_identifier_and_validates_parent() {
+        let _guard = slug_lock();
+        set_test_beads_slug_sequence(Some(vec!["abc".to_string()]));
+
+        let tmp = TempDir::new().expect("temp dir");
+        write_beads_issue_records(tmp.path(), &[beads_issue_record("kanbus-root")]);
+
+        let created = create_beads_issue(
+            tmp.path(),
+            "Created",
+            None,
+            None,
+            None,
+            Some("kanbus-root"),
+            None,
+        )
+        .expect("create child issue");
+        assert_eq!(created.identifier, "kanbus-root.1");
+
+        let missing_parent = create_beads_issue(
+            tmp.path(),
+            "Missing Parent",
+            None,
+            None,
+            None,
+            Some("kanbus-missing"),
+            None,
+        )
+        .expect_err("missing parent");
+        assert!(missing_parent.to_string().contains("not found"));
+
+        set_test_beads_slug_sequence(None);
+    }
+
+    #[test]
+    fn get_beads_descendant_identifiers_returns_leaf_first_order() {
+        let tmp = TempDir::new().expect("temp dir");
+        let mut child = beads_issue_record("kanbus-parent.1");
+        child
+            .as_object_mut()
+            .expect("child object")
+            .insert("parent".to_string(), json!("kanbus-parent"));
+        let mut grandchild = beads_issue_record("kanbus-parent.1.1");
+        grandchild
+            .as_object_mut()
+            .expect("grandchild object")
+            .insert("parent".to_string(), json!("kanbus-parent.1"));
+        let mut child_two = beads_issue_record("kanbus-parent.2");
+        child_two
+            .as_object_mut()
+            .expect("child two object")
+            .insert("parent".to_string(), json!("kanbus-parent"));
+        write_beads_issue_records(
+            tmp.path(),
+            &[beads_issue_record("kanbus-parent"), child, grandchild, child_two],
+        );
+
+        let descendants =
+            get_beads_descendant_identifiers(tmp.path(), "kanbus-parent").expect("descendants");
+        assert_eq!(descendants.len(), 3);
+        assert_eq!(descendants[0], "kanbus-parent.1.1");
+        assert!(descendants[1..].contains(&"kanbus-parent.1".to_string()));
+        assert!(descendants[1..].contains(&"kanbus-parent.2".to_string()));
     }
 }
