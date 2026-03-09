@@ -711,28 +711,22 @@ function broadcastTelemetry(payload: Record<string, unknown>) {
 }
 
 let debounceTimer: NodeJS.Timeout | null = null;
+let snapshotRefreshInFlight = false;
+let snapshotRefreshQueued = false;
 
-const configPath = path.join(repoRoot, ".kanbus.yml");
-const overridePath = path.join(repoRoot, ".kanbus.override.yml");
-const watcher = chokidar.watch([projectRoot, configPath, overridePath], {
-  ignoreInitial: true,
-  awaitWriteFinish: {
-    stabilityThreshold: 200,
-    pollInterval: 100
+async function runSnapshotRefreshAndBroadcast() {
+  if (snapshotRefreshInFlight) {
+    snapshotRefreshQueued = true;
+    return;
   }
-});
-
-watcher.on("all", (eventName, filePath) => {
-  logConsoleEvent("fs-change", { event: eventName, path: filePath });
-  if (debounceTimer) {
-    clearTimeout(debounceTimer);
-  }
-  debounceTimer = setTimeout(async () => {
-    debounceTimer = null;
+  snapshotRefreshInFlight = true;
+  try {
     const refreshStartedAt = Date.now();
     try {
       const snapshot = await refreshSnapshot();
-      broadcastSnapshot(snapshot);
+      if (sseClients.size > 0) {
+        broadcastSnapshot(snapshot);
+      }
       logConsoleEvent("snapshot-broadcast", {
         durationMs: Date.now() - refreshStartedAt,
         clients: sseClients.size
@@ -752,6 +746,42 @@ watcher.on("all", (eventName, filePath) => {
         error: (error as Error).message
       });
     }
+  } finally {
+    snapshotRefreshInFlight = false;
+    if (snapshotRefreshQueued) {
+      snapshotRefreshQueued = false;
+      setImmediate(() => {
+        void runSnapshotRefreshAndBroadcast();
+      });
+    }
+  }
+}
+
+const configPath = path.join(repoRoot, ".kanbus.yml");
+const overridePath = path.join(repoRoot, ".kanbus.override.yml");
+const watcher = chokidar.watch([projectRoot, configPath, overridePath], {
+  ignoreInitial: true,
+  awaitWriteFinish: {
+    stabilityThreshold: 200,
+    pollInterval: 100
+  }
+});
+
+watcher.on("all", (eventName, filePath) => {
+  logConsoleEvent("fs-change", { event: eventName, path: filePath });
+  // Always invalidate cached snapshot so next request sees fresh data.
+  cachedSnapshot = null;
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+  }
+  debounceTimer = setTimeout(async () => {
+    debounceTimer = null;
+    // Avoid expensive snapshot rebuilds when no snapshot SSE clients are attached.
+    if (sseClients.size === 0) {
+      logConsoleEvent("snapshot-invalidated", { clients: 0 });
+      return;
+    }
+    void runSnapshotRefreshAndBroadcast();
   }, 250);
 });
 

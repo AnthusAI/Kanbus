@@ -24,7 +24,6 @@ import {
   setAuthHeaderProvider,
   setMqttTokenProvider,
   setAuthQueryProvider,
-  subscribeToSnapshots,
   subscribeToRealtimeFeed,
   type NotificationEvent,
   type UiControlAction,
@@ -277,6 +276,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       ...qp,
       error: null
     };
@@ -776,25 +776,10 @@ export default function App() {
         setError(null);
         setAuthReady(true);
         setLoading(false);
-        unsubscribe = subscribeToSnapshots(
-          apiBase,
-          (nextSnapshot) => {
-            lastSnapshotSuccessAtRef.current = Date.now();
-            setSnapshot(nextSnapshot);
-            setError(null);
-            setErrorTime(null);
-          },
-          () => {
-            const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
-            // EventSource reconnects are expected in some gateway paths.
-            // Only surface a hard outage when snapshots have actually gone stale.
-            if (staleMs < 15_000) {
-              return;
-            }
-            setError("SSE connection issue. Attempting to reconnect.");
-            setErrorTime(Date.now());
-          }
-        );
+        // Snapshot SSE is intentionally disabled in the UI by default.
+        // Realtime updates come from the notification channel (MQTT primary, SSE fallback),
+        // which avoids repeated full-snapshot churn on large projects.
+        unsubscribe = () => {};
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to initialize auth";
         // Redirect flow intentionally throws after assigning location.
