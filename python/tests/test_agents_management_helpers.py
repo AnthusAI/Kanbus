@@ -41,6 +41,28 @@ def test_insert_kanbus_section_places_after_h1() -> None:
     assert "## Project management with Kanbus" in inserted
 
 
+def test_parent_child_rules_cover_empty_and_non_empty_hierarchy() -> None:
+    rules = agents._build_parent_child_rules(
+        ["initiative", "epic", "task"],
+        ["bug", "story"],
+    )
+    assert any("epic can have parent initiative." in rule for rule in rules)
+    assert any("task can have parent epic." in rule for rule in rules)
+    assert any("bug, story can have parent initiative, epic." in rule for rule in rules)
+
+    fallback_rules = agents._build_parent_child_rules([], [])
+    assert fallback_rules == ["No parent-child relationships are defined."]
+
+
+def test_find_insert_index_handles_missing_h1() -> None:
+    lines = ["## Existing", "text"]
+    assert agents._find_insert_index(lines) == 0
+
+
+def test_join_lines_appends_terminal_newline() -> None:
+    assert agents._join_lines(["a", "b"]) == "a\nb\n"
+
+
 def test_confirm_overwrite_respects_non_interactive(monkeypatch) -> None:
     monkeypatch.setenv("KANBUS_NON_INTERACTIVE", "1")
     try:
