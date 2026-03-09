@@ -33,10 +33,11 @@ Diagrams must use fenced code blocks with the appropriate language identifier:
 ```d2
 
 Direct file system access is strictly forbidden:
-- Do not edit the project/ directory directly
+- Do not edit project/issues/ or project/events/ directly; use Kanbus for issues and events
+- You may edit project/wiki/ (e.g. Markdown) directly
 - Do not read issue JSON with tools like cat, jq, or grep
-- Do not inspect the file system structure
-- All work must pass through the kbs command
+- Do not inspect the file system structure for issues or events
+- All work on issues and events must pass through the kbs command
 
 ## Running Kanbus (Do This Exactly)
 
@@ -186,6 +187,20 @@ Priorities are:
 Default is {{ default_priority_value }} ({{ default_priority_name }}).
 
 Severity is not emotion. It is signal.
+
+## Wiki Workflow
+
+The wiki lives under project/wiki/. You may edit Markdown files there directly.
+
+When to use the wiki:
+- Add and edit project/wiki/*.md for reports, status pages, and documentation.
+- Use `kbs wiki list` to discover wiki pages.
+- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, ai_summarize).
+- In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
+
+Cache behavior:
+- AI summaries are cached in project/.cache/ai_summaries.json (invalidated by issue updated_at and prompt type).
+- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues or templates change).
 
 ## Command examples
 

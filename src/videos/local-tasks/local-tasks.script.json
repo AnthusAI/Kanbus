@@ -14,7 +14,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "#0f1115",
+                "color": "var(--background)",
                 "sceneStartSec": 0
               }
             }
@@ -29,43 +29,8 @@
               "type": "AnimatedPictogramVideo",
               "props": {
                 "type": "local",
-                "sceneStartSec": 0
-              }
-            }
-          ]
-        },
-        {
-          "id": "title",
-          "zIndex": 1,
-          "components": [
-            {
-              "id": "text-block-0",
-              "type": "TextBlock",
-              "props": {
-                "text": "Local Tasks",
-                "x": 960,
-                "y": 120,
-                "size": 64,
-                "weight": 800,
-                "align": "center",
-                "maxWidth": 1200,
-                "font": "sans",
-                "sceneStartSec": 0
-              }
-            },
-            {
-              "id": "text-block-1",
-              "type": "TextBlock",
-              "props": {
-                "text": "Your Private Scratchpad",
-                "x": 960,
-                "y": 200,
-                "size": 36,
-                "weight": 400,
-                "align": "center",
-                "maxWidth": 1200,
-                "font": "serif",
-                "color": "var(--text-muted)",
+                "headline": "Local Tasks",
+                "subhead": "Your Private Scratchpad",
                 "sceneStartSec": 0
               }
             }
@@ -78,7 +43,7 @@
       "id": "deep_dive",
       "title": "Local Tasks Deep Dive",
       "startSec": 5.625,
-      "endSec": 33.625,
+      "endSec": 32.050000000000004,
       "layers": [
         {
           "id": "background",
@@ -88,7 +53,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "#0f1115",
+                "color": "var(--background)",
                 "sceneStartSec": 5
               }
             }
@@ -224,13 +189,13 @@
           "id": "intro",
           "label": "Introduction",
           "startSec": 5.625,
-          "endSec": 12.4375,
+          "endSec": 12.4875,
           "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board.",
           "segments": [
             {
               "type": "tts",
               "startSec": 5.625,
-              "endSec": 12.4375,
+              "endSec": 12.4875,
               "text": "Sometimes you need to jot down ideas or track personal reminders without cluttering the team's shared board."
             }
           ],
@@ -239,20 +204,20 @@
         {
           "id": "private",
           "label": "Private",
-          "startSec": 12.4375,
-          "endSec": 18.625,
+          "startSec": 12.4875,
+          "endSec": 18.700000000000003,
           "text": "Local tasks give you a private workspace. Visible only to you, invisible to version control.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 12.4375,
-              "endSec": 12.9375,
+              "startSec": 12.4875,
+              "endSec": 12.9875,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 12.9375,
-              "endSec": 18.625,
+              "startSec": 12.9875,
+              "endSec": 18.700000000000003,
               "text": "Local tasks give you a private workspace. Visible only to you, invisible to version control."
             }
           ],
@@ -261,20 +226,20 @@
         {
           "id": "promote",
           "label": "Promote",
-          "startSec": 18.625,
-          "endSec": 25.5375,
+          "startSec": 18.700000000000003,
+          "endSec": 25.575000000000003,
           "text": "When your experiment turns into something real, promote it to the shared project with a single command.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 18.625,
-              "endSec": 19.125,
+              "startSec": 18.700000000000003,
+              "endSec": 19.200000000000003,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 19.125,
-              "endSec": 25.5375,
+              "startSec": 19.200000000000003,
+              "endSec": 25.575000000000003,
               "text": "When your experiment turns into something real, promote it to the shared project with a single command."
             }
           ],
@@ -283,20 +248,20 @@
         {
           "id": "clean",
           "label": "Clean",
-          "startSec": 25.5375,
-          "endSec": 31.9125,
+          "startSec": 25.575000000000003,
+          "endSec": 32.050000000000004,
           "text": "See everything together, or filter to hide your private scratchpad entirely. It's your workspace.",
           "segments": [
             {
               "type": "pause",
-              "startSec": 25.5375,
-              "endSec": 26.0375,
+              "startSec": 25.575000000000003,
+              "endSec": 26.075000000000003,
               "durationSec": 0.5
             },
             {
               "type": "tts",
-              "startSec": 26.0375,
-              "endSec": 31.9125,
+              "startSec": 26.075000000000003,
+              "endSec": 32.050000000000004,
               "text": "See everything together, or filter to hide your private scratchpad entirely. It's your workspace."
             }
           ],
@@ -330,7 +295,7 @@
       "kind": "scene",
       "sceneId": "deep_dive",
       "startSec": 5.625,
-      "endSec": 33.625
+      "endSec": 32.050000000000004
     }
   ],
   "posterTimeSec": 2,

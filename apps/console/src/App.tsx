@@ -2,6 +2,7 @@ import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMe
 import {
   BarChart3,
   CheckCheck,
+  FileText,
   Filter,
   LayoutGrid,
   Lightbulb,
@@ -16,20 +17,26 @@ import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
 import { MetricsPanel } from "./components/MetricsPanel";
+import { WikiPanel } from "./components/WikiPanel";
 import {
+  fetchAuthBootstrap,
   fetchSnapshot,
+  setAuthHeaderProvider,
+  setMqttTokenProvider,
+  setAuthQueryProvider,
   subscribeToSnapshots,
-  subscribeToNotifications,
+  subscribeToRealtimeFeed,
   type NotificationEvent,
   type UiControlAction,
 } from "./api/client";
+import { ensureCloudAuth } from "./auth/cloudAuth";
 import { installConsoleTelemetry } from "./utils/console-telemetry";
 import { matchesSearchQuery } from "./utils/issue-search";
 import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
 
 type ViewMode = "initiatives" | "epics" | "issues";
-type PanelMode = "board" | "metrics";
+type PanelMode = "board" | "metrics" | "wiki";
 type NavAction = "push" | "pop" | "none";
 type RouteContext = {
   account: string | null;
@@ -38,6 +45,7 @@ type RouteContext = {
   viewMode: ViewMode | null;
   issueId: string | null;
   parentId: string | null;
+  wikiPath: string | null;
   search: string | null;
   focused: string | null;
   comment: string | null;
@@ -109,8 +117,8 @@ function loadStoredPanelMode(): PanelMode {
     return "board";
   }
   const stored = window.localStorage.getItem(PANEL_MODE_STORAGE_KEY);
-  if (stored === "metrics") {
-    return "metrics";
+  if (stored === "metrics" || stored === "board" || stored === "wiki") {
+    return stored as PanelMode;
   }
   return "board";
 }
@@ -149,12 +157,16 @@ function parseQueryParams(search: string): {
 function parseRoute(pathname: string, queryString?: string): RouteContext {
   const qp = parseQueryParams(queryString ?? window.location.search);
   const segments = pathname.split("/").filter(Boolean);
+  const isStageName = (value: string | undefined): boolean =>
+    value === "dev" || value === "prod" || value === "staging";
   if (segments[segments.length - 1] === "index.html") {
     segments.pop();
   }
   const viewModes: ViewMode[] = ["initiatives", "epics", "issues"];
   const isLocal =
-    segments.length === 0 || (segments[0] && viewModes.includes(segments[0] as ViewMode));
+    segments.length === 0
+    || (segments[0] && viewModes.includes(segments[0] as ViewMode))
+    || (segments[0] === "wiki");
   if (isLocal) {
     const rest = segments;
     if (rest.length === 0) {
@@ -165,11 +177,27 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: loadStoredViewMode(),
         issueId: null,
         parentId: null,
+        wikiPath: null,
         ...qp,
         error: null
       };
     }
     const head = rest[0];
+    if (head === "wiki") {
+      const wikiPathRaw = rest.slice(1).join("/");
+      const wikiPath = wikiPathRaw ? decodeURIComponent(wikiPathRaw) : "";
+      return {
+        account: null,
+        project: null,
+        basePath: "",
+        viewMode: null,
+        issueId: null,
+        parentId: null,
+        wikiPath,
+        ...qp,
+        error: null
+      };
+    }
     if (head === "initiatives" || head === "epics" || head === "issues") {
       if (rest.length === 1) {
         return {
@@ -179,6 +207,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: head,
           issueId: null,
           parentId: null,
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -193,6 +222,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: null,
           issueId: rest[1],
           parentId: null,
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -205,6 +235,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: null,
           issueId: null,
           parentId: rest[1],
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -217,6 +248,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
           viewMode: null,
           issueId: rest[2],
           parentId: rest[1],
+          wikiPath: null,
           ...qp,
           error: null
         };
@@ -229,6 +261,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       search: null,
       focused: null,
       comment: null,
@@ -236,7 +269,24 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       error: "Unsupported console route"
     };
   }
-  if (segments.length < 2) {
+  if (segments.length === 1 && isStageName(segments[0])) {
+    return {
+      account: null,
+      project: null,
+      basePath: `/${segments[0]}`,
+      viewMode: null,
+      issueId: null,
+      parentId: null,
+      ...qp,
+      error: null
+    };
+  }
+  const hasStagePrefix =
+    segments.length >= 3
+    && isStageName(segments[0]);
+  const tenantOffset = hasStagePrefix ? 1 : 0;
+
+  if (segments.length < tenantOffset + 2) {
     return {
       account: null,
       project: null,
@@ -244,6 +294,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       search: null,
       focused: null,
       comment: null,
@@ -251,10 +302,11 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       error: "URL must include /:account/:project"
     };
   }
-  const account = segments[0];
-  const project = segments[1];
-  const basePath = `/${account}/${project}`;
-  const rest = segments.slice(2);
+  const account = segments[tenantOffset];
+  const project = segments[tenantOffset + 1];
+  const stagePrefix = hasStagePrefix ? `/${segments[0]}` : "";
+  const basePath = `${stagePrefix}/${account}/${project}`;
+  const rest = segments.slice(tenantOffset + 2);
   if (rest.length === 0) {
     return {
       account,
@@ -263,11 +315,27 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: loadStoredViewMode(),
       issueId: null,
       parentId: null,
+      wikiPath: null,
       ...qp,
       error: null
     };
   }
   const head = rest[0];
+  if (head === "wiki") {
+    const wikiPathRaw = rest.slice(1).join("/");
+    const wikiPath = wikiPathRaw ? decodeURIComponent(wikiPathRaw) : "";
+    return {
+      account,
+      project,
+      basePath,
+      viewMode: null,
+      issueId: null,
+      parentId: null,
+      wikiPath,
+      ...qp,
+      error: null
+    };
+  }
   if (head === "initiatives" || head === "epics" || head === "issues") {
     if (rest.length === 1) {
       return {
@@ -277,6 +345,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: head,
         issueId: null,
         parentId: null,
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -291,6 +360,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: null,
         issueId: rest[1],
         parentId: null,
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -303,6 +373,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: null,
         issueId: null,
         parentId: rest[1],
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -315,6 +386,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
         viewMode: null,
         issueId: rest[2],
         parentId: rest[1],
+        wikiPath: null,
         ...qp,
         error: null
       };
@@ -327,6 +399,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
     viewMode: null,
     issueId: null,
     parentId: null,
+    wikiPath: null,
     search: null,
     focused: null,
     comment: null,
@@ -539,6 +612,7 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<IssuesSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorTime, setErrorTime] = useState<number | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode | null>(() =>
@@ -547,6 +621,7 @@ export default function App() {
   const [panelMode, setPanelMode] = useState<PanelMode>(() =>
     loadStoredPanelMode()
   );
+  const [wikiDirty, setWikiDirty] = useState(false);
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -588,6 +663,8 @@ export default function App() {
   const collapsedColumnsInitialized = React.useRef(false);
   const viewModeAutoCorrected = React.useRef(false);
   const lastTypeSelectionRef = React.useRef<string | null>(null);
+  const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
+  const lastSnapshotSuccessAtRef = React.useRef<number>(Date.now());
   useAppearance();
   const config = snapshot?.config;
   const issues = useMemo(() => {
@@ -613,6 +690,10 @@ export default function App() {
   }, [apiBase]);
   const showAllTypes = route.typeFilter === "all";
 
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
+
   // Initialize collapsed columns from config (only once)
   useEffect(() => {
     if (config && !collapsedColumnsInitialized.current) {
@@ -636,6 +717,7 @@ export default function App() {
       parsed.basePath !== route.basePath
       || parsed.issueId !== route.issueId
       || parsed.parentId !== route.parentId
+      || parsed.wikiPath !== route.wikiPath
       || parsed.viewMode !== route.viewMode
       || parsed.search !== route.search
       || parsed.focused !== route.focused
@@ -648,7 +730,15 @@ export default function App() {
   }, [route]);
 
   useEffect(() => {
+    if (route.wikiPath !== null) {
+      setPanelMode("wiki");
+    }
+  }, [route.wikiPath]);
+
+  useEffect(() => {
     let isMounted = true;
+    let unsubscribe: (() => void) | null = null;
+    setAuthReady(false);
     setLoading(true);
     if (route.basePath == null) {
       setError("URL must include /:account/:project");
@@ -657,49 +747,85 @@ export default function App() {
     }
     const apiBase = `${route.basePath}/api`;
     installConsoleTelemetry(apiBase);
-    fetchSnapshot(apiBase)
-      .then((data) => {
-        if (isMounted) {
-          setSnapshot(data);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          const errorMessage = err instanceof Error ? err.message : "Failed to load data";
-          setError(errorMessage);
-          setErrorTime(Date.now());
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoading(false);
-        }
-      });
 
-    const unsubscribe = subscribeToSnapshots(
-      apiBase,
-      (data) => {
+    void (async () => {
+      try {
+        const bootstrap = await fetchAuthBootstrap(apiBase);
+        if (!isMounted) {
+          return;
+        }
+        const authResult = await ensureCloudAuth(bootstrap, route.basePath ?? "");
+        if (!isMounted) {
+          return;
+        }
+        setAuthHeaderProvider(() => authResult.headers);
+        setAuthQueryProvider(() => authResult.queryToken);
+        setMqttTokenProvider(() => authResult.mqttToken);
+        if (authResult.forbiddenReason) {
+          setError(`Forbidden: ${authResult.forbiddenReason}`);
+          setErrorTime(Date.now());
+          setLoading(false);
+          return;
+        }
+        const data = await fetchSnapshot(apiBase);
+        if (!isMounted) {
+          return;
+        }
+        lastSnapshotSuccessAtRef.current = Date.now();
         setSnapshot(data);
         setError(null);
-        setErrorTime(null);
-      },
-      () => {
-        setError("SSE connection issue. Attempting to reconnect.");
+        setAuthReady(true);
+        setLoading(false);
+        unsubscribe = subscribeToSnapshots(
+          apiBase,
+          (nextSnapshot) => {
+            lastSnapshotSuccessAtRef.current = Date.now();
+            setSnapshot(nextSnapshot);
+            setError(null);
+            setErrorTime(null);
+          },
+          () => {
+            const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
+            // EventSource reconnects are expected in some gateway paths.
+            // Only surface a hard outage when snapshots have actually gone stale.
+            if (staleMs < 15_000) {
+              return;
+            }
+            setError("SSE connection issue. Attempting to reconnect.");
+            setErrorTime(Date.now());
+          }
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to initialize auth";
+        // Redirect flow intentionally throws after assigning location.
+        if (message === "redirecting") {
+          return;
+        }
+        if (!isMounted) {
+          return;
+        }
+        setError(message);
         setErrorTime(Date.now());
+        setLoading(false);
       }
-    );
+    })();
 
     return () => {
       isMounted = false;
-      unsubscribe();
+      unsubscribe?.();
+      setAuthHeaderProvider(null);
+      setAuthQueryProvider(null);
+      setMqttTokenProvider(null);
     };
   }, [route.basePath]);
 
-  // Real-time notification subscription
+  // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
+    if (!route.basePath || !authReady) {
+      return;
+    }
     const apiBase = `${route.basePath}/api`;
-    const unsubscribe = subscribeToNotifications(
+    const unsubscribe = subscribeToRealtimeFeed(
       apiBase,
       (event: NotificationEvent) => {
         switch (event.type) {
@@ -709,40 +835,48 @@ export default function App() {
             break;
           case "issue_created":
           case "issue_updated":
-            // Use the issue data from the notification payload directly
-            if (event.issue_data && snapshot) {
-              const updatedIssues = snapshot.issues.map(issue =>
-                issue.id === event.issue_id ? event.issue_data : issue
-              );
-              // If this is a new issue (created), add it if not already present in updatedIssues
-              if (event.type === "issue_created" && !updatedIssues.find(i => i.id === event.issue_id)) {
-                updatedIssues.push(event.issue_data);
+            if (event.issue_data) {
+              const current = snapshotRef.current;
+              if (current) {
+                const existing = current.issues.some((issue) => issue.id === event.issue_id);
+                const updatedIssues = existing
+                  ? current.issues.map((issue) =>
+                    issue.id === event.issue_id ? event.issue_data : issue
+                  )
+                  : [...current.issues, event.issue_data];
+                const nextSnapshot = {
+                  ...current,
+                  issues: updatedIssues,
+                  updated_at: new Date().toISOString()
+                };
+                snapshotRef.current = nextSnapshot;
+                setSnapshot(nextSnapshot);
+                console.info("[notifications] applied issue update immediately", {
+                  type: event.type,
+                  issueId: event.issue_id
+                });
+                break;
               }
-              setSnapshot({
-                ...snapshot,
-                issues: updatedIssues,
-                updated_at: new Date().toISOString()
-              });
-              console.info("[notifications] applied issue update immediately", {
-                type: event.type,
-                issueId: event.issue_id
-              });
-            } else {
-              // Fallback to fetching if no snapshot yet
-              fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
             }
+            fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
             break;
           case "issue_deleted":
-            // Remove the deleted issue from snapshot
-            if (snapshot) {
-              setSnapshot({
-                ...snapshot,
-                issues: snapshot.issues.filter(issue => issue.id !== event.issue_id),
-                updated_at: new Date().toISOString()
-              });
-              console.info("[notifications] applied issue deletion immediately", { issueId: event.issue_id });
-            } else {
-              fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+            {
+              const current = snapshotRef.current;
+              if (current) {
+                const nextSnapshot = {
+                  ...current,
+                  issues: current.issues.filter((issue) => issue.id !== event.issue_id),
+                  updated_at: new Date().toISOString()
+                };
+                snapshotRef.current = nextSnapshot;
+                setSnapshot(nextSnapshot);
+                console.info("[notifications] applied issue deletion immediately", {
+                  issueId: event.issue_id
+                });
+              } else {
+                fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+              }
             }
             break;
           case "ui_control":
@@ -758,7 +892,7 @@ export default function App() {
     return () => {
       unsubscribe();
     };
-  }, [route.basePath]);
+  }, [route.basePath, authReady]);
 
   // Auto-select focused issue in detail panel and encode focus in URL
   useEffect(() => {
@@ -1275,13 +1409,26 @@ export default function App() {
     navigate(nextUrl, setRoute, navActionRef);
   };
 
+  const handleWikiRouteChange = useCallback(
+    (path: string) => {
+      const wikiBase = route.basePath ? `${route.basePath}/wiki` : "/wiki";
+      const encoded = path ? path.split("/").map(encodeURIComponent).join("/") : "";
+      const fullPath = encoded ? `${wikiBase}/${encoded}` : wikiBase;
+      navigate(fullPath, setRoute, navActionRef);
+    },
+    [route.basePath]
+  );
+
   const handlePanelModeChange = (value: string) => {
-    refreshSnapshot();
-    if (value === "metrics") {
-      setPanelMode("metrics");
-      return;
+    const nextMode = value as PanelMode;
+    if (panelMode === "wiki" && wikiDirty && nextMode !== "wiki") {
+      const proceed = window.confirm("You have unsaved wiki changes. Leave without saving?");
+      if (!proceed) {
+        return;
+      }
     }
-    setPanelMode("board");
+    refreshSnapshot();
+    setPanelMode(nextMode);
   };
 
   const handleTaskClose = () => {
@@ -1460,6 +1607,7 @@ export default function App() {
     });
     return [
       buildOption("board", "Board", LayoutGrid),
+      buildOption("wiki", "Wiki", FileText),
       buildOption("metrics", "Metrics", BarChart3)
     ];
   }, [panelMode]);
@@ -1614,18 +1762,9 @@ export default function App() {
       return [];
     }
     const projectFilterSet = effectiveEnabledProjects ?? new Set(projectLabels);
-    if (typeof window !== "undefined") {
-      console.info("[metrics-debug]", {
-        labels: projectLabels,
-        enabled: Array.from(projectFilterSet)
-      });
-    }
     const sourceIssues = issues;
     let result = sourceIssues;
     const hasSearchQuery = searchQuery.trim().length > 0;
-    if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
-      console.info("[metrics] filter projects", Array.from(projectFilterSet), "issues", sourceIssues.length);
-    }
 
     if (focusedIssueId) {
       const ids = collectDescendants(sourceIssues, focusedIssueId);
@@ -1685,6 +1824,16 @@ export default function App() {
       : motionMode === "reduced"
       ? "transition-opacity duration-150"
       : "transition-opacity duration-300";
+
+  const viewTrackTransform = useMemo(() => {
+    if (panelMode === "wiki") {
+      return "translateX(-33.3333%)";
+    }
+    if (panelMode === "metrics") {
+      return "translateX(-66.6667%)";
+    }
+    return "translateX(0)";
+  }, [panelMode]);
 
   const transitionKey = `${resolvedViewMode ?? "none"}-${snapshot?.updated_at ?? ""}`;
   const showLoadingIndicator =
@@ -1867,11 +2016,10 @@ export default function App() {
               sidebarPhase === "open" || sidebarPhase === "opening" ? " layout-main-pushed" : ""
             }`}
           >
-            <div
-              className={`view-track${sidebarReady ? " view-track-animate" : ""}${
-                panelMode === "metrics" ? " view-track-metrics" : ""
-              }`}
-            >
+          <div
+            className={`view-track${sidebarReady ? " view-track-animate" : ""}`}
+            style={{ transform: viewTrackTransform }}
+          >
               <div
                 className={`view-panel ${
                   panelMode === "board" ? "view-panel-active" : "view-panel-inactive"
@@ -2005,6 +2153,25 @@ export default function App() {
                   focusedCommentId={focusedCommentId}
                   onNavigateToDescendant={handleSelectIssue}
                 />
+              </div>
+              <div
+                className={`view-panel ${
+                  panelMode === "wiki" ? "view-panel-active" : "view-panel-inactive"
+                }`}
+                data-testid="wiki-view"
+                aria-hidden={panelMode !== "wiki"}
+              >
+                <div className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3">
+                  {apiBase ? (
+                    <WikiPanel
+                      apiBase={apiBase}
+                      isActive={panelMode === "wiki"}
+                      onDirtyChange={setWikiDirty}
+                      initialRoutePath={route.wikiPath ?? ""}
+                      onRouteChange={handleWikiRouteChange}
+                    />
+                  ) : null}
+                </div>
               </div>
               <div
                 className={`view-panel ${

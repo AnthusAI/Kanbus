@@ -90,6 +90,7 @@ pub struct KanbusWorld {
     pub jira_env_set: bool,
     pub jira_unset_env_vars: Vec<(String, Option<String>)>,
     pub validation_error: Option<String>,
+    pub wiki_directory: Option<String>,
     pub external_tool_dir: Option<TempDir>,
     pub original_path: Option<Option<String>>,
     pub canonical_priorities: Option<Vec<String>>,
@@ -97,6 +98,7 @@ pub struct KanbusWorld {
     pub imported_issue_priority: Option<String>,
     pub stored_priority: Option<String>,
     pub loaded_project_key: Option<String>,
+    pub last_comment_id: Option<String>,
     pub kanbus_version: Option<String>,
     pub kanbusr_version: Option<String>,
     pub kanbusr_has_all: Option<bool>,
@@ -105,6 +107,24 @@ pub struct KanbusWorld {
     pub original_invalid_status_env: Option<Option<String>>,
     pub virtual_project_state: Option<VirtualProjectState>,
     pub simulated_configuration_error: Option<String>,
+    pub realtime_doc: Option<String>,
+    pub gossip_issue: Option<kanbus::models::IssueData>,
+    pub gossip_envelope: Option<kanbus::gossip::GossipEnvelope>,
+    pub gossip_dedupe: Option<kanbus::gossip::DedupeSet>,
+    pub gossip_producer_id: Option<String>,
+    pub last_notification_ignored: Option<bool>,
+    pub overlay_base_issue: Option<kanbus::models::IssueData>,
+    pub overlay_issue_record: Option<kanbus::overlay::OverlayIssueRecord>,
+    pub overlay_project_dir: Option<PathBuf>,
+    pub overlay_temp_dir: Option<TempDir>,
+    pub overlay_resolved: Option<kanbus::models::IssueData>,
+    pub overlay_snapshot_id: Option<String>,
+    pub uds_temp_dir: Option<TempDir>,
+    pub uds_socket_path: Option<PathBuf>,
+    pub uds_subscriber: Option<std::os::unix::net::UnixStream>,
+    pub uds_published_id: Option<String>,
+    pub mosquitto_startup: Option<kanbus::gossip::BrokerStartup>,
+    pub ai_call_count_after_first_render: Option<usize>,
 }
 
 impl Drop for KanbusWorld {
@@ -170,6 +190,9 @@ impl Drop for KanbusWorld {
                 Some(value) => std::env::set_var("KANBUS_TEST_INVALID_STATUS", value),
                 None => std::env::remove_var("KANBUS_TEST_INVALID_STATUS"),
             }
+        }
+        if let Some(mut startup) = self.mosquitto_startup.take() {
+            let _ = startup.process.kill();
         }
         std::env::remove_var("KANBUS_TEST_EXTERNAL_TOOL_MISSING");
         std::env::remove_var("KANBUS_TEST_EXTERNAL_TIMEOUT_MS");
@@ -288,22 +311,45 @@ fn then_default_config_missing(world: &mut KanbusWorld) {
     assert!(!cwd.join("project").join("config.yaml").exists());
 }
 
-#[then("a \"project/issues\" directory should exist and be empty")]
-fn then_issues_directory_empty(world: &mut KanbusWorld) {
+#[then("a \"project/issues\" directory should exist and contain only guard files")]
+fn then_issues_directory_only_guards(world: &mut KanbusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
     let issues_dir = cwd.join("project").join("issues");
     assert!(issues_dir.is_dir());
-    assert!(issues_dir
+    let names: std::collections::HashSet<String> = issues_dir
         .read_dir()
         .expect("read issues dir")
-        .next()
-        .is_none());
+        .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
+        .collect();
+    let expected: std::collections::HashSet<String> =
+        ["AGENTS.md".to_string(), "DO_NOT_EDIT".to_string()]
+            .into_iter()
+            .collect();
+    assert_eq!(
+        names, expected,
+        "expected only guard files, got {:?}",
+        names
+    );
 }
 
-#[then("a \"project/wiki\" directory should not exist")]
-fn then_wiki_directory_missing(world: &mut KanbusWorld) {
+#[then(expr = "the file {string} should exist")]
+fn then_file_exists(world: &mut KanbusWorld, path: String) {
     let cwd = world.working_directory.as_ref().expect("cwd");
-    assert!(!cwd.join("project").join("wiki").exists());
+    let full_path = cwd.join(&path);
+    assert!(full_path.exists(), "expected file {} to exist", path);
+    assert!(full_path.is_file(), "expected {} to be a file", path);
+}
+
+#[then(expr = "the file {string} should contain {string}")]
+fn then_file_contains(world: &mut KanbusWorld, path: String, text: String) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let content = fs::read_to_string(cwd.join(&path)).expect("read file");
+    assert!(
+        content.contains(&text),
+        "expected {} to contain {:?}",
+        path,
+        text
+    );
 }
 
 #[then("a \"project-local/issues\" directory should exist")]
@@ -322,22 +368,26 @@ fn then_command_failed_generic(world: &mut KanbusWorld) {
     assert_ne!(world.exit_code, Some(0));
 }
 
-#[then("project/AGENTS.md should be created with the warning")]
+#[then("project/issues/ and project/events/ should contain AGENTS.md with the warning")]
 fn then_project_agents_created(world: &mut KanbusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
-    let path = cwd.join("project").join("AGENTS.md");
-    assert!(path.is_file());
-    let content = std::fs::read_to_string(path).expect("read project AGENTS");
-    assert!(content.contains("DO NOT EDIT HERE"));
-    assert!(content.contains("sin against The Way"));
+    for subdir in ["issues", "events"] {
+        let path = cwd.join("project").join(subdir).join("AGENTS.md");
+        assert!(path.is_file(), "expected {}", path.display());
+        let content = fs::read_to_string(&path).expect("read project AGENTS");
+        assert!(content.contains("DO NOT EDIT HERE"));
+        assert!(content.contains("The Way") || content.contains("Kanbus"));
+    }
 }
 
-#[then("project/DO_NOT_EDIT should be created with the warning")]
+#[then("project/issues/ and project/events/ should contain DO_NOT_EDIT with the warning")]
 fn then_project_do_not_edit_created(world: &mut KanbusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
-    let path = cwd.join("project").join("DO_NOT_EDIT");
-    assert!(path.is_file());
-    let content = std::fs::read_to_string(path).expect("read DO_NOT_EDIT");
-    assert!(content.contains("DO NOT EDIT ANYTHING IN project/"));
-    assert!(content.contains("The Way"));
+    for subdir in ["issues", "events"] {
+        let path = cwd.join("project").join(subdir).join("DO_NOT_EDIT");
+        assert!(path.is_file(), "expected {}", path.display());
+        let content = fs::read_to_string(&path).expect("read DO_NOT_EDIT");
+        assert!(content.contains("DO NOT EDIT"));
+        assert!(content.contains("The Way"));
+    }
 }

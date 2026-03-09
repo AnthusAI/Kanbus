@@ -5,7 +5,7 @@ Kanbus uses a single configuration file to define project identity, hierarchy, w
 ## Location
 
 ```
-kanbus.yml
+.kanbus.yml
 ```
 
 The file must exist; there is no fallback path. A missing file is a hard error with a clear message.
@@ -19,11 +19,11 @@ The file must exist; there is no fallback path. A missing file is a hard error w
 ## Loading semantics (dotyaml parity)
 
 1. Load `.env` (unless disabled), setting variables only when they are not already defined.
-2. Parse `kanbus.yml`, interpolating `{{ VAR|default }}` expressions from the environment.
+2. Parse `.kanbus.yml`, interpolating `{{ VAR|default }}` expressions from the environment.
 3. Flatten the resulting config into environment variables with the `KANBUS_` prefix (nested keys joined by underscores, lists as comma-separated strings, booleans as `true`/`false`, null as empty string).
 4. Never override an environment variable that is already set unless `override=true` is explicitly requested.
 
-These rules mirror the Python `dotyaml` package and must be matched in the Rust crate. citeturn0search3
+These rules mirror the Python `dotyaml` package and must be matched in the Rust crate.
 
 ## Schema (required fields)
 
@@ -94,7 +94,32 @@ date_format: RFC3339             # optional; defaults to RFC3339
 
 - Prefix for exported env vars is fixed to `KANBUS_`.
 - `.env` loading is enabled by default; disable with a loader flag (CLI option to be defined in both implementations).
-- `override=true` is an opt-in flag to let YAML values overwrite existing env vars; default is non-overriding. citeturn0search3
+- `override=true` is an opt-in flag to let YAML values overwrite existing env vars; default is non-overriding.
+
+## Realtime gossip + overlay
+
+```yaml
+realtime:
+  transport: auto            # auto | uds | mqtt
+  broker: auto               # auto | off | mqtt://... | mqtts://...
+  autostart: true            # autostart mosquitto if unreachable
+  keepalive: false           # keep autostarted broker running
+  uds_socket_path: null      # override UDS socket path
+  mqtt_custom_authorizer_name: null  # optional AWS IoT custom authorizer name
+  mqtt_api_token: null       # optional API token for custom authorizer auth
+  topics:
+    project_events: "projects/{project}/events"
+
+overlay:
+  enabled: true
+  ttl_s: 86400
+```
+
+Notes:
+
+- `broker=auto` uses discovery precedence: `~/.kanbus/run/broker.json` then `mqtt://127.0.0.1:1883`. This is an explicit exception to the no-fallback policy.
+- Overlay snapshots live under `project/.overlay/` and are safe to delete.
+- Environment overrides (higher precedence than YAML): `KANBUS_REALTIME_TRANSPORT`, `KANBUS_REALTIME_BROKER`, `KANBUS_REALTIME_AUTOSTART`, `KANBUS_REALTIME_KEEPALIVE`, `KANBUS_REALTIME_UDS_SOCKET_PATH`, `KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME`, `KANBUS_REALTIME_MQTT_API_TOKEN`, `KANBUS_REALTIME_TOPICS_PROJECT_EVENTS`, `KANBUS_OVERLAY_ENABLED`, `KANBUS_OVERLAY_TTL_S`.
 
 ## Examples
 

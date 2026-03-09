@@ -1,0 +1,2 @@
+#!/bin/sh
+exec node "${VIDEOML_CLI}" "$@"

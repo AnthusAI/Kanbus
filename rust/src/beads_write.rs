@@ -12,8 +12,8 @@ use uuid::Uuid;
 
 use crate::error::KanbusError;
 use crate::event_history::{
-    build_update_events, comment_payload, comment_updated_payload, dependency_payload,
-    events_dir_for_project, issue_created_payload, issue_deleted_payload, now_timestamp,
+    build_update_events, comment_payload, comment_updated_payload, delete_events_for_issues,
+    dependency_payload, events_dir_for_project, issue_created_payload, now_timestamp,
     write_events_batch, EventRecord, EventType,
 };
 use crate::file_io::load_project_directory;
@@ -121,7 +121,12 @@ pub fn create_beads_issue(
         custom: std::collections::BTreeMap::new(),
     };
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(issue);
+        }
+    };
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
@@ -131,6 +136,7 @@ pub fn create_beads_issue(
         issue_created_payload(&issue),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_project(&project_dir);
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -141,15 +147,12 @@ pub fn create_beads_issue(
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(
+    crate::gossip::publish_issue_mutation(
         root,
-        NotificationEvent::IssueCreated {
-            issue_id: issue.identifier.clone(),
-            issue_data: issue.clone(),
-        },
+        &project_dir,
+        &issue,
+        Some(event_id),
+        "issue.mutated",
     );
 
     Ok(issue)
@@ -270,7 +273,12 @@ pub fn add_beads_comment(
     }
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let comment_id = created_comment_id
         .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
     let comment_author = comment_author.unwrap_or_default();
@@ -286,6 +294,7 @@ pub fn add_beads_comment(
         ),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_project(&project_dir);
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -294,6 +303,15 @@ pub fn add_beads_comment(
                 .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
             return Err(error);
         }
+    }
+    if let Ok(updated_issue) = load_beads_issue_by_id(root, identifier) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &project_dir,
+            &updated_issue,
+            Some(event_id),
+            "issue.mutated",
+        );
     }
     Ok(())
 }
@@ -361,7 +379,12 @@ pub fn update_beads_comment(
     }
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let comment_id = updated_comment_id
         .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
     let comment_author = updated_comment_author.unwrap_or_default();
@@ -377,6 +400,7 @@ pub fn update_beads_comment(
         ),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_project(&project_dir);
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -385,6 +409,15 @@ pub fn update_beads_comment(
                 .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
             return Err(error);
         }
+    }
+    if let Ok(updated_issue) = load_beads_issue_by_id(root, identifier) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &project_dir,
+            &updated_issue,
+            Some(event_id),
+            "issue.mutated",
+        );
     }
     Ok(())
 }
@@ -451,7 +484,12 @@ pub fn delete_beads_comment(
     }
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let comment_id = deleted_comment_id
         .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
     let comment_author = deleted_comment_author.unwrap_or_default();
@@ -467,6 +505,7 @@ pub fn delete_beads_comment(
         ),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_project(&project_dir);
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -475,6 +514,15 @@ pub fn delete_beads_comment(
                 .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
             return Err(error);
         }
+    }
+    if let Ok(updated_issue) = load_beads_issue_by_id(root, identifier) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &project_dir,
+            &updated_issue,
+            Some(event_id),
+            "issue.mutated",
+        );
     }
     Ok(())
 }
@@ -557,7 +605,12 @@ pub fn add_beads_dependency(
 
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
@@ -567,6 +620,7 @@ pub fn add_beads_dependency(
         dependency_payload(dependency_type, &target_id),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_project(&project_dir);
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -575,6 +629,15 @@ pub fn add_beads_dependency(
                 .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
             return Err(error);
         }
+    }
+    if let Ok(updated_issue) = load_beads_issue_by_id(root, identifier) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &project_dir,
+            &updated_issue,
+            Some(event_id),
+            "issue.mutated",
+        );
     }
     Ok(())
 }
@@ -623,7 +686,12 @@ pub fn remove_beads_dependency(
 
     write_beads_records(&issues_path, &records)?;
 
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(());
+        }
+    };
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
@@ -633,6 +701,7 @@ pub fn remove_beads_dependency(
         dependency_payload(dependency_type, &target_id),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_project(&project_dir);
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -641,6 +710,15 @@ pub fn remove_beads_dependency(
                 .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
             return Err(error);
         }
+    }
+    if let Ok(updated_issue) = load_beads_issue_by_id(root, identifier) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &project_dir,
+            &updated_issue,
+            Some(event_id),
+            "issue.mutated",
+        );
     }
     Ok(())
 }
@@ -803,7 +881,12 @@ pub fn update_beads_issue(
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let events = build_update_events(&before_issue, &updated_issue, &actor_id, &occurred_at);
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match load_project_directory(root) {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Ok(updated_issue);
+        }
+    };
     let events_dir = events_dir_for_project(&project_dir);
     match write_events_batch(&events_dir, &events) {
         Ok(_paths) => {}
@@ -814,32 +897,13 @@ pub fn update_beads_issue(
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let mut fields_changed = Vec::new();
-    if status.is_some() {
-        fields_changed.push("status".to_string());
-    }
-    if priority.is_some() {
-        fields_changed.push("priority".to_string());
-    }
-    if title.is_some() {
-        fields_changed.push("title".to_string());
-    }
-    if description.is_some() {
-        fields_changed.push("description".to_string());
-    }
-    if assignee.is_some() {
-        fields_changed.push("assignee".to_string());
-    }
-    let _ = publish_notification(
+    let event_id = events.first().map(|event| event.event_id.clone());
+    crate::gossip::publish_issue_mutation(
         root,
-        NotificationEvent::IssueUpdated {
-            issue_id: updated_issue.identifier.clone(),
-            fields_changed,
-            issue_data: updated_issue.clone(),
-        },
+        &project_dir,
+        &updated_issue,
+        event_id,
+        "issue.mutated",
     );
 
     Ok(updated_issue)
@@ -952,29 +1016,65 @@ fn write_beads_records(path: &Path, records: &[Value]) -> Result<(), KanbusError
     Ok(())
 }
 
-/// Delete a Beads-compatible issue in .beads/issues.jsonl.
-pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusError> {
-    let beads_dir = root.join(".beads");
-    if !beads_dir.exists() {
-        return Err(KanbusError::IssueOperation(
-            "no .beads directory".to_string(),
-        ));
-    }
-    let issues_path = beads_dir.join("issues.jsonl");
+/// Return Beads descendant issue identifiers in leaf-first order.
+pub fn get_beads_descendant_identifiers(
+    root: &Path,
+    identifier: &str,
+) -> Result<Vec<String>, KanbusError> {
+    let issues_path = root.join(".beads").join("issues.jsonl");
     if !issues_path.exists() {
-        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
+        return Ok(vec![]);
     }
+    let records = load_beads_records(&issues_path)?;
+    let mut parent_to_children: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for record in &records {
+        let id = record.get("id").and_then(Value::as_str);
+        let parent = record.get("parent").and_then(Value::as_str);
+        if let (Some(id), Some(parent)) = (id, parent) {
+            parent_to_children
+                .entry(parent.to_string())
+                .or_default()
+                .push(id.to_string());
+        }
+    }
+    let mut depth: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    depth.insert(identifier.to_string(), 0);
+    let mut queue = std::collections::VecDeque::new();
+    queue.push_back(identifier.to_string());
+    while let Some(parent_id) = queue.pop_front() {
+        let d = *depth.get(&parent_id).unwrap_or(&0);
+        for child_id in parent_to_children
+            .get(&parent_id)
+            .cloned()
+            .unwrap_or_default()
+        {
+            if !depth.contains_key(&child_id) {
+                depth.insert(child_id.clone(), d + 1);
+                queue.push_back(child_id);
+            }
+        }
+    }
+    let mut descendants: Vec<(String, usize)> =
+        depth.into_iter().filter(|(k, _)| k != identifier).collect();
+    descendants.sort_by_key(|(_, d)| std::cmp::Reverse(*d));
+    Ok(descendants.into_iter().map(|(id, _)| id).collect())
+}
+
+fn delete_single_beads_issue(
+    root: &Path,
+    issues_path: &Path,
+    identifier: &str,
+) -> Result<(), KanbusError> {
     let original_contents =
-        fs::read_to_string(&issues_path).map_err(|error| KanbusError::Io(error.to_string()))?;
-    let deleted_issue = load_beads_issue_by_id(root, identifier)?;
-    let mut records = load_beads_records(&issues_path)?;
+        fs::read_to_string(issues_path).map_err(|e| KanbusError::Io(e.to_string()))?;
+    let mut records = load_beads_records(issues_path)?;
     let original_count = records.len();
     records.retain(|record| record.get("id").and_then(|id| id.as_str()) != Some(identifier));
     if records.len() == original_count {
         return Err(KanbusError::IssueOperation("not found".to_string()));
     }
     for record in &mut records {
-        // Clear parent fields that reference the deleted issue
         if let Some(parent_value) = record.get("parent").and_then(Value::as_str) {
             if parent_value == identifier {
                 if let Some(object) = record.as_object_mut() {
@@ -990,7 +1090,6 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
                     .map(|value| value != identifier)
                     .unwrap_or(true)
             });
-            // remove empty dependency arrays for cleanliness
             if list.is_empty() {
                 if let Some(object) = record.as_object_mut() {
                     object.remove("dependencies");
@@ -998,38 +1097,47 @@ pub fn delete_beads_issue(root: &Path, identifier: &str) -> Result<(), KanbusErr
             }
         }
     }
-    write_beads_records(&issues_path, &records)?;
-
+    write_beads_records(issues_path, &records)?;
     let project_dir = load_project_directory(root)?;
-    let occurred_at = now_timestamp();
-    let actor_id = get_current_user();
-    let event = EventRecord::new(
-        identifier.to_string(),
-        EventType::IssueDeleted,
-        actor_id,
-        issue_deleted_payload(&deleted_issue),
-        occurred_at,
-    );
     let events_dir = events_dir_for_project(&project_dir);
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            fs::write(&issues_path, original_contents)
-                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
-            return Err(error);
-        }
+    let mut ids = HashSet::new();
+    ids.insert(identifier.to_string());
+    if let Err(error) = delete_events_for_issues(&events_dir, &ids) {
+        let _ = fs::write(issues_path, original_contents);
+        return Err(error);
     }
+    crate::gossip::publish_issue_deleted(root, &project_dir, identifier, None);
+    Ok(())
+}
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(
-        root,
-        NotificationEvent::IssueDeleted {
-            issue_id: identifier.to_string(),
-        },
-    );
-
+/// Delete a Beads-compatible issue in .beads/issues.jsonl and prune its events.
+///
+/// When `recursive` is true, deletes all descendants first (leaf-first), then the target.
+pub fn delete_beads_issue(
+    root: &Path,
+    identifier: &str,
+    recursive: bool,
+) -> Result<(), KanbusError> {
+    let beads_dir = root.join(".beads");
+    if !beads_dir.exists() {
+        return Err(KanbusError::IssueOperation(
+            "no .beads directory".to_string(),
+        ));
+    }
+    let issues_path = beads_dir.join("issues.jsonl");
+    if !issues_path.exists() {
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
+    }
+    load_beads_issue_by_id(root, identifier)?;
+    let mut to_delete = if recursive {
+        get_beads_descendant_identifiers(root, identifier)?
+    } else {
+        vec![]
+    };
+    to_delete.push(identifier.to_string());
+    for issue_id in &to_delete {
+        delete_single_beads_issue(root, &issues_path, issue_id)?;
+    }
     Ok(())
 }
 
@@ -1132,4 +1240,54 @@ fn next_beads_slug() -> Option<String> {
         return None;
     }
     Some(guard.remove(0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn issue_id_match_handles_prefix_abbreviations() {
+        assert!(issue_id_matches_beads("kanbus-abc", "kanbus-abcdef"));
+        assert!(!issue_id_matches_beads("alpha-abc", "kanbus-abcdef"));
+    }
+
+    #[test]
+    fn resolve_beads_index_detects_ambiguity() {
+        let records = vec![
+            json!({ "id": "kanbus-aaaaaa" }),
+            json!({ "id": "kanbus-aaaaab" }),
+        ];
+        let error = resolve_beads_index(&records, "kanbus-aaaa").expect_err("expected error");
+        let KanbusError::IssueOperation(message) = error else {
+            panic!("expected issue operation error");
+        };
+        assert!(message.contains("ambiguous identifier"));
+    }
+
+    #[test]
+    fn derive_prefix_and_next_child_suffix_work() {
+        let existing_ids = HashSet::from([
+            "kanbus-aaa".to_string(),
+            "kanbus-parent.1".to_string(),
+            "kanbus-parent.3".to_string(),
+        ]);
+        let prefix = derive_prefix(&existing_ids).expect("prefix");
+        let suffix = next_child_suffix(&existing_ids, "kanbus-parent");
+
+        assert_eq!(prefix, "kanbus");
+        assert_eq!(suffix, 4);
+    }
+
+    #[test]
+    fn generate_identifier_uses_test_slug_sequence() {
+        set_test_beads_slug_sequence(Some(vec!["abc".to_string()]));
+        let existing_ids = HashSet::from(["kanbus-def".to_string()]);
+
+        let identifier = generate_identifier(&existing_ids, "kanbus", None).expect("identifier");
+
+        assert_eq!(identifier, "kanbus-abc");
+        set_test_beads_slug_sequence(None);
+    }
 }

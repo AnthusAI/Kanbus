@@ -6,7 +6,6 @@ Verify parity between shared Gherkin steps and both implementations.
 from __future__ import annotations
 
 import argparse
-import codecs
 import re
 import sys
 import os
@@ -17,18 +16,30 @@ from typing import Iterable, List, Sequence, Set, Tuple
 STEP_KEYWORDS = ("Given", "When", "Then", "And", "But")
 
 PYTHON_STEP_PATTERN = re.compile(
-    r"@(?P<kind>given|when|then)\(\s*[\"'](?P<text>.+?)[\"']\s*\)",
+    r"@(?P<kind>given|when|then)\(\s*(?:[rubfRUBF]{0,2})?[\"'](?P<text>.+?)[\"']\s*\)",
 )
 RUST_STEP_PATTERN = re.compile(
-    r"#\[(?P<kind>given|when|then)\(\s*\"(?P<text>.+?)\"\s*\)\]",
+    r"#\[(?P<kind>given|when|then)\(\s*\"(?P<text>(?:\\.|[^\"\\])*)\"\s*\)\]",
+    re.DOTALL,
+)
+RUST_STEP_RAW_PATTERN = re.compile(
+    r"#\[(?P<kind>given|when|then)\(\s*r#\"(?P<text>.*?)\"#\s*\)\]",
     re.DOTALL,
 )
 RUST_EXPR_PATTERN = re.compile(
-    r"#\[(?P<kind>given|when|then)\(\s*expr\s*=\s*\"(?P<text>.+?)\"\s*\)\]",
+    r"#\[(?P<kind>given|when|then)\(\s*expr\s*=\s*\"(?P<text>(?:\\.|[^\"\\])*)\"\s*\)\]",
+    re.DOTALL,
+)
+RUST_EXPR_RAW_PATTERN = re.compile(
+    r"#\[(?P<kind>given|when|then)\(\s*expr\s*=\s*r#\"(?P<text>.*?)\"#\s*\)\]",
     re.DOTALL,
 )
 RUST_REGEX_PATTERN = re.compile(
-    r"#\[(?P<kind>given|when|then)\(\s*regex\s*=\s*r#\"(?P<text>.+?)\"#\s*\)\]",
+    r"#\[(?P<kind>given|when|then)\(\s*regex\s*=\s*\"(?P<text>(?:\\.|[^\"\\])*)\"\s*\)\]",
+    re.DOTALL,
+)
+RUST_REGEX_RAW_PATTERN = re.compile(
+    r"#\[(?P<kind>given|when|then)\(\s*regex\s*=\s*r#\"(?P<text>.*?)\"#\s*\)\]",
     re.DOTALL,
 )
 
@@ -73,10 +84,16 @@ def _iter_feature_steps(feature_path: Path) -> Iterable[str]:
     current_scenario_tags: Set[str] = set()
     in_scenario = False
     skip_scenario = False
+    in_docstring = False
 
     for raw_line in feature_path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line:
+            continue
+        if line.startswith('"""'):
+            in_docstring = not in_docstring
+            continue
+        if in_docstring:
             continue
         if line.startswith("#"):
             continue
@@ -97,8 +114,6 @@ def _iter_feature_steps(feature_path: Path) -> Iterable[str]:
             skip_scenario = (
                 "wip" in current_feature_tags
                 or "wip" in current_scenario_tags
-                or "console" in current_feature_tags
-                or "console" in current_scenario_tags
             )
             current_scenario_tags = set()
             continue
@@ -135,7 +150,7 @@ def collect_python_steps(steps_root: Path) -> List[StepPattern]:
     for path in steps_root.rglob("*.py"):
         for match in PYTHON_STEP_PATTERN.finditer(path.read_text(encoding="utf-8")):
             text = match.group("text")
-            text = codecs.decode(text, "unicode_escape")
+            text = _decode_escaped_literal(text)
             steps.append(StepPattern(text=text, is_regex=_looks_like_regex(text)))
     return steps
 
@@ -151,17 +166,29 @@ def collect_rust_steps(steps_root: Path) -> List[StepPattern]:
     steps: List[StepPattern] = []
     for path in steps_root.rglob("*.rs"):
         contents = path.read_text(encoding="utf-8")
+        for match in RUST_STEP_RAW_PATTERN.finditer(contents):
+            text = match.group("text")
+            text = _decode_escaped_literal(text)
+            steps.append(StepPattern(text=text, is_regex=_looks_like_regex(text)))
         for match in RUST_STEP_PATTERN.finditer(contents):
             text = match.group("text")
-            text = codecs.decode(text, "unicode_escape")
+            text = _decode_escaped_literal(text)
+            steps.append(StepPattern(text=text, is_regex=_looks_like_regex(text)))
+        for match in RUST_EXPR_RAW_PATTERN.finditer(contents):
+            text = match.group("text")
+            text = _decode_escaped_literal(text)
             steps.append(StepPattern(text=text, is_regex=_looks_like_regex(text)))
         for match in RUST_EXPR_PATTERN.finditer(contents):
             text = match.group("text")
-            text = codecs.decode(text, "unicode_escape")
+            text = _decode_escaped_literal(text)
             steps.append(StepPattern(text=text, is_regex=_looks_like_regex(text)))
+        for match in RUST_REGEX_RAW_PATTERN.finditer(contents):
+            text = match.group("text")
+            text = _decode_escaped_literal(text)
+            steps.append(StepPattern(text=text, is_regex=True))
         for match in RUST_REGEX_PATTERN.finditer(contents):
             text = match.group("text")
-            text = codecs.decode(text, "unicode_escape")
+            text = _decode_escaped_literal(text)
             steps.append(StepPattern(text=text, is_regex=True))
     return steps
 
@@ -170,9 +197,42 @@ def _looks_like_regex(text: str) -> bool:
     return text.startswith("^") or text.endswith("$") or "(?P<" in text
 
 
+def _decode_escaped_literal(text: str) -> str:
+    """Decode escaped quotes/newlines while preserving regex backslashes."""
+    return (
+        text.replace("\\\\", "\\")
+        .replace('\\"', '"')
+        .replace("\\'", "'")
+        .replace("\\n", "\n")
+        .replace("\\t", "\t")
+    )
+
+
+def normalize_step_text(text: str) -> str:
+    """Normalize step text to avoid syntax-only parity mismatches."""
+    normalized = text.strip()
+    normalized = re.sub(r"\{[^}]+\}", "{param}", normalized)
+    normalized = re.sub(r'"{param}"', "{param}", normalized)
+    normalized = re.sub(r"'\{param\}'", "{param}", normalized)
+    normalized = normalized.replace("{string}", "{param}")
+    normalized = normalized.replace("{word}", "{param}")
+    normalized = normalized.replace("{int}", "{param}")
+    normalized = normalized.replace("{float}", "{param}")
+    normalized = normalized.replace("{param:string}", "{param}")
+    normalized = normalized.replace("{param:word}", "{param}")
+    normalized = normalized.replace("{param:int}", "{param}")
+    normalized = normalized.replace("{param:float}", "{param}")
+    normalized = normalized.rstrip("$")
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized
+
+
 def _compile_pattern(pattern: StepPattern) -> re.Pattern[str]:
     if pattern.is_regex:
-        return re.compile(pattern.text)
+        try:
+            return re.compile(pattern.text)
+        except re.error:
+            return re.compile(re.escape(_normalize_step_text(pattern.text)))
     if "{" in pattern.text and "}" in pattern.text:
         escaped = re.escape(pattern.text)
         return re.compile(re.sub(r"\\\{[^}]+\\\}", r".+", escaped))
@@ -180,9 +240,7 @@ def _compile_pattern(pattern: StepPattern) -> re.Pattern[str]:
 
 
 def _normalize_step_text(text: str) -> str:
-    normalized = re.sub(r"\{[^}]+\}", "{param}", text)
-    normalized = re.sub(r'["\']\{param\}["\']', "{param}", normalized)
-    return normalized
+    return normalize_step_text(text)
 
 
 def _find_missing(feature_steps: Set[str], patterns: Sequence[StepPattern]) -> Set[str]:
@@ -263,7 +321,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     :return: Parsed arguments.
     :rtype: argparse.Namespace
     """
-    parser = argparse.ArgumentParser(description="Check spec parity across implementations.")
+    parser = argparse.ArgumentParser(
+        description="Check spec parity across implementations."
+    )
     parser.add_argument(
         "--repo",
         type=Path,

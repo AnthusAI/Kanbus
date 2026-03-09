@@ -1,5 +1,6 @@
 //! CLI command definitions.
 
+use std::env;
 use std::ffi::OsString;
 use std::io::IsTerminal;
 use std::io::Write;
@@ -15,6 +16,7 @@ use crate::beads_write::{
     add_beads_comment, add_beads_dependency, create_beads_issue, delete_beads_comment,
     delete_beads_issue, remove_beads_dependency, update_beads_comment, update_beads_issue,
 };
+use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_token};
 use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
@@ -30,6 +32,10 @@ use crate::file_io::{
     get_configuration_path, initialize_project, repair_project_structure, resolve_root,
 };
 use crate::github_security_sync::{pull_dependabot_from_github, pull_dependabot_from_github_beads};
+use crate::hooks::{
+    list_hooks, run_lifecycle_hooks, serialize_issue, validate_hooks, HookEvent,
+    HookExecutionOptions, HookPhase,
+};
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
 use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
@@ -52,8 +58,9 @@ use crate::rich_text_signals::{
     apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
 };
 use crate::snyk_sync::pull_from_snyk;
+use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::users::get_current_user;
-use crate::wiki::{render_wiki_page, WikiRenderRequest};
+use crate::wiki::{list_wiki_pages, render_wiki_page, WikiRenderRequest};
 
 /// Kanbus CLI arguments.
 #[derive(Debug, Parser)]
@@ -83,6 +90,9 @@ pub struct Cli {
     /// Disable policy guidance hooks for this command.
     #[arg(long = "no-guidance")]
     no_guidance: bool,
+    /// Disable all lifecycle hooks for this command.
+    #[arg(long = "no-hooks")]
+    no_hooks: bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -138,7 +148,7 @@ enum Commands {
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
-        /// Automatically focus the issue in the console UI after creation.
+        /// Deprecated: UI control commands are being migrated to pub/sub.
         #[arg(long)]
         focus: bool,
     },
@@ -218,6 +228,12 @@ enum Commands {
     Delete {
         /// Issue identifier.
         identifier: String,
+        /// Skip confirmation prompts.
+        #[arg(long)]
+        yes: bool,
+        /// Also delete descendants after confirmation.
+        #[arg(long)]
+        recursive: bool,
     },
     /// Add a comment to an issue.
     Comment {
@@ -345,15 +361,40 @@ enum Commands {
         #[command(subcommand)]
         command: WikiCommands,
     },
+    /// File edit commands mirroring the Anthropic text editor tool.
+    Edit {
+        #[command(subcommand)]
+        command: EditCommands,
+    },
     /// Console helpers.
     Console {
         #[command(subcommand)]
         command: ConsoleCommands,
     },
+    /// Realtime gossip commands.
+    Gossip {
+        #[command(subcommand)]
+        command: GossipCommands,
+    },
+    /// Overlay cache commands.
+    Overlay {
+        #[command(subcommand)]
+        command: OverlayCommands,
+    },
+    /// Lifecycle hook commands.
+    Hooks {
+        #[command(subcommand)]
+        command: HooksCommands,
+    },
     /// Policy management commands.
     Policy {
         #[command(subcommand)]
         command: PolicyCommands,
+    },
+    /// Cloud auth/token helper commands.
+    Cloud {
+        #[command(subcommand)]
+        command: CloudCommands,
     },
     /// Report daemon status.
     #[command(name = "daemon-status")]
@@ -488,6 +529,49 @@ enum SnykCommands {
 }
 
 #[derive(Debug, Subcommand)]
+enum EditCommands {
+    /// View file contents or list directory.
+    View {
+        /// File or directory path.
+        path: String,
+        /// Start and end line numbers (1-indexed; -1 for end).
+        #[arg(long = "view-range", num_args = 2)]
+        view_range: Option<Vec<i32>>,
+    },
+    /// Replace exact text in file (must match exactly one location).
+    #[command(name = "str-replace")]
+    StrReplace {
+        /// File path.
+        path: String,
+        /// Exact text to replace.
+        #[arg(long = "old-str")]
+        old_str: String,
+        /// Replacement text.
+        #[arg(long = "new-str")]
+        new_str: String,
+    },
+    /// Create a new file with the given content.
+    Create {
+        /// File path.
+        path: String,
+        /// Content to write.
+        #[arg(long = "file-text")]
+        file_text: String,
+    },
+    /// Insert text after the given line number (0 = beginning).
+    Insert {
+        /// File path.
+        path: String,
+        /// Line number after which to insert.
+        #[arg(long = "insert-line")]
+        insert_line: i32,
+        /// Text to insert.
+        #[arg(long = "insert-text")]
+        insert_text: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 enum GithubSecurityCommands {
     /// Dependabot synchronization commands.
     Dependabot {
@@ -525,6 +609,8 @@ enum WikiCommands {
         /// Wiki page path.
         page: String,
     },
+    /// List wiki pages.
+    List,
 }
 
 #[derive(Debug, Subcommand)]
@@ -552,6 +638,66 @@ enum PolicyCommands {
     },
     /// Validate all policy files for syntax errors.
     Validate,
+}
+
+#[derive(Debug, Subcommand)]
+enum CloudCommands {
+    /// Manage cloud API tokens used by CLI MQTT clients.
+    Token {
+        #[command(subcommand)]
+        command: CloudTokenCommands,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum CloudTokenCommands {
+    /// Create a scoped API token.
+    Create {
+        /// Base API URL, e.g. https://...execute-api.../dev
+        #[arg(long = "base-url", value_name = "URL")]
+        base_url: Option<String>,
+        /// Cognito ID token for admin API authentication.
+        #[arg(long = "id-token", value_name = "JWT")]
+        id_token: Option<String>,
+        /// Tenant account scope.
+        #[arg(long)]
+        account: String,
+        /// Tenant project scope.
+        #[arg(long)]
+        project: String,
+        /// Comma-separated scopes (subscribe,read,publish).
+        #[arg(long, default_value = "subscribe")]
+        scopes: String,
+        /// Token expiration in days.
+        #[arg(long, default_value_t = 90)]
+        days: u16,
+    },
+    /// List tokens (optionally filtered by tenant).
+    List {
+        /// Base API URL, e.g. https://...execute-api.../dev
+        #[arg(long = "base-url", value_name = "URL")]
+        base_url: Option<String>,
+        /// Cognito ID token for admin API authentication.
+        #[arg(long = "id-token", value_name = "JWT")]
+        id_token: Option<String>,
+        /// Optional account filter.
+        #[arg(long)]
+        account: Option<String>,
+        /// Optional project filter.
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Revoke a token by id.
+    Revoke {
+        /// Base API URL, e.g. https://...execute-api.../dev
+        #[arg(long = "base-url", value_name = "URL")]
+        base_url: Option<String>,
+        /// Cognito ID token for admin API authentication.
+        #[arg(long = "id-token", value_name = "JWT")]
+        id_token: Option<String>,
+        /// Token id (with or without kbt_ prefix).
+        token_id: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -629,6 +775,82 @@ enum ConsoleCommands {
         /// State field to query: focus, view, or search.
         field: String,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum GossipCommands {
+    /// Run a local UDS gossip broker.
+    Broker {
+        /// Optional socket path override.
+        #[arg(long, value_name = "PATH")]
+        socket: Option<std::path::PathBuf>,
+    },
+    /// Watch gossip notifications and update overlays.
+    Watch {
+        /// Filter to a single project label.
+        #[arg(long = "project")]
+        project: Option<String>,
+        /// Transport override: auto, uds, or mqtt.
+        #[arg(long)]
+        transport: Option<String>,
+        /// Broker override: auto, off, mqtt://... or mqtts://...
+        #[arg(long)]
+        broker: Option<String>,
+        /// Force autostart on.
+        #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "no_autostart")]
+        autostart: bool,
+        /// Force autostart off.
+        #[arg(long = "no-autostart", action = clap::ArgAction::SetTrue)]
+        no_autostart: bool,
+        /// Keep the broker running after exit.
+        #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "no_keepalive")]
+        keepalive: bool,
+        /// Stop the broker on exit.
+        #[arg(long = "no-keepalive", action = clap::ArgAction::SetTrue)]
+        no_keepalive: bool,
+        /// Print each received envelope as JSON (NDJSON) to stdout.
+        #[arg(long = "print", action = clap::ArgAction::SetTrue)]
+        print_envelopes: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum OverlayCommands {
+    /// Sweep overlay cache entries.
+    Gc {
+        /// Filter to a single project label.
+        #[arg(long = "project")]
+        project: Option<String>,
+        /// Sweep all labeled projects.
+        #[arg(long)]
+        all: bool,
+    },
+    /// Reconcile overlay snapshots against canonical issue files.
+    Reconcile {
+        /// Filter to a single project label.
+        #[arg(long = "project")]
+        project: Option<String>,
+        /// Reconcile all labeled projects.
+        #[arg(long)]
+        all: bool,
+        /// Remove fields from speculative overrides once canonical data matches.
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        prune: bool,
+        /// Show what would change without writing files.
+        #[arg(long = "dry-run", action = clap::ArgAction::SetTrue)]
+        dry_run: bool,
+    },
+    /// Install git hooks that run overlay reconcile + GC.
+    #[command(name = "install-hooks")]
+    InstallHooks,
+}
+
+#[derive(Debug, Subcommand)]
+enum HooksCommands {
+    /// List configured lifecycle hooks and built-in providers.
+    List,
+    /// Validate hook commands, IDs, and event bindings.
+    Validate,
 }
 
 #[derive(Debug, Subcommand)]
@@ -761,8 +983,16 @@ where
     let root = canonicalize_path(&root).unwrap_or(root);
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
     let no_guidance = cli.no_guidance;
+    let no_hooks = cli.no_hooks;
     maybe_prompt_project_repair(&cli.command, &root)?;
-    let stdout = execute_command(cli.command, &root, beads_mode, beads_forced, no_guidance);
+    let stdout = execute_command(
+        cli.command,
+        &root,
+        beads_mode,
+        beads_forced,
+        no_guidance,
+        no_hooks,
+    );
     let captured_stderr = take_captured_stderr().unwrap_or_default();
     let stdout = stdout?;
 
@@ -798,7 +1028,13 @@ fn beads_root(root: &Path) -> std::path::PathBuf {
 }
 
 fn should_check_project_structure(command: &Commands) -> bool {
-    !matches!(command, Commands::Init { .. } | Commands::Setup { .. })
+    !matches!(
+        command,
+        Commands::Init { .. }
+            | Commands::Setup { .. }
+            | Commands::Repair { .. }
+            | Commands::Edit { .. }
+    )
 }
 
 fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), KanbusError> {
@@ -842,14 +1078,51 @@ fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), Ka
     Ok(())
 }
 
+/// Returns true when delete may show prompts: TTY or KANBUS_FORCE_INTERACTIVE=1.
+fn delete_terminal_is_interactive() -> bool {
+    if env::var("KANBUS_FORCE_INTERACTIVE").ok().as_deref() == Some("1") {
+        return true;
+    }
+    std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
+}
+
+fn deprecated_console_control_error(command: &str) -> KanbusError {
+    KanbusError::IssueOperation(format!(
+        "`kbs console {command}` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
+    ))
+}
+
+fn deprecated_create_focus_error() -> KanbusError {
+    KanbusError::IssueOperation(
+        "`kbs create --focus` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable.".to_string(),
+    )
+}
+
+fn run_lifecycle_hooks_for_context(
+    root: &Path,
+    phase: HookPhase,
+    event: HookEvent,
+    operation: serde_json::Value,
+    issues_for_policy: &[IssueData],
+    options: HookExecutionOptions,
+) -> Result<(), KanbusError> {
+    run_lifecycle_hooks(root, phase, event, operation, issues_for_policy, options)
+}
+
 fn execute_command(
     command: Commands,
     root: &Path,
     beads_mode: bool,
     _beads_forced: bool,
     no_guidance: bool,
+    no_hooks: bool,
 ) -> Result<Option<String>, KanbusError> {
     let root_for_beads = beads_root(root);
+    let hook_options = HookExecutionOptions {
+        beads_mode,
+        no_hooks,
+        no_guidance,
+    };
     match command {
         Commands::Init { local } => {
             ensure_git_repository(root)?;
@@ -931,12 +1204,32 @@ fn execute_command(
             if !no_validate && !description_text.is_empty() {
                 validate_code_blocks(&description_text)?;
             }
+            if focus {
+                return Err(deprecated_create_focus_error());
+            }
+            if beads_mode && local {
+                return Err(KanbusError::IssueOperation(
+                    "beads mode does not support local issues".to_string(),
+                ));
+            }
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueCreate,
+                serde_json::json!({
+                    "title": title_text.clone(),
+                    "issue_type": issue_type.clone(),
+                    "priority": priority,
+                    "assignee": assignee.clone(),
+                    "parent": parent.clone(),
+                    "labels": label.clone(),
+                    "description": if description_text.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(description_text.clone()) },
+                    "local": local,
+                }),
+                &[],
+                hook_options,
+            )?;
             if beads_mode {
-                if local {
-                    return Err(KanbusError::IssueOperation(
-                        "beads mode does not support local issues".to_string(),
-                    ));
-                }
                 let issue = create_beads_issue(
                     &root_for_beads,
                     &title_text,
@@ -951,26 +1244,22 @@ fn execute_command(
                     },
                 )?;
 
-                // Auto-focus the newly created issue if --focus flag is set
-                if focus {
-                    use crate::notification_events::NotificationEvent;
-                    use crate::notification_publisher::publish_notification;
-
-                    let event = NotificationEvent::IssueFocused {
-                        issue_id: issue.identifier.clone(),
-                        user: None,
-                        comment_id: None,
-                    };
-
-                    // Best-effort notification - don't fail if console server is down
-                    let _ = publish_notification(root, event);
-                }
-
                 let use_color = should_use_color();
-                let output = format_issue_for_display(&issue, None, use_color, false);
+                let output = format_issue_for_display(&issue, None, use_color, false, None);
                 if let Some(ref qr) = quality_result {
                     emit_signals(qr, "description", Some(&issue.identifier), None, false);
                 }
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueCreate,
+                    serde_json::json!({
+                        "issue": serialize_issue(&issue),
+                        "local": local,
+                    }),
+                    std::slice::from_ref(&issue),
+                    hook_options,
+                )?;
                 return Ok(Some(output));
             }
             let request = IssueCreationRequest {
@@ -993,32 +1282,23 @@ fn execute_command(
             let configuration = result.configuration;
             let issue = result.issue;
 
-            // Auto-focus the newly created issue if --focus flag is set
-            if focus {
-                use crate::notification_events::NotificationEvent;
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::IssueFocused {
-                    issue_id: issue.identifier.clone(),
-                    user: None,
-                    comment_id: None,
-                };
-
-                // Best-effort notification - don't fail if console server is down
-                let _ = publish_notification(root, event);
-            }
-
             let use_color = should_use_color();
-            let output = format_issue_for_display(&issue, Some(&configuration), use_color, false);
+            let output =
+                format_issue_for_display(&issue, Some(&configuration), use_color, false, None);
             if let Some(ref qr) = quality_result {
                 emit_signals(qr, "description", Some(&issue.identifier), None, false);
             }
-            crate::policy_guidance::emit_guidance_for_issues(
+            run_lifecycle_hooks_for_context(
                 root,
+                HookPhase::After,
+                HookEvent::IssueCreate,
+                serde_json::json!({
+                    "issue": serialize_issue(&issue),
+                    "local": local,
+                }),
                 std::slice::from_ref(&issue),
-                crate::policy_context::PolicyOperation::Create,
-                no_guidance,
-            );
+                hook_options,
+            )?;
             Ok(Some(output))
         }
         Commands::Show {
@@ -1028,6 +1308,20 @@ fn execute_command(
         } => {
             let lookup_root = project_root.as_deref().unwrap_or(root);
             let beads_root_for_show = beads_root(lookup_root);
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueShow,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "json": json,
+                    "project_root": project_root
+                        .as_ref()
+                        .map(|value| value.display().to_string()),
+                }),
+                &[],
+                hook_options,
+            )?;
             let (issue, configuration) = if beads_mode {
                 let mut beads_issue = load_beads_issue_by_id(&beads_root_for_show, &identifier)?;
                 // Normalize comment ids for display consistency
@@ -1074,31 +1368,41 @@ fn execute_command(
                     Err(error) => return Err(error),
                 }
             };
-            if json {
-                let payload =
-                    serde_json::to_string_pretty(&issue).expect("failed to serialize issue");
-                if !beads_mode {
-                    crate::policy_guidance::emit_guidance_for_issues(
-                        root,
-                        std::slice::from_ref(&issue),
-                        crate::policy_context::PolicyOperation::View,
-                        no_guidance,
-                    );
-                }
-                return Ok(Some(payload));
-            }
-            let use_color = should_use_color();
-            let rendered =
-                format_issue_for_display(&issue, configuration.as_ref(), use_color, false);
-            if !beads_mode {
-                crate::policy_guidance::emit_guidance_for_issues(
-                    root,
-                    std::slice::from_ref(&issue),
-                    crate::policy_context::PolicyOperation::View,
-                    no_guidance,
-                );
-            }
-            Ok(Some(rendered))
+            let output = if json {
+                serde_json::to_string_pretty(&issue).expect("failed to serialize issue")
+            } else {
+                let use_color = should_use_color();
+                let all_issues = if beads_mode {
+                    None
+                } else {
+                    let store = crate::console_backend::FileStore::new(lookup_root);
+                    if let Ok(config) = store.load_config() {
+                        store.load_issues(&config).ok()
+                    } else {
+                        None
+                    }
+                };
+                format_issue_for_display(
+                    &issue,
+                    configuration.as_ref(),
+                    use_color,
+                    false,
+                    all_issues.as_deref(),
+                )
+            };
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueShow,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "json": json,
+                    "issue": serialize_issue(&issue),
+                }),
+                std::slice::from_ref(&issue),
+                hook_options,
+            )?;
+            Ok(Some(output))
         }
         Commands::Update {
             identifier,
@@ -1151,6 +1455,35 @@ fn execute_command(
                     validate_code_blocks(text)?;
                 }
             }
+            let before_issue_for_hooks = if beads_mode {
+                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+            } else {
+                load_issue_from_project(root, &identifier)
+                    .ok()
+                    .map(|lookup| lookup.issue)
+            };
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueUpdate,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "title": title_value,
+                    "description": final_description_value,
+                    "status": status.clone(),
+                    "priority": priority,
+                    "assignee": assignee_value.clone(),
+                    "add_labels": add_labels.clone(),
+                    "remove_labels": remove_labels.clone(),
+                    "set_labels": set_labels.clone(),
+                    "parent": parent.clone(),
+                    "claim": claim,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                hook_options,
+            )?;
+            let after_issue_for_hooks: Option<IssueData>;
             if beads_mode {
                 if parent.is_some() {
                     return Err(KanbusError::IssueOperation(
@@ -1282,6 +1615,7 @@ fn execute_command(
                     &remove_labels,
                     set_labels.as_deref(),
                 )?;
+                after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, &identifier).ok();
             } else {
                 let updated_issue = update_issue(
                     root,
@@ -1299,17 +1633,36 @@ fn execute_command(
                     parent.as_deref(),
                     None,
                 )?;
-                crate::policy_guidance::emit_guidance_for_issues(
-                    root,
-                    &[updated_issue],
-                    crate::policy_context::PolicyOperation::Update,
-                    no_guidance,
-                );
+                after_issue_for_hooks = Some(updated_issue);
             }
             let formatted_identifier = format_issue_key(&identifier, false);
             if let Some(ref qr) = update_quality_result {
                 emit_signals(qr, "description", Some(&identifier), None, true);
             }
+            let issues_for_policy = after_issue_for_hooks
+                .as_ref()
+                .map(|issue| vec![issue.clone()])
+                .unwrap_or_default();
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueUpdate,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "status": status,
+                    "priority": priority,
+                    "assignee": assignee_value,
+                    "add_labels": add_labels,
+                    "remove_labels": remove_labels,
+                    "set_labels": set_labels,
+                    "parent": parent,
+                    "claim": claim,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &issues_for_policy,
+                hook_options,
+            )?;
             Ok(Some(format!("Updated {}", formatted_identifier)))
         }
         Commands::Move {
@@ -1323,6 +1676,22 @@ fn execute_command(
                     "move is not supported in beads mode".to_string(),
                 ));
             }
+            let before_issue_for_hooks = load_issue_from_project(root, &identifier)
+                .ok()
+                .map(|lookup| lookup.issue);
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueUpdate,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "issue_type": issue_type.clone(),
+                    "status": status.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                hook_options,
+            )?;
             let moved_issue = update_issue(
                 root,
                 &identifier,
@@ -1339,12 +1708,20 @@ fn execute_command(
                 None,
                 Some(&issue_type),
             )?;
-            crate::policy_guidance::emit_guidance_for_issues(
+            run_lifecycle_hooks_for_context(
                 root,
+                HookPhase::After,
+                HookEvent::IssueUpdate,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "issue_type": issue_type.clone(),
+                    "status": status.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": serialize_issue(&moved_issue),
+                }),
                 std::slice::from_ref(&moved_issue),
-                crate::policy_context::PolicyOperation::Update,
-                no_guidance,
-            );
+                hook_options,
+            )?;
             let formatted_identifier = format_issue_key(&identifier, false);
             Ok(Some(format!(
                 "Moved {} to type {}",
@@ -1376,6 +1753,20 @@ fn execute_command(
                             .to_string(),
                     ));
                 }
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::Before,
+                    HookEvent::IssueUpdate,
+                    serde_json::json!({
+                        "ids": ids.clone(),
+                        "where_type": where_type.clone(),
+                        "where_status": where_status.clone(),
+                        "set_status": set_status.clone(),
+                        "set_assignee": set_assignee.clone(),
+                    }),
+                    &[],
+                    hook_options,
+                )?;
 
                 let mut selected = Vec::new();
                 let mut seen = HashSet::new();
@@ -1439,19 +1830,44 @@ fn execute_command(
                     }
                 }
 
-                if !selected.is_empty() {
-                    crate::policy_guidance::emit_guidance_for_issues(
-                        root,
-                        &selected,
-                        crate::policy_context::PolicyOperation::Update,
-                        no_guidance,
-                    );
-                }
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueUpdate,
+                    serde_json::json!({
+                        "ids": ids,
+                        "where_type": where_type,
+                        "where_status": where_status,
+                        "set_status": set_status,
+                        "set_assignee": set_assignee,
+                        "updated_issue_ids": selected.iter().map(|issue| issue.identifier.clone()).collect::<Vec<_>>(),
+                    }),
+                    &selected,
+                    hook_options,
+                )?;
                 Ok(Some(format!("Updated {} issue(s)", selected.len())))
             }
         },
         Commands::Close { identifier } => {
-            if beads_mode {
+            let before_issue_for_hooks = if beads_mode {
+                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+            } else {
+                load_issue_from_project(root, &identifier)
+                    .ok()
+                    .map(|lookup| lookup.issue)
+            };
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueClose,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                hook_options,
+            )?;
+            let after_issue_for_hooks: Option<IssueData> = if beads_mode {
                 update_beads_issue(
                     &root_for_beads,
                     &identifier,
@@ -1464,41 +1880,201 @@ fn execute_command(
                     &[],
                     None,
                 )?;
+                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
             } else {
                 let closed_issue = close_issue(root, &identifier)?;
-                crate::policy_guidance::emit_guidance_for_issues(
-                    root,
-                    &[closed_issue],
-                    crate::policy_context::PolicyOperation::Close,
-                    no_guidance,
-                );
-            }
+                Some(closed_issue)
+            };
             let formatted_identifier = format_issue_key(&identifier, false);
+            let issues_for_policy = after_issue_for_hooks
+                .as_ref()
+                .map(|issue| vec![issue.clone()])
+                .unwrap_or_default();
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueClose,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &issues_for_policy,
+                hook_options,
+            )?;
             Ok(Some(format!("Closed {}", formatted_identifier)))
         }
-        Commands::Delete { identifier } => {
-            let issue_for_guidance = if beads_mode {
-                None
+        Commands::Delete {
+            identifier,
+            yes: yes_flag,
+            recursive,
+        } => {
+            let issue_for_hooks = if beads_mode {
+                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
             } else {
                 load_issue_from_project(root, &identifier)
                     .ok()
                     .map(|lookup| lookup.issue)
             };
             if beads_mode {
-                delete_beads_issue(&root_for_beads, &identifier)?;
-            } else {
-                delete_issue(root, &identifier)?;
-            }
-            if let Some(issue) = issue_for_guidance {
-                crate::policy_guidance::emit_guidance_for_issues(
+                if !yes_flag {
+                    if !delete_terminal_is_interactive() {
+                        return Err(KanbusError::IssueOperation(
+                            "delete requires confirmation (re-run with --yes)".to_string(),
+                        ));
+                    }
+                    eprint!("Delete \"{}\" and its event history? [y/N] ", identifier);
+                    use std::io::Write;
+                    std::io::stderr().flush().ok();
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input).ok();
+                    let reply = input.trim().to_ascii_lowercase();
+                    if reply != "y" && reply != "yes" {
+                        return Ok(Some("Delete cancelled.".to_string()));
+                    }
+                }
+                let mut beads_recursive = recursive;
+                if recursive && !yes_flag {
+                    let beads_descendants = crate::beads_write::get_beads_descendant_identifiers(
+                        &root_for_beads,
+                        &identifier,
+                    )?;
+                    if !beads_descendants.is_empty() {
+                        let formatted: String = if beads_descendants.len() > 5 {
+                            format!(
+                                "{} and {} more",
+                                beads_descendants[..5].join(", "),
+                                beads_descendants.len() - 5
+                            )
+                        } else {
+                            beads_descendants.join(", ")
+                        };
+                        eprint!(
+                            "Also delete {} descendant(s): {}? [y/N] ",
+                            beads_descendants.len(),
+                            formatted
+                        );
+                        std::io::stderr().flush().ok();
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input).ok();
+                        let reply = input.trim().to_ascii_lowercase();
+                        if reply != "y" && reply != "yes" {
+                            beads_recursive = false;
+                        }
+                    }
+                }
+                run_lifecycle_hooks_for_context(
                     root,
-                    &[issue],
-                    crate::policy_context::PolicyOperation::Delete,
-                    no_guidance,
-                );
+                    HookPhase::Before,
+                    HookEvent::IssueDelete,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "recursive": beads_recursive,
+                        "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    hook_options,
+                )?;
+                delete_beads_issue(&root_for_beads, &identifier, beads_recursive)?;
+                let formatted_identifier = format_issue_key(&identifier, false);
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueDelete,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "recursive": beads_recursive,
+                        "deleted_issue_ids": vec![identifier],
+                        "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    hook_options,
+                )?;
+                return Ok(Some(format!("Deleted {}", formatted_identifier)));
             }
-            let formatted_identifier = format_issue_key(&identifier, false);
-            Ok(Some(format!("Deleted {}", formatted_identifier)))
+            if !yes_flag {
+                if !delete_terminal_is_interactive() {
+                    return Err(KanbusError::IssueOperation(
+                        "delete requires confirmation (re-run with --yes)".to_string(),
+                    ));
+                }
+                eprint!("Delete \"{}\" and its event history? [y/N] ", identifier);
+                use std::io::Write;
+                std::io::stderr().flush().ok();
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).ok();
+                let reply = input.trim().to_ascii_lowercase();
+                if reply != "y" && reply != "yes" {
+                    return Ok(Some("Delete cancelled.".to_string()));
+                }
+            }
+            let lookup = load_issue_from_project(root, &identifier)?;
+            let mut descendants = if recursive {
+                crate::issue_delete::get_descendant_identifiers(&lookup.project_dir, &identifier)?
+            } else {
+                vec![]
+            };
+            if !descendants.is_empty() && !yes_flag && delete_terminal_is_interactive() {
+                let formatted: String = if descendants.len() > 5 {
+                    format!(
+                        "{} and {} more",
+                        descendants[..5].join(", "),
+                        descendants.len() - 5
+                    )
+                } else {
+                    descendants.join(", ")
+                };
+                eprint!(
+                    "Also delete {} descendant(s): {}? [y/N] ",
+                    descendants.len(),
+                    formatted
+                );
+                std::io::stderr().flush().ok();
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).ok();
+                let reply = input.trim().to_ascii_lowercase();
+                if reply != "y" && reply != "yes" {
+                    descendants.clear();
+                }
+            }
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueDelete,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "recursive": recursive,
+                    "candidate_descendants": descendants.clone(),
+                    "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                hook_options,
+            )?;
+            descendants.push(identifier.clone());
+            let mut deleted_lines = Vec::new();
+            for issue_id in &descendants {
+                delete_issue(root, issue_id)?;
+                let formatted_identifier = format_issue_key(issue_id, false);
+                deleted_lines.push(format!("Deleted {}", formatted_identifier));
+            }
+            let issues_for_policy = issue_for_hooks
+                .as_ref()
+                .map(|issue| vec![issue.clone()])
+                .unwrap_or_default();
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueDelete,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "recursive": recursive,
+                    "deleted_issue_ids": descendants,
+                    "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &issues_for_policy,
+                hook_options,
+            )?;
+            Ok(Some(deleted_lines.join("\n")))
         }
         Commands::Comment {
             command,
@@ -1594,7 +2170,26 @@ fn execute_command(
                 if !no_validate {
                     validate_code_blocks(&repaired_comment_text)?;
                 }
-                if beads_mode {
+                let before_issue_for_hooks = if beads_mode {
+                    load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+                } else {
+                    load_issue_from_project(root, &identifier)
+                        .ok()
+                        .map(|lookup| lookup.issue)
+                };
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::Before,
+                    HookEvent::IssueComment,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "text": repaired_comment_text.clone(),
+                        "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    hook_options,
+                )?;
+                let after_issue_for_hooks: Option<IssueData> = if beads_mode {
                     add_beads_comment(
                         &root_for_beads,
                         &identifier,
@@ -1608,6 +2203,7 @@ fn execute_command(
                         None,
                         false,
                     );
+                    load_beads_issue_by_id(&root_for_beads, &identifier).ok()
                 } else {
                     let comment_result = add_comment(
                         root,
@@ -1622,16 +2218,82 @@ fn execute_command(
                         comment_result.comment.id.as_deref(),
                         false,
                     );
-                }
+                    Some(comment_result.issue)
+                };
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueComment,
+                    serde_json::json!({
+                        "identifier": identifier,
+                        "text": repaired_comment_text,
+                        "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                        "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    hook_options,
+                )?;
                 Ok(None)
             }
         },
         Commands::Promote { identifier } => {
-            promote_issue(root, &identifier)?;
+            let before_issue_for_hooks = load_issue_from_project(root, &identifier)
+                .ok()
+                .map(|lookup| lookup.issue);
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssuePromote,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                hook_options,
+            )?;
+            let issue = promote_issue(root, &identifier)?;
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssuePromote,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": serialize_issue(&issue),
+                }),
+                &[],
+                hook_options,
+            )?;
             Ok(None)
         }
         Commands::Localize { identifier } => {
-            localize_issue(root, &identifier)?;
+            let before_issue_for_hooks = load_issue_from_project(root, &identifier)
+                .ok()
+                .map(|lookup| lookup.issue);
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueLocalize,
+                serde_json::json!({
+                    "identifier": identifier.clone(),
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                hook_options,
+            )?;
+            let issue = localize_issue(root, &identifier)?;
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueLocalize,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": serialize_issue(&issue),
+                }),
+                &[],
+                hook_options,
+            )?;
             Ok(None)
         }
         Commands::List {
@@ -1647,6 +2309,25 @@ fn execute_command(
             porcelain,
             full_ids,
         } => {
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueList,
+                serde_json::json!({
+                    "status": status.clone(),
+                    "issue_type": issue_type.clone(),
+                    "assignee": assignee.clone(),
+                    "label": label.clone(),
+                    "sort": sort.clone(),
+                    "search": search.clone(),
+                    "projects": project.clone(),
+                    "no_local": no_local,
+                    "local_only": local_only,
+                    "porcelain": porcelain,
+                }),
+                &[],
+                hook_options,
+            )?;
             let issues = if beads_mode {
                 if local_only || no_local {
                     return Err(KanbusError::IssueOperation(
@@ -1726,12 +2407,25 @@ fn execute_command(
                     )
                 })
                 .collect::<Vec<_>>();
-            crate::policy_guidance::emit_guidance_for_issues(
+            run_lifecycle_hooks_for_context(
                 root,
+                HookPhase::After,
+                HookEvent::IssueList,
+                serde_json::json!({
+                    "status": status,
+                    "issue_type": issue_type,
+                    "assignee": assignee,
+                    "label": label,
+                    "sort": sort,
+                    "search": search,
+                    "projects": project,
+                    "no_local": no_local,
+                    "local_only": local_only,
+                    "issue_ids": issues.iter().map(|issue| issue.identifier.clone()).collect::<Vec<_>>(),
+                }),
                 &issues,
-                crate::policy_context::PolicyOperation::List,
-                no_guidance,
-            );
+                hook_options,
+            )?;
             Ok(Some(lines.join("\n")))
         }
         Commands::Validate => {
@@ -1818,6 +2512,28 @@ fn execute_command(
                 (args[1].clone(), args[2].clone())
             };
 
+            let before_issue_for_hooks = if beads_mode {
+                load_beads_issue_by_id(&root_for_beads, identifier).ok()
+            } else {
+                load_issue_from_project(root, identifier)
+                    .ok()
+                    .map(|lookup| lookup.issue)
+            };
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueDependency,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "dependency_type": dependency_type.clone(),
+                    "target": target.clone(),
+                    "remove": is_remove,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                hook_options,
+            )?;
+            let after_issue_for_hooks: Option<IssueData>;
             if beads_mode {
                 if is_remove {
                     remove_beads_dependency(
@@ -1829,17 +2545,50 @@ fn execute_command(
                 } else {
                     add_beads_dependency(&root_for_beads, identifier, &target, &dependency_type)?;
                 }
+                after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, identifier).ok();
             } else if is_remove {
-                remove_dependency(root, identifier, &target, &dependency_type)?;
+                after_issue_for_hooks = Some(remove_dependency(
+                    root,
+                    identifier,
+                    &target,
+                    &dependency_type,
+                )?);
             } else {
-                add_dependency(root, identifier, &target, &dependency_type)?;
+                after_issue_for_hooks =
+                    Some(add_dependency(root, identifier, &target, &dependency_type)?);
             }
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::After,
+                HookEvent::IssueDependency,
+                serde_json::json!({
+                    "identifier": identifier,
+                    "dependency_type": dependency_type,
+                    "target": target,
+                    "remove": is_remove,
+                    "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                    "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                }),
+                &[],
+                hook_options,
+            )?;
             Ok(None)
         }
         Commands::Ready {
             no_local,
             local_only,
         } => {
+            run_lifecycle_hooks_for_context(
+                root,
+                HookPhase::Before,
+                HookEvent::IssueReady,
+                serde_json::json!({
+                    "no_local": no_local,
+                    "local_only": local_only,
+                }),
+                &[],
+                hook_options,
+            )?;
             let issues: Vec<IssueData> = if beads_mode {
                 if local_only || no_local {
                     return Err(KanbusError::IssueOperation(
@@ -1857,12 +2606,18 @@ fn execute_command(
             for issue in &issues {
                 lines.push(format_ready_line(issue));
             }
-            crate::policy_guidance::emit_guidance_for_issues(
+            run_lifecycle_hooks_for_context(
                 root,
+                HookPhase::After,
+                HookEvent::IssueReady,
+                serde_json::json!({
+                    "no_local": no_local,
+                    "local_only": local_only,
+                    "issue_ids": issues.iter().map(|issue| issue.identifier.clone()).collect::<Vec<_>>(),
+                }),
                 &issues,
-                crate::policy_context::PolicyOperation::Ready,
-                no_guidance,
-            );
+                hook_options,
+            )?;
             Ok(Some(lines.join("\n")))
         }
         Commands::Jira { command } => match command {
@@ -2003,6 +2758,161 @@ fn execute_command(
                 };
                 let output = render_wiki_page(&request)?;
                 Ok(Some(output))
+            }
+            WikiCommands::List => {
+                let pages = list_wiki_pages(root)?;
+                let output = pages.join("\n");
+                Ok(Some(output))
+            }
+        },
+        Commands::Edit { command } => match command {
+            EditCommands::View { path, view_range } => {
+                let path_buf = Path::new(&path).to_path_buf();
+                let range = view_range.and_then(|v| {
+                    if v.len() == 2 {
+                        Some((v[0], v[1]))
+                    } else {
+                        None
+                    }
+                });
+                let output = edit_view(root, &path_buf, range)?;
+                Ok(Some(output))
+            }
+            EditCommands::StrReplace {
+                path,
+                old_str,
+                new_str,
+            } => {
+                let path_buf = Path::new(&path).to_path_buf();
+                let output = edit_str_replace(root, &path_buf, &old_str, &new_str)?;
+                Ok(Some(output))
+            }
+            EditCommands::Create { path, file_text } => {
+                let path_buf = Path::new(&path).to_path_buf();
+                let output = edit_create(root, &path_buf, &file_text)?;
+                Ok(Some(output))
+            }
+            EditCommands::Insert {
+                path,
+                insert_line,
+                insert_text,
+            } => {
+                let path_buf = Path::new(&path).to_path_buf();
+                let output = edit_insert(root, &path_buf, insert_line, &insert_text)?;
+                Ok(Some(output))
+            }
+        },
+        Commands::Gossip { command } => match command {
+            GossipCommands::Broker { socket } => {
+                crate::gossip::run_gossip_broker(root, socket)?;
+                Ok(None)
+            }
+            GossipCommands::Watch {
+                project,
+                transport,
+                broker,
+                autostart,
+                no_autostart,
+                keepalive,
+                no_keepalive,
+                print_envelopes,
+            } => {
+                let autostart_override = if autostart {
+                    Some(true)
+                } else if no_autostart {
+                    Some(false)
+                } else {
+                    None
+                };
+                let keepalive_override = if keepalive {
+                    Some(true)
+                } else if no_keepalive {
+                    Some(false)
+                } else {
+                    None
+                };
+                crate::gossip::run_gossip_watch(
+                    root,
+                    project,
+                    transport,
+                    broker,
+                    autostart_override,
+                    keepalive_override,
+                    print_envelopes,
+                )?;
+                Ok(None)
+            }
+        },
+        Commands::Overlay { command } => match command {
+            OverlayCommands::Gc { project, all } => {
+                let count = crate::overlay::gc_overlay_for_projects(root, project, all)?;
+                Ok(Some(format!("overlay gc complete ({count} project(s))")))
+            }
+            OverlayCommands::Reconcile {
+                project,
+                all,
+                prune,
+                dry_run,
+            } => {
+                let stats = crate::overlay::reconcile_overlay_for_projects(
+                    root, project, all, prune, dry_run,
+                )?;
+                Ok(Some(format!(
+                    "overlay reconcile complete (projects={}, scanned={}, updated={}, removed={}, pruned={})",
+                    stats.projects,
+                    stats.issues_scanned,
+                    stats.issues_updated,
+                    stats.issues_removed,
+                    stats.fields_pruned
+                )))
+            }
+            OverlayCommands::InstallHooks => {
+                crate::overlay::install_overlay_hooks(root)?;
+                Ok(Some("overlay hooks installed".to_string()))
+            }
+        },
+        Commands::Hooks { command } => match command {
+            HooksCommands::List => {
+                let mut rows = list_hooks(root);
+                rows.sort_by(|a, b| {
+                    a.source
+                        .cmp(&b.source)
+                        .then(a.phase.cmp(&b.phase))
+                        .then(a.event.cmp(&b.event))
+                        .then(a.id.cmp(&b.id))
+                });
+                if rows.is_empty() {
+                    return Ok(Some("No hooks configured.".to_string()));
+                }
+                let lines = rows
+                    .iter()
+                    .map(|row| {
+                        let timeout = row
+                            .timeout_ms
+                            .map(|value| value.to_string())
+                            .unwrap_or_else(|| "default".to_string());
+                        format!(
+                            "[{}] {} {} {}\n  command: {}\n  blocking: {} timeout_ms: {}",
+                            row.source,
+                            row.phase,
+                            row.event,
+                            row.id,
+                            row.command,
+                            row.blocking,
+                            timeout
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                Ok(Some(lines.join("\n")))
+            }
+            HooksCommands::Validate => {
+                let issues = validate_hooks(root);
+                if issues.is_empty() {
+                    return Ok(Some("Hook configuration is valid.".to_string()));
+                }
+                let mut lines = vec![format!("Found {} hook validation issue(s):", issues.len())];
+                lines.extend(issues.iter().map(|issue| format!("- {issue}")));
+                Err(KanbusError::IssueOperation(lines.join("\n")))
             }
         },
         Commands::Policy { command } => match command {
@@ -2230,6 +3140,66 @@ fn execute_command(
                 )))
             }
         },
+        Commands::Cloud { command } => match command {
+            CloudCommands::Token { command } => match command {
+                CloudTokenCommands::Create {
+                    base_url,
+                    id_token,
+                    account,
+                    project,
+                    scopes,
+                    days,
+                } => {
+                    let base_url = resolve_cloud_base_url(base_url)?;
+                    let id_token = resolve_cloud_id_token(id_token)?;
+                    let parsed_scopes = scopes
+                        .split(',')
+                        .map(|scope| scope.trim().to_string())
+                        .filter(|scope| !scope.is_empty())
+                        .collect::<Vec<_>>();
+                    if parsed_scopes.is_empty() {
+                        return Err(KanbusError::IssueOperation(
+                            "at least one scope is required".to_string(),
+                        ));
+                    }
+                    let output = create_cloud_token(
+                        &base_url,
+                        &id_token,
+                        &account,
+                        &project,
+                        parsed_scopes,
+                        days,
+                    )?;
+                    Ok(Some(output))
+                }
+                CloudTokenCommands::List {
+                    base_url,
+                    id_token,
+                    account,
+                    project,
+                } => {
+                    let base_url = resolve_cloud_base_url(base_url)?;
+                    let id_token = resolve_cloud_id_token(id_token)?;
+                    let output = list_cloud_tokens(
+                        &base_url,
+                        &id_token,
+                        account.as_deref(),
+                        project.as_deref(),
+                    )?;
+                    Ok(Some(output))
+                }
+                CloudTokenCommands::Revoke {
+                    base_url,
+                    id_token,
+                    token_id,
+                } => {
+                    let base_url = resolve_cloud_base_url(base_url)?;
+                    let id_token = resolve_cloud_id_token(id_token)?;
+                    let output = revoke_cloud_token(&base_url, &id_token, &token_id)?;
+                    Ok(Some(output))
+                }
+            },
+        },
         Commands::Console { command } => match command {
             ConsoleCommands::Snapshot => {
                 let snapshot = build_console_snapshot(root)?;
@@ -2241,230 +3211,27 @@ fn execute_command(
                 stream_console_telemetry(root, output, url)?;
                 Ok(None)
             }
-            ConsoleCommands::Focus {
-                identifier,
-                comment,
-            } => {
-                // Validate that the issue exists and get its ID
-                let issue_id = if beads_mode {
-                    let issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
-                    issue.identifier
-                } else {
-                    let result = load_issue_from_project(root, &identifier)?;
-                    result.issue.identifier
-                };
-
-                // Publish focus notification
-                use crate::notification_events::NotificationEvent;
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::IssueFocused {
-                    issue_id: issue_id.clone(),
-                    user: None,
-                    comment_id: comment.clone(),
-                };
-
-                // Best-effort notification - don't fail if console server is down
-                let _ = publish_notification(root, event);
-
-                let msg = if let Some(ref cid) = comment {
-                    format!("Focused on issue {} (comment {})", issue_id, cid)
-                } else {
-                    format!("Focused on issue {}", issue_id)
-                };
-                Ok(Some(msg))
-            }
-            ConsoleCommands::Unfocus => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::ClearFocus,
-                };
-
-                // Best-effort notification - don't fail if console server is down
-                let _ = publish_notification(root, event);
-
-                Ok(Some("Cleared focus filter".to_string()))
-            }
-            ConsoleCommands::View { mode } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                // Validate mode
-                let valid_modes = ["initiatives", "epics", "issues"];
-                if !valid_modes.contains(&mode.as_str()) {
-                    return Err(KanbusError::IssueOperation(format!(
-                        "Invalid view mode '{}'. Valid modes: {}",
-                        mode,
-                        valid_modes.join(", ")
-                    )));
-                }
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::SetViewMode { mode: mode.clone() },
-                };
-
-                // Best-effort notification - don't fail if console server is down
-                let _ = publish_notification(root, event);
-
-                Ok(Some(format!("Switched to {} view", mode)))
-            }
-            ConsoleCommands::Search { query, clear } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let search_query = if clear {
-                    String::new()
-                } else if let Some(q) = query {
-                    q.clone()
-                } else {
-                    return Err(KanbusError::IssueOperation(
-                        "Either provide a query or use --clear flag".to_string(),
-                    ));
-                };
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::SetSearch {
-                        query: search_query.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-
-                let msg = if clear || search_query.is_empty() {
-                    "Cleared search query".to_string()
-                } else {
-                    format!("Set search query to: {}", search_query)
-                };
-                Ok(Some(msg))
-            }
-            ConsoleCommands::Maximize => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::MaximizeDetail,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Maximized detail panel");
-                Ok(None)
-            }
-            ConsoleCommands::Restore => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::RestoreDetail,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Restored detail panel");
-                Ok(None)
-            }
-            ConsoleCommands::CloseDetail => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::CloseDetail,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Closed detail panel");
-                Ok(None)
-            }
+            ConsoleCommands::Focus { .. } => Err(deprecated_console_control_error("focus")),
+            ConsoleCommands::Unfocus => Err(deprecated_console_control_error("unfocus")),
+            ConsoleCommands::View { .. } => Err(deprecated_console_control_error("view")),
+            ConsoleCommands::Search { .. } => Err(deprecated_console_control_error("search")),
+            ConsoleCommands::Maximize => Err(deprecated_console_control_error("maximize")),
+            ConsoleCommands::Restore => Err(deprecated_console_control_error("restore")),
+            ConsoleCommands::CloseDetail => Err(deprecated_console_control_error("close-detail")),
             ConsoleCommands::ToggleSettings => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::ToggleSettings,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Toggled settings panel");
-                Ok(None)
+                Err(deprecated_console_control_error("toggle-settings"))
             }
-            ConsoleCommands::Reload => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::ReloadPage,
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Reloaded console page");
-                Ok(None)
+            ConsoleCommands::Reload => Err(deprecated_console_control_error("reload")),
+            ConsoleCommands::SetSetting { .. } => {
+                Err(deprecated_console_control_error("set-setting"))
             }
-            ConsoleCommands::SetSetting { key, value } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::SetSetting {
-                        key: key.clone(),
-                        value: value.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Set {} = {}", key, value);
-                Ok(None)
+            ConsoleCommands::CollapseColumn { .. } => {
+                Err(deprecated_console_control_error("collapse-column"))
             }
-            ConsoleCommands::CollapseColumn { column } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::CollapseColumn {
-                        column_name: column.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Collapsed column: {}", column);
-                Ok(None)
+            ConsoleCommands::ExpandColumn { .. } => {
+                Err(deprecated_console_control_error("expand-column"))
             }
-            ConsoleCommands::ExpandColumn { column } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::ExpandColumn {
-                        column_name: column.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Expanded column: {}", column);
-                Ok(None)
-            }
-            ConsoleCommands::Select { identifier } => {
-                use crate::notification_events::{NotificationEvent, UiControlAction};
-                use crate::notification_publisher::publish_notification;
-
-                // Validate that the issue exists and get its ID
-                let issue_id = if beads_mode {
-                    let issue = load_beads_issue_by_id(&root_for_beads, &identifier)?;
-                    issue.identifier
-                } else {
-                    let result = load_issue_from_project(root, &identifier)?;
-                    result.issue.identifier
-                };
-
-                let event = NotificationEvent::UiControl {
-                    action: UiControlAction::SelectIssue {
-                        issue_id: issue_id.clone(),
-                    },
-                };
-
-                let _ = publish_notification(root, event);
-                println!("Selected issue {}", issue_id);
-                Ok(None)
-            }
+            ConsoleCommands::Select { .. } => Err(deprecated_console_control_error("select")),
             ConsoleCommands::Status => {
                 let root_clone = root.to_path_buf();
                 let result = std::thread::spawn(move || fetch_console_ui_state(&root_clone))
@@ -2655,7 +3422,120 @@ fn fetch_console_ui_state(
     Ok(ui_state)
 }
 
+fn resolve_cloud_base_url(cli_value: Option<String>) -> Result<String, KanbusError> {
+    if let Some(value) = cli_value {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    if let Ok(value) = std::env::var("KANBUS_CLOUD_API_BASE_URL") {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    Err(KanbusError::IssueOperation(
+        "cloud base URL is required (use --base-url or KANBUS_CLOUD_API_BASE_URL)".to_string(),
+    ))
+}
+
+fn resolve_cloud_id_token(cli_value: Option<String>) -> Result<String, KanbusError> {
+    if let Some(value) = cli_value {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    if let Ok(value) = std::env::var("KANBUS_CLOUD_ID_TOKEN") {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    Err(KanbusError::IssueOperation(
+        "admin ID token is required (use --id-token or KANBUS_CLOUD_ID_TOKEN)".to_string(),
+    ))
+}
+
 fn should_use_color() -> bool {
     use std::io::IsTerminal;
     std::env::var_os("NO_COLOR").is_none() && std::io::stdout().is_terminal()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+
+    fn issue(identifier: &str) -> IssueData {
+        let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        IssueData {
+            identifier: identifier.to_string(),
+            title: "Issue".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: timestamp,
+            updated_at: timestamp,
+            closed_at: None,
+            custom: std::collections::BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn rewrite_alias_args_rewrites_issue_aliases() {
+        let args = vec!["kanbus".into(), "epics".into(), "--json".into()];
+        let rewritten = rewrite_alias_args(args);
+        assert_eq!(
+            rewritten,
+            vec![
+                OsString::from("kanbus"),
+                OsString::from("list"),
+                OsString::from("--type"),
+                OsString::from("epic"),
+                OsString::from("--json"),
+            ]
+        );
+    }
+
+    #[test]
+    fn format_ready_line_includes_project_path_prefix() {
+        let mut data = issue("kanbus-123456");
+        data.custom.insert(
+            "project_path".to_string(),
+            serde_json::Value::String("alpha/project".to_string()),
+        );
+
+        assert_eq!(format_ready_line(&data), "alpha/project kanbus-123456");
+    }
+
+    #[test]
+    fn blocked_issue_detection_checks_blocked_by_dependencies() {
+        let mut data = issue("kanbus-123456");
+        data.dependencies.push(crate::models::DependencyLink {
+            target: "kanbus-parent".to_string(),
+            dependency_type: "blocked-by".to_string(),
+        });
+
+        assert!(is_issue_blocked(&data));
+    }
+
+    #[test]
+    fn format_daemon_project_error_rewrites_known_messages() {
+        let rewritten = format_daemon_project_error(KanbusError::IssueOperation(
+            "project not initialized".to_string(),
+        ));
+        let KanbusError::IssueOperation(message) = rewritten else {
+            panic!("expected issue operation");
+        };
+        assert!(message.contains("Run \"kanbus init\""));
+    }
 }

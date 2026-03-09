@@ -46,6 +46,7 @@ Feature: Console route navigation
 
   Scenario: Clicking an active view tab clears selection
     Given the console is open
-    When I switch to the "Epics" tab
+    When I switch to the "Initiatives" tab
+    And I switch to the "Epics" tab
     And I switch to the "Epics" tab
     Then the "All" tab should be selected

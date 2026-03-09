@@ -5,6 +5,7 @@ use std::process::Command;
 use chrono::{TimeZone, Utc};
 use cucumber::given;
 
+use kanbus::config::default_project_configuration;
 use kanbus::models::IssueData;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -21,6 +22,12 @@ fn create_repo(world: &mut KanbusWorld, name: &str) -> PathBuf {
     world.working_directory = Some(repo_path.clone());
     world.temp_dir = Some(temp_dir);
     repo_path
+}
+
+fn write_default_config(repo_root: &PathBuf) {
+    let configuration = default_project_configuration();
+    let payload = serde_yaml::to_string(&configuration).expect("serialize config");
+    fs::write(repo_root.join(".kanbus.yml"), payload).expect("write config");
 }
 
 fn build_issue(identifier: &str, title: &str) -> IssueData {
@@ -63,6 +70,34 @@ fn given_repo_nested_projects(world: &mut KanbusWorld) {
         &nested_project,
         &build_issue("kanbus-nested", "Nested task"),
     );
+}
+
+#[given("a workspace with nested Kanbus projects")]
+fn given_workspace_with_nested_kanbus_projects(world: &mut KanbusWorld) {
+    let root = create_repo(world, "workspace-nested-projects");
+    let alpha_repo = root.join("alpha");
+    let beta_repo = root.join("beta");
+    let alpha_project = alpha_repo.join("project");
+    let beta_project = beta_repo.join("project");
+    write_issue(&alpha_project, &build_issue("kanbus-alpha", "Alpha task"));
+    write_issue(&beta_project, &build_issue("kanbus-beta", "Beta task"));
+    write_default_config(&alpha_repo);
+    write_default_config(&beta_repo);
+}
+
+#[given("a Kanbus project with a nested Kanbus project")]
+fn given_kanbus_project_with_nested_kanbus_project(world: &mut KanbusWorld) {
+    let root = create_repo(world, "root-with-nested");
+    let root_project = root.join("project");
+    let nested_repo = root.join("nested");
+    let nested_project = nested_repo.join("project");
+    write_issue(&root_project, &build_issue("kanbus-root", "Root task"));
+    write_issue(
+        &nested_project,
+        &build_issue("kanbus-nested", "Nested task"),
+    );
+    write_default_config(&root);
+    write_default_config(&nested_repo);
 }
 
 #[given("a repository with a project directory above the current directory")]

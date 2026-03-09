@@ -8,8 +8,8 @@ import { BeadsDemoVideo } from "../src/components/BeadsDemoVideo";
 import { VirtualProjectsDemoVideo } from "../src/components/VirtualProjectsDemoVideo";
 import { VsCodeDemoVideo } from "../src/components/VsCodeDemoVideo";
 import { PolicyDemoVideo } from "../src/components/PolicyDemoVideo";
+import { RealtimeCollaborationDemoVideo } from "../src/components/RealtimeCollaborationDemoVideo";
 import { TextBlock } from "../src/components/TextBlock";
-// For the CLI renderer, window might be mocked, but we need to ensure Babulus exists
 if (typeof window !== "undefined") {
   // Inject Kanbus CSS variables into the headless browser environment so
   // MP4 exports are styled nicely (defaulting to Dark Mode for the videos).
@@ -28,24 +28,34 @@ if (typeof window !== "undefined") {
           --font-mono: "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
           --font-body: var(--font-sans);
 
-          /* Console dark */
-          --background: #0f1115;
-          --card: #14171d;
-          --card-muted: #1e222b;
-          --card-outline: #262c36;
-          --frame: #0f1115;
-          --column: #1a1f28;
-          --text-foreground: #e7e9ee;
-          --text-muted: #9ca3af;
-          --text-selected: #7dd3fc;
-          --border: #262c36;
+          /* Console light */
+          --background: #f9f9f9;
+          --card: #f9f9f9;
+          --card-muted: #e0e0e0;
+          --card-outline: #d9d9d9;
+          --frame: #f9f9f9;
+          --column: #f0f0f0;
+          --text-foreground: #202020;
+          --text-muted: #838383;
+          --text-selected: #00749e;
+          --border: #d9d9d9;
           --shadow-card: none;
 
-          --danger-bg: #451a1d;
-          --danger-text: #fca5a5;
+          --danger-bg: #fef2f2;
+          --danger-text: #991b1b;
 
-          --glow-center: rgba(0, 0, 0, 0.5);
-          --glow-edge: rgba(0, 0, 0, 0);
+          --glow-center: rgba(255, 255, 255, 0.9);
+          --glow-edge: rgba(255, 255, 255, 0);
+        }
+
+        /* Pictogram scoped tokens — resolved from @radix-ui/colors/gray + blue */
+        .pictogram {
+          --background: #f0f0f0;
+          --card: #fcfcfc;
+          --card-muted: #e8e8e8;
+          --column: #e0e0e0;
+          --border: #d9d9d9;
+          --accent-blue: #5eb1ef;
         }
       `;
       document.head.appendChild(style);
@@ -76,17 +86,30 @@ if (typeof window !== "undefined") {
     registerComponent("VirtualProjectsDemoVideo", VirtualProjectsDemoVideo);
     registerComponent("VsCodeDemoVideo", VsCodeDemoVideo);
     registerComponent("PolicyDemoVideo", PolicyDemoVideo);
+    registerComponent("RealtimeCollaborationDemoVideo", RealtimeCollaborationDemoVideo);
     registerComponent("TextBlock", TextBlock);
 
     console.log("[Kanbus] Custom components registered:", (window as any).Babulus.listComponents());
   }
 
-  // Define renderFrame on window for the renderer to call
-  if (!(window as any).renderFrame) {
-    (window as any).renderFrame = async function(options: any) {
-      if ((window as any).Babulus && (window as any).Babulus._updateFrame) {
-        await (window as any).Babulus._updateFrame(options.frame, options.config.fps);
-      }
-    };
+  if (!(window as any).renderFrame && (window as any).Babulus?.ComposableRenderer) {
+    const ReactDOM = (window as any).ReactDOM;
+    const createRoot = ReactDOM?.createRoot;
+    const ComposableRenderer = (window as any).Babulus.ComposableRenderer;
+    const RendererProvider = (window as any).Babulus.RendererProvider;
+    const React = (window as any).React;
+    if (createRoot && ComposableRenderer && RendererProvider && React) {
+      let reactRoot: ReturnType<typeof createRoot> | null = null;
+      (window as any).renderFrame = (renderData: { script: unknown; frame: number; config: unknown; inputProps?: Record<string, unknown> }) => {
+        const { script, frame, config, inputProps = {} } = renderData;
+        const root = document.getElementById("root");
+        if (!root) throw new Error("Root element not found");
+        if (!reactRoot) reactRoot = createRoot(root);
+        reactRoot.render(
+          React.createElement(RendererProvider, { frame, config }, React.createElement(ComposableRenderer, { script, ...inputProps }))
+        );
+        return new Promise((resolve) => setTimeout(resolve, 100));
+      };
+    }
   }
 }

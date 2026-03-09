@@ -470,3 +470,60 @@ fn dedupe_and_sort_guidance(items: &[GuidanceItem]) -> Vec<GuidanceItem> {
 
     unique
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn warning(message: &str) -> GuidanceItem {
+        GuidanceItem {
+            severity: GuidanceSeverity::Warning,
+            message: message.to_string(),
+            explanations: Vec::new(),
+            policy_file: "policy-a.feature".to_string(),
+            scenario: "scenario-a".to_string(),
+            step: "Then warn".to_string(),
+        }
+    }
+
+    fn suggestion(message: &str) -> GuidanceItem {
+        GuidanceItem {
+            severity: GuidanceSeverity::Suggestion,
+            message: message.to_string(),
+            explanations: Vec::new(),
+            policy_file: "policy-b.feature".to_string(),
+            scenario: "scenario-b".to_string(),
+            step: "Then suggest".to_string(),
+        }
+    }
+
+    #[test]
+    fn explain_step_detection_is_exact() {
+        assert!(is_explain_step("explain \"reason\""));
+        assert!(!is_explain_step("explain reason"));
+        assert!(!is_explain_step("warn \"reason\""));
+    }
+
+    #[test]
+    fn dedupe_and_sort_guidance_keeps_warning_before_suggestion() {
+        let duplicate_warning = warning("use required labels");
+        let items = vec![
+            suggestion("consider adding ownership"),
+            duplicate_warning.clone(),
+            duplicate_warning,
+        ];
+
+        let deduped = dedupe_and_sort_guidance(&items);
+
+        assert_eq!(deduped.len(), 2);
+        assert_eq!(deduped[0].severity, GuidanceSeverity::Warning);
+        assert_eq!(deduped[1].severity, GuidanceSeverity::Suggestion);
+    }
+
+    #[test]
+    fn step_keyword_maps_step_types() {
+        assert_eq!(step_keyword(StepType::Given), "Given");
+        assert_eq!(step_keyword(StepType::When), "When");
+        assert_eq!(step_keyword(StepType::Then), "Then");
+    }
+}

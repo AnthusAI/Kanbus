@@ -123,3 +123,14 @@ Feature: Wiki rendering
     When I run "kanbus wiki render project/wiki/invalid_template.md"
     Then the command should fail with exit code 1
     And stderr should contain "division by zero"
+
+  Scenario: Render a wiki page in Beads mode
+    Given a Kanbus project with beads compatibility enabled
+    And a wiki page "beads.md" with content:
+      """
+      Open: {{ count(status="open") }}
+      Closed: {{ count(status="closed") }}
+      """
+    When I run "kanbus wiki render project/wiki/beads.md"
+    Then stdout should contain "Open: 1"
+    And stdout should contain "Closed: 1"

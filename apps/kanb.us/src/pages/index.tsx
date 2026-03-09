@@ -9,11 +9,10 @@ import {
   type TaskDetailIssue
 } from "@kanbus/ui";
 import { FEATURE_ENTRIES } from "../content/features";
-import { VIDEOS, getVideoById } from "../content/videos";
+import { VIDEOS } from "../content/videos";
 import { getVideoSrc } from "../lib/getVideoSrc";
 import { AnimatedPictogram } from "../components/AnimatedPictogram";
 import { CodeUiSync } from "../components/CodeUiSync";
-import { HoverVideoPlayer } from "../components/HoverVideoPlayer";
 import { FullVideoPlayer } from "../components/FullVideoPlayer";
 import { useInView } from "framer-motion";
 import "@kanbus/ui/styles/kanban.css"; // Explicit import
@@ -239,6 +238,14 @@ const IndexPage = () => {
           title="Realtime Kanban Board"
           subtitle="Watch the board update in realtime as your agent makes changes."
         >
+          <div className="w-full flex justify-center pb-6">
+            <a
+              href="/features/realtime-collaboration"
+              className="cta-button px-6 py-3 text-sm transition-all hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Learn about Realtime Collaboration →
+            </a>
+          </div>
           <div className="kanban-snapshot-container h-[550px]" ref={boardSectionRef}>
             <div className={`layout-frame gap-4 ${isMaximized ? "detail-maximized" : ""} flex flex-col lg:flex-row`}>
               <div className="layout-slot layout-slot-board">
@@ -295,10 +302,7 @@ const IndexPage = () => {
           <div className="grid gap-6 md:grid-cols-2">
             {FEATURE_ENTRIES.map((feature) => {
               const videoId = feature.href.split('/').pop() || "";
-              const featureVideo = getVideoById(videoId);
-              const poster = featureVideo?.poster ? getVideoSrc(featureVideo.poster) : undefined;
-              const src = featureVideo ? getVideoSrc(featureVideo.filename) : "";
-              
+
               return (
                 <a key={feature.href} href={feature.href} className="group block h-full">
                   <div className="bg-card rounded-2xl p-6 md:p-8 h-full flex flex-col transition-all duration-300 group-hover:bg-card-muted/50 group-hover:shadow-lg">
@@ -309,7 +313,12 @@ const IndexPage = () => {
                     {/* Feature Text */}
                     <div className="flex-1 flex flex-col">
                       <h3 className="text-2xl font-bold text-foreground mb-3 group-hover:text-selected transition-colors flex items-center gap-2">
-                        {feature.title} 
+                        {feature.title}
+                        {feature.eyebrow ? (
+                          <span className="inline-flex items-center rounded-full bg-selected/15 text-selected px-2 py-0.5 text-xs font-semibold">
+                            {feature.eyebrow}
+                          </span>
+                        ) : null}
                         <span className="opacity-0 -translate-x-2 transition-all group-hover:opacity-100 group-hover:translate-x-0">→</span>
                       </h3>
                       <p className="text-muted leading-relaxed flex-1">
@@ -369,8 +378,8 @@ const IndexPage = () => {
                 <h3 className="text-xl font-bold text-foreground">Successor to Beads</h3>
               </CardHeader>
               <CardContent className="p-0 text-muted leading-relaxed">
-                Inspired by the elegant Beads cognitive framework, but re-engineered for Git. We removed the
-                SQLite database, used separate files to eliminate merge conflicts, and adopted standard Jira
+                Inspired by the elegant Beads cognitive framework, but re-engineered for Git. Kanbus drops the
+                SQLite database, uses separate files to eliminate merge conflicts, and adopts standard Jira
                 terms to better leverage AI pre-training.
               </CardContent>
             </Card>

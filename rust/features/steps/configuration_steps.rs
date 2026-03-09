@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::process::Command;
 
-use cucumber::{given, then, when};
+use cucumber::{gherkin::Step, given, then, when};
 use serde_yaml::Value;
 use tempfile::TempDir;
 
@@ -699,6 +699,36 @@ fn then_time_zone_should_match(world: &mut KanbusWorld, time_zone: String) {
     assert_eq!(configuration.time_zone.as_deref(), Some(time_zone.as_str()));
 }
 
+#[then(expr = "the realtime transport should be {string}")]
+fn then_realtime_transport_should_match(world: &mut KanbusWorld, transport: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.realtime.transport, transport);
+}
+
+#[then(expr = "the realtime broker should be {string}")]
+fn then_realtime_broker_should_match(world: &mut KanbusWorld, broker: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.realtime.broker, broker);
+}
+
+#[then("the realtime autostart should be false")]
+fn then_realtime_autostart_should_be_false(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(!configuration.realtime.autostart);
+}
+
+#[then("the overlay enabled should be false")]
+fn then_overlay_enabled_should_be_false(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(!configuration.overlay.enabled);
+}
+
+#[then("the overlay ttl should be 120")]
+fn then_overlay_ttl_should_be_120(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.overlay.ttl_s, 120);
+}
+
 #[then(expr = "the configuration should have virtual project {string}")]
 fn then_configuration_has_virtual_project(world: &mut KanbusWorld, label: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
@@ -734,6 +764,36 @@ fn then_sort_order_category_preset(world: &mut KanbusWorld, category: String, pr
     assert_eq!(value, preset);
 }
 
+#[given("a Kanbus project with a file \"kanbus.yml\" containing:")]
+fn given_project_with_kanbus_yml_containing(world: &mut KanbusWorld, step: &Step) {
+    initialize_project(world);
+    let root = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    let config_path = root.join("kanbus.yml");
+    let default_config = default_project_configuration();
+    let default_value = serde_yaml::to_value(&default_config).expect("serialize default config");
+    let mut mapping = default_value
+        .as_mapping()
+        .expect("default config mapping")
+        .clone();
+    let custom_text = step.docstring().map(|s| s.as_str()).unwrap_or("");
+    if !custom_text.is_empty() {
+        let custom: serde_yaml::Value =
+            serde_yaml::from_str(custom_text).expect("parse custom YAML");
+        if let Some(custom_map) = custom.as_mapping() {
+            for (k, v) in custom_map {
+                mapping.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    let merged = serde_yaml::Value::Mapping(mapping);
+    let contents = serde_yaml::to_string(&merged).expect("serialize merged config");
+    fs::write(&config_path, contents).expect("write kanbus.yml");
+    world.configuration_path = Some(config_path);
+}
+
 #[given(expr = "a Kanbus project with a file {string} containing a valid configuration")]
 fn given_project_with_valid_config_file(world: &mut KanbusWorld, filename: String) {
     initialize_project(world);
@@ -758,8 +818,19 @@ fn given_project_with_valid_config_file(world: &mut KanbusWorld, filename: Strin
 }
 
 #[given(expr = "the environment variable {word} is not set")]
-fn given_env_var_not_set(_world: &mut KanbusWorld, var_name: String) {
+fn given_env_var_not_set(world: &mut KanbusWorld, var_name: String) {
+    world
+        .jira_unset_env_vars
+        .push((var_name.clone(), std::env::var(&var_name).ok()));
     std::env::remove_var(&var_name);
+}
+
+#[given(expr = "the environment variable {word} is set to {string}")]
+fn given_env_var_set(world: &mut KanbusWorld, var_name: String, value: String) {
+    world
+        .jira_unset_env_vars
+        .push((var_name.clone(), std::env::var(&var_name).ok()));
+    std::env::set_var(var_name, value);
 }
 
 #[given(expr = "no {string} file exists")]
@@ -810,6 +881,20 @@ fn when_load_configuration(world: &mut KanbusWorld) {
 
 // Note: "the project key should be {string}" - removed duplicate, existing hardcoded one at line 479
 // Note: "the hierarchy should be {string}" - removed duplicate, using existing one instead
+
+#[then(expr = "the AI provider should be {string}")]
+fn then_ai_provider_matches(world: &mut KanbusWorld, expected: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    let ai = configuration
+        .ai
+        .as_ref()
+        .expect("no AI configuration in .kanbus.yml");
+    assert_eq!(
+        ai.provider, expected,
+        "expected AI provider '{}', got '{}'",
+        expected, ai.provider
+    );
+}
 
 #[then(expr = "the default priority should be {string}")]
 fn then_default_priority_matches_string(world: &mut KanbusWorld, expected: String) {

@@ -134,7 +134,7 @@ def then_recorded_id_not_in_list_output(context: object) -> None:
 def when_delete_recorded_kanbus_issue(context: object) -> None:
     identifier = getattr(context, "last_kanbus_id", None)
     assert identifier, "no Kanbus issue id recorded"
-    run_cli(context, f"kanbus delete {identifier}")
+    run_cli(context, f"kanbus delete {identifier} --yes")
 
 
 @when("I create a native task under the recorded Kanbus epic")

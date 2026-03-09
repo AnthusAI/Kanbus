@@ -1,0 +1,161 @@
+# Kanbus Cloud Foundation (Python CDK)
+
+This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
+
+- VPC with application subnets
+- EFS for tenant data (`/mnt/data/{account}/{project}`)
+- Rust Lambda container runtime (`console_lambda`)
+- Regional REST API Gateway proxying to Lambda
+- Cognito User Pool + Identity Pool foundation
+- Cognito Hosted UI PKCE bootstrap outputs for browser login UX
+- API Gateway Cognito authorizer on proxy methods
+- IoT IAM policy scaffolding for tenant-scoped topics via principal tags
+- DynamoDB-backed MQTT API token registry
+- IoT Core custom authorizer for CLI MQTT API-token auth
+- GitHub webhook ingress Lambda (`/internal/webhooks/github`) + SQS + DLQ
+- Tenant sync worker Lambda (EFS-backed) with IoT publish scaffolding
+- Token admin Lambda API (`/api/tokens`) for create/list/revoke
+- AWS IoT Data endpoint discovery output
+
+## Prerequisites
+
+- Python 3.11 in the `py311` conda env
+- Node.js + CDK CLI (`npx cdk` is fine)
+- AWS credentials for the target account/profile
+
+## Install dependencies
+
+```bash
+cd infra/cloud
+conda run -n py311 python -m pip install -r requirements.txt
+```
+
+## Synthesize
+
+```bash
+cd infra/cloud
+AWS_PROFILE=anthus npx cdk synth
+```
+
+## Deploy
+
+```bash
+cd infra/cloud
+AWS_PROFILE=anthus npx cdk deploy
+```
+
+## Useful context overrides
+
+```bash
+cd infra/cloud
+AWS_PROFILE=anthus npx cdk synth \
+  -c stack_name=KanbusCloudFoundation \
+  -c env_name=dev \
+  -c account=123456789012 \
+  -c region=us-east-1
+```
+
+## Outputs
+
+- `ApiBaseUrl`
+- `UserPoolId`
+- `UserPoolClientId`
+- `UserPoolIssuerUrl`
+- `IdentityPoolId`
+- `UserPoolHostedUiBaseUrl`
+- `IotDataEndpointAddress`
+- `MqttTokenAuthorizerName`
+- `MqttTokenTableName`
+- `TenantEfsFileSystemId`
+- `TenantEfsAccessPointId`
+- `TenantEfsMountPath`
+- `TenantRootTemplate`
+- `SyncQueueUrl`
+- `SyncQueueArn`
+- `SyncDlqArn`
+
+## Tenant isolation note
+
+The authenticated identity role includes IoT subscribe/receive permissions scoped to:
+
+- `projects/${aws:PrincipalTag/account}/${aws:PrincipalTag/project}/events`
+
+This is intentional scaffolding for strict tenant isolation. In v1, your identity provider
+mapping flow must set `account` and `project` principal tags for authenticated sessions.
+
+Hosted UI + identity pool principal tag mapping now uses Cognito custom attributes:
+
+- `custom:account`
+- `custom:project`
+
+Current limitation: one user currently maps to one tenant pair (`account` + `project`) per session.
+Supporting one user across multiple tenants requires a membership-based authorization model
+instead of single-value claim parity.
+
+## Webhook sync note
+
+Webhook ingress currently expects:
+
+- `X-GitHub-Event: push`
+- `X-Hub-Signature-256` HMAC header
+- `X-Kanbus-Account` and `X-Kanbus-Project` tenant headers
+
+The stack provisions a Secrets Manager secret and passes its ARN to webhook ingress.
+Rotate this secret and configure GitHub webhook delivery to use the same value.
+
+## How tenant projects are created in v1
+
+There is no central tenant registry resource yet. A tenant project becomes active when the
+tuple `<account>/<project>` is used and synced.
+
+- Tenant route/API usage is `/{account}/{project}/...`.
+- Webhook ingress carries tenant headers (`X-Kanbus-Account`, `X-Kanbus-Project`).
+- Sync worker clones/syncs the webhook repo URL into:
+  - `/mnt/data/{account}/{project}/repo`
+
+This means cloud project existence is currently operationally defined by EFS presence and sync history.
+
+## Automated pre-acceptance validation
+
+Use the cloud validation runner before human acceptance or UX review:
+
+```bash
+AWS_PROFILE=anthus \
+KANBUS_TEST_ADMIN_USERNAME=<admin-user> \
+KANBUS_TEST_ADMIN_PASSWORD=<admin-pass> \
+KANBUS_TEST_TENANT_USERNAME=<tenant-user> \
+KANBUS_TEST_TENANT_PASSWORD=<tenant-pass> \
+KANBUS_TEST_MISMATCH_USERNAME=<mismatch-user> \
+KANBUS_TEST_MISMATCH_PASSWORD=<mismatch-pass> \
+scripts/cloud/validate_preacceptance.sh
+```
+
+Artifacts are written to:
+
+- `artifacts/cloud-validation/<timestamp>/gate-*.log`
+- `artifacts/cloud-validation/<timestamp>/responses/*`
+- `artifacts/cloud-validation/<timestamp>/cloudwatch/*`
+- `artifacts/cloud-validation/<timestamp>/summary.json`
+
+The script enforces gates in order:
+
+1. Environment/stack preflight.
+2. Static/build checks.
+3. Unauthenticated API/auth contracts.
+4. Authenticated tenant isolation + SSE endpoint.
+5. Token admin + authorizer + CLI parity.
+6. Webhook -> SQS -> worker -> IoT event.
+7. Browser realtime hard gate (MQTT primary, no SSE-only pass).
+
+## Cross-Mac realtime operator flow
+
+Detailed runtime/auth/tenant operations are documented in:
+
+- `docs/CLOUD_CONSOLE_RUNTIME.md` (Operator Runbook section)
+
+That runbook includes:
+
+- how a new `<account>/<project>` becomes active on EFS,
+- Cognito claim mapping for browser access,
+- CLI MQTT API-token lifecycle (create/list/revoke),
+- exact two-Mac MQTT validation commands.

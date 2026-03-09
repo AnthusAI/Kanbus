@@ -149,6 +149,41 @@ pub fn rollback_event_files(paths: &[PathBuf]) {
     }
 }
 
+/// Remove all event files whose `issue_id` is in `issue_ids`.
+///
+/// # Arguments
+/// * `events_dir` - Directory containing event JSON files.
+/// * `issue_ids` - Set of issue identifiers whose events should be removed.
+pub fn delete_events_for_issues(
+    events_dir: &Path,
+    issue_ids: &std::collections::HashSet<String>,
+) -> Result<(), KanbusError> {
+    if !events_dir.is_dir() || issue_ids.is_empty() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(events_dir).map_err(|e| KanbusError::Io(e.to_string()))? {
+        let entry = entry.map_err(|e| KanbusError::Io(e.to_string()))?;
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+        let bytes = match fs::read(&path) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let payload: Value = match serde_json::from_slice(&bytes) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        if let Some(id) = payload.get("issue_id").and_then(|v| v.as_str()) {
+            if issue_ids.contains(id) {
+                let _ = fs::remove_file(&path);
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn issue_created_payload(issue: &IssueData) -> Value {
     json!({
         "title": issue.title,
@@ -334,4 +369,81 @@ pub fn load_issue_events(
         None
     };
     Ok((results, cursor))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    use tempfile::TempDir;
+
+    fn issue(id: &str, status: &str) -> IssueData {
+        let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        IssueData {
+            identifier: id.to_string(),
+            title: format!("Issue {id}"),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: status.to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["security".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: timestamp,
+            updated_at: timestamp,
+            closed_at: None,
+            custom: std::collections::BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn event_filename_uses_timestamp_and_id() {
+        let filename = event_filename("2026-03-06T12:00:00.000Z", "abc123");
+        assert_eq!(filename, "2026-03-06T12:00:00.000Z__abc123.json");
+    }
+
+    #[test]
+    fn field_update_payload_returns_none_when_unchanged() {
+        let before = issue("kanbus-1", "open");
+        let after = before.clone();
+        assert!(field_update_payload(&before, &after).is_none());
+    }
+
+    #[test]
+    fn build_update_events_includes_transition_and_field_update() {
+        let before = issue("kanbus-1", "open");
+        let mut after = before.clone();
+        after.status = "closed".to_string();
+        after.title = "Updated".to_string();
+
+        let events = build_update_events(&before, &after, "agent", "2026-03-06T12:00:00.000Z");
+
+        assert_eq!(events.len(), 2);
+        assert!(matches!(events[0].event_type, EventType::StateTransition));
+        assert!(matches!(events[1].event_type, EventType::FieldUpdated));
+    }
+
+    #[test]
+    fn write_and_load_issue_events_round_trip() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let events_dir = temp_dir.path().join("events");
+        let event = EventRecord::new(
+            "kanbus-1",
+            EventType::IssueCreated,
+            "agent",
+            issue_created_payload(&issue("kanbus-1", "open")),
+            "2026-03-06T12:00:00.000Z".to_string(),
+        );
+
+        write_events_batch(&events_dir, &[event]).expect("write events");
+        let (events, cursor) =
+            load_issue_events(temp_dir.path(), "kanbus-1", None, 10).expect("load events");
+
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0].event_type, EventType::IssueCreated));
+        assert!(cursor.is_none());
+    }
 }

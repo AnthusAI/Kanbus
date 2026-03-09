@@ -170,10 +170,6 @@ export function AnimatedSelector({
     const media = window.matchMedia("(max-width: 768px)");
     applyCompactState(media.matches, false);
     const handler = (event: MediaQueryListEvent) => {
-      console.info("[selector] media-change", {
-        name,
-        matches: event.matches
-      });
       applyCompactState(event.matches, true);
       setHighlight(true);
     };

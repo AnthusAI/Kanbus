@@ -1,0 +1,54 @@
+<vml id="lifecycle-hooks" title="Lifecycle Hooks" fps="24" width="1920" height="1080" poster="2s">
+  <voiceover provider="openai" model="tts-1-hd" voice="echo" sampleRateHz="24000" leadInSeconds="0s" trimEndSeconds="0s" />
+
+  <scene id="hook" title="Lifecycle Hooks" duration="5s">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="visual" z="0">
+      <animated-pictogram-video props='{"type":"hooks","headline":"Lifecycle Hooks","subhead":"Project-defined automation on every command boundary"}' />
+    </layer>
+    <cue id="hook_voice" label="Hook">
+      <voice>Lifecycle hooks let Kanbus pull project-defined automation before and after issue operations.</voice>
+    </cue>
+  </scene>
+
+  <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
+
+  <scene id="deep_dive" title="Lifecycle Hooks Deep Dive">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+    <layer id="title" z="2">
+      <title props='{"text":"Lifecycle Hooks","x":960,"y":120}' />
+    </layer>
+    <layer id="subtitle" z="2">
+      <subtitle props='{"text":"Before and after integrations with policy alignment","x":960,"y":200}' />
+    </layer>
+
+    <layer id="left-content" z="1">
+      <text-block props='{"text":"Fail-closed pre-hooks","x":530,"y":360,"size":38,"weight":800,"align":"center","maxWidth":700,"font":"sans"}' />
+      <text-block props='{"text":"Block mutating operations when a required external check fails or times out.","x":530,"y":470,"size":28,"align":"center","maxWidth":700,"font":"serif","background":"var(--card)","padding":26,"borderRadius":14,"border":"1px solid var(--border)"}' />
+
+      <text-block props='{"text":"Observer-style post-hooks","x":530,"y":690,"size":38,"weight":800,"align":"center","maxWidth":700,"font":"sans"}' />
+      <text-block props='{"text":"Run notifications, analytics, and enrichment after successful commands without rolling them back.","x":530,"y":800,"size":28,"align":"center","maxWidth":700,"font":"serif","background":"var(--card)","padding":26,"borderRadius":14,"border":"1px solid var(--border)"}' />
+    </layer>
+
+    <layer id="right-visual" z="1">
+      <animated-pictogram-video props='{"type":"hooks","style":{"position":"absolute","left":980,"top":280,"width":"860px","height":"520px"}}' />
+    </layer>
+
+    <cue id="before_hooks" label="Before hooks">
+      <pause seconds="0.5s" />
+      <voice>Before hooks run on mutating operations and are fail closed by default, so required checks can stop invalid transitions.</voice>
+    </cue>
+    <cue id="after_hooks" label="After hooks">
+      <pause seconds="0.5s" />
+      <voice>After hooks run as observers. They surface warnings if needed, while keeping successful commands successful.</voice>
+    </cue>
+    <cue id="policy_alignment" label="Policy alignment">
+      <pause seconds="0.5s" />
+      <voice>Policy guidance is aligned as a built-in hook provider, so project hooks and policy hooks share one lifecycle engine.</voice>
+    </cue>
+  </scene>
+</vml>

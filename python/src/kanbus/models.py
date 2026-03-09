@@ -117,6 +117,19 @@ class PriorityDefinition(BaseModel):
     color: Optional[str] = None
 
 
+class AiConfiguration(BaseModel):
+    """AI provider configuration for wiki summarization.
+
+    :param provider: AI provider identifier (e.g. openai).
+    :type provider: str
+    :param model: Model identifier (e.g. gpt-4o).
+    :type model: str
+    """
+
+    provider: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+
+
 class JiraConfiguration(BaseModel):
     """Jira synchronization configuration."""
 
@@ -167,6 +180,63 @@ class VirtualProjectConfig(BaseModel):
     path: str
 
 
+class RealtimeTopics(BaseModel):
+    """Realtime topic templates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_events: str = "projects/{project}/events"
+
+
+class RealtimeConfig(BaseModel):
+    """Realtime gossip configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    transport: str = "auto"
+    broker: str = "auto"
+    autostart: bool = True
+    keepalive: bool = False
+    uds_socket_path: Optional[str] = None
+    mqtt_custom_authorizer_name: Optional[str] = None
+    mqtt_api_token: Optional[str] = None
+    topics: RealtimeTopics = Field(default_factory=RealtimeTopics)
+
+
+class OverlayConfig(BaseModel):
+    """Overlay cache configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    ttl_s: int = 86400
+
+
+class HookDefinition(BaseModel):
+    """Hook definition for an event/phase binding."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    command: List[str] = Field(min_length=1)
+    blocking: Optional[bool] = None
+    timeout_ms: Optional[int] = Field(default=None, ge=1)
+    cwd: Optional[str] = None
+    env: Dict[str, str] = Field(default_factory=dict)
+
+
+class HooksConfiguration(BaseModel):
+    """Lifecycle hook engine configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    run_in_beads_mode: bool = True
+    default_timeout_ms: int = Field(default=5000, ge=1)
+    before: Dict[str, List[HookDefinition]] = Field(default_factory=dict)
+    after: Dict[str, List[HookDefinition]] = Field(default_factory=dict)
+
+
 class ProjectConfiguration(BaseModel):
     """Project configuration loaded from .kanbus.yml.
 
@@ -208,6 +278,12 @@ class ProjectConfiguration(BaseModel):
     :type jira: Optional[JiraConfiguration]
     :param snyk: Optional Snyk vulnerability synchronization configuration.
     :type snyk: Optional[SnykConfiguration]
+    :param realtime: Realtime gossip configuration.
+    :type realtime: RealtimeConfig
+    :param overlay: Overlay cache configuration.
+    :type overlay: OverlayConfig
+    :param hooks: Lifecycle hook configuration.
+    :type hooks: HooksConfiguration
     :param github_security: Optional GitHub security synchronization configuration.
     :type github_security: Optional[GithubSecurityConfiguration]
     """
@@ -237,6 +313,11 @@ class ProjectConfiguration(BaseModel):
     sort_order: Dict[str, Any] = Field(default_factory=dict)
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False
+    wiki_directory: Optional[str] = None
+    ai: Optional[AiConfiguration] = None
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
+    realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
+    overlay: OverlayConfig = Field(default_factory=OverlayConfig)
+    hooks: HooksConfiguration = Field(default_factory=HooksConfiguration)
     github_security: Optional[GithubSecurityConfiguration] = None

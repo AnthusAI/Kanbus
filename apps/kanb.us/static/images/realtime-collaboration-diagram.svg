@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="Realtime Collaboration architecture diagram: Git working tree plus gossip broker plus overlay cache">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1115"/>
+      <stop offset="0.55" stop-color="#0c1220"/>
+      <stop offset="1" stop-color="#081018"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7dd3fc"/>
+    </marker>
+    <style>
+      .t-title { font: 800 34px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: #e7e9ee; letter-spacing: 0.3px; }
+      .t-sub   { font: 500 16px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: #9ca3af; }
+      .t-h     { font: 800 16px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: #e7e9ee; }
+      .t-b     { font: 500 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: #cbd5e1; }
+      .t-mono  { font: 600 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; fill: #e7e9ee; }
+      .box     { fill: #14171d; stroke: #262c36; stroke-width: 2; rx: 18; filter: url(#shadow); }
+      .box2    { fill: rgba(125, 211, 252, 0.06); stroke: rgba(125, 211, 252, 0.65); stroke-width: 2; rx: 18; }
+      .arrow   { fill: none; stroke: #7dd3fc; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
+      .arrow-d { fill: none; stroke: rgba(125, 211, 252, 0.55); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 7 7; marker-end: url(#arrow); }
+      .pill    { fill: rgba(30, 41, 59, 0.85); stroke: rgba(148, 163, 184, 0.35); stroke-width: 1.5; rx: 999; }
+      .pill-t  { font: 700 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; fill: #cbd5e1; letter-spacing: 0.2px; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1200" height="675" rx="28" fill="url(#bg)"/>
+  <rect x="20" y="20" width="1160" height="635" rx="24" fill="none" stroke="rgba(148,163,184,0.18)" stroke-width="2"/>
+
+  <!-- Header -->
+  <text x="60" y="78" class="t-title">Realtime Collaboration</text>
+  <text x="60" y="108" class="t-sub">Gossip for instant visibility. Overlay for speculative reads. Git remains the source of truth.</text>
+
+  <!-- Producers/Consumers -->
+  <g>
+    <rect x="60" y="160" width="420" height="200" class="box"/>
+    <text x="88" y="198" class="t-h">Producers / Consumers</text>
+    <text x="88" y="226" class="t-b">CLI + consoles publish and watch the same topics.</text>
+    <text x="88" y="262" class="t-mono">kbs</text>
+    <text x="148" y="262" class="t-mono">kanbus</text>
+    <text x="248" y="262" class="t-mono">kbsc</text>
+    <text x="326" y="262" class="t-mono">kanbus-console</text>
+    <text x="88" y="300" class="t-b">Mutations still write files first.</text>
+    <text x="88" y="326" class="t-b">Realtime publish is best-effort.</text>
+  </g>
+
+  <!-- Broker -->
+  <g>
+    <rect x="510" y="170" width="340" height="160" class="box2"/>
+    <text x="536" y="208" class="t-h">Broker</text>
+    <text x="536" y="236" class="t-b">UDS (local) or MQTT (LAN/cloud)</text>
+    <text x="536" y="276" class="t-b">Fanout notifications to watchers</text>
+    <text x="536" y="304" class="t-b">Same topic namespace + envelope</text>
+  </g>
+
+  <!-- Overlay cache -->
+  <g>
+    <rect x="880" y="160" width="260" height="200" class="box"/>
+    <text x="906" y="198" class="t-h">Overlay Cache</text>
+    <text x="906" y="226" class="t-b">(disposable, gitignored)</text>
+    <text x="906" y="260" class="t-mono">.overlay/issues/&lt;id&gt;.json</text>
+    <text x="906" y="286" class="t-mono">.overlay/tombstones/&lt;id&gt;.json</text>
+    <text x="906" y="322" class="t-b">Safe to delete wholesale.</text>
+  </g>
+
+  <!-- Git working tree -->
+  <g>
+    <rect x="220" y="400" width="420" height="160" class="box"/>
+    <text x="246" y="438" class="t-h">Git Working Tree (SSOT)</text>
+    <text x="246" y="466" class="t-b">Authoritative issue JSON + history.</text>
+    <text x="246" y="502" class="t-mono">project/issues/&lt;id&gt;.json</text>
+    <text x="246" y="528" class="t-mono">project/events/&lt;event&gt;.json</text>
+  </g>
+
+  <!-- Event JSON log -->
+  <g>
+    <rect x="660" y="420" width="250" height="120" class="box"/>
+    <text x="686" y="458" class="t-h">Event JSON Log</text>
+    <text x="686" y="486" class="t-b">Append-only mutation trail.</text>
+    <text x="686" y="516" class="t-mono">event_id + metadata</text>
+  </g>
+
+  <!-- Resolved read path -->
+  <g>
+    <rect x="880" y="520" width="260" height="90" class="box2"/>
+    <text x="906" y="558" class="t-h">Read Path</text>
+    <text x="906" y="586" class="t-mono">base + overlay</text>
+  </g>
+
+  <!-- Arrows -->
+  <!-- mutate -> base -->
+  <path class="arrow" d="M 310 360 C 360 390, 390 390, 430 400"/>
+  <text x="300" y="392" class="t-sub">mutate issue JSON</text>
+
+  <!-- write -> event log -->
+  <path class="arrow" d="M 460 350 C 560 390, 620 400, 660 420"/>
+  <text x="470" y="404" class="t-sub">append event JSON</text>
+
+  <!-- publish -> broker -->
+  <path class="arrow-d" d="M 480 230 C 500 230, 500 230, 510 230"/>
+  <text x="476" y="212" class="t-sub">publish envelope</text>
+
+  <!-- broker -> overlay (watchers) -->
+  <path class="arrow" d="M 850 250 C 865 250, 872 250, 880 250"/>
+  <text x="732" y="230" class="t-sub">fanout to watchers</text>
+
+  <!-- overlay -> read -->
+  <path class="arrow" d="M 1010 360 C 1010 420, 1010 450, 1010 520"/>
+
+  <!-- base -> read -->
+  <path class="arrow" d="M 640 520 C 720 540, 800 560, 880 565"/>
+
+  <!-- Callout pills -->
+  <g>
+    <rect x="482" y="250" width="170" height="26" class="pill"/>
+    <text x="498" y="268" class="pill-t">best-effort publish</text>
+  </g>
+  <g>
+    <rect x="708" y="260" width="200" height="26" class="pill"/>
+    <text x="724" y="278" class="pill-t">dedupe + ignore self</text>
+  </g>
+  <g>
+    <rect x="900" y="380" width="190" height="26" class="pill"/>
+    <text x="916" y="398" class="pill-t">overlay safe to delete</text>
+  </g>
+  <g>
+    <rect x="250" y="570" width="235" height="26" class="pill"/>
+    <text x="266" y="588" class="pill-t">conflicts resolved by Git</text>
+  </g>
+</svg>

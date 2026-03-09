@@ -113,27 +113,27 @@ Feature: Beads compatibility write errors
   Scenario: Beads mode delete fails when .beads is missing
     Given a git repository without a .beads directory
     And a project directory exists
-    When I run "kanbus --beads delete bdx-missing"
+    When I run "kanbus --beads delete bdx-missing --yes"
     Then the command should fail with exit code 1
     And stderr should contain "no .beads directory"
 
   Scenario: Beads mode delete fails when issues.jsonl is missing
     Given a git repository with an empty .beads directory
     And a project directory exists
-    When I run "kanbus --beads delete bdx-missing"
+    When I run "kanbus --beads delete bdx-missing --yes"
     Then the command should fail with exit code 1
     And stderr should contain "no issues.jsonl"
 
   Scenario: Beads mode delete fails when issue is missing
     Given a git repository with a .beads issues database
     And a project directory exists
-    When I run "kanbus --beads delete bdx-missing"
+    When I run "kanbus --beads delete bdx-missing --yes"
     Then the command should fail with exit code 1
     And stderr should contain "not found"
 
   Scenario: Beads mode delete removes issue
     Given a git repository with a .beads issues database
     And a project directory exists
-    When I run "kanbus --beads delete bdx-task"
+    When I run "kanbus --beads delete bdx-task --yes"
     Then the command should succeed
     And beads issues.jsonl should not contain "bdx-task"

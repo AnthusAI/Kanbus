@@ -1,5 +1,5 @@
 const { execSync } = require("node:child_process");
-const { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, renameSync, unlinkSync } = require("node:fs");
+const { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, renameSync, unlinkSync, readFileSync } = require("node:fs");
 const path = require("node:path");
 
 const AUDIO_VALIDATION_PREFIX = "AUDIO_VALIDATION_FAILED";
@@ -17,6 +17,8 @@ const COMPOSITION_IDS = [
   "virtual-projects",
   "vscode-plugin",
   "policy-as-code",
+  "lifecycle-hooks",
+  "realtime-collaboration",
 ];
 
 const repoRoot = path.resolve(__dirname, "..");
@@ -205,6 +207,54 @@ const ensureAliasAsset = (targetPath, sourcePath) => {
   console.log(`Created alias asset: ${path.basename(targetPath)} <- ${path.basename(sourcePath)}`);
 };
 
+function getTimelineDurationSec(compositionId) {
+  const timelinePath = path.join(repoRoot, "src", "videos", compositionId, `${compositionId}.timeline.json`);
+  if (!existsSync(timelinePath)) return 30;
+  const data = JSON.parse(readFileSync(timelinePath, "utf8"));
+  const items = data.items || [];
+  let maxEnd = 0;
+  for (const item of items) {
+    if (item.endSec != null && item.endSec > maxEnd) maxEnd = item.endSec;
+  }
+  return maxEnd > 0 ? Math.ceil(maxEnd) + 1 : 30;
+}
+
+function ensureSilentWav(compositionId) {
+  const wavPath = path.join(publicVideomlDir, `${compositionId}.wav`);
+  if (existsSync(wavPath)) return;
+  mkdirSync(publicVideomlDir, { recursive: true });
+  const durationSec = getTimelineDurationSec(compositionId);
+  console.log(`Creating silent WAV for ${compositionId} (${durationSec}s) at ${wavPath}`);
+  execSync(
+    `ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=mono -t ${durationSec} -acodec pcm_s16le "${wavPath}"`,
+    { stdio: "ignore" }
+  );
+}
+
+function mixLifecycleHooksFromSegments() {
+  const segmentsDir = path.join(repoRoot, "src", "videos", "lifecycle-hooks", "env", "development", "segments");
+  const outPath = path.join(publicVideomlDir, "lifecycle-hooks.wav");
+  const segs = [
+    path.join(segmentsDir, "hook--hook_voice--tts--4142a228b2e5--1.wav"),
+    path.join(segmentsDir, "deep_dive--before_hooks--tts--778764518869--1.wav"),
+    path.join(segmentsDir, "deep_dive--after_hooks--tts--d547a4671b79--1.wav"),
+    path.join(segmentsDir, "deep_dive--policy_alignment--tts--e393da64fb40--1.wav"),
+  ];
+  if (!segs.every((p) => existsSync(p))) return false;
+  mkdirSync(publicVideomlDir, { recursive: true });
+  const silencePath = path.join(segmentsDir, "silence-819a032561bf.wav");
+  if (!existsSync(silencePath)) return false;
+  const list = segs.flatMap((p, i) => (i > 0 ? [silencePath, p] : [p])).map((p) => `file '${p}'`);
+  const listPath = path.join(repoRoot, "tmp-lifecycle-hooks-concat.txt");
+  require("fs").writeFileSync(listPath, list.join("\n"));
+  try {
+    execSync(`ffmpeg -y -f concat -safe 0 -i "${listPath}" -acodec pcm_s16le -ar 44100 -ac 1 "${outPath}"`, { stdio: "ignore" });
+    return true;
+  } finally {
+    if (existsSync(listPath)) unlinkSync(listPath);
+  }
+}
+
 const main = () => {
   if (!existsSync(videosDir)) {
     throw new Error(`Missing videos/ subproject at ${videosDir}`);
@@ -241,14 +291,71 @@ const main = () => {
   if (!existsSync(path.join(videosDir, "node_modules"))) {
     run("npm ci", { cwd: videosDir });
   }
+  const babulusBundle = path.join(videosDir, "node_modules", "babulus", "public", "babulus-standard.js");
+  if (!existsSync(babulusBundle)) {
+    run("npm install", { cwd: videosDir });
+  }
 
-  removeStaleVideoAssets();
+  const singleId = process.env.COMPOSITION_ID || null;
+  const compositionIds = singleId ? [singleId] : COMPOSITION_IDS;
+  let usedSilentFallback = false;
+  if (singleId && !COMPOSITION_IDS.includes(singleId)) {
+    throw new Error(`Unknown COMPOSITION_ID=${singleId}. Must be one of: ${COMPOSITION_IDS.join(", ")}`);
+  }
+
+  if (!singleId) {
+    removeStaleVideoAssets();
+  }
 
   run("npm run bundle:components", { cwd: videosDir });
-  run("npm run vml:generate", { cwd: videosDir });
+  const pathEnv = path.join(repoRoot, "scripts") + path.delimiter + (process.env.PATH || "");
+  const envWithVml = { ...process.env, PATH: pathEnv };
 
-  const wavChecks = COMPOSITION_IDS.map((id) => {
+  if (singleId) {
+    const dslPath = path.join(videosDir, "content", `${singleId}.babulus.xml`);
+    if (!existsSync(dslPath)) {
+      throw new Error(`Missing DSL for ${singleId}: ${dslPath}`);
+    }
+    const wavPath = path.join(publicVideomlDir, `${singleId}.wav`);
+    if (singleId === "lifecycle-hooks" && mixLifecycleHooksFromSegments()) {
+      console.log(`Mixed lifecycle-hooks.wav from committed segments`);
+      run("npm run sync:public", { cwd: videosDir, env: envWithVml });
+      usedSilentFallback = false;
+    } else {
+      const existingValidation = existsSync(wavPath)
+        ? validateAudioFile(wavPath, {
+            requireAudioStream: true,
+            minBytes: AUDIO_MIN_BYTES_WAV,
+            minDurationSec: AUDIO_MIN_DURATION_SEC,
+            minActivityRatio: AUDIO_MIN_ACTIVITY_RATIO,
+            checkSilence: true,
+          })
+        : null;
+      if (existingValidation?.valid) {
+        console.log(`Using existing WAV for ${singleId}`);
+        run("npm run sync:public", { cwd: videosDir, env: envWithVml });
+        usedSilentFallback = false;
+      } else {
+        let generateOk = false;
+        try {
+          run(`vml generate "${dslPath}"`, { cwd: videosDir, env: envWithVml });
+          run("npm run sync:public", { cwd: videosDir, env: envWithVml });
+          generateOk = true;
+        } catch (err) {
+          console.error("Generate failed (TTS may need API keys). Using silent-audio fallback for render.");
+          ensureSilentWav(singleId);
+          run("npm run sync:public", { cwd: videosDir, env: envWithVml });
+        }
+        usedSilentFallback = !generateOk;
+      }
+    }
+  } else {
+    run("npm run generate", { cwd: videosDir, env: envWithVml });
+  }
+
+  const wavChecks = compositionIds.map((id) => {
     const wavPath = path.join(publicVideomlDir, `${id}.wav`);
+    const isSilentFallback = usedSilentFallback && id === singleId;
     return {
       label: `source-wav:${id}`,
       validation: validateAudioFile(wavPath, {
@@ -257,17 +364,24 @@ const main = () => {
         minDurationSec: AUDIO_MIN_DURATION_SEC,
         probeSeconds: 6,
         sampleRateHz: 44100,
-        minActivityRatio: AUDIO_MIN_ACTIVITY_RATIO,
-        checkSilence: true,
+        minActivityRatio: isSilentFallback ? 0 : AUDIO_MIN_ACTIVITY_RATIO,
+        checkSilence: !isSilentFallback,
       }),
     };
   });
   assertAudioValidations("post-generate-wav", wavChecks);
 
-  run("npm run vml:render:all", { cwd: videosDir });
+  if (singleId) {
+    run(`npm run vml:render:${singleId}`, { cwd: videosDir, env: envWithVml });
+  } else {
+    run("npm run render", { cwd: videosDir, env: envWithVml });
+  }
 
   const outFiles = existsSync(outDir) ? readdirSync(outDir) : [];
-  const mp4Files = outFiles.filter((file) => file.toLowerCase().endsWith(".mp4"));
+  const allMp4 = outFiles.filter((file) => file.toLowerCase().endsWith(".mp4"));
+  const mp4Files = singleId
+    ? allMp4.filter((file) => compositionIds.includes(file.replace(/\.mp4$/i, "")))
+    : allMp4;
 
   const preRemuxChecks = mp4Files.map((filename) => {
     const mp4Path = path.join(outDir, filename);
@@ -331,12 +445,14 @@ const main = () => {
     }
   }
 
+  if (!singleId) {
   ensureAliasAsset(path.join(outDir, "intro-poster.jpg"), path.join(outDir, "intro.jpg"));
   ensureAliasAsset(path.join(outDir, "kanban-board.mp4"), path.join(outDir, "core-management.mp4"));
   ensureAliasAsset(path.join(outDir, "kanban-board.jpg"), path.join(outDir, "core-management.jpg"));
+  }
 
   const updatedOutFiles = existsSync(outDir) ? readdirSync(outDir) : [];
-  const toCopy = updatedOutFiles.filter(
+  const toCopy = (singleId ? updatedOutFiles.filter((f) => f === `${singleId}.mp4` || f === `${singleId}.jpg`) : updatedOutFiles).filter(
     (file) => file.toLowerCase().endsWith(".mp4") || file.toLowerCase().endsWith(".jpg")
   );
 

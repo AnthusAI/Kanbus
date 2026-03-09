@@ -6,6 +6,15 @@ Kanbus wiki pages are Markdown files with Jinja2-style templates. At render time
 
 Wiki pages live in `project/wiki/`. Use `kanbus wiki render <page>` to render a page and print the result to stdout.
 
+## Console wiki workspace
+
+- Access: open the console and switch the top view toggle to “Wiki” (main panel, not a sidebar). The board/metrics views remain available via the same toggle.
+- Create: click `New`, enter a relative path ending with `.md` (no leading slash or `..`). The page is saved immediately with starter content.
+- Edit: type in the editor; `Save` writes to `project/wiki/<path>`. Unsaved changes block page/panel switches unless you confirm.
+- Preview: click `Render` to send the current draft to the backend renderer; errors show in the wiki error banner while the last successful preview stays visible.
+- Rename/Delete: use `Rename` or `Delete` on the selected page. Rename keeps the selection on the new path; delete selects the next available page or shows the empty state.
+- Persistence: the selected view (Board/Wiki/Metrics) survives reload. A before-unload guard warns if the wiki editor is dirty.
+
 ## Jinja2 primer
 
 - `{{ expr }}` renders an expression

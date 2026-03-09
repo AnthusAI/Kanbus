@@ -45,24 +45,98 @@ const CodeBlock = ({ children, label }: CodeBlockProps) => {
   };
 
   const renderHighlighted = (code: string) => {
-    // Simple regex-based highlighter for our documentation blocks
-    // This isn't perfect but handles our shell scripts, YAML, and Gherkin reasonably well
-    const html = code
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      // Comments
-      .replace(/^(#.*)$/gm, '<span class="text-muted opacity-70">$1</span>')
-      // Shell commands
-      .replace(/^(\$\s+)?(kanbus|kbs)(\s)/gm, '<span class="text-muted opacity-50">$1</span><span class="text-sky-400 font-bold">$2</span>$3')
-      // Feature / Scenario / Given / When / Then (Gherkin)
-      .replace(/^(Feature|Scenario|Given|When|Then|And|But)(:?)/gm, '<span class="text-indigo-400 font-bold">$1</span>$2')
-      // JSON keys
-      .replace(/"([^"]+)":/g, '<span class="text-sky-400">"$1"</span>:')
-      // Flags (e.g. --status)
-      .replace(/(--\w+[\w-]*)/g, '<span class="text-pink-400">$1</span>')
-      // Quoted strings
-      .replace(/("[^"]*")/g, '<span class="text-green-400">$1</span>');
-      
-    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+    const lines = code.split("\n");
+    return (
+      <code className="block">
+        {lines.map((line, lineIndex) => {
+          const key = `line-${lineIndex}`;
+          if (/^#/.test(line)) {
+            return (
+              <span key={key} className="text-muted opacity-70">
+                {line}
+                {"\n"}
+              </span>
+            );
+          }
+          const gherkinMatch = line.match(/^(Feature|Scenario|Given|When|Then|And|But)(:?)(.*)$/);
+          if (gherkinMatch) {
+            const [, keyword, colon, rest] = gherkinMatch;
+            return (
+              <span key={key}>
+                <span className="text-indigo-400 font-bold">{keyword}</span>
+                {colon}
+                {highlightRest(rest, key)}
+                {"\n"}
+              </span>
+            );
+          }
+          const parts: React.ReactNode[] = [];
+          const promptMatch = line.match(/^(\$\s+)?(kanbus|kbs)(\s)/);
+          let rest = line;
+          if (promptMatch) {
+            const [full, prompt = "", command, space] = promptMatch;
+            if (prompt) {
+              parts.push(
+                <span key={`${key}-prompt`} className="text-muted opacity-50">
+                  {prompt}
+                </span>
+              );
+            }
+            parts.push(
+              <span key={`${key}-cmd`} className="text-sky-400 font-bold">
+                {command}
+              </span>
+            );
+            parts.push(space);
+            rest = line.slice(full.length);
+          }
+          parts.push(highlightRest(rest, key));
+          return (
+            <span key={key}>
+              {parts}
+              {"\n"}
+            </span>
+          );
+        })}
+      </code>
+    );
+  };
+
+  const highlightRest = (rest: string, lineKey: string): React.ReactNode[] => {
+    const parts: React.ReactNode[] = [];
+    const regex = /(--\w+[\w-]*)|("[^"]*")|("([^"]+)":)/g;
+    let lastEnd = 0;
+    let match;
+    while ((match = regex.exec(rest)) !== null) {
+      if (match.index > lastEnd) {
+        parts.push(rest.slice(lastEnd, match.index));
+      }
+      if (match[1]) {
+        parts.push(
+          <span key={`${lineKey}-flag-${match.index}`} className="text-pink-400">
+            {match[1]}
+          </span>
+        );
+      } else if (match[2] && !match[4]) {
+        parts.push(
+          <span key={`${lineKey}-str-${match.index}`} className="text-green-400">
+            {match[2]}
+          </span>
+        );
+      } else if (match[3]) {
+        parts.push(
+          <span key={`${lineKey}-json-${match.index}`} className="text-sky-400">
+            &quot;{match[4]}&quot;
+          </span>
+        );
+        parts.push(":");
+      }
+      lastEnd = regex.lastIndex;
+    }
+    if (lastEnd < rest.length) {
+      parts.push(rest.slice(lastEnd));
+    }
+    return parts;
   };
 
   return (

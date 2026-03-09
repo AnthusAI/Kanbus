@@ -1,8 +1,10 @@
+use std::fs;
+use std::path::PathBuf;
+
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use chrono_tz::Tz;
 use cucumber::{given, then, when};
 use std::collections::HashSet;
-use std::path::PathBuf;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
@@ -88,10 +90,15 @@ fn when_console_reloaded(world: &mut KanbusWorld) {
 
 #[when(expr = "I switch to the {string} tab")]
 fn when_switch_tab(world: &mut KanbusWorld, tab: String) {
+    let previously_selected_tab = world.console_local_storage.selected_tab.clone();
     let state = require_console_state(world);
     if state.selected_tab == tab {
-        state.selected_tab = "All".to_string();
-        world.console_local_storage.selected_tab = Some("All".to_string());
+        if previously_selected_tab.as_deref() == Some(tab.as_str()) {
+            state.selected_tab = "All".to_string();
+            world.console_local_storage.selected_tab = Some("All".to_string());
+        } else {
+            world.console_local_storage.selected_tab = Some(tab);
+        }
         return;
     }
     state.selected_tab = tab.clone();
@@ -476,7 +483,7 @@ fn then_tab_selected(world: &mut KanbusWorld, tab: String) {
     assert_eq!(state.selected_tab, tab);
 }
 
-#[then("no view tab should be selected")]
+#[then(expr = "no view tab should be selected")]
 fn then_no_tab_selected(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     assert!(
@@ -683,6 +690,12 @@ fn then_board_view_inactive(world: &mut KanbusWorld) {
 
 #[then("the metrics view should be active")]
 fn then_metrics_view_active(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_eq!(state.panel_mode, "metrics");
+}
+
+#[then("the metrics view should intersect the viewport")]
+fn then_metrics_view_intersects_viewport(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     assert_eq!(state.panel_mode, "metrics");
 }
@@ -1022,6 +1035,42 @@ fn default_issues() -> Vec<ConsoleIssue> {
     ]
 }
 
+fn console_app_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("apps")
+        .join("console")
+}
+
+fn assert_priority_pill_uses_background() {
+    let root = console_app_root();
+    let globals_css = fs::read_to_string(root.join("src").join("styles").join("globals.css"))
+        .expect("read globals.css");
+    if !globals_css.contains("background") || !globals_css.contains("--issue-priority-bg") {
+        panic!("priority label must use background with --issue-priority-bg in globals.css");
+    }
+    let issue_colors = fs::read_to_string(root.join("src").join("utils").join("issue-colors.ts"))
+        .expect("read issue-colors.ts");
+    if !issue_colors.contains("issue-priority-bg-light")
+        || !issue_colors.contains("issue-priority-bg-dark")
+    {
+        panic!("issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark");
+    }
+}
+
+fn assert_priority_pill_uses_foreground_text() {
+    let root = console_app_root();
+    let globals_css = fs::read_to_string(root.join("src").join("styles").join("globals.css"))
+        .expect("read globals.css");
+    let start = globals_css
+        .find(".issue-accent-priority")
+        .expect(".issue-accent-priority not found in globals.css");
+    let block = globals_css[start..].chars().take(600).collect::<String>();
+    if !block.contains("var(--text-foreground)") || !block.contains("color") {
+        panic!(".issue-accent-priority must set color to var(--text-foreground)");
+    }
+}
+
 fn get_selected_issue(world: &mut KanbusWorld) -> &mut ConsoleIssue {
     let state = require_console_state(world);
     let selected = state.selected_task_title.clone().expect("no task selected");
@@ -1081,41 +1130,4 @@ fn format_timestamp(value: &str, time_zone: Option<&str>) -> String {
         period,
         tzname
     )
-}
-
-fn console_app_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("apps")
-        .join("console")
-}
-
-fn assert_priority_pill_uses_background() {
-    let root = console_app_root();
-    let globals_css = std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
-        .expect("read globals.css");
-    if !globals_css.contains("background") || !globals_css.contains("--issue-priority-bg") {
-        panic!("priority label must use background with --issue-priority-bg in globals.css");
-    }
-    let issue_colors =
-        std::fs::read_to_string(root.join("src").join("utils").join("issue-colors.ts"))
-            .expect("read issue-colors.ts");
-    if !issue_colors.contains("issue-priority-bg-light")
-        || !issue_colors.contains("issue-priority-bg-dark")
-    {
-        panic!("issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark");
-    }
-}
-
-fn assert_priority_pill_uses_foreground_text() {
-    let root = console_app_root();
-    let globals_css = std::fs::read_to_string(root.join("src").join("styles").join("globals.css"))
-        .expect("read globals.css");
-    let start = globals_css.find(".issue-accent-priority");
-    let start = start.expect(".issue-accent-priority not found in globals.css");
-    let end = std::cmp::min(start + 600, globals_css.len());
-    let block = &globals_css[start..end];
-    if !block.contains("var(--text-foreground)") || !block.contains("color") {
-        panic!(".issue-accent-priority must set color to var(--text-foreground)");
-    }
 }

@@ -1,0 +1,140 @@
+{
+  "items": [
+    {
+      "type": "tts",
+      "sceneId": "hook",
+      "cueId": "hook_voice",
+      "startSec": 0,
+      "endSec": 5.8625,
+      "segments": [
+        {
+          "type": "tts",
+          "startSec": 0,
+          "endSec": 5.8625,
+          "text": "Lifecycle hooks let Kanbus pull project-defined automation before and after issue operations.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/src/videos/lifecycle-hooks/env/development/segments/hook--hook_voice--tts--4142a228b2e5--1.wav",
+          "durationSec": 5.8625,
+          "rawDurationSec": 5.8625,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "deep_dive",
+      "cueId": "before_hooks",
+      "startSec": 6.4875,
+      "endSec": 14.5375,
+      "segments": [
+        {
+          "type": "pause",
+          "startSec": 6.4875,
+          "endSec": 6.9875,
+          "seconds": 0.5
+        },
+        {
+          "type": "tts",
+          "startSec": 6.9875,
+          "endSec": 14.5375,
+          "text": "Before hooks run on mutating operations and are fail closed by default, so required checks can stop invalid transitions.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/src/videos/lifecycle-hooks/env/development/segments/deep_dive--before_hooks--tts--778764518869--1.wav",
+          "durationSec": 7.55,
+          "rawDurationSec": 7.55,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "deep_dive",
+      "cueId": "after_hooks",
+      "startSec": 14.5375,
+      "endSec": 21.6875,
+      "segments": [
+        {
+          "type": "pause",
+          "startSec": 14.5375,
+          "endSec": 15.0375,
+          "seconds": 0.5
+        },
+        {
+          "type": "tts",
+          "startSec": 15.0375,
+          "endSec": 21.6875,
+          "text": "After hooks run as observers. They surface warnings if needed, while keeping successful commands successful.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/src/videos/lifecycle-hooks/env/development/segments/deep_dive--after_hooks--tts--d547a4671b79--1.wav",
+          "durationSec": 6.65,
+          "rawDurationSec": 6.65,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "deep_dive",
+      "cueId": "policy_alignment",
+      "startSec": 21.6875,
+      "endSec": 29.4875,
+      "segments": [
+        {
+          "type": "pause",
+          "startSec": 21.6875,
+          "endSec": 22.1875,
+          "seconds": 0.5
+        },
+        {
+          "type": "tts",
+          "startSec": 22.1875,
+          "endSec": 29.4875,
+          "text": "Policy guidance is aligned as a built-in hook provider, so project hooks and policy hooks share one lifecycle engine.",
+          "segmentPath": "/Users/ryan.porter/Projects/Kanbus/src/videos/lifecycle-hooks/env/development/segments/deep_dive--policy_alignment--tts--e393da64fb40--1.wav",
+          "durationSec": 7.3,
+          "rawDurationSec": 7.3,
+          "trimEndSec": 0
+        }
+      ]
+    }
+  ],
+  "audio": {
+    "tracks": [
+      {
+        "id": "narration",
+        "kind": "narration",
+        "clips": [
+          {
+            "id": "hook--hook_voice--tts--4142a228b2e5--1",
+            "kind": "file",
+            "startSec": 0,
+            "durationSec": 5.8625,
+            "src": "/videoml/lifecycle-hooks/env/development/segments/hook--hook_voice--tts--4142a228b2e5--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "deep_dive--before_hooks--tts--778764518869--1",
+            "kind": "file",
+            "startSec": 6.9875,
+            "durationSec": 7.55,
+            "src": "/videoml/lifecycle-hooks/env/development/segments/deep_dive--before_hooks--tts--778764518869--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "deep_dive--after_hooks--tts--d547a4671b79--1",
+            "kind": "file",
+            "startSec": 15.0375,
+            "durationSec": 6.65,
+            "src": "/videoml/lifecycle-hooks/env/development/segments/deep_dive--after_hooks--tts--d547a4671b79--1.wav",
+            "volume": 1
+          },
+          {
+            "id": "deep_dive--policy_alignment--tts--e393da64fb40--1",
+            "kind": "file",
+            "startSec": 22.1875,
+            "durationSec": 7.3,
+            "src": "/videoml/lifecycle-hooks/env/development/segments/deep_dive--policy_alignment--tts--e393da64fb40--1.wav",
+            "volume": 1
+          }
+        ]
+      }
+    ]
+  }
+}

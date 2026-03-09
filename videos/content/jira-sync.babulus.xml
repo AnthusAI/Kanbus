@@ -3,22 +3,18 @@
 
   <scene id="hook" title="Jira Sync" duration="5s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="visual" z="0">
-      <animated-pictogram-video props='{"type": "jira"}' />
-    </layer>
-    <layer id="title" z="1">
-      <text-block props='{"text":"Jira Sync","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
-      <text-block props='{"text":"Pull Jira issues directly into your repository","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+      <animated-pictogram-video props='{"type": "jira", "headline": "Jira Sync", "subhead": "Pull Jira issues directly into your repository"}' />
     </layer>
   </scene>
 
   <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
-  <scene id="deep_dive" title="Jira Sync Deep Dive" duration="36s">
+  <scene id="deep_dive" title="Jira Sync Deep Dive">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="title" z="1">
       <title props='{"text":"Jira Sync","x":960,"y":120}' />

@@ -1,10 +1,10 @@
 {
   "scenes": [
     {
-      "id": "opening",
-      "title": "Kanban Overview and Git Synchronization",
+      "id": "overview",
+      "title": "Kanban Overview",
       "startSec": 0,
-      "endSec": 28.0625,
+      "endSec": 14.100000000000001,
       "layers": [
         {
           "id": "background",
@@ -14,7 +14,7 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "#0f1115",
+                "color": "var(--background)",
                 "sceneStartSec": 0
               }
             }
@@ -28,7 +28,7 @@
               "id": "intro-scene-0",
               "type": "IntroScene",
               "props": {
-                "mode": "opening",
+                "mode": "kanban-home",
                 "sceneStartSec": 0
               }
             }
@@ -40,7 +40,7 @@
           "id": "overview",
           "label": "Kanban Overview",
           "startSec": 0,
-          "endSec": 14.1125,
+          "endSec": 14.100000000000001,
           "text": "Kanbus is a high-level, accessible way to run Kanban directly from your repository. You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use.",
           "segments": [
             {
@@ -52,48 +52,20 @@
             {
               "type": "tts",
               "startSec": 0.4,
-              "endSec": 5.4625,
+              "endSec": 5.525,
               "text": "Kanbus is a high-level, accessible way to run Kanban directly from your repository."
             },
             {
               "type": "pause",
-              "startSec": 5.4625,
-              "endSec": 5.6625000000000005,
+              "startSec": 5.525,
+              "endSec": 5.7250000000000005,
               "durationSec": 0.2
             },
             {
               "type": "tts",
-              "startSec": 5.6625000000000005,
-              "endSec": 14.1125,
+              "startSec": 5.7250000000000005,
+              "endSec": 14.100000000000001,
               "text": "You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use."
-            }
-          ],
-          "bullets": []
-        },
-        {
-          "id": "git_bus",
-          "label": "Git Synchronization",
-          "startSec": 14.1125,
-          "endSec": 28.0625,
-          "text": "Git synchronization is the core idea: use Git as the bus for Kanban boards. Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects.",
-          "segments": [
-            {
-              "type": "tts",
-              "startSec": 14.1125,
-              "endSec": 18.762500000000003,
-              "text": "Git synchronization is the core idea: use Git as the bus for Kanban boards."
-            },
-            {
-              "type": "pause",
-              "startSec": 18.762500000000003,
-              "endSec": 18.962500000000002,
-              "durationSec": 0.2
-            },
-            {
-              "type": "tts",
-              "startSec": 18.962500000000002,
-              "endSec": 28.0625,
-              "text": "Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects."
             }
           ],
           "bullets": []
@@ -101,10 +73,10 @@
       ]
     },
     {
-      "id": "feature-tour",
-      "title": "Feature Tour",
-      "startSec": 28.5625,
-      "endSec": 51.5625,
+      "id": "git-sync",
+      "title": "Git Synchronization",
+      "startSec": 14.100000000000001,
+      "endSec": 27.975,
       "layers": [
         {
           "id": "background",
@@ -114,8 +86,8 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "#0f1115",
-                "sceneStartSec": 28.0625
+                "color": "var(--background)",
+                "sceneStartSec": 14.100000000000001
               }
             }
           ]
@@ -128,8 +100,8 @@
               "id": "intro-scene-0",
               "type": "IntroScene",
               "props": {
-                "mode": "feature-list",
-                "sceneStartSec": 28.0625
+                "mode": "git-sync-home",
+                "sceneStartSec": 14.100000000000001
               }
             }
           ]
@@ -137,29 +109,29 @@
       ],
       "cues": [
         {
-          "id": "feature_list",
-          "label": "Feature Tour",
-          "startSec": 28.5625,
-          "endSec": 44.9625,
-          "text": "From there, pick the capabilities you need: an agent-ready CLI, Jira synchronization, local tasks, virtual projects, and Beads compatibility. You also get a VS Code plugin, an integrated wiki, and policy as code so humans and agents operate from one shared workflow.",
+          "id": "git_bus",
+          "label": "Git Synchronization",
+          "startSec": 14.100000000000001,
+          "endSec": 27.975,
+          "text": "Git synchronization is the core idea: use Git as the bus for Kanban boards. Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects.",
           "segments": [
             {
               "type": "tts",
-              "startSec": 28.5625,
-              "endSec": 37.05,
-              "text": "From there, pick the capabilities you need: an agent-ready CLI, Jira synchronization, local tasks, virtual projects, and Beads compatibility."
+              "startSec": 14.100000000000001,
+              "endSec": 18.6875,
+              "text": "Git synchronization is the core idea: use Git as the bus for Kanban boards."
             },
             {
               "type": "pause",
-              "startSec": 37.05,
-              "endSec": 37.25,
+              "startSec": 18.6875,
+              "endSec": 18.8875,
               "durationSec": 0.2
             },
             {
               "type": "tts",
-              "startSec": 37.25,
-              "endSec": 44.9625,
-              "text": "You also get a VS Code plugin, an integrated wiki, and policy as code so humans and agents operate from one shared workflow."
+              "startSec": 18.8875,
+              "endSec": 27.975,
+              "text": "Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects."
             }
           ],
           "bullets": []
@@ -167,10 +139,10 @@
       ]
     },
     {
-      "id": "cta",
-      "title": "Get Started",
-      "startSec": 52.0625,
-      "endSec": 62.0625,
+      "id": "feature-cli",
+      "title": "Agent-Ready CLI",
+      "startSec": 27.975,
+      "endSec": 35.475,
       "layers": [
         {
           "id": "background",
@@ -180,8 +152,448 @@
               "id": "background-0",
               "type": "Background",
               "props": {
-                "color": "#0f1115",
-                "sceneStartSec": 51.0625
+                "color": "var(--background)",
+                "sceneStartSec": 27.975
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "intro-scene-0",
+              "type": "IntroScene",
+              "props": {
+                "mode": "feature",
+                "feature": "cli",
+                "sceneStartSec": 27.975
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "feature_cli",
+          "label": "Agent-Ready CLI",
+          "startSec": 27.975,
+          "endSec": 35.475,
+          "text": "The agent-ready CLI lets you create, update, and move work from your terminal without leaving repository-native workflows.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 27.975,
+              "endSec": 35.475,
+              "text": "The agent-ready CLI lets you create, update, and move work from your terminal without leaving repository-native workflows."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "feature-jira",
+      "title": "Jira Synchronization",
+      "startSec": 35.475,
+      "endSec": 43.112500000000004,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 35.475
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "intro-scene-0",
+              "type": "IntroScene",
+              "props": {
+                "mode": "feature",
+                "feature": "jira",
+                "sceneStartSec": 35.475
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "feature_jira",
+          "label": "Jira Synchronization",
+          "startSec": 35.475,
+          "endSec": 43.112500000000004,
+          "text": "Jira synchronization brings existing Jira projects into the repo so agents and humans work from the same source of truth.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 35.475,
+              "endSec": 43.112500000000004,
+              "text": "Jira synchronization brings existing Jira projects into the repo so agents and humans work from the same source of truth."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "feature-local",
+      "title": "Local Tasks",
+      "startSec": 43.112500000000004,
+      "endSec": 50.112500000000004,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 43.112500000000004
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "intro-scene-0",
+              "type": "IntroScene",
+              "props": {
+                "mode": "feature",
+                "feature": "local",
+                "sceneStartSec": 43.112500000000004
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "feature_local",
+          "label": "Local Tasks",
+          "startSec": 43.112500000000004,
+          "endSec": 50.112500000000004,
+          "text": "Local tasks let you draft privately and promote to the shared board only when work is ready for team visibility.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 43.112500000000004,
+              "endSec": 50.112500000000004,
+              "text": "Local tasks let you draft privately and promote to the shared board only when work is ready for team visibility."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "feature-virtual",
+      "title": "Virtual Projects",
+      "startSec": 50.112500000000004,
+      "endSec": 57.225,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 50.112500000000004
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "intro-scene-0",
+              "type": "IntroScene",
+              "props": {
+                "mode": "feature",
+                "feature": "virtual",
+                "sceneStartSec": 50.112500000000004
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "feature_virtual",
+          "label": "Virtual Projects",
+          "startSec": 50.112500000000004,
+          "endSec": 57.225,
+          "text": "Virtual projects aggregate cross-repository execution into a single view for planning and delivery coordination.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 50.112500000000004,
+              "endSec": 57.225,
+              "text": "Virtual projects aggregate cross-repository execution into a single view for planning and delivery coordination."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "feature-beads",
+      "title": "Beads Compatibility",
+      "startSec": 57.225,
+      "endSec": 64.7875,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 57.225
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "intro-scene-0",
+              "type": "IntroScene",
+              "props": {
+                "mode": "feature",
+                "feature": "beads",
+                "sceneStartSec": 57.225
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "feature_beads",
+          "label": "Beads Compatibility",
+          "startSec": 57.225,
+          "endSec": 64.7875,
+          "text": "Beads compatibility lets you open existing data immediately and evolve your process incrementally while teams keep shipping.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 57.225,
+              "endSec": 64.7875,
+              "text": "Beads compatibility lets you open existing data immediately and evolve your process incrementally while teams keep shipping."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "feature-vscode",
+      "title": "VS Code Plugin",
+      "startSec": 64.7875,
+      "endSec": 72.32499999999999,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 64.7875
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "intro-scene-0",
+              "type": "IntroScene",
+              "props": {
+                "mode": "feature",
+                "feature": "vscode",
+                "sceneStartSec": 64.7875
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "feature_vscode",
+          "label": "VS Code Plugin",
+          "startSec": 64.7875,
+          "endSec": 72.32499999999999,
+          "text": "The VS Code plugin lets you inspect and update board state without context switching away from the files you are editing.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 64.7875,
+              "endSec": 72.32499999999999,
+              "text": "The VS Code plugin lets you inspect and update board state without context switching away from the files you are editing."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "feature-wiki",
+      "title": "Integrated Wiki",
+      "startSec": 72.32499999999999,
+      "endSec": 80.17499999999998,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 72.32499999999999
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "intro-scene-0",
+              "type": "IntroScene",
+              "props": {
+                "mode": "feature",
+                "feature": "wiki",
+                "sceneStartSec": 72.32499999999999
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "feature_wiki",
+          "label": "Integrated Wiki",
+          "startSec": 72.32499999999999,
+          "endSec": 80.17499999999998,
+          "text": "The integrated wiki renders current issue lists inside docs so plans, status updates, and execution context stay synchronized.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 72.32499999999999,
+              "endSec": 80.17499999999998,
+              "text": "The integrated wiki renders current issue lists inside docs so plans, status updates, and execution context stay synchronized."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "feature-policy",
+      "title": "Policy as Code",
+      "startSec": 80.17499999999998,
+      "endSec": 88.36249999999998,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 80.17499999999998
+              }
+            }
+          ]
+        },
+        {
+          "id": "content",
+          "zIndex": 0,
+          "components": [
+            {
+              "id": "intro-scene-0",
+              "type": "IntroScene",
+              "props": {
+                "mode": "feature",
+                "feature": "policy",
+                "sceneStartSec": 80.17499999999998
+              }
+            }
+          ]
+        }
+      ],
+      "cues": [
+        {
+          "id": "feature_policy",
+          "label": "Policy as Code",
+          "startSec": 80.17499999999998,
+          "endSec": 88.36249999999998,
+          "text": "Policy as code lets you define standards once and apply them consistently across CLI usage, automation, and collaborative workflows.",
+          "segments": [
+            {
+              "type": "tts",
+              "startSec": 80.17499999999998,
+              "endSec": 88.36249999999998,
+              "text": "Policy as code lets you define standards once and apply them consistently across CLI usage, automation, and collaborative workflows."
+            }
+          ],
+          "bullets": []
+        }
+      ]
+    },
+    {
+      "id": "cta",
+      "title": "Get Started",
+      "startSec": 88.36249999999998,
+      "endSec": 95.88749999999999,
+      "layers": [
+        {
+          "id": "background",
+          "zIndex": -1,
+          "components": [
+            {
+              "id": "background-0",
+              "type": "Background",
+              "props": {
+                "color": "var(--background)",
+                "sceneStartSec": 88.36249999999998
               }
             }
           ]
@@ -195,7 +607,7 @@
               "type": "IntroScene",
               "props": {
                 "mode": "cta",
-                "sceneStartSec": 51.0625
+                "sceneStartSec": 88.36249999999998
               }
             }
           ]
@@ -205,26 +617,26 @@
         {
           "id": "cta",
           "label": "Get Started",
-          "startSec": 52.0625,
-          "endSec": 59.462500000000006,
+          "startSec": 88.36249999999998,
+          "endSec": 95.88749999999999,
           "text": "Get started at kanb.us. Install Kanbus, connect your repository, and run the same board workflow for humans and AI agents.",
           "segments": [
             {
               "type": "tts",
-              "startSec": 52.0625,
-              "endSec": 53.3875,
+              "startSec": 88.36249999999998,
+              "endSec": 89.67499999999998,
               "text": "Get started at kanb.us."
             },
             {
               "type": "pause",
-              "startSec": 53.3875,
-              "endSec": 53.587500000000006,
+              "startSec": 89.67499999999998,
+              "endSec": 89.87499999999999,
               "durationSec": 0.2
             },
             {
               "type": "tts",
-              "startSec": 53.587500000000006,
-              "endSec": 59.462500000000006,
+              "startSec": 89.87499999999999,
+              "endSec": 95.88749999999999,
               "text": "Install Kanbus, connect your repository, and run the same board workflow for humans and AI agents."
             }
           ],
@@ -236,49 +648,69 @@
   "timeline": [
     {
       "kind": "scene",
-      "sceneId": "opening",
+      "sceneId": "overview",
       "startSec": 0,
-      "endSec": 28.0625
-    },
-    {
-      "kind": "transition",
-      "id": "push-1",
-      "startSec": 28.0625,
-      "endSec": 28.5625,
-      "effect": "slide",
-      "ease": "power2.inOut",
-      "props": {
-        "direction": "left"
-      },
-      "mode": "insert",
-      "fromSceneId": "opening",
-      "toSceneId": "feature-tour"
+      "endSec": 14.100000000000001
     },
     {
       "kind": "scene",
-      "sceneId": "feature-tour",
-      "startSec": 28.5625,
-      "endSec": 51.5625
+      "sceneId": "git-sync",
+      "startSec": 14.100000000000001,
+      "endSec": 27.975
     },
     {
-      "kind": "transition",
-      "id": "push-2",
-      "startSec": 51.5625,
-      "endSec": 52.0625,
-      "effect": "slide",
-      "ease": "power2.inOut",
-      "props": {
-        "direction": "left"
-      },
-      "mode": "insert",
-      "fromSceneId": "feature-tour",
-      "toSceneId": "cta"
+      "kind": "scene",
+      "sceneId": "feature-cli",
+      "startSec": 27.975,
+      "endSec": 35.475
+    },
+    {
+      "kind": "scene",
+      "sceneId": "feature-jira",
+      "startSec": 35.475,
+      "endSec": 43.112500000000004
+    },
+    {
+      "kind": "scene",
+      "sceneId": "feature-local",
+      "startSec": 43.112500000000004,
+      "endSec": 50.112500000000004
+    },
+    {
+      "kind": "scene",
+      "sceneId": "feature-virtual",
+      "startSec": 50.112500000000004,
+      "endSec": 57.225
+    },
+    {
+      "kind": "scene",
+      "sceneId": "feature-beads",
+      "startSec": 57.225,
+      "endSec": 64.7875
+    },
+    {
+      "kind": "scene",
+      "sceneId": "feature-vscode",
+      "startSec": 64.7875,
+      "endSec": 72.32499999999999
+    },
+    {
+      "kind": "scene",
+      "sceneId": "feature-wiki",
+      "startSec": 72.32499999999999,
+      "endSec": 80.17499999999998
+    },
+    {
+      "kind": "scene",
+      "sceneId": "feature-policy",
+      "startSec": 80.17499999999998,
+      "endSec": 88.36249999999998
     },
     {
       "kind": "scene",
       "sceneId": "cta",
-      "startSec": 52.0625,
-      "endSec": 62.0625
+      "startSec": 88.36249999999998,
+      "endSec": 95.88749999999999
     }
   ],
   "posterTimeSec": 18,

@@ -3,22 +3,18 @@
 
   <scene id="hook" title="Beads Compatibility" duration="5s">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="visual" z="0">
-      <animated-pictogram-video props='{"type": "beads"}' />
-    </layer>
-    <layer id="title" z="1">
-      <text-block props='{"text":"Beads Compatibility","x":960,"y":120,"size":64,"weight":800,"align":"center","maxWidth":1200,"font":"sans"}' />
-      <text-block props='{"text":"Instant Kanban board for your Beads projects","x":960,"y":200,"size":36,"weight":400,"align":"center","maxWidth":1200,"font":"serif","color":"var(--text-muted)"}' />
+      <animated-pictogram-video props='{"type": "beads", "headline": "Beads Compatibility", "subhead": "Instant Kanban board for your Beads projects"}' />
     </layer>
   </scene>
 
   <transition id="push-1" effect="slide" duration="15f" mode="insert" ease="power2.inOut" props='{"direction":"left"}' />
 
-  <scene id="deep_dive" title="Beads Compatibility Deep Dive" duration="34s">
+  <scene id="deep_dive" title="Beads Compatibility Deep Dive">
     <layer id="background" z="-1">
-      <background props='{"color":"#0f1115"}' />
+      <background props='{"color":"var(--background)"}' />
     </layer>
     <layer id="title" z="1">
       <title props='{"text":"Beads Compatibility","x":960,"y":120}' />

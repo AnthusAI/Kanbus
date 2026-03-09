@@ -111,6 +111,9 @@ fn when_format_list_lines_for_color_coverage(world: &mut KanbusWorld) {
     let mut issues = Vec::new();
     for entry in fs::read_dir(project_dir.join("issues")).expect("read issues dir") {
         let entry = entry.expect("issue entry");
+        if entry.path().extension().map_or(true, |e| e != "json") {
+            continue;
+        }
         let contents = fs::read_to_string(entry.path()).expect("read issue");
         let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
         issues.push(issue);

@@ -142,6 +142,7 @@ pub fn add_comment(
         comment_payload(&comment_id, &comment.author),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -151,17 +152,15 @@ pub fn add_comment(
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(
-        root,
-        NotificationEvent::IssueUpdated {
-            issue_id: updated.identifier.clone(),
-            fields_changed: vec!["comments".to_string()],
-            issue_data: updated.clone(),
-        },
-    );
+    if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &lookup.project_dir,
+            &updated,
+            Some(event_id),
+            "issue.mutated",
+        );
+    }
 
     Ok(IssueCommentResult {
         issue: updated,
@@ -217,6 +216,7 @@ pub fn update_comment(
         comment_updated_payload(&comment_id, &existing_comment.author),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -226,17 +226,15 @@ pub fn update_comment(
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(
-        root,
-        NotificationEvent::IssueUpdated {
-            issue_id: issue.identifier.clone(),
-            fields_changed: vec!["comments".to_string()],
-            issue_data: issue.clone(),
-        },
-    );
+    if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &lookup.project_dir,
+            &issue,
+            Some(event_id),
+            "issue.mutated",
+        );
+    }
 
     Ok(issue)
 }
@@ -267,6 +265,7 @@ pub fn delete_comment(
         comment_payload(&comment_id, &removed.author),
         occurred_at,
     );
+    let event_id = event.event_id.clone();
     let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
     match write_events_batch(&events_dir, &[event]) {
         Ok(_paths) => {}
@@ -276,17 +275,15 @@ pub fn delete_comment(
         }
     }
 
-    // Publish real-time notification
-    use crate::notification_events::NotificationEvent;
-    use crate::notification_publisher::publish_notification;
-    let _ = publish_notification(
-        root,
-        NotificationEvent::IssueUpdated {
-            issue_id: issue.identifier.clone(),
-            fields_changed: vec!["comments".to_string()],
-            issue_data: issue.clone(),
-        },
-    );
+    if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &lookup.project_dir,
+            &issue,
+            Some(event_id),
+            "issue.mutated",
+        );
+    }
 
     Ok(issue)
 }

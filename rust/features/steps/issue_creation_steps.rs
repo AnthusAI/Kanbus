@@ -192,6 +192,7 @@ fn given_kanbus_project(world: &mut KanbusWorld) {
     assert_eq!(world.exit_code, Some(0));
 }
 
+#[given("the command should succeed")]
 #[then("the command should succeed")]
 fn then_command_succeeds(world: &mut KanbusWorld) {
     assert_eq!(
