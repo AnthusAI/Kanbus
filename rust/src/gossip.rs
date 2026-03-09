@@ -1067,10 +1067,20 @@ fn print_mosquitto_missing() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::default_project_configuration;
     use crate::models::RealtimeTopics;
+    use crate::models::VirtualProjectConfig;
     use std::path::PathBuf;
-    use std::sync::mpsc;
+    use std::sync::{mpsc, Mutex, OnceLock};
     use tempfile::TempDir;
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env lock")
+    }
 
     fn sample_realtime(socket_path: Option<String>) -> RealtimeConfig {
         RealtimeConfig {
@@ -1207,9 +1217,15 @@ mod tests {
 
     #[test]
     fn uds_socket_path_prefers_env_runtime_dir() {
+        let _guard = env_lock();
+        let prior_runtime = std::env::var("XDG_RUNTIME_DIR").ok();
         std::env::set_var("XDG_RUNTIME_DIR", "/tmp/kanbus-runtime");
         let path = uds_socket_path(None);
-        std::env::remove_var("XDG_RUNTIME_DIR");
+        if let Some(value) = prior_runtime {
+            std::env::set_var("XDG_RUNTIME_DIR", value);
+        } else {
+            std::env::remove_var("XDG_RUNTIME_DIR");
+        }
         assert_eq!(path, PathBuf::from("/tmp/kanbus-runtime/kanbus/bus.sock"));
     }
 
@@ -1229,7 +1245,9 @@ mod tests {
 
     #[test]
     fn resolve_broker_endpoint_auto_prefers_metadata_endpoint() {
+        let _guard = env_lock();
         let tmp = TempDir::new().expect("temp dir");
+        let prior_home = std::env::var("HOME").ok();
         std::env::set_var("HOME", tmp.path());
         let run_dir = tmp.path().join(".kanbus").join("run");
         std::fs::create_dir_all(&run_dir).expect("create run dir");
@@ -1252,6 +1270,11 @@ mod tests {
         let endpoint = resolve_broker_endpoint("auto").expect("endpoint");
         assert_eq!(endpoint.host, "127.0.0.1");
         assert_eq!(endpoint.port, 2883);
+        if let Some(value) = prior_home {
+            std::env::set_var("HOME", value);
+        } else {
+            std::env::remove_var("HOME");
+        }
     }
 
     #[test]
@@ -1293,5 +1316,161 @@ mod tests {
         let port = find_free_port(1883).expect("free port");
         let listener = std::net::TcpListener::bind(("127.0.0.1", port)).expect("bind");
         drop(listener);
+    }
+
+    #[test]
+    fn mqtt_options_uses_tls_443_and_credentials_for_custom_authorizer() {
+        let mut realtime = sample_realtime(None);
+        realtime.mqtt_custom_authorizer_name = Some("authz".to_string());
+        realtime.mqtt_api_token = Some("token-123".to_string());
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtts".to_string(),
+            host: "example.com".to_string(),
+            port: 8883,
+        };
+
+        let options = mqtt_options(&endpoint, &realtime);
+        assert_eq!(options.broker_address(), ("example.com".to_string(), 443));
+        assert_eq!(
+            options
+                .credentials()
+                .map(|(username, _)| username.to_string()),
+            Some("?x-amz-customauthorizer-name=authz".to_string())
+        );
+    }
+
+    #[test]
+    fn mqtt_options_keeps_port_without_custom_authorizer() {
+        let realtime = sample_realtime(None);
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtts".to_string(),
+            host: "example.com".to_string(),
+            port: 8883,
+        };
+
+        let options = mqtt_options(&endpoint, &realtime);
+        assert_eq!(options.broker_address(), ("example.com".to_string(), 8883));
+        assert!(options.credentials().is_none());
+    }
+
+    #[test]
+    fn broker_metadata_round_trip_and_invalid_payload_handling() {
+        let _guard = env_lock();
+        let tmp = TempDir::new().expect("temp dir");
+        let prior_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", tmp.path());
+        let metadata = BrokerMetadata {
+            kind: "mosquitto".to_string(),
+            endpoint: "mqtt://127.0.0.1:1999".to_string(),
+            pid: 42,
+            started_by: "kbs".to_string(),
+            started_at: "2026-03-09T00:00:00.000Z".to_string(),
+            log_path: "/tmp/mosquitto.log".to_string(),
+            conf_path: "/tmp/mosquitto.conf".to_string(),
+            ttl_s: 86_400,
+        };
+
+        write_broker_metadata(&metadata).expect("write metadata");
+        let parsed = load_broker_metadata().expect("load metadata");
+        assert_eq!(parsed.endpoint, "mqtt://127.0.0.1:1999");
+
+        let run_dir = broker_run_dir();
+        std::fs::write(run_dir.join("broker.json"), "{").expect("write invalid metadata");
+        assert!(load_broker_metadata().is_none());
+        if let Some(value) = prior_home {
+            std::env::set_var("HOME", value);
+        } else {
+            std::env::remove_var("HOME");
+        }
+    }
+
+    #[test]
+    fn project_topic_replaces_project_template() {
+        let realtime = sample_realtime(None);
+        assert_eq!(
+            project_topic(&realtime, "dev"),
+            "projects/dev/events".to_string()
+        );
+    }
+
+    #[test]
+    fn resolve_project_label_returns_matching_label_and_fallback() {
+        let tmp = TempDir::new().expect("temp dir");
+        let root = tmp.path();
+        let projects_dir = root.join("projects");
+        let alpha_dir = projects_dir.join("alpha");
+        std::fs::create_dir_all(&alpha_dir).expect("create project dir");
+        let mut configuration = default_project_configuration();
+        configuration.project_directory = "projects/primary".to_string();
+        configuration.project_key = "fallback".to_string();
+        configuration.virtual_projects.insert(
+            "alpha".to_string(),
+            VirtualProjectConfig {
+                path: "projects/alpha".to_string(),
+            },
+        );
+        let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
+        std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
+        let configuration =
+            load_project_configuration(&root.join(".kanbus.yml")).expect("load project config");
+
+        assert_eq!(
+            resolve_project_label(root, &alpha_dir, &configuration),
+            Some("alpha".to_string())
+        );
+        assert_eq!(
+            resolve_project_label(root, &root.join("projects").join("missing"), &configuration),
+            Some("fallback".to_string())
+        );
+    }
+
+    #[test]
+    fn run_uds_subscription_ignores_invalid_payloads_before_valid_envelope() {
+        let tmp = TempDir::new().expect("temp dir");
+        let socket_path = tmp.path().join("bus.sock");
+        let realtime = sample_realtime(Some(socket_path.display().to_string()));
+        let broker_socket = socket_path.clone();
+        thread::spawn(move || {
+            let _ = run_uds_broker(&broker_socket);
+        });
+        for _ in 0..40 {
+            if socket_path.exists() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+
+        let topic = "kanbus/test/events".to_string();
+        let envelope = sample_envelope();
+        let received_id = envelope.id.clone();
+        let realtime_for_sub = realtime.clone();
+        let topic_for_sub = topic.clone();
+        let (tx, rx) = mpsc::channel::<String>();
+        thread::spawn(move || {
+            let handler = Arc::new(move |env: GossipEnvelope| {
+                let _ = tx.send(env.id);
+            });
+            let _ = run_uds_subscription(&realtime_for_sub, &[topic_for_sub], handler);
+        });
+        thread::sleep(Duration::from_millis(100));
+
+        let mut publisher = UnixStream::connect(&socket_path).expect("connect publisher");
+        for payload in [
+            "{\"op\":\"pub\",\"topic\":\"kanbus/test/events\",\"msg\":not-json}\n".to_string(),
+            "{\"op\":\"pub\",\"topic\":\"kanbus/test/events\"}\n".to_string(),
+            format!(
+                "{}\n",
+                serde_json::json!({"op":"pub","topic":"kanbus/test/events","msg": envelope})
+            ),
+        ] {
+            publisher
+                .write_all(payload.as_bytes())
+                .expect("publish payload");
+        }
+
+        let observed = rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("expected valid envelope delivery");
+        assert_eq!(observed, received_id);
     }
 }
