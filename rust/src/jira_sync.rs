@@ -407,3 +407,78 @@ fn parse_jira_datetime(s: &str) -> Option<DateTime<Utc>> {
         .ok()
         .map(|dt| dt.with_timezone(&Utc))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn extract_adf_text_handles_string_object_and_null() {
+        assert_eq!(extract_adf_text(&json!("plain text")), "plain text");
+        assert_eq!(extract_adf_text(&Value::Null), "");
+        assert_eq!(extract_adf_text(&json!(123)), "");
+
+        let adf = json!({
+            "type": "doc",
+            "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "First"}]},
+                {"type": "paragraph", "content": [{"type": "text", "text": "Second"}]},
+                {"type": "hardBreak"}
+            ]
+        });
+        let text = extract_adf_text(&adf);
+        assert!(text.contains("First"));
+        assert!(text.contains("Second"));
+    }
+
+    #[test]
+    fn extract_comments_maps_defaults_and_empty_body() {
+        let comments_field = json!({
+            "comments": [
+                {
+                    "id": "c1",
+                    "author": { "displayName": "Alice" },
+                    "body": { "type": "doc", "content": [{"type":"paragraph","content":[{"type":"text","text":"Hello"}]}] },
+                    "created": "2026-01-01T00:00:00Z"
+                },
+                {
+                    "author": {},
+                    "body": Value::Null,
+                    "created": ""
+                }
+            ]
+        });
+
+        let comments = extract_comments(&comments_field);
+        assert_eq!(comments.len(), 2);
+        assert_eq!(comments[0].id.as_deref(), Some("c1"));
+        assert_eq!(comments[0].author, "Alice");
+        assert_eq!(comments[0].text, "Hello");
+        assert_eq!(comments[1].author, "Unknown");
+        assert_eq!(comments[1].text, "(empty)");
+    }
+
+    #[test]
+    fn map_jira_status_and_priority_cover_known_and_unknown_values() {
+        assert_eq!(map_jira_status("In Progress"), "in_progress");
+        assert_eq!(map_jira_status("RESOLVED"), "closed");
+        assert_eq!(map_jira_status("Impediment"), "blocked");
+        assert_eq!(map_jira_status("Something Else"), "open");
+
+        assert_eq!(map_jira_priority("critical"), 0);
+        assert_eq!(map_jira_priority("high"), 1);
+        assert_eq!(map_jira_priority("normal"), 2);
+        assert_eq!(map_jira_priority("low"), 3);
+        assert_eq!(map_jira_priority("minor"), 4);
+        assert_eq!(map_jira_priority("unknown"), 2);
+    }
+
+    #[test]
+    fn parse_jira_datetime_validates_input() {
+        assert!(parse_jira_datetime("").is_none());
+        assert!(parse_jira_datetime("not-a-date").is_none());
+        let parsed = parse_jira_datetime("2026-01-01T12:34:56Z").expect("parse timestamp");
+        assert_eq!(parsed.to_rfc3339(), "2026-01-01T12:34:56+00:00");
+    }
+}
