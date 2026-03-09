@@ -669,6 +669,7 @@ fn join_lines(lines: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn parse_header_extracts_level_and_title() {
@@ -708,5 +709,150 @@ mod tests {
         assert!(updated.contains("## Kanbus"));
         assert!(updated.contains("Managed content"));
         assert!(updated.starts_with("# Title"));
+    }
+
+    #[test]
+    fn build_parent_child_rules_covers_no_parent_and_empty_cases() {
+        let only_types = build_parent_child_rules(&[], &["bug".to_string(), "task".to_string()]);
+        assert_eq!(only_types, vec!["bug, task cannot have parents."]);
+
+        let empty = build_parent_child_rules(&[], &[]);
+        assert_eq!(empty, vec!["No parent-child relationships are defined."]);
+    }
+
+    #[test]
+    fn collect_statuses_and_select_status_example_cover_fallbacks() {
+        let mut workflow = BTreeMap::new();
+        workflow.insert(
+            "open".to_string(),
+            vec!["in_progress".to_string(), "blocked".to_string()],
+        );
+        workflow.insert("closed".to_string(), vec![]);
+
+        let statuses = collect_statuses(&workflow);
+        assert!(statuses.contains("open"));
+        assert!(statuses.contains("closed"));
+        assert!(statuses.contains("in_progress"));
+        assert!(statuses.contains("blocked"));
+
+        assert_eq!(
+            select_status_example("open", &workflow),
+            "in_progress".to_string()
+        );
+        let mut fallback = BTreeMap::new();
+        fallback.insert("closed".to_string(), vec!["open".to_string()]);
+        assert_eq!(select_status_example("missing", &fallback), "open");
+        assert_eq!(
+            select_status_example("missing", &BTreeMap::new()),
+            "missing".to_string()
+        );
+    }
+
+    #[test]
+    fn parse_and_find_sections_detect_kanbus_headers() {
+        let lines = vec![
+            "# Title".to_string(),
+            "intro".to_string(),
+            "## Project management with Kanbus".to_string(),
+            "body".to_string(),
+            "## Other".to_string(),
+            "## Extra Kanbus Notes".to_string(),
+            "tail".to_string(),
+        ];
+
+        let sections = find_kanbus_sections(&lines);
+        assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0].start, 2);
+        assert_eq!(sections[0].end, 4);
+        assert_eq!(sections[1].start, 5);
+        assert_eq!(sections[1].end, 7);
+    }
+
+    #[test]
+    fn replace_sections_keeps_primary_and_drops_duplicates() {
+        let lines = vec![
+            "# Title".to_string(),
+            "## Kanbus One".to_string(),
+            "old one".to_string(),
+            "## Other".to_string(),
+            "## Kanbus Two".to_string(),
+            "old two".to_string(),
+        ];
+        let sections = find_kanbus_sections(&lines);
+        let replacement = ["## Kanbus", "fresh"];
+
+        let updated = replace_sections(&lines, &sections, &sections[0], &replacement);
+        assert!(updated.contains("## Kanbus\nfresh"));
+        assert!(!updated.contains("old one"));
+        assert!(!updated.contains("old two"));
+        assert!(updated.contains("## Other"));
+    }
+
+    #[test]
+    fn resolve_project_management_template_path_supports_relative_absolute_and_defaults() {
+        let tmp = TempDir::new().expect("temp dir");
+        let root = tmp.path();
+        let mut configuration = crate::config::default_project_configuration();
+
+        let missing = resolve_project_management_template_path(root, &configuration)
+            .expect("no template path");
+        assert!(missing.is_none());
+
+        let relative = root.join("relative-template.md");
+        std::fs::write(&relative, "relative").expect("write relative template");
+        configuration.project_management_template = Some("relative-template.md".to_string());
+        let resolved =
+            resolve_project_management_template_path(root, &configuration).expect("relative path");
+        assert_eq!(resolved, Some(relative.clone()));
+
+        configuration.project_management_template =
+            Some(root.join("abs-template.md").to_string_lossy().to_string());
+        std::fs::write(root.join("abs-template.md"), "absolute").expect("write abs template");
+        let absolute =
+            resolve_project_management_template_path(root, &configuration).expect("absolute path");
+        assert_eq!(absolute, Some(root.join("abs-template.md")));
+
+        configuration.project_management_template = Some("missing.md".to_string());
+        let error =
+            resolve_project_management_template_path(root, &configuration).expect_err("missing");
+        assert!(error
+            .to_string()
+            .contains("project management template not found"));
+    }
+
+    #[test]
+    fn ensure_project_management_file_and_guard_files_cover_creation_and_skip_paths() {
+        let tmp = TempDir::new().expect("temp dir");
+        let root = tmp.path();
+        let instructions = root.join(PROJECT_MANAGEMENT_FILENAME);
+
+        ensure_project_management_file(root, false, "first").expect("first write");
+        assert_eq!(
+            std::fs::read_to_string(&instructions).expect("read instructions"),
+            "first"
+        );
+        ensure_project_management_file(root, false, "second").expect("skip overwrite");
+        assert_eq!(
+            std::fs::read_to_string(&instructions).expect("read instructions"),
+            "first"
+        );
+        ensure_project_management_file(root, true, "second").expect("force overwrite");
+        assert_eq!(
+            std::fs::read_to_string(&instructions).expect("read instructions"),
+            "second"
+        );
+
+        let project_dir = root.join("project");
+        let issues_dir = project_dir.join("issues");
+        let events_dir = project_dir.join("events");
+        std::fs::create_dir_all(&issues_dir).expect("create issues");
+        std::fs::create_dir_all(&events_dir).expect("create events");
+        ensure_project_guard_files(root).expect("guard files");
+
+        assert!(project_dir.join("AGENTS.md").exists());
+        assert!(issues_dir.join("AGENTS.md").exists());
+        assert!(issues_dir.join("DO_NOT_EDIT").exists());
+        assert!(events_dir.join("AGENTS.md").exists());
+        assert!(events_dir.join("DO_NOT_EDIT").exists());
     }
 }
