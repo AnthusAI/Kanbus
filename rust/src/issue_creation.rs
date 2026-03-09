@@ -275,3 +275,115 @@ pub fn resolve_issue_identifier(
         )),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::default_project_configuration;
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+
+    fn make_issue(id: &str, title: &str) -> IssueData {
+        IssueData {
+            identifier: id.to_string(),
+            title: title.to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    fn minimal_config() -> ProjectConfiguration {
+        default_project_configuration()
+    }
+
+    #[test]
+    fn validate_issue_type_accepts_known_and_rejects_unknown() {
+        let config = minimal_config();
+        assert!(validate_issue_type(&config, "task").is_ok());
+        assert!(validate_issue_type(&config, "bug").is_ok());
+        let error = validate_issue_type(&config, "unknown-type").expect_err("should fail");
+        match error {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "unknown issue type"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn find_duplicate_title_is_case_insensitive_and_skips_non_json() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir");
+        write_issue_to_file(
+            &make_issue("kanbus-abc12345", "Fix Login"),
+            &issues_dir.join("kanbus-abc12345.json"),
+        )
+        .expect("write issue");
+        std::fs::write(issues_dir.join("README.md"), "ignore").expect("write readme");
+
+        let duplicate = find_duplicate_title(&issues_dir, "  fix login  ").expect("duplicate");
+        assert_eq!(duplicate.as_deref(), Some("kanbus-abc12345"));
+        let none = find_duplicate_title(&issues_dir, "different").expect("no duplicate");
+        assert!(none.is_none());
+    }
+
+    #[test]
+    fn find_duplicate_title_returns_error_for_invalid_json() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir");
+        std::fs::write(issues_dir.join("broken.json"), "{not-json").expect("write broken");
+        let error = find_duplicate_title(&issues_dir, "anything").expect_err("should fail");
+        assert!(matches!(error, KanbusError::Io(_)));
+    }
+
+    #[test]
+    fn resolve_issue_identifier_handles_exact_unique_ambiguous_and_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir");
+        write_issue_to_file(
+            &make_issue("kanbus-abc12345", "A"),
+            &issues_dir.join("kanbus-abc12345.json"),
+        )
+        .expect("write issue a");
+        write_issue_to_file(
+            &make_issue("kanbus-abc67890", "B"),
+            &issues_dir.join("kanbus-abc67890.json"),
+        )
+        .expect("write issue b");
+
+        let exact =
+            resolve_issue_identifier(&issues_dir, "kanbus", "kanbus-abc12345").expect("exact");
+        assert_eq!(exact, "kanbus-abc12345");
+
+        let unique_short =
+            resolve_issue_identifier(&issues_dir, "kanbus", "abc678").expect("short");
+        assert_eq!(unique_short, "kanbus-abc67890");
+
+        let ambiguous =
+            resolve_issue_identifier(&issues_dir, "kanbus", "kanbus-abc").expect_err("ambiguous");
+        match ambiguous {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "ambiguous short id"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        let missing =
+            resolve_issue_identifier(&issues_dir, "kanbus", "zzz999").expect_err("missing");
+        match missing {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "not found"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+}
