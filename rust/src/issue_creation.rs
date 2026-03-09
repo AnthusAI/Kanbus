@@ -280,8 +280,10 @@ pub fn resolve_issue_identifier(
 mod tests {
     use super::*;
     use crate::config::default_project_configuration;
+    use crate::file_io::initialize_project;
     use chrono::Utc;
     use std::collections::BTreeMap;
+    use std::path::Path;
 
     fn make_issue(id: &str, title: &str) -> IssueData {
         IssueData {
@@ -306,6 +308,25 @@ mod tests {
 
     fn minimal_config() -> ProjectConfiguration {
         default_project_configuration()
+    }
+
+    fn initialize_test_project(root: &Path) {
+        initialize_project(root, true).expect("initialize project");
+    }
+
+    fn request(root: &Path, title: &str) -> IssueCreationRequest {
+        IssueCreationRequest {
+            root: root.to_path_buf(),
+            title: title.to_string(),
+            issue_type: None,
+            priority: None,
+            assignee: None,
+            parent: None,
+            labels: Vec::new(),
+            description: None,
+            local: false,
+            validate: true,
+        }
     }
 
     #[test]
@@ -385,5 +406,75 @@ mod tests {
             KanbusError::IssueOperation(message) => assert_eq!(message, "not found"),
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    #[test]
+    fn create_issue_rejects_unknown_type_when_validate_enabled() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "Unknown type");
+        req.issue_type = Some("not-a-real-type".to_string());
+        let error = create_issue(&req).expect_err("should fail");
+        match error {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "unknown issue type"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn create_issue_rejects_invalid_priority_when_validate_enabled() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "Bad priority");
+        req.priority = Some(250);
+        let error = create_issue(&req).expect_err("should fail");
+        match error {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "invalid priority"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn create_issue_rejects_missing_parent_when_validate_enabled() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "Missing parent");
+        req.parent = Some("kanbus-unknown123".to_string());
+        let error = create_issue(&req).expect_err("should fail");
+        match error {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "not found"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn create_issue_rejects_duplicate_title_case_insensitively() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let first = request(temp.path(), "Fix Login");
+        create_issue(&first).expect("create first");
+
+        let second = request(temp.path(), "  fix login  ");
+        let error = create_issue(&second).expect_err("duplicate should fail");
+        match error {
+            KanbusError::IssueOperation(message) => {
+                assert!(message.contains("duplicate title"));
+                assert!(message.contains("kanbus-"));
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn create_issue_validate_false_allows_unknown_type_and_priority() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "No validate");
+        req.issue_type = Some("not-a-real-type".to_string());
+        req.priority = Some(250);
+        req.validate = false;
+        let result = create_issue(&req).expect("creation should bypass validation");
+        assert_eq!(result.issue.issue_type, "not-a-real-type");
+        assert_eq!(result.issue.priority, 250);
     }
 }
