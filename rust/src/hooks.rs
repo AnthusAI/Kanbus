@@ -97,6 +97,13 @@ impl HookEvent {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct HookExecutionOptions {
+    pub beads_mode: bool,
+    pub no_hooks: bool,
+    pub no_guidance: bool,
+}
+
 #[derive(Debug, Clone)]
 struct HookResult {
     succeeded: bool,
@@ -129,7 +136,7 @@ pub fn hooks_globally_disabled(no_hooks: bool) -> bool {
 }
 
 pub fn serialize_issue(issue: &IssueData) -> Value {
-    serde_json::to_value(issue).unwrap_or_else(|_| Value::Null)
+    serde_json::to_value(issue).unwrap_or(Value::Null)
 }
 
 pub fn list_hooks(root: &Path) -> Vec<HookListRow> {
@@ -257,11 +264,9 @@ pub fn run_lifecycle_hooks(
     event: HookEvent,
     operation: Value,
     issues_for_policy: &[IssueData],
-    beads_mode: bool,
-    no_hooks: bool,
-    no_guidance: bool,
+    options: HookExecutionOptions,
 ) -> Result<(), KanbusError> {
-    if hooks_globally_disabled(no_hooks) {
+    if hooks_globally_disabled(options.no_hooks) {
         return Ok(());
     }
 
@@ -269,7 +274,7 @@ pub fn run_lifecycle_hooks(
     if !hooks_config.enabled {
         return Ok(());
     }
-    if beads_mode && !hooks_config.run_in_beads_mode {
+    if options.beads_mode && !hooks_config.run_in_beads_mode {
         return Ok(());
     }
 
@@ -281,7 +286,7 @@ pub fn run_lifecycle_hooks(
         "timestamp": now_utc_iso(),
         "actor": actor,
         "mode": {
-            "beads_mode": beads_mode,
+            "beads_mode": options.beads_mode,
             "project_root": project_root.display().to_string(),
             "working_directory": std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")).display().to_string(),
             "runtime": "rust",
@@ -325,8 +330,8 @@ pub fn run_lifecycle_hooks(
             &project_root,
             event,
             issues_for_policy,
-            beads_mode,
-            no_guidance,
+            options.beads_mode,
+            options.no_guidance,
         );
     }
 

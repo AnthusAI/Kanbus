@@ -33,7 +33,8 @@ fn given_file_with_content(world: &mut KanbusWorld, path: String, step: &Step) {
         fs::create_dir_all(parent).expect("create parent dir");
     }
     let content = step.docstring().expect("content not found");
-    fs::write(&full_path, content).expect("write file");
+    let normalized = content.trim_matches('\n');
+    fs::write(&full_path, normalized).expect("write file");
 }
 
 #[then(expr = "{string} should appear after {string} in the file {string}")]

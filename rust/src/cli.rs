@@ -32,7 +32,8 @@ use crate::file_io::{
     get_configuration_path, initialize_project, repair_project_structure, resolve_root,
 };
 use crate::hooks::{
-    list_hooks, run_lifecycle_hooks, serialize_issue, validate_hooks, HookEvent, HookPhase,
+    list_hooks, run_lifecycle_hooks, serialize_issue, validate_hooks, HookEvent,
+    HookExecutionOptions, HookPhase,
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
@@ -1065,20 +1066,9 @@ fn run_lifecycle_hooks_for_context(
     event: HookEvent,
     operation: serde_json::Value,
     issues_for_policy: &[IssueData],
-    beads_mode: bool,
-    no_hooks: bool,
-    no_guidance: bool,
+    options: HookExecutionOptions,
 ) -> Result<(), KanbusError> {
-    run_lifecycle_hooks(
-        root,
-        phase,
-        event,
-        operation,
-        issues_for_policy,
-        beads_mode,
-        no_hooks,
-        no_guidance,
-    )
+    run_lifecycle_hooks(root, phase, event, operation, issues_for_policy, options)
 }
 
 fn execute_command(
@@ -1090,6 +1080,11 @@ fn execute_command(
     no_hooks: bool,
 ) -> Result<Option<String>, KanbusError> {
     let root_for_beads = beads_root(root);
+    let hook_options = HookExecutionOptions {
+        beads_mode,
+        no_hooks,
+        no_guidance,
+    };
     match command {
         Commands::Init { local } => {
             ensure_git_repository(root)?;
@@ -1194,9 +1189,7 @@ fn execute_command(
                     "local": local,
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             if beads_mode {
                 let issue = create_beads_issue(
@@ -1227,9 +1220,7 @@ fn execute_command(
                         "local": local,
                     }),
                     std::slice::from_ref(&issue),
-                    beads_mode,
-                    no_hooks,
-                    no_guidance,
+                    hook_options,
                 )?;
                 return Ok(Some(output));
             }
@@ -1268,9 +1259,7 @@ fn execute_command(
                     "local": local,
                 }),
                 std::slice::from_ref(&issue),
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(Some(output))
         }
@@ -1293,9 +1282,7 @@ fn execute_command(
                         .map(|value| value.display().to_string()),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             let (issue, configuration) = if beads_mode {
                 let mut beads_issue = load_beads_issue_by_id(&beads_root_for_show, &identifier)?;
@@ -1375,9 +1362,7 @@ fn execute_command(
                     "issue": serialize_issue(&issue),
                 }),
                 std::slice::from_ref(&issue),
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(Some(output))
         }
@@ -1458,9 +1443,7 @@ fn execute_command(
                     "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             let after_issue_for_hooks: Option<IssueData>;
             if beads_mode {
@@ -1640,9 +1623,7 @@ fn execute_command(
                     "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &issues_for_policy,
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(Some(format!("Updated {}", formatted_identifier)))
         }
@@ -1671,9 +1652,7 @@ fn execute_command(
                     "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             let moved_issue = update_issue(
                 root,
@@ -1703,9 +1682,7 @@ fn execute_command(
                     "after_issue": serialize_issue(&moved_issue),
                 }),
                 std::slice::from_ref(&moved_issue),
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             let formatted_identifier = format_issue_key(&identifier, false);
             Ok(Some(format!(
@@ -1750,9 +1727,7 @@ fn execute_command(
                         "set_assignee": set_assignee.clone(),
                     }),
                     &[],
-                    beads_mode,
-                    no_hooks,
-                    no_guidance,
+                    hook_options,
                 )?;
 
                 let mut selected = Vec::new();
@@ -1830,9 +1805,7 @@ fn execute_command(
                         "updated_issue_ids": selected.iter().map(|issue| issue.identifier.clone()).collect::<Vec<_>>(),
                     }),
                     &selected,
-                    beads_mode,
-                    no_hooks,
-                    no_guidance,
+                    hook_options,
                 )?;
                 Ok(Some(format!("Updated {} issue(s)", selected.len())))
             }
@@ -1854,12 +1827,9 @@ fn execute_command(
                     "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
-            let after_issue_for_hooks: Option<IssueData>;
-            if beads_mode {
+            let after_issue_for_hooks: Option<IssueData> = if beads_mode {
                 update_beads_issue(
                     &root_for_beads,
                     &identifier,
@@ -1872,11 +1842,11 @@ fn execute_command(
                     &[],
                     None,
                 )?;
-                after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, &identifier).ok();
+                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
             } else {
                 let closed_issue = close_issue(root, &identifier)?;
-                after_issue_for_hooks = Some(closed_issue);
-            }
+                Some(closed_issue)
+            };
             let formatted_identifier = format_issue_key(&identifier, false);
             let issues_for_policy = after_issue_for_hooks
                 .as_ref()
@@ -1892,9 +1862,7 @@ fn execute_command(
                     "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &issues_for_policy,
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(Some(format!("Closed {}", formatted_identifier)))
         }
@@ -1967,9 +1935,7 @@ fn execute_command(
                         "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
                     }),
                     &[],
-                    beads_mode,
-                    no_hooks,
-                    no_guidance,
+                    hook_options,
                 )?;
                 delete_beads_issue(&root_for_beads, &identifier, beads_recursive)?;
                 let formatted_identifier = format_issue_key(&identifier, false);
@@ -1984,9 +1950,7 @@ fn execute_command(
                         "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
                     }),
                     &[],
-                    beads_mode,
-                    no_hooks,
-                    no_guidance,
+                    hook_options,
                 )?;
                 return Ok(Some(format!("Deleted {}", formatted_identifier)));
             }
@@ -2046,9 +2010,7 @@ fn execute_command(
                     "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             descendants.push(identifier.clone());
             let mut deleted_lines = Vec::new();
@@ -2072,9 +2034,7 @@ fn execute_command(
                     "before_issue": issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &issues_for_policy,
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(Some(deleted_lines.join("\n")))
         }
@@ -2189,12 +2149,9 @@ fn execute_command(
                         "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
                     }),
                     &[],
-                    beads_mode,
-                    no_hooks,
-                    no_guidance,
+                    hook_options,
                 )?;
-                let after_issue_for_hooks: Option<IssueData>;
-                if beads_mode {
+                let after_issue_for_hooks: Option<IssueData> = if beads_mode {
                     add_beads_comment(
                         &root_for_beads,
                         &identifier,
@@ -2208,8 +2165,7 @@ fn execute_command(
                         None,
                         false,
                     );
-                    after_issue_for_hooks =
-                        load_beads_issue_by_id(&root_for_beads, &identifier).ok();
+                    load_beads_issue_by_id(&root_for_beads, &identifier).ok()
                 } else {
                     let comment_result = add_comment(
                         root,
@@ -2224,8 +2180,8 @@ fn execute_command(
                         comment_result.comment.id.as_deref(),
                         false,
                     );
-                    after_issue_for_hooks = Some(comment_result.issue);
-                }
+                    Some(comment_result.issue)
+                };
                 run_lifecycle_hooks_for_context(
                     root,
                     HookPhase::After,
@@ -2237,9 +2193,7 @@ fn execute_command(
                         "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
                     }),
                     &[],
-                    beads_mode,
-                    no_hooks,
-                    no_guidance,
+                    hook_options,
                 )?;
                 Ok(None)
             }
@@ -2257,9 +2211,7 @@ fn execute_command(
                     "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             let issue = promote_issue(root, &identifier)?;
             run_lifecycle_hooks_for_context(
@@ -2272,9 +2224,7 @@ fn execute_command(
                     "after_issue": serialize_issue(&issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(None)
         }
@@ -2291,9 +2241,7 @@ fn execute_command(
                     "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             let issue = localize_issue(root, &identifier)?;
             run_lifecycle_hooks_for_context(
@@ -2306,9 +2254,7 @@ fn execute_command(
                     "after_issue": serialize_issue(&issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(None)
         }
@@ -2342,9 +2288,7 @@ fn execute_command(
                     "porcelain": porcelain,
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             let issues = if beads_mode {
                 if local_only || no_local {
@@ -2442,9 +2386,7 @@ fn execute_command(
                     "issue_ids": issues.iter().map(|issue| issue.identifier.clone()).collect::<Vec<_>>(),
                 }),
                 &issues,
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(Some(lines.join("\n")))
         }
@@ -2551,9 +2493,7 @@ fn execute_command(
                     "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             let after_issue_for_hooks: Option<IssueData>;
             if beads_mode {
@@ -2592,9 +2532,7 @@ fn execute_command(
                     "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(None)
         }
@@ -2611,9 +2549,7 @@ fn execute_command(
                     "local_only": local_only,
                 }),
                 &[],
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             let issues: Vec<IssueData> = if beads_mode {
                 if local_only || no_local {
@@ -2642,9 +2578,7 @@ fn execute_command(
                     "issue_ids": issues.iter().map(|issue| issue.identifier.clone()).collect::<Vec<_>>(),
                 }),
                 &issues,
-                beads_mode,
-                no_hooks,
-                no_guidance,
+                hook_options,
             )?;
             Ok(Some(lines.join("\n")))
         }
