@@ -1404,6 +1404,22 @@ mod tests {
     }
 
     #[test]
+    fn vuln_title_dependency_without_package_name_uses_key_only() {
+        let dependency = json!({
+            "attributes": {
+                "key": "SNYK-EMPTY",
+                "type": "package_vulnerability",
+                "coordinates": [{
+                    "representations": [{
+                        "dependency": {}
+                    }]
+                }]
+            }
+        });
+        assert_eq!(vuln_title(&dependency), "[Snyk] SNYK-EMPTY");
+    }
+
+    #[test]
     fn extract_source_location_supports_region_and_line_shapes() {
         let with_region = json!({
             "attributes": {
@@ -1506,6 +1522,27 @@ mod tests {
     }
 
     #[test]
+    fn detect_repo_from_git_returns_none_for_non_github_remote() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("git init");
+        std::process::Command::new("git")
+            .args([
+                "remote",
+                "add",
+                "origin",
+                "ssh://gitlab.example.com/team/repo.git",
+            ])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("git remote add");
+        assert_eq!(detect_repo_from_git(temp_dir.path()), None);
+    }
+
+    #[test]
     fn severity_to_priority_defaults_unknown_to_lowest_priority() {
         assert_eq!(severity_to_priority("unknown"), 3);
     }
@@ -1518,6 +1555,15 @@ mod tests {
         std::fs::create_dir_all(source_path.parent().expect("parent")).expect("mkdir");
         std::fs::write(source_path, "line1\nline2\n").expect("write");
         assert!(build_snippet(temp_dir.path(), "src/app.py", Some(0), Some(1)).is_none());
+    }
+
+    #[test]
+    fn build_snippet_returns_none_for_empty_file() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let source_path = temp_dir.path().join("src").join("empty.py");
+        std::fs::create_dir_all(source_path.parent().expect("parent")).expect("mkdir");
+        std::fs::write(source_path, "").expect("write");
+        assert!(build_snippet(temp_dir.path(), "src/empty.py", Some(1), Some(1)).is_none());
     }
 
     #[test]
