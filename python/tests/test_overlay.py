@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 import subprocess
 import tempfile
+from types import SimpleNamespace
 
 import kanbus.overlay as overlay_module
 from kanbus.models import IssueData, OverlayConfig
@@ -227,15 +228,193 @@ def test_project_reconcile_gc_reject_conflicting_selector_flags() -> None:
         else:
             raise AssertionError("expected ValueError")
 
-        try:
-            overlay_module.reconcile_overlay_for_projects(
-                root,
-                project_label="alpha",
-                all_projects=True,
-                prune=True,
-                dry_run=False,
-            )
-        except ValueError as error:
-            assert "cannot combine --project with --all" in str(error)
-        else:
-            raise AssertionError("expected ValueError")
+
+def test_gc_overlay_for_projects_selects_default_label(monkeypatch, tmp_path: Path) -> None:
+    configuration = SimpleNamespace(
+        project_key="alpha",
+        overlay=OverlayConfig(enabled=True, ttl_s=120),
+    )
+    labeled = [
+        SimpleNamespace(label="alpha", project_dir=tmp_path / "alpha"),
+        SimpleNamespace(label="beta", project_dir=tmp_path / "beta"),
+    ]
+    monkeypatch.setattr(
+        overlay_module, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        overlay_module, "load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr(overlay_module, "resolve_labeled_projects", lambda _root: labeled)
+    seen: list[Path] = []
+    monkeypatch.setattr(
+        overlay_module,
+        "gc_overlay",
+        lambda project_dir, _config: seen.append(project_dir),
+    )
+    count = overlay_module.gc_overlay_for_projects(
+        tmp_path, project_label=None, all_projects=False
+    )
+    assert count == 1
+    assert seen == [tmp_path / "alpha"]
+
+
+def test_gc_overlay_for_projects_returns_zero_when_no_projects(
+    monkeypatch, tmp_path: Path
+) -> None:
+    configuration = SimpleNamespace(
+        project_key="alpha",
+        overlay=OverlayConfig(enabled=True, ttl_s=120),
+    )
+    monkeypatch.setattr(
+        overlay_module, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        overlay_module, "load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr(overlay_module, "resolve_labeled_projects", lambda _root: [])
+    assert (
+        overlay_module.gc_overlay_for_projects(
+            tmp_path, project_label=None, all_projects=False
+        )
+        == 0
+    )
+
+
+def test_reconcile_overlay_for_projects_aggregates_stats(
+    monkeypatch, tmp_path: Path
+) -> None:
+    configuration = SimpleNamespace(
+        project_key="alpha",
+        overlay=OverlayConfig(enabled=True, ttl_s=120),
+    )
+    labeled = [
+        SimpleNamespace(label="alpha", project_dir=tmp_path / "alpha"),
+        SimpleNamespace(label="beta", project_dir=tmp_path / "beta"),
+    ]
+    monkeypatch.setattr(
+        overlay_module, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        overlay_module, "load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr(overlay_module, "resolve_labeled_projects", lambda _root: labeled)
+    monkeypatch.setattr(
+        overlay_module,
+        "reconcile_overlay",
+        lambda project_dir, config, prune, dry_run: overlay_module.OverlayReconcileStats(
+            issues_scanned=2 if project_dir.name == "alpha" else 3,
+            issues_updated=1,
+            issues_removed=0,
+            fields_pruned=4,
+        ),
+    )
+    stats = overlay_module.reconcile_overlay_for_projects(
+        tmp_path,
+        project_label=None,
+        all_projects=True,
+        prune=True,
+        dry_run=False,
+    )
+    assert stats.projects == 2
+    assert stats.issues_scanned == 5
+    assert stats.issues_updated == 2
+    assert stats.fields_pruned == 8
+
+
+def test_reconcile_overlay_for_projects_rejects_unknown_label(
+    monkeypatch, tmp_path: Path
+) -> None:
+    configuration = SimpleNamespace(
+        project_key="alpha",
+        overlay=OverlayConfig(enabled=True, ttl_s=120),
+    )
+    monkeypatch.setattr(
+        overlay_module, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        overlay_module, "load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr(
+        overlay_module,
+        "resolve_labeled_projects",
+        lambda _root: [SimpleNamespace(label="alpha", project_dir=tmp_path / "alpha")],
+    )
+    try:
+        overlay_module.reconcile_overlay_for_projects(
+            tmp_path,
+            project_label="missing",
+            all_projects=False,
+            prune=False,
+            dry_run=True,
+        )
+    except ValueError as error:
+        assert "unknown project label" in str(error)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_resolve_git_hooks_dir_handles_non_repo_and_relative_path(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        overlay_module.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="", stderr="nope"),
+    )
+    try:
+        overlay_module._resolve_git_hooks_dir(tmp_path)
+    except RuntimeError as error:
+        assert "not a git repository" in str(error)
+    else:
+        raise AssertionError("expected RuntimeError")
+
+    monkeypatch.setattr(
+        overlay_module.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=".git/hooks\n"),
+    )
+    assert overlay_module._resolve_git_hooks_dir(tmp_path) == tmp_path / ".git" / "hooks"
+
+
+def test_issue_map_helpers_and_tagging_cover_edges() -> None:
+    now = datetime.now(timezone.utc)
+    issue = _issue("kanbus-helpers", now)
+    issue.custom["source"] = "local"
+    issue.custom["last_event_id"] = 123
+
+    tagged = overlay_module._tag_issue(issue, "alpha")
+    assert tagged is not None
+    assert tagged.custom["source"] == "local"
+    assert tagged.custom["project_label"] == "alpha"
+    assert overlay_module._extract_event_id(issue) is None
+
+    payload = overlay_module._issue_to_map(issue)
+    assert overlay_module._issue_from_map(payload) is not None
+    assert overlay_module._issue_from_map({"id": "broken"}) is None
+
+
+def test_diff_issue_fields_and_remove_path_and_ensure_executable(
+    monkeypatch, tmp_path: Path
+) -> None:
+    now = datetime.now(timezone.utc)
+    base = _issue("kanbus-a", now)
+    overlay = base.model_copy(update={"title": "Updated title", "priority": 1})
+    diff = overlay_module._diff_issue_fields(base, overlay)
+    assert diff["title"] == "Updated title"
+    assert diff["priority"] == 1
+
+    missing = tmp_path / "missing.json"
+    overlay_module._remove_path(missing)
+    assert not missing.exists()
+
+    marker = tmp_path / "hook.sh"
+    marker.write_text("#!/bin/sh\necho test\n", encoding="utf-8")
+    overlay_module._ensure_executable(marker)
+    assert marker.stat().st_mode & 0o111 != 0
+
+    monkeypatch.setattr(
+        Path,
+        "chmod",
+        lambda self, _mode: (_ for _ in ()).throw(OSError("denied")),
+    )
+    overlay_module._ensure_executable(marker)
