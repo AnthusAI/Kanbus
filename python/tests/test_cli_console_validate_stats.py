@@ -98,6 +98,11 @@ def test_console_status_and_get_commands(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert "none" in _run(["console", "get", "view"]).output
     assert "none" in _run(["console", "get", "search"]).output
 
+    monkeypatch.setattr(cli, "fetch_console_ui_state", lambda _root: None)
+    assert "Console server is not running." in _run(["console", "get", "focus"]).output
+    assert "Console server is not running." in _run(["console", "get", "view"]).output
+    assert "Console server is not running." in _run(["console", "get", "search"]).output
+
 
 def test_validate_command_success_and_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
