@@ -227,3 +227,105 @@ pub fn edit_insert(
         .map_err(|e| KanbusError::Io(e.to_string()))?;
     Ok("Successfully inserted text.".to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn edit_view_lists_directory_and_supports_line_ranges() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        fs::write(tmp.path().join("a.txt"), "alpha").expect("write file");
+        fs::create_dir_all(tmp.path().join("sub")).expect("create dir");
+        fs::write(tmp.path().join("sample.txt"), "one\ntwo\nthree\n").expect("write sample");
+
+        let listing = edit_view(tmp.path(), Path::new("."), None).expect("view dir");
+        assert!(listing.contains("a.txt"));
+        assert!(listing.contains("sub/"));
+
+        let ranged = edit_view(tmp.path(), Path::new("sample.txt"), Some((2, -1))).expect("range");
+        assert_eq!(ranged, "2: two\n3: three");
+    }
+
+    #[test]
+    fn edit_view_errors_for_missing_path() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let result = edit_view(tmp.path(), Path::new("missing.txt"), None);
+        match result {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert!(message.contains("file or directory not found"))
+            }
+            other => panic!("expected missing-path error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn edit_str_replace_covers_success_no_match_and_multiple_matches() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("replace.txt");
+        fs::write(&path, "hello world").expect("write replace");
+
+        let ok = edit_str_replace(tmp.path(), Path::new("replace.txt"), "hello", "hi")
+            .expect("replace success");
+        assert_eq!(ok, "Successfully replaced text at exactly one location.");
+        assert_eq!(fs::read_to_string(&path).expect("read replaced"), "hi world");
+
+        let no_match = edit_str_replace(tmp.path(), Path::new("replace.txt"), "absent", "x");
+        match no_match {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "no match found for replacement")
+            }
+            other => panic!("expected no-match error, got {other:?}"),
+        }
+
+        fs::write(&path, "foo foo").expect("rewrite replace");
+        let many = edit_str_replace(tmp.path(), Path::new("replace.txt"), "foo", "bar");
+        match many {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert!(message.contains("found 2 matches"));
+            }
+            other => panic!("expected multi-match error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn edit_create_and_insert_cover_success_and_error_paths() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+
+        let created = edit_create(tmp.path(), Path::new("nested/new.txt"), "line1\nline2\n")
+            .expect("create file");
+        assert_eq!(created, "Successfully created file.");
+        assert!(tmp.path().join("nested/new.txt").exists());
+
+        let exists = edit_create(tmp.path(), Path::new("nested/new.txt"), "again");
+        match exists {
+            Err(KanbusError::IssueOperation(message)) => assert_eq!(message, "file already exists"),
+            other => panic!("expected exists error, got {other:?}"),
+        }
+
+        let negative = edit_insert(tmp.path(), Path::new("nested/new.txt"), -1, "x");
+        match negative {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "insert_line must be non-negative")
+            }
+            other => panic!("expected negative-line error, got {other:?}"),
+        }
+
+        let too_large = edit_insert(tmp.path(), Path::new("nested/new.txt"), 10, "x");
+        match too_large {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "insert_line exceeds file length")
+            }
+            other => panic!("expected range error, got {other:?}"),
+        }
+
+        let inserted = edit_insert(tmp.path(), Path::new("nested/new.txt"), 1, "middle")
+            .expect("insert line");
+        assert_eq!(inserted, "Successfully inserted text.");
+        assert_eq!(
+            fs::read_to_string(tmp.path().join("nested/new.txt")).expect("read inserted"),
+            "line1\nmiddle\nline2\n"
+        );
+    }
+}
