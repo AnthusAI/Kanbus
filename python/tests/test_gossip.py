@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import socket
 import time
 from types import SimpleNamespace
 
@@ -772,3 +773,101 @@ def test_find_free_port_skips_in_use_port(monkeypatch) -> None:
     monkeypatch.setattr(gossip.socket, "socket", lambda *_args, **_kwargs: _Sock())
     port = gossip._find_free_port(1883)
     assert port == 1884
+
+
+def test_broadcast_payload_fans_out_and_prunes_dead_subscribers() -> None:
+    class _Sock:
+        def __init__(self, fail: bool = False) -> None:
+            self.fail = fail
+            self.messages: list[bytes] = []
+
+        def sendall(self, data: bytes) -> None:
+            if self.fail:
+                raise OSError("broken pipe")
+            self.messages.append(data)
+
+    keep = _Sock()
+    drop = _Sock(fail=True)
+    other_topic = _Sock()
+    subscribers: list[tuple[str, object]] = [
+        ("topic/one", keep),
+        ("topic/one", drop),
+        ("topic/two", other_topic),
+    ]
+    gossip._broadcast_payload(
+        {"topic": "topic/one", "msg": {"id": "env-1"}}, subscribers, gossip.threading.Lock()
+    )
+    assert len(keep.messages) == 1
+    assert b'"topic": "topic/one"' in keep.messages[0]
+    assert ("topic/one", drop) not in subscribers
+    assert ("topic/two", other_topic) in subscribers
+
+
+def test_handle_uds_connection_handles_sub_pub_invalid_json_and_timeout(monkeypatch) -> None:
+    class _Conn:
+        def __init__(self) -> None:
+            self._chunks = [
+                b'{"op":"sub","topic":"topic/one"}\n',
+                b'not-json\n',
+                b'{"op":"pub","topic":"topic/one","msg":{"id":"env-1"}}\n',
+                socket.timeout(),
+                b"",
+            ]
+
+        def recv(self, _size: int) -> bytes:
+            item = self._chunks.pop(0)
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+    conn = _Conn()
+    subscribers: list[tuple[str, object]] = []
+    seen_payloads: list[dict] = []
+    monkeypatch.setattr(
+        gossip,
+        "_broadcast_payload",
+        lambda payload, subs, lock: seen_payloads.append(payload),
+    )
+
+    gossip._handle_uds_connection(conn, subscribers, gossip.threading.Lock())
+    assert len(subscribers) == 1
+    assert subscribers[0][0] == "topic/one"
+    assert seen_payloads == [{"op": "pub", "topic": "topic/one", "msg": {"id": "env-1"}}]
+
+
+def test_run_uds_subscription_subscribes_and_dispatches_valid_envelopes(monkeypatch) -> None:
+    class _Sock:
+        def __init__(self) -> None:
+            self.sent: list[bytes] = []
+            self.recv_chunks = [
+                b'{"topic":"projects/a/events","msg":{"id":"env-1","ts":"2026-01-01T00:00:00Z","project":"a","type":"issue.deleted","issue_id":"kanbus-1","producer_id":"p1"}}\n',
+                b'{"topic":"projects/a/events","msg":{"id":"env-2","bad":true}}\n',
+                b"",
+            ]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def connect(self, _path: str) -> None:
+            return None
+
+        def sendall(self, data: bytes) -> None:
+            self.sent.append(data)
+
+        def recv(self, _size: int) -> bytes:
+            return self.recv_chunks.pop(0)
+
+    fake_socket = _Sock()
+    monkeypatch.setattr(gossip.socket, "socket", lambda *_args, **_kwargs: fake_socket)
+    realtime = SimpleNamespace(uds_socket_path="/tmp/kanbus-test.sock")
+    seen_ids: list[str] = []
+
+    def _handler(envelope: gossip.GossipEnvelope) -> None:
+        seen_ids.append(envelope.id)
+
+    gossip.run_uds_subscription(realtime, ["projects/a/events"], _handler)
+    assert any(b'"op": "sub"' in payload for payload in fake_socket.sent)
+    assert seen_ids == ["env-1"]
