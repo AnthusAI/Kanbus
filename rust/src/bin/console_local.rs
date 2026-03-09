@@ -1729,6 +1729,27 @@ mod tests {
     }
 
     #[test]
+    fn serve_asset_from_filesystem_returns_not_found_for_directory_target() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(assets.join("nested")).expect("mkdir");
+        let state = test_state(temp.path().to_path_buf(), assets, false);
+
+        let response = serve_asset_from_filesystem(&state, "nested");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn serve_asset_from_filesystem_returns_server_error_when_assets_root_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let missing_assets = temp.path().join("missing-assets");
+        let state = test_state(temp.path().to_path_buf(), missing_assets, false);
+
+        let response = serve_asset_from_filesystem(&state, "index.html");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
     fn serve_asset_respects_explicit_filesystem_root() {
         let temp = tempfile::tempdir().expect("tempdir");
         let assets = temp.path().join("assets");
