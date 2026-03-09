@@ -291,3 +291,104 @@ def test_fetch_v1_enrichment_skips_non_ok_and_uses_issue_id(monkeypatch) -> None
         project_ids=["project-a", "project-b"],
     )
     assert "SNYK-1" in enriched
+
+
+def test_map_snyk_to_kanbus_code_includes_location_custom_fields(tmp_path: Path) -> None:
+    source_file = tmp_path / "src" / "vuln.py"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_text("a\nb\nc\nd\ne\n", encoding="utf-8")
+
+    issue = {
+        "attributes": {
+            "key": "SNYK-CODE-42",
+            "type": "code",
+            "title": "Unsafely parsed input",
+            "description": "User-controlled input is parsed without validation.",
+            "effective_severity_level": "medium",
+            "coordinates": [
+                {
+                    "representations": [
+                        {
+                            "source_location": {
+                                "file": "src/vuln.py",
+                                "region": {
+                                    "start": {"line": 2, "column": 3},
+                                    "end": {"line": 3, "column": 5},
+                                },
+                            }
+                        }
+                    ]
+                }
+            ],
+            "classes": [{"source": "CWE", "id": "20"}],
+        }
+    }
+
+    mapped = snyk_sync._map_snyk_to_kanbus(
+        issue,
+        parent_task_id="KAN-100",
+        target_file="repo",
+        repo_root=tmp_path,
+    )
+
+    assert mapped.title == "[Snyk Code] Unsafely parsed input"
+    assert mapped.custom["snyk_file"] == "src/vuln.py"
+    assert mapped.custom["snyk_line"] == 2
+    assert mapped.custom["snyk_column"] == 3
+    assert mapped.custom["snyk_end_line"] == 3
+    assert mapped.custom["snyk_end_column"] == 5
+    assert "**Classes:** CWE-20" in mapped.description
+    assert "### Snippet (src/vuln.py:1-5)" in mapped.description
+
+
+def test_map_snyk_to_kanbus_dependency_uses_v1_fix_and_meta() -> None:
+    issue = {
+        "attributes": {
+            "key": "SNYK-DEP-99",
+            "type": "package_vulnerability",
+            "effective_severity_level": "high",
+            "coordinates": [
+                {
+                    "is_upgradeable": True,
+                    "representations": [
+                        {
+                            "dependency": {
+                                "package_name": "openssl",
+                                "package_version": "1.0.2",
+                            }
+                        }
+                    ],
+                }
+            ],
+            "problems": [
+                {"source": "NVD", "id": "CVE-2026-1111"},
+                {"source": "NVD", "id": "CVE-2026-2222"},
+            ],
+        }
+    }
+    v1 = {
+        "issueData": {
+            "title": "OpenSSL out-of-bounds read",
+            "description": "Detailed advisory text",
+            "cvssScore": 9.7,
+            "exploitMaturity": "proof-of-concept",
+        },
+        "priorityScore": 860,
+        "fixInfo": {"fixedIn": ["1.1.1u"]},
+    }
+
+    mapped = snyk_sync._map_snyk_to_kanbus(
+        issue,
+        parent_task_id="KAN-200",
+        v1=v1,
+        target_file="requirements.txt",
+    )
+
+    assert mapped.title == "[Snyk] SNYK-DEP-99 in openssl@1.0.2"
+    assert "## OpenSSL out-of-bounds read" in mapped.description
+    assert "**CVSS Score:** 9.7" in mapped.description
+    assert "**Exploit Maturity:** proof-of-concept" in mapped.description
+    assert "**Snyk Priority Score:** 860/1000" in mapped.description
+    assert "Upgrade `openssl` to version 1.1.1u or later." in mapped.description
+    assert "CVE-2026-1111" in mapped.description
+    assert "CVE-2026-2222" in mapped.description

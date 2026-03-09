@@ -1535,4 +1535,110 @@ mod tests {
         });
         assert_eq!(extract_source_location(&issue), None);
     }
+
+    #[test]
+    fn map_snyk_to_kanbus_code_sets_location_custom_fields() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let source_path = temp_dir.path().join("src").join("vuln.rs");
+        std::fs::create_dir_all(source_path.parent().expect("parent")).expect("mkdir");
+        std::fs::write(&source_path, "a\nb\nc\nd\ne\n").expect("write");
+
+        let issue = json!({
+            "attributes": {
+                "key": "SNYK-CODE-42",
+                "type": "code",
+                "title": "Unsafely parsed input",
+                "description": "User-controlled input is parsed without validation.",
+                "effective_severity_level": "medium",
+                "coordinates": [{
+                    "representations": [{
+                        "source_location": {
+                            "file": "src/vuln.rs",
+                            "region": {
+                                "start": { "line": 2, "column": 3 },
+                                "end": { "line": 3, "column": 5 }
+                            }
+                        }
+                    }]
+                }],
+                "classes": [{ "source": "CWE", "id": "20" }]
+            }
+        });
+
+        let mapped = map_snyk_to_kanbus(
+            &issue,
+            &Some("KAN-100".to_string()),
+            None,
+            "repo",
+            temp_dir.path(),
+        )
+        .expect("map issue");
+
+        assert_eq!(mapped.title, "[Snyk Code] Unsafely parsed input");
+        assert!(mapped.description.contains("**Classes:** CWE-20"));
+        assert!(mapped.description.contains("Snippet (src/vuln.rs:1-5)"));
+        assert_eq!(mapped.custom.get("snyk_file"), Some(&json!("src/vuln.rs")));
+        assert_eq!(mapped.custom.get("snyk_line"), Some(&json!(2)));
+        assert_eq!(mapped.custom.get("snyk_column"), Some(&json!(3)));
+        assert_eq!(mapped.custom.get("snyk_end_line"), Some(&json!(3)));
+        assert_eq!(mapped.custom.get("snyk_end_column"), Some(&json!(5)));
+    }
+
+    #[test]
+    fn map_snyk_to_kanbus_dependency_uses_v1_fix_and_meta() {
+        let issue = json!({
+            "attributes": {
+                "key": "SNYK-DEP-99",
+                "type": "package_vulnerability",
+                "effective_severity_level": "high",
+                "coordinates": [{
+                    "is_upgradeable": true,
+                    "representations": [{
+                        "dependency": {
+                            "package_name": "openssl",
+                            "package_version": "1.0.2"
+                        }
+                    }]
+                }],
+                "problems": [
+                    { "source": "NVD", "id": "CVE-2026-1111" },
+                    { "source": "NVD", "id": "CVE-2026-2222" }
+                ]
+            }
+        });
+        let v1 = json!({
+            "issueData": {
+                "title": "OpenSSL out-of-bounds read",
+                "description": "Detailed advisory text",
+                "cvssScore": 9.7,
+                "exploitMaturity": "proof-of-concept"
+            },
+            "priorityScore": 860,
+            "fixInfo": { "fixedIn": ["1.1.1u"] }
+        });
+
+        let mapped = map_snyk_to_kanbus(
+            &issue,
+            &Some("KAN-200".to_string()),
+            Some(&v1),
+            "requirements.txt",
+            Path::new("."),
+        )
+        .expect("map issue");
+
+        assert_eq!(mapped.title, "[Snyk] SNYK-DEP-99 in openssl@1.0.2");
+        assert!(mapped.description.contains("## OpenSSL out-of-bounds read"));
+        assert!(mapped.description.contains("**CVSS Score:** 9.7"));
+        assert!(mapped
+            .description
+            .contains("**Exploit Maturity:** proof-of-concept"));
+        assert!(mapped
+            .description
+            .contains("**Snyk Priority Score:** 860/1000"));
+        assert!(mapped
+            .description
+            .contains("Upgrade `openssl` to version 1.1.1u or later."));
+        assert!(mapped.description.contains("CVE-2026-1111"));
+        assert!(mapped.description.contains("CVE-2026-2222"));
+    }
 }
