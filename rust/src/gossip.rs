@@ -1222,6 +1222,60 @@ mod tests {
     }
 
     #[test]
+    fn parse_broker_url_rejects_invalid_urls() {
+        assert!(parse_broker_url("not-a-url").is_err());
+        assert!(parse_broker_url("mqtt://host:not-a-port").is_err());
+    }
+
+    #[test]
+    fn resolve_broker_endpoint_auto_prefers_metadata_endpoint() {
+        let tmp = TempDir::new().expect("temp dir");
+        std::env::set_var("HOME", tmp.path());
+        let run_dir = tmp.path().join(".kanbus").join("run");
+        std::fs::create_dir_all(&run_dir).expect("create run dir");
+        std::fs::write(
+            run_dir.join("broker.json"),
+            serde_json::json!({
+                "kind": "mosquitto",
+                "endpoint": "mqtt://127.0.0.1:2883",
+                "pid": 1234,
+                "started_by": "kbs",
+                "started_at": "2026-01-01T00:00:00.000Z",
+                "log_path": "/tmp/mosquitto.log",
+                "conf_path": "/tmp/mosquitto.conf",
+                "ttl_s": 86400
+            })
+            .to_string(),
+        )
+        .expect("write metadata");
+
+        let endpoint = resolve_broker_endpoint("auto").expect("endpoint");
+        assert_eq!(endpoint.host, "127.0.0.1");
+        assert_eq!(endpoint.port, 2883);
+    }
+
+    #[test]
+    fn ensure_mosquitto_returns_none_for_non_local_or_non_mqtt() {
+        let remote_mqtt = BrokerEndpoint {
+            scheme: "mqtt".to_string(),
+            host: "broker.example".to_string(),
+            port: 1883,
+        };
+        let tls_local = BrokerEndpoint {
+            scheme: "mqtts".to_string(),
+            host: "127.0.0.1".to_string(),
+            port: 8883,
+        };
+
+        assert!(ensure_mosquitto(&remote_mqtt)
+            .expect("ensure result")
+            .is_none());
+        assert!(ensure_mosquitto(&tls_local)
+            .expect("ensure result")
+            .is_none());
+    }
+
+    #[test]
     fn broker_is_reachable_detects_active_listener() {
         let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let port = listener.local_addr().expect("addr").port();
