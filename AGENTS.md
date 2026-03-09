@@ -31,6 +31,8 @@ Required environment variables:
 - `VIDEOML_CLI` path to the VideoML CLI entry (e.g., `/path/to/videoml/cli/bin/vml.js`)
 - `BABULUS_BUNDLE` path to the Babulus standard bundle JS
 
+Node: The VideoML CLI requires Node 20+ (uses import attributes). Use `nvm use 20` or equivalent before running the render pipeline.
+
 Local render + preview:
 ```bash
 node scripts/render-videos.js
