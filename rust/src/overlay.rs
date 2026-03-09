@@ -965,4 +965,159 @@ mod tests {
         assert!(block.contains("kanbus overlay reconcile --all --prune"));
         assert!(block.contains("kbs overlay gc --all"));
     }
+
+    #[test]
+    fn overlay_paths_and_tombstone_round_trip() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path();
+        assert_eq!(overlay_root(project_dir), project_dir.join(".overlay"));
+        assert_eq!(
+            overlay_issue_path(project_dir, "kanbus-9"),
+            project_dir
+                .join(".overlay")
+                .join("issues")
+                .join("kanbus-9.json")
+        );
+        assert_eq!(
+            overlay_tombstone_path(project_dir, "kanbus-9"),
+            project_dir
+                .join(".overlay")
+                .join("tombstones")
+                .join("kanbus-9.json")
+        );
+
+        let tombstone = OverlayTombstone {
+            op: "delete".to_string(),
+            project: "alpha".to_string(),
+            id: "kanbus-9".to_string(),
+            event_id: Some("evt-9".to_string()),
+            ts: Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            ttl_s: 60,
+        };
+        write_tombstone(project_dir, &tombstone).expect("write tombstone");
+        let loaded = load_tombstone(project_dir, "kanbus-9")
+            .expect("load tombstone")
+            .expect("tombstone");
+        assert_eq!(loaded.id, "kanbus-9");
+        assert_eq!(loaded.project, "alpha");
+    }
+
+    #[test]
+    fn resolve_issue_with_overlay_handles_disabled_and_tombstone_paths() {
+        let now = Utc::now();
+        let base_issue = issue("kanbus-10", now);
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path();
+
+        let disabled = resolve_issue_with_overlay(
+            project_dir,
+            Some(base_issue.clone()),
+            None,
+            None,
+            &OverlayConfig {
+                enabled: false,
+                ttl_s: 60,
+            },
+            Some("alpha"),
+        )
+        .expect("disabled resolve")
+        .expect("issue");
+        assert_eq!(disabled.identifier, "kanbus-10");
+        assert!(disabled.custom.get("project_label").is_none());
+
+        let tombstone = OverlayTombstone {
+            op: "delete".to_string(),
+            project: "alpha".to_string(),
+            id: "kanbus-10".to_string(),
+            event_id: Some("evt-10".to_string()),
+            ts: (now + Duration::seconds(1)).to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            ttl_s: 60,
+        };
+        let deleted = resolve_issue_with_overlay(
+            project_dir,
+            Some(base_issue),
+            None,
+            Some(tombstone),
+            &OverlayConfig {
+                enabled: true,
+                ttl_s: 60,
+            },
+            Some("alpha"),
+        )
+        .expect("tombstone resolve");
+        assert!(deleted.is_none());
+    }
+
+    #[test]
+    fn apply_overlay_to_issues_keeps_local_source_and_tags_shared() {
+        let now = Utc::now();
+        let mut local_issue = issue("kanbus-local", now);
+        local_issue
+            .custom
+            .insert("source".to_string(), Value::String("local".to_string()));
+        let shared_issue = issue("kanbus-shared", now);
+        let temp_dir = TempDir::new().expect("tempdir");
+        let resolved = apply_overlay_to_issues(
+            temp_dir.path(),
+            vec![local_issue.clone(), shared_issue],
+            &OverlayConfig {
+                enabled: true,
+                ttl_s: 60,
+            },
+            Some("alpha"),
+        )
+        .expect("apply");
+        let by_id: BTreeMap<_, _> = resolved
+            .into_iter()
+            .map(|issue| (issue.identifier.clone(), issue))
+            .collect();
+        assert_eq!(
+            by_id
+                .get("kanbus-local")
+                .and_then(|issue| issue.custom.get("source")),
+            Some(&Value::String("local".to_string()))
+        );
+        assert_eq!(
+            by_id
+                .get("kanbus-shared")
+                .and_then(|issue| issue.custom.get("project_label")),
+            Some(&Value::String("alpha".to_string()))
+        );
+    }
+
+    #[test]
+    fn timestamp_order_helpers_cover_edge_cases() {
+        let now = Utc::now();
+        let earlier = (now - Duration::seconds(1)).to_rfc3339();
+        let equal = now.to_rfc3339();
+        let later = (now + Duration::seconds(1)).to_rfc3339();
+        assert!(overlay_is_newer(&later, now, None, None));
+        assert!(!overlay_is_newer(&earlier, now, None, None));
+        assert!(overlay_is_newer(&equal, now, Some("evt-b"), Some("evt-a")));
+        assert!(tombstone_newer_than_base(&equal, Some(now)));
+        assert!(tombstone_newer_than_base(&later, Some(now)));
+        assert!(tombstone_newer_than_base(&later, None));
+        assert!(base_newer_than_tombstone(now, &earlier));
+        assert!(!base_newer_than_tombstone(now, &later));
+    }
+
+    #[test]
+    fn reconcile_and_gc_return_early_when_overlay_disabled() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let config = OverlayConfig {
+            enabled: false,
+            ttl_s: 60,
+        };
+        let reconcile =
+            reconcile_overlay(temp_dir.path(), &config, true, false).expect("reconcile");
+        assert_eq!(reconcile.issues_scanned, 0);
+        gc_overlay(temp_dir.path(), &config).expect("gc overlay");
+    }
+
+    #[test]
+    fn resolve_git_hooks_dir_errors_outside_git_repo() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let error = resolve_git_hooks_dir(temp_dir.path()).expect_err("not git repo");
+        assert!(error.to_string().contains("not a git repository"));
+    }
 }
