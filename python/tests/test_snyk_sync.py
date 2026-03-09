@@ -804,6 +804,681 @@ def test_resolve_snyk_epics_with_configured_parent_maps_requested_categories(
     assert len(calls) == 1
 
 
+def test_resolve_parent_epic_creates_new_epic_when_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    monkeypatch.setattr(
+        snyk_sync,
+        "generate_issue_identifier",
+        lambda request: SimpleNamespace(identifier="kanbus-parent-1"),
+    )
+    epic_id = snyk_sync._resolve_parent_epic(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        configured_id=None,
+        dry_run=False,
+        all_existing=set(),
+    )
+    assert epic_id == "kanbus-parent-1"
+    written = read_issue_from_file(issues_dir / "kanbus-parent-1.json")
+    assert written.issue_type == "epic"
+    assert written.title == "Snyk Vulnerabilities"
+
+
+def test_resolve_snyk_epics_creates_initiative_and_both_epics(
+    tmp_path: Path, monkeypatch
+) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    sequence = iter(
+        [
+            "kanbus-init-1",
+            "kanbus-dep-1",
+            "kanbus-code-1",
+        ]
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "generate_issue_identifier",
+        lambda request: SimpleNamespace(identifier=next(sequence)),
+    )
+    epics = snyk_sync._resolve_snyk_epics(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        configured_id=None,
+        dry_run=False,
+        all_existing=set(),
+        include_dependency=True,
+        include_code=True,
+        dependency_priority=None,
+        code_priority=None,
+    )
+    assert epics == {"dependency": "kanbus-dep-1", "code": "kanbus-code-1"}
+    assert read_issue_from_file(issues_dir / "kanbus-init-1.json").issue_type == "initiative"
+    assert read_issue_from_file(issues_dir / "kanbus-dep-1.json").parent == "kanbus-init-1"
+    assert read_issue_from_file(issues_dir / "kanbus-code-1.json").parent == "kanbus-init-1"
+
+
+def test_find_existing_snyk_initiative_and_epic_filters_non_matching(
+    tmp_path: Path,
+) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    wrong_type = build_issue(
+        "kanbus-x",
+        issue_type="task",
+        title=snyk_sync.SNYK_INITIATIVE_TITLE,
+        labels=["snyk"],
+    )
+    wrong_title = build_issue(
+        "kanbus-y",
+        issue_type="initiative",
+        title="Other title",
+        labels=["snyk"],
+    )
+    right_init = build_issue(
+        "kanbus-z",
+        issue_type="initiative",
+        title=snyk_sync.SNYK_INITIATIVE_TITLE,
+        labels=["snyk"],
+    )
+    wrong_parent_epic = build_issue(
+        "kanbus-epic-wrong",
+        issue_type="epic",
+        title=snyk_sync.SNYK_DEP_EPIC_TITLE,
+        parent="other-parent",
+        labels=["snyk"],
+    )
+    right_epic = build_issue(
+        "kanbus-epic-right",
+        issue_type="epic",
+        title=snyk_sync.SNYK_DEP_EPIC_TITLE,
+        parent="kanbus-z",
+        labels=["snyk", "security"],
+    )
+    for issue in [wrong_type, wrong_title, right_init, wrong_parent_epic, right_epic]:
+        _write_issue(issues_dir, issue)
+    all_ids = {
+        "kanbus-x",
+        "kanbus-y",
+        "kanbus-z",
+        "kanbus-epic-wrong",
+        "kanbus-epic-right",
+    }
+    assert snyk_sync._find_existing_snyk_initiative(issues_dir, all_ids) == "kanbus-z"
+    assert (
+        snyk_sync._find_existing_snyk_epic(
+            issues_dir, all_ids, snyk_sync.SNYK_DEP_EPIC_TITLE, "kanbus-z"
+        )
+        == "kanbus-epic-right"
+    )
+
+
+def test_resolve_file_task_creates_new_task_and_dry_run_skip_write(
+    tmp_path: Path, monkeypatch
+) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    next_id = {"value": 0}
+
+    def _next_identifier(_request):
+        next_id["value"] += 1
+        return SimpleNamespace(identifier=f"kanbus-task-new-{next_id['value']}")
+
+    monkeypatch.setattr(
+        snyk_sync,
+        "generate_issue_identifier",
+        _next_identifier,
+    )
+    created = snyk_sync._resolve_file_task(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        target_file="package.json",
+        category="code",
+        ctx=snyk_sync.FileTaskContext(epic_id="kanbus-epic", priority=1, dry_run=False),
+        file_task_index={},
+        all_existing=set(),
+    )
+    assert created == "kanbus-task-new-1"
+    assert read_issue_from_file(issues_dir / "kanbus-task-new-1.json").issue_type == "task"
+
+    dry_created = snyk_sync._resolve_file_task(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        target_file="requirements.in",
+        category="dependency",
+        ctx=snyk_sync.FileTaskContext(epic_id="kanbus-epic", priority=2, dry_run=True),
+        file_task_index={},
+        all_existing=set(),
+    )
+    assert dry_created == "kanbus-task-new-2"
+    assert not (issues_dir / "kanbus-task-new-2.json").exists()
+
+
+def test_detect_repo_from_git_https_and_exception(tmp_path: Path, monkeypatch) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", "https://github.com/AnthusAI/Kanbus.git"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    assert snyk_sync._detect_repo_from_git(tmp_path) == "AnthusAI/Kanbus"
+
+    monkeypatch.setattr(
+        snyk_sync.subprocess,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    assert snyk_sync._detect_repo_from_git(tmp_path) is None
+
+
+def test_build_file_task_index_defaults_missing_category_to_dependency(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    task = build_issue(
+        "kanbus-task-default",
+        issue_type="task",
+        custom={"snyk_target_file": "pom.xml"},
+    )
+    _write_issue(issues_dir, task)
+    index = snyk_sync._build_file_task_index({"kanbus-task-default"}, issues_dir)
+    assert index[("dependency", "pom.xml")] == "kanbus-task-default"
+
+
+def test_extract_source_location_and_classes_cover_skip_paths() -> None:
+    no_loc_issue = {"attributes": {"coordinates": [{"representations": [{"x": 1}]}]}}
+    missing_file_issue = {
+        "attributes": {"coordinates": [{"representations": [{"source_location": {}}]}]}
+    }
+    assert snyk_sync._extract_source_location(no_loc_issue) is None
+    assert snyk_sync._extract_source_location(missing_file_issue) is None
+
+    classes_issue = {"attributes": {"classes": [{"source": "CWE"}]}}
+    assert snyk_sync._extract_classes(classes_issue) == []
+
+
+def test_build_snippet_handles_io_error_and_max_window(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "src" / "many.txt"
+    src.parent.mkdir(parents=True)
+    src.write_text("\n".join(f"line {idx}" for idx in range(1, 200)), encoding="utf-8")
+    snippet = snyk_sync._build_snippet(tmp_path, "src/many.txt", 100, 160)
+    assert "### Snippet (src/many.txt:" in snippet
+    assert snippet.count("\n") < 60
+
+    monkeypatch.setattr(Path, "read_text", lambda self, encoding=None: (_ for _ in ()).throw(OSError("denied")))
+    assert snyk_sync._build_snippet(tmp_path, "src/many.txt", 10, 10) == ""
+
+
+def test_map_snyk_to_kanbus_covers_code_line_only_and_dependency_fix_variants() -> None:
+    code_issue = {
+        "attributes": {
+            "key": "SNYK-CODE-LINE",
+            "type": "code",
+            "title": "Potential issue",
+            "coordinates": [
+                {
+                    "representations": [
+                        {"source_location": {"file": "src/app.py", "line": 10}}
+                    ]
+                }
+            ],
+        }
+    }
+    mapped_code = snyk_sync._map_snyk_to_kanbus(
+        code_issue, parent_task_id="KAN-CODE", target_file="repo"
+    )
+    assert "**Location:** line 10" in mapped_code.description
+
+    dep_issue = {
+        "attributes": {
+            "key": "SNYK-DEP-FIX",
+            "type": "package_vulnerability",
+            "effective_severity_level": "low",
+            "coordinates": [
+                {
+                    "is_upgradeable": False,
+                    "is_pinnable": True,
+                    "is_fixable_snyk": False,
+                    "representations": [{"dependency": {"package_name": "pkg", "package_version": "1.0"}}],
+                }
+            ],
+            "problems": [],
+        }
+    }
+    mapped_pin = snyk_sync._map_snyk_to_kanbus(dep_issue, parent_task_id="KAN-DEP")
+    assert "Pin `pkg` to a patched version." in mapped_pin.description
+
+    dep_issue["attributes"]["coordinates"][0]["is_pinnable"] = False
+    dep_issue["attributes"]["coordinates"][0]["is_fixable_snyk"] = True
+    mapped_fix = snyk_sync._map_snyk_to_kanbus(dep_issue, parent_task_id="KAN-DEP")
+    assert "Snyk fix available" in mapped_fix.description
+
+    dep_issue["attributes"]["coordinates"][0]["is_fixable_snyk"] = False
+    mapped_manual = snyk_sync._map_snyk_to_kanbus(dep_issue, parent_task_id="KAN-DEP")
+    assert "No automatic fix available" in mapped_manual.description
+
+    dep_issue_fixed = {
+        "attributes": {
+            "key": "SNYK-DEP-FIXED",
+            "type": "package_vulnerability",
+            "effective_severity_level": "high",
+            "coordinates": [
+                {
+                    "is_upgradeable": False,
+                    "representations": [
+                        {"dependency": {"package_name": "openssl", "package_version": "1.0"}}
+                    ],
+                }
+            ],
+            "problems": [],
+        }
+    }
+    mapped_fixed = snyk_sync._map_snyk_to_kanbus(
+        dep_issue_fixed,
+        parent_task_id="KAN-DEP",
+        v1={"fixInfo": {"fixedIn": ["1.2.3"]}},
+    )
+    assert "Pin `openssl` to version 1.2.3 or later." in mapped_fixed.description
+
+
+def test_build_snippet_returns_empty_for_missing_start_and_sets_end_from_start(
+    tmp_path: Path,
+) -> None:
+    src = tmp_path / "src" / "short.txt"
+    src.parent.mkdir(parents=True)
+    src.write_text("a\nb\nc\n", encoding="utf-8")
+    assert snyk_sync._build_snippet(tmp_path, "src/short.txt", None, 2) == ""
+    snippet = snyk_sync._build_snippet(tmp_path, "src/short.txt", 2, 0)
+    assert "src/short.txt" in snippet
+
+
+def test_extract_source_location_skips_rep_with_missing_file_after_loc() -> None:
+    issue = {
+        "attributes": {
+            "coordinates": [
+                {
+                    "representations": [
+                        {"source_location": {"line": 7}},
+                        {"source_location": {"file": "src/a.py", "line": 8}},
+                    ]
+                }
+            ]
+        }
+    }
+    loc = snyk_sync._extract_source_location(issue)
+    assert loc is not None
+    assert loc["file"] == "src/a.py"
+
+
+def test_map_snyk_to_kanbus_code_location_with_column_without_end() -> None:
+    issue = {
+        "attributes": {
+            "key": "SNYK-CODE-COL",
+            "type": "code",
+            "title": "Column case",
+            "coordinates": [
+                {
+                    "representations": [
+                        {"source_location": {"file": "src/code.py", "line": 12, "column": 4}}
+                    ]
+                }
+            ],
+        }
+    }
+    mapped = snyk_sync._map_snyk_to_kanbus(issue, parent_task_id="KAN-CODE")
+    assert "line 12, column 4" in mapped.description
+
+
+def test_resolve_snyk_epics_configured_parent_supports_code_only(
+    tmp_path: Path, monkeypatch
+) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    monkeypatch.setattr(
+        snyk_sync,
+        "_resolve_parent_epic",
+        lambda *args, **kwargs: "kanbus-parent",
+    )
+    epics = snyk_sync._resolve_snyk_epics(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        configured_id="kanbus-parent",
+        dry_run=False,
+        all_existing=set(),
+        include_dependency=False,
+        include_code=True,
+        dependency_priority=2,
+        code_priority=1,
+    )
+    assert epics == {"code": "kanbus-parent"}
+
+
+def test_resolve_snyk_initiative_returns_existing_without_write(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    existing = build_issue(
+        "kanbus-init-existing",
+        issue_type="initiative",
+        title=snyk_sync.SNYK_INITIATIVE_TITLE,
+        labels=["snyk"],
+    )
+    _write_issue(issues_dir, existing)
+    resolved = snyk_sync._resolve_snyk_initiative(
+        issues_dir=issues_dir,
+        project_key="kanbus",
+        dry_run=False,
+        all_existing={"kanbus-init-existing"},
+    )
+    assert resolved == "kanbus-init-existing"
+
+
+def test_find_existing_filters_for_snyk_labels(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    initiative = build_issue(
+        "kanbus-init-no-label",
+        issue_type="initiative",
+        title=snyk_sync.SNYK_INITIATIVE_TITLE,
+        labels=[],
+    )
+    epic = build_issue(
+        "kanbus-epic-no-label",
+        issue_type="epic",
+        title=snyk_sync.SNYK_DEP_EPIC_TITLE,
+        parent="kanbus-parent",
+        labels=[],
+    )
+    _write_issue(issues_dir, initiative)
+    _write_issue(issues_dir, epic)
+    assert (
+        snyk_sync._find_existing_snyk_initiative(issues_dir, {"kanbus-init-no-label"})
+        is None
+    )
+    assert (
+        snyk_sync._find_existing_snyk_epic(
+            issues_dir,
+            {"kanbus-epic-no-label"},
+            snyk_sync.SNYK_DEP_EPIC_TITLE,
+            "kanbus-parent",
+        )
+        is None
+    )
+
+
+def test_find_existing_parent_epic_filters_non_matching_rows(tmp_path: Path) -> None:
+    issues_dir = tmp_path / "issues"
+    issues_dir.mkdir()
+    non_epic = build_issue(
+        "kanbus-task",
+        issue_type="task",
+        title="Snyk Vulnerabilities",
+        labels=["snyk"],
+    )
+    wrong_title = build_issue(
+        "kanbus-epic-wrong-title",
+        issue_type="epic",
+        title="Different title",
+        labels=["snyk"],
+    )
+    wrong_label = build_issue(
+        "kanbus-epic-wrong-label",
+        issue_type="epic",
+        title="Snyk Vulnerabilities",
+        labels=["security"],
+    )
+    for issue in [non_epic, wrong_title, wrong_label]:
+        _write_issue(issues_dir, issue)
+    assert (
+        snyk_sync._find_existing_parent_epic(
+            issues_dir,
+            {"kanbus-task", "kanbus-epic-wrong-title", "kanbus-epic-wrong-label"},
+        )
+        is None
+    )
+
+
+def test_pull_from_snyk_missing_issues_dir_raises(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SNYK_TOKEN", "token")
+    config = SnykConfiguration.model_validate({"org_id": "org"})
+    import kanbus.project as project_module
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir(parents=True)
+    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
+    try:
+        snyk_sync.pull_from_snyk(tmp_path, config, "kanbus")
+    except snyk_sync.SnykSyncError as error:
+        assert "issues directory does not exist" in str(error)
+    else:
+        raise AssertionError("expected SnykSyncError")
+
+
+def test_pull_from_snyk_updated_path_and_skip_missing_project_map(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    project_dir = tmp_path / "project"
+    issues_dir = project_dir / "issues"
+    issues_dir.mkdir(parents=True)
+    monkeypatch.setenv("SNYK_TOKEN", "token")
+
+    import kanbus.project as project_module
+
+    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
+    monkeypatch.setattr(
+        snyk_sync, "_detect_repo_from_git", lambda root: "AnthusAI/Kanbus"
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_fetch_snyk_projects",
+        lambda org_id, token, repo_filter: {"p1": "requirements.txt"},
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_fetch_all_snyk_issues",
+        lambda org_id, token, min_priority, issue_types: [
+            {
+                "relationships": {"scan_item": {"data": {"id": "missing-project"}}},
+                "attributes": {
+                    "key": "SNYK-SKIP-1",
+                    "type": "package_vulnerability",
+                    "effective_severity_level": "low",
+                },
+            },
+            {
+                "relationships": {"scan_item": {"data": {"id": "p1"}}},
+                "attributes": {
+                    "key": "SNYK-UPD-1",
+                    "type": "package_vulnerability",
+                    "effective_severity_level": "high",
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        snyk_sync, "_fetch_v1_enrichment", lambda org_id, token, project_ids: {}
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_resolve_snyk_epics",
+        lambda *args, **kwargs: {"dependency": "kanbus-epic"},
+    )
+    monkeypatch.setattr(
+        snyk_sync, "_build_snyk_key_index", lambda *_args: {"SNYK-UPD-1": "kanbus-existing-1"}
+    )
+    monkeypatch.setattr(snyk_sync, "_build_file_task_index", lambda *_args: {})
+    monkeypatch.setattr(
+        snyk_sync,
+        "_resolve_file_task",
+        lambda *args, **kwargs: "kanbus-task-dep",
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_map_snyk_to_kanbus",
+        lambda vuln, task_id, v1_data, target_file, root: build_issue(
+            "__placeholder__",
+            title="Updated vuln",
+            issue_type="sub-task",
+            parent=task_id,
+            custom={"snyk_key": vuln["attributes"]["key"]},
+        ),
+    )
+    existing = build_issue("kanbus-existing-1", issue_type="sub-task")
+    _write_issue(issues_dir, existing)
+
+    def _read_issue_fail(path: Path):
+        if path.name == "kanbus-existing-1.json":
+            raise RuntimeError("read failed")
+        return read_issue_from_file(path)
+
+    monkeypatch.setattr(snyk_sync, "read_issue_from_file", _read_issue_fail)
+    writes: list[Path] = []
+    monkeypatch.setattr(
+        snyk_sync,
+        "write_issue_to_file",
+        lambda issue, issue_path: writes.append(issue_path),
+    )
+
+    config = SnykConfiguration.model_validate({"org_id": "org", "min_severity": "low"})
+    result = snyk_sync.pull_from_snyk(tmp_path, config, "kanbus", dry_run=False)
+    assert result.updated == 1
+    assert result.pulled == 0
+    assert len(writes) == 1
+    assert "Warning: failed to read existing issue file" in capsys.readouterr().out
+
+
+def test_pull_from_snyk_skips_when_no_epic_for_category(
+    tmp_path: Path, monkeypatch
+) -> None:
+    project_dir = tmp_path / "project"
+    issues_dir = project_dir / "issues"
+    issues_dir.mkdir(parents=True)
+    monkeypatch.setenv("SNYK_TOKEN", "token")
+
+    import kanbus.project as project_module
+
+    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
+    monkeypatch.setattr(
+        snyk_sync, "_detect_repo_from_git", lambda root: "AnthusAI/Kanbus"
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_fetch_snyk_projects",
+        lambda org_id, token, repo_filter: {"p1": "requirements.txt"},
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_fetch_all_snyk_issues",
+        lambda org_id, token, min_priority, issue_types: [
+            {
+                "relationships": {"scan_item": {"data": {"id": "p1"}}},
+                "attributes": {
+                    "key": "SNYK-NO-EPIC",
+                    "type": "package_vulnerability",
+                    "effective_severity_level": "high",
+                },
+            }
+        ],
+    )
+    monkeypatch.setattr(snyk_sync, "_fetch_v1_enrichment", lambda *_args: {})
+    monkeypatch.setattr(snyk_sync, "_resolve_snyk_epics", lambda *args, **kwargs: {})
+    monkeypatch.setattr(snyk_sync, "_build_snyk_key_index", lambda *_args: {})
+    monkeypatch.setattr(snyk_sync, "_build_file_task_index", lambda *_args: {})
+    called = {"resolve_task": 0, "write": 0}
+    monkeypatch.setattr(
+        snyk_sync,
+        "_resolve_file_task",
+        lambda *args, **kwargs: called.__setitem__("resolve_task", called["resolve_task"] + 1),
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "write_issue_to_file",
+        lambda *args, **kwargs: called.__setitem__("write", called["write"] + 1),
+    )
+    config = SnykConfiguration.model_validate({"org_id": "org"})
+    result = snyk_sync.pull_from_snyk(tmp_path, config, "kanbus", dry_run=False)
+    assert result.pulled == 0
+    assert result.updated == 0
+    assert called["resolve_task"] == 0
+    assert called["write"] == 0
+
+
+def test_pull_from_snyk_updated_path_preserves_created_at_when_existing_readable(
+    tmp_path: Path, monkeypatch
+) -> None:
+    project_dir = tmp_path / "project"
+    issues_dir = project_dir / "issues"
+    issues_dir.mkdir(parents=True)
+    monkeypatch.setenv("SNYK_TOKEN", "token")
+
+    import kanbus.project as project_module
+
+    monkeypatch.setattr(project_module, "load_project_directory", lambda root: project_dir)
+    monkeypatch.setattr(
+        snyk_sync, "_detect_repo_from_git", lambda root: "AnthusAI/Kanbus"
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_fetch_snyk_projects",
+        lambda org_id, token, repo_filter: {"p1": "requirements.txt"},
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_fetch_all_snyk_issues",
+        lambda org_id, token, min_priority, issue_types: [
+            {
+                "relationships": {"scan_item": {"data": {"id": "p1"}}},
+                "attributes": {
+                    "key": "SNYK-UPD-READ",
+                    "type": "package_vulnerability",
+                    "effective_severity_level": "high",
+                },
+            }
+        ],
+    )
+    monkeypatch.setattr(snyk_sync, "_fetch_v1_enrichment", lambda *_args: {})
+    monkeypatch.setattr(
+        snyk_sync, "_resolve_snyk_epics", lambda *args, **kwargs: {"dependency": "kanbus-epic"}
+    )
+    monkeypatch.setattr(
+        snyk_sync, "_build_snyk_key_index", lambda *_args: {"SNYK-UPD-READ": "kanbus-existing-2"}
+    )
+    monkeypatch.setattr(snyk_sync, "_build_file_task_index", lambda *_args: {})
+    monkeypatch.setattr(
+        snyk_sync,
+        "_resolve_file_task",
+        lambda *args, **kwargs: "kanbus-task",
+    )
+    monkeypatch.setattr(
+        snyk_sync,
+        "_map_snyk_to_kanbus",
+        lambda vuln, task_id, v1_data, target_file, root: build_issue(
+            "__placeholder__",
+            title="Updated readable",
+            issue_type="sub-task",
+            parent=task_id,
+            custom={"snyk_key": vuln["attributes"]["key"]},
+        ),
+    )
+    existing = build_issue("kanbus-existing-2", issue_type="sub-task")
+    existing.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    _write_issue(issues_dir, existing)
+    written: dict[str, object] = {}
+
+    def _capture_write(issue, issue_path):
+        written["created_at"] = issue.created_at
+        written["path"] = issue_path
+
+    monkeypatch.setattr(snyk_sync, "write_issue_to_file", _capture_write)
+    config = SnykConfiguration.model_validate({"org_id": "org"})
+    result = snyk_sync.pull_from_snyk(tmp_path, config, "kanbus", dry_run=False)
+    assert result.updated == 1
+    assert written["path"].name == "kanbus-existing-2.json"
+    assert written["created_at"] == datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+
 def test_pull_from_snyk_groups_dedups_and_writes_issues(
     tmp_path: Path, monkeypatch
 ) -> None:
