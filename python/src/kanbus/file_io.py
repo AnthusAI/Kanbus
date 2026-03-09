@@ -15,6 +15,12 @@ from kanbus.project_management_template import (
     DEFAULT_PROJECT_MANAGEMENT_TEMPLATE,
     DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
 )
+from kanbus.wiki_templates import (
+    DEFAULT_WIKI_INDEX,
+    DEFAULT_WIKI_INDEX_FILENAME,
+    DEFAULT_WIKI_WHATS_NEXT,
+    DEFAULT_WIKI_WHATS_NEXT_FILENAME,
+)
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.project import (
     ProjectMarkerError,
@@ -87,6 +93,14 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
             DEFAULT_PROJECT_MANAGEMENT_TEMPLATE,
             encoding="utf-8",
         )
+    wiki_dir = project_dir / "wiki"
+    wiki_dir.mkdir(parents=True)
+    (wiki_dir / DEFAULT_WIKI_INDEX_FILENAME).write_text(
+        DEFAULT_WIKI_INDEX, encoding="utf-8"
+    )
+    (wiki_dir / DEFAULT_WIKI_WHATS_NEXT_FILENAME).write_text(
+        DEFAULT_WIKI_WHATS_NEXT, encoding="utf-8"
+    )
     if create_local:
         ensure_project_local_directory(project_dir)
 

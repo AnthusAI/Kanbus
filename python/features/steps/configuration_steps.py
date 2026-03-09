@@ -335,6 +335,26 @@ def given_no_file_exists(context: object, filename: str) -> None:
     context.working_directory = repository
 
 
+@given('a Kanbus project with a file "kanbus.yml" containing:')
+def given_project_with_kanbus_yml_containing(context: object) -> None:
+    """Create kanbus.yml merging default config with the given YAML (context.text)."""
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    config_path = repository / "kanbus.yml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["project_key"] = "KAN"
+    payload["hierarchy"] = ["initiative", "epic", "issue", "subtask"]
+    payload["types"] = []
+    custom = yaml.safe_load(context.text) if context.text else {}
+    if custom:
+        payload.update(custom)
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 @given(
     'a Kanbus project with a file "{filename}" containing an unknown top-level field'
 )
@@ -916,6 +936,19 @@ def then_hierarchy_matches(context: object, expected: str) -> None:
     assert (
         configuration.hierarchy == parts
     ), f"Expected hierarchy {parts}, got {configuration.hierarchy}"
+
+
+@then('the AI provider should be "{expected}"')
+def then_ai_provider_matches(context: object, expected: str) -> None:
+    """Verify AI provider matches expected value."""
+    configuration = getattr(context, "configuration", None)
+    if configuration is None:
+        raise AssertionError("No configuration loaded")
+    if configuration.ai is None:
+        raise AssertionError("No AI configuration in .kanbus.yml")
+    assert (
+        configuration.ai.provider == expected
+    ), f"Expected AI provider '{expected}', got '{configuration.ai.provider}'"
 
 
 @then('the default priority should be "{expected}"')

@@ -10,6 +10,10 @@ use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
     DEFAULT_PROJECT_MANAGEMENT_TEMPLATE, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
 };
+use crate::wiki_templates::{
+    DEFAULT_WIKI_INDEX, DEFAULT_WIKI_INDEX_FILENAME, DEFAULT_WIKI_WHATS_NEXT,
+    DEFAULT_WIKI_WHATS_NEXT_FILENAME,
+};
 use serde_json;
 use serde_yaml;
 
@@ -135,6 +139,18 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), KanbusE
         std::fs::write(&template_path, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
+    let wiki_dir = project_dir.join("wiki");
+    std::fs::create_dir(&wiki_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::write(
+        wiki_dir.join(DEFAULT_WIKI_INDEX_FILENAME),
+        DEFAULT_WIKI_INDEX,
+    )
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
+    std::fs::write(
+        wiki_dir.join(DEFAULT_WIKI_WHATS_NEXT_FILENAME),
+        DEFAULT_WIKI_WHATS_NEXT,
+    )
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
     write_project_guard_files(&project_dir)?;
     write_tool_block_files(root)?;
     ensure_gitignore_entry(root, "project/.overlay/")?;

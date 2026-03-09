@@ -8,8 +8,8 @@ use serde_json::Value;
 
 use kanbus::file_io::load_project_directory;
 use kanbus::models::{
-    IssueData, OverlayConfig, PriorityDefinition, ProjectConfiguration, RealtimeConfig,
-    StatusDefinition,
+    HooksConfiguration, IssueData, OverlayConfig, PriorityDefinition, ProjectConfiguration,
+    RealtimeConfig, StatusDefinition,
 };
 use kanbus::workflows::get_workflow_for_issue_type;
 
@@ -520,7 +520,9 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         transition_labels: BTreeMap::new(),
         realtime: RealtimeConfig::default(),
         overlay: OverlayConfig::default(),
+        hooks: HooksConfiguration::default(),
         wiki_directory: None,
+        ai: None,
     };
     match get_workflow_for_issue_type(&configuration, &issue_type) {
         Ok(_) => world.workflow_error = None,

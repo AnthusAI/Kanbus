@@ -202,6 +202,66 @@ def then_rendered_wiki_has_issue_link(context: object, identifier: str) -> None:
     ), f"expected issue {identifier!r} in output, got: {stdout[:500]}"
 
 
+@given("a Kanbus project with AI configured")
+def given_project_with_ai_configured(context: object) -> None:
+    """Create a Kanbus project with AI config and test mock enabled."""
+    import copy
+    import os
+    import yaml
+
+    from features.steps.shared import initialize_default_project
+    from kanbus.config import DEFAULT_CONFIGURATION
+
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["ai"] = {"provider": "openai", "model": "gpt-4o"}
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+    context._ai_mock_env = os.environ.get("KANBUS_TEST_AI_MOCK")
+    os.environ["KANBUS_TEST_AI_MOCK"] = "1"
+
+
+def _ai_calls_log_path(context: object) -> Path:
+    """Return path to ai_calls.log in project cache."""
+    project_dir = load_project_directory(context)
+    return project_dir / ".cache" / "ai_calls.log"
+
+
+def _ai_call_count(context: object) -> int:
+    path = _ai_calls_log_path(context)
+    if not path.exists():
+        return 0
+    return len(path.read_text(encoding="utf-8").strip().splitlines())
+
+
+@then("the AI provider API should be called")
+def then_ai_provider_api_called(context: object) -> None:
+    count = _ai_call_count(context)
+    assert count >= 1, f"expected at least 1 API call, got {count}"
+    context._ai_call_count_after_first_render = count
+
+
+@then("the AI provider API should not be called")
+def then_ai_provider_api_not_called(context: object) -> None:
+    count_before = getattr(context, "_ai_call_count_after_first_render", 0)
+    count_after = _ai_call_count(context)
+    assert (
+        count_after == count_before
+    ), f"expected no new API calls (count was {count_before}), got {count_after}"
+
+
+@then('the rendered wiki should contain a generated summary for "{identifier}"')
+def then_rendered_wiki_has_generated_summary(context: object, identifier: str) -> None:
+    """Verify rendered wiki output contains the mock generated summary."""
+    stdout = context.result.stdout
+    expected = f"Generated summary for {identifier}"
+    assert expected in stdout, f"expected {expected!r} in output, got: {stdout[:500]}"
+
+
 @given('a Kanbus project with wiki_directory set to "{value}"')
 def given_project_with_wiki_directory(context: object, value: str) -> None:
     import copy
@@ -220,6 +280,28 @@ def given_project_with_wiki_directory(context: object, value: str) -> None:
         encoding="utf-8",
     )
     context.wiki_directory = value
+
+
+def _wiki_render_cache_dir(context: object) -> Path:
+    project_dir = load_project_directory(context)
+    return project_dir / ".cache" / "wiki_render"
+
+
+@then("a cached rendered file should exist")
+def then_cached_rendered_file_exists(context: object) -> None:
+    cache_dir = _wiki_render_cache_dir(context)
+    assert cache_dir.exists(), f"expected cache dir {cache_dir} to exist"
+    md_files = list(cache_dir.glob("*.md"))
+    assert md_files, f"expected at least one cached .md file in {cache_dir}"
+
+
+@then("the command should use the cache")
+def then_command_uses_cache(context: object) -> None:
+    project_dir = load_project_directory(context)
+    log_path = project_dir / ".cache" / "wiki_cache_hits.log"
+    assert log_path.exists(), f"expected cache hit log {log_path} to exist"
+    lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) >= 1, f"expected at least 1 cache hit, got {len(lines)}"
 
 
 @then('the wiki root should be "{expected}"')

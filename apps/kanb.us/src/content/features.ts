@@ -107,6 +107,15 @@ export const FEATURE_ENTRIES: FeatureEntry[] = [
     href: "/features/policy-as-code"
   },
   {
+    title: "Lifecycle Hooks",
+    description: "Plug arbitrary project logic into Kanbus lifecycle events with before/after hooks and built-in policy guidance integration.",
+    detailedDescription: [
+      "Lifecycle hooks let projects run external commands at the lifecycle boundaries where work actually happens: issue create, update, close, delete, comment, dependency edits, promote/localize, and read flows like show/list/ready.",
+      "Hooks receive a stable JSON payload over stdin with phase, event, actor, mode metadata, and operation context. Before-hooks can fail closed for mutating commands, while after-hooks run as non-blocking observers. Existing policy guidance is implemented as a built-in hook provider, so guardrails and custom integrations share one execution model."
+    ],
+    href: "/features/lifecycle-hooks"
+  },
+  {
     title: "Agile Metrics",
     description: "Track filter-aware issue counts and status/type breakdowns in a focused metrics view built into the Kanbus console.",
     detailedDescription: [

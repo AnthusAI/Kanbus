@@ -15,6 +15,7 @@ pub mod discovery_steps;
 pub mod embedded_assets_steps;
 pub mod event_history_steps;
 pub mod examples_steps;
+pub mod hooks_steps;
 pub mod id_format_steps;
 pub mod id_generation_steps;
 pub mod index_steps;

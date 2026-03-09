@@ -52,6 +52,14 @@ const DocsIndexPage = ({ location }: PageProps) => {
               .
             </li>
             <li>
+              <strong>Lifecycle Hooks:</strong> Add project-defined before/after integrations on Kanbus lifecycle events and
+              keep policy guidance aligned with the same execution model.{" "}
+              <Link to="/docs/features/lifecycle-hooks" className="text-selected font-semibold hover:underline">
+                Read the summary
+              </Link>
+              .
+            </li>
+            <li>
               <strong>Directory Structure:</strong> See how Kanbus organizes files within 
               your repository's <code className="rounded bg-card-muted px-1.5 py-0.5 text-xs font-medium text-foreground">project/</code> directory.
             </li>

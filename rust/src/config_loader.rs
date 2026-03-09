@@ -298,6 +298,7 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
         }
     }
 
+    validate_hooks(configuration, &mut errors);
     validate_sort_order(configuration, &mut errors);
 
     errors
@@ -306,6 +307,51 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
 const SORT_PRESETS: &[&str] = &["fifo", "priority-first", "recently-updated"];
 const SORT_FIELDS: &[&str] = &["priority", "created_at", "updated_at", "id"];
 const SORT_DIRECTIONS: &[&str] = &["asc", "desc"];
+const HOOK_EVENTS: &[&str] = &[
+    "issue.create",
+    "issue.update",
+    "issue.close",
+    "issue.delete",
+    "issue.comment",
+    "issue.dependency",
+    "issue.promote",
+    "issue.localize",
+    "issue.show",
+    "issue.list",
+    "issue.ready",
+];
+
+fn validate_hooks(configuration: &ProjectConfiguration, errors: &mut Vec<String>) {
+    for (phase_name, phase_map) in [
+        ("before", &configuration.hooks.before),
+        ("after", &configuration.hooks.after),
+    ] {
+        for (event_name, hooks) in phase_map {
+            if !HOOK_EVENTS.contains(&event_name.as_str()) {
+                errors.push(format!(
+                    "hooks.{phase_name} contains unknown event '{}'",
+                    event_name
+                ));
+                continue;
+            }
+            if hooks.is_empty() {
+                errors.push(format!(
+                    "hooks.{phase_name}.{event_name} must define at least one hook"
+                ));
+                continue;
+            }
+            let mut seen = std::collections::HashSet::new();
+            for hook in hooks {
+                if !seen.insert(hook.id.clone()) {
+                    errors.push(format!(
+                        "hooks.{phase_name}.{event_name} has duplicate id '{}'",
+                        hook.id
+                    ));
+                }
+            }
+        }
+    }
+}
 
 fn validate_sort_order(configuration: &ProjectConfiguration, errors: &mut Vec<String>) {
     if configuration.sort_order.is_empty() {

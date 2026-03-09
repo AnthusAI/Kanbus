@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from kanbus.ai_summarize import make_ai_summarize
 from kanbus.console_snapshot import ConsoleSnapshotError, get_issues_for_root
 from kanbus.models import IssueData
 from kanbus.queries import filter_issues
@@ -105,13 +107,28 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
     :rtype: str
     :raises WikiError: If rendering fails.
     """
-    if not request.page_path.exists():
+    full_page = request.root / request.page_path
+    if not full_page.exists():
         raise WikiError("wiki page not found")
 
     try:
         issues = get_issues_for_root(request.root)
     except ConsoleSnapshotError as error:
         raise WikiError(str(error)) from error
+
+    ai_config, project_dir = _load_ai_config_and_project_dir(request.root)
+    wiki_render_cache_dir = (
+        request.root / project_dir / ".cache" / "wiki_render" if project_dir else None
+    )
+    if wiki_render_cache_dir is not None:
+        cache_key = _wiki_render_cache_key(full_page, list(issues))
+        cached = _wiki_render_read_cache(wiki_render_cache_dir, cache_key)
+        if cached is not None:
+            _wiki_render_log_cache_hit(wiki_render_cache_dir)
+            return cached
+    issues_by_id = {i.identifier: _serialize_issue(i) for i in issues}
+    ai_cache_dir = request.root / project_dir / ".cache" if project_dir else None
+    ai_summarize_fn = make_ai_summarize(issues_by_id, ai_config, ai_cache_dir)
 
     context = WikiContext(issues=list(issues))
     environment = Environment(
@@ -127,14 +144,63 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
             "query": context.query,
             "count": context.count,
             "issue": context.issue,
+            "ai_summarize": ai_summarize_fn,
         }
     )
     try:
-        return environment.get_template(request.page_path.name).render()
+        rendered = environment.get_template(request.page_path.name).render()
     except WikiError:
         raise
     except Exception as error:
         raise WikiError(str(error)) from error
+
+    if wiki_render_cache_dir is not None:
+        _wiki_render_write_cache(wiki_render_cache_dir, cache_key, rendered)
+    return rendered
+
+
+def _wiki_render_cache_key(page_path: Path, issues: List[IssueData]) -> str:
+    page_mtime = str(page_path.stat().st_mtime) if page_path.exists() else ""
+    issue_part = "|".join(
+        f"{i.identifier}:{i.updated_at.isoformat()}"
+        for i in sorted(issues, key=lambda x: x.identifier)
+    )
+    raw = f"{page_path}|{page_mtime}|{issue_part}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _wiki_render_read_cache(cache_dir: Path, key: str) -> str | None:
+    path = cache_dir / f"{key}.md"
+    if not path.exists():
+        return None
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+
+def _wiki_render_write_cache(cache_dir: Path, key: str, content: str) -> None:
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    (cache_dir / f"{key}.md").write_text(content, encoding="utf-8")
+
+
+def _wiki_render_log_cache_hit(cache_dir: Path) -> None:
+    log_path = cache_dir.parent / "wiki_cache_hits.log"
+    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    log_path.open("a", encoding="utf-8").write("1\n")
+
+
+def _load_ai_config_and_project_dir(root: Path) -> tuple[object | None, str | None]:
+    """Load AI configuration and project directory. Returns (ai_config, project_dir)."""
+    from kanbus.config_loader import ConfigurationError, load_project_configuration
+    from kanbus.project import ProjectMarkerError, get_configuration_path
+
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+        return (configuration.ai, configuration.project_directory)
+    except (ProjectMarkerError, ConfigurationError):
+        return (None, None)
 
 
 def _get_string(value: object) -> str | None:
