@@ -92,4 +92,24 @@ if (typeof window !== "undefined") {
     console.log("[Kanbus] Custom components registered:", (window as any).Babulus.listComponents());
   }
 
+  if (!(window as any).renderFrame && (window as any).Babulus?.ComposableRenderer) {
+    const ReactDOM = (window as any).ReactDOM;
+    const createRoot = ReactDOM?.createRoot;
+    const ComposableRenderer = (window as any).Babulus.ComposableRenderer;
+    const RendererProvider = (window as any).Babulus.RendererProvider;
+    const React = (window as any).React;
+    if (createRoot && ComposableRenderer && RendererProvider && React) {
+      let reactRoot: ReturnType<typeof createRoot> | null = null;
+      (window as any).renderFrame = (renderData: { script: unknown; frame: number; config: unknown; inputProps?: Record<string, unknown> }) => {
+        const { script, frame, config, inputProps = {} } = renderData;
+        const root = document.getElementById("root");
+        if (!root) throw new Error("Root element not found");
+        if (!reactRoot) reactRoot = createRoot(root);
+        reactRoot.render(
+          React.createElement(RendererProvider, { frame, config }, React.createElement(ComposableRenderer, { script, ...inputProps }))
+        );
+        return new Promise((resolve) => setTimeout(resolve, 100));
+      };
+    }
+  }
 }
