@@ -247,4 +247,55 @@ mod tests {
             other => panic!("expected shared project error, got {other:?}"),
         }
     }
+
+    #[test]
+    fn promote_issue_rejects_when_identifier_is_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_project_config(temp.path());
+
+        let result = promote_issue(temp.path(), "kanbus-1");
+        match result {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "not found")
+            }
+            other => panic!("expected not found error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn promote_issue_rejects_when_issue_not_in_project_local() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_project_config(temp.path());
+        fs::create_dir_all(temp.path().join("project-local/issues")).expect("create local issues");
+        write_issue(&temp.path().join("project/issues/kanbus-1.json"), "kanbus-1");
+
+        let result = promote_issue(temp.path(), "kanbus-1");
+        match result {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "issue is not in project-local")
+            }
+            other => panic!("expected local source error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn localize_and_promote_return_io_error_for_invalid_issue_json() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_project_config(temp.path());
+        fs::create_dir_all(temp.path().join("project/issues")).expect("create shared issues");
+        fs::create_dir_all(temp.path().join("project-local/issues")).expect("create local issues");
+
+        fs::write(temp.path().join("project/issues/kanbus-shared.json"), "{bad json")
+            .expect("write invalid shared issue");
+        fs::write(temp.path().join("project-local/issues/kanbus-local.json"), "{bad json")
+            .expect("write invalid local issue");
+
+        let localize = localize_issue(temp.path(), "kanbus-shared")
+            .expect_err("localize should fail for invalid json");
+        assert!(matches!(localize, KanbusError::Io(_)));
+
+        let promote = promote_issue(temp.path(), "kanbus-local")
+            .expect_err("promote should fail for invalid json");
+        assert!(matches!(promote, KanbusError::Io(_)));
+    }
 }
