@@ -1122,6 +1122,67 @@ mod tests {
     }
 
     #[test]
+    fn resolve_git_hooks_dir_rejects_dev_null_and_non_directory_paths() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        Command::new("git")
+            .arg("init")
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("git init");
+
+        Command::new("git")
+            .args(["config", "core.hooksPath", "/dev/null"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("set hooksPath /dev/null");
+        let dev_null_error =
+            resolve_git_hooks_dir(temp_dir.path()).expect_err("dev/null should be rejected");
+        assert!(dev_null_error.to_string().contains("git hooks are disabled"));
+
+        let file_path = temp_dir.path().join("hooks-file");
+        fs::write(&file_path, "not-a-directory").expect("write hooks file");
+        Command::new("git")
+            .args(["config", "core.hooksPath", "hooks-file"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("set hooksPath file");
+        let file_error =
+            resolve_git_hooks_dir(temp_dir.path()).expect_err("file path should be rejected");
+        assert!(file_error
+            .to_string()
+            .contains("git hooks path is not a directory"));
+    }
+
+    #[test]
+    fn install_overlay_hooks_creates_and_appends_once() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        Command::new("git")
+            .arg("init")
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("git init");
+
+        install_overlay_hooks(temp_dir.path()).expect("install hooks");
+        let hooks_dir = temp_dir.path().join(".git").join("hooks");
+        for hook in ["post-merge", "post-checkout", "post-rewrite"] {
+            let path = hooks_dir.join(hook);
+            let contents = fs::read_to_string(&path).expect("read hook");
+            assert!(contents.contains("Kanbus overlay cache maintenance"));
+        }
+
+        let post_merge = hooks_dir.join("post-merge");
+        fs::write(&post_merge, "#!/bin/sh\necho existing\n").expect("seed post-merge");
+        install_overlay_hooks(temp_dir.path()).expect("append hooks");
+        let once = fs::read_to_string(&post_merge).expect("read once");
+        assert!(once.contains("echo existing"));
+        assert_eq!(once.matches("Kanbus overlay cache maintenance").count(), 1);
+
+        install_overlay_hooks(temp_dir.path()).expect("idempotent install");
+        let twice = fs::read_to_string(&post_merge).expect("read twice");
+        assert_eq!(twice.matches("Kanbus overlay cache maintenance").count(), 1);
+    }
+
+    #[test]
     fn project_overlay_commands_reject_conflicting_filters() {
         let temp_dir = TempDir::new().expect("tempdir");
         let gc = gc_overlay_for_projects(temp_dir.path(), Some("alpha".to_string()), true)
