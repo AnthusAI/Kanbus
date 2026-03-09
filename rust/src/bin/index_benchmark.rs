@@ -336,4 +336,58 @@ mod tests {
         assert!(index.by_id.contains_key("kanbus-000001"));
         assert!(index.by_id.contains_key("kanbus-000002"));
     }
+
+    #[test]
+    fn build_index_parallel_returns_error_for_invalid_json() {
+        let temp = TempDir::new().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir");
+        std::fs::write(issues_dir.join("broken.json"), "{not valid json").expect("write");
+
+        let error = build_index_parallel(&issues_dir).expect_err("invalid JSON should fail");
+        assert!(!error.to_string().is_empty());
+    }
+
+    #[test]
+    fn run_serial_and_parallel_return_timings_with_valid_cache() {
+        let temp = TempDir::new().expect("tempdir");
+        let project_dir = temp.path().join("project");
+        let issues_dir = project_dir.join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir");
+        let cache_path = project_dir.join(".cache").join("index.json");
+
+        let now = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        let issue_a = create_issue("kanbus-000001", now);
+        let issue_b = create_issue("kanbus-000002", now);
+        std::fs::write(
+            issues_dir.join("kanbus-000001.json"),
+            serde_json::to_string_pretty(&issue_a).expect("json"),
+        )
+        .expect("write");
+        std::fs::write(
+            issues_dir.join("kanbus-000002.json"),
+            serde_json::to_string_pretty(&issue_b).expect("json"),
+        )
+        .expect("write");
+
+        let (serial_build_ms, serial_cache_ms) =
+            run_serial(&issues_dir, &cache_path).expect("run serial");
+        let (parallel_build_ms, parallel_cache_ms) =
+            run_parallel(&issues_dir, &cache_path).expect("run parallel");
+
+        assert!(serial_build_ms >= 0.0);
+        assert!(serial_cache_ms >= 0.0);
+        assert!(parallel_build_ms >= 0.0);
+        assert!(parallel_cache_ms >= 0.0);
+        assert!(cache_path.exists());
+    }
+
+    #[test]
+    fn run_serial_errors_when_issues_directory_is_missing() {
+        let temp = TempDir::new().expect("tempdir");
+        let missing_issues_dir = temp.path().join("missing").join("issues");
+        let cache_path = temp.path().join(".cache").join("index.json");
+        let error = run_serial(&missing_issues_dir, &cache_path).expect_err("should fail");
+        assert!(!error.to_string().is_empty());
+    }
 }
