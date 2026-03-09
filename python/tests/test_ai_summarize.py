@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from kanbus import ai_summarize
 from kanbus.models import AiConfiguration
@@ -69,3 +70,49 @@ def test_make_ai_summarize_mock_mode_logs_calls(tmp_path: Path, monkeypatch) -> 
     log_path = tmp_path / ai_summarize.AI_CALLS_LOG
     assert log_path.exists()
     assert log_path.read_text(encoding="utf-8").strip() == "1"
+
+
+def test_cache_key_falls_back_to_identifier_and_empty_updated_at() -> None:
+    issue = {"identifier": "kanbus-5"}
+    key = ai_summarize._cache_key(issue, "short")
+    assert isinstance(key, str)
+    assert len(key) == 64
+
+
+def test_read_cache_handles_oserror_when_reading(tmp_path: Path) -> None:
+    path = tmp_path / ai_summarize.AI_SUMMARIES_CACHE
+    path.write_text("{}", encoding="utf-8")
+    with patch.object(Path, "read_text", side_effect=OSError("boom")):
+        assert ai_summarize._read_cache(tmp_path, "k") is None
+
+
+def test_write_cache_tolerates_invalid_existing_json(tmp_path: Path) -> None:
+    (tmp_path / ai_summarize.AI_SUMMARIES_CACHE).write_text("{bad", encoding="utf-8")
+    ai_summarize._write_cache(tmp_path, "k3", "v3")
+    assert ai_summarize._read_cache(tmp_path, "k3") == "v3"
+
+
+def test_summarize_issue_mock_and_default_paths(monkeypatch) -> None:
+    issue = {"id": "kanbus-6", "title": "Title"}
+    monkeypatch.setenv("KANBUS_TEST_AI_MOCK", "1")
+    assert (
+        ai_summarize.summarize_issue(issue, "short", _ai_config())
+        == "Generated summary for kanbus-6"
+    )
+    monkeypatch.delenv("KANBUS_TEST_AI_MOCK", raising=False)
+    assert ai_summarize.summarize_issue(issue, "short", _ai_config()) == "Summary: Title"
+
+
+def test_make_ai_summarize_supports_issue_dict_input_and_no_cache(
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("KANBUS_TEST_AI_MOCK", raising=False)
+    issue = {"identifier": "kanbus-7", "title": "From dict", "updated_at": "2026-03-09"}
+    fn = ai_summarize.make_ai_summarize({}, _ai_config(), None)
+    assert fn(issue, "short") == "Summary: From dict"
+
+
+def test_make_ai_summarize_returns_not_configured_when_ai_missing(tmp_path: Path) -> None:
+    issue = {"identifier": "kanbus-8", "title": "No AI", "updated_at": "2026-03-09"}
+    fn = ai_summarize.make_ai_summarize({"kanbus-8": issue}, None, tmp_path)
+    assert fn("kanbus-8") == "(AI summarization not configured)"
