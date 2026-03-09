@@ -85,11 +85,11 @@ const LifecycleHooksPage = () => {
             </CardHeader>
             <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
               <p>
-                Existing policy DSL semantics are preserved. The built-in provider emits policy guidance on post-operation
-                events like create, update, close, delete, show, list, and ready.
+                Existing <code className="font-mono">policy DSL</code> semantics are preserved. The built-in provider emits policy guidance on post-operation
+                events like <code className="font-mono">create</code>, <code className="font-mono">update</code>, <code className="font-mono">close</code>, <code className="font-mono">delete</code>, <code className="font-mono">show</code>, <code className="font-mono">list</code>, and <code className="font-mono">ready</code>.
               </p>
               <p>
-                <code>--no-guidance</code> and <code>KANBUS_NO_GUIDANCE</code> suppress policy guidance only.
+                <code className="font-mono">--no-guidance</code> and <code className="font-mono">KANBUS_NO_GUIDANCE</code> suppress policy guidance only.
                 External project hooks continue to run unless hooks are globally disabled.
               </p>
             </CardContent>

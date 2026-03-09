@@ -806,9 +806,18 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
       const hookTranslateY = staticPull == null ? null : staticPull * 22;
       const active = staticPull == null ? null : staticPull > 0.55;
 
+      const hookTipYRest = 168;
+      const hookTipYPulled = 190;
+      const connectorStartY =
+        staticPull != null
+          ? hookTipYRest + staticPull * (hookTipYPulled - hookTipYRest)
+          : hookTipYRest;
+      const dRest = `M ${x + 30} ${hookTipYRest} C ${x + 48} 198, ${targetX - 34} 202, ${targetX - 4} 206`;
+      const dPull = `M ${x + 30} ${hookTipYPulled} C ${x + 48} 198, ${targetX - 34} 202, ${targetX - 4} 206`;
+
       return (
         <g>
-          <line x1={x} y1="40" x2={x} y2={cableBottom} stroke="var(--text-muted)" strokeWidth="3" strokeLinecap="round">
+          <line x1={x} y1="68" x2={x} y2={cableBottom} stroke="var(--text-muted)" strokeOpacity="0.5" strokeWidth="3" strokeLinecap="round">
             {staticPull == null && (
               <animate
                 attributeName="y2"
@@ -845,13 +854,27 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
           </g>
 
           <path
-            d={`M ${x + 30} 170 C ${x + 48} 184, ${targetX - 34} 192, ${targetX - 4} 206`}
+            d={
+              staticPull != null
+                ? `M ${x + 30} ${connectorStartY} C ${x + 48} 198, ${targetX - 34} 202, ${targetX - 4} 206`
+                : dRest
+            }
             fill="none"
             stroke={color}
             strokeWidth="2.5"
             strokeDasharray="6 8"
             strokeOpacity={active == null ? 0.9 : active ? 1 : 0.35}
           >
+            {staticPull == null && (
+              <animate
+                attributeName="d"
+                values={`${dRest};${dRest};${dPull};${dPull};${dRest};${dRest}`}
+                dur={`${DUR}s`}
+                begin={`${phaseOffset * DUR}s`}
+                repeatCount="indefinite"
+                keyTimes="0;0.12;0.32;0.52;0.72;1"
+              />
+            )}
             {active == null && (
               <animate
                 attributeName="stroke-dashoffset"
@@ -875,12 +898,12 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
               stroke={color}
               strokeWidth={active ? 2.5 : 1.5}
             />
-            <text x={targetX} y="251" textAnchor="middle" fill="var(--text-muted)" fontSize="10" fontFamily="monospace">
+            <text x={targetX} y="258" textAnchor="middle" fill="var(--text-muted)" fontSize="10" fontFamily="monospace">
               {label}
             </text>
             {icon === "bolt" && (
               <path
-                d={`M ${targetX - 8} 225 h10 l-6 9 h8 l-12 13 4-10 h-7 z`}
+                d={`M ${targetX - 8} 221 h10 l-6 9 h8 l-12 13 4-10 h-7 z`}
                 fill="none"
                 stroke={color}
                 strokeWidth="2"
@@ -889,7 +912,7 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
             )}
             {icon === "shield" && (
               <path
-                d={`M ${targetX} 224 l11 4 v8 c0 7-4 12-11 16-7-4-11-9-11-16v-8z`}
+                d={`M ${targetX} 220 l11 4 v8 c0 7-4 12-11 16-7-4-11-9-11-16v-8z`}
                 fill="none"
                 stroke={color}
                 strokeWidth="2"
@@ -899,13 +922,13 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
             {icon === "bell" && (
               <g>
                 <path
-                  d={`M ${targetX - 10} 240 c0-7 4-11 10-11s10 4 10 11v5h-20z`}
+                  d={`M ${targetX - 10} 236 c0-7 4-11 10-11s10 4 10 11v5h-20z`}
                   fill="none"
                   stroke={color}
                   strokeWidth="2"
                   strokeLinejoin="round"
                 />
-                <circle cx={targetX} cy="248" r="2" fill={color} />
+                <circle cx={targetX} cy="244" r="2" fill={color} />
               </g>
             )}
           </g>
@@ -916,7 +939,13 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
     return (
       <g transform="scale(1) translate(0, 0)">
         <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
-        <rect x="78" y="34" width="344" height="8" rx="4" fill="var(--background)" />
+        <rect x="78" y="60" width="344" height="8" rx="4" fill="var(--background)" />
+
+        <g fill="var(--text-muted)" fontSize="11" fontFamily="monospace" textAnchor="middle">
+          <text x="120" y="52">issue.create</text>
+          <text x="250" y="52">issue.close</text>
+          <text x="380" y="52">issue.list</text>
+        </g>
 
         <HookLane
           x={120}
@@ -944,12 +973,8 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
         />
 
         <g>
-          <rect x="170" y="168" width="160" height="92" rx="14" fill="var(--background)" stroke="var(--border)" strokeWidth="2" />
-          <text x="250" y="206" textAnchor="middle" fill="var(--text-foreground)" fontSize="20" fontFamily="monospace" fontWeight="700">
+          <text x="250" y="24" textAnchor="middle" fill="var(--text-foreground)" fontSize="20" fontFamily="monospace" fontWeight="700">
             KANBUS
-          </text>
-          <text x="250" y="228" textAnchor="middle" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">
-            issue.create | issue.close | issue.list
           </text>
         </g>
       </g>
