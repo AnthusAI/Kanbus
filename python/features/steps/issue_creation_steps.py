@@ -57,6 +57,7 @@ def given_issue_creation_status_validation_fails(context: object) -> None:
     issue_creation.validate_status_value = fake_validate_status_value
 
 
+@given("the command should succeed")
 @then("the command should succeed")
 def then_command_succeeds(context: object) -> None:
     if context.result.exit_code != 0:

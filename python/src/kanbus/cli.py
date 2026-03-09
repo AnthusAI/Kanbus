@@ -77,6 +77,13 @@ from kanbus.wiki import (
     list_wiki_pages,
     render_wiki_page,
 )
+from kanbus.text_editor import (
+    TextEditorError,
+    edit_view,
+    edit_str_replace,
+    edit_create,
+    edit_insert,
+)
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
@@ -186,7 +193,7 @@ def cli(
 def _should_check_project_structure(context: click.Context) -> bool:
     if context.invoked_subcommand is None:
         return False
-    return context.invoked_subcommand not in {"init", "setup", "repair"}
+    return context.invoked_subcommand not in {"init", "setup", "repair", "edit"}
 
 
 def _delete_terminal_is_interactive() -> bool:
@@ -514,10 +521,6 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
         except (ConfigurationError, ProjectMarkerError):
             # Treat unreadable/missing project config as standard Kanbus mode.
             pass
-    if beads_mode:
-        root = _resolve_beads_root(root)
-    else:
-        beads_mode = True
 
     if beads_mode:
         root = _resolve_beads_root(root)
@@ -1815,6 +1818,69 @@ def wiki_list() -> None:
         raise click.ClickException(str(error)) from error
     for path in pages:
         click.echo(path)
+
+
+@cli.group("edit")
+def edit_group() -> None:
+    """File edit commands mirroring the Anthropic text editor tool."""
+
+
+@edit_group.command("view")
+@click.argument("path", type=click.Path())
+@click.option("--view-range", nargs=2, type=int, default=None, help="Start and end line numbers (1-indexed; -1 for end).")
+def edit_view_cmd(path: str, view_range: tuple[int, int] | None) -> None:
+    """View file contents or list directory."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_view(root, path_obj, view_range)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@edit_group.command("str-replace")
+@click.argument("path", type=click.Path())
+@click.option("--old-str", required=True)
+@click.option("--new-str", required=True)
+def edit_str_replace_cmd(path: str, old_str: str, new_str: str) -> None:
+    """Replace exact text in file (must match exactly one location)."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_str_replace(root, path_obj, old_str, new_str)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@edit_group.command("create")
+@click.argument("path", type=click.Path())
+@click.option("--file-text", required=True)
+def edit_create_cmd(path: str, file_text: str) -> None:
+    """Create a new file with the given content."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_create(root, path_obj, file_text)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@edit_group.command("insert")
+@click.argument("path", type=click.Path())
+@click.option("--insert-line", type=int, required=True)
+@click.option("--insert-text", required=True)
+def edit_insert_cmd(path: str, insert_line: int, insert_text: str) -> None:
+    """Insert text after the given line number (0 = beginning)."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_insert(root, path_obj, insert_line, insert_text)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
 
 
 @cli.group("policy")
