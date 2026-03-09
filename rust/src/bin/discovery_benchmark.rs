@@ -371,6 +371,81 @@ mod tests {
     }
 
     #[test]
+    fn parse_args_from_ignores_unknown_and_invalid_values() {
+        let (root, parsed) = parse_args_from(vec![
+            "--projects".to_string(),
+            "invalid".to_string(),
+            "--issues-per-project".to_string(),
+            "NaN".to_string(),
+            "--unknown".to_string(),
+            "ignored".to_string(),
+        ]);
+        assert_eq!(root, None);
+        assert_eq!(parsed.projects, 10);
+        assert_eq!(parsed.issues_per_project, 200);
+    }
+
+    #[test]
+    fn load_issues_for_project_sorts_and_skips_non_json_entries() {
+        let temp = TempDir::new().expect("tempdir");
+        let project_dir = temp.path().join("project");
+        std::fs::create_dir_all(project_dir.join("issues")).expect("mkdir");
+
+        let issue_b = build_issue("kanbus-0002", "second");
+        let issue_a = build_issue("kanbus-0001", "first");
+        std::fs::write(
+            project_dir.join("issues/kanbus-0002.json"),
+            serde_json::to_string_pretty(&issue_b).expect("json"),
+        )
+        .expect("write issue b");
+        std::fs::write(
+            project_dir.join("issues/kanbus-0001.json"),
+            serde_json::to_string_pretty(&issue_a).expect("json"),
+        )
+        .expect("write issue a");
+        std::fs::write(project_dir.join("issues/README.txt"), "ignore").expect("write text");
+
+        let loaded = load_issues_for_project(project_dir).expect("load issues");
+        assert_eq!(loaded.len(), 2);
+        assert_eq!(loaded[0].identifier, "kanbus-0001");
+        assert_eq!(loaded[1].identifier, "kanbus-0002");
+    }
+
+    #[test]
+    fn serial_and_parallel_load_cover_empty_and_error_paths() {
+        let empty_dirs: Vec<PathBuf> = Vec::new();
+        let serial_empty = serial_load(&empty_dirs).expect("serial empty");
+        let parallel_empty = parallel_load(&empty_dirs).expect("parallel empty");
+        assert!(serial_empty.is_empty());
+        assert!(parallel_empty.is_empty());
+
+        let missing = vec![PathBuf::from("/tmp/kanbus-does-not-exist-for-load-test")];
+        let serial_error = serial_load(&missing).expect_err("serial should fail");
+        let parallel_error = parallel_load(&missing).expect_err("parallel should fail");
+        assert!(serial_error.to_string().contains("serial load failed"));
+        assert!(parallel_error.to_string().contains("No such file") || parallel_error.to_string().contains("no such file"));
+    }
+
+    #[test]
+    fn benchmark_scenario_and_parallel_return_expected_counts() {
+        let temp = TempDir::new().expect("tempdir");
+        let plan = FixturePlan {
+            projects: 1,
+            issues_per_project: 2,
+        };
+        let single_project = generate_single_project(temp.path(), plan).expect("single");
+        let benchmark_root = single_project.parent().expect("parent");
+
+        let serial = benchmark_scenario(benchmark_root).expect("serial benchmark");
+        let parallel = benchmark_parallel(benchmark_root).expect("parallel benchmark");
+
+        assert_eq!(serial.project_count, 1);
+        assert_eq!(serial.issue_count, 2);
+        assert_eq!(parallel.project_count, 1);
+        assert_eq!(parallel.issue_count, 2);
+    }
+
+    #[test]
     fn generate_projects_and_clear_cache_work() {
         let temp = TempDir::new().expect("tempdir");
         let plan = FixturePlan {
