@@ -1231,10 +1231,19 @@ mod tests {
 
     #[test]
     fn resolve_broker_endpoint_auto_defaults_when_no_metadata() {
+        let _guard = env_lock();
+        let tmp = TempDir::new().expect("temp dir");
+        let prior_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", tmp.path());
         let endpoint = resolve_broker_endpoint("auto").expect("endpoint");
         assert_eq!(endpoint.host, "127.0.0.1");
         assert_eq!(endpoint.port, 1883);
         assert_eq!(endpoint.scheme, "mqtt");
+        if let Some(value) = prior_home {
+            std::env::set_var("HOME", value);
+        } else {
+            std::env::remove_var("HOME");
+        }
     }
 
     #[test]
