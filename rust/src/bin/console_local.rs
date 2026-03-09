@@ -1602,6 +1602,23 @@ fn serve_asset_from_filesystem(state: &AppState, asset_path: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, Mutex as StdMutex};
+    use tokio::sync::{broadcast, RwLock};
+
+    fn test_state(base_root: PathBuf, assets_root: PathBuf, multi_tenant: bool) -> AppState {
+        let (telemetry_tx, _) = broadcast::channel(8);
+        let (notification_tx, _) = broadcast::channel(8);
+        AppState {
+            base_root,
+            assets_root,
+            multi_tenant,
+            assets_root_explicit: true,
+            telemetry_tx,
+            telemetry_log: None::<Arc<StdMutex<std::fs::File>>>,
+            notification_tx,
+            ui_state: Arc::new(RwLock::new(ConsoleUiState::default())),
+        }
+    }
 
     #[test]
     fn resolve_bind_host_handles_localhost_and_invalid_input() {
@@ -1652,5 +1669,54 @@ mod tests {
     fn parse_json_body_parses_valid_json() {
         let parsed = parse_json_body(&Bytes::from(r#"{"ok":true}"#));
         assert_eq!(parsed["ok"], serde_json::Value::Bool(true));
+    }
+
+    #[test]
+    fn store_for_root_returns_none_for_multi_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+        assert!(store_for_root(&state).is_none());
+    }
+
+    #[test]
+    fn store_for_uses_tenant_root_in_multi_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+        let store = store_for(&state, "acct", "proj");
+        assert_eq!(
+            store.root(),
+            FileStore::resolve_tenant_root(temp.path(), "acct", "proj")
+        );
+    }
+
+    #[test]
+    fn serve_asset_from_filesystem_blocks_path_traversal() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(&assets).expect("mkdir");
+        std::fs::write(temp.path().join("secret.txt"), "top-secret").expect("write secret");
+        let state = test_state(temp.path().to_path_buf(), assets, false);
+
+        let response = serve_asset_from_filesystem(&state, "../secret.txt");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn serve_asset_from_filesystem_serves_existing_file() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(&assets).expect("mkdir");
+        std::fs::write(assets.join("app.js"), "console.log('ok');").expect("write asset");
+        let state = test_state(temp.path().to_path_buf(), assets, false);
+
+        let response = serve_asset_from_filesystem(&state, "app.js");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/javascript")
+        );
     }
 }
