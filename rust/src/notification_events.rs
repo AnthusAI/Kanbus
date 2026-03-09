@@ -109,3 +109,96 @@ impl NotificationEvent {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+
+    fn sample_issue(id: &str) -> IssueData {
+        let now = Utc::now();
+        IssueData {
+            identifier: id.to_string(),
+            title: "Test issue".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn issue_id_returns_expected_values_for_all_event_types() {
+        let issue = sample_issue("kanbus-1");
+        let created = NotificationEvent::IssueCreated {
+            issue_id: "kanbus-1".to_string(),
+            issue_data: issue.clone(),
+        };
+        let updated = NotificationEvent::IssueUpdated {
+            issue_id: "kanbus-1".to_string(),
+            fields_changed: vec!["status".to_string()],
+            issue_data: issue,
+        };
+        let deleted = NotificationEvent::IssueDeleted {
+            issue_id: "kanbus-1".to_string(),
+        };
+        let focused = NotificationEvent::IssueFocused {
+            issue_id: "kanbus-1".to_string(),
+            user: Some("agent".to_string()),
+            comment_id: None,
+        };
+        let ui = NotificationEvent::UiControl {
+            action: UiControlAction::ReloadPage,
+        };
+
+        assert_eq!(created.issue_id(), Some("kanbus-1"));
+        assert_eq!(updated.issue_id(), Some("kanbus-1"));
+        assert_eq!(deleted.issue_id(), Some("kanbus-1"));
+        assert_eq!(focused.issue_id(), Some("kanbus-1"));
+        assert_eq!(ui.issue_id(), None);
+    }
+
+    #[test]
+    fn description_formats_event_variants() {
+        let issue = sample_issue("kanbus-2");
+        let updated_no_fields = NotificationEvent::IssueUpdated {
+            issue_id: "kanbus-2".to_string(),
+            fields_changed: Vec::new(),
+            issue_data: issue.clone(),
+        };
+        let updated_with_fields = NotificationEvent::IssueUpdated {
+            issue_id: "kanbus-2".to_string(),
+            fields_changed: vec!["status".to_string(), "priority".to_string()],
+            issue_data: issue,
+        };
+        let focused_no_user = NotificationEvent::IssueFocused {
+            issue_id: "kanbus-2".to_string(),
+            user: None,
+            comment_id: None,
+        };
+        let ui = NotificationEvent::UiControl {
+            action: UiControlAction::SetSearch {
+                query: "hello".to_string(),
+            },
+        };
+
+        assert_eq!(updated_no_fields.description(), "Issue kanbus-2 updated");
+        assert_eq!(
+            updated_with_fields.description(),
+            "Issue kanbus-2 updated: status, priority"
+        );
+        assert_eq!(focused_no_user.description(), "Issue kanbus-2 focused");
+        assert!(ui.description().starts_with("UI control: "));
+    }
+}
