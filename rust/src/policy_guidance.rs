@@ -190,6 +190,12 @@ mod tests {
 
         std::env::set_var("KANBUS_NO_GUIDANCE", "true");
         assert!(!guidance_enabled(false));
+        std::env::set_var("KANBUS_NO_GUIDANCE", "YES");
+        assert!(!guidance_enabled(false));
+        std::env::set_var("KANBUS_NO_GUIDANCE", " on ");
+        assert!(!guidance_enabled(false));
+        std::env::set_var("KANBUS_NO_GUIDANCE", "0");
+        assert!(guidance_enabled(false));
         std::env::remove_var("KANBUS_NO_GUIDANCE");
     }
 
@@ -220,5 +226,40 @@ mod tests {
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].severity, GuidanceSeverity::Warning);
         assert_eq!(result[1].severity, GuidanceSeverity::Suggestion);
+    }
+
+    #[test]
+    fn sorted_deduped_guidance_sorts_by_policy_scenario_step_and_message() {
+        let a = GuidanceItem {
+            severity: GuidanceSeverity::Warning,
+            message: "z-msg".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "b.yml".to_string(),
+            scenario: "S2".to_string(),
+            step: "Then B".to_string(),
+        };
+        let b = GuidanceItem {
+            severity: GuidanceSeverity::Warning,
+            message: "a-msg".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "a.yml".to_string(),
+            scenario: "S1".to_string(),
+            step: "Then A".to_string(),
+        };
+        let c = GuidanceItem {
+            severity: GuidanceSeverity::Warning,
+            message: "m-msg".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "a.yml".to_string(),
+            scenario: "S1".to_string(),
+            step: "Then B".to_string(),
+        };
+        let result = sorted_deduped_guidance_items(&[a.clone(), c.clone(), b.clone()]);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].policy_file, "a.yml");
+        assert_eq!(result[0].step, "Then A");
+        assert_eq!(result[1].policy_file, "a.yml");
+        assert_eq!(result[1].step, "Then B");
+        assert_eq!(result[2].policy_file, "b.yml");
     }
 }
