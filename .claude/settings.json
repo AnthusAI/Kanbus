@@ -81,7 +81,36 @@
       "Bash(git add apps/kanb.us/src/components/VmlPreviewPlayer.tsx apps/kanb.us/static/content/ videos/content/ videos/package.json src/videos/)",
       "Bash(git add apps/kanb.us/src/components/AnimatedPictogram.tsx apps/kanb.us/src/components/FeaturePictogram.tsx apps/kanb.us/src/components/FullVideoPlayer.tsx videos/src/components/AnimatedPictogramVideo.tsx videos/src/components/IntroScene.tsx)",
       "Bash(git add rust/src/gossip.rs)",
-      "Bash(git add src/videos/beads-compatibility/beads-compatibility.timing.xml src/videos/core-management/core-management.timing.xml src/videos/intro/intro.timing.xml src/videos/jira-sync/jira-sync.timing.xml src/videos/local-tasks/local-tasks.timing.xml src/videos/policy-as-code/policy-as-code.timing.xml src/videos/realtime-collaboration/realtime-collaboration.timing.xml src/videos/virtual-projects/virtual-projects.timing.xml src/videos/vscode-plugin/vscode-plugin.timing.xml)"
+      "Bash(git add src/videos/beads-compatibility/beads-compatibility.timing.xml src/videos/core-management/core-management.timing.xml src/videos/intro/intro.timing.xml src/videos/jira-sync/jira-sync.timing.xml src/videos/local-tasks/local-tasks.timing.xml src/videos/policy-as-code/policy-as-code.timing.xml src/videos/realtime-collaboration/realtime-collaboration.timing.xml src/videos/virtual-projects/virtual-projects.timing.xml src/videos/vscode-plugin/vscode-plugin.timing.xml)",
+      "Bash(/Users/ryan.porter/Projects/VideoML/player/node_modules/.bin/tsc -p /Users/ryan.porter/Projects/VideoML/player/tsconfig.build.json)",
+      "Bash(cp -r /Users/ryan.porter/Projects/VideoML/player/dist/* /Users/ryan.porter/Projects/Kanbus/apps/kanb.us/node_modules/@videoml/player/dist/)",
+      "Bash(PATH=\"$HOME/.nvm/versions/node/v22.22.0/bin:$PATH\" npm run sync:public)",
+      "Bash(PATH=\"$HOME/.nvm/versions/node/v22.22.0/bin:$PATH\" VIDEOML_CLI=/Users/ryan.porter/Projects/VideoML/cli/bin/vml.js /Users/ryan.porter/.nvm/versions/node/v22.22.0/bin/npm run vml:generate -- --fresh)",
+      "Bash(/Users/ryan.porter/.nvm/versions/node/v22.22.0/bin/node /Users/ryan.porter/Projects/VideoML/cli/bin/vml.js generate content/ --fresh)",
+      "Bash(git check-ignore -v rust/embedded_assets/console/index.html)",
+      "Bash(identify /Users/ryan.porter/Projects/Kanbus/videos/out/frames/intro/frame-000001.png)",
+      "Bash(/Users/ryan.porter/.nvm/versions/node/v22.22.0/bin/node /Users/ryan.porter/Projects/VideoML/cli/bin/vml.js render --script ../src/videos/intro/intro.script.json --timeline ../src/videos/intro/intro.timeline.json --audio ../public/videoml/intro.wav --frames out/frames/intro-test --out out/intro-test.mp4 --browser-bundle public/browser-components.js)",
+      "Bash(python3 -m json.tool)",
+      "Bash(PATH=\"$HOME/.nvm/versions/node/v22.22.0/bin:$PATH\" VIDEOML_CLI=/Users/ryan.porter/Projects/VideoML/cli/bin/vml.js node $VIDEOML_CLI render --script ../src/videos/intro/intro.script.json --timeline ../src/videos/intro/intro.timeline.json --audio ../public/videoml/intro.wav --frames out/frames/intro-test --out out/intro-test.mp4 --browser-bundle public/babulus-standard.js --browser-bundle public/browser-components.js)",
+      "Bash(export PATH=\"$HOME/.nvm/versions/node/v22.22.0/bin:$PATH\")",
+      "Bash(VIDEOML_CLI=/Users/ryan.porter/Projects/VideoML/cli/bin/vml.js node $VIDEOML_CLI render --script ../src/videos/intro/intro.script.json --timeline ../src/videos/intro/intro.timeline.json --audio ../public/videoml/intro.wav --frames out/frames/intro-test --out out/intro-test.mp4 --browser-bundle public/babulus-standard.js --browser-bundle public/browser-components.js)",
+      "Bash(/Users/ryan.porter/.nvm/versions/node/v22.22.0/bin/node /Users/ryan.porter/Projects/VideoML/cli/bin/vml.js render --script ../src/videos/intro/intro.script.json --timeline ../src/videos/intro/intro.timeline.json --audio ../public/videoml/intro.wav --frames out/frames/intro-test --out out/intro-test.mp4 --browser-bundle public/babulus-standard.js --browser-bundle public/browser-components.js)",
+      "Bash(/Users/ryan.porter/.nvm/versions/node/v22.22.0/bin/node /Users/ryan.porter/Projects/VideoML/cli/bin/vml.js render --script ../src/videos/intro/intro.script.json --timeline ../src/videos/intro/intro.timeline.json --audio ../public/videoml/intro.wav --frames out/frames/intro --out out/intro.mp4 --browser-bundle public/babulus-standard.js --browser-bundle public/browser-components.js)",
+      "Read(//Users/ryan.porter/Projects/Kanbus/videos/**)",
+      "Bash(/Users/ryan.porter/Projects/Kanbus/videos/scripts/render-all.sh:*)",
+      "Bash(chmod +x /Users/ryan.porter/Projects/Kanbus/videos/scripts/render-all.sh)",
+      "Bash(bash scripts/render-all.sh)",
+      "Bash(du -sh /Users/ryan.porter/Projects/Kanbus2/*/)",
+      "Bash(AWS_PROFILE=anthus bash /Users/ryan.porter/Projects/Kanbus/scripts/publish-production-videos.sh --confirm-local-preview)",
+      "Bash(grep '\"\"files\"\"' /Users/ryan.porter/Projects/Babulus/package.json)",
+      "Bash(AWS_PROFILE=anthus /Users/ryan.porter/.cargo/bin/../../../usr/local/bin/aws s3 ls s3://amplify-d2h5foxy5ng19a-stagin-videosbucket75f673ed-nspyuhuddcrf/kanbus-feature-videos/)",
+      "Bash(PATH=\"/usr/local/bin:$PATH\" AWS_PROFILE=anthus aws s3 ls s3://amplify-d2h5foxy5ng19a-stagin-videosbucket75f673ed-nspyuhuddcrf/kanbus-feature-videos/)",
+      "Bash(PATH=\"/usr/local/bin:$PATH\" AWS_PROFILE=anthus aws s3 rm s3://amplify-d2h5foxy5ng19a-stagin-videosbucket75f673ed-nspyuhuddcrf/kanbus-feature-videos/intro-test.mp4)",
+      "Bash(PATH=\"/usr/local/bin:$PATH\" AWS_PROFILE=anthus aws s3 rm s3://amplify-d2h5foxy5ng19a-stagin-videosbucket75f673ed-nspyuhuddcrf/videos/intro-test.mp4)",
+      "Bash(/Users/ryan.porter/.nvm/versions/node/v22.22.0/bin/npm install)",
+      "Bash(PATH=\"/Users/ryan.porter/.nvm/versions/node/v22.22.0/bin:$PATH\" npm install)",
+      "Bash(python3 /Users/ryan.porter/Projects/Kanbus/python/beads/cli.py --help)",
+      "Bash(python3 -m beads --help)"
     ],
     "additionalDirectories": [
       "/Users/ryan.porter/Projects/VideoML/player/src",
@@ -89,7 +118,11 @@
       "/Users/ryan.porter/Projects/VideoML/player",
       "/Users/ryan.porter/Projects/Kanbus/apps/kanb.us/.cache",
       "/Users/ryan.porter/Projects/VideoML/toolchain/src",
-      "/Users/ryan.porter/Projects/VideoML/cli/src"
+      "/Users/ryan.porter/Projects/VideoML/cli/src",
+      "/Users/ryan.porter/Projects/VideoML/toolchain/packages/renderer/src",
+      "/Users/ryan.porter/Projects/Babulus/public",
+      "/Users/ryan.porter/Projects/Kanbus2/videos/out/frames",
+      "/Users/ryan.porter/Projects/Kanbus/videos/public"
     ]
   }
 }

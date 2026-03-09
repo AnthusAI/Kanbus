@@ -10,7 +10,6 @@ import { VsCodeDemoVideo } from "../src/components/VsCodeDemoVideo";
 import { PolicyDemoVideo } from "../src/components/PolicyDemoVideo";
 import { RealtimeCollaborationDemoVideo } from "../src/components/RealtimeCollaborationDemoVideo";
 import { TextBlock } from "../src/components/TextBlock";
-// For the CLI renderer, window might be mocked, but we need to ensure Babulus exists
 if (typeof window !== "undefined") {
   // Inject Kanbus CSS variables into the headless browser environment so
   // MP4 exports are styled nicely (defaulting to Dark Mode for the videos).
@@ -83,12 +82,4 @@ if (typeof window !== "undefined") {
     console.log("[Kanbus] Custom components registered:", (window as any).Babulus.listComponents());
   }
 
-  // Define renderFrame on window for the renderer to call
-  if (!(window as any).renderFrame) {
-    (window as any).renderFrame = async function(options: any) {
-      if ((window as any).Babulus && (window as any).Babulus._updateFrame) {
-        await (window as any).Babulus._updateFrame(options.frame, options.config.fps);
-      }
-    };
-  }
 }
