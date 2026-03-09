@@ -381,7 +381,7 @@ def _parse_header(line: str) -> Optional[Tuple[int, str]]:
         return None
     level = len(match.group(1))
     text = match.group(2).strip()
-    if not text:
+    if not text:  # pragma: no cover
         return None
     return level, text
 

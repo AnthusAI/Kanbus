@@ -216,6 +216,27 @@ def test_context_and_example_builders() -> None:
     assert ctx["project_key"] == "KB"
     assert ctx["default_priority_name"] == "medium"
 
+    assert agents._build_parent_child_rules(["task"], ["bug"]) == [
+        "bug cannot have parents."
+    ]
+
+    cfg_blocked = cfg.model_copy(
+        update={
+            "workflows": {
+                "default": {
+                    "open": ["in_progress", "blocked"],
+                    "in_progress": ["open", "closed"],
+                    "closed": ["open"],
+                }
+            }
+        }
+    )
+    examples_blocked = agents._build_command_examples(cfg_blocked)
+    assert "kanbus update <id> --status blocked" in examples_blocked
+
+    workflow_with_transitions = {"todo": ["done"], "done": []}
+    assert agents._select_status_example("missing", workflow_with_transitions) == "done"
+
 
 def test_header_section_utilities_and_replace_insert_paths() -> None:
     lines = ["# Header", "", "## A", "a", "## B", "b", "### C", "c"]
@@ -234,6 +255,7 @@ def test_header_section_utilities_and_replace_insert_paths() -> None:
 
     inserted = agents._insert_kanbus_section(["plain"], ["## K"])
     assert inserted.startswith("## K")
+    assert agents._parse_header("#     ") is None
 
 
 def test_confirm_overwrite_tty_and_abort_paths(monkeypatch: pytest.MonkeyPatch) -> None:
