@@ -647,10 +647,10 @@ Feature: Validation checks
             r#"
 Feature: Multiple failures
   Scenario: First failure
-    Then issue must have field "assignee"
+    Then the issue must have field "assignee"
 
   Scenario: Second failure
-    Then issue must have label "security"
+    Then the issue must have label "security"
 "#,
         );
         let options = PolicyEvaluationOptions {
@@ -672,5 +672,47 @@ Feature: Multiple failures
             }
             Ok(_) => panic!("expected violations"),
         }
+    }
+
+    #[test]
+    fn guidance_mode_allows_failed_assertion_with_following_explain() {
+        let context = sample_context();
+        let feature = parse_feature(
+            r#"
+Feature: Guidance transient handling
+  Scenario: Failed assertion then explain
+    Then the issue must have field "assignee"
+    Then explain "Assignee is optional during triage."
+"#,
+        );
+        let steps = feature.scenarios[0].steps.as_slice();
+        let scenario = evaluate_scenario(
+            &context,
+            &STEP_REGISTRY,
+            "policy.policy",
+            "Failed assertion then explain",
+            steps,
+            PolicyEvaluationMode::Guidance,
+        );
+        assert!(scenario.violation.is_none());
+        assert!(scenario.guidance_items.is_empty());
+    }
+
+    #[test]
+    fn validation_reports_rule_prefixed_scenario_name_for_nested_rules() {
+        let context = sample_context();
+        let feature = parse_feature(
+            r#"
+Feature: Rule naming
+  Rule: Assignment checks
+    Scenario: Missing step mapping
+      Given this nested step is unknown
+"#,
+        );
+
+        let violations = validate_policy_documents(&context, &[("policy.policy".to_string(), feature)]);
+        assert_eq!(violations.len(), 1);
+        let rendered = violations[0].to_string();
+        assert!(rendered.contains("Assignment checks / Missing step mapping"));
     }
 }
