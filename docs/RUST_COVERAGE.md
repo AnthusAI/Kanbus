@@ -18,9 +18,9 @@ Coverage is enforced against `config/coverage-baselines.json`.
 
 Frozen baseline (March 9, 2026):
 
-- `python_line_coverage: 78.82`
-- `rust_line_coverage: 68.0329`
-- `max_gap_points: 10.7871`
+- `python_line_coverage: 79.41`
+- `rust_line_coverage: 78.1616`
+- `max_gap_points: 1.2484`
 
 Rules:
 
