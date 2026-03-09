@@ -3439,4 +3439,46 @@ mod tests {
         };
         assert!(message.contains("Run \"kanbus init\""));
     }
+
+    #[test]
+    fn should_check_project_structure_skips_init_and_setup() {
+        assert!(!should_check_project_structure(&Commands::Init {
+            local: false
+        }));
+        assert!(!should_check_project_structure(&Commands::Setup {
+            command: SetupCommands::Agents { force: false },
+        }));
+        assert!(should_check_project_structure(&Commands::List {
+            status: None,
+            issue_type: None,
+            assignee: None,
+            label: None,
+            sort: None,
+            search: None,
+            project: Vec::new(),
+            no_local: false,
+            local_only: false,
+            porcelain: false,
+            full_ids: false,
+        }));
+    }
+
+    #[test]
+    fn resolve_cloud_base_url_prefers_cli_then_env() {
+        std::env::set_var("KANBUS_CLOUD_API_BASE_URL", "https://env.example");
+        let cli_value =
+            resolve_cloud_base_url(Some(" https://cli.example ".to_string())).expect("cli value");
+        assert_eq!(cli_value, "https://cli.example");
+
+        let env_value = resolve_cloud_base_url(None).expect("env value");
+        assert_eq!(env_value, "https://env.example");
+        std::env::remove_var("KANBUS_CLOUD_API_BASE_URL");
+    }
+
+    #[test]
+    fn resolve_cloud_id_token_errors_when_unset() {
+        std::env::remove_var("KANBUS_CLOUD_ID_TOKEN");
+        let result = resolve_cloud_id_token(None);
+        assert!(matches!(result, Err(KanbusError::IssueOperation(_))));
+    }
 }

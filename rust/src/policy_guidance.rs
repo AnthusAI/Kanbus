@@ -177,3 +177,48 @@ pub fn sorted_deduped_guidance_items(items: &[GuidanceItem]) -> Vec<GuidanceItem
 
     unique
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guidance_enabled_respects_flag_and_env() {
+        std::env::remove_var("KANBUS_NO_GUIDANCE");
+        assert!(guidance_enabled(false));
+        assert!(!guidance_enabled(true));
+
+        std::env::set_var("KANBUS_NO_GUIDANCE", "true");
+        assert!(!guidance_enabled(false));
+        std::env::remove_var("KANBUS_NO_GUIDANCE");
+    }
+
+    #[test]
+    fn sorted_deduped_guidance_keeps_warning_before_suggestion() {
+        let warning = GuidanceItem {
+            severity: GuidanceSeverity::Warning,
+            message: "warn".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "a.yml".to_string(),
+            scenario: "A".to_string(),
+            step: "Then".to_string(),
+        };
+        let suggestion = GuidanceItem {
+            severity: GuidanceSeverity::Suggestion,
+            message: "suggest".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "b.yml".to_string(),
+            scenario: "B".to_string(),
+            step: "Then".to_string(),
+        };
+        let result = sorted_deduped_guidance_items(&[
+            suggestion.clone(),
+            warning.clone(),
+            warning.clone(),
+            suggestion.clone(),
+        ]);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].severity, GuidanceSeverity::Warning);
+        assert_eq!(result[1].severity, GuidanceSeverity::Suggestion);
+    }
+}
