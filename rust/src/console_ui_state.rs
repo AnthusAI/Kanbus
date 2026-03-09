@@ -11,6 +11,7 @@ use std::sync::{Mutex, OnceLock};
 use serde::{Deserialize, Serialize};
 
 use crate::error::KanbusError;
+use crate::file_io::load_project_directory;
 
 const STATE_FILE_NAME: &str = "console_state.json";
 static STATE_CACHE: OnceLock<Mutex<HashMap<PathBuf, ConsoleUiState>>> = OnceLock::new();
@@ -36,11 +37,11 @@ pub struct ConsoleUiState {
 }
 
 fn resolve_state_path(root: &Path) -> Result<PathBuf, KanbusError> {
-    let canonical_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    let absolute = canonical_root
-        .join(".kanbus")
-        .join(".cache")
-        .join(STATE_FILE_NAME);
+    let project_dir = load_project_directory(root)?;
+    let canonical_project_dir = project_dir
+        .canonicalize()
+        .unwrap_or_else(|_| project_dir.clone());
+    let absolute = canonical_project_dir.join(".cache").join(STATE_FILE_NAME);
 
     if absolute
         .components()
@@ -55,7 +56,7 @@ fn resolve_state_path(root: &Path) -> Result<PathBuf, KanbusError> {
             "invalid console state file name".to_string(),
         ));
     }
-    if !absolute.starts_with(&canonical_root) {
+    if !absolute.starts_with(&canonical_project_dir) {
         return Err(KanbusError::IssueOperation(
             "console state path must remain inside project root".to_string(),
         ));
