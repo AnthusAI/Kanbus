@@ -772,6 +772,190 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
     );
   };
 
+  const renderLifecycleHooks = () => {
+    const DUR = 6;
+    const pullAt = (phaseOffset: number): number | null => {
+      if (frameTimeSec == null) {
+        return null;
+      }
+      const t = (((frameTimeSec / DUR + phaseOffset) % 1) + 1) % 1;
+      if (t < 0.12 || t >= 0.86) return 0;
+      if (t < 0.32) return (t - 0.12) / 0.2;
+      if (t < 0.52) return 1;
+      if (t < 0.72) return 1 - (t - 0.52) / 0.2;
+      return 0;
+    };
+
+    const HookLane = ({
+      x,
+      phaseOffset,
+      color,
+      label,
+      icon,
+      targetX,
+    }: {
+      x: number;
+      phaseOffset: number;
+      color: string;
+      label: string;
+      icon: "bolt" | "shield" | "bell";
+      targetX: number;
+    }) => {
+      const staticPull = pullAt(phaseOffset);
+      const cableBottom = staticPull == null ? 120 : 120 + staticPull * 22;
+      const hookTranslateY = staticPull == null ? null : staticPull * 22;
+      const active = staticPull == null ? null : staticPull > 0.55;
+
+      return (
+        <g>
+          <line x1={x} y1="40" x2={x} y2={cableBottom} stroke="var(--text-muted)" strokeWidth="3" strokeLinecap="round">
+            {staticPull == null && (
+              <animate
+                attributeName="y2"
+                values="120;120;142;142;120;120"
+                dur={`${DUR}s`}
+                begin={`${phaseOffset * DUR}s`}
+                repeatCount="indefinite"
+                keyTimes="0;0.12;0.32;0.52;0.72;1"
+              />
+            )}
+          </line>
+
+          <g transform={hookTranslateY != null ? `translate(0 ${hookTranslateY})` : undefined}>
+            {hookTranslateY == null && (
+              <animateTransform
+                attributeName="transform"
+                type="translate"
+                values="0 0; 0 0; 0 22; 0 22; 0 0; 0 0"
+                dur={`${DUR}s`}
+                begin={`${phaseOffset * DUR}s`}
+                repeatCount="indefinite"
+                keyTimes="0;0.12;0.32;0.52;0.72;1"
+              />
+            )}
+            <rect x={x - 14} y="116" width="28" height="10" rx="5" fill={color} />
+            <path
+              d={`M ${x} 126 v22 q0 14 14 14 h16`}
+              fill="none"
+              stroke={color}
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </g>
+
+          <path
+            d={`M ${x + 30} 170 C ${x + 48} 184, ${targetX - 34} 192, ${targetX - 4} 206`}
+            fill="none"
+            stroke={color}
+            strokeWidth="2.5"
+            strokeDasharray="6 8"
+            strokeOpacity={active == null ? 0.9 : active ? 1 : 0.35}
+          >
+            {active == null && (
+              <animate
+                attributeName="stroke-dashoffset"
+                from="14"
+                to="0"
+                dur="1s"
+                begin={`${phaseOffset * DUR}s`}
+                repeatCount="indefinite"
+              />
+            )}
+          </path>
+
+          <g opacity={active == null ? undefined : active ? 1 : 0.55}>
+            <rect
+              x={targetX - 48}
+              y="214"
+              width="96"
+              height="52"
+              rx="10"
+              fill="var(--card)"
+              stroke={color}
+              strokeWidth={active ? 2.5 : 1.5}
+            />
+            <text x={targetX} y="251" textAnchor="middle" fill="var(--text-muted)" fontSize="10" fontFamily="monospace">
+              {label}
+            </text>
+            {icon === "bolt" && (
+              <path
+                d={`M ${targetX - 8} 225 h10 l-6 9 h8 l-12 13 4-10 h-7 z`}
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+            )}
+            {icon === "shield" && (
+              <path
+                d={`M ${targetX} 224 l11 4 v8 c0 7-4 12-11 16-7-4-11-9-11-16v-8z`}
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+            )}
+            {icon === "bell" && (
+              <g>
+                <path
+                  d={`M ${targetX - 10} 240 c0-7 4-11 10-11s10 4 10 11v5h-20z`}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+                <circle cx={targetX} cy="248" r="2" fill={color} />
+              </g>
+            )}
+          </g>
+        </g>
+      );
+    };
+
+    return (
+      <g transform="scale(1) translate(0, 0)">
+        <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" />
+        <rect x="78" y="34" width="344" height="8" rx="4" fill="var(--background)" />
+
+        <HookLane
+          x={120}
+          phaseOffset={0}
+          color="#3b82f6"
+          label="webhook"
+          icon="bolt"
+          targetX={116}
+        />
+        <HookLane
+          x={250}
+          phaseOffset={0.33}
+          color="#f59e0b"
+          label="policy"
+          icon="shield"
+          targetX={250}
+        />
+        <HookLane
+          x={380}
+          phaseOffset={0.66}
+          color="#22c55e"
+          label="notify"
+          icon="bell"
+          targetX={384}
+        />
+
+        <g>
+          <rect x="170" y="168" width="160" height="92" rx="14" fill="var(--background)" stroke="var(--border)" strokeWidth="2" />
+          <text x="250" y="206" textAnchor="middle" fill="var(--text-foreground)" fontSize="20" fontFamily="monospace" fontWeight="700">
+            KANBUS
+          </text>
+          <text x="250" y="228" textAnchor="middle" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">
+            issue.create | issue.close | issue.list
+          </text>
+        </g>
+      </g>
+    );
+  };
+
   const renderAgileMetrics = () => (
     <g transform="scale(1) translate(0, 0)">
       <rect x="0" y="0" width="500" height="300" fill="var(--column)" rx="10" opacity="0.6" />
@@ -900,6 +1084,7 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
     "vscode-plugin": renderVsCodePlugin,
     "integrated-wiki": renderIntegratedWiki,
     "policy-as-code": renderPolicyAsCode,
+    "lifecycle-hooks": renderLifecycleHooks,
     "agile-metrics": renderAgileMetrics,
     "git-native-storage": renderGitNativeStorage,
   };
@@ -915,7 +1100,7 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
           background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
         }}
       />
-      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" || type === "agile-metrics" || type === "git-native-storage" ? "none" : "xMidYMid meet"}>
+      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" || type === "lifecycle-hooks" || type === "agile-metrics" || type === "git-native-storage" ? "none" : "xMidYMid meet"}>
         <defs>
           <radialGradient id="feature-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
             <stop offset="0%" stopColor="var(--glow-center)" />
@@ -924,7 +1109,7 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
         </defs>
         
         {/* Ambient background glow / shadow */}
-        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && type !== "agile-metrics" && type !== "git-native-storage" && (
+        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && type !== "lifecycle-hooks" && type !== "agile-metrics" && type !== "git-native-storage" && (
           <ellipse cx="250" cy="150" rx="200" ry="140" fill="url(#feature-glow)" />
         )}
         

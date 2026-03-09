@@ -18,7 +18,8 @@ export type PictogramType =
   | "virtual"
   | "vscode"
   | "wiki"
-  | "policy";
+  | "policy"
+  | "hooks";
 
 const HOME_TYPE_MAP: Record<PictogramType, FeaturePictogramType> = {
   git: "kanban-board",
@@ -33,6 +34,7 @@ const HOME_TYPE_MAP: Record<PictogramType, FeaturePictogramType> = {
   vscode: "vscode-plugin",
   wiki: "integrated-wiki",
   policy: "policy-as-code",
+  hooks: "lifecycle-hooks",
 };
 
 export function AnimatedPictogramVideo({

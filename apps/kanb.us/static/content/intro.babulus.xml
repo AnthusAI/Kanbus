@@ -159,6 +159,20 @@
     </cue>
   </scene>
 
+  <scene id="feature-hooks" title="Lifecycle Hooks">
+    <layer id="background" z="-1">
+      <background props='{"color":"var(--background)"}' />
+    </layer>
+
+    <layer id="content" z="0">
+      <intro-scene props='{"mode":"feature","feature":"hooks"}' />
+    </layer>
+
+    <cue id="feature_hooks" label="Lifecycle Hooks">
+      <voice>Lifecycle hooks let projects pull external logic at command boundaries, with policy guidance aligned in the same execution model.</voice>
+    </cue>
+  </scene>
+
   <scene id="cta" title="Get Started">
     <layer id="background" z="-1">
       <background props='{"color":"var(--background)"}' />
