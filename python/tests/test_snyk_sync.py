@@ -324,6 +324,55 @@ def test_fetch_snyk_issues_for_type_applies_severity_threshold(monkeypatch) -> N
     assert [item["attributes"]["key"] for item in issues] == ["S-1"]
 
 
+def test_fetch_snyk_issues_for_type_raises_on_non_ok(monkeypatch) -> None:
+    def fake_get(url: str, headers: dict, timeout: int) -> _FakeResponse:
+        return _FakeResponse(ok=False, status_code=502, payload={}, text="gateway")
+
+    monkeypatch.setattr(snyk_sync.requests, "get", fake_get)
+    try:
+        snyk_sync._fetch_snyk_issues_for_type(
+            org_id="org", token="token", min_priority=1, issue_type="code"
+        )
+    except snyk_sync.SnykSyncError as error:
+        assert "Snyk API returned 502" in str(error)
+    else:
+        raise AssertionError("expected SnykSyncError")
+
+
+def test_fetch_all_snyk_issues_continues_when_non_package_type_fails(monkeypatch) -> None:
+    def fake_fetch(org_id: str, token: str, min_priority: int, issue_type: str):
+        if issue_type == "package_vulnerability":
+            return [{"attributes": {"key": "S-OK"}}]
+        raise snyk_sync.SnykSyncError("code endpoint failed")
+
+    monkeypatch.setattr(snyk_sync, "_fetch_snyk_issues_for_type", fake_fetch)
+    issues = snyk_sync._fetch_all_snyk_issues(
+        org_id="org",
+        token="token",
+        min_priority=2,
+        issue_types=["package_vulnerability", "code"],
+    )
+    assert [item["attributes"]["key"] for item in issues] == ["S-OK"]
+
+
+def test_fetch_all_snyk_issues_raises_when_package_type_fails(monkeypatch) -> None:
+    def fake_fetch(org_id: str, token: str, min_priority: int, issue_type: str):
+        raise snyk_sync.SnykSyncError(f"{issue_type} failed")
+
+    monkeypatch.setattr(snyk_sync, "_fetch_snyk_issues_for_type", fake_fetch)
+    try:
+        snyk_sync._fetch_all_snyk_issues(
+            org_id="org",
+            token="token",
+            min_priority=2,
+            issue_types=["package_vulnerability", "code"],
+        )
+    except snyk_sync.SnykSyncError as error:
+        assert "package_vulnerability failed" in str(error)
+    else:
+        raise AssertionError("expected SnykSyncError")
+
+
 def test_fetch_v1_enrichment_skips_non_ok_and_uses_issue_id(monkeypatch) -> None:
     def fake_post(
         url: str, headers: dict, json: dict, timeout: int
