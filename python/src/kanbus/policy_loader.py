@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from gherkin.parser import Parser
 from types import SimpleNamespace
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from gherkin.ast import GherkinDocument
 
 
