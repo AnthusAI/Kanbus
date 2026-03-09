@@ -190,6 +190,18 @@ def test_overlay_time_helpers_handle_invalid_and_equal_timestamps() -> None:
     )
 
 
+def test_overlay_time_helpers_cover_tombstone_base_comparisons() -> None:
+    now = datetime.now(timezone.utc)
+    stale_ts = (now - timedelta(minutes=2)).isoformat().replace("+00:00", "Z")
+    future_ts = (now + timedelta(minutes=2)).isoformat().replace("+00:00", "Z")
+
+    assert overlay_module._tombstone_newer_than_base(future_ts, now) is True
+    assert overlay_module._tombstone_newer_than_base(stale_ts, now) is False
+    assert overlay_module._tombstone_newer_than_base(stale_ts, None) is True
+    assert overlay_module._base_newer_than_tombstone(now, stale_ts) is True
+    assert overlay_module._base_newer_than_tombstone(now, "bad-ts") is True
+
+
 def test_overlay_hook_block_contains_kanbus_and_kbs_commands() -> None:
     block = overlay_module._overlay_hook_block()
     assert "kanbus overlay reconcile --all --prune" in block
