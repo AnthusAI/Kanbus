@@ -90,6 +90,9 @@ export function AnimatedPictogramVideo({
             fps={fps}
             className="w-full"
             style={{
+              width: "100%",
+              height: "100%",
+              aspectRatio: "unset",
               ["--glow-center" as any]: "transparent",
               ["--glow-edge" as any]: "transparent",
             }}
@@ -103,6 +106,9 @@ export function AnimatedPictogramVideo({
           allowOverflow={scale !== 1}
           className="w-full min-h-0"
           style={{
+            width: "100%",
+            height: "100%",
+            aspectRatio: "unset",
             transform: `scale(${scale})`,
             transformOrigin: "60% center",
             borderRadius: 0,

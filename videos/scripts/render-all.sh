@@ -10,9 +10,14 @@ npm run bundle:components
 
 render_video() {
   local id=$1
+  local script="$SCRIPTS_ROOT/src/videos/$id/$id.script.json"
+  if [ ! -f "$script" ]; then
+    echo "=== Skipping $id (no script.json) ==="
+    return 0
+  fi
   echo "=== Rendering $id ==="
   vml render \
-    --script "$SCRIPTS_ROOT/src/videos/$id/$id.script.json" \
+    --script "$script" \
     --timeline "$SCRIPTS_ROOT/src/videos/$id/$id.timeline.json" \
     --audio "$SCRIPTS_ROOT/public/videoml/$id.wav" \
     --frames "$OUT/frames/$id" \
