@@ -1120,4 +1120,75 @@ mod tests {
         let error = resolve_git_hooks_dir(temp_dir.path()).expect_err("not git repo");
         assert!(error.to_string().contains("not a git repository"));
     }
+
+    #[test]
+    fn project_overlay_commands_reject_conflicting_filters() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let gc = gc_overlay_for_projects(temp_dir.path(), Some("alpha".to_string()), true)
+            .expect_err("gc should reject --project with --all");
+        assert!(gc.to_string().contains("cannot combine --project with --all"));
+
+        let reconcile = reconcile_overlay_for_projects(
+            temp_dir.path(),
+            Some("alpha".to_string()),
+            true,
+            true,
+            false,
+        )
+        .expect_err("reconcile should reject --project with --all");
+        assert!(reconcile
+            .to_string()
+            .contains("cannot combine --project with --all"));
+    }
+
+    #[test]
+    fn tag_issue_and_event_id_helpers_preserve_existing_source() {
+        let now = Utc::now();
+        let mut shared = issue("kanbus-tag", now);
+        let tagged = tag_issue(shared.clone(), Some("alpha"));
+        assert_eq!(
+            tagged.custom.get("source"),
+            Some(&Value::String("shared".to_string()))
+        );
+        assert_eq!(
+            tagged.custom.get("project_label"),
+            Some(&Value::String("alpha".to_string()))
+        );
+
+        shared
+            .custom
+            .insert("source".to_string(), Value::String("local".to_string()));
+        shared.custom.insert(
+            "last_event_id".to_string(),
+            Value::String("evt-123".to_string()),
+        );
+        let tagged_local = tag_issue(shared.clone(), Some("beta"));
+        assert_eq!(
+            tagged_local.custom.get("source"),
+            Some(&Value::String("local".to_string()))
+        );
+        assert_eq!(extract_event_id(&tagged_local), Some("evt-123".to_string()));
+    }
+
+    #[test]
+    fn map_and_override_helpers_round_trip_and_diff() {
+        let now = Utc::now();
+        let base = issue("kanbus-map", now);
+        let mut overlay = base.clone();
+        overlay.priority = 1;
+        overlay.title = "Changed".to_string();
+
+        let diff = diff_issue_fields(&base, &overlay).expect("diff fields");
+        assert!(diff.contains_key("priority"));
+        assert!(diff.contains_key("title"));
+
+        let merged = apply_overrides(&base, &diff).expect("apply overrides");
+        assert_eq!(merged.priority, 1);
+        assert_eq!(merged.title, "Changed");
+
+        let map = issue_to_map(&merged).expect("issue to map");
+        let restored = issue_from_map(&map).expect("map to issue");
+        assert_eq!(restored.identifier, "kanbus-map");
+        assert_eq!(restored.priority, 1);
+    }
 }
