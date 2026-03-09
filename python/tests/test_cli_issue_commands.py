@@ -200,6 +200,29 @@ def test_close_move_promote_localize_comment_paths(
     assert result_close.exit_code == 0
     assert "Closed kanbus-1" in result_close.output
 
+    monkeypatch.setattr(cli, "_resolve_beads_root", lambda _r: tmp_path)
+    close_lookup_calls = {"count": 0}
+
+    def _load_beads_issue_for_close(*_a, **_k):
+        close_lookup_calls["count"] += 1
+        if close_lookup_calls["count"] == 1:
+            raise MigrationError("missing before")
+        return issue
+
+    monkeypatch.setattr(cli, "load_beads_issue", _load_beads_issue_for_close)
+    monkeypatch.setattr(cli, "update_beads_issue", lambda *_a, **_k: None)
+    result_close_beads = _run(["--beads", "close", "kanbus-1"])
+    assert result_close_beads.exit_code == 0
+
+    monkeypatch.setattr(
+        cli,
+        "update_beads_issue",
+        lambda *_a, **_k: (_ for _ in ()).throw(MigrationError("close beads fail")),
+    )
+    result_close_beads_fail = _run(["--beads", "close", "kanbus-1"])
+    assert result_close_beads_fail.exit_code != 0
+    assert "close beads fail" in result_close_beads_fail.output
+
     monkeypatch.setattr(
         cli,
         "close_issue",
@@ -230,6 +253,21 @@ def test_close_move_promote_localize_comment_paths(
     assert _run(["promote", "kanbus-1"]).exit_code == 0
     assert _run(["localize", "kanbus-1"]).exit_code == 0
 
+    calls = {"count": 0}
+
+    def _lookup_once_then_fail(_r, _i):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return SimpleNamespace(issue=issue)
+        raise IssueLookupError("missing after")
+
+    monkeypatch.setattr(cli, "load_issue_from_project", _lookup_once_then_fail)
+    assert _run(["promote", "kanbus-1"]).exit_code == 0
+
+    calls["count"] = 0
+    monkeypatch.setattr(cli, "load_issue_from_project", _lookup_once_then_fail)
+    assert _run(["localize", "kanbus-1"]).exit_code == 0
+
     monkeypatch.setattr(
         cli,
         "promote_issue",
@@ -247,6 +285,26 @@ def test_close_move_promote_localize_comment_paths(
     monkeypatch.setattr(cli, "apply_text_quality_signals", lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]))
     monkeypatch.setattr(cli, "validate_code_blocks", lambda _t: None)
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(beads_compatibility=True),
+    )
+    monkeypatch.setattr(cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml")
+    monkeypatch.setattr("kanbus.beads_write.add_beads_comment", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "load_beads_issue", lambda *_a, **_k: issue)
+    body_file = tmp_path / "comment.txt"
+    body_file.write_text("from file", encoding="utf-8")
+    result_comment_body_file = _run(
+        ["comment", "kanbus-1", "--body-file", str(body_file), "--no-validate"]
+    )
+    assert result_comment_body_file.exit_code == 0
+
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: (_ for _ in ()).throw(cli.ProjectMarkerError("pm")),
+    )
     monkeypatch.setattr(
         cli,
         "add_comment",

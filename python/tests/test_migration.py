@@ -42,6 +42,7 @@ def test_load_beads_issues_and_issue_error_paths(tmp_path: Path) -> None:
     issues = migration.load_beads_issues(tmp_path)
     assert len(issues) == 1
     assert issues[0].identifier == "kanbus-1"
+    assert migration.load_beads_issue(tmp_path, "kanbus-1").identifier == "kanbus-1"
 
     with pytest.raises(MigrationError, match="not found"):
         migration.load_beads_issue(tmp_path, "missing")
@@ -122,6 +123,18 @@ def test_load_beads_records_and_dedupe(tmp_path: Path) -> None:
     assert len(deduped) == 2
     assert {r["id"] for r in deduped} == {"kanbus-1", "kanbus-2"}
 
+    with pytest.raises(MigrationError, match="missing id"):
+        migration._dedupe_beads_records([{"id": "x"}, {"title": "no id"}], issues_path)
+
+    tied_records = [
+        _record("kanbus-3", updated_at="2026-03-09T00:00:00Z", notes="short"),
+        _record("kanbus-3", updated_at="2026-03-10T00:00:00Z", notes="long payload"),
+        _record("kanbus-3", updated_at="2026-03-10T00:00:00Z", notes="long payload plus"),
+    ]
+    deduped_tied = migration._dedupe_beads_records(tied_records, issues_path)
+    assert len(deduped_tied) == 1
+    assert deduped_tied[0]["notes"] == "long payload plus"
+
 
 def test_load_configuration_for_beads_builds_expected_defaults(tmp_path: Path) -> None:
     records = [
@@ -158,6 +171,10 @@ def test_convert_record_and_validations(monkeypatch: pytest.MonkeyPatch) -> None
     assert issue.parent == "kanbus-parent"
     assert issue.custom["beads_owner"] == "owner"
     assert issue.custom["beads_issue_type"] == "feature"
+
+    with_closed_at = _record("kanbus-closed", closed_at="2026-03-09T01:00:00Z")
+    issue_closed = migration._convert_record(with_closed_at, record_by_id, cfg)
+    assert issue_closed.closed_at is not None
 
     for key, value in [
         ("title", ""),
@@ -278,6 +295,7 @@ def test_timestamp_normalization_and_validation_helpers() -> None:
         == "2026-03-09T00:00:00.123456+00:00"
     )
     assert migration._normalize_fractional_seconds("2026-03-09T00:00:00.ab+00:00") == "2026-03-09T00:00:00.ab+00:00"
+    assert migration._normalize_fractional_seconds("2026-03-09T00:00:00.123456") == "2026-03-09T00:00:00.123456"
 
     with pytest.raises(MigrationError, match="updated_at is required"):
         migration._parse_timestamp(None, "updated_at")
