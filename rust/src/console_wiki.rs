@@ -432,3 +432,100 @@ fn to_service_error(error: KanbusError) -> WikiServiceError {
         other => WikiServiceError::Io(other.to_string()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::console_backend::FileStore;
+
+    fn write_config(root: &Path, extra_yaml: &str) {
+        let mut contents = String::from("project_key: kanbus\nproject_directory: project\n");
+        contents.push_str(extra_yaml);
+        std::fs::write(root.join(".kanbus.yml"), contents).expect("write config");
+    }
+
+    #[test]
+    fn normalize_path_accepts_nested_markdown_and_normalizes_separators() {
+        let normalized = normalize_path(r"docs\guide.md").expect("normalized path");
+        assert_eq!(normalized, "docs/guide.md");
+    }
+
+    #[test]
+    fn normalize_path_rejects_invalid_forms() {
+        assert!(matches!(
+            normalize_path(""),
+            Err(WikiServiceError::InvalidPath(_))
+        ));
+        assert!(matches!(
+            normalize_path("/abs/path.md"),
+            Err(WikiServiceError::InvalidPath(_))
+        ));
+        assert!(matches!(
+            normalize_path("../escape.md"),
+            Err(WikiServiceError::InvalidPath(_))
+        ));
+        assert!(matches!(
+            normalize_path("notes.txt"),
+            Err(WikiServiceError::InvalidPath(message)) if message.contains(".md")
+        ));
+    }
+
+    #[test]
+    fn temp_render_path_stays_in_parent_directory_and_uses_tmp_suffix() {
+        let target = Path::new("/tmp/wiki/index.md");
+        let temp = temp_render_path(target);
+        assert_eq!(temp.parent(), target.parent());
+        let name = temp
+            .file_name()
+            .and_then(|value| value.to_str())
+            .expect("temp filename");
+        assert!(name.starts_with("index.tmp."));
+        assert!(name.ends_with(".md"));
+    }
+
+    #[test]
+    fn write_atomic_creates_parent_and_overwrites_content() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let target = temp.path().join("project/wiki/notes.md");
+        write_atomic(&target, "first").expect("first write");
+        assert_eq!(
+            std::fs::read_to_string(&target).expect("read first"),
+            "first"
+        );
+        write_atomic(&target, "second").expect("second write");
+        assert_eq!(
+            std::fs::read_to_string(&target).expect("read second"),
+            "second"
+        );
+    }
+
+    #[test]
+    fn relative_to_root_for_render_uses_project_directory_prefix() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        let store = FileStore::new(temp.path());
+        let path = relative_to_root_for_render(&store, "docs/page.md").expect("relative path");
+        assert_eq!(path, PathBuf::from("project/wiki/docs/page.md"));
+    }
+
+    #[test]
+    fn list_pages_returns_empty_when_wiki_root_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        let store = FileStore::new(temp.path());
+        let response = list_pages(&store).expect("list pages");
+        assert!(response.pages.is_empty());
+    }
+
+    #[test]
+    fn to_service_error_maps_known_error_variants() {
+        let io = to_service_error(KanbusError::Io("io".to_string()));
+        assert!(matches!(io, WikiServiceError::Io(message) if message == "io"));
+
+        let invalid = to_service_error(KanbusError::IssueOperation("bad path".to_string()));
+        assert!(matches!(
+            invalid,
+            WikiServiceError::InvalidPath(message) if message == "bad path"
+        ));
+    }
+}
