@@ -1632,7 +1632,8 @@ mod tests {
     }
 
     fn setup_project_root(root: &Path) {
-        std::fs::create_dir_all(root.join("project").join("issues")).expect("create project/issues");
+        std::fs::create_dir_all(root.join("project").join("issues"))
+            .expect("create project/issues");
         let config = kanbus::config::default_project_configuration();
         let yaml = serde_yaml::to_string(&config).expect("serialize config");
         std::fs::write(root.join(".kanbus.yml"), yaml).expect("write .kanbus.yml");
