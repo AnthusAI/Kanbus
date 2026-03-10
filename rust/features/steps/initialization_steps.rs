@@ -8,7 +8,7 @@ use std::time::SystemTime;
 use cucumber::{given, then, World};
 use tempfile::TempDir;
 
-use crate::step_definitions::console_ui_steps::{ConsoleLocalStorage, ConsoleState};
+use crate::step_definitions::console_ui_steps::{ConsoleLocalStorage, ConsoleState, WikiWorkspaceState};
 use kanbus::daemon_client;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
@@ -79,6 +79,8 @@ pub struct KanbusWorld {
     pub unreadable_mode: Option<u32>,
     pub console_state: Option<ConsoleState>,
     pub console_local_storage: ConsoleLocalStorage,
+    pub console_wiki_state: Option<WikiWorkspaceState>,
+    pub console_sort_order: Option<BTreeMap<String, serde_json::Value>>,
     pub console_time_zone: Option<String>,
     pub metrics_issue_seeded: bool,
     pub metrics_project_filter: Option<String>,
