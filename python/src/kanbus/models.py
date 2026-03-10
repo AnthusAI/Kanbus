@@ -153,6 +153,25 @@ class SnykConfiguration(BaseModel):
     repo: Optional[str] = None
 
 
+class DependabotConfiguration(BaseModel):
+    """GitHub Dependabot synchronization configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    min_severity: str = "low"
+    state: str = "open"
+    parent_epic: Optional[str] = None
+
+
+class GithubSecurityConfiguration(BaseModel):
+    """GitHub security synchronization configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    repo: Optional[str] = None
+    dependabot: Optional[DependabotConfiguration] = None
+
+
 class VirtualProjectConfig(BaseModel):
     """Configuration for a single virtual project."""
 
@@ -265,6 +284,8 @@ class ProjectConfiguration(BaseModel):
     :type overlay: OverlayConfig
     :param hooks: Lifecycle hook configuration.
     :type hooks: HooksConfiguration
+    :param github_security: Optional GitHub security synchronization configuration.
+    :type github_security: Optional[GithubSecurityConfiguration]
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -299,3 +320,4 @@ class ProjectConfiguration(BaseModel):
     realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
     overlay: OverlayConfig = Field(default_factory=OverlayConfig)
     hooks: HooksConfiguration = Field(default_factory=HooksConfiguration)
+    github_security: Optional[GithubSecurityConfiguration] = None

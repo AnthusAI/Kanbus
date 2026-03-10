@@ -23,6 +23,7 @@ pub mod doctor;
 pub mod error;
 pub mod event_history;
 pub mod file_io;
+pub mod github_security_sync;
 pub mod gossip;
 pub mod hierarchy;
 pub mod hooks;

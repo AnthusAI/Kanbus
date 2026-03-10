@@ -196,7 +196,7 @@ def _load_configuration_for_beads(
     issue_types = sorted(
         {record.get("issue_type", "") for record in records if record.get("issue_type")}
     )
-    hierarchy = ["epic", "task", "sub-task"]
+    hierarchy = ["initiative", "epic", "task", "sub-task"]
     types = [issue_type for issue_type in issue_types if issue_type not in hierarchy]
     if "feature" in issue_types and "story" not in types:
         types.append("story")
@@ -219,6 +219,7 @@ def _load_configuration_for_beads(
     workflow_state = {status: statuses for status in statuses}
     workflows = {
         "default": workflow_state,
+        "initiative": workflow_state,
         "epic": workflow_state,
         "task": workflow_state,
     }

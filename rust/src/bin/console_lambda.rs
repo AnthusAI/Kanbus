@@ -167,8 +167,8 @@ struct AuthBootstrapResponse {
 }
 
 fn handle_auth_bootstrap(
-    account: Option<&str>,
-    project: Option<&str>,
+    _account: Option<&str>,
+    _project: Option<&str>,
 ) -> Result<ResponseType, Error> {
     let auth_mode =
         std::env::var("KANBUS_AUTH_MODE").unwrap_or_else(|_| AUTH_MODE_NONE.to_string());
@@ -183,8 +183,8 @@ fn handle_auth_bootstrap(
             identity_pool_id: None,
             tenant_account_claim_key: tenant_account_claim_key(),
             tenant_project_claim_key: tenant_project_claim_key(),
-            account: account.map(std::string::ToString::to_string),
-            project: project.map(std::string::ToString::to_string),
+            account: None,
+            project: None,
         });
     }
     json_response(&AuthBootstrapResponse {
@@ -197,8 +197,8 @@ fn handle_auth_bootstrap(
         identity_pool_id: std::env::var("KANBUS_IDENTITY_POOL_ID").ok(),
         tenant_account_claim_key: tenant_account_claim_key(),
         tenant_project_claim_key: tenant_project_claim_key(),
-        account: account.map(std::string::ToString::to_string),
-        project: project.map(std::string::ToString::to_string),
+        account: None,
+        project: None,
     })
 }
 
