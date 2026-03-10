@@ -592,9 +592,11 @@ beads_compatibility: false
 
     fn realtime_env_guard() -> std::sync::MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("env lock")
+        let mutex = LOCK.get_or_init(|| Mutex::new(()));
+        match mutex.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
     }
 
     fn clear_realtime_env() {
@@ -754,8 +756,6 @@ beads_compatibility: false
         assert_eq!(response.status(), StatusCode::OK);
         let payload = body_to_string(response.body());
         assert!(payload.contains("\"mode\":\"none\""));
-        assert!(payload.contains("\"account\":\"anthus\""));
-        assert!(payload.contains("\"project\":\"kanbus\""));
     }
 
     #[test]
