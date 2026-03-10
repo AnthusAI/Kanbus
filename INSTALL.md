@@ -103,6 +103,13 @@ Then open http://127.0.0.1:5174 in your browser to view your kanban board.
 
 For multi-tenant deployments, set `CONSOLE_TENANT_MODE=multi` and access via `/:account/:project/` URLs.
 
+## Dependency security
+
+- **npm (root):** Root `package.json` uses `overrides` to pin patched versions of `minimatch`, `@smithy/config-resolver`, `fast-xml-parser`, and `lodash`. `aws-cdk-lib` is kept at latest 2.x. Remaining vulnerabilities are in transitive dependencies of `@aws-amplify/backend`; they require upstream releases. Run `npm audit` from repo root.
+- **Dependabot:** `.github/dependabot.yml` enables weekly version and security updates for npm (root, apps/console, apps/kanb.us, packages/ui), pip (python/), and cargo (rust/). Review and merge PRs to stay current.
+- **Rust:** `cargo audit` may report one allowed advisory (rustls-pemfile unmaintained, via rumqttc). Track rumqtt/rumqttc for updates.
+- **Python:** Project dependencies are in `python/pyproject.toml`. Run `pip-audit` inside a venv that has only `pip install -e python` to audit Kanbus deps; system or conda envs may include unrelated packages.
+
 ## Platform status
 
 | Platform | Python install | Rust release build | Notes |
