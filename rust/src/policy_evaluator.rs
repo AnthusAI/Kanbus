@@ -574,6 +574,7 @@ mod tests {
             realtime: Default::default(),
             overlay: Default::default(),
             hooks: Default::default(),
+            github_security: None,
         };
         PolicyContext {
             current_issue: None,
