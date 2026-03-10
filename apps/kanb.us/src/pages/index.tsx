@@ -193,8 +193,8 @@ const IndexPage = () => {
   return (
     <Layout>
       <Hero
-        title="A shared project notebook that lives with your code"
-        subtitle="Kanbus keeps tasks, decisions, and AI context in your repository so anyone can pick up where you left off."
+        title="Embed your project management directly in your repository."
+        subtitle="Stop wrestling with disconnected trackers. Keep tasks, context, and a clear paper trail right alongside your code so human developers and AI agents can collaborate seamlessly."
         rightPane={<CodeUiSync />}
         actions={
           <>
@@ -216,8 +216,7 @@ const IndexPage = () => {
 
       <div className="mx-auto max-w-3xl px-6 lg:px-8 text-center pb-24">
         <p className="text-xl leading-8 text-muted font-medium">
-          Think of it as a simple, Git-friendly way to keep project notes and to-dos. Each task is a small file in your
-          repo, so your tools always read the same source of truth even if you switch computers or assistants.
+          Tracking project context usually means coordinating an external system. But it&apos;s better to eliminate a problem than to solve it. With Kanbus, every task is a file in your repo. Your workflow inherits the exact same version control as your code—creating a clear, timestamped paper trail without breaking your flow state.
         </p>
         <p className="mt-6 text-base text-muted/80">
           Already using Beads? Your existing data works.
