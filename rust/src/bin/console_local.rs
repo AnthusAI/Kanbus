@@ -1631,6 +1631,13 @@ mod tests {
         }
     }
 
+    fn setup_project_root(root: &Path) {
+        std::fs::create_dir_all(root.join("project").join("issues")).expect("create project/issues");
+        let config = kanbus::config::default_project_configuration();
+        let yaml = serde_yaml::to_string(&config).expect("serialize config");
+        std::fs::write(root.join(".kanbus.yml"), yaml).expect("write .kanbus.yml");
+    }
+
     #[test]
     fn resolve_bind_host_handles_localhost_and_invalid_input() {
         let (localhost_ip, localhost_host) = resolve_bind_host(Some("localhost".to_string()));
@@ -1864,6 +1871,7 @@ mod tests {
     async fn update_ui_state_persists_focus_and_clear_events() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
         let state = test_state(root.clone(), root.clone(), false);
         let focus = NotificationEvent::IssueFocused {
             issue_id: "kanbus-123".to_string(),
@@ -1889,6 +1897,7 @@ mod tests {
     async fn update_ui_state_persists_view_mode_and_search() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
         let state = test_state(root.clone(), root.clone(), false);
 
         let view_mode = NotificationEvent::UiControl {
@@ -1922,6 +1931,7 @@ mod tests {
     async fn update_ui_state_ignores_non_persisted_controls() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
         let state = test_state(root.clone(), root.clone(), false);
         let path = state_path(&root).expect("state path");
         assert!(!path.exists());
