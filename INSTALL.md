@@ -99,6 +99,8 @@ CONSOLE_DATA_ROOT=/path/to/project kbsc
 
 Then open http://127.0.0.1:5174 in your browser to view your kanban board.
 
+**macOS (Apple Silicon):** If `kbsc` is immediately killed (`zsh: killed kbsc`), macOS is likely killing a *copy* of the ad-hoc signed binary. Use a symlink instead of a copy so the same binary that was built is executed: `ln -sf $(pwd)/rust/target/release/kbsc ~/.cargo/bin/kbsc`. Or run the binary by path: `./rust/target/release/kbsc`.
+
 For multi-tenant deployments, set `CONSOLE_TENANT_MODE=multi` and access via `/:account/:project/` URLs.
 
 ## Platform status
