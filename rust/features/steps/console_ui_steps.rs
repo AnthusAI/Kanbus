@@ -3,13 +3,14 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use chrono_tz::Tz;
-use cucumber::{given, then, when};
+use cucumber::{given, gherkin::Step, then, when};
 use std::collections::HashSet;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
 #[derive(Debug, Clone)]
 pub struct ConsoleIssue {
+    pub identifier: Option<String>,
     pub title: String,
     pub issue_type: String,
     pub parent_title: Option<String>,
@@ -19,6 +20,7 @@ pub struct ConsoleIssue {
     pub updated_at: Option<String>,
     pub closed_at: Option<String>,
     pub status: String,
+    pub priority: i32,
     pub project_label: String,
     pub location: String,
 }
@@ -73,6 +75,31 @@ pub struct ConsoleState {
     pub selected_local_filter: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct WikiWorkspaceState {
+    pub pages: std::collections::BTreeMap<String, String>,
+    pub page_order: Vec<String>,
+    pub selected_path: Option<String>,
+    pub editor_content: String,
+    pub preview_content: String,
+    pub status: String,
+    pub error_banner: Option<String>,
+}
+
+impl WikiWorkspaceState {
+    pub fn default_new() -> Self {
+        Self {
+            pages: std::collections::BTreeMap::new(),
+            page_order: Vec::new(),
+            selected_path: None,
+            editor_content: String::new(),
+            preview_content: "No preview yet".to_string(),
+            status: "Saved".to_string(),
+            error_banner: None,
+        }
+    }
+}
+
 #[given("the console is open")]
 fn given_console_open(world: &mut KanbusWorld) {
     world.console_state = Some(open_console(world));
@@ -115,6 +142,7 @@ fn when_open_task(world: &mut KanbusWorld, title: String) {
 fn when_add_task_issue(world: &mut KanbusWorld, title: String) {
     let state = require_console_state(world);
     state.issues.push(ConsoleIssue {
+        identifier: None,
         title,
         issue_type: "task".to_string(),
         parent_title: None,
@@ -124,6 +152,7 @@ fn when_add_task_issue(world: &mut KanbusWorld, title: String) {
         updated_at: None,
         closed_at: None,
         status: "open".to_string(),
+        priority: 2,
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
     });
@@ -249,6 +278,7 @@ fn given_console_open_with_virtual_projects(world: &mut KanbusWorld) {
     state.project_filter_visible = true;
     // Add a default alpha shared issue so filter scenarios have data.
     state.issues.push(ConsoleIssue {
+        identifier: None,
         title: "Alpha shared issue".to_string(),
         issue_type: "task".to_string(),
         parent_title: None,
@@ -258,6 +288,7 @@ fn given_console_open_with_virtual_projects(world: &mut KanbusWorld) {
         updated_at: None,
         closed_at: None,
         status: "open".to_string(),
+        priority: 2,
         project_label: "alpha".to_string(),
         location: "shared".to_string(),
     });
@@ -287,6 +318,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     state.issues = vec![
         ConsoleIssue {
+            identifier: None,
             title: "KBS issue".to_string(),
             issue_type: "task".to_string(),
             parent_title: None,
@@ -296,10 +328,12 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             updated_at: None,
             closed_at: None,
             status: "open".to_string(),
+            priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
         ConsoleIssue {
+            identifier: None,
             title: "Alpha issue".to_string(),
             issue_type: "task".to_string(),
             parent_title: None,
@@ -309,10 +343,12 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             updated_at: None,
             closed_at: None,
             status: "open".to_string(),
+            priority: 2,
             project_label: "alpha".to_string(),
             location: "shared".to_string(),
         },
         ConsoleIssue {
+            identifier: None,
             title: "Beta issue".to_string(),
             issue_type: "task".to_string(),
             parent_title: None,
@@ -322,6 +358,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             updated_at: None,
             closed_at: None,
             status: "open".to_string(),
+            priority: 2,
             project_label: "beta".to_string(),
             location: "shared".to_string(),
         },
@@ -332,6 +369,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
 fn given_local_issues_current_project(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     state.issues.push(ConsoleIssue {
+        identifier: None,
         title: "Local current issue".to_string(),
         issue_type: "task".to_string(),
         parent_title: None,
@@ -341,6 +379,7 @@ fn given_local_issues_current_project(world: &mut KanbusWorld) {
         updated_at: None,
         closed_at: None,
         status: "open".to_string(),
+        priority: 2,
         project_label: "kbs".to_string(),
         location: "local".to_string(),
     });
@@ -351,6 +390,7 @@ fn given_local_issues_current_project(world: &mut KanbusWorld) {
 fn given_local_issues_virtual_project(world: &mut KanbusWorld, label: String) {
     let state = require_console_state(world);
     state.issues.push(ConsoleIssue {
+        identifier: None,
         title: format!("{label} local issue"),
         issue_type: "task".to_string(),
         parent_title: None,
@@ -360,6 +400,7 @@ fn given_local_issues_virtual_project(world: &mut KanbusWorld, label: String) {
         updated_at: None,
         closed_at: None,
         status: "open".to_string(),
+        priority: 2,
         project_label: label,
         location: "local".to_string(),
     });
@@ -663,13 +704,25 @@ fn metrics_status_categories(issues: &[&ConsoleIssue]) -> HashSet<String> {
     categories
 }
 
-#[when(expr = "I switch to the {string} view")]
+#[when(regex = r#"I switch to the "(?P<view>[^"]+)" view"#)]
+#[given(regex = r#"I switch to the "(?P<view>[^"]+)" view"#)]
 fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
     let state = require_console_state(world);
     let normalized = view.trim().to_lowercase();
     if normalized == "metrics" {
         state.panel_mode = "metrics".to_string();
         world.console_local_storage.panel_mode = Some("metrics".to_string());
+        return;
+    }
+    if normalized == "wiki" {
+        state.panel_mode = "wiki".to_string();
+        world.console_local_storage.panel_mode = Some("wiki".to_string());
+        ensure_wiki_state(world);
+        let wiki = world.console_wiki_state.as_mut().expect("wiki state");
+        if wiki.selected_path.is_none() && !wiki.page_order.is_empty() {
+            let first = wiki.page_order[0].clone();
+            select_wiki_page(wiki, &first);
+        }
         return;
     }
     state.panel_mode = "board".to_string();
@@ -755,6 +808,7 @@ fn given_metrics_issue(
     }
     let state = require_console_state(world);
     state.issues.push(ConsoleIssue {
+        identifier: None,
         title,
         issue_type,
         parent_title: None,
@@ -764,6 +818,7 @@ fn given_metrics_issue(
         updated_at: None,
         closed_at: None,
         status,
+        priority: 2,
         project_label: project,
         location: source,
     });
@@ -773,6 +828,114 @@ fn given_metrics_issue(
 fn given_no_issues_exist_in_console(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     state.issues.clear();
+}
+
+#[given("the Kanbus configuration has no sort_order rules")]
+fn given_console_no_sort_rules(world: &mut KanbusWorld) {
+    world.console_sort_order = Some(std::collections::BTreeMap::new());
+}
+
+#[given(regex = r#"the Kanbus configuration sets sort_order for category "(?P<category>[^"]+)" to preset "(?P<preset>[^"]+)"$"#)]
+fn given_console_category_sort_preset(
+    world: &mut KanbusWorld,
+    category: String,
+    preset: String,
+) {
+    let order = world
+        .console_sort_order
+        .get_or_insert_with(std::collections::BTreeMap::new);
+    let categories = order
+        .entry("categories".to_string())
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .expect("categories object");
+    categories.insert(category, serde_json::Value::String(preset));
+}
+
+#[given(regex = r#"the Kanbus configuration sets sort_order for status "(?P<status>[^"]+)" to preset "(?P<preset>[^"]+)"$"#)]
+fn given_console_status_sort_preset(world: &mut KanbusWorld, status: String, preset: String) {
+    let order = world
+        .console_sort_order
+        .get_or_insert_with(std::collections::BTreeMap::new);
+    order.insert(status, serde_json::Value::String(preset));
+}
+
+#[given(regex = r#"the Kanbus configuration sets raw sort_order for status "(?P<status>[^"]+)" to "(?P<rule_text>[^"]+)"$"#)]
+fn given_console_status_raw_sort_rule(
+    world: &mut KanbusWorld,
+    status: String,
+    rule_text: String,
+) {
+    let rules: Vec<serde_json::Value> = rule_text
+        .split(',')
+        .filter_map(|part| {
+            let token = part.trim();
+            if token.is_empty() {
+                return None;
+            }
+            let pieces: Vec<&str> = token.split_whitespace().collect();
+            if pieces.len() != 2 {
+                return None;
+            }
+            Some(serde_json::json!({
+                "field": pieces[0],
+                "direction": pieces[1]
+            }))
+        })
+        .collect();
+    let order = world
+        .console_sort_order
+        .get_or_insert_with(std::collections::BTreeMap::new);
+    order.insert(status, serde_json::Value::Array(rules));
+}
+
+#[given("the console has only these issues:")]
+fn given_console_has_only_these_issues(world: &mut KanbusWorld, step: &Step) {
+    let state = require_console_state(world);
+    let table = step.table.as_ref().expect("expected issue table");
+    let headers: Vec<&str> = table.rows[0].iter().map(|s| s.as_str()).collect();
+    state.issues = table.rows[1..]
+        .iter()
+        .map(|row| {
+            let mut map: std::collections::BTreeMap<String, String> =
+                std::collections::BTreeMap::new();
+            for (header, cell) in headers.iter().zip(row.iter()) {
+                map.insert((*header).to_string(), cell.clone());
+            }
+            let id = map.get("id").cloned().unwrap_or_default();
+            let title = map.get("title").cloned().unwrap_or_default();
+            let status = map.get("status").cloned().unwrap_or_else(|| "open".to_string());
+            let priority: i32 = map.get("priority").and_then(|s| s.parse().ok()).unwrap_or(2);
+            let created_at = map.get("created_at").cloned();
+            let updated_at = map.get("updated_at").cloned();
+            ConsoleIssue {
+                identifier: Some(id),
+                title,
+                issue_type: "task".to_string(),
+                parent_title: None,
+                comments: Vec::new(),
+                assignee: None,
+                created_at,
+                updated_at,
+                closed_at: None,
+                status,
+                priority,
+                project_label: "kbs".to_string(),
+                location: "shared".to_string(),
+            }
+        })
+        .collect();
+}
+
+#[then(regex = r#"the "(?P<status>[^"]+)" column should list issues in order "(?P<titles>[^"]+)"$"#)]
+fn then_console_column_order(world: &mut KanbusWorld, status: String, titles: String) {
+    let actual = column_issue_titles(world, &status);
+    let expected: Vec<String> = titles.split(',').map(|s| s.trim().to_string()).collect();
+    assert_eq!(
+        actual, expected,
+        "expected {} column order {:?}, got {:?}",
+        status, expected, actual
+    );
 }
 
 #[when(expr = "I select metrics project {string}")]
@@ -914,6 +1077,171 @@ fn require_console_state(world: &mut KanbusWorld) -> &mut ConsoleState {
         .expect("console state not initialized")
 }
 
+fn status_category(status: &str) -> &'static str {
+    match status {
+        "backlog" => "To do",
+        "open" => "To do",
+        "in_progress" => "In progress",
+        "blocked" => "In progress",
+        "closed" => "Done",
+        _ => "",
+    }
+}
+
+fn resolve_column_sort_fields(world: &KanbusWorld, status: &str) -> Vec<(String, String)> {
+    const DONE_SORT: [(&str, &str); 2] = [("updated_at", "desc"), ("id", "asc")];
+    if status_category(status) == "Done" {
+        return DONE_SORT
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect();
+    }
+    let order = match &world.console_sort_order {
+        Some(o) => o,
+        None => return vec![("created_at".to_string(), "asc".to_string()), ("id".to_string(), "asc".to_string())],
+    };
+    let status_rule = order.get(status);
+    let category_rule = order
+        .get("categories")
+        .and_then(|c| c.as_object())
+        .and_then(|c| c.get(status_category(status)))
+        .and_then(|v| v.as_str());
+    let preset = status_rule
+        .and_then(|v| v.as_str())
+        .or(category_rule)
+        .unwrap_or("fifo");
+    let fields: Vec<(String, String)> = match preset {
+        "fifo" => vec![("created_at".to_string(), "asc".to_string()), ("id".to_string(), "asc".to_string())],
+        "recently-updated" => vec![("updated_at".to_string(), "desc".to_string()), ("id".to_string(), "asc".to_string())],
+        "priority-first" => vec![
+            ("priority".to_string(), "asc".to_string()),
+            ("created_at".to_string(), "asc".to_string()),
+            ("id".to_string(), "asc".to_string()),
+        ],
+        _ => vec![("created_at".to_string(), "asc".to_string()), ("id".to_string(), "asc".to_string())],
+    };
+    if let Some(rule) = status_rule {
+        if let Some(arr) = rule.as_array() {
+            let mut out: Vec<(String, String)> = arr
+                .iter()
+                .filter_map(|v| {
+                    let obj = v.as_object()?;
+                    let field = obj.get("field")?.as_str()?;
+                    let dir = obj.get("direction")?.as_str()?;
+                    Some((field.to_string(), dir.to_string()))
+                })
+                .collect();
+            if !out.iter().any(|(f, _)| f == "id") {
+                out.push(("id".to_string(), "asc".to_string()));
+            }
+            return out;
+        }
+    }
+    fields
+}
+
+fn parse_iso8601(s: Option<&String>) -> Option<chrono::DateTime<chrono::Utc>> {
+    let s = s.as_deref()?;
+    chrono::DateTime::parse_from_rfc3339(s)
+        .ok()
+        .map(|dt| dt.with_timezone(&chrono::Utc))
+}
+
+fn issue_sort_id(issue: &ConsoleIssue) -> &str {
+    issue
+        .identifier
+        .as_deref()
+        .unwrap_or(issue.title.as_str())
+}
+
+fn compare_issue_field(
+    left: &ConsoleIssue,
+    right: &ConsoleIssue,
+    field: &str,
+    direction: &str,
+) -> std::cmp::Ordering {
+    match field {
+        "priority" => {
+            let c = left.priority.cmp(&right.priority);
+            return if direction == "desc" {
+                c.reverse()
+            } else {
+                c
+            };
+        }
+        "id" => {
+            let c = issue_sort_id(left).cmp(issue_sort_id(right));
+            return if direction == "desc" {
+                c.reverse()
+            } else {
+                c
+            };
+        }
+        "created_at" | "updated_at" => {
+            let l_t = parse_iso8601(if field == "created_at" {
+                left.created_at.as_ref()
+            } else {
+                left.updated_at.as_ref()
+            });
+            let r_t = parse_iso8601(if field == "created_at" {
+                right.created_at.as_ref()
+            } else {
+                right.updated_at.as_ref()
+            });
+            match (l_t, r_t) {
+                (None, None) => return std::cmp::Ordering::Equal,
+                (None, _) => return std::cmp::Ordering::Greater,
+                (_, None) => return std::cmp::Ordering::Less,
+                (Some(a), Some(b)) => {
+                    let c = a.cmp(&b);
+                    return if direction == "desc" {
+                        c.reverse()
+                    } else {
+                        c
+                    };
+                }
+            }
+        }
+        _ => return std::cmp::Ordering::Equal,
+    }
+}
+
+fn column_issue_titles(world: &KanbusWorld, status: &str) -> Vec<String> {
+    let state = world.console_state.as_ref().expect("console state");
+    let fields = resolve_column_sort_fields(world, status);
+    let mut column_issues: Vec<&ConsoleIssue> = state
+        .issues
+        .iter()
+        .filter(|i| i.issue_type == "task" && i.parent_title.is_none() && i.status == *status)
+        .collect();
+    column_issues.sort_by(|left, right| {
+        for (field, direction) in &fields {
+            match compare_issue_field(left, right, field, direction) {
+                std::cmp::Ordering::Equal => continue,
+                o => return o,
+            }
+        }
+        std::cmp::Ordering::Equal
+    });
+    column_issues.iter().map(|i| i.title.clone()).collect()
+}
+
+pub(crate) fn ensure_wiki_state(world: &mut KanbusWorld) -> &mut WikiWorkspaceState {
+    if world.console_wiki_state.is_none() {
+        world.console_wiki_state = Some(WikiWorkspaceState::default_new());
+    }
+    world.console_wiki_state.as_mut().unwrap()
+}
+
+pub(crate) fn select_wiki_page(wiki: &mut WikiWorkspaceState, path: &str) {
+    if let Some(content) = wiki.pages.get(path) {
+        wiki.selected_path = Some(path.to_string());
+        wiki.editor_content = content.clone();
+        wiki.status = "Saved".to_string();
+        wiki.error_banner = None;
+    }
+}
+
 fn visible_issue_titles(state: &ConsoleState) -> Vec<String> {
     let issues = if state.selected_tab == "Epics" {
         state
@@ -968,6 +1296,7 @@ fn visible_issues_with_filters(state: &ConsoleState) -> Vec<&ConsoleIssue> {
 fn default_issues() -> Vec<ConsoleIssue> {
     vec![
         ConsoleIssue {
+            identifier: None,
             title: "Observability overhaul".to_string(),
             issue_type: "epic".to_string(),
             parent_title: None,
@@ -977,10 +1306,12 @@ fn default_issues() -> Vec<ConsoleIssue> {
             updated_at: None,
             closed_at: None,
             status: "open".to_string(),
+            priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
         ConsoleIssue {
+            identifier: None,
             title: "Increase reliability".to_string(),
             issue_type: "initiative".to_string(),
             parent_title: None,
@@ -990,10 +1321,12 @@ fn default_issues() -> Vec<ConsoleIssue> {
             updated_at: None,
             closed_at: None,
             status: "open".to_string(),
+            priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
         ConsoleIssue {
+            identifier: None,
             title: "Add structured logging".to_string(),
             issue_type: "task".to_string(),
             parent_title: None,
@@ -1003,10 +1336,12 @@ fn default_issues() -> Vec<ConsoleIssue> {
             updated_at: None,
             closed_at: None,
             status: "open".to_string(),
+            priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
         ConsoleIssue {
+            identifier: None,
             title: "Fix crash on startup".to_string(),
             issue_type: "task".to_string(),
             parent_title: None,
@@ -1016,10 +1351,12 @@ fn default_issues() -> Vec<ConsoleIssue> {
             updated_at: None,
             closed_at: None,
             status: "open".to_string(),
+            priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
         ConsoleIssue {
+            identifier: None,
             title: "Wire logger middleware".to_string(),
             issue_type: "task".to_string(),
             parent_title: Some("Add structured logging".to_string()),
@@ -1029,6 +1366,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             updated_at: None,
             closed_at: None,
             status: "open".to_string(),
+            priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
         },
