@@ -3,7 +3,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path as StdPath;
 use std::path::{Path, PathBuf};
@@ -88,14 +88,31 @@ struct IssueEventsResponse {
 
 #[tokio::main]
 async fn main() {
+    let trace = |msg: &str| {
+        let _ = std::io::stderr().flush();
+        eprintln!("[kbsc] {}", msg);
+        let _ = std::io::stderr().flush();
+        let _ = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/tmp/kbsc_trace.txt")
+            .and_then(|mut f| {
+                use std::io::Write;
+                writeln!(f, "{}", msg).and_then(|_| f.sync_all())
+            });
+    };
+    trace("entry");
     let repo_root = resolve_repo_root();
+    trace(&format!("repo_root: {}", repo_root.display()));
     let root_override = std::env::var("CONSOLE_ROOT").ok().map(PathBuf::from);
     let data_root = std::env::var("CONSOLE_DATA_ROOT")
         .ok()
         .map(PathBuf::from)
         .or_else(|| root_override.clone())
         .unwrap_or_else(|| repo_root.clone());
+    trace("checking project structure");
     maybe_prompt_project_repair(&data_root);
+    trace("loading config");
     let (bind_ip, bind_host) = resolve_bind_host(std::env::var("CONSOLE_HOST").ok());
 
     // Try to load console_port from project config
@@ -152,6 +169,7 @@ async fn main() {
     let (notification_tx, _) = broadcast::channel::<NotificationEvent>(256);
     let telemetry_log = open_telemetry_log(&repo_root);
 
+    trace("loading UI state");
     // Load persisted console UI state (or start with empty state)
     let state_file_path = state_path(&data_root).unwrap_or_else(|_| {
         data_root
@@ -265,6 +283,8 @@ async fn main() {
         .allow_private_network(true);
 
     let app = app.with_state(state).layer(cors);
+    eprintln!("[kbsc] binding port...");
+    let _ = std::io::stderr().flush();
     let (listener, port) = acquire_listener(bind_ip, desired_port).await;
 
     #[cfg(feature = "embed-assets")]
@@ -299,36 +319,8 @@ fn maybe_prompt_project_repair(root: &Path) {
         }
     };
 
-    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
-        return;
-    }
-
-    let mut missing = Vec::new();
-    if plan.missing_project_dir {
-        missing.push("project/");
-    }
-    if plan.missing_issues_dir {
-        missing.push("project/issues");
-    }
-    if plan.missing_events_dir {
-        missing.push("project/events");
-    }
-
-    eprint!(
-        "Project structure incomplete (missing: {}). Repair now? [y/N] ",
-        missing.join(", ")
-    );
-    let _ = std::io::stderr().flush();
-
-    let mut input = String::new();
-    let _ = std::io::stdin().read_line(&mut input);
-    let reply = input.trim().to_ascii_lowercase();
-    if reply == "y" || reply == "yes" {
-        if let Err(error) = repair_project_structure(&plan) {
-            eprintln!("{error}");
-        } else {
-            eprintln!("Project structure repaired.");
-        }
+    if let Err(error) = repair_project_structure(&plan) {
+        eprintln!("Warning: could not repair project structure: {error}");
     }
 }
 
@@ -372,20 +364,9 @@ async fn acquire_listener(bind_ip: IpAddr, desired_port: u16) -> (tokio::net::Tc
             if fallback_port > u16::MAX - 1 {
                 exit_with_port_error(desired_port, "No valid fallback port is available.");
             }
-            let consented = if io::stdin().is_terminal() && io::stdout().is_terminal() {
-                prompt_for_port_switch(desired_port, fallback_port)
-            } else {
-                eprintln!(
-                    "Console port {desired_port} is in use. Switching automatically to {fallback_port}."
-                );
-                true
-            };
-            if !consented {
-                exit_with_port_error(
-                    desired_port,
-                    "Port is in use. Set CONSOLE_PORT to a free port and retry.",
-                );
-            }
+            eprintln!(
+                "Console port {desired_port} is in use. Using port {fallback_port} instead."
+            );
             let fallback_addr = SocketAddr::from((bind_ip, fallback_port));
             match tokio::net::TcpListener::bind(fallback_addr).await {
                 Ok(listener) => (listener, fallback_port),
@@ -399,16 +380,6 @@ async fn acquire_listener(bind_ip: IpAddr, desired_port: u16) -> (tokio::net::Tc
         }
         Err(error) => exit_with_port_error(desired_port, &format!("Failed to bind: {error}")),
     }
-}
-
-fn prompt_for_port_switch(current: u16, fallback: u16) -> bool {
-    print!("Console port {current} is already in use. Bump to {fallback}? [y/N] ");
-    let _ = io::stdout().flush();
-    let mut buffer = String::new();
-    if io::stdin().read_line(&mut buffer).is_err() {
-        return false;
-    }
-    buffer.trim().to_lowercase().starts_with('y')
 }
 
 fn exit_with_port_error(port: u16, message: &str) -> ! {
@@ -1481,6 +1452,7 @@ fn resolve_repo_root() -> PathBuf {
     eprintln!("Error: Could not find .kanbus.yml in current directory or any parent directory.");
     eprintln!("Current directory: {}", current.display());
     eprintln!("\nTo initialize a Kanbus project, run: kanbus init");
+    let _ = std::io::stderr().flush();
     std::process::exit(1);
 }
 
