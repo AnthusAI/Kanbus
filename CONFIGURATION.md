@@ -134,6 +134,18 @@ Environment override keys (higher precedence than YAML):
 - `KANBUS_OVERLAY_ENABLED`
 - `KANBUS_OVERLAY_TTL_S`
 
+### `github_security` (mapping, optional)
+
+GitHub security synchronization configuration.
+
+```yaml
+github_security:
+  repo: owner/repo
+  dependabot:
+    min_severity: low
+    state: open
+    parent_epic: kanbus-abc123
+```
 ## Validation rules
 
 - `hierarchy` must be non-empty.

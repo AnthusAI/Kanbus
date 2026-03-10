@@ -5,6 +5,7 @@ import fs from "fs";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import chokidar from "chokidar";
+import rateLimit from "express-rate-limit";
 import { resolvePortOrExit } from "../scripts/resolvePort";
 import type { IssuesSnapshot } from "../src/types/issues";
 
@@ -471,7 +472,15 @@ async function wikiRenderPage(relativePagePath: string): Promise<string> {
   return stdout.trimEnd();
 }
 
-apiRouter.get("/wiki/pages", async (_req, res) => {
+const wikiRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "rate limit exceeded" }
+});
+
+apiRouter.get("/wiki/pages", wikiRateLimit, async (_req, res) => {
   try {
     const result = await listWikiPages();
     res.json(result);
@@ -480,7 +489,7 @@ apiRouter.get("/wiki/pages", async (_req, res) => {
   }
 });
 
-apiRouter.get("/wiki/page", async (req, res) => {
+apiRouter.get("/wiki/page", wikiRateLimit, async (req, res) => {
   try {
     const raw = req.query.path;
     if (typeof raw !== "string") {
@@ -507,6 +516,7 @@ apiRouter.get("/wiki/page", async (req, res) => {
 
 apiRouter.post(
   "/wiki/page",
+  wikiRateLimit,
   express.json({ limit: "2mb" }),
   async (req, res) => {
     try {
@@ -543,6 +553,7 @@ apiRouter.post(
 
 apiRouter.put(
   "/wiki/page",
+  wikiRateLimit,
   express.json({ limit: "2mb" }),
   async (req, res) => {
     try {
@@ -573,7 +584,7 @@ apiRouter.put(
   }
 );
 
-apiRouter.delete("/wiki/page", async (req, res) => {
+apiRouter.delete("/wiki/page", wikiRateLimit, async (req, res) => {
   try {
     const raw = req.query.path;
     if (typeof raw !== "string") {
@@ -600,6 +611,7 @@ apiRouter.delete("/wiki/page", async (req, res) => {
 
 apiRouter.post(
   "/wiki/rename",
+  wikiRateLimit,
   express.json({ limit: "16kb" }),
   async (req, res) => {
     try {
@@ -640,6 +652,7 @@ apiRouter.post(
 
 apiRouter.post(
   "/wiki/render",
+  wikiRateLimit,
   express.json({ limit: "2mb" }),
   async (req, res) => {
     try {

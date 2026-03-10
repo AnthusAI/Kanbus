@@ -100,6 +100,49 @@ fn default_snyk_min_severity() -> String {
     "low".to_string()
 }
 
+/// GitHub Dependabot synchronization configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DependabotConfiguration {
+    /// Minimum severity to import: critical, high, medium, or low (default: low).
+    #[serde(default = "default_dependabot_min_severity")]
+    pub min_severity: String,
+    /// Alert state filter (default: open).
+    #[serde(default = "default_dependabot_state")]
+    pub state: String,
+    /// Kanbus issue ID of the parent epic to attach imported bugs to.
+    #[serde(default)]
+    pub parent_epic: Option<String>,
+}
+
+impl Default for DependabotConfiguration {
+    fn default() -> Self {
+        Self {
+            min_severity: default_dependabot_min_severity(),
+            state: default_dependabot_state(),
+            parent_epic: None,
+        }
+    }
+}
+
+fn default_dependabot_min_severity() -> String {
+    "low".to_string()
+}
+
+fn default_dependabot_state() -> String {
+    "open".to_string()
+}
+
+/// GitHub security synchronization configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GithubSecurityConfiguration {
+    /// GitHub repository slug to sync (e.g. "AnthusAI/Kanbus").
+    #[serde(default)]
+    pub repo: Option<String>,
+    /// Dependabot synchronization settings.
+    #[serde(default)]
+    pub dependabot: Option<DependabotConfiguration>,
+}
+
 /// Configuration for a single virtual project.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VirtualProjectConfig {
@@ -267,6 +310,7 @@ pub struct ProjectConfiguration {
     pub overlay: OverlayConfig,
     #[serde(default)]
     pub hooks: HooksConfiguration,
+    pub github_security: Option<GithubSecurityConfiguration>,
 }
 
 #[cfg(test)]
