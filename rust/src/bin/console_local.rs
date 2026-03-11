@@ -3,7 +3,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path as StdPath;
 use std::path::{Path, PathBuf};
@@ -181,7 +181,7 @@ async fn main() {
     eprintln!("Console UI state loaded from {}", state_file_path.display());
 
     let state = AppState {
-        base_root: data_root,
+        base_root: data_root.clone(),
         assets_root: assets_root.clone(),
         multi_tenant,
         assets_root_explicit,
@@ -285,9 +285,20 @@ async fn main() {
         .allow_private_network(true);
 
     let app = app.with_state(state).layer(cors);
+    eprintln!(
+        "[kbsc] startup repo_root={} data_root={} requested_port={} host={}",
+        repo_root.display(),
+        data_root.display(),
+        desired_port,
+        bind_host
+    );
     eprintln!("[kbsc] binding port...");
     let _ = std::io::stderr().flush();
     let (listener, port) = acquire_listener(bind_ip, desired_port).await;
+    eprintln!(
+        "[kbsc] bound_port={} (requested_port={})",
+        port, desired_port
+    );
 
     #[cfg(feature = "embed-assets")]
     println!("Console backend listening on http://{bind_host}:{port} (embedded assets)");
@@ -362,23 +373,83 @@ async fn acquire_listener(bind_ip: IpAddr, desired_port: u16) -> (tokio::net::Tc
     match tokio::net::TcpListener::bind(initial_addr).await {
         Ok(listener) => (listener, desired_port),
         Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
-            let fallback_port = desired_port.saturating_add(1);
-            if fallback_port > u16::MAX - 1 {
-                exit_with_port_error(desired_port, "No valid fallback port is available.");
-            }
-            eprintln!("Console port {desired_port} is in use. Using port {fallback_port} instead.");
-            let fallback_addr = SocketAddr::from((bind_ip, fallback_port));
-            match tokio::net::TcpListener::bind(fallback_addr).await {
-                Ok(listener) => (listener, fallback_port),
-                Err(fallback_error) => exit_with_port_error(
-                    desired_port,
-                    &format!(
-                        "Port {desired_port} is in use and fallback port {fallback_port} failed: {fallback_error}"
-                    ),
-                ),
+            let action = match determine_port_conflict_action(
+                desired_port,
+                terminal_is_interactive(),
+                prompt_for_fallback_port,
+            ) {
+                Ok(action) => action,
+                Err(message) => exit_with_port_error(desired_port, &message),
+            };
+            match action {
+                PortConflictAction::RetryWithFallback(fallback_port) => {
+                    let fallback_addr = SocketAddr::from((bind_ip, fallback_port));
+                    match tokio::net::TcpListener::bind(fallback_addr).await {
+                        Ok(listener) => (listener, fallback_port),
+                        Err(fallback_error) => exit_with_port_error(
+                            desired_port,
+                            &format!(
+                                "Port {desired_port} is in use and fallback port {fallback_port} failed: {fallback_error}"
+                            ),
+                        ),
+                    }
+                }
+                PortConflictAction::Exit { message } => {
+                    exit_with_port_error(desired_port, &message)
+                }
             }
         }
         Err(error) => exit_with_port_error(desired_port, &format!("Failed to bind: {error}")),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PortConflictAction {
+    RetryWithFallback(u16),
+    Exit { message: String },
+}
+
+fn terminal_is_interactive() -> bool {
+    std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
+}
+
+fn prompt_for_fallback_port(desired_port: u16, fallback_port: u16) -> bool {
+    eprint!(
+        "Console port {desired_port} is already in use. Try port {fallback_port} instead? [y/N] "
+    );
+    std::io::stderr().flush().ok();
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).ok();
+    matches!(input.trim().to_ascii_lowercase().as_str(), "y" | "yes")
+}
+
+fn determine_port_conflict_action<F>(
+    desired_port: u16,
+    interactive: bool,
+    prompt_accepts_fallback: F,
+) -> Result<PortConflictAction, String>
+where
+    F: FnOnce(u16, u16) -> bool,
+{
+    let fallback_port = desired_port
+        .checked_add(1)
+        .ok_or_else(|| "No valid fallback port is available.".to_string())?;
+
+    if !interactive {
+        return Ok(PortConflictAction::Exit {
+            message: format!(
+                "Port {desired_port} is in use. Non-interactive mode will not auto-select another port. \
+                 Re-run with CONSOLE_PORT={fallback_port} or free the requested port."
+            ),
+        });
+    }
+
+    if prompt_accepts_fallback(desired_port, fallback_port) {
+        Ok(PortConflictAction::RetryWithFallback(fallback_port))
+    } else {
+        Ok(PortConflictAction::Exit {
+            message: format!("Port {desired_port} is in use. Start aborted by user."),
+        })
     }
 }
 
@@ -1594,6 +1665,7 @@ fn serve_asset_from_filesystem(state: &AppState, asset_path: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::Cell;
     use std::env;
     use std::sync::Mutex;
     use std::sync::OnceLock;
@@ -1640,6 +1712,43 @@ mod tests {
         let (fallback_ip, fallback_host) = resolve_bind_host(Some("not-an-ip".to_string()));
         assert_eq!(fallback_ip.to_string(), "127.0.0.1");
         assert_eq!(fallback_host, "127.0.0.1");
+    }
+
+    #[test]
+    fn determine_port_conflict_action_interactive_accepts_retry() {
+        let action = determine_port_conflict_action(4242, true, |_, _| true).expect("action");
+        assert_eq!(action, PortConflictAction::RetryWithFallback(4243));
+    }
+
+    #[test]
+    fn determine_port_conflict_action_interactive_declines_retry() {
+        let action = determine_port_conflict_action(4242, true, |_, _| false).expect("action");
+        assert!(matches!(
+            action,
+            PortConflictAction::Exit { message } if message.contains("aborted by user")
+        ));
+    }
+
+    #[test]
+    fn determine_port_conflict_action_non_interactive_exits_without_prompt() {
+        let prompt_called = Cell::new(false);
+        let action = determine_port_conflict_action(4242, false, |_, _| {
+            prompt_called.set(true);
+            true
+        })
+        .expect("action");
+        assert!(!prompt_called.get());
+        assert!(matches!(
+            action,
+            PortConflictAction::Exit { message } if message.contains("Non-interactive mode")
+        ));
+    }
+
+    #[test]
+    fn determine_port_conflict_action_errors_when_no_fallback_port() {
+        let error =
+            determine_port_conflict_action(u16::MAX, true, |_, _| true).expect_err("overflow");
+        assert!(error.contains("No valid fallback port"));
     }
 
     #[test]
