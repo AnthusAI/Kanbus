@@ -226,6 +226,8 @@ async fn main() {
         .route("/issues/:parent/all", get(get_index_root))
         .route("/issues/:id", get(get_index_root))
         .route("/issues/:parent/:id", get(get_index_root))
+        .route("/index.html", get(get_index_root))
+        .route("/favicon.ico", get(get_favicon))
         .route("/:account/:project/api/config", get(get_config))
         .route("/:account/:project/api/issues", get(get_issues))
         .route("/:account/:project/api/issues/:id", get(get_issue))
@@ -364,9 +366,7 @@ async fn acquire_listener(bind_ip: IpAddr, desired_port: u16) -> (tokio::net::Tc
             if fallback_port > u16::MAX - 1 {
                 exit_with_port_error(desired_port, "No valid fallback port is available.");
             }
-            eprintln!(
-                "Console port {desired_port} is in use. Using port {fallback_port} instead."
-            );
+            eprintln!("Console port {desired_port} is in use. Using port {fallback_port} instead.");
             let fallback_addr = SocketAddr::from((bind_ip, fallback_port));
             match tokio::net::TcpListener::bind(fallback_addr).await {
                 Ok(listener) => (listener, fallback_port),
@@ -1476,9 +1476,13 @@ async fn get_asset(
 
 async fn get_asset_root(
     State(state): State<AppState>,
-    AxumPath(path): AxumPath<String>,
+    uri: axum::extract::OriginalUri,
 ) -> Response {
-    serve_asset(&state, &path)
+    let path = uri.0.path().trim_start_matches('/');
+    if path.is_empty() {
+        return serve_asset(&state, "index.html");
+    }
+    serve_asset(&state, path)
 }
 
 async fn get_public_asset(
@@ -1486,6 +1490,22 @@ async fn get_public_asset(
     AxumPath(path): AxumPath<String>,
 ) -> Response {
     serve_asset(&state, &format!("assets/{path}"))
+}
+
+async fn get_favicon(State(state): State<AppState>) -> Response {
+    // serve favicon if present; fall back to 204 to avoid 500s
+    let favicon_paths = ["favicon.ico", "assets/favicon.ico"];
+    for path in favicon_paths {
+        let response = serve_asset(&state, path);
+        if response.status().is_success() {
+            return response;
+        }
+    }
+    // no favicon available; return 204 No Content
+    Response::builder()
+        .status(StatusCode::NO_CONTENT)
+        .body(Body::empty())
+        .unwrap_or_else(|_| error_response("favicon unavailable", StatusCode::NO_CONTENT))
 }
 
 fn serve_asset(state: &AppState, asset_path: &str) -> Response {
@@ -1827,6 +1847,53 @@ mod tests {
 
         let response = serve_asset(&state, "index.html");
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[test]
+    fn serve_asset_prefers_embedded_when_no_explicit_root() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let (telemetry_tx, _) = broadcast::channel(8);
+        let (notification_tx, _) = broadcast::channel(8);
+        let state = AppState {
+            base_root: temp.path().to_path_buf(),
+            assets_root: temp.path().join("missing-assets"),
+            multi_tenant: false,
+            assets_root_explicit: false,
+            telemetry_tx,
+            telemetry_log: None,
+            notification_tx,
+            ui_state: Arc::new(tokio::sync::RwLock::new(ConsoleUiState::default())),
+        };
+
+        let response = serve_asset(&state, "index.html");
+        assert_eq!(response.status(), StatusCode::OK);
+        let content_type = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok());
+        assert_eq!(content_type, Some("text/html"));
+    }
+
+    #[test]
+    fn serve_asset_falls_back_to_filesystem_when_embedded_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(&assets).expect("mkdir assets");
+        let (telemetry_tx, _) = broadcast::channel(8);
+        let (notification_tx, _) = broadcast::channel(8);
+        let state = AppState {
+            base_root: temp.path().to_path_buf(),
+            assets_root: assets.clone(),
+            multi_tenant: false,
+            assets_root_explicit: false,
+            telemetry_tx,
+            telemetry_log: None,
+            notification_tx,
+            ui_state: Arc::new(tokio::sync::RwLock::new(ConsoleUiState::default())),
+        };
+
+        let response = serve_asset(&state, "missing-asset.js");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
     #[test]

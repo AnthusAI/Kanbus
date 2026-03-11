@@ -3507,6 +3507,28 @@ mod tests {
     }
 
     #[test]
+    fn rewrite_alias_args_rewrites_task_alias() {
+        let args = vec![
+            "kanbus".into(),
+            "tasks".into(),
+            "--status".into(),
+            "open".into(),
+        ];
+        let rewritten = rewrite_alias_args(args);
+        assert_eq!(
+            rewritten,
+            vec![
+                OsString::from("kanbus"),
+                OsString::from("list"),
+                OsString::from("--type"),
+                OsString::from("task"),
+                OsString::from("--status"),
+                OsString::from("open"),
+            ]
+        );
+    }
+
+    #[test]
     fn format_ready_line_includes_project_path_prefix() {
         let mut data = issue("kanbus-123456");
         data.custom.insert(
@@ -3515,6 +3537,21 @@ mod tests {
         );
 
         assert_eq!(format_ready_line(&data), "alpha/project kanbus-123456");
+    }
+
+    #[test]
+    fn format_ready_line_without_project_path() {
+        let data = issue("kanbus-654321");
+        assert_eq!(format_ready_line(&data), "kanbus-654321");
+    }
+
+    #[test]
+    fn sort_timestamp_prefers_closed_at_when_present() {
+        let mut data = issue("kanbus-0001");
+        let closed = Utc.with_ymd_and_hms(2026, 3, 8, 0, 0, 0).unwrap();
+        data.closed_at = Some(closed);
+        let updated = sort_timestamp(&data);
+        assert_eq!(updated, closed.timestamp() as f64);
     }
 
     #[test]
@@ -3579,5 +3616,16 @@ mod tests {
         std::env::remove_var("KANBUS_CLOUD_ID_TOKEN");
         let result = resolve_cloud_id_token(None);
         assert!(matches!(result, Err(KanbusError::IssueOperation(_))));
+    }
+
+    #[test]
+    fn resolve_cloud_id_token_prefers_cli_then_env() {
+        std::env::set_var("KANBUS_CLOUD_ID_TOKEN", "env-token");
+        let cli = resolve_cloud_id_token(Some(" cli-token ".to_string())).expect("cli token");
+        assert_eq!(cli, "cli-token");
+
+        let env_only = resolve_cloud_id_token(None).expect("env token");
+        assert_eq!(env_only, "env-token");
+        std::env::remove_var("KANBUS_CLOUD_ID_TOKEN");
     }
 }

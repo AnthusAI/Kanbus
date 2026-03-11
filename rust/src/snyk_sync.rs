@@ -1571,6 +1571,71 @@ mod tests {
     }
 
     #[test]
+    fn build_snyk_key_index_collects_custom_keys() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+        let mut issue = make_issue("kanbus-1", "sub-task", "Snyk vuln");
+        issue
+            .custom
+            .insert("snyk_key".to_string(), Value::String("SNYK-1".to_string()));
+        write_issue_to_file(&issue, &issue_path_for_identifier(&issues_dir, "kanbus-1"))
+            .expect("write issue");
+
+        let ids = HashSet::from([String::from("kanbus-1")]);
+        let index = build_snyk_key_index(&ids, &issues_dir);
+        assert_eq!(index.get("SNYK-1"), Some(&"kanbus-1".to_string()));
+    }
+
+    #[test]
+    fn build_file_task_index_uses_category_and_target_file() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir issues");
+
+        let mut dep_task = make_issue("kanbus-dep", "task", "reqs");
+        dep_task.custom.insert(
+            "snyk_target_file".to_string(),
+            Value::String("requirements.txt".to_string()),
+        );
+        dep_task.custom.insert(
+            "snyk_category".to_string(),
+            Value::String("dependency".to_string()),
+        );
+        write_issue_to_file(
+            &dep_task,
+            &issue_path_for_identifier(&issues_dir, "kanbus-dep"),
+        )
+        .expect("write dep");
+
+        let mut code_task = make_issue("kanbus-code", "task", "app.rs");
+        code_task.custom.insert(
+            "snyk_target_file".to_string(),
+            Value::String("src/app.rs".to_string()),
+        );
+        code_task.custom.insert(
+            "snyk_category".to_string(),
+            Value::String("code".to_string()),
+        );
+        write_issue_to_file(
+            &code_task,
+            &issue_path_for_identifier(&issues_dir, "kanbus-code"),
+        )
+        .expect("write code");
+
+        let ids = HashSet::from([String::from("kanbus-dep"), String::from("kanbus-code")]);
+        let index = build_file_task_index(&ids, &issues_dir);
+        assert_eq!(
+            index.get(&("dependency".to_string(), "requirements.txt".to_string())),
+            Some(&"kanbus-dep".to_string())
+        );
+        assert_eq!(
+            index.get(&("code".to_string(), "src/app.rs".to_string())),
+            Some(&"kanbus-code".to_string())
+        );
+    }
+
+    #[test]
     fn build_snippet_returns_none_for_invalid_or_missing_input() {
         let temp_dir = TempDir::new().expect("tempdir");
         assert!(build_snippet(temp_dir.path(), "missing.py", Some(1), Some(1)).is_none());
