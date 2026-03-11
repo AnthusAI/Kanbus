@@ -1102,6 +1102,28 @@ mod tests {
     }
 
     #[test]
+    fn overlay_is_newer_prefers_higher_event_id_on_equal_timestamp() {
+        let now = Utc::now();
+        let ts = now.to_rfc3339();
+        assert!(
+            overlay_is_newer(&ts, now, Some("evt-002"), Some("evt-001")),
+            "higher event id should win when timestamps match"
+        );
+        assert!(
+            !overlay_is_newer(&ts, now, Some("evt-001"), Some("evt-002")),
+            "lower event id should not win when timestamps match"
+        );
+    }
+
+    #[test]
+    fn zero_ttl_never_expires_overlay_or_tombstone() {
+        let now = Utc::now();
+        let ts = (now - Duration::hours(48)).to_rfc3339();
+        assert!(!is_expired(&ts, 0, now));
+        assert!(tombstone_newer_than_base(&ts, None));
+    }
+
+    #[test]
     fn reconcile_and_gc_return_early_when_overlay_disabled() {
         let temp_dir = TempDir::new().expect("tempdir");
         let config = OverlayConfig {

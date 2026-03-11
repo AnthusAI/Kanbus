@@ -106,6 +106,24 @@ impl DedupeSet {
     }
 }
 
+#[cfg(test)]
+mod dedupe_tests {
+    use super::DedupeSet;
+    use std::time::Duration;
+
+    #[test]
+    fn dedupe_set_tracks_seen_keys_and_prunes() {
+        let mut set = DedupeSet::new(Duration::from_millis(5));
+        assert!(!set.seen("alpha"));
+        assert!(set.seen("alpha"), "second sighting should be true");
+        std::thread::sleep(Duration::from_millis(6));
+        assert!(
+            !set.seen("alpha"),
+            "entry should expire after ttl and be inserted again"
+        );
+    }
+}
+
 /// Publish a gossip envelope for an issue mutation.
 pub fn publish_issue_mutation(
     root: &Path,
@@ -1067,16 +1085,14 @@ mod tests {
     use crate::config::default_project_configuration;
     use crate::models::RealtimeTopics;
     use crate::models::VirtualProjectConfig;
+    use once_cell::sync::Lazy;
     use std::path::PathBuf;
-    use std::sync::{mpsc, Mutex, OnceLock};
+    use std::sync::{mpsc, Mutex};
     use tempfile::TempDir;
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        ENV_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("env lock")
+        static ENV_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+        ENV_LOCK.lock().expect("env lock")
     }
 
     fn sample_realtime(socket_path: Option<String>) -> RealtimeConfig {
@@ -1305,6 +1321,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_broker_url_rejects_empty_and_unknown_scheme() {
+        assert!(parse_broker_url("").is_err());
+        assert!(parse_broker_url("http://example.com").is_ok());
+    }
+
+    #[test]
     fn broker_is_reachable_detects_active_listener() {
         let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let port = listener.local_addr().expect("addr").port();
@@ -1388,6 +1410,22 @@ mod tests {
         } else {
             std::env::remove_var("HOME");
         }
+    }
+
+    #[test]
+    fn dedupe_set_prunes_expired_entries() {
+        let mut set = DedupeSet::new(Duration::from_millis(5));
+        assert!(!set.seen("a"));
+        assert!(set.seen("a"));
+        thread::sleep(Duration::from_millis(6));
+        assert!(!set.seen("a"), "entry should expire after ttl");
+    }
+
+    #[test]
+    fn uds_socket_path_uses_override_when_provided() {
+        let realtime = sample_realtime(Some("/tmp/custom.sock".to_string()));
+        let custom = uds_socket_path(Some(&realtime));
+        assert_eq!(custom, PathBuf::from("/tmp/custom.sock"));
     }
 
     #[test]
