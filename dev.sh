@@ -103,7 +103,7 @@ warn_existing_processes() {
     fi
   fi
 
-  _dev_candidates="$(ps -Ao pid=,command= | awk '$0 ~ /(^|[[:space:]])([.][/]|.*[/])dev[.]sh([[:space:]]|$)/ {print $1}')"
+  _dev_candidates="$(ps -Ao pid=,command= | awk '{for (i=2; i<=NF; i++) if ($i ~ /dev[.]sh$/) {print $1; break}}')"
   _other_dev_pids=""
   for _pid in $_dev_candidates; do
     if [ "$_pid" != "$$" ] && [ "$_pid" != "$PPID" ]; then
