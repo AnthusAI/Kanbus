@@ -21,7 +21,7 @@ const PhilosophyPage = () => {
             </CardHeader>
             <CardContent className="p-0 space-y-4 text-muted leading-relaxed">
               <p>
-                The motivation for Kanbus came from a simple need: to offload mental context. When you are juggling
+                The motivation for Kanbus came from a simple need: to offload mental context without constantly switching applications. When you are juggling
                 dozens of open loops—chat sessions, pending tasks, architectural decisions—you need a place to put
                 them that doesn't require logging in or managing infrastructure.
               </p>

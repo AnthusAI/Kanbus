@@ -194,7 +194,7 @@ const IndexPage = () => {
     <Layout>
       <Hero
         title="Embed your project management directly in your repository."
-        subtitle="Stop wrestling with disconnected trackers. Keep tasks, context, and a clear paper trail right alongside your code so human developers and AI agents can collaborate seamlessly."
+        subtitle="Stop wrestling with external issue trackers. Keep tasks, context, and a clear paper trail right alongside your code so human developers and AI agents can collaborate seamlessly."
         rightPane={<CodeUiSync />}
         actions={
           <>
@@ -216,7 +216,7 @@ const IndexPage = () => {
 
       <div className="mx-auto max-w-3xl px-6 lg:px-8 text-center pb-24">
         <p className="text-xl leading-8 text-muted font-medium">
-          Tracking project context usually means coordinating an external system. But it&apos;s better to eliminate a problem than to solve it. With Kanbus, every task is a file in your repo. Your workflow inherits the exact same version control as your code—creating a clear, timestamped paper trail without breaking your flow state.
+          Tracking project context usually means coordinating an external system. But it&apos;s better to eliminate a problem than to solve it. With Kanbus, every task is a file in your repo. Your workflow inherits the exact same version control as your code—creating a clear, timestamped paper trail without a jarring context switch.
         </p>
         <p className="mt-6 text-base text-muted/80">
           Already using Beads? Your existing data works.

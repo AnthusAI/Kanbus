@@ -25,9 +25,9 @@
 
     <cue id="overview" label="Kanban Overview">
       <pause seconds="0.4s" />
-      <voice>Tracking project context usually means wrestling with disconnected systems like Jira or Trello.</voice>
+      <voice>Tracking project context usually means wrestling with external systems like Jira or Trello.</voice>
       <pause seconds="0.2s" />
-      <voice>It's a coordination headache, especially when AI coding agents and human developers are trying to collaborate on the same codebase.</voice>
+      <voice>It forces a context switch and creates a coordination headache, especially when AI coding agents and human developers are trying to collaborate on the same codebase.</voice>
     </cue>
   </scene>
 
