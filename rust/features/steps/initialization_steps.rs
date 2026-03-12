@@ -8,7 +8,9 @@ use std::time::SystemTime;
 use cucumber::{given, then, World};
 use tempfile::TempDir;
 
-use crate::step_definitions::console_ui_steps::{ConsoleLocalStorage, ConsoleState, WikiWorkspaceState};
+use crate::step_definitions::console_ui_steps::{
+    ConsoleLocalStorage, ConsoleState, WikiWorkspaceState,
+};
 use kanbus::daemon_client;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;

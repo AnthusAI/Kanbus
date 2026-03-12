@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use chrono_tz::Tz;
-use cucumber::{given, gherkin::Step, then, when};
+use cucumber::{gherkin::Step, given, then, when};
 use std::collections::HashSet;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -835,12 +835,10 @@ fn given_console_no_sort_rules(world: &mut KanbusWorld) {
     world.console_sort_order = Some(std::collections::BTreeMap::new());
 }
 
-#[given(regex = r#"the Kanbus configuration sets sort_order for category "(?P<category>[^"]+)" to preset "(?P<preset>[^"]+)"$"#)]
-fn given_console_category_sort_preset(
-    world: &mut KanbusWorld,
-    category: String,
-    preset: String,
-) {
+#[given(
+    regex = r#"the Kanbus configuration sets sort_order for category "(?P<category>[^"]+)" to preset "(?P<preset>[^"]+)"$"#
+)]
+fn given_console_category_sort_preset(world: &mut KanbusWorld, category: String, preset: String) {
     let order = world
         .console_sort_order
         .get_or_insert_with(std::collections::BTreeMap::new);
@@ -852,7 +850,9 @@ fn given_console_category_sort_preset(
     categories.insert(category, serde_json::Value::String(preset));
 }
 
-#[given(regex = r#"the Kanbus configuration sets sort_order for status "(?P<status>[^"]+)" to preset "(?P<preset>[^"]+)"$"#)]
+#[given(
+    regex = r#"the Kanbus configuration sets sort_order for status "(?P<status>[^"]+)" to preset "(?P<preset>[^"]+)"$"#
+)]
 fn given_console_status_sort_preset(world: &mut KanbusWorld, status: String, preset: String) {
     let order = world
         .console_sort_order
@@ -860,12 +860,10 @@ fn given_console_status_sort_preset(world: &mut KanbusWorld, status: String, pre
     order.insert(status, serde_json::Value::String(preset));
 }
 
-#[given(regex = r#"the Kanbus configuration sets raw sort_order for status "(?P<status>[^"]+)" to "(?P<rule_text>[^"]+)"$"#)]
-fn given_console_status_raw_sort_rule(
-    world: &mut KanbusWorld,
-    status: String,
-    rule_text: String,
-) {
+#[given(
+    regex = r#"the Kanbus configuration sets raw sort_order for status "(?P<status>[^"]+)" to "(?P<rule_text>[^"]+)"$"#
+)]
+fn given_console_status_raw_sort_rule(world: &mut KanbusWorld, status: String, rule_text: String) {
     let rules: Vec<serde_json::Value> = rule_text
         .split(',')
         .filter_map(|part| {
@@ -904,8 +902,14 @@ fn given_console_has_only_these_issues(world: &mut KanbusWorld, step: &Step) {
             }
             let id = map.get("id").cloned().unwrap_or_default();
             let title = map.get("title").cloned().unwrap_or_default();
-            let status = map.get("status").cloned().unwrap_or_else(|| "open".to_string());
-            let priority: i32 = map.get("priority").and_then(|s| s.parse().ok()).unwrap_or(2);
+            let status = map
+                .get("status")
+                .cloned()
+                .unwrap_or_else(|| "open".to_string());
+            let priority: i32 = map
+                .get("priority")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(2);
             let created_at = map.get("created_at").cloned();
             let updated_at = map.get("updated_at").cloned();
             ConsoleIssue {
@@ -927,7 +931,9 @@ fn given_console_has_only_these_issues(world: &mut KanbusWorld, step: &Step) {
         .collect();
 }
 
-#[then(regex = r#"the "(?P<status>[^"]+)" column should list issues in order "(?P<titles>[^"]+)"$"#)]
+#[then(
+    regex = r#"the "(?P<status>[^"]+)" column should list issues in order "(?P<titles>[^"]+)"$"#
+)]
 fn then_console_column_order(world: &mut KanbusWorld, status: String, titles: String) {
     let actual = column_issue_titles(world, &status);
     let expected: Vec<String> = titles.split(',').map(|s| s.trim().to_string()).collect();
@@ -1098,7 +1104,12 @@ fn resolve_column_sort_fields(world: &KanbusWorld, status: &str) -> Vec<(String,
     }
     let order = match &world.console_sort_order {
         Some(o) => o,
-        None => return vec![("created_at".to_string(), "asc".to_string()), ("id".to_string(), "asc".to_string())],
+        None => {
+            return vec![
+                ("created_at".to_string(), "asc".to_string()),
+                ("id".to_string(), "asc".to_string()),
+            ]
+        }
     };
     let status_rule = order.get(status);
     let category_rule = order
@@ -1111,14 +1122,23 @@ fn resolve_column_sort_fields(world: &KanbusWorld, status: &str) -> Vec<(String,
         .or(category_rule)
         .unwrap_or("fifo");
     let fields: Vec<(String, String)> = match preset {
-        "fifo" => vec![("created_at".to_string(), "asc".to_string()), ("id".to_string(), "asc".to_string())],
-        "recently-updated" => vec![("updated_at".to_string(), "desc".to_string()), ("id".to_string(), "asc".to_string())],
+        "fifo" => vec![
+            ("created_at".to_string(), "asc".to_string()),
+            ("id".to_string(), "asc".to_string()),
+        ],
+        "recently-updated" => vec![
+            ("updated_at".to_string(), "desc".to_string()),
+            ("id".to_string(), "asc".to_string()),
+        ],
         "priority-first" => vec![
             ("priority".to_string(), "asc".to_string()),
             ("created_at".to_string(), "asc".to_string()),
             ("id".to_string(), "asc".to_string()),
         ],
-        _ => vec![("created_at".to_string(), "asc".to_string()), ("id".to_string(), "asc".to_string())],
+        _ => vec![
+            ("created_at".to_string(), "asc".to_string()),
+            ("id".to_string(), "asc".to_string()),
+        ],
     };
     if let Some(rule) = status_rule {
         if let Some(arr) = rule.as_array() {
@@ -1148,10 +1168,7 @@ fn parse_iso8601(s: Option<&String>) -> Option<chrono::DateTime<chrono::Utc>> {
 }
 
 fn issue_sort_id(issue: &ConsoleIssue) -> &str {
-    issue
-        .identifier
-        .as_deref()
-        .unwrap_or(issue.title.as_str())
+    issue.identifier.as_deref().unwrap_or(issue.title.as_str())
 }
 
 fn compare_issue_field(
@@ -1163,19 +1180,11 @@ fn compare_issue_field(
     match field {
         "priority" => {
             let c = left.priority.cmp(&right.priority);
-            return if direction == "desc" {
-                c.reverse()
-            } else {
-                c
-            };
+            return if direction == "desc" { c.reverse() } else { c };
         }
         "id" => {
             let c = issue_sort_id(left).cmp(issue_sort_id(right));
-            return if direction == "desc" {
-                c.reverse()
-            } else {
-                c
-            };
+            return if direction == "desc" { c.reverse() } else { c };
         }
         "created_at" | "updated_at" => {
             let l_t = parse_iso8601(if field == "created_at" {
@@ -1194,11 +1203,7 @@ fn compare_issue_field(
                 (_, None) => return std::cmp::Ordering::Less,
                 (Some(a), Some(b)) => {
                     let c = a.cmp(&b);
-                    return if direction == "desc" {
-                        c.reverse()
-                    } else {
-                        c
-                    };
+                    return if direction == "desc" { c.reverse() } else { c };
                 }
             }
         }
