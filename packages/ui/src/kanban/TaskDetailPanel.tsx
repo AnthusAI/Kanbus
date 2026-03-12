@@ -791,9 +791,9 @@ skinparam SequenceDividerFontColor white`
             </div>
           </div>
         </div>
-        <div className="detail-scroll flex-1 min-h-0 overflow-y-auto">
+        <div className="detail-scroll flex-1 min-h-0 overflow-y-auto px-2 py-1">
           <div
-            className="detail-card issue-card p-3 grid gap-2"
+            className="detail-card issue-card p-4 grid gap-2"
             style={issueStyle}
             data-status={taskToRender.status}
             data-type={taskToRender.type}
@@ -880,7 +880,7 @@ skinparam SequenceDividerFontColor white`
               </div>
             ) : null}
           </div>
-          <div className="detail-section p-3 grid gap-3">
+          <div className="detail-section p-4 grid gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <button
                 className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition-colors ${
@@ -984,7 +984,7 @@ skinparam SequenceDividerFontColor white`
               </div>
             )}
           </div>
-          <div className="detail-section p-3 grid gap-2">
+          <div className="detail-section p-4 grid gap-2">
             <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
               Sub-tasks
             </div>
@@ -1001,7 +1001,7 @@ skinparam SequenceDividerFontColor white`
               />
             )}
           </div>
-          <div className="detail-section p-3 grid gap-2">
+          <div className="detail-section p-4 grid gap-2">
             <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
               All Descendants
             </div>
