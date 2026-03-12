@@ -1734,6 +1734,37 @@ mod tests {
         std::fs::write(issue_path, payload).expect("write issue");
     }
 
+    fn install_fake_d2(temp_root: &Path, script_body: &str) -> PathBuf {
+        let bin_dir = temp_root.join("bin");
+        std::fs::create_dir_all(&bin_dir).expect("create bin dir");
+        let script_path = bin_dir.join("d2");
+        std::fs::write(&script_path, script_body).expect("write fake d2");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&script_path)
+                .expect("metadata")
+                .permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&script_path, perms).expect("chmod");
+        }
+        bin_dir
+    }
+
+    fn prepend_path(path: &Path) -> Option<String> {
+        let prior = std::env::var("PATH").ok();
+        let value = match prior.as_deref() {
+            Some(existing) if !existing.is_empty() => {
+                format!("{}:{}", path.display(), existing)
+            }
+            _ => path.display().to_string(),
+        };
+        unsafe {
+            std::env::set_var("PATH", &value);
+        }
+        prior
+    }
+
     #[test]
     fn resolve_bind_host_handles_localhost_and_invalid_input() {
         let (localhost_ip, localhost_host) = resolve_bind_host(Some("localhost".to_string()));
@@ -2704,6 +2735,96 @@ mod tests {
             }
         }
         assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn post_render_d2_returns_bad_request_for_invalid_json_and_missing_source() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let bin_dir = install_fake_d2(
+            temp.path(),
+            "#!/bin/sh\n# fake d2\noutput=\"${@: -1}\"\nprintf '<svg></svg>' > \"$output\"\n",
+        );
+        let prior_path = prepend_path(&bin_dir);
+
+        let invalid = post_render_d2(Bytes::from("not-json"));
+        assert_eq!(invalid.await.status(), StatusCode::BAD_REQUEST);
+
+        let missing_source = post_render_d2(Bytes::from(r#"{"theme":"dark"}"#));
+        assert_eq!(missing_source.await.status(), StatusCode::BAD_REQUEST);
+
+        if let Some(path) = prior_path {
+            unsafe {
+                std::env::set_var("PATH", path);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("PATH");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn post_render_d2_returns_svg_payload_when_fake_binary_succeeds() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let bin_dir = install_fake_d2(
+            temp.path(),
+            "#!/bin/sh\nset -e\nif [ \"$1\" = \"--dark-theme\" ]; then\n  output=\"$4\"\nelse\n  output=\"$3\"\nfi\nprintf '<svg data-theme=\"ok\"></svg>' > \"$output\"\n",
+        );
+        let prior_path = prepend_path(&bin_dir);
+
+        let response = post_render_d2(Bytes::from(r#"{"source":"a -> b","theme":"dark"}"#)).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body bytes");
+        let parsed: serde_json::Value = serde_json::from_slice(&body).expect("json body");
+        assert_eq!(parsed["svg"], "<svg data-theme=\"ok\"></svg>");
+
+        if let Some(path) = prior_path {
+            unsafe {
+                std::env::set_var("PATH", path);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("PATH");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn post_render_d2_returns_bad_request_when_renderer_fails() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let bin_dir = install_fake_d2(
+            temp.path(),
+            "#!/bin/sh\necho 'syntax error' 1>&2\nexit 2\n",
+        );
+        let prior_path = prepend_path(&bin_dir);
+
+        let response = post_render_d2(Bytes::from(r#"{"source":"a -> b"}"#)).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body bytes");
+        let parsed: serde_json::Value = serde_json::from_slice(&body).expect("json body");
+        assert!(
+            parsed["error"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("D2 rendering failed")
+        );
+
+        if let Some(path) = prior_path {
+            unsafe {
+                std::env::set_var("PATH", path);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("PATH");
+            }
+        }
     }
 
     #[tokio::test]
