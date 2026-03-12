@@ -18,17 +18,26 @@ workflows:
   default:
     backlog: [open, closed]
     open: [in_progress, closed, backlog]
-    in_progress: [open, blocked, closed]
-    blocked: [in_progress, closed]
-    closed: [open]
+    in_progress: [open, blocked, closed, backlog]
+    blocked: [in_progress, closed, backlog]
+    closed: [open, backlog]
+    Discovery: [open, backlog]
+    done: [open, backlog]
+    todo: [open, backlog]
+    deferred: [open, backlog]
   epic:
-    open: [in_progress, closed]
-    in_progress: [open, closed]
-    closed: [open]
+    backlog: [open, closed]
+    open: [in_progress, closed, backlog]
+    in_progress: [open, closed, backlog]
+    closed: [open, backlog]
 
 statuses:
   - key: backlog
     name: Backlog
+    category: To do
+    collapsed: true
+  - key: todo
+    name: Todo (Legacy)
     category: To do
     collapsed: true
   - key: Discovery
@@ -45,8 +54,16 @@ statuses:
     name: Blocked
     category: In progress
     collapsed: true
+  - key: deferred
+    name: Deferred (Legacy)
+    category: To do
+    collapsed: true
   - key: closed
     name: Done
+    category: Done
+    collapsed: true
+  - key: done
+    name: Done (Legacy)
     category: Done
     collapsed: true
 
@@ -71,20 +88,41 @@ transition_labels:
       open: Pause
       blocked: Block
       closed: Complete
+      backlog: Back to backlog
     blocked:
       in_progress: Unblock
       closed: Drop
+      backlog: Back to backlog
     closed:
       open: Reopen
+      backlog: Back to backlog
+    Discovery:
+      open: Start work
+      backlog: Back to backlog
+    done:
+      open: Reopen
+      backlog: Back to backlog
+    todo:
+      open: Start work
+      backlog: Back to backlog
+    deferred:
+      open: Resume
+      backlog: Back to backlog
   epic:
+    backlog:
+      open: Start
+      closed: Drop
     open:
       in_progress: Start
       closed: Complete
+      backlog: Back to backlog
     in_progress:
       open: Pause
       closed: Complete
+      backlog: Back to backlog
     closed:
       open: Reopen
+      backlog: Back to backlog
 
 initial_status: open
 priorities:

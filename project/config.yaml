@@ -10,31 +10,45 @@ types:
 - chore
 workflows:
   default:
+    backlog:
+    - open
+    - closed
     open:
     - in_progress
     - closed
     - deferred
+    - backlog
     in_progress:
     - open
     - blocked
     - closed
+    - backlog
     blocked:
     - in_progress
     - closed
+    - backlog
     closed:
     - open
+    - backlog
     deferred:
     - open
     - closed
+    - backlog
   epic:
+    backlog:
+    - open
+    - closed
     open:
     - in_progress
     - closed
+    - backlog
     in_progress:
     - open
     - closed
+    - backlog
     closed:
     - open
+    - backlog
 initial_status: open
 priorities:
   0:
