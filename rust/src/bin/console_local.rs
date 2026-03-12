@@ -1703,6 +1703,33 @@ mod tests {
         std::fs::write(root.join(".kanbus.yml"), yaml).expect("write .kanbus.yml");
     }
 
+    fn write_issue(root: &Path, identifier: &str) {
+        let issue = kanbus::models::IssueData {
+            identifier: identifier.to_string(),
+            title: format!("Issue {identifier}"),
+            description: "desc".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: Some("tester".to_string()),
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            closed_at: None,
+            custom: std::collections::BTreeMap::new(),
+        };
+        let issue_path = root
+            .join("project")
+            .join("issues")
+            .join(format!("{identifier}.json"));
+        let payload = serde_json::to_string_pretty(&issue).expect("serialize issue");
+        std::fs::write(issue_path, payload).expect("write issue");
+    }
+
     #[test]
     fn resolve_bind_host_handles_localhost_and_invalid_input() {
         let (localhost_ip, localhost_host) = resolve_bind_host(Some("localhost".to_string()));
@@ -2115,5 +2142,470 @@ mod tests {
         };
         update_ui_state_from_event(&state, &issue_updated).await;
         assert!(!path.exists());
+    }
+
+    #[tokio::test]
+    async fn root_api_endpoints_require_tenant_in_multi_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+
+        assert_eq!(
+            get_config_root(State(state.clone())).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            get_issues_root(State(state.clone())).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            get_issue_root(State(state.clone()), AxumPath("kbs-1".to_string()))
+                .await
+                .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            get_issue_events_root(
+                State(state.clone()),
+                AxumPath("kbs-1".to_string()),
+                Query(IssueEventsQuery {
+                    limit: Some(10),
+                    before: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[tokio::test]
+    async fn root_wiki_endpoints_require_tenant_in_multi_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+
+        assert_eq!(
+            get_wiki_pages_root(State(state.clone())).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            get_wiki_page_root(
+                State(state.clone()),
+                Query(WikiPathQuery {
+                    path: "page.md".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            post_wiki_page_root(
+                State(state.clone()),
+                Json(WikiCreateRequest {
+                    path: "page.md".to_string(),
+                    content: Some("content".to_string()),
+                    overwrite: Some(false),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            put_wiki_page_root(
+                State(state.clone()),
+                Json(WikiUpdateRequest {
+                    path: "page.md".to_string(),
+                    content: "updated".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            delete_wiki_page_root(
+                State(state.clone()),
+                Query(WikiPathQuery {
+                    path: "page.md".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            post_wiki_rename_root(
+                State(state.clone()),
+                Json(WikiRenameRequest {
+                    from_path: "old.md".to_string(),
+                    to_path: "new.md".to_string(),
+                    overwrite: Some(false),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            post_wiki_render_root(
+                State(state),
+                Json(WikiRenderRequestPayload {
+                    path: "page.md".to_string(),
+                    content: Some("content".to_string()),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[tokio::test]
+    async fn notification_and_telemetry_endpoints_return_expected_status_codes() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+
+        let event = NotificationEvent::UiControl {
+            action: UiControlAction::ReloadPage,
+        };
+        assert_eq!(
+            post_notification_root(State(state.clone()), Json(event.clone())).await,
+            StatusCode::OK
+        );
+        assert_eq!(
+            post_notification(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(event),
+            )
+            .await,
+            StatusCode::OK
+        );
+
+        assert_eq!(
+            post_console_telemetry_root(State(state.clone()), Bytes::from("{}")).await,
+            StatusCode::NO_CONTENT
+        );
+        assert_eq!(
+            post_console_telemetry(
+                State(state),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Bytes::from("{}"),
+            )
+            .await,
+            StatusCode::NO_CONTENT
+        );
+    }
+
+    #[tokio::test]
+    async fn tenant_scoped_api_endpoints_return_expected_statuses() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-1");
+        let state = test_state(root.clone(), root, false);
+
+        assert_eq!(
+            get_config(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string()))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issues(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string()))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issue(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-999".to_string()))
+            )
+            .await
+            .status(),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            get_issue_events(
+                State(state),
+                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-999".to_string())),
+                Query(IssueEventsQuery {
+                    limit: Some(10),
+                    before: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn root_and_tenant_issue_endpoints_succeed_for_existing_issue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-1");
+        let state = test_state(root.clone(), root, false);
+
+        assert_eq!(get_config_root(State(state.clone())).await.status(), StatusCode::OK);
+        assert_eq!(get_issues_root(State(state.clone())).await.status(), StatusCode::OK);
+        assert_eq!(
+            get_issue_root(State(state.clone()), AxumPath("kbs-1".to_string()))
+                .await
+                .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issue_events_root(
+                State(state.clone()),
+                AxumPath("kbs-1".to_string()),
+                Query(IssueEventsQuery {
+                    limit: Some(20),
+                    before: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issue(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-1".to_string())),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issue_events(
+                State(state),
+                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-1".to_string())),
+                Query(IssueEventsQuery {
+                    limit: Some(20),
+                    before: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+    }
+
+    #[tokio::test]
+    async fn asset_route_wrappers_resolve_expected_paths() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets_root = temp.path().join("assets");
+        std::fs::create_dir_all(assets_root.join("assets")).expect("mkdir assets");
+        std::fs::write(assets_root.join("index.html"), "<html>ok</html>").expect("index");
+        std::fs::write(assets_root.join("app.js"), "console.log('root');").expect("app");
+        std::fs::write(
+            assets_root.join("assets").join("client.js"),
+            "console.log('public');",
+        )
+        .expect("public");
+        let state = test_state(temp.path().to_path_buf(), assets_root, false);
+
+        assert_eq!(
+            get_index_root(State(state.clone())).await.status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_index(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string()))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_asset(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string(), "app.js".to_string()))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_public_asset(State(state.clone()), AxumPath("client.js".to_string()))
+                .await
+                .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_asset_root(
+                State(state.clone()),
+                axum::extract::OriginalUri(axum::http::Uri::from_static("/"))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_asset_root(
+                State(state),
+                axum::extract::OriginalUri(axum::http::Uri::from_static("/missing.js"))
+            )
+            .await
+            .status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn favicon_returns_no_content_when_missing_and_ok_when_present() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets_root = temp.path().join("assets");
+        std::fs::create_dir_all(&assets_root).expect("mkdir assets");
+        let state = test_state(temp.path().to_path_buf(), assets_root.clone(), false);
+
+        assert_eq!(get_favicon(State(state.clone())).await.status(), StatusCode::NO_CONTENT);
+
+        std::fs::write(assets_root.join("favicon.ico"), vec![0_u8, 1_u8]).expect("favicon");
+        assert_eq!(get_favicon(State(state)).await.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn tenant_scoped_wiki_endpoints_support_full_round_trip() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        let state = test_state(root.clone(), root, false);
+
+        assert_eq!(
+            post_wiki_page(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(WikiCreateRequest {
+                    path: "page.md".to_string(),
+                    content: Some("hello".to_string()),
+                    overwrite: Some(false),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::CREATED
+        );
+        assert_eq!(
+            get_wiki_pages(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_wiki_page(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Query(WikiPathQuery {
+                    path: "page.md".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            put_wiki_page(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(WikiUpdateRequest {
+                    path: "page.md".to_string(),
+                    content: "updated".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            post_wiki_rename(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(WikiRenameRequest {
+                    from_path: "page.md".to_string(),
+                    to_path: "renamed.md".to_string(),
+                    overwrite: Some(false),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            post_wiki_render(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(WikiRenderRequestPayload {
+                    path: "renamed.md".to_string(),
+                    content: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            delete_wiki_page(
+                State(state),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Query(WikiPathQuery {
+                    path: "renamed.md".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+    }
+
+    #[tokio::test]
+    async fn post_render_d2_returns_service_unavailable_when_binary_is_missing() {
+        let _guard = env_guard();
+        let prior_path = std::env::var("PATH").ok();
+        unsafe {
+            std::env::set_var("PATH", "");
+        }
+        let status = post_render_d2(Bytes::from(r#"{"source":"a -> b"}"#))
+            .await
+            .status();
+        if let Some(path) = prior_path {
+            unsafe {
+                std::env::set_var("PATH", path);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("PATH");
+            }
+        }
+        assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn auth_bootstrap_endpoints_expose_expected_account_project_scope() {
+        let root = get_auth_bootstrap_root().await.0;
+        assert!(root.account.is_none());
+        assert!(root.project.is_none());
+        assert_eq!(root.mode, "none");
+
+        let scoped = get_auth_bootstrap(AxumPath(("acct".to_string(), "proj".to_string())))
+            .await
+            .0;
+        assert_eq!(scoped.account.as_deref(), Some("acct"));
+        assert_eq!(scoped.project.as_deref(), Some("proj"));
+        assert_eq!(scoped.mode, "none");
     }
 }
