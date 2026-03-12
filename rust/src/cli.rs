@@ -3640,9 +3640,8 @@ mod tests {
         };
         assert!(message.contains("directory containing a single project/ folder"));
 
-        let passthrough = format_daemon_project_error(KanbusError::IssueOperation(
-            "something else".to_string(),
-        ));
+        let passthrough =
+            format_daemon_project_error(KanbusError::IssueOperation("something else".to_string()));
         let KanbusError::IssueOperation(message) = passthrough else {
             panic!("expected issue operation");
         };

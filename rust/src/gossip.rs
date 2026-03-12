@@ -1545,12 +1545,10 @@ mod tests {
             },
         );
         assert!(result.is_err());
-        assert!(
-            result
-                .expect_err("expected error")
-                .to_string()
-                .contains("unknown project label")
-        );
+        assert!(result
+            .expect_err("expected error")
+            .to_string()
+            .contains("unknown project label"));
     }
 
     #[test]
@@ -1589,11 +1587,9 @@ mod tests {
             },
         );
         assert!(error_result.is_err());
-        assert!(
-            error_result
-                .expect_err("expected error")
-                .to_string()
-                .contains("realtime broker is disabled")
-        );
+        assert!(error_result
+            .expect_err("expected error")
+            .to_string()
+            .contains("realtime broker is disabled"));
     }
 }

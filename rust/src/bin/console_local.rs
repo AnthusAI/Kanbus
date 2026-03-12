@@ -2470,7 +2470,11 @@ mod tests {
         assert_eq!(
             get_issue(
                 State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-999".to_string()))
+                AxumPath((
+                    "acct".to_string(),
+                    "proj".to_string(),
+                    "kbs-999".to_string()
+                ))
             )
             .await
             .status(),
@@ -2479,7 +2483,11 @@ mod tests {
         assert_eq!(
             get_issue_events(
                 State(state),
-                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-999".to_string())),
+                AxumPath((
+                    "acct".to_string(),
+                    "proj".to_string(),
+                    "kbs-999".to_string()
+                )),
                 Query(IssueEventsQuery {
                     limit: Some(10),
                     before: None,
@@ -2499,8 +2507,14 @@ mod tests {
         write_issue(&root, "kbs-1");
         let state = test_state(root.clone(), root, false);
 
-        assert_eq!(get_config_root(State(state.clone())).await.status(), StatusCode::OK);
-        assert_eq!(get_issues_root(State(state.clone())).await.status(), StatusCode::OK);
+        assert_eq!(
+            get_config_root(State(state.clone())).await.status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issues_root(State(state.clone())).await.status(),
+            StatusCode::OK
+        );
         assert_eq!(
             get_issue_root(State(state.clone()), AxumPath("kbs-1".to_string()))
                 .await
@@ -2613,7 +2627,10 @@ mod tests {
         std::fs::create_dir_all(&assets_root).expect("mkdir assets");
         let state = test_state(temp.path().to_path_buf(), assets_root.clone(), false);
 
-        assert_eq!(get_favicon(State(state.clone())).await.status(), StatusCode::NO_CONTENT);
+        assert_eq!(
+            get_favicon(State(state.clone())).await.status(),
+            StatusCode::NO_CONTENT
+        );
 
         std::fs::write(assets_root.join("favicon.ico"), vec![0_u8, 1_u8]).expect("favicon");
         assert_eq!(get_favicon(State(state)).await.status(), StatusCode::OK);
@@ -2797,10 +2814,7 @@ mod tests {
     async fn post_render_d2_returns_bad_request_when_renderer_fails() {
         let _guard = env_guard();
         let temp = tempfile::tempdir().expect("tempdir");
-        let bin_dir = install_fake_d2(
-            temp.path(),
-            "#!/bin/sh\necho 'syntax error' 1>&2\nexit 2\n",
-        );
+        let bin_dir = install_fake_d2(temp.path(), "#!/bin/sh\necho 'syntax error' 1>&2\nexit 2\n");
         let prior_path = prepend_path(&bin_dir);
 
         let response = post_render_d2(Bytes::from(r#"{"source":"a -> b"}"#)).await;
@@ -2809,12 +2823,10 @@ mod tests {
             .await
             .expect("body bytes");
         let parsed: serde_json::Value = serde_json::from_slice(&body).expect("json body");
-        assert!(
-            parsed["error"]
-                .as_str()
-                .unwrap_or_default()
-                .contains("D2 rendering failed")
-        );
+        assert!(parsed["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("D2 rendering failed"));
 
         if let Some(path) = prior_path {
             unsafe {
