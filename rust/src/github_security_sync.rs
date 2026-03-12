@@ -1805,20 +1805,18 @@ mod tests {
             &initiative,
             &issue_path_for_identifier(&issues_dir, &initiative.identifier),
         )?;
-        write_issue_to_file(&epic, &issue_path_for_identifier(&issues_dir, &epic.identifier))?;
+        write_issue_to_file(
+            &epic,
+            &issue_path_for_identifier(&issues_dir, &epic.identifier),
+        )?;
 
         let mut existing = HashSet::from([initiative.identifier.clone(), epic.identifier.clone()]);
         let resolved_existing =
             resolve_dependabot_epic(&issues_dir, "kbs", None, false, &mut existing)?;
         assert_eq!(resolved_existing, epic.identifier);
 
-        let resolved_configured = resolve_dependabot_epic(
-            &issues_dir,
-            "kbs",
-            Some("kbs-epic.9"),
-            false,
-            &mut existing,
-        )?;
+        let resolved_configured =
+            resolve_dependabot_epic(&issues_dir, "kbs", Some("kbs-epic.9"), false, &mut existing)?;
         assert_eq!(resolved_configured, "kbs-epic.9");
         Ok(())
     }
