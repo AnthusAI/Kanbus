@@ -59,7 +59,11 @@ fn when_select_wiki_page(world: &mut KanbusWorld, path: String) {
 #[when("I type wiki content:")]
 fn when_type_wiki_content(world: &mut KanbusWorld, step: &Step) {
     let wiki = ensure_wiki_state(world);
-    wiki.editor_content = step.docstring().map(|s| s.as_str()).unwrap_or("").to_string();
+    wiki.editor_content = step
+        .docstring()
+        .map(|s| s.as_str())
+        .unwrap_or("")
+        .to_string();
     wiki.status = "Unsaved changes".to_string();
     wiki.error_banner = None;
 }
@@ -67,10 +71,7 @@ fn when_type_wiki_content(world: &mut KanbusWorld, step: &Step) {
 #[when("I save the wiki page")]
 fn when_save_wiki_page(world: &mut KanbusWorld) {
     let wiki = ensure_wiki_state(world);
-    let path = wiki
-        .selected_path
-        .as_ref()
-        .expect("no wiki page selected");
+    let path = wiki.selected_path.as_ref().expect("no wiki page selected");
     if let Some(content) = wiki.pages.get_mut(path) {
         *content = wiki.editor_content.clone();
     }
@@ -92,15 +93,18 @@ fn when_render_wiki_page(world: &mut KanbusWorld) {
 #[when(regex = r#"I rename the wiki page "(?P<old_path>[^"]+)" to "(?P<new_path>[^"]+)"$"#)]
 fn when_rename_wiki_page(world: &mut KanbusWorld, old_path: String, new_path: String) {
     let wiki = ensure_wiki_state(world);
-    let content = wiki
-        .pages
-        .remove(&old_path)
-        .expect("wiki page not found");
+    let content = wiki.pages.remove(&old_path).expect("wiki page not found");
     wiki.pages.insert(new_path.clone(), content.clone());
     wiki.page_order = wiki
         .page_order
         .iter()
-        .map(|p| if p == &old_path { new_path.clone() } else { p.clone() })
+        .map(|p| {
+            if p == &old_path {
+                new_path.clone()
+            } else {
+                p.clone()
+            }
+        })
         .collect();
     if wiki.selected_path.as_deref() == Some(old_path.as_str()) {
         wiki.selected_path = Some(new_path);
@@ -245,8 +249,7 @@ fn then_wiki_status_should_show(world: &mut KanbusWorld, status: String) {
     assert_eq!(
         wiki.status, status,
         "expected wiki status {:?}, got {:?}",
-        status,
-        wiki.status
+        status, wiki.status
     );
 }
 
