@@ -1122,6 +1122,14 @@ mod tests {
         }
     }
 
+    fn write_test_config(root: &Path, broker: &str, transport: &str) {
+        let mut configuration = default_project_configuration();
+        configuration.realtime.broker = broker.to_string();
+        configuration.realtime.transport = transport.to_string();
+        let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
+        std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
+    }
+
     #[test]
     fn publish_uds_if_available_returns_false_without_socket() {
         let realtime = sample_realtime(Some("/tmp/kanbus-nonexistent.sock".to_string()));
@@ -1516,5 +1524,76 @@ mod tests {
             .recv_timeout(Duration::from_secs(2))
             .expect("expected valid envelope delivery");
         assert_eq!(observed, received_id);
+    }
+
+    #[test]
+    fn run_gossip_consumer_rejects_unknown_project_label() {
+        let temp = TempDir::new().expect("temp dir");
+        write_test_config(temp.path(), "off", "mqtt");
+        let result = run_gossip_consumer(
+            temp.path(),
+            GossipConsumerOptions {
+                project_filter: Some("missing".to_string()),
+                transport_override: None,
+                broker_override: None,
+                autostart_override: None,
+                keepalive_override: None,
+                print_envelopes: false,
+                on_envelope: None,
+                autostart_local_uds: false,
+                broker_off_is_error: true,
+            },
+        );
+        assert!(result.is_err());
+        assert!(
+            result
+                .expect_err("expected error")
+                .to_string()
+                .contains("unknown project label")
+        );
+    }
+
+    #[test]
+    fn run_gossip_consumer_broker_off_respects_error_policy() {
+        let temp = TempDir::new().expect("temp dir");
+        write_test_config(temp.path(), "off", "mqtt");
+
+        let ok_result = run_gossip_consumer(
+            temp.path(),
+            GossipConsumerOptions {
+                project_filter: None,
+                transport_override: None,
+                broker_override: None,
+                autostart_override: None,
+                keepalive_override: None,
+                print_envelopes: false,
+                on_envelope: None,
+                autostart_local_uds: false,
+                broker_off_is_error: false,
+            },
+        );
+        assert!(ok_result.is_ok());
+
+        let error_result = run_gossip_consumer(
+            temp.path(),
+            GossipConsumerOptions {
+                project_filter: None,
+                transport_override: None,
+                broker_override: None,
+                autostart_override: None,
+                keepalive_override: None,
+                print_envelopes: false,
+                on_envelope: None,
+                autostart_local_uds: false,
+                broker_off_is_error: true,
+            },
+        );
+        assert!(error_result.is_err());
+        assert!(
+            error_result
+                .expect_err("expected error")
+                .to_string()
+                .contains("realtime broker is disabled")
+        );
     }
 }
