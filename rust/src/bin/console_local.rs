@@ -1698,6 +1698,10 @@ mod tests {
     fn setup_project_root(root: &Path) {
         std::fs::create_dir_all(root.join("project").join("issues"))
             .expect("create project/issues");
+        write_project_config(root);
+    }
+
+    fn write_project_config(root: &Path) {
         let config = kanbus::config::default_project_configuration();
         let yaml = serde_yaml::to_string(&config).expect("serialize config");
         std::fs::write(root.join(".kanbus.yml"), yaml).expect("write .kanbus.yml");
@@ -2036,11 +2040,50 @@ mod tests {
     fn wiki_error_to_response_maps_status_codes() {
         let invalid = wiki_error_to_response(WikiServiceError::InvalidPath("bad".to_string()));
         let conflict = wiki_error_to_response(WikiServiceError::Conflict("exists".to_string()));
+        let not_found = wiki_error_to_response(WikiServiceError::NotFound("missing".to_string()));
+        let render = wiki_error_to_response(WikiServiceError::Render("render".to_string()));
         let io = wiki_error_to_response(WikiServiceError::Io("disk".to_string()));
 
         assert_eq!(invalid.status(), StatusCode::UNPROCESSABLE_ENTITY);
         assert_eq!(conflict.status(), StatusCode::CONFLICT);
+        assert_eq!(not_found.status(), StatusCode::NOT_FOUND);
+        assert_eq!(render.status(), StatusCode::BAD_REQUEST);
         assert_eq!(io.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn maybe_prompt_project_repair_creates_missing_project_directories() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_project_config(temp.path());
+        maybe_prompt_project_repair(temp.path());
+
+        assert!(temp.path().join("project").is_dir());
+        assert!(temp.path().join("project/issues").is_dir());
+        assert!(temp.path().join("project/events").is_dir());
+    }
+
+    #[test]
+    fn snapshot_payload_returns_error_payload_when_snapshot_build_fails() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let store = FileStore::new(temp.path().to_path_buf());
+        let (payload, fingerprint) = snapshot_payload(&store);
+        assert!(payload.contains("\"error\""));
+        assert_eq!(fingerprint, hash_payload(&payload));
+    }
+
+    #[test]
+    fn snapshot_payload_success_uses_snapshot_fingerprint() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-1");
+        let store = FileStore::new(root.clone());
+        let snapshot = store.build_snapshot().expect("snapshot");
+        let expected_fingerprint = snapshot_fingerprint(&snapshot);
+
+        let (payload, fingerprint) = snapshot_payload(&store);
+        assert_eq!(fingerprint, expected_fingerprint);
+        assert!(payload.contains("\"issues\""));
     }
 
     #[tokio::test]
@@ -2295,6 +2338,75 @@ mod tests {
             )
             .await,
             StatusCode::NO_CONTENT
+        );
+    }
+
+    #[tokio::test]
+    async fn ui_state_and_sse_endpoints_return_event_stream_content_type() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+        {
+            let mut ui_state = state.ui_state.write().await;
+            ui_state.focused_issue_id = Some("kbs-88".to_string());
+            ui_state.focused_comment_id = Some("comment-2".to_string());
+        }
+
+        let ui_state = get_ui_state_root(State(state.clone())).await.0;
+        assert_eq!(ui_state.focused_issue_id.as_deref(), Some("kbs-88"));
+        assert_eq!(ui_state.focused_comment_id.as_deref(), Some("comment-2"));
+
+        let realtime = get_realtime_events_root(State(state.clone()))
+            .await
+            .into_response();
+        assert_eq!(realtime.status(), StatusCode::OK);
+        assert_eq!(
+            realtime
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+
+        let telemetry = get_console_telemetry_events_root(State(state))
+            .await
+            .into_response();
+        assert_eq!(telemetry.status(), StatusCode::OK);
+        assert_eq!(
+            telemetry
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+    }
+
+    #[tokio::test]
+    async fn events_root_supports_single_and_multi_tenant_modes() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-1");
+
+        let single_tenant = test_state(root.clone(), root.clone(), false);
+        let single_response = get_events_root(State(single_tenant)).await.into_response();
+        assert_eq!(single_response.status(), StatusCode::OK);
+        assert_eq!(
+            single_response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+
+        let multi_tenant = test_state(root.clone(), root, true);
+        let multi_response = get_events_root(State(multi_tenant)).await.into_response();
+        assert_eq!(multi_response.status(), StatusCode::OK);
+        assert_eq!(
+            multi_response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
         );
     }
 
