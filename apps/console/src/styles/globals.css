@@ -336,20 +336,6 @@ html[data-motion="reduced"] .search-input-field {
   transition-duration: 0.2s;
 }
 
-.detail-column {
-  background: var(--card);
-  border-radius: 12px;
-  overflow-y: hidden;
-  overflow-x: visible;
-  height: 100%;
-  width: 0;
-  flex: 0 0 0;
-  transform: translateX(100%);
-  transition: transform var(--layout-transition) ease;
-  pointer-events: none;
-  position: relative;
-  z-index: 50;
-}
 
 .sidebar-column {
   position: absolute;
@@ -391,33 +377,8 @@ html[data-motion="reduced"] .search-input-field {
   transform: translateX(var(--sidebar-offscreen, 120vw));
 }
 
-.detail-column-visible {
-  width: var(--detail-width);
-  flex: 0 0 var(--detail-width);
-  max-width: 100%;
-}
-
-.detail-column-open {
-  transform: translateX(0);
-  pointer-events: auto;
-}
-
-.detail-column-closing {
-  transform: translateX(100%);
-  pointer-events: none;
-}
 
 @media (max-width: 768px) {
-  .detail-column-visible {
-    width: 100%;
-    flex: 0 0 100%;
-  }
-
-  .detail-column-open {
-    width: 100%;
-    flex: 0 0 100%;
-  }
-
   .sidebar-column-visible {
     width: calc(100% - (var(--frame-padding) * 2));
     flex: 0 0 calc(100% - (var(--frame-padding) * 2));
@@ -787,6 +748,10 @@ html[data-motion="reduced"] .sidebar-column {
   display: none;
 }
 
+.layout-frame.is-resizing .layout-slot-board {
+  transition: none;
+}
+
 .layout-frame.is-resizing .detail-column {
   transition: none;
 }
@@ -798,7 +763,7 @@ html[data-motion="reduced"] .sidebar-column {
   height: 100%;
   min-width: 0;
   transform: translateX(0);
-  transition: none;
+  transition: transform var(--layout-transition) ease;
   will-change: transform;
 }
 

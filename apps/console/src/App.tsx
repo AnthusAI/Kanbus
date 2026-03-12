@@ -1113,14 +1113,14 @@ export default function App() {
     wasDetailOpenRef.current = isDetailOpen;
   }, [isDetailOpen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const layout = layoutFrameRef.current;
     if (!layout) {
       return;
     }
     const widthValue = detailMaximized ? 100 : detailWidth;
     layout.style.setProperty("--detail-width", `${widthValue}%`);
-    layout.style.setProperty("--board-width", `${100 - widthValue}%`);
+    layout.style.setProperty("--board-width", `calc(${100 - widthValue}% - 1rem)`);
   }, [detailWidth, detailMaximized]);
 
   useEffect(() => {
@@ -1835,7 +1835,7 @@ export default function App() {
     return "translateX(0)";
   }, [panelMode]);
 
-  const transitionKey = `${resolvedViewMode ?? "none"}-${snapshot?.updated_at ?? ""}`;
+  const transitionKey = `${resolvedViewMode ?? "none"}`;
   const showLoadingIndicator =
     loading || !snapshot;
   const sidebarOpen = filterOpen || settingsOpen;
@@ -2023,7 +2023,7 @@ export default function App() {
               <div
                 className={`view-panel ${
                   panelMode === "board" ? "view-panel-active" : "view-panel-inactive"
-                }`}
+                }${isDetailVisible ? " view-panel-detail-visible" : ""}`}
                 data-testid="board-view"
                 aria-hidden={panelMode !== "board"}
               >

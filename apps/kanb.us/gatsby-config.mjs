@@ -1,3 +1,8 @@
+import nodeCrypto from "node:crypto";
+if (!globalThis.crypto) {
+  globalThis.crypto = nodeCrypto.webcrypto;
+}
+
 const config = {
   siteMetadata: {
     title: "Kanbus",
