@@ -45,7 +45,7 @@ jobs:
           mkdir -p ../coverage-python
           python -m coverage erase
           python -m coverage run --source=kanbus -m pytest
-          KANBUS_ENABLE_COVERAGE_HELPER=0 python -m coverage run --append --source=kanbus -m behave --tags "~wip"
+          KANBUS_ENABLE_COVERAGE_HELPER=0 python -m coverage run --append --source=kanbus -m behave --tags "~wip ~console-server"
           python -m coverage xml -o ../coverage-python/coverage.xml
 
       - name: Capture Python coverage
@@ -297,10 +297,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e python
 
-      - name: Run Python @console parity scenarios
+      - name: Run Python @console-server parity scenarios
         run: |
           cd python
-          KANBUS_ENABLE_COVERAGE_HELPER=0 python -m behave --include "console"
+          KANBUS_ENABLE_COVERAGE_HELPER=0 python -m behave --tags "@console-server"
 
   console-ui:
     runs-on: ubuntu-latest

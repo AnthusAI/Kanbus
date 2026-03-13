@@ -128,7 +128,7 @@ Feature: Console UI state commands
   # kbs console status and get (server online) — requires running console server
   # ---------------------------------------------------------------------------
 
-  @console
+  @console @console-server
   Scenario: Status shows all state fields when console server is running
     Given a Kanbus project with default configuration
     And an issue "kanbus-abc" exists with title "Auth bug"
@@ -142,7 +142,7 @@ Feature: Console UI state commands
     And stdout should contain "issues"
     And stdout should contain "login"
 
-  @console
+  @console @console-server
   Scenario: Get focus prints focused issue ID
     Given a Kanbus project with default configuration
     And an issue "kanbus-abc" exists with title "Auth bug"
@@ -152,7 +152,7 @@ Feature: Console UI state commands
     Then the command should succeed
     And stdout should contain "kanbus-abc"
 
-  @console
+  @console @console-server
   Scenario: Get focus prints "none" when no issue is focused
     Given a Kanbus project with default configuration
     And the console server is running
@@ -161,7 +161,7 @@ Feature: Console UI state commands
     Then the command should succeed
     And stdout should contain "none"
 
-  @console
+  @console @console-server
   Scenario: Get view prints current view mode
     Given a Kanbus project with default configuration
     And the console server is running
@@ -170,7 +170,7 @@ Feature: Console UI state commands
     Then the command should succeed
     And stdout should contain "epics"
 
-  @console
+  @console @console-server
   Scenario: Get search prints active search query
     Given a Kanbus project with default configuration
     And the console server is running
@@ -179,7 +179,7 @@ Feature: Console UI state commands
     Then the command should succeed
     And stdout should contain "auth bug"
 
-  @console
+  @console @console-server
   Scenario: Focus command is deprecated while server is running
     Given a Kanbus project with default configuration
     And an issue "kanbus-abc" exists with title "Auth bug"
@@ -188,7 +188,7 @@ Feature: Console UI state commands
     Then the command should fail
     And stderr should contain "deprecated"
 
-  @console
+  @console @console-server
   Scenario: Unfocus command is deprecated while server is running
     Given a Kanbus project with default configuration
     And an issue "kanbus-abc" exists with title "Auth bug"
@@ -198,7 +198,7 @@ Feature: Console UI state commands
     Then the command should fail
     And stderr should contain "deprecated"
 
-  @console
+  @console @console-server
   Scenario: UI state persists across server restarts
     Given a Kanbus project with default configuration
     And an issue "kanbus-abc" exists with title "Auth bug"

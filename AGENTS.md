@@ -354,6 +354,18 @@ python tools/coverage_parity_report.py \
 - Same formatting
 - Same order of output
 
+## Behave Tag Semantics
+
+The Python behavior specs use tags to control which scenarios run by default and in CI:
+
+- **`~wip`**: Excluded by default. Work-in-progress scenarios that are not yet ready.
+- **`~console`**: Console UI scenarios excluded by default (require console features).
+- **`~console-server`**: Scenarios that require a running kbsc are excluded by default. Run only when `KBSC_BINARY` is set or in the dedicated CI job that builds kbsc first.
+- **Local full run**: `behave --tags "~wip ~console-server"` (default from behave.ini).
+- **Console-server only**: `behave --tags "@console-server"` with `KBSC_BINARY` set to the path to the built kbsc binary.
+
+CI runs the main behave job with `~wip ~console-server` and a separate `python-console-parity` job that builds kbsc and runs `behave --tags "@console-server"`.
+
 ## Quality Gates (All Must Pass)
 
 Before any PR can merge:
