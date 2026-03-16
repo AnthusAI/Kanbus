@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.17.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-rust-0.16.0...kanbus-rust-0.17.0) (2026-03-09)
+
+
+### Features
+
+* AI-powered wiki, lifecycle hooks, and init default pages ([b9fd52d](https://github.com/AnthusAI/Kanbus/commit/b9fd52d7deea1a3b748461538022b1e8fc741895))
+* **cloud-realtime:** add mqtt-first client transport and ops runbook alarms ([ed2c192](https://github.com/AnthusAI/Kanbus/commit/ed2c1925e0df0c7112864a47f376ff99b1f6f093))
+* **cloud:** scaffold Python CDK foundation and lambda realtime bootstrap ([118d3e1](https://github.com/AnthusAI/Kanbus/commit/118d3e104eda03097114fa50f439fb100f06edbf))
+* **console:** add wiki workspace with deep links, resize, and tests ([52f8c9f](https://github.com/AnthusAI/Kanbus/commit/52f8c9f0ac5574bd87a389be2f9ae493fe3fbc13))
+* **console:** support stage-prefixed cloud routes and relative asset base ([137575c](https://github.com/AnthusAI/Kanbus/commit/137575c2baa57869cb141660827eb49b0374d984))
+* **event-history:** expand event coverage and fix beads dependency events ([a249c23](https://github.com/AnthusAI/Kanbus/commit/a249c23e0d81109e99cbafa595e84ded6ef9d77d))
+* **realtime:** ship pub-sub collaboration hub, overlay cache, and docs ([a0a55bf](https://github.com/AnthusAI/Kanbus/commit/a0a55bff0a5d56656d6794ca1b7fffdc9f38ddc9))
+* **sync:** add GitHub Dependabot pull sync with Beads support and Rust/Python parity ([df13ee7](https://github.com/AnthusAI/Kanbus/commit/df13ee73327c47d02ab3dd149f2adc68e574a239))
+
+
+### Bug Fixes
+
+* **ci:** add wiki panel console steps and apply fmt ([acf63b1](https://github.com/AnthusAI/Kanbus/commit/acf63b109acf3f95d1411946484100b35b800b73))
+* **ci:** address clippy and overlay test regressions ([961968e](https://github.com/AnthusAI/Kanbus/commit/961968e9099cc74a55f9a9bbde35545393586c8f))
+* **ci:** resolve clippy needless borrow in beads delete path ([d4f0603](https://github.com/AnthusAI/Kanbus/commit/d4f0603052735867f3d591723359861ec6f81eb8))
+* **ci:** restore parity env and normalize formatting ([cce8253](https://github.com/AnthusAI/Kanbus/commit/cce825378721d9eca8ed15a5731213eed163fe77))
+* **ci:** restore persisted console UI state across kbsc restart ([16ce9c5](https://github.com/AnthusAI/Kanbus/commit/16ce9c530a369f956e9ca0c4a7a534fa6225b760))
+* **ci:** restore rust hooks clippy compliance and behave env cleanup ([eaee32f](https://github.com/AnthusAI/Kanbus/commit/eaee32fdf677e4aaac7ad6d9dc9789cc306f3c26))
+* **ci:** stabilize console wiki ui regression checks ([88cf9b7](https://github.com/AnthusAI/Kanbus/commit/88cf9b7eb89fa07c8765d3c8d18d34e8a1e4bf58))
+* **cloud:** harden console lambda routing and tenant data resolution ([78a3a3b](https://github.com/AnthusAI/Kanbus/commit/78a3a3b7babf8026e64f6bcd42e92db242d410e0))
+* **codeql:** derive console state path from trusted project dir ([49a4554](https://github.com/AnthusAI/Kanbus/commit/49a455458794cf08594d4596762e9eb3517364aa))
+* **console:** accept mqtt realtime config in python snapshot path ([03399e7](https://github.com/AnthusAI/Kanbus/commit/03399e7da6ba96d44aec4da70afc5238a886e1c5))
+* quality gates - behave config steps, delete --yes, clippy, list_format ([5505cec](https://github.com/AnthusAI/Kanbus/commit/5505cec79ef6763b2c3df61e6fad5a7b98094d98))
+* **rust:** resolve clippy warnings in console_lambda ([587a508](https://github.com/AnthusAI/Kanbus/commit/587a508e75d25a791eec65a0674ade76356f1fdc))
+
 ## [0.16.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-rust-0.15.0...kanbus-rust-0.16.0) (2026-03-06)
 
 
