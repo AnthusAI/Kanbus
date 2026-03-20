@@ -79,6 +79,10 @@ name = "kbs"
 path = "src/main.rs"
 
 [[bin]]
+name = "kanbus"
+path = "src/main.rs"
+
+[[bin]]
 name = "kbsc"
 path = "src/bin/console_local.rs"
 

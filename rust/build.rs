@@ -3,12 +3,12 @@ fn main() {
     // release version (e.g. "0.11.0" or "0.11.0-31-gd03e59b") instead of the
     // often-stale Cargo.toml version.
     let git_version = std::process::Command::new("git")
-        .args(["describe", "--tags", "--always"])
+        .args(["describe", "--tags", "--always", "--match", "kanbus-rust-*"])
         .output()
         .ok()
         .filter(|o| o.status.success())
         .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().trim_start_matches('v').to_string())
+        .map(|s| s.trim().trim_start_matches("kanbus-rust-").to_string())
         .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
 
     println!("cargo:rustc-env=GIT_VERSION={git_version}");
