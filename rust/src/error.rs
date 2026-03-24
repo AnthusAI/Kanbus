@@ -86,3 +86,60 @@ impl Display for KanbusError {
 }
 
 impl std::error::Error for KanbusError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_for_simple_variants_returns_message() {
+        let variants = vec![
+            KanbusError::Initialization("init".to_string()),
+            KanbusError::Io("io".to_string()),
+            KanbusError::IdGenerationFailed("id".to_string()),
+            KanbusError::Configuration("cfg".to_string()),
+            KanbusError::InvalidTransition("transition".to_string()),
+            KanbusError::InvalidHierarchy("hierarchy".to_string()),
+            KanbusError::IssueOperation("issue".to_string()),
+            KanbusError::ProtocolError("protocol".to_string()),
+        ];
+        let rendered: Vec<String> = variants.into_iter().map(|e| e.to_string()).collect();
+        assert_eq!(
+            rendered,
+            vec![
+                "init",
+                "io",
+                "id",
+                "cfg",
+                "transition",
+                "hierarchy",
+                "issue",
+                "protocol"
+            ]
+        );
+    }
+
+    #[test]
+    fn display_for_policy_violation_includes_details_and_guidance() {
+        let error = KanbusError::PolicyViolation {
+            policy_file: "rules.policy".into(),
+            scenario: "Scenario name".into(),
+            failed_step: "Then step".into(),
+            message: "step failed".into(),
+            issue_id: "kanbus-1".into(),
+            details: Box::new(PolicyViolationDetails {
+                explanations: vec!["why one".to_string(), "why two".to_string()],
+                guidance: vec!["do this".to_string()],
+            }),
+        };
+        let text = error.to_string();
+        assert!(text.contains("policy violation in rules.policy for issue kanbus-1"));
+        assert!(text.contains("Rule: Scenario name"));
+        assert!(text.contains("Failed: Then step"));
+        assert!(text.contains("step failed"));
+        assert!(text.contains("Explanation: why one"));
+        assert!(text.contains("Explanation: why two"));
+        assert!(text.contains("Guidance:"));
+        assert!(text.contains("do this"));
+    }
+}

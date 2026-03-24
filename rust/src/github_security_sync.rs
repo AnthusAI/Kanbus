@@ -1240,6 +1240,34 @@ fn extract_repo_slug(remote: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
+    use serde_json::json;
+    use std::collections::HashSet;
+    use std::fs;
+    use std::process::Command;
+    use tempfile::TempDir;
+
+    fn sample_alert() -> Value {
+        json!({
+            "number": 42,
+            "state": "open",
+            "html_url": "https://github.com/example/acme/alerts/42",
+            "dependency": {
+                "manifest_path": "Cargo.toml",
+                "package": { "ecosystem": "cargo", "name": "serde" }
+            },
+            "security_advisory": {
+                "ghsa_id": "GHSA-1234-5678",
+                "severity": "high",
+                "summary": "Serde vulnerability",
+                "description": "Details here"
+            },
+            "security_vulnerability": {
+                "package": { "ecosystem": "cargo", "name": "serde" },
+                "severity": "critical"
+            }
+        })
+    }
 
     #[test]
     fn parses_github_remote_slug() {
@@ -1275,5 +1303,549 @@ mod tests {
         assert_eq!(severity_to_priority("medium"), 2);
         assert_eq!(severity_to_priority("low"), 3);
         assert_eq!(severity_to_priority("unknown"), 3);
+    }
+
+    #[test]
+    fn validate_dependabot_state_rejects_invalid_value() {
+        assert!(validate_dependabot_state("fixed").is_ok());
+        let error = validate_dependabot_state("invalid").unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("invalid dependabot state 'invalid'"));
+    }
+
+    #[test]
+    fn task_target_key_prefers_manifest_then_ecosystem() {
+        let alert = sample_alert();
+        assert_eq!(task_target_key(&alert), "Cargo.toml");
+
+        let mut no_manifest = sample_alert();
+        no_manifest["dependency"]["manifest_path"] = json!("");
+        assert_eq!(task_target_key(&no_manifest), "cargo");
+
+        let mut unknown = sample_alert();
+        unknown["dependency"]["manifest_path"] = json!("");
+        unknown["dependency"]["package"]["ecosystem"] = json!(null);
+        unknown["security_vulnerability"]["package"]["ecosystem"] = json!(null);
+        assert_eq!(task_target_key(&unknown), "unknown");
+    }
+
+    #[test]
+    fn map_dependabot_to_kanbus_sets_expected_fields() {
+        let alert = sample_alert();
+        let issue = map_dependabot_to_kanbus(&alert, "AnthusAI/Kanbus", "kbs-epic.1");
+        assert!(issue.title.contains("GHSA-1234-5678"));
+        assert_eq!(issue.parent.as_deref(), Some("kbs-epic.1"));
+        assert_eq!(issue.issue_type, "sub-task");
+        assert_eq!(issue.priority, 1);
+        assert_eq!(
+            issue
+                .custom
+                .get("github_manifest_path")
+                .and_then(Value::as_str),
+            Some("Cargo.toml")
+        );
+        assert_eq!(
+            issue.custom.get("github_ecosystem").and_then(Value::as_str),
+            Some("cargo")
+        );
+    }
+
+    #[test]
+    fn append_and_find_marker_round_trip() {
+        let marker = metadata_marker_alert("AnthusAI/Kanbus", 7);
+        let described = append_marker("body", &marker);
+        assert_eq!(
+            find_marker_value(&described, "kanbus-gh-alert:dependabot|").as_deref(),
+            Some("AnthusAI/Kanbus|7")
+        );
+    }
+
+    #[test]
+    fn build_alert_and_manifest_indexes_extract_dependabot_metadata() -> Result<(), KanbusError> {
+        let temp = TempDir::new().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        fs::create_dir_all(&issues_dir).expect("issues dir");
+
+        let now = Utc::now();
+        let alert_issue = IssueData {
+            identifier: "kbs-1".to_string(),
+            title: "alert".to_string(),
+            description: String::new(),
+            issue_type: "sub-task".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec![],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::from([
+                (
+                    "github_provider".to_string(),
+                    Value::String("dependabot".to_string()),
+                ),
+                ("github_alert_number".to_string(), Value::Number(10.into())),
+                (
+                    "github_repository".to_string(),
+                    Value::String("example/repo".to_string()),
+                ),
+                (
+                    "github_manifest_path".to_string(),
+                    Value::String("Cargo.toml".to_string()),
+                ),
+            ]),
+        };
+        let alert_path = issue_path_for_identifier(&issues_dir, &alert_issue.identifier);
+        write_issue_to_file(&alert_issue, &alert_path)?;
+
+        let mut task_issue = alert_issue.clone();
+        task_issue.identifier = "kbs-2".to_string();
+        task_issue.issue_type = "task".to_string();
+        task_issue
+            .custom
+            .insert("github_alert_number".to_string(), Value::Number(11.into()));
+        task_issue.custom.insert(
+            "github_manifest_path".to_string(),
+            Value::String("pkg/Cargo.toml".to_string()),
+        );
+        let task_path = issue_path_for_identifier(&issues_dir, &task_issue.identifier);
+        write_issue_to_file(&task_issue, &task_path)?;
+
+        let stored_alert = read_issue_from_file(&alert_path)?;
+        let stored_task = read_issue_from_file(&task_path)?;
+        assert_eq!(stored_alert.issue_type, "sub-task");
+        assert_eq!(stored_task.issue_type, "task");
+
+        let ids: HashSet<String> = HashSet::from([
+            alert_issue.identifier.clone(),
+            task_issue.identifier.clone(),
+            "kbs-3".to_string(),
+        ]);
+
+        let alert_index = build_alert_index(&ids, &issues_dir);
+        let task_index = build_manifest_task_index(&ids, &issues_dir);
+
+        assert_eq!(
+            alert_index.get("example/repo#10"),
+            Some(&"kbs-1".to_string())
+        );
+        assert_eq!(
+            task_index.get("pkg/Cargo.toml"),
+            Some(&stored_task.identifier)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_manifest_task_updates_existing_issue() -> Result<(), KanbusError> {
+        let temp = TempDir::new().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        fs::create_dir_all(&issues_dir).expect("issues dir");
+        let now = Utc::now();
+        let issue = IssueData {
+            identifier: "kbs-10".to_string(),
+            title: "example/repo:Cargo.toml".to_string(),
+            description: "old".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 3,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["github".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::from([(
+                "github_provider".to_string(),
+                Value::String("dependabot".to_string()),
+            )]),
+        };
+        let path = issue_path_for_identifier(&issues_dir, &issue.identifier);
+        write_issue_to_file(&issue, &path)?;
+
+        let task_index = BTreeMap::from([("Cargo.toml".to_string(), issue.identifier.clone())]);
+        let mut all_existing = HashSet::from([issue.identifier.clone()]);
+        let ctx = ManifestTaskContext {
+            issues_dir: &issues_dir,
+            project_key: "kbs",
+            repo: "example/repo",
+            parent_epic: "kbs-epic",
+            priority: 1,
+            dry_run: false,
+        };
+
+        let resolved = resolve_manifest_task(&ctx, "Cargo.toml", &task_index, &mut all_existing)?;
+        assert_eq!(resolved, "kbs-10".to_string());
+
+        let updated = read_issue_from_file(&path)?;
+        assert_eq!(updated.parent.as_deref(), Some("kbs-epic"));
+        assert_eq!(updated.priority, 1);
+        assert!(updated.labels.contains(&"dependabot".to_string()));
+        assert!(updated.labels.contains(&"security".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn map_dependabot_to_beads_description_appends_marker() {
+        let alert = sample_alert();
+        let description = map_dependabot_to_beads_description(&alert, "example/repo");
+        assert!(description.contains("kanbus-gh-alert:dependabot|example/repo|42"));
+        assert!(description.contains("GitHub Dependabot"));
+    }
+
+    #[test]
+    fn build_beads_indexes_read_markers() {
+        let now = Utc::now();
+        let alert_desc = append_marker(
+            "alert description",
+            &metadata_marker_alert("example/repo", 11),
+        );
+        let task_desc = append_marker(
+            "task description",
+            &metadata_marker_target("example/repo", "Cargo.lock"),
+        );
+        let issues = vec![
+            IssueData {
+                identifier: "bdx-1".to_string(),
+                title: "alert".to_string(),
+                description: alert_desc,
+                issue_type: "bug".to_string(),
+                status: "open".to_string(),
+                priority: 2,
+                assignee: None,
+                creator: None,
+                parent: None,
+                labels: vec![],
+                dependencies: Vec::new(),
+                comments: Vec::new(),
+                created_at: now,
+                updated_at: now,
+                closed_at: None,
+                custom: BTreeMap::new(),
+            },
+            IssueData {
+                identifier: "bdx-2".to_string(),
+                title: "task".to_string(),
+                description: task_desc,
+                issue_type: "task".to_string(),
+                status: "open".to_string(),
+                priority: 2,
+                assignee: None,
+                creator: None,
+                parent: None,
+                labels: vec![],
+                dependencies: Vec::new(),
+                comments: Vec::new(),
+                created_at: now,
+                updated_at: now,
+                closed_at: None,
+                custom: BTreeMap::new(),
+            },
+        ];
+
+        let alert_index = build_beads_alert_index(&issues);
+        let task_index = build_beads_task_index(&issues);
+        assert_eq!(
+            alert_index.get("example/repo#11"),
+            Some(&"bdx-1".to_string())
+        );
+        assert_eq!(task_index.get("Cargo.lock"), Some(&"bdx-2".to_string()));
+    }
+
+    #[test]
+    fn resolve_manifest_task_creates_new_issue_when_missing() -> Result<(), KanbusError> {
+        let temp = TempDir::new().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        fs::create_dir_all(&issues_dir).expect("issues dir");
+        let task_index = BTreeMap::new();
+        let mut all_existing = HashSet::new();
+        let ctx = ManifestTaskContext {
+            issues_dir: &issues_dir,
+            project_key: "kbs",
+            repo: "example/repo",
+            parent_epic: "kbs-epic",
+            priority: 2,
+            dry_run: false,
+        };
+
+        let task_id = resolve_manifest_task(&ctx, "Cargo.toml", &task_index, &mut all_existing)?;
+        let path = issue_path_for_identifier(&issues_dir, &task_id);
+        let created = read_issue_from_file(&path)?;
+        assert_eq!(created.issue_type, "task");
+        assert_eq!(created.parent.as_deref(), Some("kbs-epic"));
+        assert_eq!(created.priority, 2);
+        assert!(created.labels.contains(&"github".to_string()));
+        assert_eq!(
+            created
+                .custom
+                .get("github_manifest_path")
+                .and_then(Value::as_str),
+            Some("Cargo.toml")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn find_existing_security_initiative_prefers_latest_github_labeled_issue(
+    ) -> Result<(), KanbusError> {
+        let temp = TempDir::new().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        fs::create_dir_all(&issues_dir).expect("issues dir");
+        let now = Utc::now();
+
+        let older = IssueData {
+            identifier: "kbs-1".to_string(),
+            title: GITHUB_SECURITY_INITIATIVE_TITLE.to_string(),
+            description: String::new(),
+            issue_type: "initiative".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["github".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        };
+        let mut newer = older.clone();
+        newer.identifier = "kbs-2".to_string();
+        newer.updated_at = now + chrono::Duration::seconds(10);
+        let mut no_label = older.clone();
+        no_label.identifier = "kbs-3".to_string();
+        no_label.labels = vec![];
+        no_label.updated_at = now + chrono::Duration::seconds(20);
+
+        write_issue_to_file(
+            &older,
+            &issue_path_for_identifier(&issues_dir, &older.identifier),
+        )?;
+        write_issue_to_file(
+            &newer,
+            &issue_path_for_identifier(&issues_dir, &newer.identifier),
+        )?;
+        write_issue_to_file(
+            &no_label,
+            &issue_path_for_identifier(&issues_dir, &no_label.identifier),
+        )?;
+
+        let existing = HashSet::from([
+            older.identifier.clone(),
+            newer.identifier.clone(),
+            no_label.identifier.clone(),
+        ]);
+        assert_eq!(
+            find_existing_security_initiative(&issues_dir, &existing),
+            Some("kbs-2".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn find_existing_dependabot_epic_filters_by_parent_and_label() -> Result<(), KanbusError> {
+        let temp = TempDir::new().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        fs::create_dir_all(&issues_dir).expect("issues dir");
+        let now = Utc::now();
+
+        let matching = IssueData {
+            identifier: "kbs-epic.1".to_string(),
+            title: GITHUB_DEPENDABOT_EPIC_TITLE.to_string(),
+            description: String::new(),
+            issue_type: "epic".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: Some("kbs-init".to_string()),
+            labels: vec!["dependabot".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        };
+        let mut wrong_parent = matching.clone();
+        wrong_parent.identifier = "kbs-epic.2".to_string();
+        wrong_parent.parent = Some("other-init".to_string());
+        wrong_parent.updated_at = now + chrono::Duration::seconds(10);
+        let mut newer_match = matching.clone();
+        newer_match.identifier = "kbs-epic.3".to_string();
+        newer_match.updated_at = now + chrono::Duration::seconds(20);
+
+        write_issue_to_file(
+            &matching,
+            &issue_path_for_identifier(&issues_dir, &matching.identifier),
+        )?;
+        write_issue_to_file(
+            &wrong_parent,
+            &issue_path_for_identifier(&issues_dir, &wrong_parent.identifier),
+        )?;
+        write_issue_to_file(
+            &newer_match,
+            &issue_path_for_identifier(&issues_dir, &newer_match.identifier),
+        )?;
+
+        let ids = HashSet::from([
+            matching.identifier.clone(),
+            wrong_parent.identifier.clone(),
+            newer_match.identifier.clone(),
+        ]);
+        assert_eq!(
+            find_existing_dependabot_epic(&issues_dir, &ids, "kbs-init"),
+            Some("kbs-epic.3".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_beads_task_dry_run_returns_synthetic_and_updates_index() -> Result<(), KanbusError> {
+        let temp = TempDir::new().expect("tempdir");
+        let mut task_index = BTreeMap::new();
+        let task_id = resolve_beads_task(
+            temp.path(),
+            "example/repo",
+            "Cargo.toml",
+            "bdx-epic",
+            1,
+            true,
+            &mut task_index,
+        )?;
+        assert_eq!(task_id, "would-create-task-Cargo.toml");
+        assert_eq!(task_index.get("Cargo.toml"), Some(&task_id));
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_beads_initiative_and_epic_dry_run_create_placeholders() -> Result<(), KanbusError> {
+        let temp = TempDir::new().expect("tempdir");
+        let now = Utc::now();
+        let issues: Vec<IssueData> = vec![IssueData {
+            identifier: "bdx-1".to_string(),
+            title: "Other".to_string(),
+            description: String::new(),
+            issue_type: "initiative".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec![],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }];
+
+        let initiative_id = resolve_beads_initiative(temp.path(), &issues, true)?;
+        assert_eq!(initiative_id, "would-create-initiative");
+        let epic_id = resolve_beads_epic(temp.path(), &issues, None, &initiative_id, true)?;
+        assert_eq!(epic_id, "would-create-epic");
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_dependabot_epic_prefers_existing_and_configured_issue() -> Result<(), KanbusError> {
+        let temp = TempDir::new().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        fs::create_dir_all(&issues_dir).expect("issues dir");
+        let now = Utc::now();
+
+        let initiative = IssueData {
+            identifier: "kbs-init".to_string(),
+            title: GITHUB_SECURITY_INITIATIVE_TITLE.to_string(),
+            description: String::new(),
+            issue_type: "initiative".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["github".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        };
+        let epic = IssueData {
+            identifier: "kbs-epic.9".to_string(),
+            title: GITHUB_DEPENDABOT_EPIC_TITLE.to_string(),
+            description: String::new(),
+            issue_type: "epic".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: Some("kbs-init".to_string()),
+            labels: vec!["dependabot".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        };
+        write_issue_to_file(
+            &initiative,
+            &issue_path_for_identifier(&issues_dir, &initiative.identifier),
+        )?;
+        write_issue_to_file(
+            &epic,
+            &issue_path_for_identifier(&issues_dir, &epic.identifier),
+        )?;
+
+        let mut existing = HashSet::from([initiative.identifier.clone(), epic.identifier.clone()]);
+        let resolved_existing =
+            resolve_dependabot_epic(&issues_dir, "kbs", None, false, &mut existing)?;
+        assert_eq!(resolved_existing, epic.identifier);
+
+        let resolved_configured =
+            resolve_dependabot_epic(&issues_dir, "kbs", Some("kbs-epic.9"), false, &mut existing)?;
+        assert_eq!(resolved_configured, "kbs-epic.9");
+        Ok(())
+    }
+
+    #[test]
+    fn priority_to_u8_rejects_negative_values() {
+        let error = priority_to_u8(-1).expect_err("negative should fail");
+        assert!(error.to_string().contains("invalid priority '-1'"));
+    }
+
+    #[test]
+    fn detect_repo_from_git_reads_origin_remote() {
+        let temp = TempDir::new().expect("tempdir");
+        Command::new("git")
+            .arg("init")
+            .current_dir(temp.path())
+            .output()
+            .expect("git init");
+        Command::new("git")
+            .args([
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/example/acme.git",
+            ])
+            .current_dir(temp.path())
+            .output()
+            .expect("add origin");
+        let slug = detect_repo_from_git(temp.path());
+        assert_eq!(slug, Some("example/acme".to_string()));
     }
 }

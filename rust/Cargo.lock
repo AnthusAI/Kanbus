@@ -1217,6 +1217,7 @@ dependencies = [
  "mime_guess",
  "minijinja",
  "native-tls",
+ "once_cell",
  "owo-colors",
  "rand",
  "regex",

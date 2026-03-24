@@ -16,11 +16,11 @@ Both artifacts are required by the cross-language ratchet gate.
 
 Coverage is enforced against `config/coverage-baselines.json`.
 
-Frozen baseline (March 6, 2026):
+Frozen baseline (March 9, 2026):
 
-- `python_line_coverage: 80.5`
-- `rust_line_coverage: 65.0`
-- `max_gap_points: 15.5`
+- `python_line_coverage: 79.41`
+- `rust_line_coverage: 78.1616`
+- `max_gap_points: 1.2484`
 
 Rules:
 
@@ -52,7 +52,7 @@ python tools/coverage_ratchet.py \
 ```bash
 cd rust
 mkdir -p ../coverage-rust
-cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"
+KANBUS_CUCUMBER_INCLUDE_CONSOLE=1 cargo llvm-cov --locked --no-report --all-features --lib --bins --tests --ignore-filename-regex "features/steps/.*"
 cargo llvm-cov report --locked --cobertura --output-path ../coverage-rust/cobertura.xml
 ```
 
@@ -85,4 +85,17 @@ python tools/coverage_parity_report.py \
   --python-xml coverage-python/coverage.xml \
   --rust-xml coverage-rust/cobertura.xml \
   --limit 25
+```
+
+## Changed-Files Gate
+
+CI also enforces changed-file coverage floors:
+
+```bash
+python tools/coverage_changed_files_gate.py \
+  --python-xml coverage-python/coverage.xml \
+  --rust-xml coverage-rust/cobertura.xml \
+  --config config/coverage-changed-files.json \
+  --base-ref <base-ref> \
+  --head-ref <head-ref>
 ```

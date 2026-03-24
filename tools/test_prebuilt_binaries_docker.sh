@@ -33,10 +33,15 @@ YAML
 
 chmod +x "$kanbusr_bin" "$console_bin"
 
+host_uid=$(id -u)
+host_gid=$(id -g)
+
 docker run --rm \
   -v "$work_dir":/data \
   -v "$dist_dir":/dist \
   -w /data \
+  -e HOST_UID="$host_uid" \
+  -e HOST_GID="$host_gid" \
   ubuntu:24.04 \
   bash -lc '
     set -euo pipefail
@@ -90,4 +95,7 @@ docker run --rm \
     grep -q "embedded assets" /tmp/console.log
 
     kill "$server_pid"
+
+    # Ensure the host can clean up /data even when files were created as root.
+    chown -R "${HOST_UID}:${HOST_GID}" /data
   '

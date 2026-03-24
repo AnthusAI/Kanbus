@@ -474,6 +474,11 @@ fn dedupe_and_sort_guidance(items: &[GuidanceItem]) -> Vec<GuidanceItem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::{IssueData, PriorityDefinition, ProjectConfiguration, StatusDefinition};
+    use crate::policy_context::{PolicyContext, PolicyOperation};
+    use chrono::Utc;
+    use gherkin::GherkinEnv;
+    use std::collections::BTreeMap;
 
     fn warning(message: &str) -> GuidanceItem {
         GuidanceItem {
@@ -494,6 +499,90 @@ mod tests {
             policy_file: "policy-b.feature".to_string(),
             scenario: "scenario-b".to_string(),
             step: "Then suggest".to_string(),
+        }
+    }
+
+    fn parse_feature(feature_text: &str) -> Feature {
+        let temp_dir = tempfile::tempdir().expect("tempdir");
+        let path = temp_dir.path().join("policy.policy");
+        std::fs::write(&path, feature_text).expect("write feature");
+        Feature::parse_path(&path, GherkinEnv::default()).expect("parse feature")
+    }
+
+    fn sample_context() -> PolicyContext {
+        let now = Utc::now();
+        let issue = IssueData {
+            identifier: "kanbus-1".to_string(),
+            title: "Issue".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        };
+        let mut workflows = BTreeMap::new();
+        workflows.insert("default".to_string(), BTreeMap::new());
+        let mut priorities = BTreeMap::new();
+        priorities.insert(
+            2u8,
+            PriorityDefinition {
+                name: "medium".to_string(),
+                color: None,
+            },
+        );
+        let config = ProjectConfiguration {
+            project_directory: "project".to_string(),
+            virtual_projects: BTreeMap::new(),
+            new_issue_project: None,
+            ignore_paths: Vec::new(),
+            console_port: None,
+            project_key: "kanbus".to_string(),
+            project_management_template: None,
+            hierarchy: vec!["task".to_string()],
+            types: vec!["task".to_string()],
+            workflows,
+            transition_labels: BTreeMap::new(),
+            initial_status: "open".to_string(),
+            priorities,
+            default_priority: 2,
+            assignee: None,
+            time_zone: None,
+            statuses: vec![StatusDefinition {
+                key: "open".to_string(),
+                name: "Open".to_string(),
+                category: "todo".to_string(),
+                color: None,
+                collapsed: false,
+            }],
+            categories: Vec::new(),
+            sort_order: BTreeMap::new(),
+            type_colors: BTreeMap::new(),
+            beads_compatibility: false,
+            wiki_directory: None,
+            ai: None,
+            jira: None,
+            snyk: None,
+            realtime: Default::default(),
+            overlay: Default::default(),
+            hooks: Default::default(),
+            github_security: None,
+        };
+        PolicyContext {
+            current_issue: None,
+            proposed_issue: issue.clone(),
+            transition: None,
+            operation: PolicyOperation::Update,
+            project_configuration: config,
+            all_issues: vec![issue],
         }
     }
 
@@ -525,5 +614,112 @@ mod tests {
         assert_eq!(step_keyword(StepType::Given), "Given");
         assert_eq!(step_keyword(StepType::When), "When");
         assert_eq!(step_keyword(StepType::Then), "Then");
+    }
+
+    #[test]
+    fn validate_policy_documents_flags_unknown_and_orphan_explain_steps() {
+        let context = sample_context();
+        let feature = parse_feature(
+            r#"
+Feature: Validation checks
+  Scenario: Unknown step fails
+    Given this step does not exist
+
+  Scenario: Explain cannot be first
+    Then explain "orphan explanation"
+"#,
+        );
+
+        let violations =
+            validate_policy_documents(&context, &[("policy.policy".to_string(), feature)]);
+        assert_eq!(violations.len(), 2);
+        let rendered = violations
+            .into_iter()
+            .map(|error| error.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(rendered.contains("no matching step definition"));
+        assert!(rendered.contains("orphan explain step"));
+    }
+
+    #[test]
+    fn evaluate_policies_with_collect_all_returns_all_failures() {
+        let context = sample_context();
+        let feature = parse_feature(
+            r#"
+Feature: Multiple failures
+  Scenario: First failure
+    Then the issue must have field "assignee"
+
+  Scenario: Second failure
+    Then the issue must have label "security"
+"#,
+        );
+        let options = PolicyEvaluationOptions {
+            collect_all_violations: true,
+            mode: PolicyEvaluationMode::Enforcement,
+        };
+
+        let result = evaluate_policies_with_options(
+            &context,
+            &[("policy.policy".to_string(), feature)],
+            &options,
+        );
+        match result {
+            Err(errors) => {
+                assert!(errors.len() >= 2);
+                let rendered = errors
+                    .into_iter()
+                    .map(|error| error.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                assert!(rendered.contains("assignee"));
+                assert!(rendered.contains("security"));
+            }
+            Ok(_) => panic!("expected violations"),
+        }
+    }
+
+    #[test]
+    fn guidance_mode_allows_failed_assertion_with_following_explain() {
+        let context = sample_context();
+        let feature = parse_feature(
+            r#"
+Feature: Guidance transient handling
+  Scenario: Failed assertion then explain
+    Then the issue must have field "assignee"
+    Then explain "Assignee is optional during triage."
+"#,
+        );
+        let steps = feature.scenarios[0].steps.as_slice();
+        let scenario = evaluate_scenario(
+            &context,
+            &STEP_REGISTRY,
+            "policy.policy",
+            "Failed assertion then explain",
+            steps,
+            PolicyEvaluationMode::Guidance,
+        );
+        assert!(scenario.violation.is_none());
+        assert!(scenario.guidance_items.is_empty());
+    }
+
+    #[test]
+    fn validation_reports_rule_prefixed_scenario_name_for_nested_rules() {
+        let context = sample_context();
+        let feature = parse_feature(
+            r#"
+Feature: Rule naming
+  Rule: Assignment checks
+    Scenario: Missing step mapping
+      Given this nested step is unknown
+"#,
+        );
+
+        let violations =
+            validate_policy_documents(&context, &[("policy.policy".to_string(), feature)]);
+        assert_eq!(violations.len(), 1);
+        let rendered = violations[0].to_string();
+        assert!(rendered.contains("Assignment checks / Missing step mapping"));
     }
 }

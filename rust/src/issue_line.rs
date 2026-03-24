@@ -238,3 +238,164 @@ fn type_color(
         _ => "white",
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+
+    use crate::models::{CategoryDefinition, PriorityDefinition, StatusDefinition};
+
+    fn sample_issue(id: &str, issue_type: &str, status: &str, parent: Option<&str>) -> IssueData {
+        IssueData {
+            identifier: id.to_string(),
+            title: format!("Title {id}"),
+            description: String::new(),
+            issue_type: issue_type.to_string(),
+            status: status.to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: parent.map(std::string::ToString::to_string),
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    fn sample_configuration() -> ProjectConfiguration {
+        let mut workflows = BTreeMap::new();
+        workflows.insert("default".to_string(), BTreeMap::new());
+
+        let mut priorities = BTreeMap::new();
+        priorities.insert(
+            2u8,
+            PriorityDefinition {
+                name: "medium".to_string(),
+                color: Some("bright_cyan".to_string()),
+            },
+        );
+
+        ProjectConfiguration {
+            project_directory: "project".to_string(),
+            virtual_projects: BTreeMap::new(),
+            new_issue_project: None,
+            ignore_paths: Vec::new(),
+            console_port: None,
+            project_key: "kanbus".to_string(),
+            project_management_template: None,
+            hierarchy: vec!["task".to_string()],
+            types: vec!["task".to_string()],
+            workflows,
+            transition_labels: BTreeMap::new(),
+            initial_status: "open".to_string(),
+            priorities,
+            default_priority: 2,
+            assignee: None,
+            time_zone: None,
+            statuses: vec![StatusDefinition {
+                key: "open".to_string(),
+                name: "Open".to_string(),
+                category: "todo".to_string(),
+                color: Some("bright_green".to_string()),
+                collapsed: false,
+            }],
+            categories: vec![CategoryDefinition {
+                name: "todo".to_string(),
+                color: None,
+            }],
+            sort_order: BTreeMap::new(),
+            type_colors: BTreeMap::from([("task".to_string(), "bright_magenta".to_string())]),
+            beads_compatibility: false,
+            wiki_directory: None,
+            ai: None,
+            jira: None,
+            snyk: None,
+            realtime: Default::default(),
+            overlay: Default::default(),
+            hooks: Default::default(),
+            github_security: None,
+        }
+    }
+
+    #[test]
+    fn compute_widths_accounts_for_formatted_identifier_and_parent() {
+        let issues = vec![
+            sample_issue("kanbus-123456789abc", "task", "open", None),
+            sample_issue(
+                "kanbus-999999999999",
+                "epic",
+                "in_progress",
+                Some("kanbus-123456789abc"),
+            ),
+        ];
+        let widths = compute_widths(&issues, true);
+        assert!(widths.identifier >= 6);
+        assert!(widths.parent >= 1);
+        assert!(widths.status >= "in_progress".len());
+        assert!(widths.priority >= 2);
+    }
+
+    #[test]
+    fn format_issue_line_handles_porcelain_and_plain_modes() {
+        let issue = sample_issue(
+            "kanbus-abcdef123456",
+            "task",
+            "open",
+            Some("kanbus-111111111111"),
+        );
+        let widths = compute_widths(std::slice::from_ref(&issue), false);
+
+        let porcelain = format_issue_line(&issue, Some(&widths), true, false, None, Some(false));
+        assert!(porcelain.contains("T |"));
+        assert!(porcelain.contains("P2"));
+
+        let plain = format_issue_line(&issue, Some(&widths), false, false, None, Some(false));
+        assert!(plain.contains("Title kanbus-abcdef123456"));
+        assert!(plain.contains("open"));
+        assert!(plain.contains("P2"));
+    }
+
+    #[test]
+    fn format_issue_line_includes_project_prefix_and_parent_dash() {
+        let mut issue = sample_issue("kanbus-aaaaaa111111", "bug", "blocked", None);
+        issue.custom.insert(
+            "project_path".to_string(),
+            serde_json::Value::String("apps/api".to_string()),
+        );
+        let widths = compute_widths(std::slice::from_ref(&issue), false);
+
+        let line = format_issue_line(&issue, Some(&widths), false, false, None, Some(false));
+        assert!(line.starts_with("apps/api "));
+        assert!(line.contains(" - "));
+        assert!(line.contains("blocked"));
+    }
+
+    #[test]
+    fn color_helpers_cover_configured_and_fallback_paths() {
+        let config = sample_configuration();
+        assert_eq!(
+            status_color("open", Some(&config)),
+            Some(AnsiColors::BrightGreen)
+        );
+        assert_eq!(
+            priority_color(2, Some(&config)),
+            Some(AnsiColors::BrightCyan)
+        );
+        assert_eq!(
+            type_color("task", Some(&config)),
+            Some(AnsiColors::BrightMagenta)
+        );
+
+        assert_eq!(status_color("closed", None), Some(AnsiColors::Green));
+        assert_eq!(priority_color(0, None), Some(AnsiColors::Red));
+        assert_eq!(type_color("story", None), Some(AnsiColors::Cyan));
+        assert_eq!(parse_color("not-a-color"), None);
+        assert_eq!(status_color("backlog", None), None);
+    }
+}

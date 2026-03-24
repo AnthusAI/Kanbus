@@ -778,7 +778,7 @@ fn discover_workspace_config_paths(root: &Path) -> Result<Vec<PathBuf>, KanbusEr
 
 #[cfg(test)]
 mod tests {
-    use super::get_configuration_path;
+    use super::{canonicalize_path, get_configuration_path, resolve_root};
     use crate::error::KanbusError;
     use std::fs;
 
@@ -806,5 +806,21 @@ mod tests {
             error,
             KanbusError::IssueOperation(message) if message == "project not initialized"
         ));
+    }
+
+    #[test]
+    fn resolve_root_returns_input_path() {
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        let root = resolve_root(tempdir.path());
+        assert_eq!(root, tempdir.path());
+    }
+
+    #[test]
+    fn canonicalize_path_can_be_forced_to_fail() {
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        std::env::set_var("KANBUS_TEST_CANONICALIZE_FAILURE", "1");
+        let result = canonicalize_path(tempdir.path());
+        std::env::remove_var("KANBUS_TEST_CANONICALIZE_FAILURE");
+        assert!(result.is_err());
     }
 }

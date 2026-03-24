@@ -407,6 +407,7 @@ fn apply_query(
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
+    use std::env;
     use tempfile::TempDir;
 
     fn issue(identifier: &str, title: &str) -> IssueData {
@@ -497,5 +498,95 @@ mod tests {
 
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].identifier, "kanbus-1");
+    }
+
+    #[test]
+    fn list_issues_with_local_respects_local_only_and_combined_modes() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path().join("project");
+        let local_dir = temp_dir.path().join("project-local");
+        std::fs::create_dir_all(project_dir.join("issues")).expect("create shared issues");
+        std::fs::create_dir_all(local_dir.join("issues")).expect("create local issues");
+
+        let shared = issue("kanbus-shared", "Shared");
+        let local = issue("kanbus-local", "Local");
+        std::fs::write(
+            project_dir.join("issues/kanbus-shared.json"),
+            serde_json::to_vec(&shared).expect("serialize shared"),
+        )
+        .expect("write shared");
+        std::fs::write(
+            local_dir.join("issues/kanbus-local.json"),
+            serde_json::to_vec(&local).expect("serialize local"),
+        )
+        .expect("write local");
+
+        let overlay = disabled_overlay_config();
+        let local_only = list_issues_with_local(
+            &project_dir,
+            Some(&local_dir),
+            true,
+            &overlay,
+            Some("project"),
+        )
+        .expect("local only");
+        assert_eq!(local_only.len(), 1);
+        assert_eq!(local_only[0].identifier, "kanbus-local");
+
+        let combined = list_issues_with_local(
+            &project_dir,
+            Some(&local_dir),
+            false,
+            &overlay,
+            Some("project"),
+        )
+        .expect("combined");
+        assert_eq!(combined.len(), 2);
+        let ids = combined
+            .into_iter()
+            .map(|item| item.identifier)
+            .collect::<Vec<_>>();
+        assert!(ids.contains(&"kanbus-shared".to_string()));
+        assert!(ids.contains(&"kanbus-local".to_string()));
+    }
+
+    #[test]
+    fn list_issues_with_local_uses_test_error_override() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path().join("project");
+        std::fs::create_dir_all(project_dir.join("issues")).expect("create shared issues");
+
+        env::set_var("KANBUS_TEST_LOCAL_LISTING_ERROR", "1");
+        let result =
+            list_issues_with_local(&project_dir, None, false, &disabled_overlay_config(), None);
+        env::remove_var("KANBUS_TEST_LOCAL_LISTING_ERROR");
+
+        match result {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "local listing failed")
+            }
+            other => panic!("expected local listing error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn apply_query_supports_search_and_sort() {
+        let mut alpha = issue("kanbus-1", "Alpha title");
+        let mut beta = issue("kanbus-2", "Beta title");
+        alpha.priority = 3;
+        beta.priority = 1;
+
+        let queried = apply_query(
+            vec![alpha, beta],
+            None,
+            None,
+            None,
+            None,
+            Some("priority"),
+            Some("beta"),
+        )
+        .expect("apply query with search/sort");
+        assert_eq!(queried.len(), 1);
+        assert_eq!(queried[0].identifier, "kanbus-2");
     }
 }

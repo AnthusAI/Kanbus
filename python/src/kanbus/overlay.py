@@ -185,6 +185,8 @@ def resolve_issue_with_overlay(
             _remove_path(
                 overlay_issue_path(project_dir, overlay_issue.issue.identifier)
             )
+        elif base_issue is None:
+            return _tag_issue(overlay_issue.issue, project_label)
 
     return _tag_issue(base_issue, project_label) if base_issue else None
 

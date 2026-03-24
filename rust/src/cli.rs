@@ -3467,6 +3467,15 @@ fn should_use_color() -> bool {
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env lock")
+    }
 
     fn issue(identifier: &str) -> IssueData {
         let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
@@ -3507,6 +3516,73 @@ mod tests {
     }
 
     #[test]
+    fn rewrite_alias_args_rewrites_task_alias() {
+        let args = vec![
+            "kanbus".into(),
+            "tasks".into(),
+            "--status".into(),
+            "open".into(),
+        ];
+        let rewritten = rewrite_alias_args(args);
+        assert_eq!(
+            rewritten,
+            vec![
+                OsString::from("kanbus"),
+                OsString::from("list"),
+                OsString::from("--type"),
+                OsString::from("task"),
+                OsString::from("--status"),
+                OsString::from("open"),
+            ]
+        );
+    }
+
+    #[test]
+    fn rewrite_alias_args_rewrites_stories_and_bugs_aliases() {
+        let stories = rewrite_alias_args(vec!["kanbus".into(), "stories".into()]);
+        assert_eq!(
+            stories,
+            vec![
+                OsString::from("kanbus"),
+                OsString::from("list"),
+                OsString::from("--type"),
+                OsString::from("story"),
+            ]
+        );
+
+        let bugs = rewrite_alias_args(vec!["kanbus".into(), "bugs".into()]);
+        assert_eq!(
+            bugs,
+            vec![
+                OsString::from("kanbus"),
+                OsString::from("list"),
+                OsString::from("--type"),
+                OsString::from("bug"),
+            ]
+        );
+    }
+
+    #[test]
+    fn rewrite_alias_args_passthrough_for_non_alias_and_empty_args() {
+        let passthrough = rewrite_alias_args(vec![
+            OsString::from("kanbus"),
+            OsString::from("show"),
+            OsString::from("kbs-1"),
+        ]);
+        assert_eq!(
+            passthrough,
+            vec![
+                OsString::from("kanbus"),
+                OsString::from("show"),
+                OsString::from("kbs-1"),
+            ]
+        );
+
+        let no_subcommand = rewrite_alias_args(vec![OsString::from("kanbus")]);
+        assert_eq!(no_subcommand, vec![OsString::from("kanbus")]);
+    }
+
+    #[test]
     fn format_ready_line_includes_project_path_prefix() {
         let mut data = issue("kanbus-123456");
         data.custom.insert(
@@ -3515,6 +3591,21 @@ mod tests {
         );
 
         assert_eq!(format_ready_line(&data), "alpha/project kanbus-123456");
+    }
+
+    #[test]
+    fn format_ready_line_without_project_path() {
+        let data = issue("kanbus-654321");
+        assert_eq!(format_ready_line(&data), "kanbus-654321");
+    }
+
+    #[test]
+    fn sort_timestamp_prefers_closed_at_when_present() {
+        let mut data = issue("kanbus-0001");
+        let closed = Utc.with_ymd_and_hms(2026, 3, 8, 0, 0, 0).unwrap();
+        data.closed_at = Some(closed);
+        let updated = sort_timestamp(&data);
+        assert_eq!(updated, closed.timestamp() as f64);
     }
 
     #[test]
@@ -3537,5 +3628,130 @@ mod tests {
             panic!("expected issue operation");
         };
         assert!(message.contains("Run \"kanbus init\""));
+    }
+
+    #[test]
+    fn format_daemon_project_error_handles_multiple_projects_and_passthrough() {
+        let rewritten = format_daemon_project_error(KanbusError::IssueOperation(
+            "multiple projects found under root".to_string(),
+        ));
+        let KanbusError::IssueOperation(message) = rewritten else {
+            panic!("expected issue operation");
+        };
+        assert!(message.contains("directory containing a single project/ folder"));
+
+        let passthrough =
+            format_daemon_project_error(KanbusError::IssueOperation("something else".to_string()));
+        let KanbusError::IssueOperation(message) = passthrough else {
+            panic!("expected issue operation");
+        };
+        assert_eq!(message, "something else");
+    }
+
+    #[test]
+    fn should_check_project_structure_skips_init_and_setup() {
+        assert!(!should_check_project_structure(&Commands::Init {
+            local: false
+        }));
+        assert!(!should_check_project_structure(&Commands::Setup {
+            command: SetupCommands::Agents { force: false },
+        }));
+        assert!(should_check_project_structure(&Commands::List {
+            status: None,
+            issue_type: None,
+            assignee: None,
+            label: None,
+            sort: None,
+            search: None,
+            project: Vec::new(),
+            no_local: false,
+            local_only: false,
+            porcelain: false,
+            full_ids: false,
+        }));
+    }
+
+    #[test]
+    fn resolve_cloud_base_url_prefers_cli_then_env() {
+        let _guard = env_guard();
+        std::env::set_var("KANBUS_CLOUD_API_BASE_URL", "https://env.example");
+        let cli_value =
+            resolve_cloud_base_url(Some(" https://cli.example ".to_string())).expect("cli value");
+        assert_eq!(cli_value, "https://cli.example");
+
+        let env_value = resolve_cloud_base_url(None).expect("env value");
+        assert_eq!(env_value, "https://env.example");
+        std::env::remove_var("KANBUS_CLOUD_API_BASE_URL");
+    }
+
+    #[test]
+    fn resolve_cloud_id_token_errors_when_unset() {
+        let _guard = env_guard();
+        std::env::remove_var("KANBUS_CLOUD_ID_TOKEN");
+        let result = resolve_cloud_id_token(None);
+        assert!(matches!(result, Err(KanbusError::IssueOperation(_))));
+    }
+
+    #[test]
+    fn resolve_cloud_id_token_prefers_cli_then_env() {
+        let _guard = env_guard();
+        std::env::set_var("KANBUS_CLOUD_ID_TOKEN", "env-token");
+        let cli = resolve_cloud_id_token(Some(" cli-token ".to_string())).expect("cli token");
+        assert_eq!(cli, "cli-token");
+
+        let env_only = resolve_cloud_id_token(None).expect("env token");
+        assert_eq!(env_only, "env-token");
+        std::env::remove_var("KANBUS_CLOUD_ID_TOKEN");
+    }
+
+    #[test]
+    fn resolve_cloud_base_url_errors_when_cli_and_env_are_blank() {
+        let _guard = env_guard();
+        std::env::set_var("KANBUS_CLOUD_API_BASE_URL", "   ");
+        let result = resolve_cloud_base_url(Some("   ".to_string()));
+        std::env::remove_var("KANBUS_CLOUD_API_BASE_URL");
+        assert!(matches!(result, Err(KanbusError::IssueOperation(_))));
+    }
+
+    #[test]
+    fn resolve_cloud_id_token_ignores_blank_env_value() {
+        let _guard = env_guard();
+        std::env::set_var("KANBUS_CLOUD_ID_TOKEN", "   ");
+        let result = resolve_cloud_id_token(None);
+        std::env::remove_var("KANBUS_CLOUD_ID_TOKEN");
+        assert!(matches!(result, Err(KanbusError::IssueOperation(_))));
+    }
+
+    #[test]
+    fn resolve_beads_mode_returns_false_for_uninitialized_root() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let (beads_mode, forced) = resolve_beads_mode(temp.path(), false).expect("beads mode");
+        assert!(!beads_mode);
+        assert!(!forced);
+    }
+
+    #[test]
+    fn resolve_beads_mode_reads_configuration_flag() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let mut config = crate::config::default_project_configuration();
+        config.beads_compatibility = true;
+        let yaml = serde_yaml::to_string(&config).expect("serialize config");
+        std::fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
+
+        let (beads_mode, forced) = resolve_beads_mode(temp.path(), false).expect("beads mode");
+        assert!(beads_mode);
+        assert!(!forced);
+    }
+
+    #[test]
+    fn beads_root_prefers_configuration_parent() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let nested = temp.path().join("nested").join("child");
+        std::fs::create_dir_all(&nested).expect("mkdir nested");
+        let config = crate::config::default_project_configuration();
+        let yaml = serde_yaml::to_string(&config).expect("serialize config");
+        std::fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
+
+        assert_eq!(beads_root(&nested), temp.path());
     }
 }

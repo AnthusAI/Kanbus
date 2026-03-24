@@ -106,6 +106,24 @@ impl DedupeSet {
     }
 }
 
+#[cfg(test)]
+mod dedupe_tests {
+    use super::DedupeSet;
+    use std::time::Duration;
+
+    #[test]
+    fn dedupe_set_tracks_seen_keys_and_prunes() {
+        let mut set = DedupeSet::new(Duration::from_millis(5));
+        assert!(!set.seen("alpha"));
+        assert!(set.seen("alpha"), "second sighting should be true");
+        std::thread::sleep(Duration::from_millis(6));
+        assert!(
+            !set.seen("alpha"),
+            "entry should expire after ttl and be inserted again"
+        );
+    }
+}
+
 /// Publish a gossip envelope for an issue mutation.
 pub fn publish_issue_mutation(
     root: &Path,
@@ -1064,9 +1082,18 @@ fn print_mosquitto_missing() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::default_project_configuration;
     use crate::models::RealtimeTopics;
-    use std::sync::mpsc;
+    use crate::models::VirtualProjectConfig;
+    use once_cell::sync::Lazy;
+    use std::path::PathBuf;
+    use std::sync::{mpsc, Mutex};
     use tempfile::TempDir;
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+        ENV_LOCK.lock().expect("env lock")
+    }
 
     fn sample_realtime(socket_path: Option<String>) -> RealtimeConfig {
         RealtimeConfig {
@@ -1093,6 +1120,14 @@ mod tests {
             origin_cluster_id: None,
             issue: None,
         }
+    }
+
+    fn write_test_config(root: &Path, broker: &str, transport: &str) {
+        let mut configuration = default_project_configuration();
+        configuration.realtime.broker = broker.to_string();
+        configuration.realtime.transport = transport.to_string();
+        let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
+        std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
     }
 
     #[test]
@@ -1188,5 +1223,373 @@ mod tests {
                 .and_then(|v| v.as_str()),
             Some("issue.mutated")
         );
+    }
+
+    #[test]
+    fn parse_broker_url_supports_default_and_explicit_ports() {
+        let default_endpoint = parse_broker_url("mqtt://broker.example").expect("endpoint");
+        assert_eq!(default_endpoint.host, "broker.example");
+        assert_eq!(default_endpoint.port, 1883);
+
+        let explicit_endpoint = parse_broker_url("mqtts://broker.example:8883").expect("endpoint");
+        assert_eq!(explicit_endpoint.host, "broker.example");
+        assert_eq!(explicit_endpoint.port, 8883);
+    }
+
+    #[test]
+    fn uds_socket_path_prefers_env_runtime_dir() {
+        let _guard = env_lock();
+        let prior_runtime = std::env::var("XDG_RUNTIME_DIR").ok();
+        std::env::set_var("XDG_RUNTIME_DIR", "/tmp/kanbus-runtime");
+        let path = uds_socket_path(None);
+        if let Some(value) = prior_runtime {
+            std::env::set_var("XDG_RUNTIME_DIR", value);
+        } else {
+            std::env::remove_var("XDG_RUNTIME_DIR");
+        }
+        assert_eq!(path, PathBuf::from("/tmp/kanbus-runtime/kanbus/bus.sock"));
+    }
+
+    #[test]
+    fn resolve_broker_endpoint_auto_defaults_when_no_metadata() {
+        let _guard = env_lock();
+        let tmp = TempDir::new().expect("temp dir");
+        let prior_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", tmp.path());
+        let endpoint = resolve_broker_endpoint("auto").expect("endpoint");
+        assert_eq!(endpoint.host, "127.0.0.1");
+        assert_eq!(endpoint.port, 1883);
+        assert_eq!(endpoint.scheme, "mqtt");
+        if let Some(value) = prior_home {
+            std::env::set_var("HOME", value);
+        } else {
+            std::env::remove_var("HOME");
+        }
+    }
+
+    #[test]
+    fn parse_broker_url_rejects_invalid_urls() {
+        assert!(parse_broker_url("not-a-url").is_err());
+        assert!(parse_broker_url("mqtt://host:not-a-port").is_err());
+    }
+
+    #[test]
+    fn resolve_broker_endpoint_auto_prefers_metadata_endpoint() {
+        let _guard = env_lock();
+        let tmp = TempDir::new().expect("temp dir");
+        let prior_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", tmp.path());
+        let run_dir = tmp.path().join(".kanbus").join("run");
+        std::fs::create_dir_all(&run_dir).expect("create run dir");
+        std::fs::write(
+            run_dir.join("broker.json"),
+            serde_json::json!({
+                "kind": "mosquitto",
+                "endpoint": "mqtt://127.0.0.1:2883",
+                "pid": 1234,
+                "started_by": "kbs",
+                "started_at": "2026-01-01T00:00:00.000Z",
+                "log_path": "/tmp/mosquitto.log",
+                "conf_path": "/tmp/mosquitto.conf",
+                "ttl_s": 86400
+            })
+            .to_string(),
+        )
+        .expect("write metadata");
+
+        let endpoint = resolve_broker_endpoint("auto").expect("endpoint");
+        assert_eq!(endpoint.host, "127.0.0.1");
+        assert_eq!(endpoint.port, 2883);
+        if let Some(value) = prior_home {
+            std::env::set_var("HOME", value);
+        } else {
+            std::env::remove_var("HOME");
+        }
+    }
+
+    #[test]
+    fn ensure_mosquitto_returns_none_for_non_local_or_non_mqtt() {
+        let remote_mqtt = BrokerEndpoint {
+            scheme: "mqtt".to_string(),
+            host: "broker.example".to_string(),
+            port: 1883,
+        };
+        let tls_local = BrokerEndpoint {
+            scheme: "mqtts".to_string(),
+            host: "127.0.0.1".to_string(),
+            port: 8883,
+        };
+
+        assert!(ensure_mosquitto(&remote_mqtt)
+            .expect("ensure result")
+            .is_none());
+        assert!(ensure_mosquitto(&tls_local)
+            .expect("ensure result")
+            .is_none());
+    }
+
+    #[test]
+    fn parse_broker_url_rejects_empty_and_unknown_scheme() {
+        assert!(parse_broker_url("").is_err());
+        assert!(parse_broker_url("http://example.com").is_ok());
+    }
+
+    #[test]
+    fn broker_is_reachable_detects_active_listener() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let port = listener.local_addr().expect("addr").port();
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtt".to_string(),
+            host: "127.0.0.1".to_string(),
+            port,
+        };
+        assert!(broker_is_reachable(&endpoint));
+        drop(listener);
+    }
+
+    #[test]
+    fn find_free_port_returns_bindable_port() {
+        let port = find_free_port(1883).expect("free port");
+        let listener = std::net::TcpListener::bind(("127.0.0.1", port)).expect("bind");
+        drop(listener);
+    }
+
+    #[test]
+    fn mqtt_options_uses_tls_443_and_credentials_for_custom_authorizer() {
+        let mut realtime = sample_realtime(None);
+        realtime.mqtt_custom_authorizer_name = Some("authz".to_string());
+        realtime.mqtt_api_token = Some("token-123".to_string());
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtts".to_string(),
+            host: "example.com".to_string(),
+            port: 8883,
+        };
+
+        let options = mqtt_options(&endpoint, &realtime);
+        assert_eq!(options.broker_address(), ("example.com".to_string(), 443));
+        assert_eq!(
+            options
+                .credentials()
+                .map(|(username, _)| username.to_string()),
+            Some("?x-amz-customauthorizer-name=authz".to_string())
+        );
+    }
+
+    #[test]
+    fn mqtt_options_keeps_port_without_custom_authorizer() {
+        let realtime = sample_realtime(None);
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtts".to_string(),
+            host: "example.com".to_string(),
+            port: 8883,
+        };
+
+        let options = mqtt_options(&endpoint, &realtime);
+        assert_eq!(options.broker_address(), ("example.com".to_string(), 8883));
+        assert!(options.credentials().is_none());
+    }
+
+    #[test]
+    fn broker_metadata_round_trip_and_invalid_payload_handling() {
+        let _guard = env_lock();
+        let tmp = TempDir::new().expect("temp dir");
+        let prior_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", tmp.path());
+        let metadata = BrokerMetadata {
+            kind: "mosquitto".to_string(),
+            endpoint: "mqtt://127.0.0.1:1999".to_string(),
+            pid: 42,
+            started_by: "kbs".to_string(),
+            started_at: "2026-03-09T00:00:00.000Z".to_string(),
+            log_path: "/tmp/mosquitto.log".to_string(),
+            conf_path: "/tmp/mosquitto.conf".to_string(),
+            ttl_s: 86_400,
+        };
+
+        write_broker_metadata(&metadata).expect("write metadata");
+        let parsed = load_broker_metadata().expect("load metadata");
+        assert_eq!(parsed.endpoint, "mqtt://127.0.0.1:1999");
+
+        let run_dir = broker_run_dir();
+        std::fs::write(run_dir.join("broker.json"), "{").expect("write invalid metadata");
+        assert!(load_broker_metadata().is_none());
+        if let Some(value) = prior_home {
+            std::env::set_var("HOME", value);
+        } else {
+            std::env::remove_var("HOME");
+        }
+    }
+
+    #[test]
+    fn dedupe_set_prunes_expired_entries() {
+        let mut set = DedupeSet::new(Duration::from_millis(5));
+        assert!(!set.seen("a"));
+        assert!(set.seen("a"));
+        thread::sleep(Duration::from_millis(6));
+        assert!(!set.seen("a"), "entry should expire after ttl");
+    }
+
+    #[test]
+    fn uds_socket_path_uses_override_when_provided() {
+        let realtime = sample_realtime(Some("/tmp/custom.sock".to_string()));
+        let custom = uds_socket_path(Some(&realtime));
+        assert_eq!(custom, PathBuf::from("/tmp/custom.sock"));
+    }
+
+    #[test]
+    fn project_topic_replaces_project_template() {
+        let realtime = sample_realtime(None);
+        assert_eq!(
+            project_topic(&realtime, "dev"),
+            "projects/dev/events".to_string()
+        );
+    }
+
+    #[test]
+    fn resolve_project_label_returns_matching_label_and_fallback() {
+        let tmp = TempDir::new().expect("temp dir");
+        let root = tmp.path();
+        let projects_dir = root.join("projects");
+        let alpha_dir = projects_dir.join("alpha");
+        std::fs::create_dir_all(&alpha_dir).expect("create project dir");
+        let mut configuration = default_project_configuration();
+        configuration.project_directory = "projects/primary".to_string();
+        configuration.project_key = "fallback".to_string();
+        configuration.virtual_projects.insert(
+            "alpha".to_string(),
+            VirtualProjectConfig {
+                path: "projects/alpha".to_string(),
+            },
+        );
+        let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
+        std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
+        let configuration =
+            load_project_configuration(&root.join(".kanbus.yml")).expect("load project config");
+
+        assert_eq!(
+            resolve_project_label(root, &alpha_dir, &configuration),
+            Some("alpha".to_string())
+        );
+        assert_eq!(
+            resolve_project_label(root, &root.join("projects").join("missing"), &configuration),
+            Some("fallback".to_string())
+        );
+    }
+
+    #[test]
+    fn run_uds_subscription_ignores_invalid_payloads_before_valid_envelope() {
+        let tmp = TempDir::new().expect("temp dir");
+        let socket_path = tmp.path().join("bus.sock");
+        let realtime = sample_realtime(Some(socket_path.display().to_string()));
+        let broker_socket = socket_path.clone();
+        thread::spawn(move || {
+            let _ = run_uds_broker(&broker_socket);
+        });
+        for _ in 0..40 {
+            if socket_path.exists() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+
+        let topic = "kanbus/test/events".to_string();
+        let envelope = sample_envelope();
+        let received_id = envelope.id.clone();
+        let realtime_for_sub = realtime.clone();
+        let topic_for_sub = topic.clone();
+        let (tx, rx) = mpsc::channel::<String>();
+        thread::spawn(move || {
+            let handler = Arc::new(move |env: GossipEnvelope| {
+                let _ = tx.send(env.id);
+            });
+            let _ = run_uds_subscription(&realtime_for_sub, &[topic_for_sub], handler);
+        });
+        thread::sleep(Duration::from_millis(100));
+
+        let mut publisher = UnixStream::connect(&socket_path).expect("connect publisher");
+        for payload in [
+            "{\"op\":\"pub\",\"topic\":\"kanbus/test/events\",\"msg\":not-json}\n".to_string(),
+            "{\"op\":\"pub\",\"topic\":\"kanbus/test/events\"}\n".to_string(),
+            format!(
+                "{}\n",
+                serde_json::json!({"op":"pub","topic":"kanbus/test/events","msg": envelope})
+            ),
+        ] {
+            publisher
+                .write_all(payload.as_bytes())
+                .expect("publish payload");
+        }
+
+        let observed = rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("expected valid envelope delivery");
+        assert_eq!(observed, received_id);
+    }
+
+    #[test]
+    fn run_gossip_consumer_rejects_unknown_project_label() {
+        let temp = TempDir::new().expect("temp dir");
+        write_test_config(temp.path(), "off", "mqtt");
+        let result = run_gossip_consumer(
+            temp.path(),
+            GossipConsumerOptions {
+                project_filter: Some("missing".to_string()),
+                transport_override: None,
+                broker_override: None,
+                autostart_override: None,
+                keepalive_override: None,
+                print_envelopes: false,
+                on_envelope: None,
+                autostart_local_uds: false,
+                broker_off_is_error: true,
+            },
+        );
+        assert!(result.is_err());
+        assert!(result
+            .expect_err("expected error")
+            .to_string()
+            .contains("unknown project label"));
+    }
+
+    #[test]
+    fn run_gossip_consumer_broker_off_respects_error_policy() {
+        let temp = TempDir::new().expect("temp dir");
+        write_test_config(temp.path(), "off", "mqtt");
+
+        let ok_result = run_gossip_consumer(
+            temp.path(),
+            GossipConsumerOptions {
+                project_filter: None,
+                transport_override: None,
+                broker_override: None,
+                autostart_override: None,
+                keepalive_override: None,
+                print_envelopes: false,
+                on_envelope: None,
+                autostart_local_uds: false,
+                broker_off_is_error: false,
+            },
+        );
+        assert!(ok_result.is_ok());
+
+        let error_result = run_gossip_consumer(
+            temp.path(),
+            GossipConsumerOptions {
+                project_filter: None,
+                transport_override: None,
+                broker_override: None,
+                autostart_override: None,
+                keepalive_override: None,
+                print_envelopes: false,
+                on_envelope: None,
+                autostart_local_uds: false,
+                broker_off_is_error: true,
+            },
+        );
+        assert!(error_result.is_err());
+        assert!(error_result
+            .expect_err("expected error")
+            .to_string()
+            .contains("realtime broker is disabled"));
     }
 }

@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import gsap from "gsap";
+import { Flip } from "gsap/Flip";
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(Flip);
+}
+
 import type {
   KanbanConfig,
   KanbanIssue,
@@ -258,6 +265,9 @@ function BoardComponent({
   const boardRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
 
+  const [renderedIssues, setRenderedIssues] = useState(issues);
+  const flipStateRef = useRef<any>(null);
+
   const setBoardRef = useCallback(
     (node: HTMLDivElement | null) => {
       scope.current = node;
@@ -265,6 +275,77 @@ function BoardComponent({
     },
     [scope]
   );
+
+  useIsomorphicLayoutEffect(() => {
+    if (issues !== renderedIssues) {
+      if (boardRef.current && resolvedMotion.mode === "css" && typeof window !== "undefined") {
+        const cards = gsap.utils.toArray<HTMLElement>(".issue-card", boardRef.current);
+        if (cards.length > 0) {
+          console.log("[Board] Capturing Flip state for", cards.length, "cards");
+          flipStateRef.current = Flip.getState(cards, { props: "opacity" });
+        }
+      }
+      setRenderedIssues(issues);
+    }
+  }, [issues, renderedIssues, resolvedMotion.mode]);
+
+  useIsomorphicLayoutEffect(() => {
+    if (flipStateRef.current && boardRef.current && typeof window !== "undefined") {
+      const state = flipStateRef.current;
+      flipStateRef.current = null;
+      
+      const cards = gsap.utils.toArray<HTMLElement>(".issue-card", boardRef.current);
+      console.log("[Board] Running Flip from state to", cards.length, "cards", state);
+      if (cards.length > 0) {
+        // Freeze container dimensions to prevent layout shifts when overflow: visible removes scrollbars
+        const scrollContainers = boardRef.current?.querySelectorAll('.kb-column-scroll') || [];
+        scrollContainers.forEach(col => {
+          const el = col as HTMLElement;
+          el.style.width = `${el.clientWidth}px`;
+          el.style.height = `${el.clientHeight}px`;
+          el.style.flex = 'none'; // Prevent flex resizing
+        });
+
+        if (boardRef.current) {
+          boardRef.current.classList.add("is-flipping");
+        }
+
+        // Remove animation classes from all cards before flipping
+        cards.forEach((card) => {
+          card.classList.remove("issue-animate-in-up", "issue-animate-in-down");
+          card.style.animation = "none"; // Temporarily suppress CSS animations
+          card.style.transition = "none"; // Ensure transition doesn't interfere
+        });
+
+        Flip.from(state, {
+          targets: cards,
+          duration: 0.4,
+          ease: "power2.out",
+          nested: true,
+          clearProps: "transform,opacity",
+          onComplete: () => {
+            console.log("[Board] Flip complete");
+            if (boardRef.current) {
+              boardRef.current.classList.remove("is-flipping");
+            }
+            // Unfreeze container dimensions
+            scrollContainers.forEach(col => {
+              const el = col as HTMLElement;
+              el.style.width = '';
+              el.style.height = '';
+              el.style.flex = '';
+            });
+            // Restore animation styling just in case
+            cards.forEach((card) => {
+              card.style.animation = "";
+              card.style.transition = "";
+            });
+          },
+          zIndex: 10
+        });
+      }
+    }
+  }, [renderedIssues]);
 
   useIsomorphicLayoutEffect(() => {
     if (didInitialScroll.current) {
@@ -294,7 +375,7 @@ function BoardComponent({
   return (
     <div ref={setBoardRef} className="kb-grid gap-2">
       {columns.map((column) => {
-        const columnIssues = issues.filter((issue) => issue.status === column);
+        const columnIssues = renderedIssues.filter((issue) => issue.status === column);
         const comparator = resolveColumnComparator(column, config);
         const orderedIssues = [...columnIssues].sort(comparator);
         const displayTitle =

@@ -30,7 +30,7 @@ Feature: Issue mutations across virtual projects
     Given a Kanbus project with virtual projects configured
     And an issue "alpha-task01" exists in virtual project "alpha"
     And the current user is "dev@example.com"
-    When I run "kanbus comment alpha-task01 "Cross-project comment""
+    When I run "kanbus comment alpha-task01 \"Cross-project comment\""
     Then the command should succeed
     And issue "alpha-task01" in virtual project "alpha" should have 1 comment
 

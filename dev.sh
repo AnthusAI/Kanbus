@@ -17,6 +17,11 @@ REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 CONSOLE_DIR="$REPO_ROOT/apps/console"
 RUST_DIR="$REPO_ROOT/rust"
 UI_DIR="$REPO_ROOT/packages/ui"
+REPO_TAG="$(basename "$REPO_ROOT" | tr -cs 'A-Za-z0-9._-' '_')"
+LOG_PREFIX="/tmp/kanbus-${REPO_TAG}-$$"
+UI_WATCHER_LOG="${LOG_PREFIX}-ui-watcher.log"
+UI_TSC_LOG="${LOG_PREFIX}-ui-tsc.log"
+CONSOLE_DEV_LOG="${LOG_PREFIX}-console-dev.log"
 
 CONFIG_PORT=""
 CONFIG_HOST=""
@@ -87,6 +92,47 @@ find_free_port() {
   return 1
 }
 
+warn_existing_processes() {
+  _warned=0
+
+  if command -v pgrep >/dev/null 2>&1; then
+    _kbsc_pids="$(pgrep -x kbsc 2>/dev/null | tr '\n' ' ' | awk '{$1=$1; print}')"
+    if [ -n "$_kbsc_pids" ]; then
+      echo "WARNING: Existing kbsc process(es): $_kbsc_pids"
+      _warned=1
+    fi
+  fi
+
+  _dev_candidates="$(ps -Ao pid=,command= | awk '{for (i=2; i<=NF; i++) if ($i ~ /dev[.]sh$/) {print $1; break}}')"
+  _other_dev_pids=""
+  for _pid in $_dev_candidates; do
+    if [ "$_pid" != "$$" ] && [ "$_pid" != "$PPID" ]; then
+      _other_dev_pids="${_other_dev_pids} ${_pid}"
+    fi
+  done
+  _other_dev_pids="$(echo "$_other_dev_pids" | awk '{$1=$1; print}')"
+  if [ -n "$_other_dev_pids" ]; then
+    echo "WARNING: Existing dev.sh process(es): $_other_dev_pids"
+    _warned=1
+  fi
+
+  if command -v lsof >/dev/null 2>&1; then
+    _listeners="$(lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null | awk 'NR>1 && ($1 == "kbsc" || ($1 == "node" && $9 ~ /:(424[0-9]|517[0-9])$/)) {print $9 " (" $1 " pid " $2 ")"}')"
+    if [ -n "$_listeners" ]; then
+      echo "WARNING: Existing Kanbus listener(s):"
+      echo "$_listeners" | sed 's/^/  - /'
+      _warned=1
+    fi
+  fi
+
+  if [ "$_warned" -eq 1 ]; then
+    echo "WARNING: Continuing startup (warn + continue policy)."
+    echo ""
+  fi
+}
+
+warn_existing_processes
+
 # Auto-select free ports up front so we don't boot partially and confuse API routing.
 VITE_PORT="$(find_free_port "$VITE_PORT" "Vite")" || exit 1
 if [ "$CONSOLE_PORT" = "$VITE_PORT" ]; then
@@ -94,6 +140,11 @@ if [ "$CONSOLE_PORT" = "$VITE_PORT" ]; then
 fi
 CONSOLE_PORT="$(find_free_port "$CONSOLE_PORT" "Console API")" || exit 1
 export VITE_PORT CONSOLE_PORT
+
+ACCESS_HOST="$VITE_HOST"
+if [ "$ACCESS_HOST" = "0.0.0.0" ]; then
+  ACCESS_HOST="127.0.0.1"
+fi
 
 echo "═══════════════════════════════════════════════════════════════"
 echo "Kanbus Development Server (Watch Mode)"
@@ -108,7 +159,12 @@ echo "The console will be available at: http://${VITE_HOST}:$VITE_PORT"
 if [ "$VITE_HOST" = "0.0.0.0" ]; then
   echo "  (Use your LAN IP for other devices, e.g. \`ipconfig getifaddr en0\`)"
 fi
+echo "USE THIS URL NOW: http://${ACCESS_HOST}:$VITE_PORT"
 echo "Console API will be available at: http://127.0.0.1:$CONSOLE_PORT"
+echo "Logs:"
+echo "  • $UI_WATCHER_LOG"
+echo "  • $UI_TSC_LOG"
+echo "  • $CONSOLE_DEV_LOG"
 echo ""
 echo "Press Ctrl+C to stop all services."
 echo "═══════════════════════════════════════════════════════════════"
@@ -133,21 +189,21 @@ cd "$UI_DIR" || exit 1
     cp -R src/styles dist/styles 2>/dev/null || mkdir -p dist && cp -R src/styles dist/styles
   fi
   sleep 2
-done) > /tmp/kanbus-ui-watcher.log 2>&1 &
+done) > "$UI_WATCHER_LOG" 2>&1 &
 UI_WATCHER_PID=$!
 echo "  UI Watcher PID: $UI_WATCHER_PID"
 
 # Start UI TypeScript watcher in background
 echo "Starting UI TypeScript watcher..."
 cd "$UI_DIR" || exit 1
-npm run dev > /tmp/kanbus-ui-tsc.log 2>&1 &
+npm run dev > "$UI_TSC_LOG" 2>&1 &
 UI_TSC_PID=$!
 echo "  UI TSC PID: $UI_TSC_PID"
 
 # Start console dev server (Vite + API) in background
 echo "Starting console dev server..."
 cd "$CONSOLE_DIR" || exit 1
-npm run dev > /tmp/kanbus-console-dev.log 2>&1 &
+npm run dev > "$CONSOLE_DEV_LOG" 2>&1 &
 CONSOLE_DEV_PID=$!
 echo "  Console Dev PID: $CONSOLE_DEV_PID"
 

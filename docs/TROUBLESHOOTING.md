@@ -104,6 +104,42 @@ kanbus daemon-status
 KANBUS_NO_DAEMON=1 kanbus list
 ```
 
+## Console serves stale UI or favicon/module-script errors
+
+**Symptom**
+
+- Browser shows module MIME errors after reload (HTML returned for JS).
+- `GET /favicon.ico` returns 500.
+- Behavior changes between runs because different `kbsc` processes answer on different ports.
+
+**Cause**
+
+- An older `kbsc` process is still listening on the expected port.
+- Your global `kbsc` install (`~/.cargo/bin/kbsc`) is older than the workspace build.
+
+**Fix**
+
+- Check active listeners/processes:
+
+```bash
+pgrep -x kbsc
+lsof -nP -iTCP -sTCP:LISTEN | grep kbsc
+```
+
+- Stop stale processes and restart:
+
+```bash
+pkill -x kbsc
+```
+
+- Use the workspace binary while developing, or refresh the global install:
+
+```bash
+rust/target/debug/kbsc
+# or
+cargo install kanbus --bin kbsc --force
+```
+
 ## Workflow or hierarchy validation failures
 
 **Symptom**

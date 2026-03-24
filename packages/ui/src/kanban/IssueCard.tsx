@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useLayoutEffect } from "react";
 import type { KanbanConfig, KanbanIssue } from "./types";
 import { buildIssueColorStyle } from "./issue-colors";
 import { formatIssueId } from "./format-issue-id";
@@ -37,6 +37,14 @@ export function IssueCard({
     }
   };
 
+  useLayoutEffect(() => {
+    // When the card mounts or updates, if it has inline transforms (from a previous FLIP), clear them.
+    // This fixes the issue where a flipped card permanently holds a translated transform that messes up future state changes.
+    if (cardRef.current) {
+      cardRef.current.style.transform = "";
+    }
+  }, [issue.status, issue.id]);
+
   const IssueTypeIcon = getTypeIcon(issue.type, issue.status);
   const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
   const motionStyle = getIssueMotionStyle(resolvedMotion, motionIndex);
@@ -54,6 +62,7 @@ export function IssueCard({
       data-type={issue.type}
       data-priority={priorityName}
       data-issue-id={issue.id}
+      data-flip-id={issue.id}
       data-selected={isSelected ? "true" : undefined}
       onClick={handleClick}
       role="button"

@@ -177,3 +177,146 @@ pub fn sorted_deduped_guidance_items(items: &[GuidanceItem]) -> Vec<GuidanceItem
 
     unique
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::default_project_configuration;
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+
+    fn sample_issue(id: &str) -> IssueData {
+        IssueData {
+            identifier: id.to_string(),
+            title: "Sample".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    fn write_workspace_config(root: &Path) {
+        let mut config = default_project_configuration();
+        config.project_directory = "project".to_string();
+        let yaml = serde_yaml::to_string(&config).expect("serialize config");
+        std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
+        std::fs::create_dir_all(root.join("project/issues")).expect("create issues dir");
+    }
+
+    #[test]
+    fn guidance_enabled_respects_flag_and_env() {
+        std::env::remove_var("KANBUS_NO_GUIDANCE");
+        assert!(guidance_enabled(false));
+        assert!(!guidance_enabled(true));
+
+        std::env::set_var("KANBUS_NO_GUIDANCE", "true");
+        assert!(!guidance_enabled(false));
+        std::env::set_var("KANBUS_NO_GUIDANCE", "YES");
+        assert!(!guidance_enabled(false));
+        std::env::set_var("KANBUS_NO_GUIDANCE", " on ");
+        assert!(!guidance_enabled(false));
+        std::env::set_var("KANBUS_NO_GUIDANCE", "0");
+        assert!(guidance_enabled(false));
+        std::env::remove_var("KANBUS_NO_GUIDANCE");
+    }
+
+    #[test]
+    fn sorted_deduped_guidance_keeps_warning_before_suggestion() {
+        let warning = GuidanceItem {
+            severity: GuidanceSeverity::Warning,
+            message: "warn".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "a.yml".to_string(),
+            scenario: "A".to_string(),
+            step: "Then".to_string(),
+        };
+        let suggestion = GuidanceItem {
+            severity: GuidanceSeverity::Suggestion,
+            message: "suggest".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "b.yml".to_string(),
+            scenario: "B".to_string(),
+            step: "Then".to_string(),
+        };
+        let result = sorted_deduped_guidance_items(&[
+            suggestion.clone(),
+            warning.clone(),
+            warning.clone(),
+            suggestion.clone(),
+        ]);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].severity, GuidanceSeverity::Warning);
+        assert_eq!(result[1].severity, GuidanceSeverity::Suggestion);
+    }
+
+    #[test]
+    fn sorted_deduped_guidance_sorts_by_policy_scenario_step_and_message() {
+        let a = GuidanceItem {
+            severity: GuidanceSeverity::Warning,
+            message: "z-msg".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "b.yml".to_string(),
+            scenario: "S2".to_string(),
+            step: "Then B".to_string(),
+        };
+        let b = GuidanceItem {
+            severity: GuidanceSeverity::Warning,
+            message: "a-msg".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "a.yml".to_string(),
+            scenario: "S1".to_string(),
+            step: "Then A".to_string(),
+        };
+        let c = GuidanceItem {
+            severity: GuidanceSeverity::Warning,
+            message: "m-msg".to_string(),
+            explanations: vec!["e".to_string()],
+            policy_file: "a.yml".to_string(),
+            scenario: "S1".to_string(),
+            step: "Then B".to_string(),
+        };
+        let result = sorted_deduped_guidance_items(&[a.clone(), c.clone(), b.clone()]);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].policy_file, "a.yml");
+        assert_eq!(result[0].step, "Then A");
+        assert_eq!(result[1].policy_file, "a.yml");
+        assert_eq!(result[1].step, "Then B");
+        assert_eq!(result[2].policy_file, "b.yml");
+    }
+
+    #[test]
+    fn collect_guidance_returns_default_when_policies_dir_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_workspace_config(temp.path());
+        let issue = sample_issue("kanbus-1");
+
+        let report = collect_guidance_for_issue(temp.path(), &issue, PolicyOperation::Update)
+            .expect("collect guidance");
+        assert!(report.violations.is_empty());
+        assert!(report.guidance_items.is_empty());
+    }
+
+    #[test]
+    fn collect_guidance_returns_default_for_empty_policies_directory() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_workspace_config(temp.path());
+        std::fs::create_dir_all(temp.path().join("project/policies")).expect("create policies dir");
+        let issue = sample_issue("kanbus-2");
+
+        let report = collect_guidance_for_issue(temp.path(), &issue, PolicyOperation::Create)
+            .expect("collect guidance");
+        assert!(report.violations.is_empty());
+        assert!(report.guidance_items.is_empty());
+    }
+}

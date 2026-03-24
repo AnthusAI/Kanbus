@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../../../packages/ui/src";
+@import "@kanbus/ui/styles/index.css";
 @import "@kanbus/ui/styles/kanban.css"; /* Keep kanban specific styles */
 @import "./content.css";
 
@@ -20,6 +22,8 @@
 /* --- START: Existing Marketing Site Styles --- */
 
 :root {
+  --layout-transition: 0.42s;
+
   --bg-page: var(--background);
   --bg-surface: var(--card);
   --bg-surface-2: var(--column);

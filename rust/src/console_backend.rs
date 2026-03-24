@@ -266,6 +266,10 @@ mod tests {
         }
     }
 
+    fn write_base_config(root: &Path) {
+        std::fs::write(root.join(".kanbus.yml"), "project_key: kanbus\n").expect("write config");
+    }
+
     #[test]
     fn find_issue_matches_exact_and_short_identifier() {
         let issues = vec![issue("kanbus-abcdef"), issue("kanbus-zzzzzz")];
@@ -318,5 +322,117 @@ mod tests {
         assert_eq!(identifiers.len(), 2);
         assert!(identifiers.contains(&"kanbus-111111".to_string()));
         assert!(identifiers.contains(&"kanbus-222222".to_string()));
+    }
+
+    #[test]
+    fn load_issues_from_dir_rejects_invalid_json_payload() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issues_dir = temp_dir.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues");
+        std::fs::write(issues_dir.join("broken.json"), "{bad json").expect("write broken");
+
+        let result = load_issues_from_dir(&issues_dir);
+        match result {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "issue file is invalid")
+            }
+            other => panic!("expected invalid issue file error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_console_issues_rejects_missing_project_issues_directory() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path().join("project");
+        std::fs::create_dir_all(&project_dir).expect("create project dir");
+        write_base_config(temp_dir.path());
+
+        let result = load_console_issues(&project_dir);
+        match result {
+            Err(KanbusError::IssueOperation(message)) => {
+                assert_eq!(message, "project/issues directory not found")
+            }
+            other => panic!("expected missing issues error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_console_issues_tags_shared_and_local_issue_sources() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        write_base_config(temp_dir.path());
+        let project_dir = temp_dir.path().join("project");
+        let shared_dir = project_dir.join("issues");
+        let local_dir = temp_dir.path().join("project-local").join("issues");
+        std::fs::create_dir_all(&shared_dir).expect("create shared dir");
+        std::fs::create_dir_all(&local_dir).expect("create local dir");
+
+        std::fs::write(
+            shared_dir.join("kanbus-shared.json"),
+            serde_json::to_vec(&issue("kanbus-shared")).expect("serialize shared"),
+        )
+        .expect("write shared issue");
+        std::fs::write(
+            local_dir.join("kanbus-local.json"),
+            serde_json::to_vec(&issue("kanbus-local")).expect("serialize local"),
+        )
+        .expect("write local issue");
+
+        let issues = load_console_issues(&project_dir).expect("load issues");
+        let by_id = issues
+            .into_iter()
+            .map(|issue| (issue.identifier.clone(), issue))
+            .collect::<std::collections::BTreeMap<_, _>>();
+
+        assert_eq!(
+            by_id
+                .get("kanbus-shared")
+                .and_then(|item| item.custom.get("source"))
+                .and_then(|value| value.as_str()),
+            Some("shared")
+        );
+        assert_eq!(
+            by_id
+                .get("kanbus-local")
+                .and_then(|item| item.custom.get("source"))
+                .and_then(|value| value.as_str()),
+            Some("local")
+        );
+    }
+
+    #[test]
+    fn file_store_build_snapshot_payload_sorts_issue_identifiers() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        write_base_config(temp_dir.path());
+        let issues_dir = temp_dir.path().join("project").join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues");
+        std::fs::write(
+            issues_dir.join("kanbus-b.json"),
+            serde_json::to_vec(&issue("kanbus-b")).expect("serialize b"),
+        )
+        .expect("write b");
+        std::fs::write(
+            issues_dir.join("kanbus-a.json"),
+            serde_json::to_vec(&issue("kanbus-a")).expect("serialize a"),
+        )
+        .expect("write a");
+
+        let store = FileStore::new(temp_dir.path());
+        let payload = store.build_snapshot_payload().expect("snapshot payload");
+        let json: serde_json::Value =
+            serde_json::from_str(&payload).expect("parse snapshot payload");
+        let ids = json["issues"]
+            .as_array()
+            .expect("issues array")
+            .iter()
+            .filter_map(|item| item.get("id").and_then(|value| value.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(ids, vec!["kanbus-a", "kanbus-b"]);
+    }
+
+    #[test]
+    fn resolve_tenant_root_builds_expected_path() {
+        let base = Path::new("/tmp/kanbus");
+        let path = FileStore::resolve_tenant_root(base, "anthus", "project");
+        assert!(path.ends_with("kanbus/anthus/project"));
     }
 }

@@ -6,6 +6,7 @@ NO_FAIL ?= 0
 build:
 	cd packages/ui && npm install && npm run build
 	cd apps/console && npm install && npm run build
+	rm -rf rust/embedded_assets/console && cp -r apps/console/dist rust/embedded_assets/console
 	cd rust && cargo install --path .
 
 check-python:

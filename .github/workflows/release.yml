@@ -1,8 +1,9 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       pypi_only:
@@ -22,8 +23,8 @@ permissions:
 jobs:
   pypi-release:
     name: PyPI Release
-    # Run on published release tags or manual dispatch.
-    if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
+    # Run on semver tag pushes or manual dispatch.
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.release_tag.outputs.tag }}
@@ -100,8 +101,10 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.rust_only }}" ]; then
             echo "tag=${{ github.event.inputs.rust_only }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi

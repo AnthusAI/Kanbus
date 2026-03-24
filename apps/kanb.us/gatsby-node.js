@@ -18,7 +18,9 @@ exports.onCreateWebpackConfig = ({ actions, stage }) => {
     config.resolve.alias = {
       "@radix-ui/react-scroll-area": path.resolve(__dirname, "src/mocks/empty-module.js"),
       "@radix-ui/react-tabs": path.resolve(__dirname, "src/mocks/empty-module.js"),
-      gsap: path.resolve(__dirname, "src/mocks/empty-module.js")
+      "@gsap/react": path.resolve(__dirname, "src/mocks/empty-module.js"),
+      "gsap/Flip$": path.resolve(__dirname, "src/mocks/empty-module.js"),
+      "gsap$": path.resolve(__dirname, "src/mocks/empty-module.js")
     };
   }
 

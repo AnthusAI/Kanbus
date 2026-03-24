@@ -252,6 +252,58 @@ def _find_missing(feature_steps: Set[str], patterns: Sequence[StepPattern]) -> S
     return missing
 
 
+def _pattern_matched_steps(
+    pattern: StepPattern,
+    feature_steps: Set[str],
+) -> frozenset:
+    """Return the set of feature steps that this pattern matches."""
+    try:
+        regex = _compile_pattern(pattern)
+    except re.error:
+        return frozenset()
+    matched: Set[str] = set()
+    for step in feature_steps:
+        if regex.fullmatch(step):
+            matched.add(step)
+    return frozenset(matched)
+
+
+def _python_only_with_equivalence(
+    python_patterns: Sequence[StepPattern],
+    rust_patterns: Sequence[StepPattern],
+    feature_steps: Set[str],
+) -> Set[str]:
+    """Python patterns that have no Rust pattern matching the same feature steps."""
+    rust_matched: List[frozenset] = [
+        _pattern_matched_steps(p, feature_steps) for p in rust_patterns
+    ]
+    result: Set[str] = set()
+    for py_pattern in python_patterns:
+        py_matched = _pattern_matched_steps(py_pattern, feature_steps)
+        if py_matched and any(py_matched == rm for rm in rust_matched):
+            continue
+        result.add(_normalize_step_text(py_pattern.text))
+    return result
+
+
+def _rust_only_with_equivalence(
+    python_patterns: Sequence[StepPattern],
+    rust_patterns: Sequence[StepPattern],
+    feature_steps: Set[str],
+) -> Set[str]:
+    """Rust patterns that have no Python pattern matching the same feature steps."""
+    py_matched: List[frozenset] = [
+        _pattern_matched_steps(p, feature_steps) for p in python_patterns
+    ]
+    result: Set[str] = set()
+    for rust_pattern in rust_patterns:
+        rm = _pattern_matched_steps(rust_pattern, feature_steps)
+        if rm and any(rm == pm for pm in py_matched):
+            continue
+        result.add(_normalize_step_text(rust_pattern.text))
+    return result
+
+
 def build_results(repo_root: Path) -> ParityResults:
     """Build parity results for the repository.
 
@@ -293,8 +345,20 @@ def report(results: ParityResults) -> Tuple[bool, List[str]]:
     """
     missing_in_python = sorted(results.missing_in_python())
     missing_in_rust = sorted(results.missing_in_rust())
-    python_only = sorted(results.python_only())
-    rust_only = sorted(results.rust_only())
+    python_only = sorted(
+        _python_only_with_equivalence(
+            results.python_patterns,
+            results.rust_patterns,
+            results.feature_steps,
+        )
+    )
+    rust_only = sorted(
+        _rust_only_with_equivalence(
+            results.python_patterns,
+            results.rust_patterns,
+            results.feature_steps,
+        )
+    )
 
     lines: List[str] = []
     lines.append(f"Feature steps: {len(results.feature_steps)}")
