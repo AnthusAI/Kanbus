@@ -21,8 +21,7 @@ jobs:
       release_branch: "main"
       semantic_release_requirement: "python-semantic-release~=10.0"
       working_directory: "python"
-      # main is protected; don't attempt direct release commits/tags from this workflow.
-      push_changes: false
+      push_changes: true
       # release.yml handles package publishing and artifact uploads on tag pushes.
       run_publish: false
     secrets:
