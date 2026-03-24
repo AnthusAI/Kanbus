@@ -228,8 +228,7 @@ jobs:
             --config config/coverage-changed-files.json \
             --base-ref "$base_ref" \
             --head-ref "$HEAD_SHA" \
-            --json > coverage-changed-files.json
-          cat coverage-changed-files.json
+            --json | tee coverage-changed-files.json
 
       - name: Publish coverage parity report
         run: |
