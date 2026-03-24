@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import configparser
+import fnmatch
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -61,10 +63,33 @@ def _map_python_coverage_key(changed_file: str) -> str | None:
 
 
 def _map_rust_coverage_key(changed_file: str) -> str | None:
-    prefix = "rust/"
+    prefix = "rust/src/"
     if not changed_file.startswith(prefix) or not changed_file.endswith(".rs"):
         return None
-    return changed_file.removeprefix(prefix)
+    return changed_file.removeprefix("rust/")
+
+
+def _load_python_omit_patterns(config_path: Path) -> list[str]:
+    parser = configparser.ConfigParser()
+    if not config_path.exists():
+        return []
+    parser.read(config_path, encoding="utf-8")
+    raw_patterns = parser.get("report", "omit", fallback="")
+    normalized_patterns: list[str] = []
+    for raw_pattern in raw_patterns.splitlines():
+        pattern = raw_pattern.strip()
+        if not pattern:
+            continue
+        cleaned = pattern.removeprefix("./")
+        if cleaned.startswith("src/"):
+            normalized_patterns.append(f"python/{cleaned}")
+        else:
+            normalized_patterns.append(cleaned)
+    return normalized_patterns
+
+
+def _matches_any_pattern(candidate: str, patterns: list[str]) -> bool:
+    return any(fnmatch.fnmatch(candidate, pattern) for pattern in patterns)
 
 
 def _load_config(path: Path) -> dict[str, Any]:
@@ -74,6 +99,8 @@ def _load_config(path: Path) -> dict[str, Any]:
     payload.setdefault("waivers", [])
     payload.setdefault("waiver_min_improvement_points", 3.0)
     payload.setdefault("file_baselines", {})
+    payload.setdefault("ignore_patterns", [])
+    payload.setdefault("python_coverage_config", "python/.coveragerc")
     return payload
 
 
@@ -202,6 +229,10 @@ def main(argv: list[str] | None = None) -> int:
     python_coverage = _parse_coverage(Path(args.python_xml))
     rust_coverage = _parse_coverage(Path(args.rust_xml))
     changed_files = _run_git_diff(args.base_ref, args.head_ref)
+    python_omit_patterns = _load_python_omit_patterns(
+        Path(str(config["python_coverage_config"]))
+    )
+    ignore_patterns = [str(pattern) for pattern in config["ignore_patterns"]]
 
     results: list[dict[str, Any]] = []
     checked = 0
@@ -210,6 +241,27 @@ def main(argv: list[str] | None = None) -> int:
         python_key = _map_python_coverage_key(changed_file)
         rust_key = _map_rust_coverage_key(changed_file)
         if python_key is None and rust_key is None:
+            continue
+        if _matches_any_pattern(changed_file, ignore_patterns):
+            results.append(
+                {
+                    "file": changed_file,
+                    "status": "skipped",
+                    "reason": "file excluded by ignore_patterns",
+                }
+            )
+            continue
+        if python_key is not None and _matches_any_pattern(
+            changed_file, python_omit_patterns
+        ):
+            results.append(
+                {
+                    "file": changed_file,
+                    "language": "python",
+                    "status": "skipped",
+                    "reason": "file omitted from python coverage configuration",
+                }
+            )
             continue
         changed_source += 1
         if python_key is not None:
@@ -235,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
 
-    failed = [result for result in results if result["status"] != "passed"]
+    failed = [result for result in results if result["status"] == "failed"]
     payload = {
         "passed": not failed,
         "base_ref": args.base_ref,

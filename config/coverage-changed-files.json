@@ -14,7 +14,9 @@
     "rust/src/snyk_sync.rs": 14.8541
   },
   "python_min": 75.0,
+  "python_coverage_config": "python/.coveragerc",
   "rust_min": 65.0,
+  "ignore_patterns": [],
   "waiver_min_improvement_points": 0.25,
   "waivers": [
     "python/src/kanbus/gossip.py",
