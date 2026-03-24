@@ -562,3 +562,60 @@ fn command_on_path(command: &str) -> bool {
 fn now_utc_iso() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::HookDefinition;
+
+    #[test]
+    fn hook_event_parse_and_mutating_flags_match_expected_values() {
+        assert_eq!(
+            HookEvent::parse("issue.update"),
+            Some(HookEvent::IssueUpdate)
+        );
+        assert_eq!(HookEvent::parse("issue.list"), Some(HookEvent::IssueList));
+        assert_eq!(HookEvent::parse("unknown"), None);
+        assert!(HookEvent::IssueUpdate.is_mutating());
+        assert!(!HookEvent::IssueList.is_mutating());
+    }
+
+    #[test]
+    fn effective_blocking_defaults_and_overrides_are_applied() {
+        let default_hook = HookDefinition {
+            id: "hook".to_string(),
+            command: vec!["echo".to_string()],
+            cwd: None,
+            env: std::collections::BTreeMap::new(),
+            timeout_ms: None,
+            blocking: None,
+        };
+        assert!(effective_blocking(
+            HookPhase::Before,
+            Some(HookEvent::IssueUpdate),
+            &default_hook
+        ));
+        assert!(!effective_blocking(
+            HookPhase::After,
+            Some(HookEvent::IssueUpdate),
+            &default_hook
+        ));
+
+        let explicit_non_blocking = HookDefinition {
+            blocking: Some(false),
+            ..default_hook
+        };
+        assert!(!effective_blocking(
+            HookPhase::Before,
+            Some(HookEvent::IssueUpdate),
+            &explicit_non_blocking
+        ));
+    }
+
+    #[test]
+    fn path_detection_helpers_handle_relative_and_pathless_commands() {
+        assert!(looks_like_path("./scripts/hook.sh"));
+        assert!(looks_like_path("scripts/hook.sh"));
+        assert!(!looks_like_path("python"));
+    }
+}

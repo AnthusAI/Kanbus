@@ -126,45 +126,92 @@ const IndexPage = () => {
   const [issues, setIssues] = React.useState<TaskDetailIssue[]>(boardIssues);
   const [collapsedColumns, setCollapsedColumns] = React.useState<Set<string>>(new Set());
   const [selectedIssueId, setSelectedIssueId] = React.useState<string | null>(null);
+  
+  // Create a separate state to control the visibility/rendering of the panel
+  // so we can keep it mounted during the closing animation.
+  const [isDetailVisible, setIsDetailVisible] = React.useState(false);
+  const selectedIssue =
+    issues.find((issue) => issue.id === selectedIssueId) ?? null;
+
+  // We need to keep a ref to the "last selected issue" so we can render it
+  // while the panel is animating closed, even after selectedIssueId becomes null.
+  const lastSelectedIssueRef = React.useRef<TaskDetailIssue | null>(null);
+  if (selectedIssue) {
+    lastSelectedIssueRef.current = selectedIssue;
+  }
+  
+  React.useEffect(() => {
+    if (selectedIssueId) {
+      setIsDetailVisible(true);
+    }
+  }, [selectedIssueId]);
+
   const [focusedIssueId, setFocusedIssueId] = React.useState<string | null>(null);
   const [isMaximized, setIsMaximized] = React.useState(false);
-  
+
   const boardSectionRef = React.useRef<HTMLDivElement>(null);
   const isInView = useInView(boardSectionRef, { margin: "-200px" });
 
   React.useEffect(() => {
     if (!isInView) return;
     
-    let moveCount = 0;
+    let stepCount = 0;
+    const TOTAL_STEPS = 10;
     const interval = setInterval(() => {
-      setIssues(current => {
-        const newIssues = [...current];
-        const step = moveCount % 4;
-        
-        if (step === 0) {
-          // Reset
-          return boardIssues;
-        } else if (step === 1) {
+      const step = stepCount % TOTAL_STEPS;
+      
+      if (step === 0) {
+        // Reset board and selection
+        setIssues(boardIssues);
+        setSelectedIssueId(null);
+      } else if (step === 1) {
+        // Look at an in-progress task
+        setSelectedIssueId("tsk-4d5e6f");
+      } else if (step === 2) {
+        // Move it to done
+        setIssues(current => {
+          const newIssues = [...current];
           const idx = newIssues.findIndex(i => i.id === "tsk-4d5e6f");
           if (idx >= 0) newIssues[idx] = { ...newIssues[idx], status: "closed" };
-        } else if (step === 2) {
+          return newIssues;
+        });
+      } else if (step === 3) {
+        // Close detail view
+        setSelectedIssueId(null);
+      } else if (step === 4) {
+        // Look at a backlog item
+        setSelectedIssueId("tsk-1a2b3c");
+      } else if (step === 5) {
+        // Move it to in progress
+        setIssues(current => {
+          const newIssues = [...current];
           const idx = newIssues.findIndex(i => i.id === "tsk-1a2b3c");
           if (idx >= 0) newIssues[idx] = { ...newIssues[idx], status: "in_progress" };
-        } else if (step === 3) {
+          return newIssues;
+        });
+      } else if (step === 6) {
+        // Look at its subtask
+        setSelectedIssueId("tsk-1a2b3c-1");
+      } else if (step === 7) {
+        // Move subtask to in progress
+        setIssues(current => {
+          const newIssues = [...current];
           const idx = newIssues.findIndex(i => i.id === "tsk-1a2b3c-1");
           if (idx >= 0) newIssues[idx] = { ...newIssues[idx], status: "in_progress" };
-        }
-        
-        return newIssues;
-      });
-      moveCount++;
-    }, 2500);
+          return newIssues;
+        });
+      } else if (step === 8) {
+        // Close detail view
+        setSelectedIssueId(null);
+      } else if (step === 9) {
+        // Pause before resetting
+      }
+      
+      stepCount++;
+    }, 2000);
     
     return () => clearInterval(interval);
   }, [isInView]);
-
-  const selectedIssue =
-    issues.find((issue) => issue.id === selectedIssueId) ?? null;
 
   const toggleColumn = (column: string) => {
     const next = new Set(collapsedColumns);
@@ -193,8 +240,8 @@ const IndexPage = () => {
   return (
     <Layout>
       <Hero
-        title="A shared project notebook that lives with your code"
-        subtitle="Kanbus keeps tasks, decisions, and AI context in your repository so anyone can pick up where you left off."
+        title="Embed your project management directly in your repository."
+        subtitle="Stop wrestling with external issue trackers. Keep tasks, context, and a clear paper trail right alongside your code so human developers and AI agents can collaborate seamlessly."
         rightPane={<CodeUiSync />}
         actions={
           <>
@@ -216,8 +263,7 @@ const IndexPage = () => {
 
       <div className="mx-auto max-w-3xl px-6 lg:px-8 text-center pb-24">
         <p className="text-xl leading-8 text-muted font-medium">
-          Think of it as a simple, Git-friendly way to keep project notes and to-dos. Each task is a small file in your
-          repo, so your tools always read the same source of truth even if you switch computers or assistants.
+          Tracking project context usually means coordinating an external system. But it&apos;s better to eliminate a problem than to solve it. With Kanbus, every task is a file in your repo. Your workflow inherits the exact same version control as your code—creating a clear, timestamped paper trail without a jarring context switch.
         </p>
         <p className="mt-6 text-base text-muted/80">
           Already using Beads? Your existing data works.
@@ -247,7 +293,7 @@ const IndexPage = () => {
             </a>
           </div>
           <div className="kanban-snapshot-container h-[550px]" ref={boardSectionRef}>
-            <div className={`layout-frame gap-4 ${isMaximized ? "detail-maximized" : ""} flex flex-col lg:flex-row`}>
+            <div className={`layout-frame ${isMaximized ? "detail-maximized" : ""} flex flex-col lg:flex-row`}>
               <div className="layout-slot layout-slot-board">
                 <Board
                   columns={boardColumns}
@@ -263,21 +309,21 @@ const IndexPage = () => {
               </div>
 
               <TaskDetailPanel
-                task={selectedIssue}
+                task={selectedIssue ?? lastSelectedIssueRef.current}
                 allIssues={issues}
                 columns={boardColumns}
                 priorityLookup={priorityLookup}
                 config={boardConfig}
                 apiBase=""
                 isOpen={Boolean(selectedIssue)}
-                isVisible={Boolean(selectedIssue)}
+                isVisible={isDetailVisible}
                 navDirection="none"
                 widthPercent={42}
                 layout="auto"
                 onClose={() => setSelectedIssueId(null)}
                 onToggleMaximize={() => setIsMaximized((prev) => !prev)}
                 isMaximized={isMaximized}
-                onAfterClose={() => undefined}
+                onAfterClose={() => setIsDetailVisible(false)}
                 onFocus={handleFocusIssue}
                 focusedIssueId={focusedIssueId}
                 onNavigateToDescendant={handleSelectIssue}

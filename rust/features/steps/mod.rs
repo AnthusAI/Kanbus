@@ -40,5 +40,6 @@ pub mod rich_text_signal_steps;
 pub mod text_editor_steps;
 pub mod users_steps;
 pub mod virtual_project_steps;
+pub mod wiki_panel_steps;
 pub mod wiki_steps;
 pub mod workflow_steps;

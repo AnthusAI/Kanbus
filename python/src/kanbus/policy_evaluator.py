@@ -15,7 +15,7 @@ from kanbus.policy_context import (
 )
 from kanbus.policy_steps import StepOutcome, StepRegistry
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from gherkin.ast import GherkinDocument, Step
 
 

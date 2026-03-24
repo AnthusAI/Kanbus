@@ -88,14 +88,31 @@ struct IssueEventsResponse {
 
 #[tokio::main]
 async fn main() {
+    let trace = |msg: &str| {
+        let _ = std::io::stderr().flush();
+        eprintln!("[kbsc] {}", msg);
+        let _ = std::io::stderr().flush();
+        let _ = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/tmp/kbsc_trace.txt")
+            .and_then(|mut f| {
+                use std::io::Write;
+                writeln!(f, "{}", msg).and_then(|_| f.sync_all())
+            });
+    };
+    trace("entry");
     let repo_root = resolve_repo_root();
+    trace(&format!("repo_root: {}", repo_root.display()));
     let root_override = std::env::var("CONSOLE_ROOT").ok().map(PathBuf::from);
     let data_root = std::env::var("CONSOLE_DATA_ROOT")
         .ok()
         .map(PathBuf::from)
         .or_else(|| root_override.clone())
         .unwrap_or_else(|| repo_root.clone());
+    trace("checking project structure");
     maybe_prompt_project_repair(&data_root);
+    trace("loading config");
     let (bind_ip, bind_host) = resolve_bind_host(std::env::var("CONSOLE_HOST").ok());
 
     // Try to load console_port from project config
@@ -152,6 +169,7 @@ async fn main() {
     let (notification_tx, _) = broadcast::channel::<NotificationEvent>(256);
     let telemetry_log = open_telemetry_log(&repo_root);
 
+    trace("loading UI state");
     // Load persisted console UI state (or start with empty state)
     let state_file_path = state_path(&data_root).unwrap_or_else(|_| {
         data_root
@@ -163,7 +181,7 @@ async fn main() {
     eprintln!("Console UI state loaded from {}", state_file_path.display());
 
     let state = AppState {
-        base_root: data_root,
+        base_root: data_root.clone(),
         assets_root: assets_root.clone(),
         multi_tenant,
         assets_root_explicit,
@@ -208,6 +226,8 @@ async fn main() {
         .route("/issues/:parent/all", get(get_index_root))
         .route("/issues/:id", get(get_index_root))
         .route("/issues/:parent/:id", get(get_index_root))
+        .route("/index.html", get(get_index_root))
+        .route("/favicon.ico", get(get_favicon))
         .route("/:account/:project/api/config", get(get_config))
         .route("/:account/:project/api/issues", get(get_issues))
         .route("/:account/:project/api/issues/:id", get(get_issue))
@@ -265,7 +285,20 @@ async fn main() {
         .allow_private_network(true);
 
     let app = app.with_state(state).layer(cors);
+    eprintln!(
+        "[kbsc] startup repo_root={} data_root={} requested_port={} host={}",
+        repo_root.display(),
+        data_root.display(),
+        desired_port,
+        bind_host
+    );
+    eprintln!("[kbsc] binding port...");
+    let _ = std::io::stderr().flush();
     let (listener, port) = acquire_listener(bind_ip, desired_port).await;
+    eprintln!(
+        "[kbsc] bound_port={} (requested_port={})",
+        port, desired_port
+    );
 
     #[cfg(feature = "embed-assets")]
     println!("Console backend listening on http://{bind_host}:{port} (embedded assets)");
@@ -299,36 +332,8 @@ fn maybe_prompt_project_repair(root: &Path) {
         }
     };
 
-    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
-        return;
-    }
-
-    let mut missing = Vec::new();
-    if plan.missing_project_dir {
-        missing.push("project/");
-    }
-    if plan.missing_issues_dir {
-        missing.push("project/issues");
-    }
-    if plan.missing_events_dir {
-        missing.push("project/events");
-    }
-
-    eprint!(
-        "Project structure incomplete (missing: {}). Repair now? [y/N] ",
-        missing.join(", ")
-    );
-    let _ = std::io::stderr().flush();
-
-    let mut input = String::new();
-    let _ = std::io::stdin().read_line(&mut input);
-    let reply = input.trim().to_ascii_lowercase();
-    if reply == "y" || reply == "yes" {
-        if let Err(error) = repair_project_structure(&plan) {
-            eprintln!("{error}");
-        } else {
-            eprintln!("Project structure repaired.");
-        }
+    if let Err(error) = repair_project_structure(&plan) {
+        eprintln!("Warning: could not repair project structure: {error}");
     }
 }
 
@@ -368,47 +373,84 @@ async fn acquire_listener(bind_ip: IpAddr, desired_port: u16) -> (tokio::net::Tc
     match tokio::net::TcpListener::bind(initial_addr).await {
         Ok(listener) => (listener, desired_port),
         Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
-            let fallback_port = desired_port.saturating_add(1);
-            if fallback_port > u16::MAX - 1 {
-                exit_with_port_error(desired_port, "No valid fallback port is available.");
-            }
-            let consented = if io::stdin().is_terminal() && io::stdout().is_terminal() {
-                prompt_for_port_switch(desired_port, fallback_port)
-            } else {
-                eprintln!(
-                    "Console port {desired_port} is in use. Switching automatically to {fallback_port}."
-                );
-                true
+            let action = match determine_port_conflict_action(
+                desired_port,
+                terminal_is_interactive(),
+                prompt_for_fallback_port,
+            ) {
+                Ok(action) => action,
+                Err(message) => exit_with_port_error(desired_port, &message),
             };
-            if !consented {
-                exit_with_port_error(
-                    desired_port,
-                    "Port is in use. Set CONSOLE_PORT to a free port and retry.",
-                );
-            }
-            let fallback_addr = SocketAddr::from((bind_ip, fallback_port));
-            match tokio::net::TcpListener::bind(fallback_addr).await {
-                Ok(listener) => (listener, fallback_port),
-                Err(fallback_error) => exit_with_port_error(
-                    desired_port,
-                    &format!(
-                        "Port {desired_port} is in use and fallback port {fallback_port} failed: {fallback_error}"
-                    ),
-                ),
+            match action {
+                PortConflictAction::RetryWithFallback(fallback_port) => {
+                    let fallback_addr = SocketAddr::from((bind_ip, fallback_port));
+                    match tokio::net::TcpListener::bind(fallback_addr).await {
+                        Ok(listener) => (listener, fallback_port),
+                        Err(fallback_error) => exit_with_port_error(
+                            desired_port,
+                            &format!(
+                                "Port {desired_port} is in use and fallback port {fallback_port} failed: {fallback_error}"
+                            ),
+                        ),
+                    }
+                }
+                PortConflictAction::Exit { message } => {
+                    exit_with_port_error(desired_port, &message)
+                }
             }
         }
         Err(error) => exit_with_port_error(desired_port, &format!("Failed to bind: {error}")),
     }
 }
 
-fn prompt_for_port_switch(current: u16, fallback: u16) -> bool {
-    print!("Console port {current} is already in use. Bump to {fallback}? [y/N] ");
-    let _ = io::stdout().flush();
-    let mut buffer = String::new();
-    if io::stdin().read_line(&mut buffer).is_err() {
-        return false;
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PortConflictAction {
+    RetryWithFallback(u16),
+    Exit { message: String },
+}
+
+fn terminal_is_interactive() -> bool {
+    std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
+}
+
+fn prompt_for_fallback_port(desired_port: u16, fallback_port: u16) -> bool {
+    eprint!(
+        "Console port {desired_port} is already in use. Try port {fallback_port} instead? [y/N] "
+    );
+    std::io::stderr().flush().ok();
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).ok();
+    matches!(input.trim().to_ascii_lowercase().as_str(), "y" | "yes")
+}
+
+fn determine_port_conflict_action<F>(
+    desired_port: u16,
+    interactive: bool,
+    prompt_accepts_fallback: F,
+) -> Result<PortConflictAction, String>
+where
+    F: FnOnce(u16, u16) -> bool,
+{
+    let fallback_port = desired_port
+        .checked_add(1)
+        .ok_or_else(|| "No valid fallback port is available.".to_string())?;
+
+    if !interactive {
+        return Ok(PortConflictAction::Exit {
+            message: format!(
+                "Port {desired_port} is in use. Non-interactive mode will not auto-select another port. \
+                 Re-run with CONSOLE_PORT={fallback_port} or free the requested port."
+            ),
+        });
     }
-    buffer.trim().to_lowercase().starts_with('y')
+
+    if prompt_accepts_fallback(desired_port, fallback_port) {
+        Ok(PortConflictAction::RetryWithFallback(fallback_port))
+    } else {
+        Ok(PortConflictAction::Exit {
+            message: format!("Port {desired_port} is in use. Start aborted by user."),
+        })
+    }
 }
 
 fn exit_with_port_error(port: u16, message: &str) -> ! {
@@ -1481,6 +1523,7 @@ fn resolve_repo_root() -> PathBuf {
     eprintln!("Error: Could not find .kanbus.yml in current directory or any parent directory.");
     eprintln!("Current directory: {}", current.display());
     eprintln!("\nTo initialize a Kanbus project, run: kanbus init");
+    let _ = std::io::stderr().flush();
     std::process::exit(1);
 }
 
@@ -1504,9 +1547,13 @@ async fn get_asset(
 
 async fn get_asset_root(
     State(state): State<AppState>,
-    AxumPath(path): AxumPath<String>,
+    uri: axum::extract::OriginalUri,
 ) -> Response {
-    serve_asset(&state, &path)
+    let path = uri.0.path().trim_start_matches('/');
+    if path.is_empty() {
+        return serve_asset(&state, "index.html");
+    }
+    serve_asset(&state, path)
 }
 
 async fn get_public_asset(
@@ -1514,6 +1561,22 @@ async fn get_public_asset(
     AxumPath(path): AxumPath<String>,
 ) -> Response {
     serve_asset(&state, &format!("assets/{path}"))
+}
+
+async fn get_favicon(State(state): State<AppState>) -> Response {
+    // serve favicon if present; fall back to 204 to avoid 500s
+    let favicon_paths = ["favicon.ico", "assets/favicon.ico"];
+    for path in favicon_paths {
+        let response = serve_asset(&state, path);
+        if response.status().is_success() {
+            return response;
+        }
+    }
+    // no favicon available; return 204 No Content
+    Response::builder()
+        .status(StatusCode::NO_CONTENT)
+        .body(Body::empty())
+        .unwrap_or_else(|_| error_response("favicon unavailable", StatusCode::NO_CONTENT))
 }
 
 fn serve_asset(state: &AppState, asset_path: &str) -> Response {
@@ -1602,6 +1665,105 @@ fn serve_asset_from_filesystem(state: &AppState, asset_path: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::Cell;
+    use std::env;
+    use std::sync::Mutex;
+    use std::sync::OnceLock;
+    use std::sync::{Arc, Mutex as StdMutex};
+    use tokio::sync::{broadcast, RwLock};
+
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env lock")
+    }
+
+    fn test_state(base_root: PathBuf, assets_root: PathBuf, multi_tenant: bool) -> AppState {
+        let (telemetry_tx, _) = broadcast::channel(8);
+        let (notification_tx, _) = broadcast::channel(8);
+        AppState {
+            base_root,
+            assets_root,
+            multi_tenant,
+            assets_root_explicit: true,
+            telemetry_tx,
+            telemetry_log: None::<Arc<StdMutex<std::fs::File>>>,
+            notification_tx,
+            ui_state: Arc::new(RwLock::new(ConsoleUiState::default())),
+        }
+    }
+
+    fn setup_project_root(root: &Path) {
+        std::fs::create_dir_all(root.join("project").join("issues"))
+            .expect("create project/issues");
+        write_project_config(root);
+    }
+
+    fn write_project_config(root: &Path) {
+        let config = kanbus::config::default_project_configuration();
+        let yaml = serde_yaml::to_string(&config).expect("serialize config");
+        std::fs::write(root.join(".kanbus.yml"), yaml).expect("write .kanbus.yml");
+    }
+
+    fn write_issue(root: &Path, identifier: &str) {
+        let issue = kanbus::models::IssueData {
+            identifier: identifier.to_string(),
+            title: format!("Issue {identifier}"),
+            description: "desc".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: Some("tester".to_string()),
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            closed_at: None,
+            custom: std::collections::BTreeMap::new(),
+        };
+        let issue_path = root
+            .join("project")
+            .join("issues")
+            .join(format!("{identifier}.json"));
+        let payload = serde_json::to_string_pretty(&issue).expect("serialize issue");
+        std::fs::write(issue_path, payload).expect("write issue");
+    }
+
+    fn install_fake_d2(temp_root: &Path, script_body: &str) -> PathBuf {
+        let bin_dir = temp_root.join("bin");
+        std::fs::create_dir_all(&bin_dir).expect("create bin dir");
+        let script_path = bin_dir.join("d2");
+        std::fs::write(&script_path, script_body).expect("write fake d2");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&script_path)
+                .expect("metadata")
+                .permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&script_path, perms).expect("chmod");
+        }
+        bin_dir
+    }
+
+    fn prepend_path(path: &Path) -> Option<String> {
+        let prior = std::env::var("PATH").ok();
+        let value = match prior.as_deref() {
+            Some(existing) if !existing.is_empty() => {
+                format!("{}:{}", path.display(), existing)
+            }
+            _ => path.display().to_string(),
+        };
+        unsafe {
+            std::env::set_var("PATH", &value);
+        }
+        prior
+    }
 
     #[test]
     fn resolve_bind_host_handles_localhost_and_invalid_input() {
@@ -1612,6 +1774,43 @@ mod tests {
         let (fallback_ip, fallback_host) = resolve_bind_host(Some("not-an-ip".to_string()));
         assert_eq!(fallback_ip.to_string(), "127.0.0.1");
         assert_eq!(fallback_host, "127.0.0.1");
+    }
+
+    #[test]
+    fn determine_port_conflict_action_interactive_accepts_retry() {
+        let action = determine_port_conflict_action(4242, true, |_, _| true).expect("action");
+        assert_eq!(action, PortConflictAction::RetryWithFallback(4243));
+    }
+
+    #[test]
+    fn determine_port_conflict_action_interactive_declines_retry() {
+        let action = determine_port_conflict_action(4242, true, |_, _| false).expect("action");
+        assert!(matches!(
+            action,
+            PortConflictAction::Exit { message } if message.contains("aborted by user")
+        ));
+    }
+
+    #[test]
+    fn determine_port_conflict_action_non_interactive_exits_without_prompt() {
+        let prompt_called = Cell::new(false);
+        let action = determine_port_conflict_action(4242, false, |_, _| {
+            prompt_called.set(true);
+            true
+        })
+        .expect("action");
+        assert!(!prompt_called.get());
+        assert!(matches!(
+            action,
+            PortConflictAction::Exit { message } if message.contains("Non-interactive mode")
+        ));
+    }
+
+    #[test]
+    fn determine_port_conflict_action_errors_when_no_fallback_port() {
+        let error =
+            determine_port_conflict_action(u16::MAX, true, |_, _| true).expect_err("overflow");
+        assert!(error.contains("No valid fallback port"));
     }
 
     #[test]
@@ -1646,5 +1845,1012 @@ mod tests {
     fn parse_json_body_falls_back_to_raw_string_payload() {
         let parsed = parse_json_body(&Bytes::from("not-json"));
         assert_eq!(parsed, serde_json::Value::String("not-json".to_string()));
+    }
+
+    #[test]
+    fn parse_json_body_parses_valid_json() {
+        let parsed = parse_json_body(&Bytes::from(r#"{"ok":true}"#));
+        assert_eq!(parsed["ok"], serde_json::Value::Bool(true));
+    }
+
+    #[test]
+    fn parse_json_body_returns_null_for_empty_payload() {
+        let parsed = parse_json_body(&Bytes::new());
+        assert_eq!(parsed, serde_json::Value::Null);
+    }
+
+    #[test]
+    fn telemetry_payload_wraps_non_object_values() {
+        let rendered = build_telemetry_payload(JsonValue::String("raw".to_string()), None);
+        let parsed: serde_json::Value = serde_json::from_str(&rendered).expect("json");
+        assert_eq!(parsed["payload"], "raw");
+        assert!(parsed.get("received_at").is_some());
+    }
+
+    #[test]
+    fn store_for_root_returns_none_for_multi_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+        assert!(store_for_root(&state).is_none());
+    }
+
+    #[test]
+    fn store_for_root_uses_base_root_in_single_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+        let store = store_for_root(&state).expect("store");
+        assert_eq!(store.root(), temp.path());
+    }
+
+    #[test]
+    fn local_auth_bootstrap_preserves_optional_tenant_fields() {
+        let scoped = build_local_auth_bootstrap(Some("acct".to_string()), Some("proj".to_string()));
+        assert_eq!(scoped.mode, "none");
+        assert_eq!(scoped.account.as_deref(), Some("acct"));
+        assert_eq!(scoped.project.as_deref(), Some("proj"));
+        assert_eq!(scoped.tenant_account_claim_key, "custom:account");
+        assert_eq!(scoped.tenant_project_claim_key, "custom:project");
+    }
+
+    #[test]
+    fn open_telemetry_log_requires_env_and_writes_startup_line() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let log_path = temp.path().join("logs").join("console.log");
+
+        unsafe {
+            env::remove_var("CONSOLE_LOG_PATH");
+        }
+        assert!(open_telemetry_log(temp.path()).is_none());
+
+        unsafe {
+            env::set_var("CONSOLE_LOG_PATH", &log_path);
+        }
+        let handle = open_telemetry_log(temp.path()).expect("telemetry log handle");
+        drop(handle);
+        let contents = std::fs::read_to_string(&log_path).expect("read log");
+        assert!(contents.contains("\"type\":\"startup\""));
+
+        unsafe {
+            env::remove_var("CONSOLE_LOG_PATH");
+        }
+    }
+
+    #[test]
+    fn write_telemetry_log_records_null_and_json_payloads() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let log_path = temp.path().join("telemetry.log");
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+            .expect("open log");
+
+        let mut state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+        state.telemetry_log = Some(Arc::new(StdMutex::new(file)));
+
+        write_telemetry_log(&state, &Bytes::from("   "));
+        write_telemetry_log(&state, &Bytes::from(r#"{"level":"info"}"#));
+
+        let contents = std::fs::read_to_string(&log_path).expect("read log");
+        assert!(contents.contains("\"payload\":null"));
+        assert!(contents.contains("\"payload\":{\"level\":\"info\"}"));
+    }
+
+    #[test]
+    fn store_for_uses_tenant_root_in_multi_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+        let store = store_for(&state, "acct", "proj");
+        assert_eq!(
+            store.root(),
+            FileStore::resolve_tenant_root(temp.path(), "acct", "proj")
+        );
+    }
+
+    #[test]
+    fn store_for_uses_base_root_in_single_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+        let store = store_for(&state, "ignored", "ignored");
+        assert_eq!(store.root(), temp.path());
+    }
+
+    #[test]
+    fn serve_asset_from_filesystem_blocks_path_traversal() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(&assets).expect("mkdir");
+        std::fs::write(temp.path().join("secret.txt"), "top-secret").expect("write secret");
+        let state = test_state(temp.path().to_path_buf(), assets, false);
+
+        let response = serve_asset_from_filesystem(&state, "../secret.txt");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn serve_asset_from_filesystem_serves_existing_file() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(&assets).expect("mkdir");
+        std::fs::write(assets.join("app.js"), "console.log('ok');").expect("write asset");
+        let state = test_state(temp.path().to_path_buf(), assets, false);
+
+        let response = serve_asset_from_filesystem(&state, "app.js");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/javascript")
+        );
+    }
+
+    #[test]
+    fn serve_asset_from_filesystem_returns_not_found_for_directory_target() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(assets.join("nested")).expect("mkdir");
+        let state = test_state(temp.path().to_path_buf(), assets, false);
+
+        let response = serve_asset_from_filesystem(&state, "nested");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn serve_asset_from_filesystem_returns_server_error_when_assets_root_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let missing_assets = temp.path().join("missing-assets");
+        let state = test_state(temp.path().to_path_buf(), missing_assets, false);
+
+        let response = serve_asset_from_filesystem(&state, "index.html");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn serve_asset_respects_explicit_filesystem_root() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(&assets).expect("mkdir");
+        std::fs::write(assets.join("index.html"), "<html></html>").expect("write");
+        let state = test_state(temp.path().to_path_buf(), assets, false);
+
+        let response = serve_asset(&state, "index.html");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[test]
+    fn serve_asset_prefers_embedded_when_no_explicit_root() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let (telemetry_tx, _) = broadcast::channel(8);
+        let (notification_tx, _) = broadcast::channel(8);
+        let state = AppState {
+            base_root: temp.path().to_path_buf(),
+            assets_root: temp.path().join("missing-assets"),
+            multi_tenant: false,
+            assets_root_explicit: false,
+            telemetry_tx,
+            telemetry_log: None,
+            notification_tx,
+            ui_state: Arc::new(tokio::sync::RwLock::new(ConsoleUiState::default())),
+        };
+
+        let response = serve_asset(&state, "index.html");
+        assert_eq!(response.status(), StatusCode::OK);
+        let content_type = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok());
+        assert_eq!(content_type, Some("text/html"));
+    }
+
+    #[test]
+    fn serve_asset_falls_back_to_filesystem_when_embedded_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets = temp.path().join("assets");
+        std::fs::create_dir_all(&assets).expect("mkdir assets");
+        let (telemetry_tx, _) = broadcast::channel(8);
+        let (notification_tx, _) = broadcast::channel(8);
+        let state = AppState {
+            base_root: temp.path().to_path_buf(),
+            assets_root: assets.clone(),
+            multi_tenant: false,
+            assets_root_explicit: false,
+            telemetry_tx,
+            telemetry_log: None,
+            notification_tx,
+            ui_state: Arc::new(tokio::sync::RwLock::new(ConsoleUiState::default())),
+        };
+
+        let response = serve_asset(&state, "missing-asset.js");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn wiki_error_to_response_maps_status_codes() {
+        let invalid = wiki_error_to_response(WikiServiceError::InvalidPath("bad".to_string()));
+        let conflict = wiki_error_to_response(WikiServiceError::Conflict("exists".to_string()));
+        let not_found = wiki_error_to_response(WikiServiceError::NotFound("missing".to_string()));
+        let render = wiki_error_to_response(WikiServiceError::Render("render".to_string()));
+        let io = wiki_error_to_response(WikiServiceError::Io("disk".to_string()));
+
+        assert_eq!(invalid.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(conflict.status(), StatusCode::CONFLICT);
+        assert_eq!(not_found.status(), StatusCode::NOT_FOUND);
+        assert_eq!(render.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(io.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn maybe_prompt_project_repair_creates_missing_project_directories() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_project_config(temp.path());
+        maybe_prompt_project_repair(temp.path());
+
+        assert!(temp.path().join("project").is_dir());
+        assert!(temp.path().join("project/issues").is_dir());
+        assert!(temp.path().join("project/events").is_dir());
+    }
+
+    #[test]
+    fn snapshot_payload_returns_error_payload_when_snapshot_build_fails() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let store = FileStore::new(temp.path().to_path_buf());
+        let (payload, fingerprint) = snapshot_payload(&store);
+        assert!(payload.contains("\"error\""));
+        assert_eq!(fingerprint, hash_payload(&payload));
+    }
+
+    #[test]
+    fn snapshot_payload_success_uses_snapshot_fingerprint() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-1");
+        let store = FileStore::new(root.clone());
+        let snapshot = store.build_snapshot().expect("snapshot");
+        let expected_fingerprint = snapshot_fingerprint(&snapshot);
+
+        let (payload, fingerprint) = snapshot_payload(&store);
+        assert_eq!(fingerprint, expected_fingerprint);
+        assert!(payload.contains("\"issues\""));
+    }
+
+    #[tokio::test]
+    async fn update_ui_state_persists_focus_and_clear_events() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        let state = test_state(root.clone(), root.clone(), false);
+        let focus = NotificationEvent::IssueFocused {
+            issue_id: "kanbus-123".to_string(),
+            user: None,
+            comment_id: Some("cmt-1".to_string()),
+        };
+
+        update_ui_state_from_event(&state, &focus).await;
+        let persisted = load_state(&root).expect("load state");
+        assert_eq!(persisted.focused_issue_id.as_deref(), Some("kanbus-123"));
+        assert_eq!(persisted.focused_comment_id.as_deref(), Some("cmt-1"));
+
+        let clear = NotificationEvent::UiControl {
+            action: UiControlAction::ClearFocus,
+        };
+        update_ui_state_from_event(&state, &clear).await;
+        let cleared = load_state(&root).expect("load cleared state");
+        assert!(cleared.focused_issue_id.is_none());
+        assert!(cleared.focused_comment_id.is_none());
+    }
+
+    #[tokio::test]
+    async fn update_ui_state_persists_view_mode_and_search() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        let state = test_state(root.clone(), root.clone(), false);
+
+        let view_mode = NotificationEvent::UiControl {
+            action: UiControlAction::SetViewMode {
+                mode: "issues".to_string(),
+            },
+        };
+        update_ui_state_from_event(&state, &view_mode).await;
+
+        let search = NotificationEvent::UiControl {
+            action: UiControlAction::SetSearch {
+                query: "auth".to_string(),
+            },
+        };
+        update_ui_state_from_event(&state, &search).await;
+        let persisted = load_state(&root).expect("load state");
+        assert_eq!(persisted.view_mode.as_deref(), Some("issues"));
+        assert_eq!(persisted.search_query.as_deref(), Some("auth"));
+
+        let clear_search = NotificationEvent::UiControl {
+            action: UiControlAction::SetSearch {
+                query: String::new(),
+            },
+        };
+        update_ui_state_from_event(&state, &clear_search).await;
+        let cleared = load_state(&root).expect("load cleared state");
+        assert!(cleared.search_query.is_none());
+    }
+
+    #[tokio::test]
+    async fn update_ui_state_ignores_non_persisted_controls() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        let state = test_state(root.clone(), root.clone(), false);
+        let path = state_path(&root).expect("state path");
+        assert!(!path.exists());
+
+        let no_op = NotificationEvent::UiControl {
+            action: UiControlAction::MaximizeDetail,
+        };
+        update_ui_state_from_event(&state, &no_op).await;
+        assert!(!path.exists());
+
+        let issue_updated = NotificationEvent::IssueUpdated {
+            issue_id: "kanbus-1".to_string(),
+            fields_changed: vec!["status".to_string()],
+            issue_data: kanbus::models::IssueData {
+                identifier: "kanbus-1".to_string(),
+                title: "Issue".to_string(),
+                description: String::new(),
+                issue_type: "task".to_string(),
+                status: "open".to_string(),
+                priority: 2,
+                assignee: None,
+                creator: None,
+                parent: None,
+                labels: Vec::new(),
+                dependencies: Vec::new(),
+                comments: Vec::new(),
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                closed_at: None,
+                custom: std::collections::BTreeMap::new(),
+            },
+        };
+        update_ui_state_from_event(&state, &issue_updated).await;
+        assert!(!path.exists());
+    }
+
+    #[tokio::test]
+    async fn root_api_endpoints_require_tenant_in_multi_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+
+        assert_eq!(
+            get_config_root(State(state.clone())).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            get_issues_root(State(state.clone())).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            get_issue_root(State(state.clone()), AxumPath("kbs-1".to_string()))
+                .await
+                .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            get_issue_events_root(
+                State(state.clone()),
+                AxumPath("kbs-1".to_string()),
+                Query(IssueEventsQuery {
+                    limit: Some(10),
+                    before: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[tokio::test]
+    async fn root_wiki_endpoints_require_tenant_in_multi_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+
+        assert_eq!(
+            get_wiki_pages_root(State(state.clone())).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            get_wiki_page_root(
+                State(state.clone()),
+                Query(WikiPathQuery {
+                    path: "page.md".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            post_wiki_page_root(
+                State(state.clone()),
+                Json(WikiCreateRequest {
+                    path: "page.md".to_string(),
+                    content: Some("content".to_string()),
+                    overwrite: Some(false),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            put_wiki_page_root(
+                State(state.clone()),
+                Json(WikiUpdateRequest {
+                    path: "page.md".to_string(),
+                    content: "updated".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            delete_wiki_page_root(
+                State(state.clone()),
+                Query(WikiPathQuery {
+                    path: "page.md".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            post_wiki_rename_root(
+                State(state.clone()),
+                Json(WikiRenameRequest {
+                    from_path: "old.md".to_string(),
+                    to_path: "new.md".to_string(),
+                    overwrite: Some(false),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            post_wiki_render_root(
+                State(state),
+                Json(WikiRenderRequestPayload {
+                    path: "page.md".to_string(),
+                    content: Some("content".to_string()),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[tokio::test]
+    async fn notification_and_telemetry_endpoints_return_expected_status_codes() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+
+        let event = NotificationEvent::UiControl {
+            action: UiControlAction::ReloadPage,
+        };
+        assert_eq!(
+            post_notification_root(State(state.clone()), Json(event.clone())).await,
+            StatusCode::OK
+        );
+        assert_eq!(
+            post_notification(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(event),
+            )
+            .await,
+            StatusCode::OK
+        );
+
+        assert_eq!(
+            post_console_telemetry_root(State(state.clone()), Bytes::from("{}")).await,
+            StatusCode::NO_CONTENT
+        );
+        assert_eq!(
+            post_console_telemetry(
+                State(state),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Bytes::from("{}"),
+            )
+            .await,
+            StatusCode::NO_CONTENT
+        );
+    }
+
+    #[tokio::test]
+    async fn ui_state_and_sse_endpoints_return_event_stream_content_type() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), false);
+        {
+            let mut ui_state = state.ui_state.write().await;
+            ui_state.focused_issue_id = Some("kbs-88".to_string());
+            ui_state.focused_comment_id = Some("comment-2".to_string());
+        }
+
+        let ui_state = get_ui_state_root(State(state.clone())).await.0;
+        assert_eq!(ui_state.focused_issue_id.as_deref(), Some("kbs-88"));
+        assert_eq!(ui_state.focused_comment_id.as_deref(), Some("comment-2"));
+
+        let realtime = get_realtime_events_root(State(state.clone()))
+            .await
+            .into_response();
+        assert_eq!(realtime.status(), StatusCode::OK);
+        assert_eq!(
+            realtime
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+
+        let telemetry = get_console_telemetry_events_root(State(state))
+            .await
+            .into_response();
+        assert_eq!(telemetry.status(), StatusCode::OK);
+        assert_eq!(
+            telemetry
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+    }
+
+    #[tokio::test]
+    async fn events_root_supports_single_and_multi_tenant_modes() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-1");
+
+        let single_tenant = test_state(root.clone(), root.clone(), false);
+        let single_response = get_events_root(State(single_tenant)).await.into_response();
+        assert_eq!(single_response.status(), StatusCode::OK);
+        assert_eq!(
+            single_response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+
+        let multi_tenant = test_state(root.clone(), root, true);
+        let multi_response = get_events_root(State(multi_tenant)).await.into_response();
+        assert_eq!(multi_response.status(), StatusCode::OK);
+        assert_eq!(
+            multi_response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+    }
+
+    #[tokio::test]
+    async fn tenant_scoped_api_endpoints_return_expected_statuses() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-1");
+        let state = test_state(root.clone(), root, false);
+
+        assert_eq!(
+            get_config(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string()))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issues(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string()))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issue(
+                State(state.clone()),
+                AxumPath((
+                    "acct".to_string(),
+                    "proj".to_string(),
+                    "kbs-999".to_string()
+                ))
+            )
+            .await
+            .status(),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            get_issue_events(
+                State(state),
+                AxumPath((
+                    "acct".to_string(),
+                    "proj".to_string(),
+                    "kbs-999".to_string()
+                )),
+                Query(IssueEventsQuery {
+                    limit: Some(10),
+                    before: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn root_and_tenant_issue_endpoints_succeed_for_existing_issue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-1");
+        let state = test_state(root.clone(), root, false);
+
+        assert_eq!(
+            get_config_root(State(state.clone())).await.status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issues_root(State(state.clone())).await.status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issue_root(State(state.clone()), AxumPath("kbs-1".to_string()))
+                .await
+                .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issue_events_root(
+                State(state.clone()),
+                AxumPath("kbs-1".to_string()),
+                Query(IssueEventsQuery {
+                    limit: Some(20),
+                    before: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issue(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-1".to_string())),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_issue_events(
+                State(state),
+                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-1".to_string())),
+                Query(IssueEventsQuery {
+                    limit: Some(20),
+                    before: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+    }
+
+    #[tokio::test]
+    async fn asset_route_wrappers_resolve_expected_paths() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets_root = temp.path().join("assets");
+        std::fs::create_dir_all(assets_root.join("assets")).expect("mkdir assets");
+        std::fs::write(assets_root.join("index.html"), "<html>ok</html>").expect("index");
+        std::fs::write(assets_root.join("app.js"), "console.log('root');").expect("app");
+        std::fs::write(
+            assets_root.join("assets").join("client.js"),
+            "console.log('public');",
+        )
+        .expect("public");
+        let state = test_state(temp.path().to_path_buf(), assets_root, false);
+
+        assert_eq!(
+            get_index_root(State(state.clone())).await.status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_index(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string()))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_asset(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string(), "app.js".to_string()))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_public_asset(State(state.clone()), AxumPath("client.js".to_string()))
+                .await
+                .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_asset_root(
+                State(state.clone()),
+                axum::extract::OriginalUri(axum::http::Uri::from_static("/"))
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_asset_root(
+                State(state),
+                axum::extract::OriginalUri(axum::http::Uri::from_static("/missing.js"))
+            )
+            .await
+            .status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn favicon_returns_no_content_when_missing_and_ok_when_present() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets_root = temp.path().join("assets");
+        std::fs::create_dir_all(&assets_root).expect("mkdir assets");
+        let state = test_state(temp.path().to_path_buf(), assets_root.clone(), false);
+
+        assert_eq!(
+            get_favicon(State(state.clone())).await.status(),
+            StatusCode::NO_CONTENT
+        );
+
+        std::fs::write(assets_root.join("favicon.ico"), vec![0_u8, 1_u8]).expect("favicon");
+        assert_eq!(get_favicon(State(state)).await.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn tenant_scoped_wiki_endpoints_support_full_round_trip() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        let state = test_state(root.clone(), root, false);
+
+        assert_eq!(
+            post_wiki_page(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(WikiCreateRequest {
+                    path: "page.md".to_string(),
+                    content: Some("hello".to_string()),
+                    overwrite: Some(false),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::CREATED
+        );
+        assert_eq!(
+            get_wiki_pages(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            get_wiki_page(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Query(WikiPathQuery {
+                    path: "page.md".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            put_wiki_page(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(WikiUpdateRequest {
+                    path: "page.md".to_string(),
+                    content: "updated".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            post_wiki_rename(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(WikiRenameRequest {
+                    from_path: "page.md".to_string(),
+                    to_path: "renamed.md".to_string(),
+                    overwrite: Some(false),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            post_wiki_render(
+                State(state.clone()),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Json(WikiRenderRequestPayload {
+                    path: "renamed.md".to_string(),
+                    content: None,
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            delete_wiki_page(
+                State(state),
+                AxumPath(("acct".to_string(), "proj".to_string())),
+                Query(WikiPathQuery {
+                    path: "renamed.md".to_string(),
+                }),
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+    }
+
+    #[tokio::test]
+    async fn post_render_d2_returns_service_unavailable_when_binary_is_missing() {
+        let _guard = env_guard();
+        let prior_path = std::env::var("PATH").ok();
+        unsafe {
+            std::env::set_var("PATH", "");
+        }
+        let status = post_render_d2(Bytes::from(r#"{"source":"a -> b"}"#))
+            .await
+            .status();
+        if let Some(path) = prior_path {
+            unsafe {
+                std::env::set_var("PATH", path);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("PATH");
+            }
+        }
+        assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn post_render_d2_returns_bad_request_for_invalid_json_and_missing_source() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let bin_dir = install_fake_d2(
+            temp.path(),
+            "#!/bin/sh\n# fake d2\noutput=\"${@: -1}\"\nprintf '<svg></svg>' > \"$output\"\n",
+        );
+        let prior_path = prepend_path(&bin_dir);
+
+        let invalid = post_render_d2(Bytes::from("not-json"));
+        assert_eq!(invalid.await.status(), StatusCode::BAD_REQUEST);
+
+        let missing_source = post_render_d2(Bytes::from(r#"{"theme":"dark"}"#));
+        assert_eq!(missing_source.await.status(), StatusCode::BAD_REQUEST);
+
+        if let Some(path) = prior_path {
+            unsafe {
+                std::env::set_var("PATH", path);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("PATH");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn post_render_d2_returns_svg_payload_when_fake_binary_succeeds() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let bin_dir = install_fake_d2(
+            temp.path(),
+            "#!/bin/sh\nset -e\nif [ \"$1\" = \"--dark-theme\" ]; then\n  output=\"$4\"\nelse\n  output=\"$3\"\nfi\nprintf '<svg data-theme=\"ok\"></svg>' > \"$output\"\n",
+        );
+        let prior_path = prepend_path(&bin_dir);
+
+        let response = post_render_d2(Bytes::from(r#"{"source":"a -> b","theme":"dark"}"#)).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body bytes");
+        let parsed: serde_json::Value = serde_json::from_slice(&body).expect("json body");
+        assert_eq!(parsed["svg"], "<svg data-theme=\"ok\"></svg>");
+
+        if let Some(path) = prior_path {
+            unsafe {
+                std::env::set_var("PATH", path);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("PATH");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn post_render_d2_returns_bad_request_when_renderer_fails() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let bin_dir = install_fake_d2(temp.path(), "#!/bin/sh\necho 'syntax error' 1>&2\nexit 2\n");
+        let prior_path = prepend_path(&bin_dir);
+
+        let response = post_render_d2(Bytes::from(r#"{"source":"a -> b"}"#)).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body bytes");
+        let parsed: serde_json::Value = serde_json::from_slice(&body).expect("json body");
+        assert!(parsed["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("D2 rendering failed"));
+
+        if let Some(path) = prior_path {
+            unsafe {
+                std::env::set_var("PATH", path);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("PATH");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn auth_bootstrap_endpoints_expose_expected_account_project_scope() {
+        let root = get_auth_bootstrap_root().await.0;
+        assert!(root.account.is_none());
+        assert!(root.project.is_none());
+        assert_eq!(root.mode, "none");
+
+        let scoped = get_auth_bootstrap(AxumPath(("acct".to_string(), "proj".to_string())))
+            .await
+            .0;
+        assert_eq!(scoped.account.as_deref(), Some("acct"));
+        assert_eq!(scoped.project.as_deref(), Some("proj"));
+        assert_eq!(scoped.mode, "none");
     }
 }

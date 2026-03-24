@@ -195,3 +195,130 @@ pub fn build_index_from_cache(
     }
     index
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+
+    use crate::models::{DependencyLink, IssueComment};
+
+    fn issue(id: &str, status: &str, issue_type: &str, labels: &[&str]) -> IssueData {
+        IssueData {
+            identifier: id.to_string(),
+            title: format!("Issue {id}"),
+            description: String::new(),
+            issue_type: issue_type.to_string(),
+            status: status.to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: labels.iter().map(|label| (*label).to_string()).collect(),
+            dependencies: Vec::<DependencyLink>::new(),
+            comments: Vec::<IssueComment>::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn collect_issue_file_mtimes_ignores_non_json_and_errors_on_missing_dir() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues dir");
+        std::fs::write(issues_dir.join("kanbus-1.json"), "{}").expect("write issue file");
+        std::fs::write(issues_dir.join("README.md"), "ignored").expect("write non-json file");
+
+        let mtimes = collect_issue_file_mtimes(&issues_dir).expect("mtimes");
+        assert_eq!(mtimes.len(), 1);
+        assert!(mtimes.contains_key("kanbus-1.json"));
+
+        let missing = temp.path().join("missing");
+        let error = collect_issue_file_mtimes(&missing).expect_err("missing should fail");
+        assert!(matches!(error, KanbusError::Io(_)));
+    }
+
+    #[test]
+    fn load_cache_if_valid_handles_missing_invalid_and_stale_cache() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues dir");
+        let issue_path = issues_dir.join("kanbus-1.json");
+        std::fs::write(&issue_path, "{}").expect("write issue placeholder");
+        let cache_path = temp.path().join(".cache").join("index.json");
+
+        let missing = load_cache_if_valid(&cache_path, &issues_dir).expect("missing cache");
+        assert!(missing.is_none());
+
+        std::fs::create_dir_all(cache_path.parent().expect("cache parent"))
+            .expect("create cache dir");
+        std::fs::write(&cache_path, "{bad json").expect("write bad cache");
+        let invalid = load_cache_if_valid(&cache_path, &issues_dir).expect_err("invalid cache");
+        assert!(matches!(invalid, KanbusError::Io(_)));
+
+        let stale_payload = serde_json::json!({
+            "file_mtimes": {"kanbus-1.json": 0.0},
+            "issues": [],
+            "reverse_deps": {},
+        });
+        std::fs::write(
+            &cache_path,
+            serde_json::to_string_pretty(&stale_payload).expect("serialize stale payload"),
+        )
+        .expect("write stale cache");
+        let stale = load_cache_if_valid(&cache_path, &issues_dir).expect("stale result");
+        assert!(stale.is_none());
+    }
+
+    #[test]
+    fn write_cache_and_load_cache_if_valid_round_trip() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues dir");
+
+        let cached_issue = issue("kanbus-1", "open", "task", &["alpha", "beta"]);
+        let issue_payload = serde_json::to_string_pretty(&cached_issue).expect("serialize issue");
+        std::fs::write(issues_dir.join("kanbus-1.json"), issue_payload).expect("write issue");
+
+        let mut index = IssueIndex::new();
+        let shared = Arc::new(cached_issue.clone());
+        index
+            .by_id
+            .insert(cached_issue.identifier.clone(), Arc::clone(&shared));
+        index
+            .reverse_dependencies
+            .insert("kanbus-target".to_string(), vec![Arc::clone(&shared)]);
+
+        let file_mtimes = collect_issue_file_mtimes(&issues_dir).expect("collect mtimes");
+        let cache_path = temp.path().join(".cache").join("index.json");
+        write_cache(&index, &cache_path, &file_mtimes).expect("write cache");
+        assert!(cache_path.exists());
+
+        let loaded = load_cache_if_valid(&cache_path, &issues_dir)
+            .expect("load cache")
+            .expect("cache should be valid");
+        assert_eq!(loaded.by_id.len(), 1);
+        assert!(loaded.by_id.contains_key("kanbus-1"));
+        assert!(loaded.reverse_dependencies.contains_key("kanbus-target"));
+    }
+
+    #[test]
+    fn build_index_from_cache_skips_unknown_reverse_dependency_ids() {
+        let issues = vec![issue("kanbus-1", "open", "task", &["x"])];
+        let reverse_deps = BTreeMap::from([(
+            "kanbus-target".to_string(),
+            vec!["kanbus-1".to_string(), "kanbus-missing".to_string()],
+        )]);
+        let index = build_index_from_cache(issues, reverse_deps);
+        let deps = index
+            .reverse_dependencies
+            .get("kanbus-target")
+            .expect("reverse deps entry");
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].identifier, "kanbus-1");
+    }
+}

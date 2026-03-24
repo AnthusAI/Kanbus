@@ -115,6 +115,18 @@
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
+.is-flipping,
+.is-flipping .layout-frame,
+.is-flipping .layout-main,
+.is-flipping .view-track,
+.is-flipping .view-panel,
+.is-flipping .layout-slot,
+.is-flipping .kb-grid,
+.is-flipping .kb-column,
+.is-flipping .kb-column-scroll {
+  overflow: visible !important;
+}
+
 .issue-card {
   border-radius: 12px;
   background: var(--card);
@@ -151,15 +163,21 @@
 }
 
 .issue-animate-in-up {
-  animation: issueAppearUp 0.35s ease-out both;
+  animation: issueAppearUp 0.35s ease-out;
   transform-origin: center;
   will-change: transform, opacity;
 }
 
 .issue-animate-in-down {
-  animation: issueAppearDown 0.35s ease-out both;
+  animation: issueAppearDown 0.35s ease-out;
   transform-origin: center;
   will-change: transform, opacity;
+}
+
+.is-flipping .issue-animate-in-up,
+.is-flipping .issue-animate-in-down {
+  animation: none !important;
+  transition: none !important;
 }
 
 @keyframes issueAppearUp {
@@ -261,29 +279,50 @@
   overflow-y: hidden;
   overflow-x: visible;
   height: 100%;
-  width: 0;
-  flex: 0 0 0;
-  transform: translateX(100%);
-  transition: transform var(--layout-transition, 0.25s) ease;
+  width: var(--detail-width, 33%);
+  min-width: var(--detail-width, 33%);
+  flex: 0 0 var(--detail-width, 33%);
+  margin-right: calc(-1 * var(--detail-width, 33%));
+  margin-left: 0;
+  transition: margin var(--layout-transition, 0.25s) ease;
   pointer-events: none;
   position: relative;
   z-index: 50;
+  will-change: margin;
 }
 
 .detail-column-visible {
   width: var(--detail-width, 33%);
   flex: 0 0 var(--detail-width, 33%);
-  max-width: 100%;
+  max-width: var(--detail-width, 33%);
+  min-width: var(--detail-width, 33%);
 }
 
 .detail-column-open {
-  transform: translateX(0);
+  width: var(--detail-width, 33%);
+  flex: 0 0 var(--detail-width, 33%);
+  max-width: var(--detail-width, 33%);
+  min-width: var(--detail-width, 33%);
+  margin-right: 0;
+  margin-left: 1rem; /* Gap between board and panel */
   pointer-events: auto;
 }
 
 .detail-column-closing {
-  transform: translateX(100%);
+  width: var(--detail-width, 33%);
+  flex: 0 0 var(--detail-width, 33%);
+  max-width: var(--detail-width, 33%);
+  min-width: var(--detail-width, 33%);
+  margin-right: calc(-1 * var(--detail-width, 33%));
+  margin-left: 0;
   pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .detail-column-open {
+    margin-left: 0;
+    margin-top: 1rem;
+  }
 }
 
 .detail-layout-auto.detail-column {
@@ -506,6 +545,8 @@ html[data-motion="reduced"] .detail-page {
 .layout-frame.detail-maximized .detail-column {
   width: 100%;
   flex: 1 1 auto;
+  max-width: 100%;
+  min-width: 100%;
 }
 
 .layout-slot {
@@ -540,6 +581,16 @@ html[data-motion="reduced"] .detail-page {
 .layout-slot-board {
   width: 100%;
   height: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.detail-column-open ~ .layout-slot-board,
+.layout-frame:has(.detail-column-open) .layout-slot-board,
+.view-panel:has(.detail-column-open) .layout-slot-board,
+.view-panel-detail-visible .layout-slot-board {
+  /* We remove explicit calc() widths so flexbox can smoothly distribute space
+     as .detail-column's width and flex-basis animate. */
 }
 
 .layout-main {

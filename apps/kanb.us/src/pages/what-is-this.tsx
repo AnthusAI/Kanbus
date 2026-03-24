@@ -39,7 +39,7 @@ const WhatIsThisPage = () => {
                 logs, sticky notes, and temporary files.
               </p>
               <p>
-                Switch computers or tools, and that context disappears. Hand a task to a teammate, and they have to
+                Switch computers or tools, and that context disappears. Hand a task to a teammate or an AI agent, and they have to
                 rebuild the story from scratch.
               </p>
             </CardContent>

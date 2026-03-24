@@ -275,3 +275,251 @@ pub fn resolve_issue_identifier(
         )),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::default_project_configuration;
+    use crate::file_io::initialize_project;
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+    use std::path::Path;
+
+    fn make_issue(id: &str, title: &str) -> IssueData {
+        IssueData {
+            identifier: id.to_string(),
+            title: title.to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    fn minimal_config() -> ProjectConfiguration {
+        default_project_configuration()
+    }
+
+    fn initialize_test_project(root: &Path) {
+        initialize_project(root, true).expect("initialize project");
+    }
+
+    fn request(root: &Path, title: &str) -> IssueCreationRequest {
+        IssueCreationRequest {
+            root: root.to_path_buf(),
+            title: title.to_string(),
+            issue_type: None,
+            priority: None,
+            assignee: None,
+            parent: None,
+            labels: Vec::new(),
+            description: None,
+            local: false,
+            validate: true,
+        }
+    }
+
+    #[test]
+    fn validate_issue_type_accepts_known_and_rejects_unknown() {
+        let config = minimal_config();
+        assert!(validate_issue_type(&config, "task").is_ok());
+        assert!(validate_issue_type(&config, "bug").is_ok());
+        let error = validate_issue_type(&config, "unknown-type").expect_err("should fail");
+        match error {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "unknown issue type"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn find_duplicate_title_is_case_insensitive_and_skips_non_json() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir");
+        write_issue_to_file(
+            &make_issue("kanbus-abc12345", "Fix Login"),
+            &issues_dir.join("kanbus-abc12345.json"),
+        )
+        .expect("write issue");
+        std::fs::write(issues_dir.join("README.md"), "ignore").expect("write readme");
+
+        let duplicate = find_duplicate_title(&issues_dir, "  fix login  ").expect("duplicate");
+        assert_eq!(duplicate.as_deref(), Some("kanbus-abc12345"));
+        let none = find_duplicate_title(&issues_dir, "different").expect("no duplicate");
+        assert!(none.is_none());
+    }
+
+    #[test]
+    fn find_duplicate_title_returns_error_for_invalid_json() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir");
+        std::fs::write(issues_dir.join("broken.json"), "{not-json").expect("write broken");
+        let error = find_duplicate_title(&issues_dir, "anything").expect_err("should fail");
+        assert!(matches!(error, KanbusError::Io(_)));
+    }
+
+    #[test]
+    fn resolve_issue_identifier_handles_exact_unique_ambiguous_and_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("mkdir");
+        write_issue_to_file(
+            &make_issue("kanbus-abc12345", "A"),
+            &issues_dir.join("kanbus-abc12345.json"),
+        )
+        .expect("write issue a");
+        write_issue_to_file(
+            &make_issue("kanbus-abc67890", "B"),
+            &issues_dir.join("kanbus-abc67890.json"),
+        )
+        .expect("write issue b");
+
+        let exact =
+            resolve_issue_identifier(&issues_dir, "kanbus", "kanbus-abc12345").expect("exact");
+        assert_eq!(exact, "kanbus-abc12345");
+
+        let unique_short =
+            resolve_issue_identifier(&issues_dir, "kanbus", "abc678").expect("short");
+        assert_eq!(unique_short, "kanbus-abc67890");
+
+        let ambiguous =
+            resolve_issue_identifier(&issues_dir, "kanbus", "kanbus-abc").expect_err("ambiguous");
+        match ambiguous {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "ambiguous short id"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        let missing =
+            resolve_issue_identifier(&issues_dir, "kanbus", "zzz999").expect_err("missing");
+        match missing {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "not found"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn create_issue_rejects_unknown_type_when_validate_enabled() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "Unknown type");
+        req.issue_type = Some("not-a-real-type".to_string());
+        let error = create_issue(&req).expect_err("should fail");
+        match error {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "unknown issue type"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn create_issue_rejects_invalid_priority_when_validate_enabled() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "Bad priority");
+        req.priority = Some(250);
+        let error = create_issue(&req).expect_err("should fail");
+        match error {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "invalid priority"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn create_issue_rejects_missing_parent_when_validate_enabled() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "Missing parent");
+        req.parent = Some("kanbus-unknown123".to_string());
+        let error = create_issue(&req).expect_err("should fail");
+        match error {
+            KanbusError::IssueOperation(message) => assert_eq!(message, "not found"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn create_issue_rejects_duplicate_title_case_insensitively() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let first = request(temp.path(), "Fix Login");
+        create_issue(&first).expect("create first");
+
+        let second = request(temp.path(), "  fix login  ");
+        let error = create_issue(&second).expect_err("duplicate should fail");
+        match error {
+            KanbusError::IssueOperation(message) => {
+                assert!(message.contains("duplicate title"));
+                assert!(message.contains("kanbus-"));
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn create_issue_validate_false_allows_unknown_type_and_priority() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "No validate");
+        req.issue_type = Some("not-a-real-type".to_string());
+        req.priority = Some(250);
+        req.validate = false;
+        let result = create_issue(&req).expect("creation should bypass validation");
+        assert_eq!(result.issue.issue_type, "not-a-real-type");
+        assert_eq!(result.issue.priority, 250);
+    }
+
+    #[test]
+    fn create_issue_local_writes_issue_and_events_to_project_local() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let mut req = request(temp.path(), "Local issue");
+        req.local = true;
+        let result = create_issue(&req).expect("local create should succeed");
+
+        let shared_path = temp
+            .path()
+            .join("project")
+            .join("issues")
+            .join(format!("{}.json", result.issue.identifier));
+        let local_path = temp
+            .path()
+            .join("project-local")
+            .join("issues")
+            .join(format!("{}.json", result.issue.identifier));
+        assert!(!shared_path.exists());
+        assert!(local_path.exists());
+
+        let local_events_dir = temp.path().join("project-local").join("events");
+        let event_count = std::fs::read_dir(&local_events_dir)
+            .expect("read local events")
+            .filter_map(Result::ok)
+            .count();
+        assert!(event_count >= 1);
+    }
+
+    #[test]
+    fn create_issue_resolves_parent_from_prefix() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        initialize_test_project(temp.path());
+        let parent = create_issue(&request(temp.path(), "Parent task")).expect("create parent");
+
+        let mut child_req = request(temp.path(), "Child task");
+        child_req.issue_type = Some("sub-task".to_string());
+        child_req.parent = Some(parent.issue.identifier.chars().take(12).collect());
+        let child = create_issue(&child_req).expect("create child");
+        assert_eq!(
+            child.issue.parent.as_deref(),
+            Some(parent.issue.identifier.as_str())
+        );
+    }
+}

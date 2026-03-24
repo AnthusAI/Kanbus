@@ -1,0 +1,59 @@
+{
+  "name": "main-branch-protection",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "refs/heads/main"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "required_reviewers": [],
+        "require_code_owner_review": true,
+        "require_last_push_approval": true,
+        "required_review_thread_resolution": false,
+        "allowed_merge_methods": [
+          "merge",
+          "squash",
+          "rebase"
+        ]
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          { "context": "python" },
+          { "context": "python-install (ubuntu-latest)" },
+          { "context": "python-install (macos-14)" },
+          { "context": "python-install (windows-latest)" },
+          { "context": "rust" },
+          { "context": "coverage-ratchet" },
+          { "context": "rust-console-parity" },
+          { "context": "python-console-parity" },
+          { "context": "console-ui" },
+          { "context": "performance" },
+          { "context": "binary-smoke" },
+          { "context": "beads-interop" },
+          { "context": "badges" },
+          { "context": "Analyze (javascript-typescript)" },
+          { "context": "Analyze (python)" },
+          { "context": "Analyze (rust)" }
+        ]
+      }
+    },
+    { "type": "deletion" },
+    { "type": "non_fast_forward" }
+  ]
+}

@@ -74,7 +74,7 @@ export function BoardColumn({
         <span className="column-animate-in pr-1">{issues.length}</span>
       </div>
       <div className="kb-column-scroll mt-1 flex-1 min-h-0 overflow-y-auto">
-        <div className="grid gap-2" key={`${title}-issues`}>
+        <div className="grid gap-2 min-h-[50px]" key={`${title}-issues`}>
           {issues.map((issue, index) => (
             <IssueCard
               key={issue.id}

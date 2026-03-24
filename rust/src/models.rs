@@ -313,6 +313,62 @@ pub struct ProjectConfiguration {
     pub github_security: Option<GithubSecurityConfiguration>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn jira_and_snyk_defaults_apply_on_deserialize() {
+        let jira: JiraConfiguration = serde_json::from_str(
+            r#"{
+                "url":"https://jira.example.com",
+                "project_key":"KAN",
+                "type_mappings":{},
+                "field_mappings":{}
+            }"#,
+        )
+        .expect("deserialize jira");
+        assert_eq!(jira.sync_direction, "pull");
+
+        let snyk: SnykConfiguration = serde_json::from_str(
+            r#"{
+                "org_id":"org-id",
+                "parent_epic":null,
+                "repo":null
+            }"#,
+        )
+        .expect("deserialize snyk");
+        assert_eq!(snyk.min_severity, "low");
+    }
+
+    #[test]
+    fn defaults_for_realtime_overlay_and_hooks_match_expected_values() {
+        let topics = RealtimeTopics::default();
+        assert_eq!(topics.project_events, "projects/{project}/events");
+
+        let realtime = RealtimeConfig::default();
+        assert_eq!(realtime.transport, "auto");
+        assert_eq!(realtime.broker, "auto");
+        assert!(realtime.autostart);
+        assert!(!realtime.keepalive);
+        assert!(realtime.uds_socket_path.is_none());
+        assert!(realtime.mqtt_custom_authorizer_name.is_none());
+        assert!(realtime.mqtt_api_token.is_none());
+        assert_eq!(realtime.topics.project_events, "projects/{project}/events");
+
+        let overlay = OverlayConfig::default();
+        assert!(overlay.enabled);
+        assert_eq!(overlay.ttl_s, 86_400);
+
+        let hooks = HooksConfiguration::default();
+        assert!(hooks.enabled);
+        assert!(hooks.run_in_beads_mode);
+        assert_eq!(hooks.default_timeout_ms, 5_000);
+        assert!(hooks.before.is_empty());
+        assert!(hooks.after.is_empty());
+    }
+}
+
 /// Status definition with display metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatusDefinition {

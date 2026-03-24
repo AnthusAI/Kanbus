@@ -951,4 +951,331 @@ mod tests {
         assert_eq!(resolved.title, "Canonical");
         assert_eq!(resolved.priority, 1);
     }
+
+    #[test]
+    fn parse_ts_and_expiry_helpers_handle_invalid_timestamps() {
+        let now = Utc::now();
+        assert!(parse_ts("not-a-timestamp").is_none());
+        assert!(!is_expired("not-a-timestamp", 60, now));
+    }
+
+    #[test]
+    fn overlay_hook_block_contains_expected_commands() {
+        let block = overlay_hook_block();
+        assert!(block.contains("kanbus overlay reconcile --all --prune"));
+        assert!(block.contains("kbs overlay gc --all"));
+    }
+
+    #[test]
+    fn overlay_paths_and_tombstone_round_trip() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path();
+        assert_eq!(overlay_root(project_dir), project_dir.join(".overlay"));
+        assert_eq!(
+            overlay_issue_path(project_dir, "kanbus-9"),
+            project_dir
+                .join(".overlay")
+                .join("issues")
+                .join("kanbus-9.json")
+        );
+        assert_eq!(
+            overlay_tombstone_path(project_dir, "kanbus-9"),
+            project_dir
+                .join(".overlay")
+                .join("tombstones")
+                .join("kanbus-9.json")
+        );
+
+        let tombstone = OverlayTombstone {
+            op: "delete".to_string(),
+            project: "alpha".to_string(),
+            id: "kanbus-9".to_string(),
+            event_id: Some("evt-9".to_string()),
+            ts: Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            ttl_s: 60,
+        };
+        write_tombstone(project_dir, &tombstone).expect("write tombstone");
+        let loaded = load_tombstone(project_dir, "kanbus-9")
+            .expect("load tombstone")
+            .expect("tombstone");
+        assert_eq!(loaded.id, "kanbus-9");
+        assert_eq!(loaded.project, "alpha");
+    }
+
+    #[test]
+    fn resolve_issue_with_overlay_handles_disabled_and_tombstone_paths() {
+        let now = Utc::now();
+        let base_issue = issue("kanbus-10", now);
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path();
+
+        let disabled = resolve_issue_with_overlay(
+            project_dir,
+            Some(base_issue.clone()),
+            None,
+            None,
+            &OverlayConfig {
+                enabled: false,
+                ttl_s: 60,
+            },
+            Some("alpha"),
+        )
+        .expect("disabled resolve")
+        .expect("issue");
+        assert_eq!(disabled.identifier, "kanbus-10");
+        assert!(disabled.custom.get("project_label").is_none());
+
+        let tombstone = OverlayTombstone {
+            op: "delete".to_string(),
+            project: "alpha".to_string(),
+            id: "kanbus-10".to_string(),
+            event_id: Some("evt-10".to_string()),
+            ts: (now + Duration::seconds(1)).to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            ttl_s: 60,
+        };
+        let deleted = resolve_issue_with_overlay(
+            project_dir,
+            Some(base_issue),
+            None,
+            Some(tombstone),
+            &OverlayConfig {
+                enabled: true,
+                ttl_s: 60,
+            },
+            Some("alpha"),
+        )
+        .expect("tombstone resolve");
+        assert!(deleted.is_none());
+    }
+
+    #[test]
+    fn apply_overlay_to_issues_keeps_local_source_and_tags_shared() {
+        let now = Utc::now();
+        let mut local_issue = issue("kanbus-local", now);
+        local_issue
+            .custom
+            .insert("source".to_string(), Value::String("local".to_string()));
+        let shared_issue = issue("kanbus-shared", now);
+        let temp_dir = TempDir::new().expect("tempdir");
+        let resolved = apply_overlay_to_issues(
+            temp_dir.path(),
+            vec![local_issue.clone(), shared_issue],
+            &OverlayConfig {
+                enabled: true,
+                ttl_s: 60,
+            },
+            Some("alpha"),
+        )
+        .expect("apply");
+        let by_id: BTreeMap<_, _> = resolved
+            .into_iter()
+            .map(|issue| (issue.identifier.clone(), issue))
+            .collect();
+        assert_eq!(
+            by_id
+                .get("kanbus-local")
+                .and_then(|issue| issue.custom.get("source")),
+            Some(&Value::String("local".to_string()))
+        );
+        assert_eq!(
+            by_id
+                .get("kanbus-shared")
+                .and_then(|issue| issue.custom.get("project_label")),
+            Some(&Value::String("alpha".to_string()))
+        );
+    }
+
+    #[test]
+    fn timestamp_order_helpers_cover_edge_cases() {
+        let now = Utc::now();
+        let earlier = (now - Duration::seconds(1)).to_rfc3339();
+        let equal = now.to_rfc3339();
+        let later = (now + Duration::seconds(1)).to_rfc3339();
+        assert!(overlay_is_newer(&later, now, None, None));
+        assert!(!overlay_is_newer(&earlier, now, None, None));
+        assert!(overlay_is_newer(&equal, now, Some("evt-b"), Some("evt-a")));
+        assert!(tombstone_newer_than_base(&equal, Some(now)));
+        assert!(tombstone_newer_than_base(&later, Some(now)));
+        assert!(tombstone_newer_than_base(&later, None));
+        assert!(base_newer_than_tombstone(now, &earlier));
+        assert!(!base_newer_than_tombstone(now, &later));
+    }
+
+    #[test]
+    fn overlay_is_newer_prefers_higher_event_id_on_equal_timestamp() {
+        let now = Utc::now();
+        let ts = now.to_rfc3339();
+        assert!(
+            overlay_is_newer(&ts, now, Some("evt-002"), Some("evt-001")),
+            "higher event id should win when timestamps match"
+        );
+        assert!(
+            !overlay_is_newer(&ts, now, Some("evt-001"), Some("evt-002")),
+            "lower event id should not win when timestamps match"
+        );
+    }
+
+    #[test]
+    fn zero_ttl_never_expires_overlay_or_tombstone() {
+        let now = Utc::now();
+        let ts = (now - Duration::hours(48)).to_rfc3339();
+        assert!(!is_expired(&ts, 0, now));
+        assert!(tombstone_newer_than_base(&ts, None));
+    }
+
+    #[test]
+    fn reconcile_and_gc_return_early_when_overlay_disabled() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let config = OverlayConfig {
+            enabled: false,
+            ttl_s: 60,
+        };
+        let reconcile =
+            reconcile_overlay(temp_dir.path(), &config, true, false).expect("reconcile");
+        assert_eq!(reconcile.issues_scanned, 0);
+        gc_overlay(temp_dir.path(), &config).expect("gc overlay");
+    }
+
+    #[test]
+    fn resolve_git_hooks_dir_errors_outside_git_repo() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let error = resolve_git_hooks_dir(temp_dir.path()).expect_err("not git repo");
+        assert!(error.to_string().contains("not a git repository"));
+    }
+
+    #[test]
+    fn resolve_git_hooks_dir_rejects_dev_null_and_non_directory_paths() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        Command::new("git")
+            .arg("init")
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("git init");
+
+        Command::new("git")
+            .args(["config", "core.hooksPath", "/dev/null"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("set hooksPath /dev/null");
+        let dev_null_error =
+            resolve_git_hooks_dir(temp_dir.path()).expect_err("dev/null should be rejected");
+        assert!(dev_null_error
+            .to_string()
+            .contains("git hooks are disabled"));
+
+        let file_path = temp_dir.path().join("hooks-file");
+        fs::write(&file_path, "not-a-directory").expect("write hooks file");
+        Command::new("git")
+            .args(["config", "core.hooksPath", "hooks-file"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("set hooksPath file");
+        let file_error =
+            resolve_git_hooks_dir(temp_dir.path()).expect_err("file path should be rejected");
+        assert!(file_error
+            .to_string()
+            .contains("git hooks path is not a directory"));
+    }
+
+    #[test]
+    fn install_overlay_hooks_creates_and_appends_once() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        Command::new("git")
+            .arg("init")
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("git init");
+
+        install_overlay_hooks(temp_dir.path()).expect("install hooks");
+        let hooks_dir = temp_dir.path().join(".git").join("hooks");
+        for hook in ["post-merge", "post-checkout", "post-rewrite"] {
+            let path = hooks_dir.join(hook);
+            let contents = fs::read_to_string(&path).expect("read hook");
+            assert!(contents.contains("Kanbus overlay cache maintenance"));
+        }
+
+        let post_merge = hooks_dir.join("post-merge");
+        fs::write(&post_merge, "#!/bin/sh\necho existing\n").expect("seed post-merge");
+        install_overlay_hooks(temp_dir.path()).expect("append hooks");
+        let once = fs::read_to_string(&post_merge).expect("read once");
+        assert!(once.contains("echo existing"));
+        assert_eq!(once.matches("Kanbus overlay cache maintenance").count(), 1);
+
+        install_overlay_hooks(temp_dir.path()).expect("idempotent install");
+        let twice = fs::read_to_string(&post_merge).expect("read twice");
+        assert_eq!(twice.matches("Kanbus overlay cache maintenance").count(), 1);
+    }
+
+    #[test]
+    fn project_overlay_commands_reject_conflicting_filters() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let gc = gc_overlay_for_projects(temp_dir.path(), Some("alpha".to_string()), true)
+            .expect_err("gc should reject --project with --all");
+        assert!(gc
+            .to_string()
+            .contains("cannot combine --project with --all"));
+
+        let reconcile = reconcile_overlay_for_projects(
+            temp_dir.path(),
+            Some("alpha".to_string()),
+            true,
+            true,
+            false,
+        )
+        .expect_err("reconcile should reject --project with --all");
+        assert!(reconcile
+            .to_string()
+            .contains("cannot combine --project with --all"));
+    }
+
+    #[test]
+    fn tag_issue_and_event_id_helpers_preserve_existing_source() {
+        let now = Utc::now();
+        let mut shared = issue("kanbus-tag", now);
+        let tagged = tag_issue(shared.clone(), Some("alpha"));
+        assert_eq!(
+            tagged.custom.get("source"),
+            Some(&Value::String("shared".to_string()))
+        );
+        assert_eq!(
+            tagged.custom.get("project_label"),
+            Some(&Value::String("alpha".to_string()))
+        );
+
+        shared
+            .custom
+            .insert("source".to_string(), Value::String("local".to_string()));
+        shared.custom.insert(
+            "last_event_id".to_string(),
+            Value::String("evt-123".to_string()),
+        );
+        let tagged_local = tag_issue(shared.clone(), Some("beta"));
+        assert_eq!(
+            tagged_local.custom.get("source"),
+            Some(&Value::String("local".to_string()))
+        );
+        assert_eq!(extract_event_id(&tagged_local), Some("evt-123".to_string()));
+    }
+
+    #[test]
+    fn map_and_override_helpers_round_trip_and_diff() {
+        let now = Utc::now();
+        let base = issue("kanbus-map", now);
+        let mut overlay = base.clone();
+        overlay.priority = 1;
+        overlay.title = "Changed".to_string();
+
+        let diff = diff_issue_fields(&base, &overlay).expect("diff fields");
+        assert!(diff.contains_key("priority"));
+        assert!(diff.contains_key("title"));
+
+        let merged = apply_overrides(&base, &diff).expect("apply overrides");
+        assert_eq!(merged.priority, 1);
+        assert_eq!(merged.title, "Changed");
+
+        let map = issue_to_map(&merged).expect("issue to map");
+        let restored = issue_from_map(&map).expect("map to issue");
+        assert_eq!(restored.identifier, "kanbus-map");
+        assert_eq!(restored.priority, 1);
+    }
 }

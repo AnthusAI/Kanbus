@@ -52,3 +52,59 @@ pub fn load_policies(policies_dir: &Path) -> Result<Vec<(String, Feature)>, Kanb
 
     Ok(features)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn returns_empty_for_missing_or_non_directory_path() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let missing = temp.path().join("missing");
+        let as_file = temp.path().join("file.policy");
+        fs::write(
+            &as_file,
+            "Feature: file\n  Scenario: ignored\n    Given x\n",
+        )
+        .expect("write");
+
+        let missing_result = load_policies(&missing).expect("missing path should be treated empty");
+        assert!(missing_result.is_empty());
+
+        let file_result = load_policies(&as_file).expect("file path should be treated empty");
+        assert!(file_result.is_empty());
+    }
+
+    #[test]
+    fn loads_policy_files_and_ignores_other_extensions() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        fs::write(
+            temp.path().join("valid.policy"),
+            "Feature: Valid policy\n  Scenario: pass\n    Given issue type is \"task\"\n",
+        )
+        .expect("write policy");
+        fs::write(temp.path().join("notes.txt"), "not a policy").expect("write txt");
+
+        let mut loaded = load_policies(temp.path()).expect("load policies");
+        loaded.sort_by(|a, b| a.0.cmp(&b.0));
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].0, "valid.policy");
+    }
+
+    #[test]
+    fn returns_configuration_error_for_invalid_policy_syntax() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let bad = temp.path().join("broken.policy");
+        fs::write(&bad, "Feature:\n  Scenario missing colon\n").expect("write invalid policy");
+
+        let error = load_policies(temp.path()).expect_err("invalid syntax should fail");
+        match error {
+            KanbusError::Configuration(message) => {
+                assert!(message.contains("failed to parse"));
+                assert!(message.contains("broken.policy"));
+            }
+            other => panic!("expected configuration error, got {other}"),
+        }
+    }
+}

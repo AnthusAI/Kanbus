@@ -25,9 +25,9 @@
 
     <cue id="overview" label="Kanban Overview">
       <pause seconds="0.4s" />
-      <voice>Kanbus is a high-level, accessible way to run Kanban directly from your repository.</voice>
+      <voice>Tracking project context usually means wrestling with external systems like Jira or Trello.</voice>
       <pause seconds="0.2s" />
-      <voice>You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use.</voice>
+      <voice>It forces a context switch and creates a coordination headache, especially when AI coding agents and human developers are trying to collaborate on the same codebase.</voice>
     </cue>
   </scene>
 
@@ -41,9 +41,9 @@
     </layer>
 
     <cue id="git_bus" label="Git Synchronization">
-      <voice>Git synchronization is the core idea: use Git as the bus for Kanban boards.</voice>
+      <voice>Kanbus eliminates this friction by embedding project management directly within your repository.</voice>
       <pause seconds="0.2s" />
-      <voice>Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects.</voice>
+      <voice>Because everything is stored as plain files, your project management shares the same version control as your code, giving you a clear, timestamped paper trail.</voice>
     </cue>
   </scene>
 

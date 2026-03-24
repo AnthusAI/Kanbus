@@ -8,6 +8,11 @@ import "@fontsource/space-grotesk/600.css";
 import "@kanbus/ui/styles/index.css"; /* Import shared UI base styles first */
 import "./src/styles/global.css";
 
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+
+gsap.registerPlugin(useGSAP);
+
 const syncSystemTheme = () => {
   try {
     const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;

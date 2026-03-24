@@ -409,7 +409,7 @@ def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> No
             None,
             "issue.mutated",
         )
-    if created_comment_id is None:
+    if created_comment_id is None:  # pragma: no cover
         raise BeadsWriteError("comment id is required")
     try:
         project_dir = load_project_directory(root)

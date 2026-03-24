@@ -508,14 +508,95 @@ fn body_from_bytes(bytes: Vec<u8>) -> Body {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
+    use kanbus::issue_files::write_issue_to_file;
+    use kanbus::models::IssueData;
+    use std::collections::BTreeMap;
     use std::env;
     use std::sync::{Mutex, OnceLock};
 
+    fn temp_store_with_issues(issue_ids: &[&str]) -> (tempfile::TempDir, FileStore) {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().to_path_buf();
+        std::fs::write(
+            root.join(".kanbus.yml"),
+            r#"
+project_directory: project
+project_key: kanbus
+hierarchy: [initiative, epic, task, sub-task]
+types: [bug, story, chore]
+workflows:
+  default:
+    open: [in_progress, closed, backlog]
+    in_progress: [open, blocked, closed]
+    blocked: [in_progress, closed]
+    closed: [open]
+    backlog: [open, closed]
+initial_status: open
+priorities:
+  0: { name: critical }
+  1: { name: high }
+  2: { name: medium }
+  3: { name: low }
+  4: { name: trivial }
+default_priority: 2
+statuses:
+  - { key: open, name: Open, category: todo }
+  - { key: in_progress, name: In Progress, category: doing }
+  - { key: blocked, name: Blocked, category: todo }
+  - { key: closed, name: Closed, category: done }
+  - { key: backlog, name: Backlog, category: todo }
+categories:
+  - { name: todo }
+  - { name: doing }
+  - { name: done }
+type_colors: {}
+beads_compatibility: false
+"#,
+        )
+        .expect("write config");
+        let issues_dir = root.join("project").join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues dir");
+        for issue_id in issue_ids {
+            let issue = IssueData {
+                identifier: (*issue_id).to_string(),
+                title: format!("Issue {issue_id}"),
+                description: String::new(),
+                issue_type: "task".to_string(),
+                status: "open".to_string(),
+                priority: 2,
+                assignee: None,
+                creator: None,
+                parent: None,
+                labels: vec![],
+                dependencies: vec![],
+                comments: vec![],
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                closed_at: None,
+                custom: BTreeMap::new(),
+            };
+            write_issue_to_file(&issue, &issues_dir.join(format!("{issue_id}.json")))
+                .expect("write issue");
+        }
+        (temp, FileStore::new(root))
+    }
+
+    fn body_to_string(body: &Body) -> String {
+        match body {
+            Body::Text(text) => text.clone(),
+            Body::Binary(bytes) => String::from_utf8_lossy(bytes).to_string(),
+            Body::Empty => String::new(),
+        }
+    }
+
     fn realtime_env_guard() -> std::sync::MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("env lock")
+        let mutex = LOCK.get_or_init(|| Mutex::new(()));
+        match mutex.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
     }
 
     fn clear_realtime_env() {
@@ -538,13 +619,31 @@ mod tests {
         }
     }
 
+    fn jwt_with_claims(
+        account_key: &str,
+        account: &str,
+        project_key: &str,
+        project: &str,
+    ) -> String {
+        let payload = serde_json::json!({
+            account_key: account,
+            project_key: project,
+        });
+        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(serde_json::to_vec(&payload).expect("serialize claims"));
+        format!("aaa.{encoded}.bbb")
+    }
+
     #[test]
     fn is_console_route_detects_supported_paths() {
         assert!(is_console_route(""));
         assert!(is_console_route("issues"));
         assert!(is_console_route("issues/kanbus-1"));
         assert!(is_console_route("issues/kanbus-parent/all"));
+        assert!(is_console_route("initiatives"));
+        assert!(is_console_route("epics"));
         assert!(!is_console_route("assets/app.js"));
+        assert!(!is_console_route("issues/a/b/c"));
     }
 
     #[test]
@@ -655,6 +754,36 @@ mod tests {
         clear_realtime_env();
         let response = handle_auth_bootstrap(Some("anthus"), Some("kanbus")).expect("response");
         assert_eq!(response.status(), StatusCode::OK);
+        let payload = body_to_string(response.body());
+        assert!(payload.contains("\"mode\":\"none\""));
+    }
+
+    #[test]
+    fn auth_bootstrap_cognito_mode_includes_env_configuration() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+            env::set_var("KANBUS_COGNITO_DOMAIN_URL", "https://auth.example.com");
+            env::set_var("KANBUS_COGNITO_CLIENT_ID", "client-id");
+            env::set_var(
+                "KANBUS_COGNITO_REDIRECT_URI",
+                "https://app.example.com/callback",
+            );
+            env::set_var(
+                "KANBUS_COGNITO_LOGOUT_URI",
+                "https://app.example.com/logout",
+            );
+            env::set_var("KANBUS_COGNITO_ISSUER", "https://issuer.example.com");
+            env::set_var("KANBUS_IDENTITY_POOL_ID", "us-east-1:pool");
+        }
+        let response = handle_auth_bootstrap(Some("anthus"), Some("kanbus")).expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let payload = body_to_string(response.body());
+        assert!(payload.contains("\"mode\":\"cognito_pkce\""));
+        assert!(payload.contains("\"cognito_client_id\":\"client-id\""));
+        assert!(payload.contains("\"identity_pool_id\":\"us-east-1:pool\""));
     }
 
     #[test]
@@ -662,6 +791,10 @@ mod tests {
         let value = query_param("access_token=abc&foo=bar", "access_token");
         assert_eq!(value.as_deref(), Some("abc"));
         assert_eq!(query_param("foo=bar", "access_token"), None);
+        assert_eq!(
+            query_param("access_token=&foo=bar", "access_token").as_deref(),
+            Some("")
+        );
     }
 
     #[test]
@@ -672,5 +805,260 @@ mod tests {
         let claims = decode_jwt_claims(&token).expect("claims");
         assert_eq!(claims["custom:account"], "anthus");
         assert_eq!(claims["custom:project"], "kanbus");
+    }
+
+    #[test]
+    fn decode_jwt_claims_rejects_invalid_token_shape() {
+        assert!(decode_jwt_claims("not-a-jwt").is_none());
+    }
+
+    #[test]
+    fn bearer_token_supports_standard_and_lowercase_prefix() {
+        let mut req_upper = Request::new(Body::Empty);
+        req_upper
+            .headers_mut()
+            .insert("Authorization", "Bearer token-123".parse().expect("header"));
+        let mut req_lower = Request::new(Body::Empty);
+        req_lower
+            .headers_mut()
+            .insert("Authorization", "bearer token-456".parse().expect("header"));
+
+        assert_eq!(bearer_token(&req_upper).as_deref(), Some("token-123"));
+        assert_eq!(bearer_token(&req_lower).as_deref(), Some("token-456"));
+    }
+
+    #[test]
+    fn bearer_token_returns_none_for_missing_or_invalid_prefix() {
+        let req_missing = Request::new(Body::Empty);
+        let mut req_invalid = Request::new(Body::Empty);
+        req_invalid
+            .headers_mut()
+            .insert("Authorization", "Token abc".parse().expect("header"));
+
+        assert!(bearer_token(&req_missing).is_none());
+        assert!(bearer_token(&req_invalid).is_none());
+    }
+
+    #[test]
+    fn enforce_tenant_claims_validates_expected_tenant() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+        }
+        let token = jwt_with_claims("custom:account", "anthus", "custom:project", "kanbus");
+        let request = Request::new(Body::Empty);
+
+        let ok = enforce_tenant_claims(&request, "anthus", "kanbus", Some(&token));
+        assert!(ok.is_ok());
+
+        let forbidden_result = enforce_tenant_claims(&request, "other", "kanbus", Some(&token));
+        assert_eq!(
+            forbidden_result.expect_err("should fail").status(),
+            StatusCode::FORBIDDEN
+        );
+    }
+
+    #[test]
+    fn enforce_tenant_claims_requires_token_when_auth_enabled() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+        }
+        let request = Request::new(Body::Empty);
+        let result = enforce_tenant_claims(&request, "anthus", "kanbus", None);
+        assert_eq!(
+            result.expect_err("should fail").status(),
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    #[test]
+    fn enforce_tenant_claims_rejects_invalid_jwt_payload() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+        }
+        let request = Request::new(Body::Empty);
+        let result = enforce_tenant_claims(&request, "anthus", "kanbus", Some("invalid.jwt"));
+        assert_eq!(
+            result.expect_err("should fail").status(),
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    #[test]
+    fn enforce_tenant_claims_prefers_bearer_header_over_query_token() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+        }
+        let valid = jwt_with_claims("custom:account", "anthus", "custom:project", "kanbus");
+        let invalid = jwt_with_claims("custom:account", "other", "custom:project", "kanbus");
+        let mut request = Request::new(Body::Empty);
+        request.headers_mut().insert(
+            "Authorization",
+            format!("Bearer {valid}").parse().expect("header"),
+        );
+
+        let result = enforce_tenant_claims(&request, "anthus", "kanbus", Some(&invalid));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn tenant_claim_keys_support_env_overrides() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_TENANT_ACCOUNT_CLAIM_KEY", "acct");
+            env::set_var("KANBUS_TENANT_PROJECT_CLAIM_KEY", "proj");
+        }
+        assert_eq!(tenant_account_claim_key(), "acct");
+        assert_eq!(tenant_project_claim_key(), "proj");
+    }
+
+    #[test]
+    fn no_content_and_not_found_return_expected_statuses() {
+        let no_content_response = no_content();
+        assert_eq!(no_content_response.status(), StatusCode::NO_CONTENT);
+
+        let not_found_response = not_found();
+        assert_eq!(not_found_response.status(), StatusCode::NOT_FOUND);
+        let payload = body_to_string(not_found_response.body());
+        assert!(payload.contains("not found"));
+    }
+
+    #[test]
+    fn resolve_store_root_prefers_tenant_root_when_config_present() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let base = temp.path();
+        let tenant_root = base.join("anthus").join("kanbus");
+        std::fs::create_dir_all(&tenant_root).expect("create tenant root");
+        std::fs::write(tenant_root.join(".kanbus.yml"), "project_key: kbs").expect("write config");
+
+        let resolved = resolve_store_root(base, "anthus", "kanbus");
+        assert_eq!(resolved, tenant_root);
+    }
+
+    #[test]
+    fn asset_response_returns_not_found_for_missing_asset() {
+        let _guard = realtime_env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("CONSOLE_ASSETS_ROOT", temp.path());
+        }
+        let response = asset_response("missing.js");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn asset_response_returns_server_error_when_assets_root_missing() {
+        let _guard = realtime_env_guard();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("CONSOLE_ASSETS_ROOT", "/tmp/kanbus-missing-assets-root");
+        }
+        let response = asset_response("index.html");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn asset_response_serves_existing_asset_from_override_root() {
+        let _guard = realtime_env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets_root = temp.path().join("assets");
+        std::fs::create_dir_all(&assets_root).expect("create assets dir");
+        std::fs::write(assets_root.join("index.html"), "<h1>ok</h1>").expect("write html");
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("CONSOLE_ASSETS_ROOT", &assets_root);
+        }
+        let response = asset_response("index.html");
+        assert_eq!(response.status(), StatusCode::OK);
+        let payload = body_to_string(response.body());
+        assert!(payload.contains("ok"));
+    }
+
+    #[test]
+    fn handle_realtime_bootstrap_returns_internal_error_without_env() {
+        let _guard = realtime_env_guard();
+        clear_realtime_env();
+        let response = handle_realtime_bootstrap("anthus", "kanbus").expect("response");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let payload = body_to_string(response.body());
+        assert!(payload.contains("KANBUS_IOT_DATA_ENDPOINT"));
+    }
+
+    #[test]
+    fn handle_config_and_issues_return_internal_error_for_invalid_store() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let store = FileStore::new(temp.path());
+        let config = handle_config(&store).expect("config response");
+        let issues = handle_issues(&store).expect("issues response");
+        assert_eq!(config.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(issues.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn handle_config_and_issues_return_snapshot_payloads() {
+        let (_temp, store) = temp_store_with_issues(&["kanbus-abc12345"]);
+
+        let config_response = handle_config(&store).expect("config response");
+        assert_eq!(config_response.status(), StatusCode::OK);
+        let config_payload = body_to_string(config_response.body());
+        assert!(config_payload.contains("\"project_key\":\"kanbus\""));
+
+        let issues_response = handle_issues(&store).expect("issues response");
+        assert_eq!(issues_response.status(), StatusCode::OK);
+        let issues_payload = body_to_string(issues_response.body());
+        assert!(issues_payload.contains("kanbus-abc12345"));
+    }
+
+    #[test]
+    fn handle_issue_returns_expected_not_found_and_ambiguous_statuses() {
+        let (_single_temp, single_store) = temp_store_with_issues(&["kanbus-abcdef01"]);
+        let missing = handle_issue(&single_store, "kanbus-missing").expect("missing response");
+        assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+
+        let (_multi_temp, multi_store) =
+            temp_store_with_issues(&["kanbus-abcdef01", "kanbus-abcdef02"]);
+        let ambiguous = handle_issue(&multi_store, "kanbus-abcdef").expect("ambiguous response");
+        assert_eq!(ambiguous.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn handle_events_and_realtime_events_return_sse_responses() {
+        let (_temp, store) = temp_store_with_issues(&["kanbus-abc12345"]);
+
+        let events = handle_events(&store).expect("events response");
+        assert_eq!(events.status(), StatusCode::OK);
+        assert_eq!(
+            events
+                .headers()
+                .get("Content-Type")
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
+        let payload = body_to_string(events.body());
+        assert!(payload.starts_with("data: "));
+
+        let realtime = handle_realtime_events(&store).expect("realtime response");
+        assert_eq!(realtime.status(), StatusCode::OK);
+        assert_eq!(
+            realtime
+                .headers()
+                .get("Content-Type")
+                .and_then(|value| value.to_str().ok()),
+            Some("text/event-stream")
+        );
     }
 }

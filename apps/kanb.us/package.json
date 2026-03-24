@@ -19,6 +19,7 @@
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.8",
     "@formkit/auto-animate": "^0.9.0",
+    "@gsap/react": "^2.1.1",
     "@kanbus/ui": "file:../../packages/ui",
     "@radix-ui/colors": "^3.0.0",
     "@radix-ui/react-scroll-area": "^1.1.2",
@@ -29,9 +30,9 @@
     "@videoml/stdlib": "^1.0.0",
     "@webcomponents/custom-elements": "^1.6.0",
     "clsx": "^2.1.1",
-    "dompurify": "^3.3.1",
+    "dompurify": "^3.3.2",
     "framer-motion": "^12.34.3",
-    "gatsby": "^5.13.0",
+    "gatsby": "^5.16.1",
     "gatsby-plugin-postcss": "^6.16.0",
     "gsap": "^3.12.5",
     "lucide-react": "^0.475.0",
@@ -41,6 +42,12 @@
     "react-dom": "^18.3.1",
     "remotion": "^4.0.429",
     "tailwind-merge": "^2.5.4"
+  },
+  "overrides": {
+    "webpack": "5.105.0",
+    "cookie": "0.7.2",
+    "immutable": "4.3.7",
+    "serialize-javascript": "^6.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
