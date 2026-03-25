@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kanbus"
-version = "0.18.0"
+version = "0.18.1"
 description = "A git-backed project management system."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
-    "click==8.1.8",
+    "click==8.3.1",
     "jinja2",
     "pydantic",
     "pyyaml",
@@ -22,7 +22,7 @@ dependencies = [
     "gherkin-official",
     "coverage",
     "ruff",
-    "black==26.1.0",
+    "black==26.3.1",
     "sphinx",
 ]
 classifiers = [
