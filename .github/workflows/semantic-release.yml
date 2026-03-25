@@ -1,9 +1,6 @@
 name: Semantic Release
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -17,13 +14,34 @@ concurrency:
 
 jobs:
   release:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.actor.login != 'anthusbot') }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     uses: AnthusAI/platform-ci/.github/workflows/semantic-release-reusable.yml@main
     with:
       python_version: "3.11"
       release_branch: "main"
       semantic_release_requirement: "python-semantic-release~=10.0"
+      working_directory: "python"
+      push_changes: true
       # release.yml handles package publishing and artifact uploads on tag pushes.
       run_publish: false
     secrets:
       anthusbot_gh_token: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+
+  guard-pre-1-0:
+    needs: release
+    if: ${{ needs.release.outputs.released == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block accidental 1.x release
+        env:
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          echo "Computed release version: ${RELEASE_VERSION}"
+          case "${RELEASE_VERSION}" in
+            0.*) ;;
+            *)
+              echo "Refusing release: expected pre-1.0.0 version, got ${RELEASE_VERSION}" >&2
+              exit 1
+              ;;
+          esac

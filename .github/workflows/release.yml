@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+      - "kanbus-py-*"
   workflow_dispatch:
     inputs:
       pypi_only:
