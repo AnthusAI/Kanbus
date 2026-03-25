@@ -2,6 +2,38 @@
 
 <!-- version list -->
 
+## v0.18.1 (2026-03-25)
+
+
+## v0.18.0 (2026-03-25)
+
+### Bug Fixes
+
+- Migrate from release-please to semantic-release workflow
+  ([`59ac9fb`](https://github.com/AnthusAI/Kanbus/commit/59ac9fb0c2d74b06b8fa65cc3a7d0fb3bcc7ac8f))
+
+- **ci**: Enhance coverage reporting and ignore patterns
+  ([`5efaf21`](https://github.com/AnthusAI/Kanbus/commit/5efaf210c049d01a580f58e868722fc98687dc6d))
+
+- **ci**: Repair .beads/issues.jsonl corruption to resolve CI issues
+  ([`86f2d27`](https://github.com/AnthusAI/Kanbus/commit/86f2d27aaa9a857cc7625b0ab97b3013a09f8c58))
+
+- **ci**: Restore .beads/issues.jsonl to resolve CI failures
+  ([`851e40d`](https://github.com/AnthusAI/Kanbus/commit/851e40d470172d3259474ff057f1faf8bf599fef))
+
+- **release**: Update semantic-release configuration and main branch protection
+  ([`1daa84a`](https://github.com/AnthusAI/Kanbus/commit/1daa84a92f2b61af87ab3cdea43b1164416d9fa9))
+
+- **release**: Update semantic-release workflow and configuration for Kanbus
+  ([`0a6ade5`](https://github.com/AnthusAI/Kanbus/commit/0a6ade528f0a5c6c196f3c029f651c219986dbf1))
+
+- **rust**: Add kanbus binary alias and fix version string tag matching
+  ([`67e0aba`](https://github.com/AnthusAI/Kanbus/commit/67e0abaed0c4bfe74f020362e4349e9b3817b436))
+
+- **tests**: Remove unused local variables in test_issue_update.py
+  ([`d00a3f3`](https://github.com/AnthusAI/Kanbus/commit/d00a3f3ffcc911874b639e300bf96d4660066c5e))
+
+
 ## [0.17.0](https://github.com/AnthusAI/Kanbus/compare/kanbus-py-0.16.0...kanbus-py-0.17.0) (2026-03-09)
 
 

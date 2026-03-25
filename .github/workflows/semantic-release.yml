@@ -23,7 +23,28 @@ jobs:
       python_version: "3.11"
       release_branch: "main"
       semantic_release_requirement: "python-semantic-release~=10.0"
+      working_directory: "python"
+      push_changes: true
       # release.yml handles package publishing and artifact uploads on tag pushes.
       run_publish: false
     secrets:
       anthusbot_gh_token: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+
+  guard-pre-1-0:
+    needs: release
+    if: ${{ needs.release.outputs.released == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block accidental 1.x release
+        env:
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          echo "Computed release version: ${RELEASE_VERSION}"
+          case "${RELEASE_VERSION}" in
+            0.*) ;;
+            *)
+              echo "Refusing release: expected pre-1.0.0 version, got ${RELEASE_VERSION}" >&2
+              exit 1
+              ;;
+          esac
