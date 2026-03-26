@@ -48,3 +48,46 @@ jobs:
               exit 1
               ;;
           esac
+
+  tag-rust-release:
+    needs: [release, guard-pre-1-0]
+    if: ${{ needs.release.outputs.released == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+
+      - name: Create companion Rust release tag
+        env:
+          PYTHON_TAG: ${{ needs.release.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+          ANTHUSBOT_GH_TOKEN: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+        run: |
+          set -euo pipefail
+          rust_tag="kanbus-rust-${RELEASE_VERSION}"
+          echo "Python release tag: ${PYTHON_TAG}"
+          echo "Companion rust tag: ${rust_tag}"
+
+          git config user.name "anthusbot"
+          git config user.email "anthusbot@users.noreply.github.com"
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git remote set-url origin "https://x-access-token:${ANTHUSBOT_GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git remote set-url --push origin "https://x-access-token:${ANTHUSBOT_GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if git ls-remote --tags origin "refs/tags/${rust_tag}" | grep -q .; then
+            echo "Tag ${rust_tag} already exists; nothing to do."
+            exit 0
+          fi
+
+          git fetch --tags origin
+          target_sha="$(git rev-list -n 1 "${PYTHON_TAG}")"
+          if [ -z "${target_sha}" ]; then
+            echo "Unable to resolve commit for ${PYTHON_TAG}" >&2
+            exit 1
+          fi
+
+          git tag "${rust_tag}" "${target_sha}"
+          git push origin "${rust_tag}"
