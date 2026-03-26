@@ -1,10 +1,10 @@
 {
   "devDependencies": {
-    "@aws-amplify/backend": "^1.21.0",
+    "@aws-amplify/backend": "^1.21.1",
     "@aws-amplify/backend-cli": "^1.8.2",
-    "aws-cdk": "^2.1107.0",
-    "aws-cdk-lib": "^2.241.0",
-    "constructs": "^10.5.1"
+    "aws-cdk": "^2.1113.0",
+    "aws-cdk-lib": "^2.244.0",
+    "constructs": "^10.6.0"
   },
   "overrides": {
     "minimatch": "10.2.4",
