@@ -35,6 +35,7 @@ export type NotificationEvent =
   | { type: "issue_created"; issue_id: string; issue_data: Issue }
   | { type: "issue_updated"; issue_id: string; fields_changed: string[]; issue_data: Issue }
   | { type: "issue_deleted"; issue_id: string }
+  | { type: "cloud_sync_completed"; account: string; project: string; sha: string; ref?: string | null }
   | { type: "issue_focused"; issue_id: string; user?: string; comment_id?: string }
   | { type: "ui_control"; action: UiControlAction };
 
@@ -455,6 +456,11 @@ export function subscribeToRealtimeFeed(
           };
           if (event.type === "ui_control") {
             logData.action = event.action.action;
+          } else if (event.type === "cloud_sync_completed") {
+            logData.sha = event.sha;
+            logData.account = event.account;
+            logData.project = event.project;
+            logData.ref = event.ref ?? null;
           } else if ("issue_id" in event) {
             logData.issueId = event.issue_id;
           }

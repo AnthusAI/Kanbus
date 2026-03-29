@@ -4,6 +4,7 @@ type Args = {
   appUrl: string;
   username: string;
   password: string;
+  expectedSyncSha: string;
   timeoutMs: number;
   eventDeadlineMs: number;
 };
@@ -27,14 +28,22 @@ function parseArgs(argv: string[]): Args {
   const appUrl = args.app_url ?? "";
   const username = args.username ?? "";
   const password = args.password ?? "";
+  const expectedSyncSha = args.expected_sync_sha ?? "";
   const timeoutMs = Number(args.timeout_ms ?? "90000");
   const eventDeadlineMs = Number(args.event_deadline_ms ?? "60000");
-  if (!appUrl || !username || !password || Number.isNaN(timeoutMs) || Number.isNaN(eventDeadlineMs)) {
+  if (
+    !appUrl
+    || !username
+    || !password
+    || !expectedSyncSha
+    || Number.isNaN(timeoutMs)
+    || Number.isNaN(eventDeadlineMs)
+  ) {
     throw new Error(
-      "Usage: tsx scripts/cloud/probe_browser_realtime.ts --app_url <url> --username <u> --password <p> [--timeout_ms 90000] [--event_deadline_ms 60000]"
+      "Usage: tsx scripts/cloud/probe_browser_realtime.ts --app_url <url> --username <u> --password <p> --expected_sync_sha <sha> [--timeout_ms 90000] [--event_deadline_ms 60000]"
     );
   }
-  return { appUrl, username, password, timeoutMs, eventDeadlineMs };
+  return { appUrl, username, password, expectedSyncSha, timeoutMs, eventDeadlineMs };
 }
 
 async function completeHostedUiLogin(
@@ -73,6 +82,33 @@ async function completeHostedUiLogin(
   throw new Error("timed out completing Hosted UI login");
 }
 
+async function waitForInitialBoard(page: import("playwright").Page, timeoutMs: number): Promise<void> {
+  await page.locator('[data-testid="board-view"]').waitFor({ state: "visible", timeout: timeoutMs });
+  await page.locator('[data-testid="board-view"] [data-issue-id]').first().waitFor({
+    state: "visible",
+    timeout: timeoutMs,
+  });
+}
+
+async function readBoardSignature(page: import("playwright").Page): Promise<{ count: number; signature: string }> {
+  return page.locator('[data-testid="board-view"] [data-issue-id]').evaluateAll((elements) => {
+    const entries = elements
+      .map((element) => {
+        const issueId = element.getAttribute("data-issue-id") ?? "";
+        const status = element.getAttribute("data-status") ?? "";
+        const title =
+          element.querySelector("h3")?.textContent?.trim().replace(/\s+/g, " ") ?? "";
+        return `${issueId}|${status}|${title}`;
+      })
+      .filter((entry) => entry.length > 0)
+      .sort();
+    return {
+      count: entries.length,
+      signature: entries.join("\n"),
+    };
+  });
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   const requireFromConsole = createRequire(`${process.cwd()}/package.json`);
@@ -83,7 +119,7 @@ async function main() {
 
   let mqttSubscribed = false;
   let usedSseFallback = false;
-  let notificationReceived = false;
+  let expectedSyncObserved = false;
 
   page.on("console", (msg) => {
     const text = msg.text();
@@ -94,8 +130,8 @@ async function main() {
     if (text.includes("[realtime] using SSE fallback")) {
       usedSseFallback = true;
     }
-    if (text.includes("[notifications] received")) {
-      notificationReceived = true;
+    if (text.includes(`[notifications] cloud sync completed sha=${args.expectedSyncSha}`)) {
+      expectedSyncObserved = true;
     }
   });
 
@@ -103,6 +139,7 @@ async function main() {
   await page.goto(args.appUrl, { waitUntil: "domcontentloaded", timeout: args.timeoutMs });
   await completeHostedUiLogin(page, args.appUrl, args.username, args.password, args.timeoutMs);
   await page.waitForLoadState("domcontentloaded", { timeout: args.timeoutMs });
+  await waitForInitialBoard(page, args.timeoutMs);
   await page.waitForTimeout(1000);
 
   while (Date.now() - started < args.timeoutMs && !mqttSubscribed && !usedSseFallback) {
@@ -116,16 +153,38 @@ async function main() {
     throw new Error("SSE fallback was observed; MQTT is not primary");
   }
 
+  const initialBoard = await readBoardSignature(page);
+  if (initialBoard.count === 0) {
+    throw new Error("board rendered without any visible issue cards");
+  }
+  process.stdout.write(
+    `initial board signature captured (${initialBoard.count} cards)\n`
+  );
+
   const eventStart = Date.now();
+  let boardDeltaObserved = false;
   while (
     Date.now() - eventStart < args.eventDeadlineMs &&
-    !notificationReceived
+    !(expectedSyncObserved && boardDeltaObserved)
   ) {
+    if (expectedSyncObserved) {
+      const nextBoard = await readBoardSignature(page);
+      if (nextBoard.signature !== initialBoard.signature) {
+        boardDeltaObserved = true;
+        process.stdout.write(
+          `board signature changed after sync sha=${args.expectedSyncSha} (${initialBoard.count} -> ${nextBoard.count} cards)\n`
+        );
+        break;
+      }
+    }
     await page.waitForTimeout(500);
   }
 
-  if (!notificationReceived) {
-    throw new Error("no realtime notification observed in browser logs");
+  if (!expectedSyncObserved) {
+    throw new Error(`expected cloud sync sha ${args.expectedSyncSha} was not observed`);
+  }
+  if (!boardDeltaObserved) {
+    throw new Error(`sync sha ${args.expectedSyncSha} was observed but the board signature did not change`);
   }
 
   await browser.close();
