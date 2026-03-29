@@ -17,6 +17,12 @@ class OpsGuardrailsTemplateTests(unittest.TestCase):
         stack = KanbusCloudFoundationStack(app, "KanbusCloudFoundationOpsTest", env_name="test")
         return Template.from_stack(stack)
 
+    @staticmethod
+    def _dev_template() -> Template:
+        app = App(context={"env_name": "dev"})
+        stack = KanbusCloudFoundationStack(app, "KanbusCloudFoundationOpsDevTest", env_name="dev")
+        return Template.from_stack(stack)
+
     def test_alarm_set_covers_sync_lambda_and_api_paths(self) -> None:
         template = self._template()
         template.resource_count_is("AWS::CloudWatch::Alarm", 8)
@@ -52,6 +58,18 @@ class OpsGuardrailsTemplateTests(unittest.TestCase):
                         Match.object_like({"Name": "ApiName"}),
                     ]
                 ),
+            },
+        )
+
+    def test_dev_console_alias_uses_provisioned_concurrency(self) -> None:
+        template = self._dev_template()
+        template.has_resource_properties(
+            "AWS::Lambda::Alias",
+            {
+                "Name": "dev",
+                "ProvisionedConcurrencyConfig": {
+                    "ProvisionedConcurrentExecutions": 1,
+                },
             },
         )
 

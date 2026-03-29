@@ -119,6 +119,9 @@ This means cloud project existence is currently operationally defined by EFS pre
 
 Use the cloud validation runner before human acceptance or UX review:
 
+- Use Node `20.17.0` from the repo root (`nvm use` will read `.nvmrc`).
+- Ensure the local Docker daemon is running before deploys or browser validation.
+
 ```bash
 AWS_PROFILE=anthus \
 KANBUS_TEST_ADMIN_USERNAME=<admin-user> \

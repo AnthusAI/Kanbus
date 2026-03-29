@@ -4,6 +4,43 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
+PINNED_NODE_VERSION=""
+
+pin_node_toolchain() {
+  local version_file="$ROOT_DIR/.nvmrc"
+  [[ -f "$version_file" ]] || return 0
+  PINNED_NODE_VERSION="$(tr -d '[:space:]' < "$version_file")"
+  [[ -n "$PINNED_NODE_VERSION" ]] || return 0
+
+  local node_dir=""
+  if [[ "$PINNED_NODE_VERSION" == v* ]]; then
+    node_dir="$HOME/.nvm/versions/node/$PINNED_NODE_VERSION/bin"
+  else
+    node_dir="$HOME/.nvm/versions/node/v$PINNED_NODE_VERSION/bin"
+  fi
+
+  if [[ -x "$node_dir/node" ]]; then
+    PATH="$node_dir:$PATH"
+    export PATH
+  fi
+}
+
+require_pinned_node_version() {
+  [[ -n "$PINNED_NODE_VERSION" ]] || return 0
+  local expected="$PINNED_NODE_VERSION"
+  if [[ "$expected" != v* ]]; then
+    expected="v$expected"
+  fi
+  local actual
+  actual="$(node -v)"
+  [[ "$actual" == "$expected" ]] || {
+    echo "Expected Node $expected from .nvmrc, found $actual at $(command -v node)" >&2
+    exit 2
+  }
+}
+
+pin_node_toolchain
+
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
     echo "Missing required command: $1" >&2
@@ -16,6 +53,10 @@ require_cmd jq
 require_cmd curl
 require_cmd docker
 require_cmd node
+require_cmd npm
+require_cmd npx
+
+require_pinned_node_version
 
 AWS_PROFILE="${AWS_PROFILE:-anthus}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
@@ -89,7 +130,7 @@ run_gate_cmd() {
   local label="$2"
   shift 2
   local logfile="$ARTIFACT_DIR/${gate}-${label}.log"
-  log "RUN $gate/$label: $*"
+  log "RUN $gate/$label"
   if ! "$@" >"$logfile" 2>&1; then
     tail -n 120 "$logfile" >&2 || true
     fail_gate "$gate" "$label failed (see $logfile)"
@@ -105,6 +146,7 @@ http_status() {
 }
 
 log "Artifacts: $ARTIFACT_DIR"
+log "Using node: $(command -v node) ($(node -v))"
 
 GATE="gate0"
 log "Starting $GATE: environment and stack preflight"
@@ -151,16 +193,16 @@ pass_gate "$GATE"
 
 GATE="gate1"
 log "Starting $GATE: static/build checks"
-run_gate_cmd "$GATE" cloud_pytests bash -lc "cd infra/cloud && conda run -n py311 python -m pytest -q tests"
-run_gate_cmd "$GATE" rust_lib bash -lc "cd rust && cargo test -q --lib"
-run_gate_cmd "$GATE" rust_console_lambda bash -lc "cd rust && cargo test -q --bin console_lambda"
-run_gate_cmd "$GATE" rust_kbsc bash -lc "cd rust && cargo test -q --bin kbsc"
-run_gate_cmd "$GATE" console_typecheck bash -lc "cd apps/console && VITE_PORT=6173 CONSOLE_PORT=6174 npm run -s typecheck"
-run_gate_cmd "$GATE" console_build bash -lc "cd apps/console && VITE_PORT=6173 CONSOLE_PORT=6174 npm run -s build"
+run_gate_cmd "$GATE" cloud_pytests bash -c "cd infra/cloud && conda run -n py311 python -m pytest -q tests"
+run_gate_cmd "$GATE" rust_lib bash -c "cd rust && cargo test -q --lib"
+run_gate_cmd "$GATE" rust_console_lambda bash -c "cd rust && cargo test -q --bin console_lambda"
+run_gate_cmd "$GATE" rust_kbsc bash -c "cd rust && cargo test -q --bin kbsc"
+run_gate_cmd "$GATE" console_typecheck bash -c "cd apps/console && VITE_PORT=6173 CONSOLE_PORT=6174 npm run -s typecheck"
+run_gate_cmd "$GATE" console_build bash -c "cd apps/console && VITE_PORT=6173 CONSOLE_PORT=6174 npm run -s build"
 pass_gate "$GATE"
 
 GATE="gate2"
-log "Starting $GATE: unauthenticated API/auth contract checks"
+log "Starting $GATE: unauthenticated API/auth contract checks (first public hits, no retries)"
 status="$(http_status "${API_BASE%/}/" "$RESP_DIR/gate2-root.html" "$RESP_DIR/gate2-root.headers")"
 [[ "$status" == "200" ]] || fail_gate "$GATE" "root status=$status"
 grep -qi "<!doctype html>" "$RESP_DIR/gate2-root.html" || fail_gate "$GATE" "root not html shell"
@@ -245,11 +287,11 @@ AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" \
   "$RESP_DIR/gate4-authorizer-revoked-response.json" >"$RESP_DIR/gate4-authorizer-revoked-meta.json"
 jq -e '.isAuthenticated == false' "$RESP_DIR/gate4-authorizer-revoked-response.json" >/dev/null || fail_gate "$GATE" "authorizer accepted revoked token"
 
-run_gate_cmd "$GATE" cli_create bash -lc "cd rust && cargo run -q --bin kbs -- cloud token create --base-url '$API_BASE' --id-token '$ADMIN_JWT' --account '$DEFAULT_ACCOUNT' --project '$DEFAULT_PROJECT' --scopes subscribe --days 30"
-run_gate_cmd "$GATE" cli_list bash -lc "cd rust && cargo run -q --bin kbs -- cloud token list --base-url '$API_BASE' --id-token '$ADMIN_JWT' --account '$DEFAULT_ACCOUNT' --project '$DEFAULT_PROJECT'"
+run_gate_cmd "$GATE" cli_create bash -c "cd rust && cargo run -q --bin kbs -- cloud token create --base-url '$API_BASE' --id-token '$ADMIN_JWT' --account '$DEFAULT_ACCOUNT' --project '$DEFAULT_PROJECT' --scopes subscribe --days 30"
+run_gate_cmd "$GATE" cli_list bash -c "cd rust && cargo run -q --bin kbs -- cloud token list --base-url '$API_BASE' --id-token '$ADMIN_JWT' --account '$DEFAULT_ACCOUNT' --project '$DEFAULT_PROJECT'"
 CLI_TOKEN_ID="$(jq -r '.token_id' "$ARTIFACT_DIR/$GATE-cli_create.log" | head -n 1)"
 [[ -n "$CLI_TOKEN_ID" && "$CLI_TOKEN_ID" != "null" ]] || fail_gate "$GATE" "unable to parse cli token id"
-run_gate_cmd "$GATE" cli_revoke bash -lc "cd rust && cargo run -q --bin kbs -- cloud token revoke --base-url '$API_BASE' --id-token '$ADMIN_JWT' '$CLI_TOKEN_ID'"
+run_gate_cmd "$GATE" cli_revoke bash -c "cd rust && cargo run -q --bin kbs -- cloud token revoke --base-url '$API_BASE' --id-token '$ADMIN_JWT' '$CLI_TOKEN_ID'"
 pass_gate "$GATE"
 
 GATE="gate5"
@@ -264,7 +306,9 @@ status="$(curl -sS -D "$RESP_DIR/gate5-token-create.headers" -o "$RESP_DIR/gate5
   --data '{"account":"'"$DISPOSABLE_ACCOUNT"'","project":"'"$DISPOSABLE_PROJECT"'","scopes":["subscribe"],"expires_in_days":7}')"
 [[ "$status" == "201" ]] || fail_gate "$GATE" "disposable token create status=$status"
 DISPOSABLE_TOKEN="$(jq -r '.token' "$RESP_DIR/gate5-token-create.json")"
+DISPOSABLE_TOKEN_ID="$(jq -r '.token_id' "$RESP_DIR/gate5-token-create.json")"
 [[ "$DISPOSABLE_TOKEN" != "null" ]] || fail_gate "$GATE" "missing disposable token"
+[[ "$DISPOSABLE_TOKEN_ID" != "null" ]] || fail_gate "$GATE" "missing disposable token id"
 
 WEBHOOK_SECRET="$(AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws secretsmanager get-secret-value --secret-id "$WEBHOOK_SECRET_ARN" --query SecretString --output text)"
 PAYLOAD_FILE="$RESP_DIR/gate5-webhook-payload.json"
@@ -326,12 +370,18 @@ done
 if grep -qE "ERROR|Task timed out|Traceback" "$SYNC_LOG_FILE"; then
   fail_gate "$GATE" "sync worker log contains error markers"
 fi
+
+status="$(curl -sS -D "$RESP_DIR/gate5-token-revoke.headers" -o "$RESP_DIR/gate5-token-revoke.json" -w '%{http_code}' \
+  -X POST "${API_BASE%/}/api/tokens/$DISPOSABLE_TOKEN_ID/revoke" -H "Authorization: Bearer $ADMIN_JWT")"
+[[ "$status" == "200" ]] || fail_gate "$GATE" "disposable token revoke status=$status"
+jq -e '.revoked == true' "$RESP_DIR/gate5-token-revoke.json" >/dev/null || fail_gate "$GATE" "disposable token revoke payload mismatch"
 pass_gate "$GATE"
 
 GATE="gate6"
 log "Starting $GATE: browser realtime hard gate (MQTT primary)"
 APP_URL="${API_BASE%/}/$DEFAULT_ACCOUNT/$DEFAULT_PROJECT/"
-run_gate_cmd "$GATE" browser_probe bash -lc "cd apps/console && npx -y tsx ../../scripts/cloud/probe_browser_realtime.ts --app_url '$APP_URL' --username '$KANBUS_TEST_TENANT_USERNAME' --password '$KANBUS_TEST_TENANT_PASSWORD' --timeout_ms 120000 --event_deadline_ms 60000" &
+run_gate_cmd "$GATE" browser_install bash -c "cd apps/console && npx playwright install chromium"
+run_gate_cmd "$GATE" browser_probe bash -c "cd apps/console && npx -y tsx ../../scripts/cloud/probe_browser_realtime.ts --app_url '$APP_URL' --username '$KANBUS_TEST_TENANT_USERNAME' --password '$KANBUS_TEST_TENANT_PASSWORD' --timeout_ms 120000 --event_deadline_ms 60000" &
 BROWSER_PROBE_PID=$!
 sleep 8
 

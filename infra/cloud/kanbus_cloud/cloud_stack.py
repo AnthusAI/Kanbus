@@ -125,6 +125,15 @@ class KanbusCloudFoundationStack(Stack):
             },
             description="Kanbus console API + SSE fallback runtime",
         )
+        console_lambda_version = console_lambda.current_version
+        console_lambda_alias = lambda_.Alias(
+            self,
+            "ConsoleLambdaLiveAlias",
+            alias_name=env_name,
+            version=console_lambda_version,
+            provisioned_concurrent_executions=1 if env_name == "dev" else None,
+            description="Stable versioned alias for the console Lambda runtime",
+        )
 
         api = apigw.RestApi(
             self,
@@ -205,7 +214,7 @@ class KanbusCloudFoundationStack(Stack):
             identity_source="method.request.header.Authorization",
         )
 
-        lambda_integration = apigw.LambdaIntegration(console_lambda, proxy=True)
+        lambda_integration = apigw.LambdaIntegration(console_lambda_alias, proxy=True)
         api.root.add_method(
             "ANY",
             lambda_integration,
@@ -524,7 +533,7 @@ class KanbusCloudFoundationStack(Stack):
             "ConsoleLambdaErrorsAlarm",
             alarm_name=f"kanbus-console-lambda-errors-{env_name}",
             alarm_description="Kanbus console lambda is reporting errors",
-            metric=console_lambda.metric_errors(period=Duration.minutes(5)),
+            metric=console_lambda_alias.metric_errors(period=Duration.minutes(5)),
             threshold=0,
             evaluation_periods=1,
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
