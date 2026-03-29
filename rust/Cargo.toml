@@ -42,7 +42,7 @@ http-body = "1.0"
 http-body-util = "0.1"
 tokio-stream = { version = "0.1", features = ["sync"] }
 futures-util = "0.3"
-axum = { version = "0.7", features = ["tokio", "http1"] }
+axum = { version = "0.8", features = ["tokio", "http1"] }
 tower-http = { version = "0.6", features = ["cors"] }
 mime_guess = "2.0"
 rust-embed = { version = "8.5", optional = true }
