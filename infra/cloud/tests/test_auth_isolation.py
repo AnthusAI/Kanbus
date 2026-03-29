@@ -63,6 +63,35 @@ class AuthIsolationTemplateTests(unittest.TestCase):
         template = self._template()
         template.resource_count_is("AWS::IoT::Authorizer", 1)
 
+    def test_console_api_uses_versioned_alias(self) -> None:
+        template = self._template()
+        rendered = template.to_json()
+        alias_ids = [
+            logical_id
+            for logical_id, resource in rendered["Resources"].items()
+            if resource["Type"] == "AWS::Lambda::Alias"
+        ]
+        self.assertEqual(len(alias_ids), 1)
+        alias_ref = {"Ref": alias_ids[0]}
+
+        permission_targets = [
+            resource["Properties"].get("FunctionName")
+            for resource in rendered["Resources"].values()
+            if resource["Type"] == "AWS::Lambda::Permission"
+            and resource["Properties"].get("Principal") == "apigateway.amazonaws.com"
+        ]
+        self.assertIn(alias_ref, permission_targets)
+
+        method_uris = [
+            resource["Properties"]["Integration"]["Uri"]
+            for resource in rendered["Resources"].values()
+            if resource["Type"] == "AWS::ApiGateway::Method"
+            and resource["Properties"].get("Integration", {}).get("Type") == "AWS_PROXY"
+        ]
+        self.assertTrue(method_uris)
+        serialized_uris = str(method_uris)
+        self.assertIn(alias_ids[0], serialized_uris)
+
 
 if __name__ == "__main__":
     unittest.main()

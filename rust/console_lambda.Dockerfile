@@ -1,3 +1,4 @@
+# Asset revision: 2026-03-29 schema2 refresh
 FROM rust:1.89-bookworm AS build
 WORKDIR /workspace
 

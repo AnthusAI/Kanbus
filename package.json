@@ -1,4 +1,7 @@
 {
+  "engines": {
+    "node": "20.17.0"
+  },
   "devDependencies": {
     "@aws-amplify/backend": "^1.21.1",
     "@aws-amplify/backend-cli": "^1.8.2",
