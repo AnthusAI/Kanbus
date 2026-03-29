@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Enforce coverage floors for changed source files."""
+"""Enforce coverage floors for changed source files.
+
+GitHub Actions sets ``github.event.before`` to an all-zero object name for some
+``push`` events (for example a newly created branch). ``git diff`` cannot use
+that as a base; we fall back to ``HEAD~1`` and, if that still fails, treat the
+changed-file set as empty so the overall coverage ratchet job does not fail
+without a valid merge base.
+"""
 
 from __future__ import annotations
 
@@ -41,6 +48,11 @@ def _parse_coverage(xml_path: Path) -> dict[str, FileCoverage]:
     return files
 
 
+def _is_all_zero_git_sha(value: str) -> bool:
+    cleaned = value.strip().lower()
+    return len(cleaned) == 40 and cleaned == "0" * 40
+
+
 def _run_git_diff(base_ref: str, head_ref: str) -> list[str]:
     commands = [
         ["git", "diff", "--name-only", f"{base_ref}...{head_ref}"],
@@ -53,6 +65,28 @@ def _run_git_diff(base_ref: str, head_ref: str) -> list[str]:
     raise RuntimeError(
         f"unable to compute changed files for refs {base_ref}..{head_ref}"
     )
+
+
+def _resolve_changed_files(base_ref: str, head_ref: str) -> tuple[str, list[str]]:
+    """Return (effective_base_ref, changed_paths). Never raises RuntimeError."""
+    refs_to_try: list[str] = []
+    if _is_all_zero_git_sha(base_ref):
+        refs_to_try.append("HEAD~1")
+    else:
+        refs_to_try.append(base_ref)
+        if base_ref != "HEAD~1":
+            refs_to_try.append("HEAD~1")
+    for ref in refs_to_try:
+        try:
+            return ref, _run_git_diff(ref, head_ref)
+        except RuntimeError:
+            continue
+    print(
+        "coverage_changed_files_gate: could not diff against any base ref "
+        f"(tried {refs_to_try!r} vs {head_ref}); skipping per-file gate.",
+        file=sys.stderr,
+    )
+    return base_ref, []
 
 
 def _map_python_coverage_key(changed_file: str) -> str | None:
@@ -194,16 +228,16 @@ def _render_text(payload: dict[str, Any]) -> str:
     lines = [
         "Changed-files coverage gate",
         f"base_ref={payload['base_ref']}",
+        f"effective_base_ref={payload['effective_base_ref']}",
         f"head_ref={payload['head_ref']}",
         f"changed_source_files={payload['changed_source_files']}",
         f"checked_files={payload['checked_files']}",
         f"failed_files={payload['failed_files']}",
     ]
     for result in payload["results"]:
-        line = (
-            f"{result['status']}: {result['file']} ({result['language']})"
-            f" - {result['reason']}"
-        )
+        lang = result.get("language")
+        lang_part = f" ({lang})" if lang else ""
+        line = f"{result['status']}: {result['file']}{lang_part} - {result['reason']}"
         if "percentage" in result:
             line += f" [{result['percentage']:.2f}%]"
         lines.append(line)
@@ -228,7 +262,9 @@ def main(argv: list[str] | None = None) -> int:
     config = _load_config(Path(args.config))
     python_coverage = _parse_coverage(Path(args.python_xml))
     rust_coverage = _parse_coverage(Path(args.rust_xml))
-    changed_files = _run_git_diff(args.base_ref, args.head_ref)
+    effective_base, changed_files = _resolve_changed_files(
+        args.base_ref, args.head_ref
+    )
     python_omit_patterns = _load_python_omit_patterns(
         Path(str(config["python_coverage_config"]))
     )
@@ -291,6 +327,7 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         "passed": not failed,
         "base_ref": args.base_ref,
+        "effective_base_ref": effective_base,
         "head_ref": args.head_ref,
         "changed_source_files": changed_source,
         "checked_files": checked,
