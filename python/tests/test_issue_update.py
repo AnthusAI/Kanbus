@@ -175,7 +175,7 @@ def test_update_issue_happy_path_with_labels_and_claim(
     issue = build_issue(
         "kanbus-1", title="Old", status="open", issue_type="task", labels=["a", "b"]
     )
-    lookup, _cfg, _issues_dir = _setup(monkeypatch, tmp_path, issue=issue)
+    _, _, _ = _setup(monkeypatch, tmp_path, issue=issue)
     writes: list[object] = []
     monkeypatch.setattr(
         issue_update, "write_issue_to_file", lambda *_a: writes.append("w")
@@ -210,7 +210,7 @@ def test_update_issue_normalization_and_parent_update_fields(
     issue = build_issue("kanbus-1", title="Old", status="open", issue_type="task")
     issue.assignee = "dev"
     issue.priority = 2
-    lookup, _cfg, _issues_dir = _setup(monkeypatch, tmp_path, issue=issue)
+    _, _, _ = _setup(monkeypatch, tmp_path, issue=issue)
     monkeypatch.setattr(
         issue_update, "resolve_issue_identifier", lambda *_a: "kanbus-parent"
     )

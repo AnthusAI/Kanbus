@@ -1,8 +1,10 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "kanbus-py-*"
+      - "kanbus-rust-*"
   workflow_dispatch:
     inputs:
       pypi_only:
@@ -22,8 +24,8 @@ permissions:
 jobs:
   pypi-release:
     name: PyPI Release
-    # Run on published release tags or manual dispatch.
-    if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
+    # Run for python release tags, or manual dispatch when rust_only is not set.
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref_name, 'kanbus-py-')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.rust_only == '') }}
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.release_tag.outputs.tag }}
@@ -100,8 +102,10 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.rust_only }}" ]; then
             echo "tag=${{ github.event.inputs.rust_only }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
@@ -328,8 +332,7 @@ jobs:
         working-directory: apps/vscode
 
   rust-crate:
-    needs: pypi-release
-    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.pypi_only != 'true') }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref_name, 'kanbus-rust-')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.rust_only != '') }}
     runs-on: ubuntu-latest
     env:
       CARGO_TERM_COLOR: always
@@ -385,8 +388,17 @@ jobs:
       - name: Sync crate version to release tag
         working-directory: rust
         run: |
-          tag_version="${{ needs.pypi-release.outputs.release_tag }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag_version="${{ github.event.inputs.rust_only }}"
+          else
+            tag_version="${{ github.ref_name }}"
+          fi
+          tag_version="${tag_version#kanbus-rust-}"
           tag_version="${tag_version#v}"
+          if [ -z "$tag_version" ]; then
+            echo "Release tag did not include a crate version" >&2
+            exit 1
+          fi
           python - <<'PY' "$tag_version"
           import pathlib, re, sys
 
@@ -433,7 +445,12 @@ jobs:
       - name: Check if crate version already exists
         id: crate_version_check
         run: |
-          version="${{ needs.pypi-release.outputs.release_tag }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.rust_only }}"
+          else
+            version="${{ github.ref_name }}"
+          fi
+          version="${version#kanbus-rust-}"
           version="${version#v}"
           python - <<'PY' "$version"
           import json
