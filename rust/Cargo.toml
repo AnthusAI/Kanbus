@@ -1,6 +1,6 @@
 [package]
 name = "kanbus"
-version = "0.17.0"
+version = "0.18.0"
 edition = "2021"
 description = "High-performance CLI and web console for the Kanbus issue tracker. Includes kanbus (CLI) and kanbus-console (web UI server)."
 license = "MIT"
@@ -49,7 +49,7 @@ rust-embed = { version = "8.5", optional = true }
 reqwest = { version = "0.12", features = ["blocking", "json", "native-tls-vendored"] }
 native-tls = { version = "=0.2.16", features = ["vendored"] }
 tempfile = "3.10.1"
-gherkin = "0.14"
+gherkin = "0.15"
 regex = "1.10.4"
 rumqttc = "0.24"
 base64 = "0.22"
@@ -77,6 +77,10 @@ unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
 
 [[bin]]
 name = "kbs"
+path = "src/main.rs"
+
+[[bin]]
+name = "kanbus"
 path = "src/main.rs"
 
 [[bin]]

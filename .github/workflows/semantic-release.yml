@@ -1,0 +1,93 @@
+name: Semantic Release
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.actor.login != 'anthusbot') }}
+    uses: AnthusAI/platform-ci/.github/workflows/semantic-release-reusable.yml@main
+    with:
+      python_version: "3.11"
+      release_branch: "main"
+      semantic_release_requirement: "python-semantic-release~=10.0"
+      working_directory: "python"
+      push_changes: true
+      # release.yml handles package publishing and artifact uploads on tag pushes.
+      run_publish: false
+    secrets:
+      anthusbot_gh_token: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+
+  guard-pre-1-0:
+    needs: release
+    if: ${{ needs.release.outputs.released == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block accidental 1.x release
+        env:
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          echo "Computed release version: ${RELEASE_VERSION}"
+          case "${RELEASE_VERSION}" in
+            0.*) ;;
+            *)
+              echo "Refusing release: expected pre-1.0.0 version, got ${RELEASE_VERSION}" >&2
+              exit 1
+              ;;
+          esac
+
+  tag-rust-release:
+    needs: [release, guard-pre-1-0]
+    if: ${{ needs.release.outputs.released == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+
+      - name: Create companion Rust release tag
+        env:
+          PYTHON_TAG: ${{ needs.release.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+          ANTHUSBOT_GH_TOKEN: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+        run: |
+          set -euo pipefail
+          rust_tag="kanbus-rust-${RELEASE_VERSION}"
+          echo "Python release tag: ${PYTHON_TAG}"
+          echo "Companion rust tag: ${rust_tag}"
+
+          git config user.name "anthusbot"
+          git config user.email "anthusbot@users.noreply.github.com"
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git remote set-url origin "https://x-access-token:${ANTHUSBOT_GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git remote set-url --push origin "https://x-access-token:${ANTHUSBOT_GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if git ls-remote --tags origin "refs/tags/${rust_tag}" | grep -q .; then
+            echo "Tag ${rust_tag} already exists; nothing to do."
+            exit 0
+          fi
+
+          git fetch --tags origin
+          target_sha="$(git rev-list -n 1 "${PYTHON_TAG}")"
+          if [ -z "${target_sha}" ]; then
+            echo "Unable to resolve commit for ${PYTHON_TAG}" >&2
+            exit 1
+          fi
+
+          git tag "${rust_tag}" "${target_sha}"
+          git push origin "${rust_tag}"
