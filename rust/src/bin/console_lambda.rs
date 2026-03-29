@@ -9,6 +9,7 @@ use chrono::Utc;
 use lambda_http::{http::StatusCode, run, service_fn, Body, Error, Request, Response};
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
+use kanbus::notification_events::NotificationEvent;
 
 const EFS_ROOT: &str = "/mnt/data";
 const DEFAULT_ASSETS_ROOT: &str = "/opt/apps/console/dist";
@@ -98,7 +99,7 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
                 {
                     return Ok(response);
                 }
-                handle_realtime_events(&store)
+                handle_realtime_events(&store, account, project)
             }
             Some(_) => Ok(not_found()),
             None => {
@@ -322,10 +323,29 @@ fn handle_events(store: &FileStore) -> Result<ResponseType, Error> {
         .map_err(Error::from)
 }
 
-fn handle_realtime_events(store: &FileStore) -> Result<ResponseType, Error> {
-    // Cloud compatibility endpoint for the existing frontend notification stream.
-    // In Lambda mode this currently reuses snapshot-based SSE fallback behavior.
-    handle_events(store)
+fn handle_realtime_events(
+    store: &FileStore,
+    account: &str,
+    project: &str,
+) -> Result<ResponseType, Error> {
+    // Lambda cannot hold a long-lived realtime notification stream in the same way
+    // as the local console. Emit a one-shot notification event keyed by the current
+    // snapshot fingerprint so browser SSE fallback can perform a deduped refresh.
+    let (_, fingerprint) = snapshot_payload(store);
+    let notification = NotificationEvent::CloudSyncCompleted {
+        account: account.to_string(),
+        project: project.to_string(),
+        r#ref: None,
+        sha: format!("sse-fallback-{fingerprint:016x}"),
+    };
+    let payload = serde_json::to_string(&notification).map_err(Error::from)?;
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "text/event-stream")
+        .header("Cache-Control", "no-cache")
+        .header("Connection", "keep-alive")
+        .body(Body::Text(format!("data: {payload}\n\n")))
+        .map_err(Error::from)
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -1051,7 +1071,7 @@ beads_compatibility: false
         let payload = body_to_string(events.body());
         assert!(payload.starts_with("data: "));
 
-        let realtime = handle_realtime_events(&store).expect("realtime response");
+        let realtime = handle_realtime_events(&store, "anthus", "kanbus").expect("realtime response");
         assert_eq!(realtime.status(), StatusCode::OK);
         assert_eq!(
             realtime
@@ -1060,5 +1080,9 @@ beads_compatibility: false
                 .and_then(|value| value.to_str().ok()),
             Some("text/event-stream")
         );
+        let realtime_payload = body_to_string(realtime.body());
+        assert!(realtime_payload.contains("\"type\":\"cloud_sync_completed\""));
+        assert!(realtime_payload.contains("\"account\":\"anthus\""));
+        assert!(realtime_payload.contains("\"project\":\"kanbus\""));
     }
 }

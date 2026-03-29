@@ -21,6 +21,14 @@ pub enum NotificationEvent {
     },
     /// An issue was deleted.
     IssueDeleted { issue_id: String },
+    /// A tenant repo sync completed and the browser should refresh its snapshot.
+    CloudSyncCompleted {
+        account: String,
+        project: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        r#ref: Option<String>,
+        sha: String,
+    },
     /// An issue was focused (for UI highlighting).
     IssueFocused {
         issue_id: String,
@@ -71,6 +79,7 @@ impl NotificationEvent {
             NotificationEvent::IssueCreated { issue_id, .. } => Some(issue_id),
             NotificationEvent::IssueUpdated { issue_id, .. } => Some(issue_id),
             NotificationEvent::IssueDeleted { issue_id } => Some(issue_id),
+            NotificationEvent::CloudSyncCompleted { .. } => None,
             NotificationEvent::IssueFocused { issue_id, .. } => Some(issue_id),
             NotificationEvent::UiControl { .. } => None,
         }
@@ -95,6 +104,14 @@ impl NotificationEvent {
             }
             NotificationEvent::IssueDeleted { issue_id } => {
                 format!("Issue {} deleted", issue_id)
+            }
+            NotificationEvent::CloudSyncCompleted {
+                account,
+                project,
+                sha,
+                ..
+            } => {
+                format!("Cloud sync completed for {}/{} ({})", account, project, sha)
             }
             NotificationEvent::IssueFocused { issue_id, user, .. } => {
                 if let Some(u) = user {
@@ -153,6 +170,12 @@ mod tests {
         let deleted = NotificationEvent::IssueDeleted {
             issue_id: "kanbus-1".to_string(),
         };
+        let sync = NotificationEvent::CloudSyncCompleted {
+            account: "anthus".to_string(),
+            project: "kanbus".to_string(),
+            r#ref: Some("refs/heads/dev".to_string()),
+            sha: "abc123def456".to_string(),
+        };
         let focused = NotificationEvent::IssueFocused {
             issue_id: "kanbus-1".to_string(),
             user: Some("agent".to_string()),
@@ -165,6 +188,7 @@ mod tests {
         assert_eq!(created.issue_id(), Some("kanbus-1"));
         assert_eq!(updated.issue_id(), Some("kanbus-1"));
         assert_eq!(deleted.issue_id(), Some("kanbus-1"));
+        assert_eq!(sync.issue_id(), None);
         assert_eq!(focused.issue_id(), Some("kanbus-1"));
         assert_eq!(ui.issue_id(), None);
     }
@@ -187,6 +211,12 @@ mod tests {
             user: None,
             comment_id: None,
         };
+        let sync = NotificationEvent::CloudSyncCompleted {
+            account: "anthus".to_string(),
+            project: "kanbus".to_string(),
+            r#ref: None,
+            sha: "abc123def456".to_string(),
+        };
         let ui = NotificationEvent::UiControl {
             action: UiControlAction::SetSearch {
                 query: "hello".to_string(),
@@ -197,6 +227,10 @@ mod tests {
         assert_eq!(
             updated_with_fields.description(),
             "Issue kanbus-2 updated: status, priority"
+        );
+        assert_eq!(
+            sync.description(),
+            "Cloud sync completed for anthus/kanbus (abc123def456)"
         );
         assert_eq!(focused_no_user.description(), "Issue kanbus-2 focused");
         assert!(ui.description().starts_with("UI control: "));

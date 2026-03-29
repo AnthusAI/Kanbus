@@ -666,6 +666,7 @@ export default function App() {
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
   const lastSnapshotSuccessAtRef = React.useRef<number>(Date.now());
+  const lastCloudSyncKeyRef = React.useRef<string | null>(null);
   useAppearance();
   const config = snapshot?.config;
   const issues = useMemo(() => {
@@ -681,14 +682,19 @@ export default function App() {
   }, [snapshot?.issues]);
   const deferredIssues = useDeferredValue(issues);
   const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
+  const applySnapshot = useCallback((data: IssuesSnapshot) => {
+    lastSnapshotSuccessAtRef.current = Date.now();
+    snapshotRef.current = data;
+    setSnapshot(data);
+  }, []);
   const refreshSnapshot = useCallback(() => {
     if (!apiBase) {
       return;
     }
     fetchSnapshot(apiBase)
-      .then((data) => setSnapshot(data))
+      .then(applySnapshot)
       .catch((err) => console.warn("[snapshot] refresh failed", err));
-  }, [apiBase]);
+  }, [apiBase, applySnapshot]);
   const showAllTypes = route.typeFilter === "all";
 
   useEffect(() => {
@@ -741,6 +747,7 @@ export default function App() {
     let unsubscribe: (() => void) | null = null;
     setAuthReady(false);
     setLoading(true);
+    lastCloudSyncKeyRef.current = null;
     if (route.basePath == null) {
       setError("URL must include /:account/:project");
       setLoading(false);
@@ -772,16 +779,14 @@ export default function App() {
         if (!isMounted) {
           return;
         }
-        lastSnapshotSuccessAtRef.current = Date.now();
-        setSnapshot(data);
+        applySnapshot(data);
         setError(null);
         setAuthReady(true);
         setLoading(false);
         unsubscribe = subscribeToSnapshots(
           apiBase,
           (nextSnapshot) => {
-            lastSnapshotSuccessAtRef.current = Date.now();
-            setSnapshot(nextSnapshot);
+            applySnapshot(nextSnapshot);
             setError(null);
             setErrorTime(null);
           },
@@ -818,7 +823,7 @@ export default function App() {
       setAuthQueryProvider(null);
       setMqttTokenProvider(null);
     };
-  }, [route.basePath]);
+  }, [route.basePath, applySnapshot]);
 
   // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
@@ -859,7 +864,7 @@ export default function App() {
                 break;
               }
             }
-            fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+            fetchSnapshot(apiBase).then(applySnapshot).catch(console.error);
             break;
           case "issue_deleted":
             {
@@ -876,8 +881,33 @@ export default function App() {
                   issueId: event.issue_id
                 });
               } else {
-                fetchSnapshot(apiBase).then(setSnapshot).catch(console.error);
+                fetchSnapshot(apiBase).then(applySnapshot).catch(console.error);
               }
+            }
+            break;
+          case "cloud_sync_completed":
+            {
+              const syncKey = `${event.account}/${event.project}:${event.ref ?? ""}:${event.sha}`;
+              if (lastCloudSyncKeyRef.current === syncKey) {
+                console.info(
+                  `[notifications] cloud sync duplicate ignored sha=${event.sha} account=${event.account} project=${event.project}`
+                );
+                break;
+              }
+              lastCloudSyncKeyRef.current = syncKey;
+              console.info(
+                `[notifications] cloud sync completed sha=${event.sha} account=${event.account} project=${event.project}`
+              );
+              fetchSnapshot(apiBase)
+                .then((nextSnapshot) => {
+                  applySnapshot(nextSnapshot);
+                  console.info(
+                    `[notifications] cloud snapshot refreshed sha=${event.sha} issues=${nextSnapshot.issues.length}`
+                  );
+                })
+                .catch((error) => {
+                  console.error(`[notifications] cloud snapshot refresh failed sha=${event.sha}`, error);
+                });
             }
             break;
           case "ui_control":
@@ -893,7 +923,7 @@ export default function App() {
     return () => {
       unsubscribe();
     };
-  }, [route.basePath, authReady]);
+  }, [route.basePath, authReady, applySnapshot]);
 
   // Auto-select focused issue in detail panel and encode focus in URL
   useEffect(() => {

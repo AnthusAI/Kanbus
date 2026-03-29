@@ -63,6 +63,7 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 STACK_NAME="${STACK_NAME:-KanbusCloudFoundation}"
 DEFAULT_ACCOUNT="${KANBUS_TEST_ACCOUNT:-anthus}"
 DEFAULT_PROJECT="${KANBUS_TEST_PROJECT:-kanbus}"
+CURRENT_SYNC_SHA="$(git rev-parse --short=12 HEAD)"
 
 for env_name in \
   KANBUS_TEST_ADMIN_USERNAME \
@@ -378,16 +379,22 @@ jq -e '.revoked == true' "$RESP_DIR/gate5-token-revoke.json" >/dev/null || fail_
 pass_gate "$GATE"
 
 GATE="gate6"
-log "Starting $GATE: browser realtime hard gate (MQTT primary)"
+log "Starting $GATE: browser realtime hard gate (MQTT primary + exact sync SHA + visible board delta)"
+if ! git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+  fail_gate "$GATE" "current HEAD has no parent commit for proof-delta validation"
+fi
+if git diff --quiet HEAD^ HEAD -- .beads/issues.jsonl; then
+  fail_gate "$GATE" "current HEAD does not change .beads/issues.jsonl; visible board-delta proof would be weak"
+fi
 APP_URL="${API_BASE%/}/$DEFAULT_ACCOUNT/$DEFAULT_PROJECT/"
 run_gate_cmd "$GATE" browser_install bash -c "cd apps/console && npx playwright install chromium"
-run_gate_cmd "$GATE" browser_probe bash -c "cd apps/console && npx -y tsx ../../scripts/cloud/probe_browser_realtime.ts --app_url '$APP_URL' --username '$KANBUS_TEST_TENANT_USERNAME' --password '$KANBUS_TEST_TENANT_PASSWORD' --timeout_ms 120000 --event_deadline_ms 60000" &
+run_gate_cmd "$GATE" browser_probe bash -c "cd apps/console && npx -y tsx ../../scripts/cloud/probe_browser_realtime.ts --app_url '$APP_URL' --username '$KANBUS_TEST_TENANT_USERNAME' --password '$KANBUS_TEST_TENANT_PASSWORD' --expected_sync_sha '$CURRENT_SYNC_SHA' --timeout_ms 120000 --event_deadline_ms 60000" &
 BROWSER_PROBE_PID=$!
 sleep 8
 
 PAYLOAD_FILE="$RESP_DIR/gate6-webhook-payload.json"
 cat >"$PAYLOAD_FILE" <<JSON
-{"ref":"refs/heads/dev","after":"$(git rev-parse --short=12 HEAD)","repository":{"clone_url":"https://github.com/AnthusAI/Kanbus.git"}}
+{"ref":"refs/heads/dev","after":"$CURRENT_SYNC_SHA","repository":{"clone_url":"https://github.com/AnthusAI/Kanbus.git"}}
 JSON
 SIG_HEX="$(WEBHOOK_SECRET="$WEBHOOK_SECRET" python - "$PAYLOAD_FILE" <<'PY'
 import hashlib
