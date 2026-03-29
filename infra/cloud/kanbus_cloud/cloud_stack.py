@@ -32,8 +32,7 @@ class KanbusCloudFoundationStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         project_root = Path(__file__).resolve().parents[3]
-        rust_root = project_root / "rust"
-        image_dockerfile = "console_lambda.Dockerfile"
+        image_dockerfile = "rust/console_lambda.Dockerfile"
 
         vpc = ec2.Vpc(
             self,
@@ -101,11 +100,35 @@ class KanbusCloudFoundationStack(Stack):
             self,
             "ConsoleLambda",
             code=lambda_.DockerImageCode.from_image_asset(
-                directory=str(rust_root),
+                directory=str(project_root),
                 file=image_dockerfile,
                 exclude=[
+                    ".beads",
+                    ".claude",
                     ".git",
-                    "target",
+                    ".github",
+                    ".pytest_cache",
+                    ".vscode",
+                    "amplify",
+                    "apps/kanb.us",
+                    "apps/vscode",
+                    "artifacts",
+                    "config",
+                    "custom_assets",
+                    "docs",
+                    "examples",
+                    "features",
+                    "cdk.out",
+                    "**/cdk.out",
+                    "**/cdk.out/**",
+                    "infra/cloud/cdk.out",
+                    "infra/cloud/cdk.out/**",
+                    "infra/github-rulesets",
+                    "node_modules",
+                    "apps/console/node_modules",
+                    "apps/kanb.us/node_modules",
+                    "packages/ui/node_modules",
+                    "rust/target",
                     "coverage-*",
                     "tmp",
                 ],

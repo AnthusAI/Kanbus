@@ -83,15 +83,18 @@ async function completeHostedUiLogin(
 }
 
 async function waitForInitialBoard(page: import("playwright").Page, timeoutMs: number): Promise<void> {
-  await page.locator('[data-testid="board-view"]').waitFor({ state: "visible", timeout: timeoutMs });
-  await page.locator('[data-testid="board-view"] [data-issue-id]').first().waitFor({
+  await page.locator('[data-testid="board-view"]:visible').first().waitFor({
+    state: "visible",
+    timeout: timeoutMs,
+  });
+  await page.locator('[data-testid="board-view"]:visible [data-issue-id]').first().waitFor({
     state: "visible",
     timeout: timeoutMs,
   });
 }
 
 async function readBoardSignature(page: import("playwright").Page): Promise<{ count: number; signature: string }> {
-  return page.locator('[data-testid="board-view"] [data-issue-id]').evaluateAll((elements) => {
+  return page.locator('[data-testid="board-view"]:visible [data-issue-id]').evaluateAll((elements) => {
     const entries = elements
       .map((element) => {
         const issueId = element.getAttribute("data-issue-id") ?? "";
