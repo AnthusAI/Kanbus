@@ -16,12 +16,12 @@ types:
 
 workflows:
   default:
-    backlog: [open, closed]
-    open: [in_progress, closed, backlog]
+    backlog: [Discovery, open, closed]
+    open: [Discovery, in_progress, closed, backlog]
     in_progress: [open, blocked, closed, backlog]
     blocked: [in_progress, closed, backlog]
     closed: [open, backlog]
-    Discovery: [open, backlog]
+    Discovery: [open, closed, backlog]
     done: [open, backlog]
     todo: [open, backlog]
     deferred: [open, backlog]
@@ -78,9 +78,11 @@ categories:
 transition_labels:
   default:
     backlog:
-      open: Start discovery
+      Discovery: Start discovery
+      open: Mark ready
       closed: Drop
     open:
+      Discovery: Back to discovery
       in_progress: Start work
       closed: Drop
       backlog: Back to backlog
@@ -97,7 +99,8 @@ transition_labels:
       open: Reopen
       backlog: Back to backlog
     Discovery:
-      open: Start work
+      open: Mark ready
+      closed: Complete
       backlog: Back to backlog
     done:
       open: Reopen

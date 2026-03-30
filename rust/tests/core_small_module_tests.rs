@@ -157,6 +157,19 @@ fn workflows_validate_transitions_and_status_values() {
 }
 
 #[test]
+fn repo_configuration_keeps_discovery_reachable_for_tasks() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let cfg = load_project_configuration(&repo_root.join(".kanbus.yml")).expect("load repo config");
+
+    validate_status_transition(&cfg, "task", "backlog", "Discovery")
+        .expect("backlog should reach discovery");
+    validate_status_transition(&cfg, "task", "open", "Discovery")
+        .expect("ready should return to discovery");
+    validate_status_transition(&cfg, "task", "Discovery", "closed")
+        .expect("discovery should be completable");
+}
+
+#[test]
 fn workflow_side_effects_set_and_clear_closed_at() {
     let now = Utc::now();
     let open_issue = sample_issue("kanbus-1", "open");
