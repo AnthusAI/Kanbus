@@ -314,7 +314,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       account,
       project,
       basePath,
-      viewMode: loadStoredViewMode(),
+      viewMode: "issues",
       issueId: null,
       parentId: null,
       wikiPath: null,
@@ -1031,6 +1031,37 @@ export default function App() {
       }
     }
   }, [route.parentId, route.viewMode]);
+
+  useEffect(() => {
+    if (route.basePath == null || route.basePath.length === 0) {
+      return;
+    }
+    if (route.viewMode == null || route.issueId || route.parentId || route.wikiPath !== null) {
+      return;
+    }
+    const currentPath = window.location.pathname.replace(/\/+$/, "");
+    const basePath = route.basePath.replace(/\/+$/, "");
+    if (currentPath !== basePath) {
+      return;
+    }
+    const nextUrl = buildUrl(`${route.basePath}/${route.viewMode}/`, {
+      search: route.search,
+      focused: route.focused,
+      comment: route.comment,
+      typeFilter: route.typeFilter,
+    });
+    navigate(nextUrl, setRoute, navActionRef);
+  }, [
+    route.basePath,
+    route.comment,
+    route.focused,
+    route.issueId,
+    route.parentId,
+    route.search,
+    route.typeFilter,
+    route.viewMode,
+    route.wikiPath,
+  ]);
 
   useEffect(() => {
     window.localStorage.setItem(DETAIL_WIDTH_STORAGE_KEY, String(detailWidth));
