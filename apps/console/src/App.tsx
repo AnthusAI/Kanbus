@@ -31,6 +31,7 @@ import {
 } from "./api/client";
 import { ensureCloudAuth } from "./auth/cloudAuth";
 import { installConsoleTelemetry } from "./utils/console-telemetry";
+import { isConsoleDebugEnabled } from "./utils/debug";
 import { matchesSearchQuery } from "./utils/issue-search";
 import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
@@ -889,9 +890,11 @@ export default function App() {
             {
               const syncKey = `${event.account}/${event.project}:${event.ref ?? ""}:${event.sha}`;
               if (lastCloudSyncKeyRef.current === syncKey) {
-                console.info(
-                  `[notifications] cloud sync duplicate ignored sha=${event.sha} account=${event.account} project=${event.project}`
-                );
+                if (isConsoleDebugEnabled("debugRealtime")) {
+                  console.debug(
+                    `[notifications] cloud sync duplicate ignored sha=${event.sha} account=${event.account} project=${event.project}`
+                  );
+                }
                 break;
               }
               lastCloudSyncKeyRef.current = syncKey;
@@ -901,9 +904,11 @@ export default function App() {
               fetchSnapshot(apiBase)
                 .then((nextSnapshot) => {
                   applySnapshot(nextSnapshot);
-                  console.info(
-                    `[notifications] cloud snapshot refreshed sha=${event.sha} issues=${nextSnapshot.issues.length}`
-                  );
+                  if (isConsoleDebugEnabled("debugRealtime")) {
+                    console.debug(
+                      `[notifications] cloud snapshot refreshed sha=${event.sha} issues=${nextSnapshot.issues.length}`
+                    );
+                  }
                 })
                 .catch((error) => {
                   console.error(`[notifications] cloud snapshot refresh failed sha=${event.sha}`, error);
@@ -916,7 +921,9 @@ export default function App() {
         }
       },
       (error) => {
-        console.warn("[notifications] connection error", error);
+        if (isConsoleDebugEnabled("debugRealtime")) {
+          console.debug("[notifications] connection error", error);
+        }
       }
     );
 

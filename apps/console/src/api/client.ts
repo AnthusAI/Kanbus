@@ -16,6 +16,7 @@ import type {
   WikiUpdateRequest,
   WikiUpdateResponse
 } from "../types/wiki";
+import { isConsoleDebugEnabled } from "../utils/debug";
 
 export type UiControlAction =
   | { action: "clear_focus" }
@@ -250,12 +251,9 @@ export function subscribeToSnapshots(
   onError: (error: Event) => void
 ): () => void {
   const source = new EventSource(withAuthQuery(`${apiBase}/events`));
-  let openCount = 0;
-  let lastErrorAt: number | null = null;
   let lastMessageAt: number | null = null;
 
   source.onopen = () => {
-    openCount += 1;
     lastMessageAt = null;
   };
 
@@ -280,12 +278,13 @@ export function subscribeToSnapshots(
   };
 
   source.onerror = (event) => {
-    const now = Date.now();
-    lastErrorAt = now;
-    console.warn("[sse] error", {
-      errorAt: new Date(now).toISOString(),
-      sinceLastMessageMs: lastMessageAt ? now - lastMessageAt : null
-    });
+    if (isConsoleDebugEnabled("debugRealtime")) {
+      const now = Date.now();
+      console.debug("[sse] reconnecting", {
+        errorAt: new Date(now).toISOString(),
+        sinceLastMessageMs: lastMessageAt ? now - lastMessageAt : null
+      });
+    }
     onError(event);
   };
 
@@ -314,9 +313,11 @@ export function subscribeToNotifications(
   };
 
   source.onerror = (event) => {
-    console.warn("[notifications] error", {
-      errorAt: new Date().toISOString()
-    });
+    if (isConsoleDebugEnabled("debugRealtime")) {
+      console.debug("[notifications] reconnecting", {
+        errorAt: new Date().toISOString()
+      });
+    }
     onError?.(event);
   };
 
@@ -464,11 +465,13 @@ export function subscribeToRealtimeFeed(
           } else if ("issue_id" in event) {
             logData.issueId = event.issue_id;
           }
-          console.info("[notifications] received", logData);
-          console.info("[notifications] full payload", {
-            notification: event,
-            hasIssueData: "issue_data" in event && Boolean(event.issue_data)
-          });
+          if (isConsoleDebugEnabled("debugRealtime")) {
+            console.debug("[notifications] received", logData);
+            console.debug("[notifications] full payload", {
+              notification: event,
+              hasIssueData: "issue_data" in event && Boolean(event.issue_data)
+            });
+          }
           onNotification(event);
         } catch (error) {
           console.warn("[realtime] mqtt payload parse failed", error);
