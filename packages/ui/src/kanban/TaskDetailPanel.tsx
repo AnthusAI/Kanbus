@@ -537,9 +537,6 @@ export function TaskDetailPanel({
       node.dataset.processed = "true";
     };
 
-    // We will render mermaid via API next
-    console.log("Found mermaid divs:", nodes.length);
-
     Promise.allSettled(
       nodes.map(async (node) => {
         const source = node.textContent ?? "";

@@ -34,32 +34,32 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
         .collect();
     let segments = normalize_segments(raw_segments);
     if segments.is_empty() {
-        return Ok(asset_response("index.html"));
+        return Ok(index_response());
     }
     if segments == vec!["api", "auth", "bootstrap"] {
         return handle_auth_bootstrap(None, None);
     }
     if segments == vec!["auth", "callback"] || segments == vec!["auth", "logout"] {
-        return Ok(asset_response("index.html"));
+        return Ok(index_response());
     }
     if segments[0] == "assets" {
         let asset_path = segments[1..].join("/");
         return Ok(asset_response(&format!("assets/{asset_path}")));
     }
     if segments.len() < 2 {
-        return Ok(asset_response("index.html"));
+        return Ok(index_response());
     }
     let account = segments[0];
     let project = segments[1];
     let store_root = resolve_store_root(Path::new(EFS_ROOT), account, project);
     let store = FileStore::new(store_root);
     if segments.len() < 3 {
-        return Ok(asset_response("index.html"));
+        return Ok(index_response());
     }
     if segments[2] != "api" {
         let tail = segments[2..].join("/");
         if is_console_route(&tail) {
-            return Ok(asset_response("index.html"));
+            return Ok(index_response());
         }
         return Ok(asset_response(&tail));
     }
@@ -470,6 +470,11 @@ fn asset_response(path: &str) -> ResponseType {
         Ok(bytes) => bytes,
         Err(_) => return not_found(),
     };
+    let bytes = if path == "index.html" {
+        rewrite_index_asset_urls(bytes)
+    } else {
+        bytes
+    };
     let content_type = mime_guess::from_path(&asset_path)
         .first_or_octet_stream()
         .to_string();
@@ -478,6 +483,26 @@ fn asset_response(path: &str) -> ResponseType {
         .header("Content-Type", content_type)
         .body(body_from_bytes(bytes))
         .unwrap_or_else(|_| Response::new(body_from_text("{\"error\":\"asset response failed\"}")))
+}
+
+fn index_response() -> ResponseType {
+    asset_response("index.html")
+}
+
+fn rewrite_index_asset_urls(bytes: Vec<u8>) -> Vec<u8> {
+    let Ok(html) = String::from_utf8(bytes.clone()) else {
+        return bytes;
+    };
+    let asset_prefix = if let Ok(stage) = std::env::var("KANBUS_API_STAGE") {
+        format!("/{stage}/assets/")
+    } else {
+        "/assets/".to_string()
+    };
+    html.replace("src=\"./assets/", &format!("src=\"{asset_prefix}"))
+        .replace("href=\"./assets/", &format!("href=\"{asset_prefix}"))
+        .replace("src=\"assets/", &format!("src=\"{asset_prefix}"))
+        .replace("href=\"assets/", &format!("href=\"{asset_prefix}"))
+        .into_bytes()
 }
 
 fn snapshot_payload(store: &FileStore) -> (String, u64) {
@@ -1006,6 +1031,28 @@ beads_compatibility: false
         assert_eq!(response.status(), StatusCode::OK);
         let payload = body_to_string(response.body());
         assert!(payload.contains("ok"));
+    }
+
+    #[test]
+    fn asset_response_rewrites_index_asset_urls_for_stage_prefix() {
+        let _guard = realtime_env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets_root = temp.path().join("assets");
+        std::fs::create_dir_all(&assets_root).expect("create assets dir");
+        std::fs::write(
+            assets_root.join("index.html"),
+            r#"<script type="module" src="./assets/index.js"></script><link rel="stylesheet" href="./assets/index.css">"#,
+        )
+        .expect("write html");
+        unsafe {
+            env::set_var("CONSOLE_ASSETS_ROOT", &assets_root);
+            env::set_var("KANBUS_API_STAGE", "dev");
+        }
+        let response = asset_response("index.html");
+        assert_eq!(response.status(), StatusCode::OK);
+        let payload = body_to_string(response.body());
+        assert!(payload.contains(r#"src="/dev/assets/index.js""#));
+        assert!(payload.contains(r#"href="/dev/assets/index.css""#));
     }
 
     #[test]

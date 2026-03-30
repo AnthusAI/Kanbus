@@ -281,7 +281,6 @@ function BoardComponent({
       if (boardRef.current && resolvedMotion.mode === "css" && typeof window !== "undefined") {
         const cards = gsap.utils.toArray<HTMLElement>(".issue-card", boardRef.current);
         if (cards.length > 0) {
-          console.log("[Board] Capturing Flip state for", cards.length, "cards");
           flipStateRef.current = Flip.getState(cards, { props: "opacity" });
         }
       }
@@ -293,9 +292,8 @@ function BoardComponent({
     if (flipStateRef.current && boardRef.current && typeof window !== "undefined") {
       const state = flipStateRef.current;
       flipStateRef.current = null;
-      
+
       const cards = gsap.utils.toArray<HTMLElement>(".issue-card", boardRef.current);
-      console.log("[Board] Running Flip from state to", cards.length, "cards", state);
       if (cards.length > 0) {
         // Freeze container dimensions to prevent layout shifts when overflow: visible removes scrollbars
         const scrollContainers = boardRef.current?.querySelectorAll('.kb-column-scroll') || [];
@@ -324,7 +322,6 @@ function BoardComponent({
           nested: true,
           clearProps: "transform,opacity",
           onComplete: () => {
-            console.log("[Board] Flip complete");
             if (boardRef.current) {
               boardRef.current.classList.remove("is-flipping");
             }
