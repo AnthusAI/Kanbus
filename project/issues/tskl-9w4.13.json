@@ -1,0 +1,39 @@
+{
+  "id": "tskl-9w4.13",
+  "title": "Epic 6: End-to-end CRUD integration tests",
+  "description": "Integration test: init project, create issue, show it, update it, close it, delete it. Verify workflow in both implementations. This is Milestone 1 (M1).",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "your@email.com",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-9w4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0d3f743c-1c39-5942-ac69-a0639e5ed3cc",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: add end-to-end CRUD integration tests for Python and Rust. Acceptance: scenarios for create/show/update/close/delete in Gherkin or test harness; ensure parity.",
+      "created_at": "2026-02-11T06:47:15Z"
+    },
+    {
+      "id": "6e4b16f4-6de9-5d1c-8b5c-9ed2f518ff22",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: end-to-end CRUD integration tests in Python and Rust. Acceptance: CLI scenarios for create/show/update/close/delete pass in both implementations.",
+      "created_at": "2026-02-11T06:47:54Z"
+    },
+    {
+      "id": "d8ffcd71-7559-530a-89ff-300aabdbd778",
+      "author": "Ryan Alyn Porter",
+      "text": "Added end-to-end CRUD integration tests for Python and Rust. Ran: cd python && pytest; cd rust && cargo test",
+      "created_at": "2026-02-11T06:48:27Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:38:46.998931Z",
+  "updated_at": "2026-02-11T06:48:31.870305Z",
+  "closed_at": "2026-02-11T06:48:31.870307Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

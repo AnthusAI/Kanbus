@@ -1,0 +1,28 @@
+{
+  "id": "tskl-8ke.5",
+  "title": "Epic 12: Verify maintenance parity",
+  "description": "All scenarios pass.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-8ke",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0d362984-973e-5fd4-9785-5b767824bc34",
+      "author": "Ryan Alyn Porter",
+      "text": "Verified maintenance parity checks and runners: python tools/check_spec_parity.py, python -m behave python/features -t ~@wip (wip skipped), cargo test --manifest-path rust/Cargo.toml --test cucumber.",
+      "created_at": "2026-02-11T14:24:00Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:04.561858Z",
+  "updated_at": "2026-02-11T14:24:04.832337Z",
+  "closed_at": "2026-02-11T14:24:04.832337Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

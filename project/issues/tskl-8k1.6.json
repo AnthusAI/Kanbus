@@ -1,0 +1,56 @@
+{
+  "id": "tskl-8k1.6",
+  "title": "JSON snapshot cache warm start",
+  "description": "Persist daemon index snapshots to cache JSON, support warm reload, and reconcile on-disk deltas on startup.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-8k1",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-8k1.4",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-8k1.5",
+      "type": "blocks"
+    }
+  ],
+  "comments": [
+    {
+      "id": "0909691f-70ee-55de-9c2d-6c02a32ddd4e",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting warm-start cache snapshot work: persist daemon index, load cached snapshot on startup, and rebuild when invalid.",
+      "created_at": "2026-02-11T07:54:42Z"
+    },
+    {
+      "id": "40cf4d76-1892-5b46-a73e-57abe3b2199c",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented warm-start cache loading on daemon startup for Python and Rust; uses cache validation with rebuild fallback. Tests: make check-python, make check-rust.",
+      "created_at": "2026-02-11T07:55:33Z"
+    },
+    {
+      "id": "aa39e60a-cabe-5a45-9627-deabd5c6f688",
+      "author": "Ryan Alyn Porter",
+      "text": "Completed warm-start cache snapshot path with fallback rebuild. Tests: make check-python, make check-rust.",
+      "created_at": "2026-02-11T07:55:41Z"
+    },
+    {
+      "id": "057e9875-95a5-5d95-88c3-cf644a826720",
+      "author": "Ryan Alyn Porter",
+      "text": "Commit: bdea068. Tests: make check-python, make check-rust.",
+      "created_at": "2026-02-11T07:56:46Z"
+    }
+  ],
+  "created_at": "2026-02-11T06:31:40.654544Z",
+  "updated_at": "2026-02-11T07:55:37.372641Z",
+  "closed_at": "2026-02-11T07:55:37.372641Z",
+  "custom": {
+    "beads_acceptance_criteria": "Warm start path is implemented with correctness checks and fallback rebuild on invalid snapshots.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

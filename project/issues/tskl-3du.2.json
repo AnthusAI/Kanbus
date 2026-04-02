@@ -1,0 +1,33 @@
+{
+  "id": "tskl-3du.2",
+  "title": "Resolve rust/cleartext-logging alerts #28-#35",
+  "description": "Reduce or clean sensitive output in CLI and Snyk sync paths where practical; dismiss only true false positives with explicit rationale.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9445b65e-100f-51c5-94b5-68d6196e2a89",
+      "author": "ryan.porter",
+      "text": "Started. Rust cleartext-logging findings are being triaged: code changes applied to stdout/stderr emission paths; remaining Snyk-sync findings are likely false positives tied to non-secret issue IDs persisted in issue files.",
+      "created_at": "2026-03-06T14:13:38.918661Z"
+    },
+    {
+      "id": "bfebfd59-259e-56db-82ec-2bf7662bb53e",
+      "author": "ryan.porter",
+      "text": "Completed. Applied output-emission hardening in cli/rich_text_signals and dismissed remaining rust cleartext-logging alerts as false positives (public issue IDs, no secrets). Dismissed alerts: #38, #39, #40.",
+      "created_at": "2026-03-06T14:40:28.759109Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:05:10.392987Z",
+  "updated_at": "2026-03-06T14:40:28.791239Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

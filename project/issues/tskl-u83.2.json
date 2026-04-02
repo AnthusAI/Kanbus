@@ -1,0 +1,20 @@
+{
+  "id": "tskl-u83.2",
+  "title": "Highlight unique ID generation vs Beads numbering",
+  "description": "Features page item: Taskulus assigns hash-based unique IDs per issue/type to avoid collisions during concurrent edits, unlike Beads epics that use sequential child numbers.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-u83",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:06:00.885923Z",
+  "updated_at": "2026-02-16T01:07:59.199130Z",
+  "closed_at": "2026-02-16T01:07:59.168295Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

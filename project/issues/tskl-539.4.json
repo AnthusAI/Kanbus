@@ -1,0 +1,107 @@
+{
+  "id": "tskl-539.4",
+  "title": "4. Kanban board UI",
+  "description": "Implement Shadcn UI layout with tabs for Initiatives, Epics, Tasks. Render status columns and issue cards. Drill into a task-level issue to show sub-task board.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-539",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3c4686f1-24a0-5f91-aa3d-d2da50da8bb6",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented kanban UI with tabs for initiatives/epics/tasks, status columns from config, issue cards, and task drill-in to sub-task board.",
+      "created_at": "2026-02-13T07:58:42.286287Z"
+    },
+    {
+      "id": "c417b7ae-5d8a-5f0a-8e48-8d25efe30e78",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted app to avoid fallback config; board renders only after snapshot loads with explicit waiting state.",
+      "created_at": "2026-02-13T08:01:47.378298Z"
+    },
+    {
+      "id": "196be3b6-3665-58b6-a73d-6ccfbcf7b9c9",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted column error to only surface when config is loaded (no pre-snapshot error noise).",
+      "created_at": "2026-02-13T08:02:04.896773Z"
+    },
+    {
+      "id": "64a77b01-3517-5783-8ba9-639168bd2f80",
+      "author": "Ryan Alyn Porter",
+      "text": "Close task detail panel automatically when switching tabs.",
+      "created_at": "2026-02-13T08:03:13.849351Z"
+    },
+    {
+      "id": "d347bce9-6cb5-5c78-ac61-09be98588547",
+      "author": "Ryan Alyn Porter",
+      "text": "Clear task detail panel if selected task disappears on snapshot update.",
+      "created_at": "2026-02-13T08:03:35.547211Z"
+    },
+    {
+      "id": "adecfe32-2e68-58c3-acb9-9d4e80c9b6f5",
+      "author": "Ryan Alyn Porter",
+      "text": "Added empty sub-task copy in task detail panel when no children exist.",
+      "created_at": "2026-02-13T08:03:45.387966Z"
+    },
+    {
+      "id": "afa0f3db-9ef1-5a9f-8fc3-e456e6a6044c",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed App.tsx hook order bug: config/issues now initialized before effects to avoid ReferenceError.",
+      "created_at": "2026-02-13T12:30:10.738463Z"
+    },
+    {
+      "id": "e3e553cc-74ad-5ded-9a54-f1fb1b393587",
+      "author": "Ryan Alyn Porter",
+      "text": "Set default tab to Epics and updated console BDD feature expectations.",
+      "created_at": "2026-02-13T12:33:26.916978Z"
+    },
+    {
+      "id": "e17c75c5-e896-568b-afc8-b2117f4646f0",
+      "author": "Ryan Alyn Porter",
+      "text": "Persisted view mode in localStorage with default to epics and added console BDD scenarios for default/remembered view.",
+      "created_at": "2026-02-13T12:34:10.121549Z"
+    },
+    {
+      "id": "ee9e37da-4f03-59a6-964a-cb094f6eb45a",
+      "author": "Ryan Alyn Porter",
+      "text": "Redesigned console UI to flat style: removed gradients, borders, shadows; enforced P3 spacing and tighter layout per console AGENTS.md.",
+      "created_at": "2026-02-13T12:42:03.925219Z"
+    },
+    {
+      "id": "e2a18bf1-6261-5be2-a87d-eab54838c10f",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed top header block, outer wrapper card, and Live status label for tighter layout.",
+      "created_at": "2026-02-13T12:43:35.437596Z"
+    },
+    {
+      "id": "6cb57b4f-aa9a-5a18-bd71-9f6ba871f3b3",
+      "author": "Ryan Alyn Porter",
+      "text": "Reduced vertical padding for tab selector (shorter tab list and triggers).",
+      "created_at": "2026-02-13T12:52:06.632497Z"
+    },
+    {
+      "id": "20528de0-9ed4-5513-a06e-490e40e5c98a",
+      "author": "Ryan Alyn Porter",
+      "text": "Switched typography to default Shadcn-style Inter stack and updated font import.",
+      "created_at": "2026-02-13T12:52:58.292418Z"
+    },
+    {
+      "id": "574ab9f9-9e2e-502c-94ff-1103279c0e7d",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted issue type accent band to cover the full top portion of cards including rounded corners.",
+      "created_at": "2026-02-13T13:00:38.427022Z"
+    }
+  ],
+  "created_at": "2026-02-13T07:51:40.570739Z",
+  "updated_at": "2026-02-13T08:04:20.531654Z",
+  "closed_at": "2026-02-13T08:04:20.531654Z",
+  "custom": {
+    "beads_acceptance_criteria": "Tabs filter correctly: Initiatives only, Epics only, Tasks include task plus config types. Sub-task view only on task drill-in. Cards show id, title, type, status, priority, assignee.",
+    "beads_close_reason": "Implementation complete; local validation pending.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

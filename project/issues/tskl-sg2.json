@@ -1,0 +1,40 @@
+{
+  "id": "tskl-sg2",
+  "title": "Disallow duplicate issue titles on create",
+  "description": "Prevent tskr create from creating duplicate issues when the title already exists.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5c63f15c-dbc5-59d5-be28-48cb7320e068",
+      "author": "Ryan Alyn Porter",
+      "text": "Clarified: reject duplicate titles within the target scope only (shared vs local); comparison is case-insensitive; duplicates are never allowed.",
+      "created_at": "2026-02-14T02:57:26Z"
+    },
+    {
+      "id": "91d69e4a-1dee-5aa2-8c9b-b1edf2dea599",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting implementation for explicit success output on update/close/delete plus update no-op and duplicate-title checks (shared scope, case-insensitive).",
+      "created_at": "2026-02-14T03:07:20Z"
+    },
+    {
+      "id": "279efbf0-8e13-55b3-b489-277103369ed3",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Gherkin + steps + code changes for explicit success output on update/close/delete, update no-op error, and duplicate-title rejection on update (case-insensitive, shared scope). Pending tests.",
+      "created_at": "2026-02-14T03:09:10Z"
+    }
+  ],
+  "created_at": "2026-02-14T02:52:24.816983Z",
+  "updated_at": "2026-02-16T02:06:21.203558Z",
+  "closed_at": "2026-02-16T02:06:21.195145Z",
+  "custom": {
+    "beads_acceptance_criteria": "- Creating an issue with a title that already exists is rejected and no new issue is written. - Error message clearly states duplicate title and existing issue id. - Behavior enforced in both Python and Rust and covered by shared Gherkin scenarios.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

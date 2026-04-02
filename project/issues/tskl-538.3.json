@@ -1,0 +1,28 @@
+{
+  "id": "tskl-538.3",
+  "title": "Implement dependencies in Rust",
+  "description": "Implement dependencies.rs matching Python logic. Use petgraph or custom graph impl.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-538",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "fe818845-cb3d-5a5d-b36b-142d280eee2d",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Rust dependencies: new dependencies.rs with add/remove/list-ready and cycle detection; wired CLI subcommands tsk dep add/remove and tsk ready. Added rust/tests/dependencies.rs; cargo fmt and cargo test --test dependencies pass.",
+      "created_at": "2026-02-11T13:32:23Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:01.865113Z",
+  "updated_at": "2026-02-11T13:32:29.175057Z",
+  "closed_at": "2026-02-11T13:32:29.175057Z",
+  "custom": {
+    "beads_close_reason": "Rust dependency operations implemented",
+    "beads_owner": "rap@endymion.com"
+  }
+}

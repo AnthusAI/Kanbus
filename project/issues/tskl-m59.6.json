@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.6",
+  "title": "Add settings control commands",
+  "description": "Add CLI commands to control appearance settings.\n\nCommands:\n  kbs console settings mode <light|dark|system>\n  kbs console settings theme <neutral|cool|warm>\n  kbs console settings motion <full|reduced|off>\n  kbs console settings font <sans|serif|mono>\n\nBehavior:\n- Updates appearance settings in localStorage\n- Applies changes to document.documentElement\n- Should match SettingsPanel behavior exactly\n- All settings stored under 'kanbus.console.appearance' key\n\nImplementation:\n- Add SettingsChanged UIControl event with setting type and value\n- Frontend handler calls useAppearance setters\n- Reuse existing appearance hook logic",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:51:24.180416Z",
+  "updated_at": "2026-02-18T13:16:32.591532Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

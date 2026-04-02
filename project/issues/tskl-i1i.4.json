@@ -1,0 +1,27 @@
+{
+  "id": "tskl-i1i.4",
+  "title": "Add tests for validation behavior",
+  "description": "Add/adjust Gherkin scenarios and step definitions for create/update validation: unknown type, invalid parent, invalid status, invalid transition. Ensure both Python and Rust implementations match error messages.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-i1i",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c11a8af2-33b1-5a9b-a971-52b0c997139d",
+      "author": "Ryan Alyn Porter",
+      "text": "Feature: Validation enforcement tests\\n\\nScenario: Create rejects unknown issue type\\nGiven a Kanbus project with default configuration\\nWhen I run \"kanbus create Bad Type --type invalid\"\\nThen the command should fail with exit code 1\\nAnd stderr should contain \"unknown issue type\"\\n\\nScenario: Create rejects invalid parent-child relationships\\nGiven a Kanbus project with default configuration\\nAnd an issue \"kanbus-epic01\" exists of type \"epic\"\\nWhen I run \"kanbus create Bad Parent --type epic --parent kanbus-epic01\"\\nThen the command should fail with exit code 1\\nAnd stderr should contain \"invalid parent-child relationship\"\\n\\nScenario: Update rejects unknown status\\nGiven a Kanbus project with default configuration\\nAnd an issue \"kanbus-test01\" of type \"task\" with status \"open\"\\nWhen I run \"kanbus update kanbus-test01 --status does_not_exist\"\\nThen the command should fail with exit code 1\\nAnd stderr should contain \"unknown status\"\\n\\nScenario: Update rejects invalid transition\\nGiven a Kanbus project with default configuration\\nAnd an issue \"kanbus-test01\" of type \"task\" with status \"open\"\\nWhen I run \"kanbus update kanbus-test01 --status blocked\"\\nThen the command should fail with exit code 1\\nAnd stderr should contain \"invalid transition\"\\n\\nScenario: Bypass validation with --no-validate\\nGiven a Kanbus project with default configuration\\nAnd an issue \"kanbus-epic01\" exists of type \"epic\"\\nWhen I run \"kanbus create Bad Parent --type epic --parent kanbus-epic01 --no-validate\"\\nThen the command should succeed",
+      "created_at": "2026-02-14T23:43:15Z"
+    }
+  ],
+  "created_at": "2026-02-14T23:39:40.969248Z",
+  "updated_at": "2026-02-16T01:07:59.192142Z",
+  "closed_at": "2026-02-16T01:07:59.167747Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

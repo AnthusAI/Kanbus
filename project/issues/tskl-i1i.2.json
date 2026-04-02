@@ -1,0 +1,20 @@
+{
+  "id": "tskl-i1i.2",
+  "title": "Add create-time validation (Python + Rust)",
+  "description": "On create: reject unknown issue types, invalid parent-child relationships, and invalid initial status (must exist in workflow). Errors must be hard failures, not warnings.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-i1i",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T23:39:30.144557Z",
+  "updated_at": "2026-02-16T01:07:59.191335Z",
+  "closed_at": "2026-02-16T01:07:59.167732Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

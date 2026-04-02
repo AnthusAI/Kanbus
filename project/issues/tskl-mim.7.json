@@ -1,0 +1,29 @@
+{
+  "id": "tskl-mim.7",
+  "title": "Update tsk init to create project/ directories",
+  "description": "Replace current bd init flow with creation of project/ and optional project-local/ plus .gitignore entry. No config, database, or daemon artifacts.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-mim",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5037f5fe-bf2f-5ba7-a01b-08387eeb1bad",
+      "author": "Ryan Alyn Porter",
+      "text": "tsk init now creates project/ and optional project-local/ (python/src/taskulus/file_io.py, rust/src/file_io.rs). Verified by features/initialization/project_initialization.feature in behave and cucumber.",
+      "created_at": "2026-02-11T20:09:39Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:04:56.568334Z",
+  "updated_at": "2026-02-11T20:09:42.830710Z",
+  "closed_at": "2026-02-11T20:09:42.830710Z",
+  "custom": {
+    "beads_acceptance_criteria": "tsk init creates project/; optionally creates project-local/ and adds .gitignore entry; no .beads or daemon artifacts created.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "tskl-55e",
+  "title": "Filter UI Redesign: Right Sidebar, Focus Pill, and Type Filter Controls",
+  "description": "Redesign the filter and settings UI around a shared animated right-sidebar component that pushes the kanban board narrower rather than overlaying it. Consolidate and improve filter controls, add a focus pill, introduce configuration options for the type filter, and move type-hierarchy filtering into the sidebar.\n\n## Context\n\nThe current UI has three separate panel mechanisms: the filter toggle button (which only clears focus), the FolderOpen project filter popup, and the settings slide-out panel. These use inconsistent interaction patterns. The new design unifies all slide-out panels behind a single RightSidebar component that matches the kanban board flat visual style and pushes the board left rather than obscuring it with an overlay.\n\n## Scope\n\n### 1. Shared RightSidebar Component\nA new animated component used by both the filter panel and the settings panel. When open, it appears to the right of the kanban board and the board animates narrower to accommodate it - same Z-level, no overlay, same flat card styling as the board columns.\n\n### 2. Filter Panel (replaces FolderOpen + Filter toggle)\n- The FolderOpen button and its popup are removed entirely.\n- The existing filter toggle button is repurposed: its icon becomes the trigger that opens the filter right-sidebar; the toggle-to-clear-focus behavior is removed and focus is cleared via the focus pill instead.\n- The filter sidebar contains from top to bottom: focus pill (when a focus is active), project checkboxes, type hierarchy filter (new section), scope/source checkboxes.\n\n### 3. Settings Panel\nMigrated to use the same RightSidebar component. Existing settings content (mode, theme, motion, typeface) is unchanged.\n\n### 4. Issue Type Filter Behavior Change (toolbar AnimatedSelector)\nThe selector gains a deselected/none state: clicking the currently-selected option deselects it so all types are shown. Clicking any option re-activates that filter.\n\n### 5. Type Filter Configuration Options\nTwo new settings: Show Initiatives in type filter (default on) and Show type filter in toolbar (default on). The toolbar visibility setting does NOT affect the sidebar type hierarchy section.\n\n### 6. Type Hierarchy Section in Filter Sidebar\nA new section in the filter right-sidebar between Projects and Scope that lets users filter by issue type independently of the toolbar selector.",
+  "type": "epic",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "901edf0a-5496-5b8b-a7f1-98d1ab925eb2",
+      "author": "unknown",
+      "text": "Implemented right-sidebar filter/settings push UI, type=all handling, and motion debug mode; work is staged but not merged/deployed yet. CI currently failing on console UI and rich-text signal scenarios; fixing next.",
+      "created_at": "2026-02-23T00:57:54.466339Z"
+    }
+  ],
+  "created_at": "2026-02-21T20:47:38.729221Z",
+  "updated_at": "2026-02-23T05:04:33.149161Z",
+  "closed_at": "2026-02-23T05:04:33.149161Z",
+  "custom": {
+    "beads_close_reason": "Epic complete.",
+    "beads_owner": "ryan.porter"
+  }
+}

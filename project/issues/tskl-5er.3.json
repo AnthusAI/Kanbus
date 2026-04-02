@@ -1,0 +1,34 @@
+{
+  "id": "tskl-5er.3",
+  "title": "Implement queries in Rust",
+  "description": "Implement queries.rs matching Python. Consider regex crate for search.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-5er",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "60277cf1-5f6b-5faf-8eea-2599975ebd6b",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Rust query filters: added queries module, wired list command filters/search/sort, added cucumber query steps, and added unit tests. Tests: cargo test --manifest-path rust/Cargo.toml --test queries, cargo fmt --manifest-path rust/Cargo.toml.",
+      "created_at": "2026-02-11T14:01:33Z"
+    },
+    {
+      "id": "92573ecb-5e90-57db-8d64-b4a811ef70d8",
+      "author": "Ryan Alyn Porter",
+      "text": "Resolved rust cucumber step binding for query steps by switching to regex-based steps and adding parity placeholder steps. Removed unused maintenance step helpers to avoid warnings. Updated spec parity checker to read expr-based rust steps (kept), and adjusted Python query priority step to parse string. Tests: cargo fmt --manifest-path rust/Cargo.toml, cargo test --manifest-path rust/Cargo.toml --test cucumber, python tools/check_spec_parity.py.",
+      "created_at": "2026-02-11T14:13:09Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:02.397766Z",
+  "updated_at": "2026-02-11T14:24:41.046758Z",
+  "closed_at": "2026-02-11T14:24:41.046758Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

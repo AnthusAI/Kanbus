@@ -1,0 +1,20 @@
+{
+  "id": "tskl-rbi.1",
+  "title": "Design release migration for Kanbus CI/release topology",
+  "description": "Map current release-please + release.yml behavior and define migration to reusable semantic-release workflow with CI gating and release event compatibility.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "derek.norrbom",
+  "parent": "tskl-rbi",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-24T21:52:12.531600Z",
+  "updated_at": "2026-03-24T21:52:17.089069Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

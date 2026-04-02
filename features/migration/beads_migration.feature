@@ -35,6 +35,13 @@ Feature: Migrate from Beads
     Then the command should fail with exit code 1
     And stderr should contain "already initialized"
 
+  Scenario: Migration can import into an existing project
+    Given a git repository with a .beads issues database
+    And a Kanbus project already exists
+    When I run "kanbus migrate --into-existing"
+    Then the command should succeed
+    And all Beads issues should be converted to Kanbus issues
+
   Scenario: Migration ignores blank lines
     Given a git repository with a .beads issues database containing blank lines
     When I run "kanbus migrate"

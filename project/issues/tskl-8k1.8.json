@@ -1,0 +1,56 @@
+{
+  "id": "tskl-8k1.8",
+  "title": "UX and documentation updates",
+  "description": "Update README and CLI docs to explain just-in-time daemon behavior, intentional fallback semantics, and user troubleshooting.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-8k1",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-8k1.1",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-8k1.7",
+      "type": "blocks"
+    }
+  ],
+  "comments": [
+    {
+      "id": "bd397e03-173c-5bf6-803e-0840e5321d45",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting UX/docs updates for JIT daemon behavior, fallback semantics, and operational commands.",
+      "created_at": "2026-02-11T08:01:03Z"
+    },
+    {
+      "id": "f507586b-8746-52bb-a221-3cd04c5243b2",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated README, CLI reference, and troubleshooting docs with daemon behavior, commands, and fallback guidance.",
+      "created_at": "2026-02-11T08:01:47Z"
+    },
+    {
+      "id": "3183c1f9-467a-5e12-a686-48ef82e4cac4",
+      "author": "Ryan Alyn Porter",
+      "text": "Completed UX/docs updates for daemon startup, fallback, and operational commands. Tests not run (doc-only change).",
+      "created_at": "2026-02-11T08:01:58Z"
+    },
+    {
+      "id": "cde86d65-af00-5c19-acf0-abfec88b06e4",
+      "author": "Ryan Alyn Porter",
+      "text": "Commit: d54fd0b. Tests not run (doc-only change).",
+      "created_at": "2026-02-11T08:03:04Z"
+    }
+  ],
+  "created_at": "2026-02-11T06:31:41.032199Z",
+  "updated_at": "2026-02-11T08:01:52.507645Z",
+  "closed_at": "2026-02-11T08:01:52.507645Z",
+  "custom": {
+    "beads_acceptance_criteria": "User-facing docs accurately describe startup behavior, fallback path, and operational commands.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

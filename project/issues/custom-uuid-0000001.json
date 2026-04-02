@@ -1,0 +1,20 @@
+{
+  "id": "custom-uuid-0000001",
+  "title": "Nonstandard ID trial",
+  "description": "Test nonstandard ID shape",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "tester",
+  "creator": "tester",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T03:47:49.002704Z",
+  "updated_at": "2026-02-16T01:07:59.176981Z",
+  "closed_at": "2026-02-16T01:07:59.165785Z",
+  "custom": {
+    "beads_owner": "tester"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.3.4",
+  "title": "Implement overlay GC command, hook installer, and gitignore update",
+  "description": "## Scope\n- Add overlay gc CLI command and hook installer.\n- Install git hooks for post-merge and post-checkout (and post-rewrite if needed).\n- Update .gitignore to ignore project/.overlay.\n\n## Definition of Done\n- overlay gc command available in both runtimes and hooks install cleanly.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:05:33.911033Z",
+  "updated_at": "2026-03-10T03:21:43.985071Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

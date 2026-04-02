@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.2.3",
+  "title": "MQTT autostart uses Mosquitto and broker.json",
+  "description": "## Intent\nAs a developer, I want MQTT to autostart Mosquitto locally when broker auto is enabled so I do not manage a broker manually.\n\n## Gherkin\nFeature: MQTT autostart\n  Scenario: Autostart mosquitto when broker auto\n    Given realtime transport is \"mqtt\" and broker is \"auto\"\n    And mosquitto is installed\n    When the gossip client starts\n    Then it launches mosquitto bound to 127.0.0.1\n    And it writes broker.json with endpoint and pid\n\n## Definition of Done\n- MQTT client can autostart Mosquitto and write broker.json metadata.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:04:59.459158Z",
+  "updated_at": "2026-03-10T03:24:44.339286Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

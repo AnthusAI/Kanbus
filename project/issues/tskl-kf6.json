@@ -1,0 +1,46 @@
+{
+  "id": "tskl-kf6",
+  "title": "Add CI matrix to build and publish Rust CLI binaries",
+  "description": "Create GitHub Actions workflow to build Rust CLI binaries for major targets (linux x86_64, macOS arm64/x86_64, windows x86_64). Attach artifacts to releases or publish as workflow artifacts. Ensure release pipeline includes Rust binaries alongside PyPI release.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6c1d7c7d-832f-585b-8927-9f08d8543e94",
+      "author": "Ryan Alyn Porter",
+      "text": "Added release workflow job to build and upload Rust CLI binaries for linux, macOS (x86_64/arm64), and windows. Uses semantic-release tag to attach assets to GitHub release once PyPI publish succeeds.",
+      "created_at": "2026-02-12T07:09:15Z"
+    },
+    {
+      "id": "409ceafe-4a34-54c6-837d-d699cf95dd51",
+      "author": "Ryan Alyn Porter",
+      "text": "Pushed release workflow updates and footer change. Waiting for CI/release runs to confirm binaries attach correctly; will close once verified.",
+      "created_at": "2026-02-12T07:10:16Z"
+    },
+    {
+      "id": "d38eb2fd-14a0-5ceb-ad10-411e5ef411ac",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed Windows build failure by gating daemon Unix socket code behind cfg(unix) and returning a clear 'daemon not supported on this platform' error on non-unix targets.",
+      "created_at": "2026-02-12T07:36:44Z"
+    },
+    {
+      "id": "2e8a7b98-4a67-5075-87af-70e90c939a42",
+      "author": "Ryan Alyn Porter",
+      "text": "Refined daemon unix gating: split send_request/spawn_daemon and run_daemon into cfg(unix)/cfg(not(unix)) implementations so Windows builds skip UnixStream references.",
+      "created_at": "2026-02-12T07:45:13Z"
+    }
+  ],
+  "created_at": "2026-02-12T07:08:09.444503Z",
+  "updated_at": "2026-02-16T01:07:59.192580Z",
+  "closed_at": "2026-02-16T01:07:59.167757Z",
+  "custom": {
+    "beads_acceptance_criteria": "GitHub Actions builds Rust CLI binaries for linux x86_64, macOS arm64/x86_64, windows x86_64. Artifacts are attached to releases or uploaded as workflow artifacts for each release. Workflow documented and wired into release pipeline.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

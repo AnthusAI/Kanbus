@@ -1,0 +1,21 @@
+{
+  "id": "tskl-aa9",
+  "title": "Sync PyPI README with repo README",
+  "description": "Update python/README.md to match root README so PyPI description is full.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T13:19:35.310147Z",
+  "updated_at": "2026-02-12T13:35:34.548498Z",
+  "closed_at": "2026-02-12T13:35:34.548501Z",
+  "custom": {
+    "beads_notes": "Copying root README.md into python/README.md for PyPI description.\nCopied root README.md to python/README.md so PyPI long description matches repo README; published 0.3.0 confirmed in PyPI JSON with description starting '# Taskulus'.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

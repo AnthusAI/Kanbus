@@ -1,0 +1,27 @@
+{
+  "id": "tskl-l82.1",
+  "title": "Console server tracks canonical UI state across all connected clients",
+  "description": "Given the console server is running\nAnd one or more browser clients are connected via SSE\n\nWhen a CLI command changes the focused issue, view mode, or search query\nThen the server constructs a URL route encoding the full desired UI state\nAnd pushes that route to all connected clients via SSE\nAnd each client navigates to the URL and renders the corresponding state\n\nThe server also caches the last-pushed route in a ConsoleUiState struct so CLI query commands can read it.\n\nAcceptance criteria:\n- Server holds a ConsoleUiState struct containing: focused_issue_id, view_mode, search_query\n- On receiving a state-changing notification (IssueFocused, ClearFocus, SetViewMode, SetSearch), the server constructs a URL route and pushes it via SSE\n- The frontend navigates to the pushed URL -- this is the only mechanism for server-to-client state changes\n- Two browser tabs opened simultaneously both navigate to the same URL after kbs console focus <id>\n- No backwards-compatibility with the old fire-and-forget notification model",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-l82",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "560f5c39-32c7-5387-9d84-a7cded16912e",
+      "author": "ryan.porter",
+      "text": "Implemented: ConsoleUiState struct (focused_issue_id, view_mode, search_query) added to AppState. update_ui_state_from_event() updates state on IssueFocused, ClearFocus, SetViewMode, SetSearch notifications. Both the Unix socket listener and HTTP notification endpoint update state before broadcasting.",
+      "created_at": "2026-02-20T04:17:35.197023Z"
+    }
+  ],
+  "created_at": "2026-02-20T03:15:10.413271Z",
+  "updated_at": "2026-02-20T04:17:35.197023Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

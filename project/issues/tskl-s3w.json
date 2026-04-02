@@ -1,0 +1,34 @@
+{
+  "id": "tskl-s3w",
+  "title": "Define .taskulus.yml single-file configuration behaviors",
+  "description": "Specify behaviors for the new single configuration file .taskulus.yml located at repository root. No fallbacks or alternate filenames. Include project directory key (default project/) and required structure for hierarchy/workflows/priorities. Update Gherkin specs accordingly.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [
+    "configuration"
+  ],
+  "dependencies": [
+    {
+      "target": "tskl-oju",
+      "type": "blocks"
+    }
+  ],
+  "comments": [
+    {
+      "id": "75159995-fa12-55d4-96d0-9353ada10f88",
+      "author": "Ryan Alyn Porter",
+      "text": "Progress 2026-02-13: Implemented single-file .taskulus.yml configuration across specs and loaders (Python+Rust). Updated initialization to create .taskulus.yml with default config, loader now requires file (no fallback), project_directory/external_projects supported. Updated Behave/Cucumber steps accordingly. Ran cargo fmt (rust/Cargo.toml) and python3 -m black on python/src and python/features/steps. Docs and broader test runs still pending.",
+      "created_at": "2026-02-13T01:54:32Z"
+    }
+  ],
+  "created_at": "2026-02-13T01:41:40.301339Z",
+  "updated_at": "2026-02-16T01:07:59.197679Z",
+  "closed_at": "2026-02-16T01:07:59.168274Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

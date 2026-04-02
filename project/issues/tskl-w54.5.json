@@ -1,0 +1,20 @@
+{
+  "id": "tskl-w54.5",
+  "title": "Add Docker-based integration test for prebuilt binaries",
+  "description": "CI job: spin up clean Linux container, download prebuilt kanbusr + console server artifacts, run smoke checks (version, start server, hit /api/config and root).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-w54",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T16:06:09.041179Z",
+  "updated_at": "2026-02-15T21:44:29.606296Z",
+  "closed_at": "2026-02-16T01:07:59.168555Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

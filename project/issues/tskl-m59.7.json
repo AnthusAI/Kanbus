@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.7",
+  "title": "Add settings panel open/close commands",
+  "description": "Add CLI commands to open or close the settings panel.\n\nCommands:\n  kbs console settings open    - Open settings panel\n  kbs console settings close   - Close settings panel\n  kbs console settings toggle  - Toggle settings panel\n\nBehavior:\n- Opens/closes settings drawer from right side\n- Should match existing settings button behavior\n- GSAP animations should still apply\n- Clicking backdrop should still close\n\nImplementation:\n- Add SettingsPanelToggled UIControl event (with boolean)\n- Frontend handler updates settingsOpen state\n- Should respect motion preferences for animations",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:51:29.696354Z",
+  "updated_at": "2026-02-18T13:16:32.639556Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

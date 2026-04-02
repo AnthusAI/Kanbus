@@ -1,0 +1,20 @@
+{
+  "id": "tskl-e7j.4",
+  "title": "Add real-time notification on issue creation",
+  "description": "Hook create_issue() and create_beads_issue() to publish NotificationEvent::IssueCreated. Ensure frontend receives and displays new issues immediately (<100ms latency).\n\n## Implementation Details\n\n### Files to Modify\n- rust/src/issue_creation.rs (after write_issue_to_file() succeeds, ~line 140)\n- rust/src/beads_write.rs::create_beads_issue() (after append_record(), line 19)\n\n### Pattern\n```rust\n// After successful creation\npublish_notification(NotificationEvent::IssueCreated {\n    issue_id: issue.id.clone(),\n    issue_data: issue.clone(),\n})?;\n```\n\n### Testing\n1. Start console server: kbs console snapshot --serve\n2. Open browser to http://localhost:5174\n3. In terminal: kbs create \"Test issue\" --type task\n4. Verify: Issue appears on board within 100ms\n\n### Dependencies\nRequires notification_events.rs and notification_publisher.rs from parent epic infrastructure.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-e7j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T07:10:04.854431Z",
+  "updated_at": "2026-02-18T07:23:39.776828Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

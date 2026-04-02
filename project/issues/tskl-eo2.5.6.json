@@ -1,0 +1,39 @@
+{
+  "id": "tskl-eo2.5.6",
+  "title": "Cloud ops guardrails: metrics, alarms, and runbook",
+  "description": "## Intent\nProvide production guardrails and concise operational guidance for cloud rollout.\n\n## Scope\n- Metrics and alarms for sync, auth, Lambda, and queue health\n- Runbook for deploy, smoke check, rollback, and incident triage\n\n## Definition of Done\n- Alarms exist for sync failures, DLQ depth, Lambda errors, and auth failures.\n- Runbook commands are validated and minimal.\n- Operators can execute smoke and rollback paths without ad hoc knowledge.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f566ad84-a4b5-5519-b215-b98f77fff26e",
+      "author": "ryan.porter",
+      "text": "Progress: Started ops guardrails implementation with additional CloudWatch alarms and runbook draft.\nEvidence: Added queue age/lambda error/API 4xx alarms in CDK; added docs/CLOUD_OPS_RUNBOOK.md; cloud unittest suite now includes ops alarm assertions.\nNext: run deploy-backed smoke-check/rollback command validation once Docker deploy blocker is cleared.\nRisk/Blocker: validation against live deployed stack blocked by tskl-eo2.5.1 Docker daemon dependency.",
+      "created_at": "2026-03-07T06:44:16.442262Z"
+    },
+    {
+      "id": "0c6f54ec-aa67-5b95-b097-c4459825d42f",
+      "author": "ryan.porter",
+      "text": "Progress: Guardrail implementation validated in local CI path.\nEvidence: Added infra/cloud/tests/test_ops_guardrails.py; cloud unittest now passes 7 tests including alarm assertions; cdk synth passes.\nNext: verify alarm notification routing and runbook commands against deployed stack, then close task.\nRisk/Blocker: deploy-backed validation blocked by tskl-eo2.5.1 Docker daemon dependency.",
+      "created_at": "2026-03-07T06:45:17.833987Z"
+    },
+    {
+      "id": "7ab840a5-c342-5436-9928-f67699b8e1a1",
+      "author": "ryan.porter",
+      "text": "Progress: Ops guardrails task completed with deployed alarms and runbook artifacts.\nEvidence: CloudFormation stack includes DLQ, queue-age, lambda-error, and API 4xx alarms; docs/CLOUD_OPS_RUNBOOK.md and alarm template tests are in repo.\nNext: none for this task.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T07:20:09.962135Z"
+    }
+  ],
+  "created_at": "2026-03-07T06:05:00.975309Z",
+  "updated_at": "2026-03-07T07:20:09.962135Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

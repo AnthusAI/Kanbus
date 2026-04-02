@@ -1,0 +1,32 @@
+{
+  "id": "tskl-3et",
+  "title": "Metrics View",
+  "description": "Add a metrics view to the Kanbus console that the user can switch to from the kanban board using a view-mode toggle selector in the toolbar. The metrics view slides in from the right and pushes the kanban board off to the left — symmetrically to how the filter/settings right sidebars push the board in the other direction.\n\n## Context and Dependency\n\nThis epic depends on tskl-55e (Filter UI Redesign) because the metrics panel uses the same flat, push-layout philosophy introduced there: no overlays, same Z-level as the board, same card styling and color as the board columns, and the same rounded-corner flat aesthetic. Implement tskl-55e first.\n\n## View Toggle\n\nA new AnimatedSelector in the toolbar (or replacing the existing one) lets the user switch between two modes:\n- Board view (left option, board/grid icon)\n- Metrics view (right option, chart/bar icon)\n\nClicking Board slides the kanban board back in from the left and the metrics panel out to the right. Clicking Metrics slides the metrics panel in from the right and pushes the kanban board out to the left.\n\n## Metrics Panel Layout\n\nThe panel is wide enough to show three conceptual columns when space allows:\n\n**Left column — Summary counts**\n- A large prominent number at the top: total issue count for the current filtered view\n- Below it: breakdown rows (count per status, count per project if virtual projects exist, count by scope/source if local issues exist)\n\n**Right two columns — Stacked bar chart**\n- A landscape-oriented stacked bar chart occupying roughly two-thirds of the panel width\n- Bars represent issues grouped by a chosen dimension (e.g. status, type, project)\n- Segments within each bar are colored by status category: grey for To Do, blue for In Progress, green for Done (matching the category colors defined in .kanbus.yml)\n- A chart visualization library must be selected as part of this work — requirements: flexible, styleable to match the application design system, supports stacked bar charts, works with React\n\n## Chart Library Selection\n\nA discovery/design task should be created to evaluate and select the chart library before implementation begins. Requirements: React-compatible, fully styleable (no opinionated themes that fight the design system), supports stacked bar charts, actively maintained.\n\n## Color Mapping\n\nStatus category colors from .kanbus.yml (grey → gray Radix, blue → blue Radix, green → green Radix) are used for chart segment colors, resolved through the existing issue-colors.ts color alias system. If a status has no category color, a neutral fallback is used.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-55e",
+      "type": "depends-on"
+    }
+  ],
+  "comments": [
+    {
+      "id": "23bc9b2d-32fd-5600-aafa-f4193381e565",
+      "author": "ryan.porter",
+      "text": "Metrics view released. Board/metrics toggle, summary layout, chart selection, and stacked chart are live; closing epic and sub-issues.",
+      "created_at": "2026-02-25T01:35:51.611204Z"
+    }
+  ],
+  "created_at": "2026-02-21T21:00:17.428958Z",
+  "updated_at": "2026-02-25T01:35:51.611204Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

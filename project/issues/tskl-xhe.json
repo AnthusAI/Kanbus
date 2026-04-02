@@ -1,0 +1,33 @@
+{
+  "id": "tskl-xhe",
+  "title": "Align test suite to shared BDD only",
+  "description": "Remove any Rust unit tests and pytest-style tests so only shared Gherkin specs drive behavior for both runtimes.",
+  "type": "task",
+  "status": "done",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d7ddf006-9aa7-5614-a64c-02c07fe73a11",
+      "author": "ryan",
+      "text": "Starting cleanup: will remove Rust #[cfg(test)] unit tests and any pytest tests to keep only shared Gherkin specs.",
+      "created_at": "2026-02-21T07:23:27.804745Z"
+    },
+    {
+      "id": "a4455d25-90b5-5185-b857-7b3d393079d1",
+      "author": "ryan",
+      "text": "Removed all Rust #[cfg(test)] unit test modules and deleted pytest-style tests so only shared Gherkin specs remain.",
+      "created_at": "2026-02-21T07:28:23.043117Z"
+    }
+  ],
+  "created_at": "2026-02-21T07:23:18.224371Z",
+  "updated_at": "2026-02-21T07:28:27.482889Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan"
+  }
+}

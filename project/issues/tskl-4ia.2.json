@@ -1,0 +1,20 @@
+{
+  "id": "tskl-4ia.2",
+  "title": "story CLI write commands work correctly when virtual projects are configured",
+  "description": "load_project_directory() now derives the primary project directory from the config file rather than scanning all project directories. This fixes create, update, delete, list, and all other operations that failed with 'multiple projects found' when virtual projects were configured. Implemented in both Python and Rust.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-4ia",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T18:52:53.726017Z",
+  "updated_at": "2026-02-21T18:53:03.589274Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

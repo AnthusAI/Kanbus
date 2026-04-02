@@ -1,0 +1,33 @@
+{
+  "id": "tskl-3du.4",
+  "title": "Harden docs workflow checkout trust model for alert #19",
+  "description": "Constrain docs workflow_run execution and checkout behavior to trusted push events on this repository.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "70383a05-993e-5914-a35b-ab67262be65f",
+      "author": "ryan.porter",
+      "text": "Started. Applied trust hardening in docs workflow_run conditions and removed checkout of workflow_run head SHA in favor of fixed main ref.",
+      "created_at": "2026-03-06T14:09:35.429561Z"
+    },
+    {
+      "id": "78ea5755-e71b-5bc7-b126-cb61c6830894",
+      "author": "ryan.porter",
+      "text": "Completed. Docs workflow now runs only for trusted push-based CI runs from this repository and checks out refs/heads/main instead of workflow_run head SHA.",
+      "created_at": "2026-03-06T14:13:26.422489Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:05:10.423679Z",
+  "updated_at": "2026-03-06T14:13:26.455373Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "tskl-eyu.5",
+  "title": "Implement wiki in Rust",
+  "description": "Implement wiki.rs with MiniJinja. Ensure templates render identically to Python (byte-for-byte comparison test).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-eyu",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "68f2bee3-b909-528b-8d2d-7fb043525c95",
+      "author": "Ryan Alyn Porter",
+      "text": "Rust wiki rendering now aligned with shared specs; query handling updated for type filter coverage, specs passing with 100% Rust coverage. Ran: python3 tools/run_specs.py --format text.",
+      "created_at": "2026-02-12T02:53:35Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:03.660729Z",
+  "updated_at": "2026-02-12T02:53:42.778639Z",
+  "closed_at": "2026-02-12T02:53:42.778639Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

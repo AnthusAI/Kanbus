@@ -1,0 +1,29 @@
+{
+  "id": "tskl-7ah.8",
+  "title": "Scope-aware list/ready output for multiple projects",
+  "description": "When multiple project/ directories are discovered, list/ready should group or prefix with project path to disambiguate.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-7ah",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "bd221890-07d2-57c0-b09e-fc70cb387c4d",
+      "author": "Ryan Alyn Porter",
+      "text": "Scope-aware list/ready output implemented in python/src/taskulus/issue_listing.py and rust/src/issue_listing.rs by tagging issues with project_path for multi-project outputs.",
+      "created_at": "2026-02-12T00:38:11Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:33:49.778759Z",
+  "updated_at": "2026-02-12T00:38:16.671850Z",
+  "closed_at": "2026-02-12T00:38:16.671850Z",
+  "custom": {
+    "beads_acceptance_criteria": "list/ready output disambiguates multi-project results.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

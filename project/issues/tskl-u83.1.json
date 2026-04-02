@@ -1,0 +1,20 @@
+{
+  "id": "tskl-u83.1",
+  "title": "Document colorized CLI output parity",
+  "description": "On features page, note that Taskulus create/show output is consistent and color-aware with porcelain off, unlike Beads which always emits its own formatting without controlled coloring.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-u83",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:05:54.870636Z",
+  "updated_at": "2026-02-16T01:07:59.198730Z",
+  "closed_at": "2026-02-16T01:07:59.168292Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

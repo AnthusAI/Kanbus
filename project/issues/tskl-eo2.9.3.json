@@ -1,0 +1,27 @@
+{
+  "id": "tskl-eo2.9.3",
+  "title": "Host kbsc + realtime consumers validation against Docker mutations",
+  "description": "Confirm Kanban UI and wall-clock consumers receive create/update/comment/close events from Docker-originated mutations in near real time.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.9",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5b5f604e-5721-52a8-860c-1ff07e4e2e37",
+      "author": "ryan.porter",
+      "text": "Progress: Host kbsc consumed Docker-originated MQTT mutations during live run. Evidence: kbsc API returned HTTP 200 for tskl-eo2.9.7 with Docker-authored comment after MQTT mutation sequence. Next: close validation task and attach operator runbook. Risk/Blocker: none.",
+      "created_at": "2026-03-08T12:53:01.450466Z"
+    }
+  ],
+  "created_at": "2026-03-08T12:38:48.269338Z",
+  "updated_at": "2026-03-08T12:53:01.485114Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

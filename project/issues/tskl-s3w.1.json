@@ -1,0 +1,18 @@
+{
+  "id": "tskl-s3w.1",
+  "title": "State change: status → in_progress",
+  "description": "Set status to in_progress\n\nReason: Working on Gherkin specs for .taskulus.yml single-file configuration.",
+  "type": "event",
+  "status": "closed",
+  "priority": 4,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-s3w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T01:41:47.743204Z",
+  "updated_at": "2026-02-16T03:50:45.469113Z",
+  "closed_at": "2026-02-16T03:50:45.457022Z",
+  "custom": {}
+}

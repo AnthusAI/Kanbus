@@ -1,0 +1,25 @@
+{
+  "id": "kbs-4d84bed2-8177-48e2-bef2-805812b3a0cc",
+  "title": "Beads to Kanbus migration",
+  "description": "",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ea142e57-2f7b-4cf3-b18a-114503570291",
+      "author": "derek.norrbom",
+      "text": "Epic completed via commits 01ac79c and 5ac07a1. All child tasks closed.",
+      "created_at": "2026-04-02T21:11:17.621817Z"
+    }
+  ],
+  "created_at": "2026-04-02T21:11:10.816265Z",
+  "updated_at": "2026-04-02T21:11:17.637876Z",
+  "closed_at": "2026-04-02T21:11:17.637876Z",
+  "custom": {}
+}

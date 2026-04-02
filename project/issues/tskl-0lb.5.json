@@ -1,0 +1,30 @@
+{
+  "id": "tskl-0lb.5",
+  "title": "Connect custom domain taskul.us to Amplify",
+  "description": "Add custom domain to Amplify app, configure SSL. Assumes DNS delegated to Route 53.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-0lb",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-0lb.4",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-0lb.6",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-11T04:20:32.010630Z",
+  "updated_at": "2026-02-11T04:50:18.330831Z",
+  "closed_at": "2026-02-11T04:50:18.330831Z",
+  "custom": {
+    "beads_close_reason": "Custom domain taskul.us connected to Amplify. Root only, no www. SSL cert provisioning.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

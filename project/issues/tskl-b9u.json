@@ -1,0 +1,21 @@
+{
+  "id": "tskl-b9u",
+  "title": "kanbusr should auto-detect TTY and disable colors in non-interactive mode",
+  "description": "kanbusr should automatically detect whether stdout is a TTY (terminal) and adjust its output accordingly:\n\nWhen stdout IS a TTY (interactive terminal):\n- Display full ANSI colors for better readability\n- Use rich formatting with colored status indicators, priority levels, etc.\n\nWhen stdout is NOT a TTY (piped, redirected, or captured):\n- Automatically disable all ANSI color codes\n- Output plain text that's safe for parsing, logging, or piping to other commands\n- No need for users to specify --porcelain flag manually\n\nImplementation approach:\n- Use Rust's std::io::IsTerminal trait or atty/is-terminal crate\n- Check isatty(stdout) at startup\n- Set a global or context flag for color output\n- Apply this flag to all formatting code\n\nThis is standard behavior for CLI tools (ls, grep, git, cargo, etc.) and ensures kanbusr plays nicely with scripts, CI/CD pipelines, and tools like Claude Code that capture command output.",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T01:38:19.296863Z",
+  "updated_at": "2026-02-16T01:40:41.501199Z",
+  "closed_at": "2026-02-16T01:41:30.443917Z",
+  "custom": {
+    "beads_issue_type": "feature",
+    "beads_owner": "ryan.porter"
+  }
+}

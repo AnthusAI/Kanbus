@@ -1,0 +1,21 @@
+{
+  "id": "tskl-3ec.6",
+  "title": "Additional poka-yoke quality signals: titles, priority, blocking, duplicates, URLs",
+  "description": "A collection of additional poka-yoke quality signals that catch common content and workflow mistakes at the CLI boundary, beyond the formatting signals covered in other stories. Each is designed around a specific failure mode observed in AI agent usage or common human anti-patterns.\n\n## 1. Non-imperative issue titles (suggestion)\n\nIssue titles should be imperative action statements: \"Add user authentication\" not \"How do we add auth?\" or \"User authentication\". A title phrased as a question indicates the issue is exploratory rather than actionable.\n\nScenario: Suggestion when title is phrased as a question\n\nGiven an agent creates an issue with a title ending in \"?\"\nWhen the CLI creates the issue\nThen a suggestion is printed noting that issue titles are most actionable in imperative form\nAnd an example rewrite is shown (e.g. \"Consider: 'Investigate user authentication options'\")\n\n## 2. Missing description on high-priority issues (warning)\n\nA critical or high priority issue with no description is a risk signal — the urgency is stated but the context is not.\n\nScenario: Warning when a critical or high priority issue has no description\n\nGiven an agent creates an issue with priority 0 (critical) or 1 (high)\nAnd the issue has no description\nWhen the CLI creates the issue\nThen a warning is printed noting that high-priority issues should include a description explaining the urgency and context\n\n## 3. Blocked status transition without a comment (suggestion)\n\nMoving an issue to Blocked without explaining why is an anti-pattern that creates invisible queues.\n\nScenario: Suggestion when an issue is moved to Blocked with no accompanying comment\n\nGiven an agent runs kbs update tskl-xyz --status blocked\nAnd the issue currently has no comment posted in the same CLI invocation\nWhen the CLI updates the status\nThen a suggestion is printed: \"Blocked issues should have a comment explaining the blocker\"\nAnd the hint includes: kbs comment tskl-xyz \"<explain what is blocking this>\"\n\n## 4. Duplicate comment detection (warning)\n\nAgents sometimes post the same comment body twice in rapid succession due to retry logic.\n\nScenario: Warning when the same comment body is posted twice to the same issue\n\nGiven issue tskl-xyz already has a comment with body \"Build is passing\"\nWhen an agent adds a new comment to tskl-xyz with the identical body \"Build is passing\"\nThen the comment IS saved (not blocked)\nBut a warning is printed: \"This comment body is identical to the most recent comment on this issue\"\nAnd the warning includes the ID of the existing comment\n\n## 5. Comment body is only a URL (suggestion)\n\nA comment containing only a URL provides a reference but no context.\n\nScenario: Suggestion when a comment body consists only of a URL\n\nGiven an agent adds a comment to an issue and the body is a bare URL with no surrounding prose\nWhen the CLI adds the comment\nThen a suggestion is printed noting that URL-only comments are hard to parse without context\nAnd the suggestion recommends adding a brief description of what the link refers to\n\n## 6. Title ALL CAPS or all lowercase detection (suggestion)\n\nAgents sometimes produce titles that are all uppercase (shouting) or entirely lowercase (lazy).\n\nScenario: Suggestion when title is all uppercase or all lowercase\n\nGiven an agent creates an issue whose title is entirely uppercase (e.g. \"FIX THE BUILD\")\nOr whose title is entirely lowercase (e.g. \"fix the build please\")\nWhen the CLI creates the issue\nThen a suggestion is printed recommending sentence-case or title-case formatting for the issue title",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3ec",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T13:52:49.078165Z",
+  "updated_at": "2026-02-23T04:52:38.395493Z",
+  "closed_at": "2026-02-23T04:52:38.395493Z",
+  "custom": {
+    "beads_close_reason": "Completed with epic merge.",
+    "beads_owner": "ryan.porter"
+  }
+}

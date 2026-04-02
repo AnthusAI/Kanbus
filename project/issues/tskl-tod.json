@@ -1,0 +1,29 @@
+{
+  "id": "tskl-tod",
+  "title": "Rename Docs nav label to Documentation",
+  "description": "Update site navigation label from 'Docs' to 'Documentation' in header and any related navigation lists.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "34069cb1-fbde-5cc6-9a7c-ee831d70e08b",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated header navigation label to 'Documentation'. Tests not run (site build not executed).",
+      "created_at": "2026-02-12T07:14:36Z"
+    }
+  ],
+  "created_at": "2026-02-12T07:14:18.493065Z",
+  "updated_at": "2026-02-12T07:14:39.747730Z",
+  "closed_at": "2026-02-12T07:14:39.747730Z",
+  "custom": {
+    "beads_acceptance_criteria": "Header navigation shows 'Documentation' instead of 'Docs'. Any other nav references updated to match.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

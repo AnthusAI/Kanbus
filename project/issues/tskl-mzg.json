@@ -1,0 +1,40 @@
+{
+  "id": "tskl-mzg",
+  "title": "Align selected card outline color with hover color",
+  "description": "Selected card outline should use same color as hover state. Identify hover color token and apply to selected outline styling. AC: selected outline matches hover color; no other card colors change.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5f0affb1-bb67-5170-82e3-e90952a1dcd2",
+      "author": "Ryan Alyn Porter",
+      "text": "Set selected card outline color to hover color by changing issue-card-selected box-shadow to var(--card-muted).",
+      "created_at": "2026-02-14T00:20:51Z"
+    },
+    {
+      "id": "8393d9e4-a0cf-5cb4-a6b7-abd3907b910a",
+      "author": "Ryan Alyn Porter",
+      "text": "Lowered card-muted token from notch 7 to 6 across neutral/cool/warm themes in console/src/styles/theme.css.",
+      "created_at": "2026-02-14T00:22:25Z"
+    },
+    {
+      "id": "41d12d74-5d4b-5ec8-974b-17231baa433c",
+      "author": "Ryan Alyn Porter",
+      "text": "Lowered card-muted token from notch 6 to 5 across neutral/cool/warm themes in console/src/styles/theme.css for lighter hover/selected outline.",
+      "created_at": "2026-02-14T00:24:16Z"
+    }
+  ],
+  "created_at": "2026-02-14T00:20:36.874840Z",
+  "updated_at": "2026-02-14T01:02:25.406825Z",
+  "closed_at": "2026-02-14T01:02:25.406828Z",
+  "custom": {
+    "beads_notes": "Closed: selected outline matches hover color via card-muted notch 5.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

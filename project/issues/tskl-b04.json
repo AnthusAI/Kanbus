@@ -1,0 +1,22 @@
+{
+  "id": "tskl-b04",
+  "title": "Add architecture page: spec-driven design",
+  "description": "Create an architecture page for the website explaining spec-driven design: Gherkin as source code, single features/ folder, Rust/Python generated and verified against identical specs. Use Discord message content as seed.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T05:58:37.428030Z",
+  "updated_at": "2026-02-12T06:03:29.477135Z",
+  "closed_at": "2026-02-12T06:03:29.477135Z",
+  "custom": {
+    "beads_close_reason": "Architecture page added to website with nav links; docs-only version removed.",
+    "beads_notes": "Added docs/ARCHITECTURE.md describing spec-driven design and shared features/ source of truth. Updated mkdocs.yml nav to include Architecture page.\nReplaced docs-only architecture writeup with website page at apps/taskul.us/src/pages/architecture.tsx. Added site navigation link in Layout. Removed docs/ARCHITECTURE.md and mkdocs nav entry.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

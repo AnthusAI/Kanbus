@@ -1,0 +1,28 @@
+{
+  "id": "tskl-eyu.6",
+  "title": "Epic 11: Verify wiki parity",
+  "description": "All scenarios pass, example templates render identically. Milestone 3 (M3).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-eyu",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4d7b3130-4bfa-5805-a6f9-6d1eda7069a9",
+      "author": "Ryan Alyn Porter",
+      "text": "Verified shared wiki specs run in both Python and Rust with 100% coverage using tools/run_specs.py --format text.",
+      "created_at": "2026-02-12T02:53:46Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:03.798089Z",
+  "updated_at": "2026-02-12T02:53:51.042912Z",
+  "closed_at": "2026-02-12T02:53:51.042912Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

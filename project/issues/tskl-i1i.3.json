@@ -1,0 +1,20 @@
+{
+  "id": "tskl-i1i.3",
+  "title": "Add update-time validation (Python + Rust)",
+  "description": "On update: reject unknown status values, invalid transitions per workflow, invalid parent changes, and any issue type change to an unknown type (if type updates are supported).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-i1i",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T23:39:35.075950Z",
+  "updated_at": "2026-02-16T01:07:59.191743Z",
+  "closed_at": "2026-02-16T01:07:59.167735Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

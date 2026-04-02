@@ -1,0 +1,20 @@
+{
+  "id": "tskl-u83.3",
+  "title": "Feature: shared datastore with project keys",
+  "description": "Document that Taskulus can point multiple projects to a shared data store while keeping project_key per issue to avoid collisions and filter ownership.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-u83",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:33:17.623361Z",
+  "updated_at": "2026-02-16T01:07:59.199441Z",
+  "closed_at": "2026-02-16T01:07:59.168298Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

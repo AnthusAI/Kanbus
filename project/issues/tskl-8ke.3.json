@@ -1,0 +1,28 @@
+{
+  "id": "tskl-8ke.3",
+  "title": "Implement tsk stats in Python",
+  "description": "Implement stats: aggregate by type, status, priority. Display project overview.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-8ke",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9b57f867-6253-5574-a245-a06ff2d314a9",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Python stats command in maintenance module, wired tsk stats CLI output, and added tests for stats counts and CLI output. Tests: python -m pytest python/tests/test_maintenance.py python/tests/test_cli.py, black python/src/taskulus/maintenance.py python/src/taskulus/cli.py python/tests/test_maintenance.py python/tests/test_cli.py, ruff check python/src/taskulus/maintenance.py python/src/taskulus/cli.py python/tests/test_maintenance.py python/tests/test_cli.py.",
+      "created_at": "2026-02-11T14:19:53Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:04.279010Z",
+  "updated_at": "2026-02-11T14:19:56.874297Z",
+  "closed_at": "2026-02-11T14:19:56.874297Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

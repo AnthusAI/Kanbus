@@ -1,0 +1,20 @@
+{
+  "id": "tskl-91i",
+  "title": "Align PyPI and Crates.io releases",
+  "description": "Restore a single synchronized version across PyPI and Crates.io so semantic-release can publish both.\\n\\nDefinition of Done:\\n- Both registries publish the same version number.\\n- Semantic-release runs end-to-end without manual version edits.\\n- Release notes reflect the synchronized release.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-20T12:30:50.635040Z",
+  "updated_at": "2026-02-21T06:09:40.180286Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

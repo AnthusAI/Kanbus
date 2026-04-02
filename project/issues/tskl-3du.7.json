@@ -1,0 +1,33 @@
+{
+  "id": "tskl-3du.7",
+  "title": "Fix JS http-to-file-access alert #27 in tests",
+  "description": "Add safe path-segment validation in metrics step path construction; dismiss only if still non-exploitable after hardening.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "93c62df8-76f2-5d7d-8450-4dae801bc3a7",
+      "author": "ryan.porter",
+      "text": "Started. Adding safe path-segment and source validation in metrics test steps before constructing filesystem paths.",
+      "created_at": "2026-03-06T14:09:35.461585Z"
+    },
+    {
+      "id": "0fcde785-834d-50a2-b745-e3dbb750472c",
+      "author": "ryan.porter",
+      "text": "Completed. Added safe path-segment and source validation in metrics step definitions before constructing filesystem paths.",
+      "created_at": "2026-03-06T14:13:26.603278Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:05:10.468712Z",
+  "updated_at": "2026-03-06T14:13:26.634312Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

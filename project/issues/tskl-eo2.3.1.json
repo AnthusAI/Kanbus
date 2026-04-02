@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.3.1",
+  "title": "Overlay merges override base with tombstones and snapshots",
+  "description": "## Intent\nAs a console user, I want overlay data to override base reads when newer so I can see remote changes instantly.\n\n## Gherkin\nFeature: Overlay merge\n  Scenario: Overlay overrides base\n    Given a base issue \"kbs-123\" updated_at \"2026-03-01T00:00:00Z\"\n    And an overlay issue \"kbs-123\" with overlay_ts \"2026-03-02T00:00:00Z\"\n    When I resolve issue \"kbs-123\"\n    Then the overlay issue is returned\n\n  Scenario: Tombstone hides issue\n    Given a base issue \"kbs-123\" updated_at \"2026-03-01T00:00:00Z\"\n    And a tombstone for \"kbs-123\" with ts \"2026-03-02T00:00:00Z\"\n    When I resolve issue \"kbs-123\"\n    Then the issue is treated as deleted\n\n  Scenario: Console snapshot uses overlay\n    Given the console snapshot is generated\n    And an overlay issue \"kbs-123\" is newer than base\n    When I request the snapshot issues\n    Then the issue data reflects the overlay version\n\n## Definition of Done\n- Overlay merge rules implemented in both runtimes and applied to list/show/snapshot paths.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:05:17.601257Z",
+  "updated_at": "2026-03-10T03:21:43.790466Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

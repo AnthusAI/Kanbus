@@ -1,0 +1,65 @@
+{
+  "id": "tskl-eo2.10",
+  "title": "Live MQTT demo issue 130506",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [
+    "live-mqtt-demo"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "badf09f0-4e79-53e0-888a-90fa97e36b5d",
+      "author": "ryan.porter",
+      "text": "live-demo event 3",
+      "created_at": "2026-03-08T13:07:52.650142Z"
+    },
+    {
+      "id": "56961585-0745-5415-ba2c-062b8d765beb",
+      "author": "ryan.porter",
+      "text": "live-demo event 4",
+      "created_at": "2026-03-08T13:09:13.117123Z"
+    },
+    {
+      "id": "10ca2927-f55c-5d4e-81eb-cf9a2362435d",
+      "author": "ryan.porter",
+      "text": "live-demo event 6",
+      "created_at": "2026-03-08T13:11:59.632964Z"
+    },
+    {
+      "id": "126d2d0d-b4d0-5fe1-a5a1-0ab1dc8e4467",
+      "author": "ryan.porter",
+      "text": "live-demo event 8",
+      "created_at": "2026-03-08T13:14:44.398335Z"
+    },
+    {
+      "id": "bab502ca-410e-5bc7-a7c1-0f1da436255b",
+      "author": "ryan.porter",
+      "text": "live-demo event 9",
+      "created_at": "2026-03-08T13:16:05.346969Z"
+    },
+    {
+      "id": "34788dea-76a0-52fb-aca6-cc758965c804",
+      "author": "ryan.porter",
+      "text": "default-config mqtt verification 13:18:25",
+      "created_at": "2026-03-08T13:18:25.222249Z"
+    },
+    {
+      "id": "36618078-f749-5c51-a7ba-ff4b4189cf19",
+      "author": "ryan.porter",
+      "text": "Progress: Completed timed live MQTT demo sequence (10 events over ~12 minutes). Evidence: mutation timeline captured from 13:05:09Z through 13:17:28Z with create/update/comment/label/close operations on this issue. Next: continue soak validation with clock/kbsc observers and investigate intermittent MQTT timeout/reset events. Risk/Blocker: occasional mqtt connect timeout can drop individual publishes without retry replay.",
+      "created_at": "2026-03-08T13:19:31.099095Z"
+    }
+  ],
+  "created_at": "2026-03-08T13:05:06.030743Z",
+  "updated_at": "2026-03-08T13:19:32.113401Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

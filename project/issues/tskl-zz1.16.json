@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.16",
+  "title": "Integrate policy evaluation into create_issue",
+  "description": "Insert policy evaluation in create_issue (Rust and Python) after IssueData is constructed, before write_issue_to_file.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:27.934211Z",
+  "updated_at": "2026-02-27T07:02:18.464465Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

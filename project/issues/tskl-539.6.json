@@ -1,0 +1,35 @@
+{
+  "id": "tskl-539.6",
+  "title": "6. Console documentation",
+  "description": "Document console app usage and architecture in console/README.md, including dev run steps and SSE behavior.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-539",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c1f1b6c8-9787-501a-9758-6419edd2f501",
+      "author": "Ryan Alyn Porter",
+      "text": "Documented console setup, data sources, SSE updates, and view modes in console/README.md.",
+      "created_at": "2026-02-13T07:58:51.410466Z"
+    },
+    {
+      "id": "4e061e1a-3600-5000-b643-ae4af09425da",
+      "author": "Ryan Alyn Porter",
+      "text": "Documented console UI specs and test command in console/README.md.",
+      "created_at": "2026-02-13T08:13:14.295687Z"
+    }
+  ],
+  "created_at": "2026-02-13T07:51:47.066720Z",
+  "updated_at": "2026-02-13T08:04:25.529545Z",
+  "closed_at": "2026-02-13T08:04:25.529545Z",
+  "custom": {
+    "beads_acceptance_criteria": "console/README.md explains install, run, data flow, SSE updates, and known limitations.",
+    "beads_close_reason": "Implementation complete; local validation pending.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "tskl-3du.11",
+  "title": "Clock demo bug workflow",
+  "description": "Demo bug for Kanbus clock notifications.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a25060e3-6453-51f4-96d7-5d34847895ce",
+      "author": "ryan.porter",
+      "text": "Clock demo: created/open",
+      "created_at": "2026-03-06T14:22:27.288300Z"
+    },
+    {
+      "id": "4bdf8a60-1161-587f-b8cd-ecb2f0080929",
+      "author": "ryan.porter",
+      "text": "Clock demo: now in progress",
+      "created_at": "2026-03-06T14:22:36.295507Z"
+    },
+    {
+      "id": "08432ec5-a41e-5224-8189-07e6906dba93",
+      "author": "ryan.porter",
+      "text": "Clock demo: closed/done",
+      "created_at": "2026-03-06T14:22:44.797584Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:21:59.680945Z",
+  "updated_at": "2026-03-06T14:22:44.797584Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

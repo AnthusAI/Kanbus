@@ -1,0 +1,18 @@
+{
+  "id": "tskl-nra.1",
+  "title": "State change: status → in_progress",
+  "description": "Set status to in_progress\n\nReason: Resume console snapshot wiring and test run",
+  "type": "event",
+  "status": "closed",
+  "priority": 4,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-nra",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T02:45:57.985629Z",
+  "updated_at": "2026-02-16T03:50:45.467850Z",
+  "closed_at": "2026-02-16T03:50:45.456764Z",
+  "custom": {}
+}

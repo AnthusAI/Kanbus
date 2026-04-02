@@ -1,0 +1,27 @@
+{
+  "id": "tskl-q4h",
+  "title": "Security vulnerability tracking",
+  "description": "Cross-project initiative to track, triage, and remediate security vulnerabilities found by Snyk across all repositories.",
+  "type": "initiative",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f9c135fe-6244-52e2-bbaa-39312c7f964f",
+      "author": "derek.norrbom",
+      "text": "Closing in Kanbus repo: remaining Snyk pull implementation tasks are complete and Plexus tracking moved out of this repository.",
+      "created_at": "2026-04-02T20:45:27.287800Z"
+    }
+  ],
+  "created_at": "2026-02-25T21:37:17.212750Z",
+  "updated_at": "2026-04-02T20:45:27.287800Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek"
+  }
+}

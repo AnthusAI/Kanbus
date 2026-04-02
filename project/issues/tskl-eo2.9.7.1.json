@@ -1,0 +1,53 @@
+{
+  "id": "tskl-eo2.9.7.1",
+  "title": "Live MQTT demo issue 130452",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.9.7",
+  "labels": [
+    "live-mqtt-demo"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "bc45f8fe-7bbd-5e67-bfc8-74dd583f4c25",
+      "author": "ryan.porter",
+      "text": "live-demo event 3",
+      "created_at": "2026-03-08T13:07:39.622515Z"
+    },
+    {
+      "id": "c0ecaffe-0f17-5fdd-ad83-c9b77a971789",
+      "author": "ryan.porter",
+      "text": "live-demo event 4",
+      "created_at": "2026-03-08T13:09:03.177938Z"
+    },
+    {
+      "id": "8121d9ee-c7b9-5bf2-a6ac-be8d0d962643",
+      "author": "ryan.porter",
+      "text": "live-demo event 6",
+      "created_at": "2026-03-08T13:11:49.783554Z"
+    },
+    {
+      "id": "d9055448-bbda-577b-9b77-39400ae4755a",
+      "author": "ryan.porter",
+      "text": "live-demo event 8",
+      "created_at": "2026-03-08T13:14:33.029892Z"
+    },
+    {
+      "id": "345fe292-7798-55f7-90df-29739a9c7b44",
+      "author": "ryan.porter",
+      "text": "live-demo event 9",
+      "created_at": "2026-03-08T13:15:54.772059Z"
+    }
+  ],
+  "created_at": "2026-03-08T13:04:53.007359Z",
+  "updated_at": "2026-03-08T13:17:17.091757Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

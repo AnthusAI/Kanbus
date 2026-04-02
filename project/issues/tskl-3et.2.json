@@ -1,0 +1,20 @@
+{
+  "id": "tskl-3et.2",
+  "title": "Metrics panel layout: summary counts and chart area",
+  "description": "Define the layout of the metrics panel. When space allows (wide enough viewport), it shows three conceptual columns: a narrow left column for summary counts and two wider columns for the chart. On narrower viewports the layout collapses gracefully.\n\nScenario: Metrics panel matches board visual style\n\nGiven the metrics view is active\nThen the metrics panel uses the same flat card styling as the kanban board columns\nAnd the same background color, border treatment, rounded corners, and color tokens\nAnd no overlay or shadow that would make it appear to float above the board\n\nScenario: Left column shows total count prominently\n\nGiven the metrics view is active\nThen the left column displays a large prominent number representing the total count of issues in the current filtered view\nAnd the number updates when active filters change\n\nScenario: Left column shows breakdown by status\n\nGiven the metrics view is active\nThen below the total count there is a breakdown showing count per status\nAnd each row shows the status name and its count\n\nScenario: Left column shows breakdown by project when virtual projects exist\n\nGiven the user has virtual projects configured\nAnd the metrics view is active\nThen the left column also shows a count breakdown by project\n\nScenario: Left column shows breakdown by scope when local issues exist\n\nGiven the user has local issues\nAnd the metrics view is active\nThen the left column also shows a count breakdown by scope (project vs local)\n\nScenario: Right two-thirds shows the chart area\n\nGiven the metrics view is active on a wide enough viewport\nThen the right portion (approximately two-thirds of the panel width) is reserved for the stacked bar chart\nAnd the chart fills its container responsively",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3et",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T21:00:58.876046Z",
+  "updated_at": "2026-02-25T01:35:45.307063Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

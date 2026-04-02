@@ -1,0 +1,27 @@
+{
+  "id": "tskl-q4h.4",
+  "title": "Add Snyk Code support and mapping",
+  "description": "Support Snyk Code findings in snyk pull; map fields (title, description, classes, location) into Kanbus issues.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek.norrbom",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "81aa6c7b-2c83-5d2a-9554-85f15b827f4f",
+      "author": "derek.norrbom",
+      "text": "Closing: implemented in Rust/Python snyk_sync with Snyk Code fetch + mapping and test coverage.",
+      "created_at": "2026-04-02T20:45:26.920599Z"
+    }
+  ],
+  "created_at": "2026-02-27T23:00:28.159269Z",
+  "updated_at": "2026-04-02T20:45:26.920599Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

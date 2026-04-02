@@ -1,0 +1,27 @@
+{
+  "id": "tskl-5y8.1",
+  "title": "Done column is sorted by last-updated descending",
+  "description": "Issues in any column whose status belongs to the Done category are always displayed with the most recently updated issue at the top. This ordering is fixed and not user-configurable — it is an unconditional product decision.\n\n## Rationale\n\nDone work is done. The only useful question about the Done column is \"what just landed?\" — which requires recency-first ordering. FIFO discipline applies to active work; once something is done it no longer participates in flow management.\n\nScenario: Done column shows most recently updated issue first\n\nGiven several issues are in the Done column with different updated_at timestamps\nWhen the user views the kanban board\nThen the issue with the latest updated_at timestamp appears at the top of the Done column\nAnd issues are ordered from most recently updated to least recently updated going downward\n\nScenario: A newly completed issue appears at the top\n\nGiven the Done column has existing issues\nWhen a new issue is moved to Done\nThen it appears at the top of the Done column immediately\nBecause its updated_at timestamp is now the most recent\n\nScenario: Reopening and re-closing an issue brings it back to the top\n\nGiven an issue was closed some time ago and is not at the top of Done\nWhen that issue is reopened and then closed again\nThen it returns to the top of the Done column\nBecause its updated_at has been refreshed\n\nScenario: Done column sort is not affected by sort_order configuration\n\nGiven a sort_order configuration is defined in .kanbus.yml for the closed status\nThen that configuration is ignored for the Done column\nAnd the Done column continues to sort by last-updated descending\n\nScenario: Collapsed Done column preserves the same order when expanded\n\nGiven the Done column is collapsed\nWhen the user expands it\nThen the issues are still ordered by last-updated descending\nAnd the most recently updated issue is at the top",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-5y8",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7a3130a8-dff8-5eec-87aa-ea0045e2f88e",
+      "author": "ryan.porter",
+      "text": "Implemented console board ordering override: statuses in Done category are always sorted by updated_at descending in Board.tsx, independent of selected sort preset.",
+      "created_at": "2026-03-06T02:55:32.578461Z"
+    }
+  ],
+  "created_at": "2026-02-22T13:23:34.510175Z",
+  "updated_at": "2026-03-06T02:55:32.595779Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

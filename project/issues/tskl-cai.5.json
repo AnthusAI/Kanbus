@@ -1,0 +1,29 @@
+{
+  "id": "tskl-cai.5",
+  "title": "Explore parallel loading for multi-project indexing benchmarks",
+  "description": "Evaluate parallelizing issue loading/indexing during benchmarks to measure speedups. Implement parallel variants where appropriate for Python and/or Rust benchmarking runs.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-cai",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "cff66ed6-8873-5f75-aa1f-a40d9497de6d",
+      "author": "Ryan Alyn Porter",
+      "text": "Added parallel loading results to Python and Rust discovery benchmarks, updated tools/check_benchmarks.py and tools/perf_baseline.json for serial/parallel thresholds, and documented parallel mode in planning/BENCHMARK_RECURSIVE_DISCOVERY.md. Ran: python tools/benchmark_discovery.py; cargo run --manifest-path rust/Cargo.toml --bin discovery_benchmark -- --root tools/tmp/benchmark-discovery-fixtures; python tools/check_benchmarks.py.",
+      "created_at": "2026-02-11T19:43:44Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:53:20.535817Z",
+  "updated_at": "2026-02-11T19:43:50.278085Z",
+  "closed_at": "2026-02-11T19:43:50.278085Z",
+  "custom": {
+    "beads_acceptance_criteria": "Benchmarks can run with and without parallel loading, and results are reported side by side.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

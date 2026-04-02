@@ -1,0 +1,39 @@
+{
+  "id": "tskl-wti.3",
+  "title": "Implement missing Python steps and align behavior with Rust",
+  "description": "Complete Python Behave step definitions for skipped scenarios and ensure parity with Rust.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wti",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ec5ecbfa-025e-5e34-a14e-bde5059cebdf",
+      "author": "ryan.porter",
+      "text": "Python remains green from earlier; next action is coverage run via conda py311 (coverage run -m behave && coverage xml) and update TEST_COVERAGE_REPORT.md once numbers captured.",
+      "created_at": "2026-02-19T06:38:20.901411Z"
+    },
+    {
+      "id": "a0cfc59d-ec19-575b-9923-86b1923bf5c7",
+      "author": "ryan.porter",
+      "text": "Python coverage 93% (coverage.xml), all scenarios green. Coverage gaps: models.py, config_loader.py, issue_line.py, issue_display.py, migration.py, workflows.py, agents_management.py. See TEST_COVERAGE_REPORT.md for details.",
+      "created_at": "2026-02-19T07:15:05.068157Z"
+    },
+    {
+      "id": "43359c40-af21-5600-b7b9-31a88d9b9f24",
+      "author": "ryan.porter",
+      "text": "Python coverage is now at 100% and this task is complete.",
+      "created_at": "2026-03-09T17:08:09.420360Z"
+    }
+  ],
+  "created_at": "2026-02-19T04:44:50.998530Z",
+  "updated_at": "2026-03-09T17:08:21.904813Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

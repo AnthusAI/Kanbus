@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.2",
+  "title": "Pub-sub transport and envelope",
+  "description": "## Intent\nAs a collaborator, I want a shared gossip envelope and transport behavior so that updates propagate consistently over UDS and MQTT.\n\n## Definition of Done\n- Envelope schema and dedupe rules implemented in Rust and Python.\n- UDS broker supports publish/subscribe with topic matching.\n- MQTT client supports publish/subscribe with Mosquitto autostart.\n- Transport selection and configuration are identical across runtimes.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:04:28.977566Z",
+  "updated_at": "2026-03-10T03:21:44.129842Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

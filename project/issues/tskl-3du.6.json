@@ -1,0 +1,33 @@
+{
+  "id": "tskl-3du.6",
+  "title": "Fix JS http-to-file-access alert #26",
+  "description": "Prevent raw HTTP telemetry payload persistence to disk and log sanitized metadata only.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "48f59856-16e4-5555-955c-266a939598a6",
+      "author": "ryan.porter",
+      "text": "Started. Updating console telemetry endpoint logging so raw HTTP payload data is not persisted to disk; only sanitized metadata will be logged.",
+      "created_at": "2026-03-06T14:09:35.450926Z"
+    },
+    {
+      "id": "1f6f798c-bbd3-5f96-abcb-24b7c4403a5d",
+      "author": "ryan.porter",
+      "text": "Completed. Removed raw HTTP telemetry payload persistence in console server logs; file logging now records sanitized metadata only.",
+      "created_at": "2026-03-06T14:13:26.545182Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:05:10.453691Z",
+  "updated_at": "2026-03-06T14:13:26.578280Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

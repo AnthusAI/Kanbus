@@ -1,0 +1,45 @@
+{
+  "id": "tskl-9w4.12",
+  "title": "Implement tsk close and delete in Rust",
+  "description": "Implement close and delete commands in Rust.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "your@email.com",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-9w4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "103e0803-0869-50d1-8782-c450f25b11b3",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: implement tsk close and delete in Rust. Acceptance: close sets status closed and closed_at, delete removes file, missing issue errors, and steps for issue_close_delete.feature.",
+      "created_at": "2026-02-11T06:46:05Z"
+    },
+    {
+      "id": "e37a1b5b-3852-580e-afc7-06a07557ce4d",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: implement tsk close and tsk delete in Rust mirroring Python. Acceptance: close transitions to closed with closed_at, delete removes file, missing issue errors, and CLI commands.",
+      "created_at": "2026-02-11T06:46:39Z"
+    },
+    {
+      "id": "45f7bda0-785b-5871-85e6-9174349c943a",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Rust tsk close/delete with helpers and CLI wiring. Ran: cd rust && cargo test",
+      "created_at": "2026-02-11T06:46:59Z"
+    },
+    {
+      "id": "4fe40df3-d423-5d33-9995-2bf57fadb9aa",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Rust close/delete workflows and CLI commands. Ran: cd rust && cargo test; python tools/check_spec_parity.py",
+      "created_at": "2026-02-11T06:47:39Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:38:46.848067Z",
+  "updated_at": "2026-02-11T06:47:43.522488Z",
+  "closed_at": "2026-02-11T06:47:43.522490Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

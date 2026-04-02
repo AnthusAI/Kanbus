@@ -1,0 +1,29 @@
+{
+  "id": "tskl-fzn.7",
+  "title": "Add end-to-end CLI latency benchmark",
+  "description": "Add a benchmark that runs the CLI as a separate process to measure end-to-end latency (includes startup). Use fixtures for single vs multi project and report Python vs Rust timings.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-fzn",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3d0bcf11-f393-5c73-b7b0-f6fe541500e7",
+      "author": "Ryan Alyn Porter",
+      "text": "Added tools/benchmark_cli_latency.py to measure end-to-end CLI latency (process startup + list/ready). Ran with --iterations 1: Python single list ~444.6ms, ready ~430.9ms; Python multi list ~729.1ms, ready ~698.6ms. Rust single list ~35.9ms, ready ~29.8ms; Rust multi list ~107.3ms, ready ~206.2ms.",
+      "created_at": "2026-02-12T01:09:10Z"
+    }
+  ],
+  "created_at": "2026-02-12T01:01:07.240224Z",
+  "updated_at": "2026-02-12T01:09:17.822690Z",
+  "closed_at": "2026-02-12T01:09:17.822690Z",
+  "custom": {
+    "beads_acceptance_criteria": "Benchmark script exists and reports end-to-end timings for python and rust CLI.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

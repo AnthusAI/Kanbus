@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.17",
+  "title": "Add kbs policy CLI subcommands",
+  "description": "Implement kbs policy check, kbs policy list, and kbs policy validate subcommands in both Rust and Python CLIs.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:28.590714Z",
+  "updated_at": "2026-02-27T07:04:12.347717Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

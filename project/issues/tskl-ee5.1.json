@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ee5.1",
+  "title": "Create benchmark fixtures for multi-project discovery",
+  "description": "Generate reproducible fixture directories representing monorepo with multiple project/ folders and issue corpora.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ee5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4954b902-1d83-5ab7-9059-cd8a09842e07",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixture generator exists in tools/benchmark_discovery_fixtures.py; recursive discovery plan documented in planning/BENCHMARK_RECURSIVE_DISCOVERY.md.",
+      "created_at": "2026-02-12T00:35:09Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:33:56.599606Z",
+  "updated_at": "2026-02-12T00:35:13.580286Z",
+  "closed_at": "2026-02-12T00:35:13.580286Z",
+  "custom": {
+    "beads_acceptance_criteria": "Fixture generator and committed fixtures exist for benchmarks.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

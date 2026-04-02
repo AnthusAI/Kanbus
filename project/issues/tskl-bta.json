@@ -1,0 +1,36 @@
+{
+  "id": "tskl-bta",
+  "title": "Fix failing tests and CI",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7c2669ca-dcc4-56b0-a036-b9f1c931bf00",
+      "author": "Ryan Alyn Porter",
+      "text": "Resuming: fix behave failures (daemon empty response socket dir, dotfile path scenario), rerun behave and coverage, close remaining gaps, then run quality gates and CI.",
+      "created_at": "2026-02-13T09:19:47Z"
+    },
+    {
+      "id": "0952623b-a1ae-55e7-827d-b0c912cb261a",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting full stabilization: rerun coverage and tests, fix remaining failures, then run quality gates, commit, push, and monitor CI.",
+      "created_at": "2026-02-13T09:58:36Z"
+    }
+  ],
+  "created_at": "2026-02-13T08:07:18.358398Z",
+  "updated_at": "2026-02-15T02:21:57.824453Z",
+  "closed_at": "2026-02-15T02:21:57.824453Z",
+  "custom": {
+    "beads_acceptance_criteria": "All Python and Rust tests pass; behave and cargo tests green; ruff/black/clippy/fmt green; CI passes in GitHub Actions.",
+    "beads_close_reason": "Stale/obsolete issue per user; no longer relevant.",
+    "beads_notes": "Scope: fix discovery and migration scenario failures, fix IssueCreationError handling in CLI/project config loading, align ID formatting, ensure list output parity, run quality gates, commit and push.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

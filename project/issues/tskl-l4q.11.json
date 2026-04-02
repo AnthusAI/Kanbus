@@ -1,0 +1,29 @@
+{
+  "id": "tskl-l4q.11",
+  "title": "Document shared features test workflow",
+  "description": "Add documentation describing shared root features/ layout and how to run Behave and Rust cucumber against it. Keep scope limited to docs.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-l4q",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "323a2e5b-c543-5d78-b4ce-b6f051301951",
+      "author": "Ryan Alyn Porter",
+      "text": "Added a Running the specifications section to docs/GETTING_STARTED.md with shared features/ layout and example Behave/cucumber commands.",
+      "created_at": "2026-02-11T21:00:22Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:59:50.965376Z",
+  "updated_at": "2026-02-11T21:00:27.204893Z",
+  "closed_at": "2026-02-11T21:00:27.204893Z",
+  "custom": {
+    "beads_acceptance_criteria": "Docs mention shared root features/ layout and example commands to run Python Behave and Rust cucumber.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

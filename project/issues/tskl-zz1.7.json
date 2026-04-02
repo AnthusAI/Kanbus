@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.7",
+  "title": "Define PolicyContext model and error types",
+  "description": "Create PolicyContext struct/class that captures current_issue, proposed_issue, transition, operation, and project_configuration. Add PolicyViolation error type to KanbusError enum.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:20.435237Z",
+  "updated_at": "2026-02-27T06:53:36.509041Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "tskl-mim.6",
+  "title": "Add tsk promote and tsk localize",
+  "description": "Implement tsk promote <id> (move from project-local/ to project/) and tsk localize <id> (move from project/ to project-local/). Preserve issue ID and update index.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-mim",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "16c4acb2-e18f-5e0c-ad0d-301f25e382d5",
+      "author": "Ryan Alyn Porter",
+      "text": "Promote/localize implemented in python/src/taskulus/issue_transfer.py and rust/src/issue_transfer.rs with CLI wiring. Verified by features/issues/local_issue_routing.feature (promote/localize scenarios) in behave and cucumber.",
+      "created_at": "2026-02-11T20:09:32Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:04:52.316713Z",
+  "updated_at": "2026-02-11T20:09:36.356384Z",
+  "closed_at": "2026-02-11T20:09:36.356384Z",
+  "custom": {
+    "beads_acceptance_criteria": "promote/localize move issue files between project/ and project-local/; IDs preserved; index updates; errors are clear when source not found.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

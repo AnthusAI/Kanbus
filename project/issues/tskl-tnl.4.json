@@ -1,0 +1,22 @@
+{
+  "id": "tskl-tnl.4",
+  "title": "Cross-project mutation routing",
+  "description": "Update, close, delete, comment, promote, and localize operations must resolve the issue to its source project and mutate in place. Events written to the source project's event directory. No duplicates, no cross-project file moves.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-tnl",
+  "labels": [
+    "virtual-projects"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T14:56:21.865014Z",
+  "updated_at": "2026-02-21T15:43:23.813620Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

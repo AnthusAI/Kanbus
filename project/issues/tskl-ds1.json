@@ -1,0 +1,20 @@
+{
+  "id": "tskl-ds1",
+  "title": "kanbusr fails with 'invalid type: string \"critical\", expected struct PriorityDefinition'",
+  "description": "kanbusr commands (list, show, create) fail with config parsing error. Beads (bd) works fine with same data. Error: 'invalid type: string \"critical\", expected struct PriorityDefinition'. Needs investigation of config format compatibility between kanbusr and beads.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T01:07:59.263018Z",
+  "updated_at": "2026-02-16T01:41:30.450756Z",
+  "closed_at": "2026-02-16T01:41:30.442250Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "tskl-2dj.2",
+  "title": "Implement project-local discovery and filters",
+  "description": "Include project-local alongside project; add --no-local and --local-only filters and mark source in index.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-2dj",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2b785d86-5ec0-559e-a184-2e6dbab32b72",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented project-local inclusion and --no-local/--local-only filters in Python and Rust list/ready paths. Added local discovery helper in Rust, updated tests and coverage. Tests: python -m pytest --cov=taskulus --cov-report=term-missing python/tests; cargo test --manifest-path rust/Cargo.toml --tests",
+      "created_at": "2026-02-11T14:56:44Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:37:41.506867Z",
+  "updated_at": "2026-02-11T14:56:47.472313Z",
+  "closed_at": "2026-02-11T14:56:47.472313Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

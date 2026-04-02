@@ -1,0 +1,20 @@
+{
+  "id": "tskl-acp.3",
+  "title": "Kanban board renders in a VSCode Webview panel",
+  "description": "As a developer, I want to see my Kanbus kanban board inside a VSCode tab so that I can view my project's issues without switching to a browser.  Acceptance Criteria (BDD):  Scenario: Board opens in a Webview panel   Given the kbsc server is running on a free port   When I run 'Kanbus: Open Board'   Then a new VSCode tab opens titled 'Kanbus Board'   And the compiled React console app renders inside the tab   And I see kanban columns matching my project's configured statuses   And issue cards appear in the correct columns  Scenario: Board state is preserved when tab is hidden   Given the Kanbus Board tab is open and showing issues   When I switch to another tab and then switch back   Then the board is still rendered with the same scroll position and state   Because retainContextWhenHidden is enabled  Scenario: Re-running the command reveals existing panel   Given the Kanbus Board tab is already open   When I run 'Kanbus: Open Board' again   Then the existing tab is focused   And no second panel is created  Implementation: Create src/KanbusBoardPanel.ts. Read console-assets/index.html, rewrite /assets/* paths to webview.asWebviewUri() pointing to bundled console-assets/assets/. Set enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [console-assets/].",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-acp",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T17:24:48.407908Z",
+  "updated_at": "2026-02-21T18:53:15.104095Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

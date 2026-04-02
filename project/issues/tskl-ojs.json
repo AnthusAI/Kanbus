@@ -1,0 +1,34 @@
+{
+  "id": "tskl-ojs",
+  "title": "Add mobile hamburger navigation",
+  "description": "Introduce a hamburger menu for narrow viewports to access site navigation items.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c199a093-f04f-5226-8e66-ecb54ddf4e75",
+      "author": "Ryan Alyn Porter",
+      "text": "Implementing mobile hamburger navigation for narrow viewports; ensuring links and GitHub entry are accessible in mobile menu and desktop menu remains unchanged.",
+      "created_at": "2026-02-12T06:33:58Z"
+    },
+    {
+      "id": "7ee6f982-2ad0-5f7d-bcf7-1da9f8670186",
+      "author": "Ryan Alyn Porter",
+      "text": "Added mobile hamburger navigation with lucide-react icons; desktop links unchanged, mobile menu renders links and GitHub. Tests not run (site build not executed).",
+      "created_at": "2026-02-12T06:34:20Z"
+    }
+  ],
+  "created_at": "2026-02-12T06:16:27.713430Z",
+  "updated_at": "2026-02-12T06:34:22.432729Z",
+  "closed_at": "2026-02-12T06:34:22.432729Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

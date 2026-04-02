@@ -1,0 +1,51 @@
+{
+  "id": "tskl-6l4",
+  "title": "Stabilize Rust coverage + badge",
+  "description": "Fix and document Rust coverage workflow (cargo llvm-cov, asset build, badge generation). Ensure README badge updates reliably. No commits during deployment window.",
+  "type": "chore",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "13e93401-77f7-551d-b505-2acd9471965a",
+      "author": "ryan.porter",
+      "text": "Progress: documented Rust coverage workflow in docs/RUST_COVERAGE.md; updated AGENTS.md coverage guidance to cargo llvm-cov; adjusted tools/run_specs.py to sync console assets and fix help text; updated tools/run_amplify_ci.sh to use cargo llvm-cov and build/sync console assets; updated .github/workflows/ci.yml to publish a failed rust-coverage badge when rust job fails. No commits made.",
+      "created_at": "2026-02-20T14:55:30.496636Z"
+    },
+    {
+      "id": "e36b4666-189c-553b-a1ca-620b180d8163",
+      "author": "ryan.porter",
+      "text": "Ran local Rust coverage via cargo llvm-cov with embedded assets sync. Result: 80.0% line coverage (coverage-rust/cobertura.xml). Badge cannot update without CI or a badges-branch commit.",
+      "created_at": "2026-02-20T15:28:37.939994Z"
+    },
+    {
+      "id": "441a4757-92d6-567e-8b15-20fcb2554e85",
+      "author": "ryan.porter",
+      "text": "Implemented missing Rust step definitions to reduce skipped specs: added stdout parent-reference check, Given comment steps to add comments with/without IDs, and Given step to add dependencies to existing issues.",
+      "created_at": "2026-02-20T16:53:59.766124Z"
+    },
+    {
+      "id": "1cdc762d-3989-5a3b-b9f7-51bbdd76c1a4",
+      "author": "ryan.porter",
+      "text": "Implemented missing BDD steps: added Rust console UI steps for no-tab selection, detail panel issue, console route handling, and priority label checks; added Rust output step for combined stdout+stderr; implemented Python default priority assertion mapping priority id to name. Tests not run.",
+      "created_at": "2026-02-21T14:08:42.460876Z"
+    },
+    {
+      "id": "59d0cc56-f4c1-5bc8-8ee3-93eaca429722",
+      "author": "ryan.porter",
+      "text": "Removed redundant Python run-command steps and expanded generic regex handling; aligned Rust steps with regex patterns, added Interop create steps, native deletable create step, setup-agents non-interactive step, and beads issues.jsonl assertions; added Rust config steps for KANBUS_PROJECT_KEY unset and specific hierarchy/project key strings. check_spec_parity now clean (with DeprecationWarning about escape sequences). Tests not run.",
+      "created_at": "2026-02-21T14:49:47.909493Z"
+    }
+  ],
+  "created_at": "2026-02-20T14:52:05.304528Z",
+  "updated_at": "2026-02-25T06:24:18.111003Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-1ys.1",
+  "title": "Add high-level narrative tweaks across the site to explain the why",
+  "description": "Go through the whole site in a coherent way and add small tweaks where appropriate to draw out: context switching, AI agent coordination, developer flow, and why embedding PM in the repo is better than coordinating external systems.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-1ys",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-09T12:30:32.345891Z",
+  "updated_at": "2026-03-12T00:11:11.768979Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

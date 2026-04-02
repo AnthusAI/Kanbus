@@ -1,0 +1,22 @@
+{
+  "id": "tskl-4w5",
+  "title": "Add AGENTS.override.md for py311 and zsh guidance",
+  "description": "Add AGENTS.override.md instructing to use the py311 conda environment and try zsh if commands fail.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T13:58:01.211980Z",
+  "updated_at": "2026-02-14T14:01:28.232730Z",
+  "closed_at": "2026-02-14T14:01:28.232730Z",
+  "custom": {
+    "beads_close_reason": "Completed",
+    "beads_notes": "Run make check-all via conda run -n py311.\nAdded AGENTS.override.md with py311 conda guidance and zsh retry note. Ran make check-all using /opt/anaconda3/condabin/conda run -n py311.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

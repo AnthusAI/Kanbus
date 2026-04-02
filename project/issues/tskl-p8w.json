@@ -1,0 +1,20 @@
+{
+  "id": "tskl-p8w",
+  "title": "Workspace-root discovery via .kanbus.yml",
+  "description": "Goal:\n- Discover nested Kanbus projects from a workspace root without per-project cwd logic.\n- Enforce unique-only fragment lookup across multiple projects.\n\nDone when:\n- BDD specs updated and green.\n- Rust + Python discovery paths match behavior.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-05T13:18:34.353224Z",
+  "updated_at": "2026-03-05T13:19:30.599672Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

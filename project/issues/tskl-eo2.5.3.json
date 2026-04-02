@@ -1,0 +1,39 @@
+{
+  "id": "tskl-eo2.5.3",
+  "title": "Cognito auth + strict tenant isolation for API and IoT topics",
+  "description": "## Intent\nSecure API and realtime channels with tenant-scoped authorization.\n\n## Scope\n- Cognito User Pool JWT auth for API access\n- Cognito Identity Pool permissions for IoT WSS\n- Policy scoping by `account/project` topic and path\n\n## Definition of Done\n- Cross-tenant API access is denied by policy.\n- Cross-tenant topic subscribe/publish is denied by policy.\n- Tenant claim mapping and auth flow are documented.\n- Automated tests cover authorized and unauthorized paths.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5633c4f7-c693-5fb2-8fbc-1675253fe2e1",
+      "author": "ryan.porter",
+      "text": "Progress: Starting Cognito auth + tenant isolation implementation.\nEvidence: task moved open -> in_progress.\nNext: enforce JWT auth at API Gateway and add IoT policy scaffolding for tenant-scoped topic access.\nRisk/Blocker: none.\n",
+      "created_at": "2026-03-07T06:34:15.450569Z"
+    },
+    {
+      "id": "9cb3ad07-23b2-5444-848f-bf60df68d2e0",
+      "author": "ryan.porter",
+      "text": "Progress: Added Cognito-authorized API gateway wiring and tenant-scoped IoT policy scaffolding.\nEvidence: proxy API methods now require Cognito authorizer; authenticated role includes IoT connect + tenant-topic subscribe/receive policy using principal tags.\nNext: add verification coverage and document claim/tag mapping flow in more operational detail.\nRisk/Blocker: principal-tag mapping must be configured by identity flow for strict topic isolation.\n",
+      "created_at": "2026-03-07T06:35:20.097537Z"
+    },
+    {
+      "id": "94114eac-1013-5ae7-bf7d-f5890d89e3c2",
+      "author": "ryan.porter",
+      "text": "Progress: Added automated auth/isolation template tests and documentation for tenant tag mapping.\nEvidence: `infra/cloud/tests/test_auth_isolation.py` validates Cognito authorizer on API methods and tenant-scoped IoT policy strings; `python -m unittest discover -s tests -v` passed (2 tests).\nNext: close this task and continue 5.4 hardening.\nRisk/Blocker: none.\n",
+      "created_at": "2026-03-07T06:38:12.410410Z"
+    }
+  ],
+  "created_at": "2026-03-07T06:05:00.943561Z",
+  "updated_at": "2026-03-07T06:38:12.439394Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

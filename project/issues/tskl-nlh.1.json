@@ -1,0 +1,20 @@
+{
+  "id": "tskl-nlh.1",
+  "title": "Design configuration validation for per-type workflow bindings",
+  "description": "Design how kanbus.yml should validate that:\n1. Each issue type has a workflow binding\n2. Workflow transitions are enforced\n3. Configuration errors are detected at load time\n\nRelated to configuration_standardization.feature scenarios that are currently marked @wip.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-nlh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T05:46:25.650329Z",
+  "updated_at": "2026-03-10T04:15:20.227824Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

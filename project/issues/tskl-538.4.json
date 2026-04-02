@@ -1,0 +1,28 @@
+{
+  "id": "tskl-538.4",
+  "title": "Epic 8: Verify dependency parity",
+  "description": "All scenarios pass, cycle detection works, ready query correct.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-538",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3ebcd9ec-af34-5444-ab4e-7ba7b97e5918",
+      "author": "Ryan Alyn Porter",
+      "text": "Verified dependency parity: spec parity check (Feature 89, Python 89, Rust 89). Ran python behave (dependencies scenarios remain @wip; active specs pass) and rust cucumber (active specs pass). Dependency commands implemented in both Python and Rust.",
+      "created_at": "2026-02-11T13:34:04Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:02.021642Z",
+  "updated_at": "2026-02-11T13:34:12.228084Z",
+  "closed_at": "2026-02-11T13:34:12.228084Z",
+  "custom": {
+    "beads_close_reason": "Dependency parity verified",
+    "beads_owner": "rap@endymion.com"
+  }
+}

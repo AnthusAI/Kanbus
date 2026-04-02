@@ -1,0 +1,22 @@
+{
+  "id": "tskl-tnl.2",
+  "title": "Project filtering for CLI",
+  "description": "Add --project <name> filter to kanbus list (repeatable for multiple projects). Composable with --local-only, --no-local, --status, and other existing filters. Reject unknown project names.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-tnl",
+  "labels": [
+    "virtual-projects"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T14:56:21.619530Z",
+  "updated_at": "2026-02-21T17:01:42.205011Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

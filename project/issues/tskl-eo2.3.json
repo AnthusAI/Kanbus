@@ -1,0 +1,51 @@
+{
+  "id": "tskl-eo2.3",
+  "title": "Overlay cache and merge",
+  "description": "## Intent\nAs a console user, I want an overlay cache that can override Git-backed reads so that I see realtime changes without breaking Git as the source of truth.\n\n## Definition of Done\n- Overlay layout and merge rules implemented in Rust and Python.\n- Tombstones supported for deletes.\n- JIT cleanup and overlay GC command available.\n- Git hooks run overlay GC after merges and checkouts.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "03dcbc76-5364-50cc-9662-f6eaf26091f8",
+      "author": "ryan.porter",
+      "text": "Progress: Filed overlay reconcile feature work as tasks 3.5/3.6/3.7 and started implementation on 3.5. Evidence: new tasks created under overlay epic with cleanup/hook/test scope. Next: implement reconcile prune command and wire CLI. Risk/Blocker: none.",
+      "created_at": "2026-03-08T14:00:36.740087Z"
+    },
+    {
+      "id": "e82d0552-7add-55e5-a912-0cc13dd19868",
+      "author": "ryan.porter",
+      "text": "Progress: Completed reconcile cleanup feature delivery (tasks 3.5/3.6/3.7). Evidence: new overlay reconcile command, hook lifecycle wiring, docs updates, and passing Rust/Python tests; system-wide kbs/kbsc binaries reinstalled from current code. Next: if desired, unset core.hooksPath in target repos and run  to activate git-triggered reconcile+gc. Risk/Blocker: hook installation is intentionally prevented while core.hooksPath=/dev/null.",
+      "created_at": "2026-03-08T14:07:41.457271Z"
+    },
+    {
+      "id": "90af6b00-8da1-55db-b46b-47cc6ffec440",
+      "author": "ryan.porter",
+      "text": "Progress: Added robust overlay convergence cleanup capability with CLI + docs + tests across Rust and Python paths. Evidence: reconcile command implemented, hooks updated to run reconcile+gc, binaries reinstalled via , and validation commands executed successfully. Next: rollout by enabling hooksPath in target repos and running . Risk/Blocker: hook install remains blocked where .",
+      "created_at": "2026-03-08T14:08:07.038949Z"
+    },
+    {
+      "id": "c52e06bf-eab6-5910-b9da-1c93019399bc",
+      "author": "ryan.porter",
+      "text": "Progress: Added overlay convergence cleanup capability with CLI, docs, and tests across Rust and Python paths.\nEvidence: Reconcile command implemented, hooks updated for reconcile plus gc, binaries reinstalled from current code, and validation commands executed successfully.\nNext: Roll out by enabling hooksPath in target repos and running overlay install-hooks.\nRisk/Blocker: hook install remains blocked where hooksPath points to dev null.",
+      "created_at": "2026-03-08T14:08:30.194257Z"
+    },
+    {
+      "id": "1d0793fd-83e5-5915-b750-426f6fda5c31",
+      "author": "ryan.porter",
+      "text": "Progress: Ran full local validation after reconcile implementation and compatibility updates.\nEvidence: cargo test manifest rust Cargo toml passed including cucumber summary 678 scenarios with 676 passed and 2 skipped; pytest python tests passed.\nNext: commit and rollout to repos where hooksPath is enabled.\nRisk/Blocker: hook installation remains intentionally blocked when hooksPath points to dev null.",
+      "created_at": "2026-03-08T14:11:19.012621Z"
+    }
+  ],
+  "created_at": "2026-03-06T18:04:31.987867Z",
+  "updated_at": "2026-03-10T03:17:02.643123Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

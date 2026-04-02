@@ -1,0 +1,21 @@
+{
+  "id": "tskl-0ox",
+  "title": "Configuration for issue type color mapping",
+  "description": "Define project-config-driven color mapping for issue types so Taskulus list output colors can be customized per project. Align Python and Rust implementations, add config schema and tests.",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T20:09:44.318826Z",
+  "updated_at": "2026-02-16T01:07:59.179304Z",
+  "closed_at": "2026-02-16T01:07:59.165869Z",
+  "custom": {
+    "beads_acceptance_criteria": "1) Agreed config shape for type->color map. 2) Python+Rust list formatting reads colors from config. 3) Tests validating colors applied and porcelain stays uncolored.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "id": "tskl-rcn",
+  "title": "Add integration test for Beads/Taskulus delete flow",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [
+    "status:in_progress"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2b77ab79-5fae-5bf4-96ff-a35896e6a798",
+      "author": "Ryan Alyn Porter",
+      "text": "Added new delete integration scenarios covering create/list/delete across Beads and Taskulus.",
+      "created_at": "2026-02-13T06:28:39Z"
+    },
+    {
+      "id": "c8d4e615-7090-5ecb-88b0-855bbd9bfd37",
+      "author": "Ryan Alyn Porter",
+      "text": "CI still failing at Python coverage gate (99.96%). Added coverage_gate logging to print uncovered files in CI to identify the exact missing line.",
+      "created_at": "2026-02-13T13:31:29Z"
+    },
+    {
+      "id": "d0a1071b-b11e-523f-8365-21018160d11b",
+      "author": "Ryan Alyn Porter",
+      "text": "CI uncovered src/taskulus/issue_line.py (98.75%). Added NO_COLOR list formatting scenario and steps in both Python and Rust to cover the no-color path.",
+      "created_at": "2026-02-13T13:40:46Z"
+    },
+    {
+      "id": "1a19fa5f-61f9-5a2f-b4ba-0dfeb3f68ec6",
+      "author": "Ryan Alyn Porter",
+      "text": "Investigating GitHub Actions release workflow failing with 'workflow file issue'. CI itself is green; release.yml fails immediately (no jobs). Suspect workflow_run config; planning to adjust trigger to remove branches filter and gate on head_branch in job if.",
+      "created_at": "2026-02-13T13:56:42Z"
+    },
+    {
+      "id": "5186fba3-c5cc-5475-a12a-9845600e6ad6",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted release workflow trigger to remove workflow_run branches filter and gate on head_branch in publish job. Next: commit, push, verify release workflow no longer fails immediately.",
+      "created_at": "2026-02-13T13:56:54Z"
+    },
+    {
+      "id": "d94c5999-38a2-5acf-9bb7-9d3bc8ac8c27",
+      "author": "Ryan Alyn Porter",
+      "text": "Found YAML parse error in release workflow: embedded Python block not indented; closing PY marker also unindented. Fixed indentation. Local YAML parse now succeeds.",
+      "created_at": "2026-02-13T13:58:57Z"
+    },
+    {
+      "id": "2d4b9a1b-c542-52e4-b049-a5b17c2dee6b",
+      "author": "Ryan Alyn Porter",
+      "text": "Release workflow rust-crate failed; regex used literal \\s so version line not matched. Updated pattern to use \\s in raw string so Cargo.toml version can be rewritten.",
+      "created_at": "2026-02-13T14:07:34Z"
+    },
+    {
+      "id": "bcca4801-92e2-5f1f-83ac-fe8b4efaefb1",
+      "author": "Ryan Alyn Porter",
+      "text": "Release rust-crate failed at clippy: lock file out of date after version bump. Added workflow step to run cargo generate-lockfile after updating Cargo.toml version.",
+      "created_at": "2026-02-13T14:16:28Z"
+    },
+    {
+      "id": "f336a9d3-febc-5fcd-ab35-eb341af3b129",
+      "author": "Ryan Alyn Porter",
+      "text": "CI failures: console UI tests crashed due to __dirname in ESM; rust parse errors from missing braces in models.rs and configuration_steps.rs; python black formatting on configuration_steps.py. Applied fixes (ESM-safe path, added missing braces, ran cargo fmt, ran black).",
+      "created_at": "2026-02-13T14:21:17Z"
+    },
+    {
+      "id": "f963566e-a6ee-5e9b-8045-ea9782b38b60",
+      "author": "Ryan Alyn Porter",
+      "text": "CI logs: Rust failed for unused import in cli.rs and missing beads_compatibility in migration ProjectConfiguration; console UI tests timing out on page.goto networkidle. Fixed by removing unused import, adding beads_compatibility=false, and switching Playwright goto to domcontentloaded with 60s timeout. Also updated behave tags to exclude @console.",
+      "created_at": "2026-02-13T14:30:34Z"
+    },
+    {
+      "id": "2a74d9f5-e95a-5873-ac33-638ac03acdaa",
+      "author": "Ryan Alyn Porter",
+      "text": "CI run shows TagExpressionError in behave tags and missing beads_compatibility in rust workflow_steps. Updated behave tags to 'not wip and not console', added beads_compatibility=false in workflow_steps initializer, and adjusted console UI steps to wait for settings button instead of missing header text.",
+      "created_at": "2026-02-13T14:35:43Z"
+    },
+    {
+      "id": "012b44be-22db-5645-9e78-304d0f69fc66",
+      "author": "Ryan Alyn Porter",
+      "text": "New requirement: add full interoperability checks using the real Beads CLI + real Beads repo data. CI must install Beads CLI, build Taskulus Python + Rust, then run a final integration stage after the normal CI gates. Plan to add a dedicated integration script and a new CI job that runs after existing jobs and validates create/list/update/delete across Beads CLI, Taskulus Python, and the Rust binary using a cloned Beads repo.",
+      "created_at": "2026-02-13T18:19:39Z"
+    },
+    {
+      "id": "69999c25-361e-5bf7-8d2b-f45c5555d8f7",
+      "author": "Ryan Alyn Porter",
+      "text": "Added tools/run_beads_interop_suite.py to run full Beads CLI interoperability checks with real Beads repo data. CI now includes a beads-interop job that runs after python, rust, console-ui, performance, and python-install; it builds the Rust release binary, builds the Beads CLI from the cloned repo, and runs the interoperability suite.",
+      "created_at": "2026-02-13T18:27:35Z"
+    },
+    {
+      "id": "4b9a6ffa-f5ed-5b06-b4a1-d9309f03cb85",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran tools/run_beads_interop_suite.py. It failed building Beads CLI due to missing ICU headers (go-icu-regex: unicode/regex.h not found). Added apt-get install pkg-config libicu-dev to the beads-interop CI job to satisfy Beads build dependencies.",
+      "created_at": "2026-02-13T18:36:05Z"
+    },
+    {
+      "id": "680ac94c-9f4d-578a-a752-6c544a50108c",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran tools/run_beads_interop_suite.py locally using the installed bd binary. It fails at Taskulus Python show with 'multiple parents'. load_beads_issues converts all Beads records, so any Beads issue with multiple parent-child dependencies causes the entire read to fail. The real Beads repo contains such records (e.g., bd-98c4e1fa.1). We need to decide how Taskulus should handle multiple parents for Beads interop.",
+      "created_at": "2026-02-13T18:51:50Z"
+    },
+    {
+      "id": "5e577b15-da8c-5585-abb0-26895b13cc55",
+      "author": "Ryan Alyn Porter",
+      "text": "New request: create sample/fixture project data for more extensive testing. Need new feature to manage AGENTS.md: ensure a Taskulus section exists near top; find a header containing 'Taskulus' or insert new section after H1 as first H2. Also decide on CLI command name and behavior.",
+      "created_at": "2026-02-13T20:08:44Z"
+    }
+  ],
+  "created_at": "2026-02-13T06:23:30.351703Z",
+  "updated_at": "2026-02-16T01:47:50.185876Z",
+  "closed_at": "2026-02-16T01:47:50.178629Z",
+  "custom": {
+    "beads_acceptance_criteria": "Scenario covers create -> list in Taskulus and Beads -> delete -> verify removal in both.",
+    "beads_notes": "Add Gherkin ensuring issue appears in both list outputs after creation and absent after deletion.",
+    "beads_owner": "rap@endymion.com"
+  }
+}
