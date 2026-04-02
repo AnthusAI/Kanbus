@@ -109,8 +109,40 @@ def migrate_from_beads(root: Path) -> MigrationResult:
         raise MigrationError("already initialized")
 
     initialize_project(root)
-    project_dir = root / "project"
-    configuration = load_project_configuration(get_configuration_path(root))
+    return migrate_from_beads_into_project(root)
+
+
+def migrate_from_beads_into_project(root: Path) -> MigrationResult:
+    """Import Beads issues.jsonl into an existing Kanbus project.
+
+    This operation is repeatable and overwrites matching issue JSON files in
+    ``project/issues/`` (or the configured project directory).
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Migration result.
+    :rtype: MigrationResult
+    :raises MigrationError: If import fails.
+    """
+    try:
+        ensure_git_repository(root)
+    except Exception as error:
+        raise MigrationError(str(error)) from error
+
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise MigrationError("no .beads directory")
+
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise MigrationError("no issues.jsonl")
+
+    try:
+        configuration_path = get_configuration_path(root)
+    except Exception as error:
+        raise MigrationError(str(error)) from error
+    configuration = load_project_configuration(configuration_path)
+    project_dir = configuration_path.parent / configuration.project_directory
 
     records = _load_beads_records(issues_path)
     records = _dedupe_beads_records(records, issues_path)

@@ -9,6 +9,7 @@ from pathlib import Path
 from behave import given, then, when
 
 from features.steps.shared import ensure_git_repository, load_project_directory
+from kanbus.file_io import initialize_project
 from kanbus.migration import MigrationError, migrate_from_beads
 
 
@@ -264,7 +265,7 @@ def given_repo_with_fractional_timestamps(context: object) -> None:
 @given("a Kanbus project already exists")
 def given_kanbus_project_exists(context: object) -> None:
     repository_path = context.working_directory
-    (repository_path / "project" / "issues").mkdir(parents=True, exist_ok=True)
+    initialize_project(repository_path)
 
 
 @when("I validate migration error cases")
