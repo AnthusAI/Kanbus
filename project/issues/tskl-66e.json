@@ -1,0 +1,20 @@
+{
+  "id": "tskl-66e",
+  "title": "Console UI shows incorrect issue count in Open column",
+  "description": "The web console is only displaying 3 open items (2 issues + 1 epic) while the CLI shows 9 total open items. The 6 missing items are all P4 'State change' epics that appear to be filtered out in the UI. Need to investigate why these items are not visible and whether the filtering is intentional or a bug.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T02:12:12.148Z",
+  "updated_at": "2026-02-16T03:50:45.464950Z",
+  "closed_at": "2026-02-16T03:50:45.455631Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

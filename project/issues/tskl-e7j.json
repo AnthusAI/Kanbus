@@ -1,0 +1,20 @@
+{
+  "id": "tskl-e7j",
+  "title": "Issue Focus Command",
+  "description": "Add CLI commands and backend wiring to feature/focus a specific issue on the board via realtime messaging, including auto-focus on issue creation and agent-invoked focus.\n\n## Architecture Overview\n\nThe current Kanbus architecture has a 15-second polling-based SSE system. This epic implements a real-time notification system using broadcast channels that reduces latency from 15 seconds to <100ms.\n\nKey insight: Once we build the socket-based notification infrastructure for the focus feature, we can extend it to ALL CRUD operations (create, update, delete), enabling the entire board to update with much lower latency.\n\n## Implementation Phases\n\n### Phase 1: Real-time Notification Infrastructure\n- Create notification_events.rs with NotificationEvent enum (IssueCreated, IssueUpdated, IssueDeleted, IssueFocused)\n- Extend console_local.rs with broadcast::channel for notifications\n- Create notification_publisher.rs to POST events to console server\n- Add SSE endpoint /api/events/realtime for streaming notifications\n\n### Phase 2: Hook CRUD Operations (see sub-tasks)\n- Hook issue_creation.rs, issue_update.rs, issue_delete.rs\n- Hook issue_comment.rs, dependencies.rs\n- Hook beads_write.rs for beads compatibility mode\n\n### Phase 3: Implement Focus Command\n- Add ConsoleCommands::Focus in cli.rs\n- Create focus handler that validates issue and publishes IssueFocused event\n- Add --focus flag to kbs create command for auto-focus on creation\n- Enable agents to invoke focus command\n\n### Phase 4: Frontend Integration\n- Add subscribeToNotifications() in api/client.ts\n- Handle notification events in App.tsx (focus, create, update, delete)\n- Add GSAP animations for visual feedback (see tskl-e7j.7)\n\n### Phase 5: Console Server Endpoints\n- POST /api/notifications - Receives events from CLI\n- GET /api/events/realtime - SSE stream for frontend\n- Use broadcast channel pattern like telemetry system\n\n## Critical Files\n\nBackend:\n- rust/src/bin/console_local.rs - Console server\n- rust/src/notification_events.rs (NEW)\n- rust/src/notification_publisher.rs (NEW)\n- rust/src/cli.rs - Add focus command\n\nFrontend:\n- apps/console/src/api/client.ts\n- apps/console/src/App.tsx\n- apps/console/src/components/IssueCard.tsx\n\n## Architecture Benefits\n\n1. Latency: 15 seconds → <100ms for all operations\n2. User Experience: Immediate feedback on all actions\n3. Agent Collaboration: Agents can direct human attention via focus\n4. Scalability: Broadcast channel supports multiple subscribers\n5. Backward Compatibility: Existing 15-second polling remains as fallback\n6. Extensibility: Easy to add new event types\n\n## Technical Considerations\n\n- Notification failures should not block CRUD operations\n- Broadcast channel buffer (256) prevents memory bloat\n- SSE connection auto-reconnects on failure\n- Event payload kept small (<5KB)\n- Console server binds to localhost only",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T05:51:27.393287Z",
+  "updated_at": "2026-02-18T12:44:09.475675Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

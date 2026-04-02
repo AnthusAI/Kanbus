@@ -1,0 +1,28 @@
+{
+  "id": "tskl-wcm.4",
+  "title": "Rename repo references to Kanbus",
+  "description": "Update all non-project/ repository references from Taskulus to Kanbus, including docs, code, tests, and website content. Ensure taskul.us references become kanb.us.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wcm",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0606e76d-9040-535a-bc7d-7a4f94ca3454",
+      "author": "Ryan Alyn Porter",
+      "text": "Renaming across repo complete; Taskulus/tsk references removed outside project/.",
+      "created_at": "2026-02-14T23:37:59Z"
+    }
+  ],
+  "created_at": "2026-02-14T22:00:08.323499Z",
+  "updated_at": "2026-02-14T23:37:52.103246Z",
+  "closed_at": "2026-02-14T23:37:52.103246Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.10",
+  "title": "Implement policy evaluator engine",
+  "description": "Core engine that takes PolicyContext and parsed features, matches steps against registry, executes handlers, and returns PolicyViolation on first failure.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:23.111964Z",
+  "updated_at": "2026-02-27T06:58:26.152715Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

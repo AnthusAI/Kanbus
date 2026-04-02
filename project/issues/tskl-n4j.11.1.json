@@ -1,0 +1,27 @@
+{
+  "id": "tskl-n4j.11.1",
+  "title": "Provide a repeatable intro video demo workflow",
+  "description": "Ensure the render script can generate the intro MP4/JPG and the Gatsby homepage can preview it locally with a documented GATSBY_VIDEOS_BASE_URL example.",
+  "type": "task",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b11f95d9-4080-5d61-bf48-012e5d73b9ef",
+      "author": "unknown",
+      "text": "Render script and preview workflow are in place. Not executed locally because VIDEOML_CLI and BABULUS_BUNDLE are environment-specific; run node scripts/render-videos.js after setting them to validate output.",
+      "created_at": "2026-02-22T16:50:52.200539Z"
+    }
+  ],
+  "created_at": "2026-02-22T16:40:38.935872Z",
+  "updated_at": "2026-02-22T16:50:52.200539Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

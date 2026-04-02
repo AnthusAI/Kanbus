@@ -1,0 +1,27 @@
+{
+  "id": "tskl-ibv.5",
+  "title": "Frontend: Event History tab on issue detail",
+  "description": "As a user reading an issue, I want an Event History tab beside Comments, so that I can see the timeline of actions on that issue.\n\nAcceptance Criteria:\n- Issue detail view shows tabs: Comments (default) and Event History.\n- Selecting Event History fetches events for the issue, ordered chronologically, showing type, actor, timestamp, and context (from→to for transitions; comment reference for comments).\n- Supports pagination/load-more for long histories and an empty state when no events exist.",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan",
+  "parent": "tskl-ibv",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b93b01fe-62bc-5d75-82c1-5a2b14039206",
+      "author": "ryan",
+      "text": "Completed: Issue detail UI now has Comments + Event History tabs; events fetch on tab open, supports load more, and renders type/actor/timestamp summaries.",
+      "created_at": "2026-02-21T07:09:38.516395Z"
+    }
+  ],
+  "created_at": "2026-02-21T06:16:20.467144Z",
+  "updated_at": "2026-02-21T07:09:38.516395Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan"
+  }
+}

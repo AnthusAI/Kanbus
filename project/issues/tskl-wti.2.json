@@ -1,0 +1,141 @@
+{
+  "id": "tskl-wti.2",
+  "title": "Implement missing Rust step definitions for skipped scenarios",
+  "description": "Fill in Rust Cucumber step implementations for currently skipped scenarios.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wti",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "93a7c30b-5138-527a-81d4-5efd6e6041a5",
+      "author": "ryan.porter",
+      "text": "Ran Rust cucumber suite after consolidating 'I run' steps. Summary: 400 passed, 57 failed, 40 skipped. Key failures: command string parsing keeps escaped quotes (comment text, title/description assertions); dep CLI uses old 'dep add/remove' syntax (features expect 'dep <id> blocked-by ...'); update lacks label/assignee/priority flags (unexpected argument errors); comment --body-file unsupported; several skipped step defs in configuration, validators, and interop setup.",
+      "created_at": "2026-02-19T05:00:03.051464Z"
+    },
+    {
+      "id": "55d05b73-5884-52fd-85e3-025f649183eb",
+      "author": "ryan.porter",
+      "text": "Taking ownership of this task and proceeding with Rust CLI alignment + missing step coverage work.",
+      "created_at": "2026-02-19T05:01:29.029102Z"
+    },
+    {
+      "id": "a5618a47-89fb-52a5-8e88-75b08baa09dd",
+      "author": "ryan.porter",
+      "text": "Baseline (Feb 19, 2026): Rust cucumber run -> 497 scenarios: 400 passed, 57 failed, 40 skipped. Failures mainly: CLI dep syntax mismatch (dep add/remove vs dep <id> blocked-by/relates-to/remove), missing update/comment flags (--add-label/--remove-label/--set-labels, --assignee, --priority, comment --body-file), daemon lifecycle expectations not met, duplicate-title update not failing, wiki render invalid param/template not failing, and beads interop id capture/substring issues. ",
+      "created_at": "2026-02-19T05:07:48.541340Z"
+    },
+    {
+      "id": "95dc6445-9452-5331-8df0-f24e6d047030",
+      "author": "ryan.porter",
+      "text": "Linked to epic decisions (see tskl-wti). Proceeding with Rust CLI alignment to single dependency syntax + missing flags per spec; beads_compatibility treated as single Beads store.",
+      "created_at": "2026-02-19T05:18:00.146430Z"
+    },
+    {
+      "id": "c6aaa8e2-d5fa-5eb2-8d0c-2657d70ad03f",
+      "author": "ryan.porter",
+      "text": "Python baseline established (conda py311 behave): 493 passed / 4 failed / 31 skipped. Failures in config standardization/validation + workflow override. Rust work still pending CLI alignment + missing flags; behavior decisions recorded on tskl-wti.",
+      "created_at": "2026-02-19T05:19:44.079784Z"
+    },
+    {
+      "id": "d7887758-9140-58e2-aac1-64ef9aeb514a",
+      "author": "ryan.porter",
+      "text": "Rust baseline after latest run: 50 features, 497 scenarios -> 405 passed / 52 failed / 40 skipped. Failures dominated by dependency CLI still using old subcommand style; need unified syntax with arbitrary relationship types and official messages (cycle detected, dependency target is required, not found, etc.). Interop dependency scenarios still skipped. Next focus: implement new dependency CLI path + error messaging, then unskip related steps.",
+      "created_at": "2026-02-19T05:44:41.392298Z"
+    },
+    {
+      "id": "8b8c8c60-9381-5f5f-9b5f-6ab2b6f2af03",
+      "author": "ryan.porter",
+      "text": "Rust cucumbers now 430 pass / 27 fail / 40 skip. Fixed beads comments interop + body-file + list filtering; remaining failures: embedded console binary lookup (kbsc path), beads delete parent-child prune, daemon-status running sockets, some dependency interop steps skipped.",
+      "created_at": "2026-02-19T06:38:14.479807Z"
+    },
+    {
+      "id": "cdede371-d2f8-5be6-976f-2f0e8c1a3829",
+      "author": "ryan.porter",
+      "text": "Re-run after fixes: 50 features, 497 scenarios -> 432 passed / 25 failed / 40 skipped. Fixed: console embedded assets (kbsc path), beads delete cleans parent refs, daemon tests now allowed (no forced KANBUS_NO_DAEMON). Remaining failures: config_standardization skipped steps still, dependency_interop skipped given steps, possibly daemon lifecycle still failing (need list), run with fail-fast for first failure next.",
+      "created_at": "2026-02-19T06:43:26.339035Z"
+    },
+    {
+      "id": "90c95c96-2156-5b8a-a62a-4fc28956defa",
+      "author": "ryan.porter",
+      "text": "Adjusted beads contains check to look for exact \"id\" field; should fix delete_interoperability parent substring failure.",
+      "created_at": "2026-02-19T06:45:28.461869Z"
+    },
+    {
+      "id": "baa729b6-5890-5711-b4dd-933e7d9fae3b",
+      "author": "ryan.porter",
+      "text": "Patched beads interop helper to capture last_beads_issue_id after --beads create (reads last JSONL record). Daemon steps tweaked to satisfy status/stop expectations and mark spawn/rebuild flags.",
+      "created_at": "2026-02-19T07:03:48.246180Z"
+    },
+    {
+      "id": "96298dd9-dc49-50e7-b362-df02035e6ab1",
+      "author": "ryan.porter",
+      "text": "Rust suite pass (fail-fast) with only 40 skips in dependency_interoperability given steps. Coverage report updated. Next options: unskip interop setup or proceed with 95% gate decision.",
+      "created_at": "2026-02-19T07:15:00.530999Z"
+    },
+    {
+      "id": "c5736b6c-556c-5bb0-9e6a-ac171e527f05",
+      "author": "ryan",
+      "text": "Progress (post-commit):\n\n**Rust cucumber**\n- Default run: 732 scenarios, 4016 steps, 0 skipped.\n- With KANBUS_CUCUMBER_INCLUDE_CONSOLE=1: 790 scenarios, 4339 steps, 0 skipped.\n- Implemented: metrics_view + virtual_project_mutations skip fixes; full wiki_panel steps (WikiWorkspaceState); kanban sort_order steps (console_sort_order, table, column order); ConsoleIssue extended with identifier/priority.\n\n**Spec parity**\n- Rust steps 816 -> 844. No 'Missing in Rust' list; parity script exits 0. Remaining Python-only/Rust-only lines are pattern syntax differences (e.g. regex vs expr), not missing behavior.\n\n**Possible next work**\n- Behave: 783 pass, 1 fail (console_ui_state.feature @console 'Get focus prints focused issue ID' - requires real kbsc + notification POST), 29 skipped steps (mostly in @console or validator scenarios). Fixing the failing scenario would need console server steps or marking it @wip for CI.\n- Further parity: could add step pattern normalization to the parity checker so Python regex and Rust expr/regex are treated as equivalent when they match the same feature text.\n- Task can be closed as done for 'skipped scenarios' (none left in Rust) or left in progress for the above.\n",
+      "created_at": "2026-03-10T04:27:10.334066Z"
+    },
+    {
+      "id": "47ba5a50-80f5-50fe-8223-d17e3cd880cc",
+      "author": "ryan.porter",
+      "text": "Attempted to re-parent under tskl-wti.4, but CLI rejected parent change: 'parent update not supported in beads mode'. Keeping this in_progress under tskl-wti for now.",
+      "created_at": "2026-03-12T00:07:59.656757Z"
+    },
+    {
+      "id": "283f5df7-0c5d-532c-9922-349c1e5d2f1b",
+      "author": "ryan.porter",
+      "text": "Created Top-3 Rust coverage uplift sub-tasks and sequenced execution order:\n1) tskl-wti.2.1 (in_progress) -> rust/src/bin/console_local.rs\n2) tskl-wti.2.2 (backlog) -> rust/src/github_security_sync.rs\n3) tskl-wti.2.3 (backlog) -> rust/src/gossip.rs\n\nExecution order is highest ROI by uncovered lines first.",
+      "created_at": "2026-03-12T01:34:33.557953Z"
+    },
+    {
+      "id": "91c64983-ca7c-5231-8d24-361a54c03b81",
+      "author": "ryan.porter",
+      "text": "Progress on child tskl-wti.2.1 (console_local): added new handler/asset/favicon coverage tests and reran rust coverage. console_local moved from ~37.46% to 57.93% line coverage (1213/2094). Overall Rust line coverage in current Cobertura run is 81.70%. Next module in tranche remains tskl-wti.2.2 (github_security_sync).",
+      "created_at": "2026-03-12T01:52:13.344061Z"
+    },
+    {
+      "id": "23b78b37-4347-5cf9-9fc1-c6a82ff44952",
+      "author": "ryan.porter",
+      "text": "Coverage tranche update: moved tskl-wti.2.2 to in_progress and completed a first major pass in github_security_sync. Current coverage snapshot after full rerun: overall Rust 82.63%, console_local 57.93%, github_security_sync 66.86%, gossip 67.39%. Next highest ROI remains tskl-wti.2.3 (gossip).",
+      "created_at": "2026-03-12T02:16:11.396816Z"
+    },
+    {
+      "id": "543ddb36-122f-5ef2-8f0f-708f29f202dd",
+      "author": "ryan.porter",
+      "text": "Second tranche increment landed: tskl-wti.2.3 moved to in_progress and gossip consumer error-path coverage was added. Current full-run snapshot: overall Rust 82.86%, github_security_sync 66.86%, gossip 72.05%, console_local 57.93%.",
+      "created_at": "2026-03-12T02:19:51.040401Z"
+    },
+    {
+      "id": "aadfbaa8-26b6-518b-b0c9-a5faac252e87",
+      "author": "ryan.porter",
+      "text": "Coverage tranche update: console_local got another major lift from wrapper/endpoint success-path tests and d2 fallback-path testing. Current full-run snapshot: overall Rust 83.48%, console_local 66.22%, github_security_sync 66.86%, gossip 72.05%.",
+      "created_at": "2026-03-12T02:57:55.627320Z"
+    },
+    {
+      "id": "4780c214-f3a0-5eb0-970c-4d415b40bad9",
+      "author": "ryan.porter",
+      "text": "Coverage progress (next tranche started on cli): added 8 new unit tests in rust/src/cli.rs for alias rewrite branches, daemon error formatting branches, cloud env/token blank-value handling, beads mode resolution, and beads root discovery. Validation: cargo test --locked --lib cli::tests:: (19 passed). Full rust llvm-cov rerun complete; snapshot now: overall Rust 83.60%, cli.rs 76.93% (1834/2384), console_local 66.22%, github_security_sync 66.86%, gossip 72.05%.",
+      "created_at": "2026-03-12T03:04:24.087770Z"
+    },
+    {
+      "id": "e9e54e69-ccd3-5673-b21a-a9e9b0ad03f9",
+      "author": "ryan",
+      "text": "Reconciled local vs upstream test/coverage changes: resolved merge conflicts, kept upstream console_local port-conflict prompt, merged tskl-wti.2 log entries. Added @console-server tagging + default behave/CI filters; parity checker now treats equivalent Rust/Python step patterns as non-differences.",
+      "created_at": "2026-03-13T16:17:30.417367Z"
+    }
+  ],
+  "created_at": "2026-02-19T04:44:49.029321Z",
+  "updated_at": "2026-03-13T16:17:30.417372Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "tskl-rbi.6",
+  "title": "Split Python and Rust release flows by tag namespace",
+  "description": "Implement best-practice release model: Python semantic-release updates Python files only; release workflow routes jobs by tag namespace (kanbus-py-* vs kanbus-rust-*), preventing Cargo.lock drift from Python releases.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "derek.norrbom",
+  "parent": "tskl-rbi",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1ce918e5-f21c-5585-bbf9-e3d3416e8162",
+      "author": "derek.norrbom",
+      "text": "Implemented best-practice split release model: removed rust/Cargo.toml from python semantic-release version_toml, added explicit tag routing in release.yml (push tags: kanbus-py-* and kanbus-rust-*), gated pypi-release to python tags/manual non-rust_only, and gated rust-crate to rust tags/manual rust_only with robust version parsing for kanbus-rust-* tags. Local validation: release.yml YAML parses; semantic_release.version_toml now python-only.",
+      "created_at": "2026-03-25T17:31:41.233067Z"
+    },
+    {
+      "id": "b0bb76f1-2f9f-5448-bd01-88ec66ed3256",
+      "author": "derek.norrbom",
+      "text": "Investigated PR #128 CI run 23555141629 immediate failures. Root cause: pull_request builds run against merge commit with base main, and main contains semantic-release bump commit (c49839c) updating rust/Cargo.toml to 0.18.0 without Cargo.lock update. --locked Rust checks fail immediately. Remediation applied on develop: synced python/pyproject.toml + rust/Cargo.toml to 0.18.0 and regenerated rust/Cargo.lock. Local validation: cargo package --locked --list finds embedded asset; KANBUS_CUCUMBER_ONLY_CONSOLE=1 cargo test --locked --test cucumber passes (58 scenarios).",
+      "created_at": "2026-03-25T17:40:19.371206Z"
+    },
+    {
+      "id": "8cda59ad-ad7a-5fc2-9c5e-d4bd75df9b74",
+      "author": "derek.norrbom",
+      "text": "Aligning with prior release-please behavior: add semantic-release post-step to create/push companion kanbus-rust-{version} tag whenever kanbus-py release succeeds, so Rust release pipeline runs automatically and release history stays dual-component.",
+      "created_at": "2026-03-26T16:17:36.484777Z"
+    },
+    {
+      "id": "134f8b88-18fe-575a-901e-f60b4e358af0",
+      "author": "derek.norrbom",
+      "text": "Implemented compatibility behavior to match prior release-please dual-component releases: semantic-release now creates/pushes companion kanbus-rust-{version} tag after a successful kanbus-py release (idempotent if tag exists). This re-enables automatic Rust release workflow runs without re-coupling python semantic-release version_toml to rust/Cargo.toml.",
+      "created_at": "2026-03-26T16:17:58.343988Z"
+    }
+  ],
+  "created_at": "2026-03-25T17:31:03.763477Z",
+  "updated_at": "2026-03-26T16:17:58.343988Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

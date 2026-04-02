@@ -1,0 +1,39 @@
+{
+  "id": "tskl-eo2.9",
+  "title": "Dogfood realtime integration test via Docker MQTT",
+  "description": "Dogfood integration test for Kanbus realtime event propagation using real project issues and external consumers.\n\nScope:\n- Create test epic + child issues in this project.\n- Run mutations from isolated Docker container(s) without host UDS linkage.\n- Force MQTT transport path and verify host-side kbsc/board/clock observe updates.\n- Continuously rebuild/install system-wide kbs/kbsc during test loop.\n- Document cross-Mac MQTT configuration for shared realtime observation.\n\nDefinition of Done:\n- Docker-originated issue mutations are visible on host realtime consumers.\n- Validation evidence captured for create/update/comment/close transitions.\n- Fallback/transport assumptions explicitly documented.\n- Cross-Mac setup steps written and verified for one additional machine path.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7673be0e-d984-5b6d-972e-3c4167fe93f3",
+      "author": "ryan.porter",
+      "text": "Progress: Dogfood realtime integration epic filed with execution tasks and started.\nEvidence: Created tskl-eo2.9 + tasks 9.1..9.4; active task 9.1 moved to in_progress.\nNext: run build/install loop, then execute Docker MQTT-only mutation validation.\nRisk/Blocker: none.",
+      "created_at": "2026-03-08T12:38:53.757235Z"
+    },
+    {
+      "id": "0ba725a4-0624-504a-85bc-dbfb79a53cb9",
+      "author": "ryan.porter",
+      "text": "Progress: Dogfood integration validation completed: install loop, Docker-isolated MQTT mutations, host kbsc consumer verification, and cross-Mac runbook. Evidence: tasks tskl-eo2.9.1..9.4 now closed with captured mutation/event evidence and docs updates. Next: run live two-Mac cloud token test with operator commands from runbook. Risk/Blocker: none.",
+      "created_at": "2026-03-08T12:53:50.898923Z"
+    },
+    {
+      "id": "36f46936-aa72-57b5-966a-b92994136bb2",
+      "author": "ryan.porter",
+      "text": "Progress: Starting live cloud MQTT demo run requested by user (10 events over 12 minutes). Evidence: creating dedicated demo task and preparing watcher/mutator scripts. Next: mint token, run watcher, emit timed mutations, return captured log. Risk/Blocker: none.",
+      "created_at": "2026-03-08T13:03:33.089773Z"
+    }
+  ],
+  "created_at": "2026-03-08T12:38:48.228250Z",
+  "updated_at": "2026-03-08T13:03:33.089773Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

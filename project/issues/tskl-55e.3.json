@@ -1,0 +1,20 @@
+{
+  "id": "tskl-55e.3",
+  "title": "Settings panel uses shared RightSidebar component",
+  "description": "Migrate the existing settings panel (mode, theme, motion, typeface) from its current GSAP fixed-position overlay to the new shared RightSidebar component. All existing settings content and behavior remain unchanged; only the container and animation mechanism changes.\n\nScenario: Settings panel opens as a right sidebar\n\nGiven the user clicks the settings button in the toolbar\nThen the settings panel opens using the shared RightSidebar component\nAnd the kanban board animates to become narrower\nAnd the settings panel sits at the same Z-level as the board columns\nAnd no overlay or dimming layer appears over the board\n\nScenario: Existing settings content is preserved\n\nGiven the settings sidebar is open\nThen it contains the same mode selector (Light, Dark, System)\nAnd the same theme selector (Neutral, Cool, Warm)\nAnd the same motion selector (Full, Reduced, Off)\nAnd the same typeface selector (Sans, Serif, Mono)\nAnd each control behaves identically to the previous implementation\n\nScenario: Settings close button closes the sidebar\n\nGiven the settings sidebar is open\nWhen the user clicks the X close button\nThen the settings sidebar closes\nAnd the kanban board animates back to full width",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-55e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T20:49:01.820150Z",
+  "updated_at": "2026-02-23T04:53:53.549648Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

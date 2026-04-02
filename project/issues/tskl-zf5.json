@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zf5",
+  "title": "Implement Beads write mode in Python CLI",
+  "description": "Add --beads flag support to Python kanbus CLI for write operations (comment, update, delete, dep). This enables full Beads/Kanbus interoperability. Required for interoperability test features to pass.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T03:18:10.226305Z",
+  "updated_at": "2026-02-18T05:41:32.773328Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,599 @@
+{
+  "id": "tskl-e7j.7",
+  "title": "Add visual feedback for real-time board updates [VERIFIED WORKING]",
+  "description": "Testing description change - this should also scroll to top to show the updated description field.",
+  "type": "task",
+  "status": "backlog",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-e7j",
+  "labels": [
+    "backlog"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "8ea9cd3f-c9b0-5803-a81b-0c91095ac1a2",
+      "author": "ryan.porter",
+      "text": "Final test with fixed dependencies - should scroll to bottom now",
+      "created_at": "2026-02-18T13:56:53.294659Z"
+    },
+    {
+      "id": "a72c5b78-0fc0-5ae1-b3f7-6fb63e20c685",
+      "author": "ryan.porter",
+      "text": "Testing NOW after reload - check console for [AutoScroll] logs",
+      "created_at": "2026-02-18T13:58:03.281935Z"
+    },
+    {
+      "id": "20309f56-830e-54f6-a9fa-adae2dbbad8a",
+      "author": "ryan.porter",
+      "text": "Alert test - you should see a popup if the logic triggers",
+      "created_at": "2026-02-18T13:58:44.039442Z"
+    },
+    {
+      "id": "78a45a61-b8e7-5130-8e0a-cb876b6a0a84",
+      "author": "ryan.porter",
+      "text": "Test with console logging - watch the logs",
+      "created_at": "2026-02-18T13:59:46.211758Z"
+    },
+    {
+      "id": "977eb203-4f83-5009-9c7c-7272bb513f76",
+      "author": "ryan.porter",
+      "text": "Test after removing contentRef check from early return",
+      "created_at": "2026-02-18T14:00:11.137724Z"
+    },
+    {
+      "id": "fe1bba4f-a4ee-589e-89f0-a95bd9ff171d",
+      "author": "ryan.porter",
+      "text": "Testing NOW after reload - you should see alert and scroll",
+      "created_at": "2026-02-18T14:01:13.568256Z"
+    },
+    {
+      "id": "4fa1ddca-c8f6-5ff1-87eb-e960f246061d",
+      "author": "ryan.porter",
+      "text": "Second comment after reload - this one should trigger scroll",
+      "created_at": "2026-02-18T14:01:21.479356Z"
+    },
+    {
+      "id": "8cc1de40-485a-5729-834f-6f08d1420c40",
+      "author": "ryan.porter",
+      "text": "TEST with ref on correct scrollable element - should scroll NOW",
+      "created_at": "2026-02-18T14:02:29.700842Z"
+    },
+    {
+      "id": "1f0261a6-5f28-5b6c-8e9a-aa9a9f24c8ce",
+      "author": "ryan.porter",
+      "text": "Testing with detailed scroll measurements - check logs for canScroll value",
+      "created_at": "2026-02-18T14:05:25.931241Z"
+    },
+    {
+      "id": "401015f5-1051-58ac-a722-f6549b9a4241",
+      "author": "ryan.porter",
+      "text": "Second test with new logging code",
+      "created_at": "2026-02-18T14:05:37.232375Z"
+    },
+    {
+      "id": "777387f3-ca83-5aeb-b4b6-39128070c079",
+      "author": "ryan.porter",
+      "text": "Final test for new logging format",
+      "created_at": "2026-02-18T14:09:00.214483Z"
+    },
+    {
+      "id": "65c72473-6a36-54a8-a8ad-8584fc970137",
+      "author": "ryan.porter",
+      "text": "Final test - clean code, should scroll smoothly to bottom",
+      "created_at": "2026-02-18T14:10:03.016626Z"
+    },
+    {
+      "id": "4049d83e-3bcb-5055-b4bb-f9096f42e4db",
+      "author": "ryan.porter",
+      "text": "Testing auto-scroll with issue focused",
+      "created_at": "2026-02-18T14:11:33.562475Z"
+    },
+    {
+      "id": "a9d8de85-0e9a-521b-bd06-e7e90d2e8884",
+      "author": "ryan.porter",
+      "text": "Test - trying to understand why scroll not visible",
+      "created_at": "2026-02-18T14:12:15.846962Z"
+    },
+    {
+      "id": "d3ac1087-4f85-5206-930d-61aabc310af5",
+      "author": "ryan.porter",
+      "text": "Test with scrollIntoView on last comment element",
+      "created_at": "2026-02-18T14:12:39.673843Z"
+    },
+    {
+      "id": "f723d66d-2711-5049-b7b4-a752571feaa8",
+      "author": "ryan.porter",
+      "text": "Adding comment to scroll to bottom first",
+      "created_at": "2026-02-18T14:16:18.739892Z"
+    },
+    {
+      "id": "1cf00573-0c09-5cec-aaf7-0af7c34dc64f",
+      "author": "ryan.porter",
+      "text": "Scroll to bottom to test status scroll",
+      "created_at": "2026-02-18T14:18:37.111184Z"
+    },
+    {
+      "id": "ac469ed7-e280-58ae-82a5-7f9767456ade",
+      "author": "ryan.porter",
+      "text": "Scrolling to bottom - watch for status change next",
+      "created_at": "2026-02-18T14:19:29.099075Z"
+    },
+    {
+      "id": "beb4331e-d47d-59e7-aba5-1cf8d3cd5a1d",
+      "author": "ryan.porter",
+      "text": "Testing scrollend event - scroll to bottom first",
+      "created_at": "2026-02-18T14:21:14.253380Z"
+    },
+    {
+      "id": "329b1fba-35bd-5ed0-a34a-9e096e6f4595",
+      "author": "ryan.porter",
+      "text": "Scroll to bottom - watch for next status change",
+      "created_at": "2026-02-18T14:24:39.539119Z"
+    },
+    {
+      "id": "f7bba5fa-9cdb-5812-9887-bc0211d14180",
+      "author": "ryan.porter",
+      "text": "Testing prominent yellow flash - scroll to bottom",
+      "created_at": "2026-02-18T14:26:34.296243Z"
+    },
+    {
+      "id": "3ca710e1-b37b-5b15-a67e-e12a656baad4",
+      "author": "ryan.porter",
+      "text": "Scroll to bottom again",
+      "created_at": "2026-02-18T14:27:02.163185Z"
+    },
+    {
+      "id": "bb8a21c0-7e0a-5628-9633-83a907e6ea62",
+      "author": "ryan.porter",
+      "text": "Test with better selector and more prominent flash",
+      "created_at": "2026-02-18T14:28:10.920874Z"
+    },
+    {
+      "id": "e24caa32-993c-5569-a56c-5455137376eb",
+      "author": "ryan.porter",
+      "text": "Watch this scroll to bottom",
+      "created_at": "2026-02-18T14:35:16.706520Z"
+    },
+    {
+      "id": "e889ab95-53fb-5ad2-ae37-78a25d58a7b2",
+      "author": "ryan.porter",
+      "text": "Testing hidden then fade in approach",
+      "created_at": "2026-02-18T14:36:25.820601Z"
+    },
+    {
+      "id": "09da82be-84e3-5ac6-aa4d-132c134fb610",
+      "author": "ryan.porter",
+      "text": "Testing IntersectionObserver approach - should fade in when visible",
+      "created_at": "2026-02-18T14:37:38.873647Z"
+    },
+    {
+      "id": "73e64986-cb1f-5447-a7fc-2eee1987a4f1",
+      "author": "ryan.porter",
+      "text": "Testing appear animation - should scroll then fade in when visible",
+      "created_at": "2026-02-18T14:40:12.853746Z"
+    },
+    {
+      "id": "d2d79ee1-90dd-5310-ad25-396764c3cb55",
+      "author": "ryan.porter",
+      "text": "Testing useLayoutEffect - should be hidden then fade in when scrolled into view",
+      "created_at": "2026-02-18T14:43:38.871908Z"
+    },
+    {
+      "id": "343ac0c3-4aef-516f-ae42-ab208b6ca1bf",
+      "author": "ryan.porter",
+      "text": "Testing improved animation - 300ms delay, 1s duration, more padding",
+      "created_at": "2026-02-18T14:45:44.927857Z"
+    },
+    {
+      "id": "9c916566-5576-51e2-8720-ea96760002b3",
+      "author": "ryan.porter",
+      "text": "Testing border glow and character-by-character typing effect",
+      "created_at": "2026-02-18T14:52:04.836091Z"
+    },
+    {
+      "id": "9def896d-1d1d-51ef-abc0-b87ed7d31ec2",
+      "author": "ryan.porter",
+      "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+      "created_at": "2026-02-18T14:55:20.321097Z"
+    },
+    {
+      "id": "3e65da99-5992-5f72-91f1-820e1d0dd3f5",
+      "author": "ryan.porter",
+      "text": "Testing the comment animation with this new comment to verify it triggers on the correct element",
+      "created_at": "2026-02-18T15:00:14.764515Z"
+    },
+    {
+      "id": "99749505-c031-5468-bc1f-03c2cb9432b5",
+      "author": "ryan.porter",
+      "text": "This comment should appear INSTANTLY with the typing animation - no latency!",
+      "created_at": "2026-02-18T15:13:54.345013Z"
+    },
+    {
+      "id": "79cbbbb4-c9b1-52f3-9762-26fbf169a33c",
+      "author": "ryan.porter",
+      "text": "FINAL TEST: This should appear INSTANTLY after page reload!",
+      "created_at": "2026-02-18T15:17:44.669632Z"
+    },
+    {
+      "id": "5cb59e3f-d26c-599b-9eba-bc394a3dd31c",
+      "author": "ryan.porter",
+      "text": "Testing animation - this should appear with typing effect INSTANTLY",
+      "created_at": "2026-02-18T15:23:41.603632Z"
+    },
+    {
+      "id": "ae8c7e8d-fa02-5e20-947b-895d4bd5ba4c",
+      "author": "ryan.porter",
+      "text": "NOW WITH OPTIMIZED CODE: This comment should appear instantly with border glow and typing effect!",
+      "created_at": "2026-02-18T15:27:23.676193Z"
+    },
+    {
+      "id": "fbabacfe-4922-5d1f-9159-5cd3de4c40f1",
+      "author": "ryan.porter",
+      "text": "REAL-TIME TEST: Should appear with typing effect instantly",
+      "created_at": "2026-02-18T15:29:29.513643Z"
+    },
+    {
+      "id": "ddbe152e-87c4-5a3d-ae2c-5440cc9a8995",
+      "author": "ryan.porter",
+      "text": "Watch this one appear with instant typing animation!",
+      "created_at": "2026-02-18T15:35:10.251480Z"
+    },
+    {
+      "id": "6f656ce6-3767-534a-9651-d34ebce66839",
+      "author": "ryan.porter",
+      "text": "Debug test",
+      "created_at": "2026-02-18T15:37:18.459878Z"
+    },
+    {
+      "id": "cf3bf1ba-6aaa-5793-a0d2-1d8ff84e513d",
+      "author": "ryan.porter",
+      "text": "Debug test 3",
+      "created_at": "2026-02-18T15:37:54.898024Z"
+    },
+    {
+      "id": "c5d64dc3-567c-5aa0-8edf-e138fc44c915",
+      "author": "ryan.porter",
+      "text": "Debug test 4",
+      "created_at": "2026-02-18T15:38:03.825890Z"
+    },
+    {
+      "id": "b962a737-c0f1-537d-95b7-6cef399bb0a5",
+      "author": "ryan.porter",
+      "text": "REAL TEST from correct directory!",
+      "created_at": "2026-02-18T15:38:15.745387Z"
+    },
+    {
+      "id": "e1923d00-b07b-58ea-9daf-b315bc662e93",
+      "author": "ryan.porter",
+      "text": "WATCH THIS: Instant typing animation with border glow!",
+      "created_at": "2026-02-18T16:09:00.334923Z"
+    },
+    {
+      "id": "332901a2-3914-5659-9f84-5b587e7c982a",
+      "author": "ryan.porter",
+      "text": "Polling test - should appear in 15 seconds",
+      "created_at": "2026-02-18T16:10:08.287335Z"
+    },
+    {
+      "id": "f5e8465e-fbe4-52a4-b108-a9e335d0c493",
+      "author": "ryan.porter",
+      "text": "Testing with CLI logging enabled",
+      "created_at": "2026-02-18T16:10:32.343914Z"
+    },
+    {
+      "id": "45698c01-d9e2-5f65-ad2f-30b532a54ada",
+      "author": "ryan.porter",
+      "text": "With interleaved CLI logging!",
+      "created_at": "2026-02-18T16:11:12.663293Z"
+    },
+    {
+      "id": "f62f6b74-45e1-5290-ad20-a978764c9814",
+      "author": "ryan.porter",
+      "text": "CLI logging test 2",
+      "created_at": "2026-02-18T16:11:23.808551Z"
+    },
+    {
+      "id": "98355e61-e5d3-5778-9c06-774a9d2e5f21",
+      "author": "ryan.porter",
+      "text": "FINAL REAL-TIME TEST - watch this appear instantly!",
+      "created_at": "2026-02-18T16:13:18.244734Z"
+    },
+    {
+      "id": "8da1b543-5319-5f57-b2f4-4d0c60f21fa4",
+      "author": "ryan.porter",
+      "text": "RIGHT NOW: Instant border glow + character-by-character typing!",
+      "created_at": "2026-02-18T16:24:33.132163Z"
+    },
+    {
+      "id": "2d002c8b-533d-57bd-8de8-c0e37016e73b",
+      "author": "ryan.porter",
+      "text": "Debug connection test",
+      "created_at": "2026-02-18T16:24:46.705500Z"
+    },
+    {
+      "id": "ac33cb78-6b0b-5c55-90ec-6503e511caf0",
+      "author": "ryan.porter",
+      "text": "Testing with server logging enabled",
+      "created_at": "2026-02-18T16:27:32.813007Z"
+    },
+    {
+      "id": "41a96254-759c-55df-8bc7-bd0805ca77e8",
+      "author": "ryan.porter",
+      "text": "Stderr capture test",
+      "created_at": "2026-02-18T16:28:25.381500Z"
+    },
+    {
+      "id": "cda37a72-af0a-585d-9d13-57c59a41458a",
+      "author": "ryan.porter",
+      "text": "File logging test NOW",
+      "created_at": "2026-02-18T16:29:18.496325Z"
+    },
+    {
+      "id": "40de762e-0b60-5892-a5bf-aba712d6ae60",
+      "author": "ryan.porter",
+      "text": "REAL-TIME TEST WITH BEADS FIX!",
+      "created_at": "2026-02-18T16:30:22.720036Z"
+    },
+    {
+      "id": "b09bce2a-15fc-574d-ae5f-44a47f1ae3d5",
+      "author": "ryan.porter",
+      "text": "Refactored notification - watch this appear instantly!",
+      "created_at": "2026-02-18T16:32:00.913894Z"
+    },
+    {
+      "id": "13167925-c33f-587e-9178-1e8c27f4349f",
+      "author": "ryan.porter",
+      "text": "SCROLL TEST: Watch the bottom of the panel for border glow and typing!",
+      "created_at": "2026-02-18T16:33:16.933125Z"
+    },
+    {
+      "id": "e4db9f64-28ae-5406-b697-e4f22ab42251",
+      "author": "ryan.porter",
+      "text": "NOW WATCH: Border glow then typing animation!",
+      "created_at": "2026-02-18T16:34:15.730629Z"
+    },
+    {
+      "id": "9e8a7874-d0f4-5ef0-8c71-452751372bff",
+      "author": "ryan.porter",
+      "text": "Test comment - checking issue_data field",
+      "created_at": "2026-02-18T16:37:34.171799Z"
+    },
+    {
+      "id": "04a0c856-6918-55af-9a52-e26556b3d561",
+      "author": "ryan.porter",
+      "text": "Test comment - checking issue_data field",
+      "created_at": "2026-02-18T16:37:53.092605Z"
+    },
+    {
+      "id": "3e06819d-41fc-5549-9bf7-212aaa319665",
+      "author": "ryan.porter",
+      "text": "Testing notification from correct directory",
+      "created_at": "2026-02-18T16:38:27.525339Z"
+    },
+    {
+      "id": "79930602-36ca-5397-8a48-65ffc5c88e7c",
+      "author": "ryan.porter",
+      "text": "FINAL TEST - checking full payload with issue_data",
+      "created_at": "2026-02-18T16:44:39.530495Z"
+    },
+    {
+      "id": "d25fc3d5-cee2-53a2-95aa-eaf034157f55",
+      "author": "ryan.porter",
+      "text": "Testing after browser reload",
+      "created_at": "2026-02-18T16:45:00.301338Z"
+    },
+    {
+      "id": "896db03d-b005-5f74-bb11-dc75faecbfc5",
+      "author": "ryan.porter",
+      "text": "RIGHT NOW test",
+      "created_at": "2026-02-18T16:46:05.582243Z"
+    },
+    {
+      "id": "a5340881-8c1f-5453-a6cf-371f6b706ac8",
+      "author": "ryan.porter",
+      "text": "Testing with visible server logs",
+      "created_at": "2026-02-18T16:46:53.438430Z"
+    },
+    {
+      "id": "45efe8e3-817b-5d3a-b0b1-1c344446ba06",
+      "author": "ryan.porter",
+      "text": "Single clean test NOW",
+      "created_at": "2026-02-18T16:48:56.280493Z"
+    },
+    {
+      "id": "c6aa1a0e-f6dd-512c-a2f8-233c7e979278",
+      "author": "ryan.porter",
+      "text": "TESTING FIXED resolve_root function",
+      "created_at": "2026-02-18T16:50:00.187637Z"
+    },
+    {
+      "id": "e6d5aa25-65c3-5c85-ab7d-1689bd246a50",
+      "author": "ryan.porter",
+      "text": "FINAL REAL TEST - fixed resolve_root",
+      "created_at": "2026-02-18T16:50:47.711392Z"
+    },
+    {
+      "id": "70ada552-a6e4-55df-af4e-695d573c0586",
+      "author": "ryan.porter",
+      "text": "Browser should be open - testing notification with logging",
+      "created_at": "2026-02-18T16:51:05.104374Z"
+    },
+    {
+      "id": "f7de2040-ed11-54dc-8b07-13341e874ddd",
+      "author": "ryan.porter",
+      "text": "SUCCESS! Fixed resolve_root - CLI and server now find the same socket automatically",
+      "created_at": "2026-02-18T16:52:05.686889Z"
+    },
+    {
+      "id": "379df4ca-73bd-5277-b798-ab76aad676f3",
+      "author": "ryan.porter",
+      "text": "Animation test: Watch for border glow and typing effect!",
+      "created_at": "2026-02-18T16:52:23.441622Z"
+    },
+    {
+      "id": "66a2e706-751b-57d6-b358-e86c212ec640",
+      "author": "ryan.porter",
+      "text": "NOW with rebuilt frontend - checking for issue_data in payload",
+      "created_at": "2026-02-18T16:53:09.502688Z"
+    },
+    {
+      "id": "8a700752-6aba-5d75-bfe1-0718c80d3588",
+      "author": "ryan.porter",
+      "text": "Testing from PROJECT ROOT with rebuilt frontend",
+      "created_at": "2026-02-18T16:53:19.804096Z"
+    },
+    {
+      "id": "7ddd7ffd-4181-5e32-9058-903c1721110c",
+      "author": "ryan.porter",
+      "text": "FINAL ANIMATION TEST - watching logs",
+      "created_at": "2026-02-18T16:54:19.225077Z"
+    },
+    {
+      "id": "eae852ea-71f2-57b2-99f7-a168d83b40ac",
+      "author": "ryan.porter",
+      "text": "Debug logging test - checking scroll and animation",
+      "created_at": "2026-02-18T16:57:13.118942Z"
+    },
+    {
+      "id": "20da0b11-a4ae-55f0-bcac-be22c1dd98ad",
+      "author": "ryan.porter",
+      "text": "useEffect fix - should work now",
+      "created_at": "2026-02-18T16:59:13.323833Z"
+    },
+    {
+      "id": "bf8e549e-e45e-5e04-9478-9970c58994c5",
+      "author": "ryan.porter",
+      "text": "FINAL TEST with useEffect instead of useLayoutEffect",
+      "created_at": "2026-02-18T16:59:35.776389Z"
+    },
+    {
+      "id": "b5a8bb68-bee1-51a8-9435-6e088f3752ed",
+      "author": "ryan.porter",
+      "text": "Testing useEffect fix - should see animation now",
+      "created_at": "2026-02-18T17:02:26.218780Z"
+    },
+    {
+      "id": "d00c0499-e930-5b34-a3f0-d86916de64e1",
+      "author": "ryan.porter",
+      "text": "Second test - checking console logs",
+      "created_at": "2026-02-18T17:02:43.281901Z"
+    },
+    {
+      "id": "d81b8165-a454-56f5-a8e6-cebb6548a54b",
+      "author": "ryan.porter",
+      "text": "Testing MutationObserver approach - should wait for DOM",
+      "created_at": "2026-02-18T17:04:03.789064Z"
+    },
+    {
+      "id": "be195d64-cc62-518a-ac7c-850c2f3af76c",
+      "author": "ryan.porter",
+      "text": "Fourth test - MutationObserver should detect DOM changes",
+      "created_at": "2026-02-18T17:04:23.936684Z"
+    },
+    {
+      "id": "cd39fec3-ae9b-5f48-bc88-17485d16d2bb",
+      "author": "ryan.porter",
+      "text": "Fifth test - checking if telemetry captures logs",
+      "created_at": "2026-02-18T17:04:33.459815Z"
+    },
+    {
+      "id": "570f2ba9-3763-53c9-8209-ffdca78d9655",
+      "author": "ryan.porter",
+      "text": "FINAL MutationObserver test",
+      "created_at": "2026-02-18T17:04:45.683623Z"
+    },
+    {
+      "id": "c04f4333-0bb1-5edc-9fc2-9657cb46b4d5",
+      "author": "ryan.porter",
+      "text": "Testing MutationObserver - first test after reload",
+      "created_at": "2026-02-18T17:05:18.151686Z"
+    },
+    {
+      "id": "ffed47c6-5fc9-5e33-b444-4151341b4c4e",
+      "author": "ryan.porter",
+      "text": "MutationObserver test - after fresh build",
+      "created_at": "2026-02-18T17:06:17.123150Z"
+    },
+    {
+      "id": "b1f503cd-69e4-5220-abe7-1d4b57a204d1",
+      "author": "ryan.porter",
+      "text": "Testing with fresh MutationObserver build",
+      "created_at": "2026-02-18T17:37:05.199031Z"
+    },
+    {
+      "id": "70152123-2185-5a1b-ae35-8148811383b6",
+      "author": "ryan.porter",
+      "text": "FINAL ANIMATION TEST",
+      "created_at": "2026-02-18T17:39:35.715809Z"
+    },
+    {
+      "id": "52271cb5-ba0f-51f3-afb4-9ed5f318cf4b",
+      "author": "ryan.porter",
+      "text": "Testing contentRef fix",
+      "created_at": "2026-02-18T17:42:28.899391Z"
+    },
+    {
+      "id": "2828da3a-067f-5ab3-99af-6ab6dcc3b152",
+      "author": "ryan.porter",
+      "text": "Demonstrating working animation at 12:44:04",
+      "created_at": "2026-02-18T17:44:04.420744Z"
+    },
+    {
+      "id": "3a4e241b-9b30-520e-a4ae-5ad7dc20a3cd",
+      "author": "ryan.porter",
+      "text": "Testing timing at 12:45:04.3N",
+      "created_at": "2026-02-18T17:45:04.929155Z"
+    },
+    {
+      "id": "f00185a4-64c3-554b-9c62-e82cde44bdfb",
+      "author": "ryan.porter",
+      "text": "Testing scroll: top→bottom at 12:45:37",
+      "created_at": "2026-02-18T17:45:37.440130Z"
+    },
+    {
+      "id": "78e6542a-4bd7-5e67-9580-fa9d77bc3273",
+      "author": "ryan.porter",
+      "text": "Testing instant notification at 12:50:15",
+      "created_at": "2026-02-18T17:50:15.145417Z"
+    },
+    {
+      "id": "730c87bc-a92d-57a6-b477-2791b6b59492",
+      "author": "ryan.porter",
+      "text": "Testing instant scroll back to bottom at 12:51:03",
+      "created_at": "2026-02-18T17:51:03.276468Z"
+    },
+    {
+      "id": "0379ac8c-49e3-52fc-bcad-6689e2069a1a",
+      "author": "ryan.porter",
+      "text": "Scrolling to bottom - ready to test scroll-to-top on field changes",
+      "created_at": "2026-02-18T20:15:25.138617Z"
+    },
+    {
+      "id": "710280dc-045a-5fb5-9644-2bc6b39f0a8a",
+      "author": "ryan.porter",
+      "text": "Test comment to delete",
+      "created_at": "2026-02-18T20:18:35.693268Z"
+    },
+    {
+      "id": "e17e92be-2654-5f5a-b379-481d42ea54d0",
+      "author": "ryan.porter",
+      "text": "Test comment for deletion animation",
+      "created_at": "2026-02-18T20:20:28.586768Z"
+    },
+    {
+      "id": "5d50e04c-e29f-53bf-b333-9935fc89d566",
+      "author": "ryan.porter",
+      "text": "Real-time test 17:35:29",
+      "created_at": "2026-02-18T22:35:29.078881Z"
+    }
+  ],
+  "created_at": "2026-02-18T07:10:05.141197Z",
+  "updated_at": "2026-03-12T00:26:13.346052Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

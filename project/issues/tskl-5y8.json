@@ -1,0 +1,20 @@
+{
+  "id": "tskl-5y8",
+  "title": "Column Sort Order: FIFO-oriented presets and configurable ordering",
+  "description": "Define how issues are ordered within each kanban column. Kanbus takes an opinionated stance on sorting grounded in Dan Vacanti's agile flow metrics: predictable, continuous-delivery workflows are built on FIFO discipline. The default sort orders are designed to make the right behavior the easy behavior — surfacing aging work, reinforcing pull-system discipline, and making flow problems visible without configuration.\n\n## Philosophy\n\nDan Vacanti's work on Actionable Agile Metrics establishes that predictable delivery depends on managing flow: keeping WIP low, processing work in order (FIFO), and making aging visible so teams respond before items become blockers. The default sort orders in Kanbus are chosen to make these principles the path of least resistance.\n\n**Done column**: Most-recently-completed work at the top. This is purely for human convenience — done work is done, and the person who just completed something should be able to confirm it immediately without scrolling. No configuration needed.\n\n**Active/waiting columns (Discovery, In Progress, Blocked, Backlog)**: Oldest item at the top by default. This is FIFO. It surfaces aging work. It creates natural pull pressure. It makes cycle time visible at a glance: if the top card has been there for weeks, the column has a problem. Letting teams re-sort these columns by priority or arbitrary fields is specifically the kind of customization that undermines flow visibility — so the default must be opinionated, and any deviation requires deliberate configuration.\n\n## Scope\n\n1. Done column always sorted by last-updated descending (most recently completed first). Not configurable per-column.\n2. Non-done columns default to created-at ascending (oldest first, pure FIFO).\n3. A sort_order configuration block in .kanbus.yml lets teams specify an ordered list of sort fields and directions per status (or per category).\n4. A narrow set of named presets (fifo, priority-first, recently-updated) covers the overwhelming majority of legitimate use cases and should be the primary API; raw field sorting is available for edge cases.\n5. The UI reflects whatever sort order is configured — no drag-to-reorder (drag-to-reorder defeats FIFO discipline and is deliberately not supported).",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T13:17:37.864403Z",
+  "updated_at": "2026-03-06T05:50:22.139628Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

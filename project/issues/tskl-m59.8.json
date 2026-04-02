@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.8",
+  "title": "Add column collapse/expand commands",
+  "description": "Add CLI commands to collapse or expand board columns.\n\nCommands:\n  kbs console column collapse <column-name>   - Collapse specific column\n  kbs console column expand <column-name>     - Expand specific column  \n  kbs console column collapse-all             - Collapse all columns\n  kbs console column expand-all               - Expand all columns\n\nBehavior:\n- Column names: Open, In Progress, Done (or custom status names)\n- Collapsed columns show only vertical title and count\n- Should match BoardColumn collapse button behavior\n- State stored in collapsedColumns Set\n\nImplementation:\n- Add ColumnCollapseChanged UIControl event with column ID and boolean\n- Frontend handler updates collapsedColumns Set\n- Support bulk collapse/expand operations",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:51:52.998428Z",
+  "updated_at": "2026-02-18T13:16:32.696223Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -8,6 +8,7 @@ types:
 - bug
 - story
 - chore
+- event
 workflows:
   default:
     backlog:
@@ -41,12 +42,17 @@ workflows:
     open:
     - in_progress
     - closed
+    - done
     - backlog
     in_progress:
     - open
     - closed
+    - done
     - backlog
     closed:
+    - open
+    - backlog
+    done:
     - open
     - backlog
 initial_status: open
@@ -67,4 +73,4 @@ priorities:
     name: trivial
     color: white
 default_priority: 2
-beads_compatibility: true
+beads_compatibility: false

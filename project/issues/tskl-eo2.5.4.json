@@ -1,0 +1,75 @@
+{
+  "id": "tskl-eo2.5.4",
+  "title": "GitHub webhook -> SQS -> EFS git sync worker",
+  "description": "## Intent\nImplement event-driven Git synchronization from GitHub into EFS-backed tenant repos.\n\n## Scope\n- Verify GitHub webhook signatures\n- Enqueue sync jobs to SQS\n- Worker fetch/reset repo on EFS per tenant\n- Detect issue/config changes and publish IoT events\n\n## Definition of Done\n- Retry and DLQ behavior works as expected.\n- Per-tenant sync lock prevents overlapping sync races.\n- CloudWatch alarms are configured for failures and backlog.\n- End-to-end webhook-to-event flow is reproducible in test.",
+  "type": "task",
+  "status": "blocked",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1cf190e3-bd00-5c43-9d4b-5a3ef9d34c6e",
+      "author": "ryan.porter",
+      "text": "Progress: Starting webhook+queue+sync-worker implementation.\nEvidence: task moved open -> in_progress.\nNext: add SQS+DLQ, webhook ingress lambda, EFS sync worker lambda, and IoT publish path scaffolding in CDK.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T06:35:55.052299Z"
+    },
+    {
+      "id": "55d09186-20dc-5d60-98bf-326d0a35651a",
+      "author": "ryan.porter",
+      "text": "Progress: Implemented event-driven sync scaffolding in the CDK foundation stack.\nEvidence: added GitHub webhook ingress lambda, SQS+DLQ, EFS-mounted sync worker lambda, IoT publish permission/path, and DLQ alarm wiring; synth passes.\nNext: harden secret management and tenant header validation policy; add worker-level retry/error telemetry details.\nRisk/Blocker: deploy validation still blocked by local Docker daemon.\n",
+      "created_at": "2026-03-07T06:37:25.836180Z"
+    },
+    {
+      "id": "e93059ae-a2c7-56c6-b522-263902bfe166",
+      "author": "ryan.porter",
+      "text": "Progress: Hardened webhook secret handling and added handler-level automated tests.\nEvidence: stack now provisions Secrets Manager secret for webhook ingress; webhook and sync worker tests added; `python -m unittest discover -s tests -v` now passes 5 tests.\nNext: perform deploy-backed E2E validation for webhook->queue->worker path once Docker daemon is available.\nRisk/Blocker: E2E closure remains gated by deploy blocker in 5.1.\n",
+      "created_at": "2026-03-07T06:39:37.756127Z"
+    },
+    {
+      "id": "4e4e1923-ccff-5830-8559-39df433a3551",
+      "author": "ryan.porter",
+      "text": "Progress: Deploy-backed worker smoke test executed and revealed runtime packaging gap.\nEvidence: SQS test message invoked TenantSyncWorker, but Lambda failed with  in sync_worker.py.\nNext: package git in worker runtime (container image or layer) and rerun webhook/SQS->EFS sync E2E validation.\nRisk/Blocker: BLOCKED until git binary is available inside TenantSyncWorker runtime.",
+      "created_at": "2026-03-07T06:58:00.379380Z"
+    },
+    {
+      "id": "055426a5-4b4c-5249-9c0c-687893ef863f",
+      "author": "ryan.porter",
+      "text": "Progress: Error detail correction for blocker milestone.\nEvidence: TenantSyncWorker CloudWatch logs show FileNotFoundError: [Errno 2] No such file or directory: git during sync_worker._sync_repo subprocess call.\nNext: add git to worker runtime image/layer and rerun queue/webhook smoke test.\nRisk/Blocker: task remains blocked until runtime includes git binary.",
+      "created_at": "2026-03-07T06:58:11.264311Z"
+    },
+    {
+      "id": "f14bf0de-645b-58ce-b36f-9053e509711e",
+      "author": "ryan.porter",
+      "text": "Progress: Implemented git-enabled container runtime for TenantSyncWorker and redeployed worker image.\nEvidence: New worker logs no longer show git-not-found; current failure is git safe.directory ownership protection on /mnt/data/anthus/kanbus/repo.\nNext: deploy pending safe-directory patch in sync_worker.py and rerun SQS smoke until repo sync + IoT publish succeed.\nRisk/Blocker: stack currently stuck in UPDATE_COMPLETE_CLEANUP_IN_PROGRESS, delaying deployment of latest patch.",
+      "created_at": "2026-03-07T07:20:09.980629Z"
+    },
+    {
+      "id": "25e362d1-d025-52dd-ab2d-0d650cb363c4",
+      "author": "ryan.porter",
+      "text": "Progress: Worker sync path now executes successfully after direct runtime hot-patch while stack updates are stalled.\nEvidence: Latest TenantSyncWorker logs show git fetch/reset and checkout to 721fb9f without sync exceptions; prior git-missing and safe.directory errors resolved.\nNext: restore IaC control by clearing CloudFormation UPDATE_COMPLETE_CLEANUP_IN_PROGRESS and redeploy via CDK; then run signed webhook test path.\nRisk/Blocker: stack remains stuck in UPDATE_COMPLETE_CLEANUP_IN_PROGRESS, and manual Lambda image update introduces temporary stack drift.",
+      "created_at": "2026-03-07T07:35:25.142682Z"
+    },
+    {
+      "id": "93fed540-f22e-5001-8260-9eb4ded5ebf9",
+      "author": "ryan.porter",
+      "text": "Progress: CloudFormation stall is cleared and IaC deploy path is healthy again; worker drift reconciled via successful CDK redeploy.\nEvidence: KanbusCloudFoundation update completed at 2026-03-07 02:48 ET; direct lambda invoke returned {\"status\":\"ok\"}; queue smoke message processed with queue returning to 0 visible/0 in-flight and no new DLQ increment.\nNext: execute signed webhook ingress path (requires webhook secret access) and verify emitted IoT event consumption path.\nRisk/Blocker: webhook secret read is currently restricted from this IAM principal.",
+      "created_at": "2026-03-07T07:49:10.927860Z"
+    },
+    {
+      "id": "5a15fe9d-882c-5914-99b5-03bcb9fdbf05",
+      "author": "ryan.porter",
+      "text": "Progress: Worker+API path is now deploy-validated end-to-end through queue sync and authenticated API data reads.\nEvidence: stack UPDATE_COMPLETE at 2026-03-07 03:13 ET; /anthus/kanbus/api/config=200 and /issues=200 after redeploy; worker logs show successful fetch/reset runs.\nNext: run signed webhook ingress validation to close task.\nRisk/Blocker: blocked on secretsmanager:GetSecretValue/PutSecretValue access for arn:aws:secretsmanager:us-east-1:335163751677:secret:kanbus/github-webhook/dev-DFdNbj.",
+      "created_at": "2026-03-07T08:14:20.893638Z"
+    }
+  ],
+  "created_at": "2026-03-07T06:05:00.953952Z",
+  "updated_at": "2026-03-07T08:14:20.893638Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

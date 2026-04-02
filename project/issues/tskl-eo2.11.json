@@ -1,0 +1,59 @@
+{
+  "id": "tskl-eo2.11",
+  "title": "MQTT rerun issue 132008",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [
+    "mqtt-rerun"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4dc01166-1a4e-5991-853e-4e2eccb1da24",
+      "author": "ryan.porter",
+      "text": "rerun event 3",
+      "created_at": "2026-03-08T13:20:28.906916Z"
+    },
+    {
+      "id": "fec874fb-aec1-5e31-acac-70ef735602e0",
+      "author": "ryan.porter",
+      "text": "rerun event 4",
+      "created_at": "2026-03-08T13:20:40.147480Z"
+    },
+    {
+      "id": "0df6a821-cff5-5e88-90be-d09d847478ba",
+      "author": "ryan.porter",
+      "text": "rerun event 6",
+      "created_at": "2026-03-08T13:20:59.867434Z"
+    },
+    {
+      "id": "0f6bcadb-1e1f-5588-ab74-fa7a2824893b",
+      "author": "ryan.porter",
+      "text": "rerun event 8",
+      "created_at": "2026-03-08T13:21:20.825933Z"
+    },
+    {
+      "id": "85d01cf5-30ec-508e-b535-1fac8e5d830f",
+      "author": "ryan.porter",
+      "text": "rerun event 9",
+      "created_at": "2026-03-08T13:21:31.298650Z"
+    },
+    {
+      "id": "94c82f74-821b-5d71-ad5f-92fd5e70c2dc",
+      "author": "ryan.porter",
+      "text": "Progress: Second live MQTT rerun completed with 10 emitted test events. Evidence: event timeline 13:20:11Z..13:21:42Z; watcher captured MQTT issue.mutated envelopes for this issue while running default config. Next: use this issue as reference artifact for clock/kbsc observer behavior under restart conditions. Risk/Blocker: none.",
+      "created_at": "2026-03-08T13:22:06.787968Z"
+    }
+  ],
+  "created_at": "2026-03-08T13:20:08.687471Z",
+  "updated_at": "2026-03-08T13:22:06.787968Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

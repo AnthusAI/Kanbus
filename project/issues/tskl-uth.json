@@ -1,0 +1,20 @@
+{
+  "id": "tskl-uth",
+  "title": "Add integration test for Beads/Kanbus label flow",
+  "description": "Create integration tests for label operations between Beads and Kanbus. Test scenarios: add labels via Beads/Kanbus, remove labels, verify label preservation and visibility across both systems.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T01:45:16.529616Z",
+  "updated_at": "2026-02-16T01:51:46.168155Z",
+  "closed_at": "2026-02-16T01:51:46.160350Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

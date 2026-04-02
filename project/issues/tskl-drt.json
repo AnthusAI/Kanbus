@@ -1,0 +1,20 @@
+{
+  "id": "tskl-drt",
+  "title": "Jira sync: pull",
+  "description": "",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-20T02:55:28.926762Z",
+  "updated_at": "2026-02-20T02:56:06.382045Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

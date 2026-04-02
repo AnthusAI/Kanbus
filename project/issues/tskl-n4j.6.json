@@ -1,0 +1,20 @@
+{
+  "id": "tskl-n4j.6",
+  "title": "Add video upload script",
+  "description": "",
+  "type": "task",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-n4j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T05:36:35.447596Z",
+  "updated_at": "2026-02-22T16:50:31.418255Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

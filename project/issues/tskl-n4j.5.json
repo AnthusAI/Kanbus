@@ -1,0 +1,27 @@
+{
+  "id": "tskl-n4j.5",
+  "title": "Upload workflow publishes videos to S3",
+  "description": "",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-n4j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "48c91979-1ebd-518f-a557-8d071eb14396",
+      "author": "unknown",
+      "text": "Feature: Video upload workflow\n  Scenario: Upload script publishes rendered videos\n    Given rendered videos exist\n    When I run the upload script\n    Then the videos are synced to the configured S3 bucket",
+      "created_at": "2026-02-22T05:36:32.863831Z"
+    }
+  ],
+  "created_at": "2026-02-22T05:36:30.248686Z",
+  "updated_at": "2026-02-22T16:51:03.800856Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}
