@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.19",
+  "title": "Add Policy-as-Code feature entry and video entry",
+  "description": "Add entry to apps/kanb.us/src/content/features.ts and apps/kanb.us/src/content/videos.ts for policy-as-code feature.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:30.495903Z",
+  "updated_at": "2026-02-27T07:08:35.291339Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

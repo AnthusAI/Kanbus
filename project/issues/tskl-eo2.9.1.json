@@ -1,0 +1,39 @@
+{
+  "id": "tskl-eo2.9.1",
+  "title": "Build/install loop for system-wide kbs and kbsc during dogfood test",
+  "description": "Keep host binaries current while testing: run repeatable cargo install --path rust --force cadence and record versions used for each validation run.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.9",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ecf1cd00-cd24-5bdd-a6b5-f940eca1486b",
+      "author": "ryan.porter",
+      "text": "Progress: Starting system-wide binary install loop for kbs/kbsc before integration mutations.\nEvidence: task state open -> in_progress.\nNext: cargo install --path rust --force and record runtime versions.\nRisk/Blocker: none.",
+      "created_at": "2026-03-08T12:38:53.780893Z"
+    },
+    {
+      "id": "5976ca26-a482-5a66-abee-346af5b3c420",
+      "author": "ryan.porter",
+      "text": "Progress: Completed first forced system-wide install pass for dogfood run.\nEvidence: cargo install --path rust --force replaced /opt/homebrew/bin/kbs and /opt/homebrew/bin/kbsc; kbs version reports kanbus-py-0.16.0-76-gf115036.\nNext: repeat install pass after Docker mutation test loop before final summary.\nRisk/Blocker: none.",
+      "created_at": "2026-03-08T12:41:01.492114Z"
+    },
+    {
+      "id": "92e022ac-6ca3-593e-9907-bfa0aef91a74",
+      "author": "ryan.porter",
+      "text": "Progress: Completed second forced install pass to keep host binaries current for final validation.\nEvidence: cargo install --path rust --force reran successfully; active binaries verified from ~/.cargo/bin.\nNext: close install-loop task and proceed with runbook deliverable.\nRisk/Blocker: none.",
+      "created_at": "2026-03-08T12:52:44.665253Z"
+    }
+  ],
+  "created_at": "2026-03-08T12:38:48.249287Z",
+  "updated_at": "2026-03-08T12:53:01.323739Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

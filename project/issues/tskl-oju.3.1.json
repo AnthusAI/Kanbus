@@ -1,0 +1,18 @@
+{
+  "id": "tskl-oju.3.1",
+  "title": "State change: status → in_progress",
+  "description": "Set status to in_progress\n\nReason: Implement .taskulus.yml loader in Python.",
+  "type": "task",
+  "status": "closed",
+  "priority": 4,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-oju.3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T01:44:12.466495Z",
+  "updated_at": "2026-02-16T01:07:59.195852Z",
+  "closed_at": "2026-02-16T01:07:59.168077Z",
+  "custom": {}
+}

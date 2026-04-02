@@ -1,0 +1,18 @@
+{
+  "id": "tskl-blo.1",
+  "title": "State change: status → in_progress",
+  "description": "Set status to in_progress\n\nReason: Fix CI failures (python beads mode, console-ui, rust coverage)",
+  "type": "event",
+  "status": "closed",
+  "priority": 4,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-blo",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T03:42:43.999181Z",
+  "updated_at": "2026-02-16T03:50:45.467421Z",
+  "closed_at": "2026-02-16T03:50:45.456072Z",
+  "custom": {}
+}

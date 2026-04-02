@@ -1,0 +1,33 @@
+{
+  "id": "tskl-eo2.9.4",
+  "title": "Cross-Mac MQTT connection runbook for shared realtime board",
+  "description": "Write exact config/env steps for a second Mac to attach kbsc/kbs to same AWS MQTT tenant topic and observe synchronized updates.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.9",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b81301a0-7c8f-5a29-aded-162f35893fd4",
+      "author": "ryan.porter",
+      "text": "Progress: Starting cross-Mac MQTT runbook authoring with tested host/container parameters. Evidence: local broker and cloud token paths exercised; topic/env contract confirmed. Next: add docs section with exact second-Mac steps and verification commands. Risk/Blocker: none.",
+      "created_at": "2026-03-08T12:53:01.556795Z"
+    },
+    {
+      "id": "559fd4fb-72dc-50a9-8c57-e0cdbd09a79e",
+      "author": "ryan.porter",
+      "text": "Progress: Cross-Mac MQTT operator runbook added with tenant creation, Cognito claims, token lifecycle, and two-Mac verification commands. Evidence: docs/CLOUD_CONSOLE_RUNTIME.md Operator Runbook section + infra/cloud/README.md cross-reference. Next: close task and close epic after final status summary. Risk/Blocker: none.",
+      "created_at": "2026-03-08T12:53:50.843924Z"
+    }
+  ],
+  "created_at": "2026-03-08T12:38:48.278882Z",
+  "updated_at": "2026-03-08T12:53:50.874790Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

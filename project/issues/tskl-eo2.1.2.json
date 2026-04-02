@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.1.2",
+  "title": "Update CLI_REFERENCE and CONFIGURATION for realtime",
+  "description": "## Scope\n- Add realtime and overlay config schema, defaults, and examples to CONFIGURATION.md.\n- Add new gossip and overlay CLI commands and flags to CLI_REFERENCE.md.\n- Document discovery precedence as explicit policy exception.\n\n## Definition of Done\n- CLI_REFERENCE.md and CONFIGURATION.md reflect the new CLI and config behavior in both runtimes.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:04:39.333682Z",
+  "updated_at": "2026-03-10T03:24:43.054488Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

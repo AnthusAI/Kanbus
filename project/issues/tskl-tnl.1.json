@@ -1,0 +1,22 @@
+{
+  "id": "tskl-tnl.1",
+  "title": "Virtual project configuration and discovery",
+  "description": "Replace external_projects with virtual_projects config field in .kanbus.yml — a labeled map of project paths. Validate paths at load time, reject duplicates, reject label collisions with project key. Reject legacy external_projects with a migration error message. Update existing multi-project tests.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-tnl",
+  "labels": [
+    "virtual-projects"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T14:56:21.487993Z",
+  "updated_at": "2026-02-21T15:43:23.715219Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

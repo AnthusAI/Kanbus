@@ -1,0 +1,33 @@
+{
+  "id": "tskl-flg",
+  "title": "Update mermaid to fix XSS",
+  "description": "Security scan reports mermaid XSS (CVE-2025-54881, SNYK-JS-MERMAID-12027649) in packages/ui via mermaid@10.9.5. Fix by upgrading mermaid to >= 11.10.0 and updating lockfile(s).",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a27b6fad-dee4-5312-8593-d75822daa4e9",
+      "author": "ryan.porter",
+      "text": "Upgraded mermaid to 11.12.3 in packages/ui and apps/kanb.us; lockfiles updated. Commit: d47b2e9. npm install produced existing dependency warnings; no tests run.",
+      "created_at": "2026-02-26T04:39:40.963932Z"
+    },
+    {
+      "id": "c58c48a1-a5d8-53dd-a476-0680bdc2dab2",
+      "author": "ryan.porter",
+      "text": "CI for dev run 22428282774 completed successfully after mermaid upgrade.",
+      "created_at": "2026-02-26T05:13:42.489196Z"
+    }
+  ],
+  "created_at": "2026-02-26T04:38:21.619927Z",
+  "updated_at": "2026-02-26T05:13:45.292313Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

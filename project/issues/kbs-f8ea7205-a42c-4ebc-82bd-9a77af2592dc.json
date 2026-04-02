@@ -1,0 +1,25 @@
+{
+  "id": "kbs-f8ea7205-a42c-4ebc-82bd-9a77af2592dc",
+  "title": "Import Beads issues into project/issues",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4d84bed2-8177-48e2-bef2-805812b3a0cc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "00682fbf-9616-4a8e-90a4-9bcc814ac827",
+      "author": "derek.norrbom",
+      "text": "Completed in commits 01ac79c and 5ac07a1 as part of Beads->Kanbus migration. PR to develop pending.",
+      "created_at": "2026-04-02T21:11:17.359350Z"
+    }
+  ],
+  "created_at": "2026-04-02T21:11:14.217941Z",
+  "updated_at": "2026-04-02T21:11:17.371786Z",
+  "closed_at": "2026-04-02T21:11:17.371786Z",
+  "custom": {}
+}

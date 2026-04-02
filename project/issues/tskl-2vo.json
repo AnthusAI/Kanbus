@@ -1,0 +1,45 @@
+{
+  "id": "tskl-2vo",
+  "title": "Auto-merge duplicate Beads issue records",
+  "description": "",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f2609dd3-03eb-5fb5-a913-a4a2ad5d6f1f",
+      "author": "ryan.porter",
+      "text": "Implemented Beads duplicate auto-merge in Rust/Python with new Gherkin specs and steps. Tests not run yet.",
+      "created_at": "2026-02-25T02:36:48.903982Z"
+    },
+    {
+      "id": "935fbf49-8c22-5e8d-8cc7-6467fde6ef77",
+      "author": "ryan.porter",
+      "text": "Tests: Behave feature beads_duplicate_records passed via /opt/anaconda3/bin/conda. Rust cucumber suite failed in embedded_assets.feature (console server failed to become ready).",
+      "created_at": "2026-02-25T03:15:04.938062Z"
+    },
+    {
+      "id": "d29336ea-b93d-55d5-9180-b44fed76f7fc",
+      "author": "ryan.porter",
+      "text": "Update: Tie-breaker now selects larger record when updated_at is equal. Behave beads_duplicate_records feature passed. Ultimate test: cargo-run kbs list --porcelain now succeeds and shows a single tskl-n4j.7 entry (no ambiguity).",
+      "created_at": "2026-02-25T03:16:58.662683Z"
+    },
+    {
+      "id": "a92613e4-3b7c-583f-b5ae-385dd52c54b3",
+      "author": "ryan.porter",
+      "text": "Ran tests: Behave beads_duplicate_records feature passed. Full cargo test suite passed (603 scenarios, 2 skipped). Embedded assets feature now passes.",
+      "created_at": "2026-02-25T03:37:20.113663Z"
+    }
+  ],
+  "created_at": "2026-02-25T02:33:58.710115Z",
+  "updated_at": "2026-02-25T03:37:20.113663Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

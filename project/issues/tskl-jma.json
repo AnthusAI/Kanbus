@@ -1,0 +1,27 @@
+{
+  "id": "tskl-jma",
+  "title": "Update test fixtures and feature specs for backlog workflow",
+  "description": "Update all test fixtures (specs/fixtures/default_config.yaml, expected_config.json, console fixtures), feature specs (status_transitions.feature, issue_show.feature), and step definitions to use backlog instead of deferred in the default workflow.",
+  "type": "chore",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f9d279a7-aa67-5768-8097-3ea9e1b2b762",
+      "author": "ryan.porter",
+      "text": "Updated all test fixtures, feature specs, step definitions, display fallbacks, migration defaults, and documentation.",
+      "created_at": "2026-02-21T15:19:45.282948Z"
+    }
+  ],
+  "created_at": "2026-02-21T14:57:39.590707Z",
+  "updated_at": "2026-02-21T15:19:45.282948Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

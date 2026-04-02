@@ -1,0 +1,20 @@
+{
+  "id": "tskl-2vo.4",
+  "title": "Python: dedupe Beads records on read + rewrite JSONL",
+  "description": "",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-2vo",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-25T02:34:09.458405Z",
+  "updated_at": "2026-02-25T02:36:37.288968Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

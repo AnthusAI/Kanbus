@@ -1,0 +1,28 @@
+{
+  "id": "tskl-wcm.8",
+  "title": "Rename GitHub repository to Kanbus",
+  "description": "Rename the GitHub repository from Taskulus to Kanbus and update any references as needed (badges, links, docs).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wcm",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ea2d1d27-b285-5e26-b6ee-6a6ec60f6b77",
+      "author": "Ryan Alyn Porter",
+      "text": "GitHub repo renamed to Kanbus; origin updated.",
+      "created_at": "2026-02-14T23:37:59Z"
+    }
+  ],
+  "created_at": "2026-02-14T22:07:13.196043Z",
+  "updated_at": "2026-02-14T23:37:52.208975Z",
+  "closed_at": "2026-02-14T23:37:52.208975Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "ryan.porter"
+  }
+}

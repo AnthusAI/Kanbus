@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.9",
+  "title": "Add select/navigate issue command",
+  "description": "Add CLI command to select and navigate to a specific issue (already implemented as 'focus', but may need separate 'select' for clarity).\n\nCommand: kbs console select <issue-id>\n\nBehavior:\n- Opens detail panel for specified issue\n- Updates selectedTask state\n- Updates URL to /issues/<issue-id>\n- Does NOT filter board (different from focus)\n- Should match clicking an issue card\n\nImplementation:\n- Reuse existing IssueFocused event OR create new IssueSelected event\n- Frontend handler navigates using navigate() function\n- Should set selectedTask via route context automatically",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:52:02.277408Z",
+  "updated_at": "2026-02-18T13:16:32.757514Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

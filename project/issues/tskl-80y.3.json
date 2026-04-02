@@ -1,0 +1,20 @@
+{
+  "id": "tskl-80y.3",
+  "title": "Remove SSOT jargon from home page feature descriptions",
+  "description": "The current Realtime Collaboration description reads: 'Distributed realtime updates for agents and humans via gossip + a disposable overlay cache, while Git stays SSOT.' SSOT (Single Source of Truth) is too technical for a marketing home page. Replace with plain language that communicates the same idea clearly to a general audience.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-80y",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-07T04:14:47.294408Z",
+  "updated_at": "2026-03-07T04:29:46.892401Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

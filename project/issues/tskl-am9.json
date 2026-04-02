@@ -1,0 +1,39 @@
+{
+  "id": "tskl-am9",
+  "title": "Fix failing GitHub Actions CI",
+  "description": "Investigate current CI failures in GitHub Actions and apply fixes until the workflow passes.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2568847c-1211-53b9-a328-ea7657fb20a7",
+      "author": "unknown",
+      "text": "Investigated failing GH Actions run 22127971752. Failures: console-ui TypeScript error in AnimatedSelector, rust fmt diff, python black check failing. Starting local fixes.",
+      "created_at": "2026-02-18T06:05:52.018763Z"
+    },
+    {
+      "id": "b82ac108-cb7b-553d-be71-d60f256f500a",
+      "author": "unknown",
+      "text": "Fixes in progress: updated AnimatedSelector tween type; repaired TaskDetailPanel JSX nesting; removed unsupported marked options and forced sync parse; fixed issue-colors CSS variable typing; added IssueSelectionContext typing. Local console typecheck now passes.",
+      "created_at": "2026-02-18T06:11:51.932219Z"
+    },
+    {
+      "id": "bbd49425-306d-59e1-a0e8-d177222eed43",
+      "author": "unknown",
+      "text": "Changes committed and pushed. Ran: cargo fmt, black (py311), console typecheck. Fixed console TS errors and gsap type, plus beads sync config.",
+      "created_at": "2026-02-18T06:14:25.873585Z"
+    }
+  ],
+  "created_at": "2026-02-18T06:05:18.423374Z",
+  "updated_at": "2026-02-18T13:14:38.594184Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

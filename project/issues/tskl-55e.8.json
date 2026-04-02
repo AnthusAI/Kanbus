@@ -1,0 +1,20 @@
+{
+  "id": "tskl-55e.8",
+  "title": "Type hierarchy section in filter sidebar",
+  "description": "Add a new Type section to the filter sidebar positioned between the Projects section and the Scope/Source section. It allows users to filter by issue type independently of the toolbar type selector. The options shown respect the Show Initiatives configuration setting.\n\nScenario: Type hierarchy section appears in filter sidebar\n\nGiven the filter sidebar is open\nThen a Type section is visible between the Projects section and the Scope section\nAnd the section shows selectable options for the visible issue types\n\nScenario: All three types shown when Show Initiatives is on\n\nGiven the Show Initiatives setting is on\nWhen the user opens the filter sidebar\nThen the Type section shows three options: Initiatives, Epics, and Issues\n\nScenario: Only two types shown when Show Initiatives is off\n\nGiven the Show Initiatives setting is off\nWhen the user opens the filter sidebar\nThen the Type section shows two options: Epics and Issues\nAnd no Initiatives option appears\n\nScenario: Selecting a type in the sidebar filters the board\n\nGiven the filter sidebar is open and no type is selected in the Type section\nWhen the user clicks Epics in the Type section\nThen the kanban board filters to show only epics\nAnd the Epics option appears selected in the sidebar Type section\n\nScenario: Selecting the same type again deselects it\n\nGiven the user has Epics selected in the sidebar Type section\nWhen the user clicks Epics again\nThen no type is selected (deselected state)\nAnd the board shows all issue types (subject to other active filters)\n\nScenario: Sidebar type selection and toolbar type selector share the same filter state\n\nGiven the toolbar type selector has Issues selected\nWhen the user opens the filter sidebar\nThen Issues appears selected in the sidebar Type section\n\nGiven the user changes the selection in the sidebar Type section to Epics\nThen the toolbar type selector also updates to show Epics selected\nAnd both controls reflect the same filter state\n\nScenario: Type section state persists across page reload\n\nGiven the user has selected Epics in the sidebar type section\nWhen the page is reloaded\nThen Epics remains selected in the type section\nAnd the board continues to filter by epics",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-55e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T20:50:07.351813Z",
+  "updated_at": "2026-02-23T04:53:53.549648Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

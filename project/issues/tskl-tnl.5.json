@@ -1,0 +1,22 @@
+{
+  "id": "tskl-tnl.5",
+  "title": "Console project and local filters",
+  "description": "When virtual projects are configured, display a project filter in the console nav bar listing all projects. When any project has local issues, display a local filter (project-only / local-only / all). Filters are composable and persisted across reloads. Hidden when single project with no local issues.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-tnl",
+  "labels": [
+    "virtual-projects"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T14:56:22.027869Z",
+  "updated_at": "2026-02-21T17:01:51.395819Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

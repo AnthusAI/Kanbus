@@ -1,0 +1,20 @@
+{
+  "id": "tskl-52k.2",
+  "title": "Kanbus configuration for AI provider",
+  "description": "Extend .kanbus.yml with ai block: provider (openai, bedrock, anthropic) and model. Add to ProjectConfiguration in Python and Rust.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-52k",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-08T21:16:08.784681Z",
+  "updated_at": "2026-03-08T21:25:05.395318Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

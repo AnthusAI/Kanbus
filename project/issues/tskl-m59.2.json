@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.2",
+  "title": "Add view mode switching command",
+  "description": "Add CLI command to switch between Initiatives/Epics/Issues views.\n\nCommand: kbs console view <mode>\n  where mode is: initiatives | epics | issues\n\nBehavior:\n- Updates viewMode state in frontend\n- Updates localStorage (kanbus.console.viewMode)\n- Updates URL to /{basePath}/{viewMode}/\n- Filters board to show only issues of selected type\n- Preserves search query and other filters\n\nImplementation:\n- Add ViewModeChanged UIControl event\n- Frontend handler updates viewMode via setViewMode\n- Should match existing AnimatedSelector behavior exactly",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:50:59.544401Z",
+  "updated_at": "2026-02-18T13:13:17.563250Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

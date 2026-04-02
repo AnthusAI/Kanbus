@@ -1,0 +1,20 @@
+{
+  "id": "tskl-55e.6",
+  "title": "Setting: hide Initiatives from type filter",
+  "description": "Add a configuration option that removes the Initiatives option from the toolbar type selector and from the type hierarchy section in the filter sidebar. This is for teams that do not use the initiative issue type and want to save toolbar space.\n\nScenario: Show Initiatives setting is on by default\n\nGiven a fresh installation with no custom configuration\nWhen the user views the toolbar type selector\nThen the Initiatives option is visible in the selector\nAnd the Initiatives option is visible in the type hierarchy section of the filter sidebar\n\nScenario: User turns off Show Initiatives in settings\n\nGiven the settings sidebar is open\nWhen the user turns off the Show Initiatives toggle\nThen the Initiatives option is removed from the toolbar type selector\nAnd the Initiatives option is removed from the type hierarchy section of the filter sidebar\n\nScenario: Board is unaffected when Initiatives is hidden and currently selected\n\nGiven Show Initiatives is on\nAnd the toolbar type selector has Initiatives selected\nWhen the user turns off Show Initiatives\nThen the type selector transitions to the deselected state (no active type filter)\nAnd the board shows all issue types\n\nScenario: Show Initiatives setting persists across reload\n\nGiven the user has turned off Show Initiatives\nWhen the page is reloaded\nThen Initiatives remains hidden from the type selector and filter sidebar type section",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-55e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T20:49:41.868511Z",
+  "updated_at": "2026-02-23T04:53:53.549648Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

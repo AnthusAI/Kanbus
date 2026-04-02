@@ -1,0 +1,27 @@
+{
+  "id": "tskl-d0o.1",
+  "title": "Marketing site feature structure is simplified",
+  "description": "",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-d0o",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "06d2c331-81a7-5df9-aeb3-26fe84fdee17",
+      "author": "unknown",
+      "text": "Feature: Marketing site feature navigation\n  Scenario: Top navigation is simplified\n    Given I open the marketing site\n    Then the top navigation shows Philosophy, Features, and Getting Started\n    And it does not show Jira Sync or Local Tasks\n\n  Scenario: Features list page links to feature pages\n    Given I open /features\n    Then I see links for Jira Sync and Local Tasks\n\n  Scenario: Homepage exposes feature links\n    Given I open the homepage\n    Then I see a Features section\n    And it links to Jira Sync and Local Tasks\n\n  Scenario: Footer groups features and reference\n    Given I scroll to the footer\n    Then I see a Features section with Jira Sync and Local Tasks\n    And I see a Reference section with Architecture and Documentation",
+      "created_at": "2026-02-22T05:36:08.349521Z"
+    }
+  ],
+  "created_at": "2026-02-22T05:36:04.071524Z",
+  "updated_at": "2026-03-07T05:37:34.623826Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-nsp",
+  "title": "Add integration test for Beads/Kanbus comments flow",
+  "description": "Create integration tests to ensure comments can be added using either Beads or Kanbus and are visible in both systems. Test scenarios should include: adding comments via Beads mode and viewing in Kanbus, adding comments via Kanbus and viewing in Beads mode, and verifying comment preservation across both systems.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T01:44:34.225660Z",
+  "updated_at": "2026-02-16T01:50:21.994354Z",
+  "closed_at": "2026-02-16T01:50:21.985613Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

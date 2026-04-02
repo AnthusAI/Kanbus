@@ -1,0 +1,22 @@
+{
+  "id": "tskl-tnl.3",
+  "title": "Issue creation routing with virtual projects",
+  "description": "New issues default to current project. Add new_issue_project config option: set to a virtual project label for default routing, or ask to prompt interactively. --project flag on create overrides config. --local flag routes to the target project's local directory.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-tnl",
+  "labels": [
+    "virtual-projects"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T14:56:21.743367Z",
+  "updated_at": "2026-02-21T17:01:50.905148Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

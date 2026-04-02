@@ -13,6 +13,7 @@ types:
   - bug
   - story
   - chore
+  - event
 
 workflows:
   default:
@@ -27,9 +28,10 @@ workflows:
     deferred: [open, backlog]
   epic:
     backlog: [open, closed]
-    open: [in_progress, closed, backlog]
-    in_progress: [open, closed, backlog]
+    open: [in_progress, closed, done, backlog]
+    in_progress: [open, closed, done, backlog]
     closed: [open, backlog]
+    done: [open, backlog]
 
 statuses:
   - key: backlog
@@ -115,12 +117,17 @@ transition_labels:
     open:
       in_progress: Start
       closed: Complete
+      done: Complete
       backlog: Back to backlog
     in_progress:
       open: Pause
       closed: Complete
+      done: Complete
       backlog: Back to backlog
     closed:
+      open: Reopen
+      backlog: Back to backlog
+    done:
       open: Reopen
       backlog: Back to backlog
 
@@ -153,7 +160,7 @@ type_colors:
   chore: green
   event: bright_blue
 
-beads_compatibility: true
+beads_compatibility: false
 
 # Snyk vulnerability synchronization (optional). Secrets go in .env, not here.
 # snyk:

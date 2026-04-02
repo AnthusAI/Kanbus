@@ -1,0 +1,20 @@
+{
+  "id": "tskl-gzf.2",
+  "title": "Auto-detect local routing in console UI",
+  "description": "Update App route parsing so paths without /:account/:project are treated as local mode with basePath=''. Ensure apiBase becomes /api and view tabs derive correctly.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-gzf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T05:30:50.341224Z",
+  "updated_at": "2026-02-16T01:07:59.188260Z",
+  "closed_at": "2026-02-16T01:07:59.167684Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "tskl-x87",
+  "title": "Show resolves project-context short ids",
+  "description": "Bug: issue lookup fails when a user passes a project-context short id (no project key) shown in `kbs list`.\n\nRepro:\n1. Create a Kanbus issue.\n2. Run `kbs list` to see the project-context short id (example: 01e051).\n3. Run `kbs show 01e051`.\n\nObserved: not found.\nExpected: resolve the matching issue when the short id is unique.\n\nFix:\n- Centralize Rust identifier matching and update callers.\n- Keep Python CLI parity.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7ea89fe5-66ea-5d0d-9788-9c891cff9aa5",
+      "author": "ryan.porter",
+      "text": "Implemented centralized short-id matching in Rust and Python, and added a BDD scenario for showing by project-context short id. Commit: f6cc7f5. Tests not run (suggest: rust/cargo fmt or relevant BDD suites).",
+      "created_at": "2026-02-26T04:20:50.034161Z"
+    },
+    {
+      "id": "5fd2e5bc-542a-5586-aa38-fad3b609dcf7",
+      "author": "ryan.porter",
+      "text": "CI for dev run 22427849138 completed successfully after short-id matching fix.",
+      "created_at": "2026-02-26T05:13:49.710206Z"
+    }
+  ],
+  "created_at": "2026-02-26T04:18:21.659562Z",
+  "updated_at": "2026-02-26T05:13:52.592194Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

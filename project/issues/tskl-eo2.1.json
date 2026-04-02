@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.1",
+  "title": "Realtime documentation and CLI UX",
+  "description": "## Intent\nAs a developer or operator, I want clear documentation and CLI semantics for realtime gossip and overlay so that I can configure and operate it correctly.\n\n## Definition of Done\n- docs/REALTIME.md created with quickstart, architecture, CLI reference, config examples, overlay semantics, GC, troubleshooting, and AWS IoT Core outline.\n- CLI_REFERENCE.md and CONFIGURATION.md updated with new commands and config fields.\n- GETTING_STARTED.md updated with a realtime quickstart.\n- Policy exception for discovery precedence documented explicitly.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:04:24.190978Z",
+  "updated_at": "2026-03-10T03:21:43.998044Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

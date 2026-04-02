@@ -1,0 +1,45 @@
+{
+  "id": "tskl-eo2.3.7",
+  "title": "Coverage and docs for overlay reconcile lifecycle",
+  "description": "Add unit/integration tests and docs for eventual-consistency cleanup semantics and hook-triggered reconciliation.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5bf7d8e5-1a6d-59a9-9f67-189c41f0ff28",
+      "author": "ryan.porter",
+      "text": "Progress: Added coverage and docs for reconcile lifecycle and operator usage. Evidence: updated CLI/Getting Started/Realtime docs plus new Rust reconcile tests and Python overlay test; suites pass (, , ...                                                                      [100%]\n3 passed in 0.11s). Next: close task and roll summary into epic. Risk/Blocker: none.",
+      "created_at": "2026-03-08T14:07:35.952447Z"
+    },
+    {
+      "id": "7cff99c3-eba4-5e93-8fbf-2e8c7f8051b0",
+      "author": "ryan.porter",
+      "text": "Progress: Coverage and docs are complete for reconcile lifecycle. Evidence: passing suites , , and ...                                                                      [100%]\n3 passed in 0.09s; docs updated in CLI/Getting Started/Realtime references. Next: include this in release notes and operator rollout checklist. Risk/Blocker: none.",
+      "created_at": "2026-03-08T14:08:04.743523Z"
+    },
+    {
+      "id": "ea5e60e6-02ce-580a-9f26-f9cbd40a8fc7",
+      "author": "ryan.porter",
+      "text": "Progress: Coverage and docs are complete for reconcile lifecycle.\nEvidence: Passing suites cargo test lib, cargo test bin kbs, and pytest python tests test_overlay; docs updated in CLI, Getting Started, and Realtime references.\nNext: Include this in release notes and operator rollout checklist.\nRisk/Blocker: none.",
+      "created_at": "2026-03-08T14:08:29.693465Z"
+    },
+    {
+      "id": "01bab316-964a-5b8f-9df0-5a6e5cbda0e5",
+      "author": "ryan.porter",
+      "text": "Progress: Ran full local validation after reconcile implementation and compatibility updates.\nEvidence: cargo test manifest rust Cargo toml passed including cucumber summary 678 scenarios with 676 passed and 2 skipped; pytest python tests passed.\nNext: commit and rollout to repos where hooksPath is enabled.\nRisk/Blocker: hook installation remains intentionally blocked when hooksPath points to dev null.",
+      "created_at": "2026-03-08T14:11:16.287621Z"
+    }
+  ],
+  "created_at": "2026-03-08T14:00:27.896678Z",
+  "updated_at": "2026-03-08T14:11:16.287621Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

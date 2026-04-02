@@ -1,0 +1,20 @@
+{
+  "id": "tskl-l82.5",
+  "title": "kbs console get view prints currently active view mode",
+  "description": "Given the console server is running\nAnd the view mode has been set (e.g., via kbs console view epics)\n\nWhen I run kbs console get view\n\nThen the command prints the current view mode (e.g., 'epics')\n\nGiven the server is running but view mode has never been explicitly set\n\nWhen I run kbs console get view\n\nThen the command prints 'none' (server has no opinion; browser uses its own default)\n\nGiven the console server is not running\n\nWhen I run kbs console get view\n\nThen the command prints 'Console server is not running.' and exits 0\n\nAcceptance criteria:\n- Valid output values: 'initiatives', 'epics', 'issues', or 'none'\n- No error exit code when server is offline",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-l82",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-20T03:15:39.161294Z",
+  "updated_at": "2026-02-20T04:21:10.967129Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

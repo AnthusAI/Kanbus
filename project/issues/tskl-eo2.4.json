@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.4",
+  "title": "Documentation updates and parity checks",
+  "description": "## Scope\n- Add docs/REALTIME.md and wire references in docs index if needed.\n- Ensure spec parity checks stay green after new Gherkin steps.\n\n## Definition of Done\n- Documentation updated and parity checks pass.",
+  "type": "chore",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:04:45.655465Z",
+  "updated_at": "2026-03-10T03:21:44.064885Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

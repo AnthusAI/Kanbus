@@ -1,0 +1,20 @@
+{
+  "id": "tskl-gzf",
+  "title": "Local mode root URLs",
+  "description": "Make local console use root-level URLs (no /:account/:project), auto-detect local mode in UI, and keep prefixed URLs working without redirects. Deliver tests and docs updates.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T05:27:34.947943Z",
+  "updated_at": "2026-02-16T01:07:59.187412Z",
+  "closed_at": "2026-02-16T01:07:59.167677Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

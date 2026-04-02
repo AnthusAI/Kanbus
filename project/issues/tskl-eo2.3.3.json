@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.3.3",
+  "title": "Implement overlay storage, merge comparator, and read integration",
+  "description": "## Scope\n- Add overlay layout and tombstones under project/.overlay.\n- Implement newer-than comparator using updated_at and event_id.\n- Apply overlay merge to list/show/snapshot and console backend reads.\n\n## Definition of Done\n- Overlay behavior matches merge rules in both runtimes.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:05:30.490052Z",
+  "updated_at": "2026-03-10T03:21:43.923233Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

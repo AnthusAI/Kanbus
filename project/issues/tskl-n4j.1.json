@@ -1,0 +1,27 @@
+{
+  "id": "tskl-n4j.1",
+  "title": "VideoML source exists for Intro to Canvas",
+  "description": "",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-n4j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "793d1026-c899-5ba2-9a11-3318c1da84eb",
+      "author": "unknown",
+      "text": "Feature: Intro video source\n  Scenario: VideoML source exists for Intro to Canvas\n    Given the VideoML project is present\n    When I run vml:generate for the intro content\n    Then intro.script.json is generated\n    And intro.timeline.json is generated",
+      "created_at": "2026-02-22T05:36:18.279053Z"
+    }
+  ],
+  "created_at": "2026-02-22T05:36:15.541599Z",
+  "updated_at": "2026-02-22T16:50:57.099159Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-52k.4",
+  "title": "AI Summary Caching",
+  "description": "Persistent cache for LLM outputs in project/.cache/ai_summaries.json. Cache key: hash of issue updated_at and prompt type.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-52k",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-08T21:16:10.796664Z",
+  "updated_at": "2026-03-08T21:37:25.166098Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

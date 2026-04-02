@@ -1,0 +1,18 @@
+{
+  "id": "tskl-umq.1",
+  "title": "State change: status → in_progress",
+  "description": "Set status to in_progress",
+  "type": "event",
+  "status": "closed",
+  "priority": 4,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-umq",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T21:18:04.044689Z",
+  "updated_at": "2026-02-18T05:41:21.750194Z",
+  "closed_at": null,
+  "custom": {}
+}

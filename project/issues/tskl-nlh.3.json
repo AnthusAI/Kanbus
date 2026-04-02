@@ -1,0 +1,20 @@
+{
+  "id": "tskl-nlh.3",
+  "title": "Implement collapsed column UI enhancements",
+  "description": "Enhance the collapsed column rendering with:\n- Improved narrow column styling (~48px wide)\n- Better rotated label appearance\n- Expand icon/button\n- Smooth animation between collapsed and expanded states  \n- Persist user-toggled collapse state in localStorage (separate from config default)\n\nThe basic collapsed rendering is implemented as a placeholder. This issue is for the full polished UI.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-nlh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T06:36:33.833641Z",
+  "updated_at": "2026-02-18T13:31:54.637421Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

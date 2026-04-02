@@ -1,0 +1,20 @@
+{
+  "id": "tskl-e7j.3",
+  "title": "CLI-to-server focus socket",
+  "description": "Implement a persistent socket connection from the CLI to the backend so the CLI can send focus commands; backend forwards focus events via SSE to the web UI.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-e7j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T05:51:50.763644Z",
+  "updated_at": "2026-02-18T13:28:16.992251Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

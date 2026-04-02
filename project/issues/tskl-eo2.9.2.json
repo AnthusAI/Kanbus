@@ -1,0 +1,33 @@
+{
+  "id": "tskl-eo2.9.2",
+  "title": "Docker-isolated mutation runner (MQTT-only, no host UDS socket)",
+  "description": "Run kbs mutations from Docker with project mounted but no UDS socket sharing; set realtime transport to MQTT path and verify events emit to shared topic.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.9",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5bbef38a-33f8-5add-a1ea-c82d5fbc0104",
+      "author": "ryan.porter",
+      "text": "Progress: Provisioned MQTT API-token auth context for Docker mutation runner.\nEvidence: Admin Cognito auth verified; created publish+subscribe token id=028887e067854771a0ab2a41c0618a13 for tenant anthus/kanbus.\nNext: execute Docker-isolated kbs mutations with MQTT-only env and validate host consumer updates.\nRisk/Blocker: none.",
+      "created_at": "2026-03-08T12:41:01.513909Z"
+    },
+    {
+      "id": "afde835a-155d-543a-aa2d-e2e054548299",
+      "author": "ryan.porter",
+      "text": "Progress: Docker-isolated MQTT mutation runner validated without host UDS linkage. Evidence: Container mutations created/updated/closed tskl-eo2.9.5 and updated tskl-eo2.9.6; host gossip watch captured matching issue.mutated events. Next: finalize host kbsc consumer validation and publish cross-Mac instructions. Risk/Blocker: none.",
+      "created_at": "2026-03-08T12:53:01.345633Z"
+    }
+  ],
+  "created_at": "2026-03-08T12:38:48.259502Z",
+  "updated_at": "2026-03-08T12:53:01.376490Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

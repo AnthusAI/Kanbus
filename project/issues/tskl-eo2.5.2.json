@@ -1,0 +1,39 @@
+{
+  "id": "tskl-eo2.5.2",
+  "title": "Rust console_lambda cloud parity + SSE fallback hardening",
+  "description": "## Intent\nAlign `console_lambda` behavior with cloud routing and bounded SSE fallback semantics.\n\n## Scope\n- Route/API parity with console client needs\n- Deterministic SSE fallback behavior under API Gateway/Lambda constraints\n- Error handling and reconnect expectations\n\n## Definition of Done\n- Snapshot APIs return expected payloads for tenant routes.\n- SSE fallback reconnect behavior is deterministic and documented.\n- Unit/integration tests cover route handling and stream behavior.\n- No regression to existing local console semantics.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "55cbbc48-f665-5f04-8fad-c0a4e2b7c479",
+      "author": "ryan.porter",
+      "text": "Progress: Implemented Lambda cloud parity endpoints and compatibility wiring.\nEvidence: `rust/src/bin/console_lambda.rs` now supports `/api/realtime/bootstrap` and `/api/events/realtime`; `cargo test --bin console_lambda` passed (4/4).\nNext: frontend task (5.5) should consume `/api/realtime/bootstrap` for MQTT bootstrap.\nRisk/Blocker: none.\n",
+      "created_at": "2026-03-07T06:28:10.683260Z"
+    },
+    {
+      "id": "5724015c-415a-538c-837d-f03380425c94",
+      "author": "ryan.porter",
+      "text": "Progress: Added runtime contract documentation for cloud parity and SSE fallback behavior.\nEvidence: `docs/CLOUD_CONSOLE_RUNTIME.md` added with endpoint contract, required env vars, and reconnect guidance.\nNext: close task as code+tests+docs milestone is complete.\nRisk/Blocker: none.\n",
+      "created_at": "2026-03-07T06:28:10.705292Z"
+    },
+    {
+      "id": "b3d3a03f-dda3-5f60-a6d9-d69525894052",
+      "author": "ryan.porter",
+      "text": "Progress: Post-close hardening completed for API Gateway stage-prefix routing, Lambda runtime bootstrap path, and tenant repo-root auto-detection.\nEvidence: commit 78a3a3b; cargo test --bin console_lambda (7 passed); authenticated API smoke now returns 200 for /config, /issues, /realtime/bootstrap.\nNext: keep closed; consume MQTT bootstrap from frontend validation track (5.5).\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T08:14:20.822342Z"
+    }
+  ],
+  "created_at": "2026-03-07T06:05:00.933654Z",
+  "updated_at": "2026-03-07T08:14:20.822342Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

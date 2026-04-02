@@ -1,0 +1,20 @@
+{
+  "id": "tskl-wcm.7",
+  "title": "Validator rejects existing dependency type 'blocks'",
+  "description": "Validation fails because many existing issues use dependency type 'blocks', which is now rejected. This blocks status updates and other CLI operations that run full validation. Plan: migrate 'blocks' to 'blocked-by' after the rename work.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wcm",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T22:05:52.928709Z",
+  "updated_at": "2026-02-16T01:07:59.201033Z",
+  "closed_at": "2026-02-16T01:07:59.168376Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

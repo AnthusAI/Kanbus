@@ -1,0 +1,20 @@
+{
+  "id": "tskl-acp.9",
+  "title": "Stub sendBeacon to silence DevTools errors in Webview",
+  "description": "navigator.sendBeacon is unavailable in the vscode-webview-resource: origin. The console app's telemetry calls spammed the DevTools console with errors. Fixed by stubbing navigator.sendBeacon in the webview patch script so calls fail silently.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-acp",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T19:57:15.356824Z",
+  "updated_at": "2026-02-21T19:57:17.386930Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}
