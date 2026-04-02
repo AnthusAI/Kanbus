@@ -1,0 +1,25 @@
+{
+  "id": "kbs-c3137fcf-44b8-4d96-8d33-de1f850b6644",
+  "title": "Add repeatable migrate --into-existing",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4d84bed2-8177-48e2-bef2-805812b3a0cc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "387304ac-4b40-444f-be4b-f7cbf658e9cc",
+      "author": "derek.norrbom",
+      "text": "Completed in commits 01ac79c and 5ac07a1 as part of Beads->Kanbus migration. PR to develop pending.",
+      "created_at": "2026-04-02T21:11:17.264353Z"
+    }
+  ],
+  "created_at": "2026-04-02T21:11:14.094851Z",
+  "updated_at": "2026-04-02T21:11:17.278898Z",
+  "closed_at": "2026-04-02T21:11:17.278898Z",
+  "custom": {}
+}
