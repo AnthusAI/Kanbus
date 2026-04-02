@@ -5,7 +5,7 @@ use std::process::Command;
 use cucumber::{given, then, when};
 use serde_json::Value;
 
-use kanbus::file_io::load_project_directory;
+use kanbus::file_io::{initialize_project, load_project_directory};
 use kanbus::migration::migrate_from_beads;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -300,7 +300,7 @@ fn given_repo_with_fractional_timestamps(world: &mut KanbusWorld) {
 #[given("a Kanbus project already exists")]
 fn given_kanbus_project_exists(world: &mut KanbusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
-    fs::create_dir_all(cwd.join("project").join("issues")).expect("create project");
+    initialize_project(cwd, false).expect("initialize project");
 }
 
 #[given("a git repository without a .beads directory")]

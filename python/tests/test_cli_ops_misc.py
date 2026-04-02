@@ -212,7 +212,9 @@ def test_doctor_migrate_and_daemon_commands(
     assert "migrated 5 issues" in _run(["migrate"]).output
 
     monkeypatch.setattr(
-        cli, "migrate_from_beads_into_project", lambda _r: SimpleNamespace(issue_count=7)
+        cli,
+        "migrate_from_beads_into_project",
+        lambda _r: SimpleNamespace(issue_count=7),
     )
     assert "migrated 7 issues" in _run(["migrate", "--into-existing"]).output
 
