@@ -1,0 +1,21 @@
+{
+  "id": "tskl-3ec",
+  "title": "Rich Text Quality: Formatting Signals, Markdown Suggestions, and Poka-Yoke CLI Hints",
+  "description": "As a project manager, I want rich text formatting in my project management issues, so that my project management issues can better communicate meaning.\n\nKanbus issues and comments support full Markdown including diagrams. The CLI is used heavily by AI coding agents that frequently produce malformed text — literal escape sequences instead of real newlines, no Markdown formatting, missing diagrams where they would help. This epic adds a layer of quality signaling at the CLI boundary: fix what can be fixed, warn loudly about what was fixed, suggest what is missing, validate what claims to be structured, and surface all of this at the exact moment it is most useful (kairos — the right message at the right time).\n\n## Signal taxonomy\n\n- **Error**: input rejected, must be corrected before the command succeeds (e.g. broken diagram syntax)\n- **Warning**: input was accepted but was automatically transformed; tells the caller what changed and how to do it correctly next time\n- **Suggestion**: input was accepted as-is but is missing something that would improve quality; gentle, non-blocking, includes a ready-to-run follow-up command\n\n## Scope\n\n1. Escape-sequence newline cleanup (warning)\n2. Markdown usage detection (suggestion)\n3. Diagram presence detection (suggestion) + diagram syntax validation (error)\n4. Follow-up command hint on any suggestion\n5. Kairos --help enrichment for issue management and comment commands\n6. Additional poka-yoke quality signals (title, priority, blocking transitions, duplicates)\n\nAll signals apply on both create and update paths, for both descriptions and comments.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T13:41:43.757646Z",
+  "updated_at": "2026-02-23T04:52:38.395493Z",
+  "closed_at": "2026-02-23T04:52:38.395493Z",
+  "custom": {
+    "beads_close_reason": "Epic complete; merged and verified.",
+    "beads_owner": "ryan.porter"
+  }
+}

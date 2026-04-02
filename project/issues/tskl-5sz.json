@@ -1,0 +1,27 @@
+{
+  "id": "tskl-5sz",
+  "title": "Show descendant issues in details pane",
+  "description": "As a user, I want to see the descendant issues of the selected issue in the right-hand details pane, with links to navigate to each descendant.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6d1074b3-4136-5e23-b182-f412a63a195c",
+      "author": "unknown",
+      "text": "Feature: Descendant issues in details pane\\n\\nScenario: Show descendants for any issue\\n  Given I am viewing an issue in the details pane\\n  And the issue has child or descendant issues\\n  When the details pane renders\\n  Then I see a list of all descendants\\n  And each descendant item links to that issue\\n\\nScenario: No descendants\\n  Given I am viewing an issue with no descendants\\n  When the details pane renders\\n  Then I see an empty state indicating no descendant issues",
+      "created_at": "2026-02-18T05:53:51.138710Z"
+    }
+  ],
+  "created_at": "2026-02-18T05:53:46.760912Z",
+  "updated_at": "2026-02-18T06:45:59.307601Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

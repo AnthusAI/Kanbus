@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.2.6",
+  "title": "Implement MQTT client, autostart, and broker.json",
+  "description": "## Scope\n- Add MQTT publish/subscribe client with shared topic namespace.\n- Implement Mosquitto autostart and broker.json metadata.\n- Apply broker discovery precedence as documented.\n\n## Definition of Done\n- MQTT works end to end in both runtimes.\n- broker.json is written on autostart with endpoint and pid.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:05:11.931650Z",
+  "updated_at": "2026-03-10T03:24:44.527892Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

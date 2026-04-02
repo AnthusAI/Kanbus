@@ -1,0 +1,29 @@
+{
+  "id": "tskl-mim.5",
+  "title": "Add --local flag for tsk create",
+  "description": "Route tsk create to project/ by default; when --local is set, write to project-local/. Create project-local/ and ensure .gitignore includes it when missing.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-mim",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "46a34bbe-6b28-5ba2-a3c0-90493dfcd88a",
+      "author": "Ryan Alyn Porter",
+      "text": "--local for tsk create implemented in python/src/taskulus/cli.py + issue_creation.py and rust/src/cli.rs + issue_creation.rs; ensures project-local exists and gitignore updated. Verified by features/issues/local_issue_routing.feature (behave + cucumber).",
+      "created_at": "2026-02-11T20:09:25Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:04:48.919171Z",
+  "updated_at": "2026-02-11T20:09:28.735998Z",
+  "closed_at": "2026-02-11T20:09:28.735998Z",
+  "custom": {
+    "beads_acceptance_criteria": "tsk create writes to project/ by default; --local writes to project-local/; missing project-local/ is created and gitignored.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "tskl-n4j.9",
+  "title": "Video CDN infrastructure exists",
+  "description": "",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-n4j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "8faee136-783c-522c-b249-0ee55162e290",
+      "author": "unknown",
+      "text": "Feature: Video CDN infrastructure\n  Scenario: CloudFront-backed video CDN exists\n    Given the Amplify backend is deployed\n    Then a private S3 bucket exists for videos\n    And a CloudFront distribution serves the bucket",
+      "created_at": "2026-02-22T05:36:49.910134Z"
+    }
+  ],
+  "created_at": "2026-02-22T05:36:47.441247Z",
+  "updated_at": "2026-02-22T16:51:11.798968Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

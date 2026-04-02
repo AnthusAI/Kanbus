@@ -1,0 +1,63 @@
+{
+  "id": "tskl-uvi",
+  "title": "kbsc reload serves HTML for module script (MIME type text/html, favicon 500)",
+  "description": "### Summary\nReloading kbsc web console returns module scripts with MIME type text/html and favicon 500s, breaking page load.\n\n### Environment\n- Command: kbsc (embedded console server)\n- Port: 4242\n- Action: browser reload after kbsc start\n- Also trying ./dev.sh to compare (pending)\n\n### Observed\n- Browser console:\n  - `Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of \\\"text/html\\\". Strict MIME type checking is enforced for module scripts per HTML spec.`\n- Network:\n  - `GET /favicon.ico` -> 500 (also logged in console: `:4242/favicon.ico:1 Failed to load resource: the server responded with a status of 500 (Internal Server Error)`).\n- Page does not load.\n\n### Expected\n- Module JS assets served with correct MIME types and 200 responses.\n- favicon.ico served successfully (200/304) or omitted without 500s.\n\n### Suspected areas\n- kbsc embedded assets vs filesystem fallback (asset root resolution may hand back index.html for JS requests).\n- MIME detection for module scripts (.js/.mjs) and favicon handling in asset server.\n- Missing embedded assets bundle or copy step.\n\n### Next steps\n- Reproduce with kbsc and with ./dev.sh (apps/console dev server) to isolate server vs build assets.\n- Inspect asset serving path (serve_asset/serve_asset_from_filesystem) for MIME and error handling.\n- Verify embedded assets present for kbsc build; ensure .js/.mjs served with correct Content-Type and favicon resolved.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d59f5b9e-aec0-5f49-8435-ef7e1640c93f",
+      "author": "unknown",
+      "text": "Investigation + fix in progress:\n- Reproduced kbsc favicon 500 and module MIME issue; root cause was fallback handler using Path extractor with no params, producing 500 \"Wrong number of path arguments\" and returning text/plain/html for unmatched assets (incl. favicon).\n- Added explicit routes for /index.html and /favicon.ico (favicon now 204 instead of 500) and changed fallback to use OriginalUri and serve assets correctly.\n- Tested locally with kbsc on port 4242: / returns 200 html, /assets/*.js return 200 with text/javascript, /favicon.ico returns 204 (no asset), no MIME mismatch errors.\n- Changes: rust/src/bin/console_local.rs (fallback, favicon route, index route); ran cargo test --locked --all-features --lib --bins --tests (green).\n- Next: rebuild kbsc and retry browser reload; if ./dev.sh still shows \"unable to reach server\", likely API connectivity in dev setup (dev server is Vite + API on separate ports), we can dig into that after verifying kbsc fix.",
+      "created_at": "2026-03-11T00:28:49.642168Z"
+    },
+    {
+      "id": "88344723-66ba-5c30-887f-43729d46510a",
+      "author": "unknown",
+      "text": "Closed: fixed kbsc asset serving (module MIME + favicon) and ./dev.sh API errors. Changes: console_local.rs fallback/index/favicon routes; npm install in apps/console (express-rate-limit present); rebuilt kbsc via cargo build --locked --bin kbsc. Verified kbsc reload and dev mode both work.",
+      "created_at": "2026-03-11T00:41:51.395496Z"
+    },
+    {
+      "id": "1c69c11f-2451-5c69-861f-9cd65c73b258",
+      "author": "unknown",
+      "text": "Reopened. Confirmed root cause pattern: multiple stale kbsc processes, including old behavior still listening on :4242 while newer builds bind alternate ports. This causes mixed results (favicon 500/MIME errors) depending on which process serves requests. Implementing deterministic port-conflict handling and dev.sh startup guardrails now.",
+      "created_at": "2026-03-11T01:51:41.660687Z"
+    },
+    {
+      "id": "ceadd858-91bb-5caf-ad96-57a08fc6af3b",
+      "author": "unknown",
+      "text": "Progress update:\n- Implemented deterministic port-conflict handling in kbsc: prompt-based fallback only in interactive TTY sessions; non-interactive runs now fail fast with explicit CONSOLE_PORT guidance (no silent fallback).\n- Added startup diagnostics for repo/data root and requested vs bound port.\n- Added unit tests for interactive accept, interactive decline, non-interactive exit, and overflow edge case.\n- Added dev.sh guardrails: startup warnings for existing kbsc/dev.sh/listeners, explicit \"USE THIS URL NOW\" line, and repo+PID-scoped log files under /tmp to avoid cross-repo confusion.\n- Added troubleshooting doc note for stale global kbsc installs and stale listeners.\n\nValidation so far:\n-  passes.\n- Port-conflict behavior verified manually (interactive accept/decline + non-interactive exit) using test ports 64620/64630/64640.\n- HTTP check on active instance: JS assets served as ;  returns 204 (not 500).",
+      "created_at": "2026-03-11T02:01:56.165895Z"
+    },
+    {
+      "id": "574007e0-1e7b-5e42-a7c1-677e6e64001e",
+      "author": "unknown",
+      "text": "Correction to previous comment formatting: validation commands were cargo test --locked --bin kbsc (pass), interactive port-conflict checks on test ports 64620/64630, and HTTP check on a fresh kbsc instance (JS assets served as text/javascript; /favicon.ico returned 204).",
+      "created_at": "2026-03-11T02:02:08.072514Z"
+    },
+    {
+      "id": "494de31b-2cf0-5a0a-ad9f-d75c21f2de82",
+      "author": "ryan.porter",
+      "text": "Additional validation run completed before push/close:\n\n1) kbsc unit tests\n- cargo test --locked --bin kbsc\n- Result: pass (29/29)\n\n2) Full Rust suite spot-check\n- cargo test --locked --all-features --lib --bins --tests\n- Result: one unrelated flaky failure observed once in gossip::tests::find_free_port_returns_bindable_port (port contention).\n- Re-ran failing test three times in isolation: pass x3.\n\n3) Port-conflict runtime behavior\n- Non-interactive conflict verified on port 64720: process exits with code 1 and prints explicit CONSOLE_PORT guidance (no silent fallback).\n- Interactive conflict verified in TTY:\n  - decline path: prompt shown, user enters n, startup aborts.\n  - accept path: prompt shown, user enters y, process binds to requested+1 port and starts.\n\n4) dev.sh startup guardrails\n- ./dev.sh shows warn+continue diagnostics for existing processes/listeners.\n- Explicit \"USE THIS URL NOW\" line printed.\n- Repo+PID-scoped log file paths printed under /tmp.\n\n5) HTTP smoke check on active kbsc instance\n- / serves index with hashed JS asset path\n- asset response content-type: text/javascript\n- /favicon.ico response: 204 (no 500)",
+      "created_at": "2026-03-11T22:57:36.386099Z"
+    },
+    {
+      "id": "13e42181-d176-525c-a9a9-8ebcd97ff8d3",
+      "author": "ryan.porter",
+      "text": "Closed after expanded validation and push:\n- Commits pushed: d295bcc, 8546664\n- kbsc tests pass (cargo test --locked --bin kbsc)\n- Interactive/non-interactive port-conflict behavior verified\n- dev.sh guardrail output verified (warn+continue, explicit URL, repo-scoped logs)\n- HTTP smoke verified (/favicon.ico 204, JS assets served as text/javascript)\n- Full all-features test suite had one unrelated transient port-contention failure in gossip find_free_port test; isolated reruns passed.",
+      "created_at": "2026-03-11T22:58:08.589066Z"
+    }
+  ],
+  "created_at": "2026-03-11T00:22:33.020746Z",
+  "updated_at": "2026-03-11T22:58:08.589066Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

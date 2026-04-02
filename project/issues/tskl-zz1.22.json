@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.22",
+  "title": "Update home page and footer with Policy-as-Code",
+  "description": "Add Policy-as-Code section to apps/kanb.us/src/pages/index.tsx and update footer in Layout.tsx. Update DocsLayout.tsx sidebar.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:32.729830Z",
+  "updated_at": "2026-02-27T07:08:35.632405Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

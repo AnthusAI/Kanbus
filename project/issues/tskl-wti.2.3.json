@@ -1,0 +1,27 @@
+{
+  "id": "tskl-wti.2.3",
+  "title": "Rust coverage uplift: gossip module",
+  "description": "Target rust/src/gossip.rs (~61.54%, ~450 uncovered lines). Add focused tests for transport selection, env precedence, parse failures, and broker fallback/error branches.",
+  "type": "sub-task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wti.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d8845059-0041-5cb5-bda2-8ee90c4f14b4",
+      "author": "ryan.porter",
+      "text": "Coverage progress (implemented):\n- Added tests in rust/src/gossip.rs for run_gossip_consumer edge behavior:\n  - unknown project filter returns explicit error\n  - broker=off path returns Ok when broker_off_is_error=false and returns error when true\n- Added test config helper to exercise real config-loading code path (no mocks).\n- Validation: cargo test --locked --lib gossip::tests:: -> 22 passed, 0 failed.\n- Full rust llvm-cov rerun + cobertura refresh complete.\n- Module delta: gossip.rs improved from 67.39% to 72.05% line coverage (1044/1449).\n- Overall Rust line coverage now 82.86%.",
+      "created_at": "2026-03-12T02:19:47.417965Z"
+    }
+  ],
+  "created_at": "2026-03-12T01:34:33.416028Z",
+  "updated_at": "2026-03-12T02:19:47.417965Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

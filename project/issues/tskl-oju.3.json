@@ -1,0 +1,22 @@
+{
+  "id": "tskl-oju.3",
+  "title": "Implement unified config loader in Python",
+  "description": "Update Python Taskulus to consume taskulus.yml with dotyaml semantics, fixed hierarchy, workflow bindings, priority alias handling, and CLI flags for override/dotenv path; add tests and Behave steps.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-oju",
+  "labels": [
+    "status:in_progress"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T15:29:24.652859Z",
+  "updated_at": "2026-02-16T01:07:59.195474Z",
+  "closed_at": "2026-02-16T01:07:59.168074Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

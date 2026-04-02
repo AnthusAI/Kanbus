@@ -1,0 +1,21 @@
+{
+  "id": "tskl-vpw",
+  "title": "Update task icon to show square when open, checkmark when closed",
+  "description": "Change the task icon display logic: when a task is open, it should show a square icon; when a task is closed, it should show the current checkmark icon. This provides better visual distinction between open and closed tasks at a glance.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T01:23:42.757557Z",
+  "updated_at": "2026-02-16T01:41:30.452612Z",
+  "closed_at": "2026-02-16T01:41:30.443215Z",
+  "custom": {
+    "beads_issue_type": "feature",
+    "beads_owner": "rap@endymion.com"
+  }
+}

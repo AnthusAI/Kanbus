@@ -1,0 +1,29 @@
+{
+  "id": "tskl-34w.25",
+  "title": "Confirm full spec coverage after cleanup",
+  "description": "Re-run the unified spec runner to confirm Python and Rust specs and coverage remain at 100% after cleanup.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "886cf2da-f003-56a8-90ca-79c8499809ec",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran python3 tools/run_specs.py --format text: Python coverage 100.0%, Rust coverage 100.0%.",
+      "created_at": "2026-02-12T00:32:17Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:29:55.275948Z",
+  "updated_at": "2026-02-12T00:32:23.246355Z",
+  "closed_at": "2026-02-12T00:32:23.246355Z",
+  "custom": {
+    "beads_acceptance_criteria": "tools/run_specs.py reports 100% coverage for Python and Rust.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

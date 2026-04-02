@@ -1,0 +1,59 @@
+{
+  "id": "tskl-0jw",
+  "title": "Benchmark Beads listing latency across implementations",
+  "description": "Benchmark listing all beads using the Beads project as dataset. Clone Beads repo into tmp/, convert .beads JSON-L to Taskulus JSON in project/, and measure total CLI runtime (startup to output) for: Beads (Go), Taskulus Python --beads, Taskulus Rust --beads, Taskulus Python JSON, Taskulus Rust JSON. Produce pretty-printed JSON results plus visual chart.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f8706674-8c80-58e2-8be0-fae3f9d5ca60",
+      "author": "Ryan Alyn Porter",
+      "text": "Benchmarked Beads listing latency using Beads dataset (836 issues) cloned to tmp/beads. Normalized timestamps, defaulted missing priorities to 2, removed invalid parent-child links, wrote config.yaml with extra types feature/message, and converted to project/issues JSON files. Ran 5 runs per target (cache cleared) with commands: bd --no-daemon list, python tsk --beads, rust tskr --beads, python tsk project JSON, rust tskr project JSON. Results saved to tools/tmp/beads_cli_benchmark.json; chart at tools/tmp/beads_cli_benchmark.html (opened). Key medians (ms): bd 173.4; python --beads 499.3; rust --beads 9.8 (mean 100 due to first cold run 463); python JSON 643.0; rust JSON 73.6.",
+      "created_at": "2026-02-12T13:41:40Z"
+    },
+    {
+      "id": "33a0b0e4-7dfc-5b25-987d-d5f8b42f145f",
+      "author": "Ryan Alyn Porter",
+      "text": "Added PNG chart to README and documented architecture snapshot: language duality, single-path file organization (no SQLite fallback), and performance benchmark narrative. Chart path: docs/images/beads_cli_benchmark.png; README section updated.",
+      "created_at": "2026-02-12T13:52:39Z"
+    },
+    {
+      "id": "e75d0a10-fc49-5b58-bdc6-14a8801b675d",
+      "author": "Ryan Alyn Porter",
+      "text": "Refined benchmark chart: shortened x-axis labels (Go, Py/Rs variants), removed bar outlines, softened Radix-inspired colors (~55-60% brightness). Regenerated PNG at docs/images/beads_cli_benchmark.png.",
+      "created_at": "2026-02-12T13:53:26Z"
+    },
+    {
+      "id": "4d418e55-712e-52a0-8c52-2b2777f92d76",
+      "author": "Ryan Alyn Porter",
+      "text": "Final chart tweaks: legend now on white framed background for readability; x-axis labels horizontal (short labels retained). Regenerated PNG at docs/images/beads_cli_benchmark.png.",
+      "created_at": "2026-02-12T13:55:17Z"
+    },
+    {
+      "id": "53e95944-9353-5881-86a0-34d8c1c2182f",
+      "author": "Ryan Alyn Porter",
+      "text": "Legend moved to upper-left and slightly smaller (10.5pt); PNG regenerated at docs/images/beads_cli_benchmark.png.",
+      "created_at": "2026-02-12T13:56:20Z"
+    },
+    {
+      "id": "6f2c7dc1-e4cc-5c5c-b3c3-621b4ebf4867",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated charts: warm-only response time bar + stacked cold/warm bars; legend top-right. README and ARCHITECTURE now describe response time, include both images, and explain cold vs warm behavior (daemon/no-daemon, SQLite import spike). No commits per instructions.",
+      "created_at": "2026-02-12T14:16:12Z"
+    }
+  ],
+  "created_at": "2026-02-12T13:34:55.977686Z",
+  "updated_at": "2026-02-16T01:07:59.178662Z",
+  "closed_at": "2026-02-16T01:07:59.165819Z",
+  "custom": {
+    "beads_acceptance_criteria": "Beads task recorded. Dataset prepared from Beads repo. Timing captured for all five targets including startup. Results saved as pretty JSON and chart produced.",
+    "beads_notes": "Starting benchmarking work per instructions.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

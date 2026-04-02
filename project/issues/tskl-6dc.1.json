@@ -1,0 +1,18 @@
+{
+  "id": "tskl-6dc.1",
+  "title": "State change: status → in-progress",
+  "description": "Set status to in-progress\n\nReason: Starting work on console access to .taskulus configuration",
+  "type": "event",
+  "status": "closed",
+  "priority": 4,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T04:51:38.305027Z",
+  "updated_at": "2026-02-16T03:50:45.466941Z",
+  "closed_at": "2026-02-16T03:50:45.455670Z",
+  "custom": {}
+}

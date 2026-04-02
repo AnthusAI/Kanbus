@@ -1,0 +1,63 @@
+{
+  "id": "tskl-3du.10",
+  "title": "Clock demo story workflow",
+  "description": "Demo story for Kanbus clock notifications.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "201d27c9-1af4-5e3b-8bcf-d959f57f76f6",
+      "author": "ryan.porter",
+      "text": "Clock demo: created/open",
+      "created_at": "2026-03-06T14:22:05.235936Z"
+    },
+    {
+      "id": "be405455-789f-55e6-bd00-f760a09d537b",
+      "author": "ryan.porter",
+      "text": "Clock demo: now in progress",
+      "created_at": "2026-03-06T14:22:11.432571Z"
+    },
+    {
+      "id": "e8b0fbd5-a86c-5b96-8543-37ee917ba4cd",
+      "author": "ryan.porter",
+      "text": "Clock demo: closed/done",
+      "created_at": "2026-03-06T14:22:24.002712Z"
+    },
+    {
+      "id": "9e522311-7acb-5bee-ad65-7c8cd5e58f81",
+      "author": "ryan.porter",
+      "text": "Clock demo: parent palette check after fix",
+      "created_at": "2026-03-06T14:26:28.510645Z"
+    },
+    {
+      "id": "71388611-d6aa-56bc-904a-fe4b472ee13b",
+      "author": "ryan.porter",
+      "text": "Clock demo: parent palette live check",
+      "created_at": "2026-03-06T14:35:57.221955Z"
+    },
+    {
+      "id": "f8dab572-238e-55f0-9510-7d02783c5a52",
+      "author": "ryan.porter",
+      "text": "Clock demo: parent bg step check",
+      "created_at": "2026-03-06T14:44:38.470798Z"
+    },
+    {
+      "id": "a5c1d2b2-474e-5c14-8e9e-158d6d3939da",
+      "author": "ryan.porter",
+      "text": "Clock demo: background steps check (parent/issue/body)",
+      "created_at": "2026-03-06T14:48:38.153169Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:21:56.626894Z",
+  "updated_at": "2026-03-06T14:48:38.153169Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

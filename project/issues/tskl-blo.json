@@ -1,0 +1,77 @@
+{
+  "id": "tskl-blo",
+  "title": "Fix CI failures after console snapshot",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [
+    "status:in_progress"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "573b9d18-1975-5459-a401-85176c8ad5c5",
+      "author": "Ryan Alyn Porter",
+      "text": "Scope: fix CI failures (python beads compatibility list output, console-ui env for taskulus cli, rust coverage gate). Progress: python beads mode fixed by showing full beads IDs when beads_compatibility config is enabled.",
+      "created_at": "2026-02-14T03:42:49Z"
+    },
+    {
+      "id": "34aa72a0-862f-5f0d-95e3-99db500a488e",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated console dev server to use TASKULUS_PYTHON default python3 (override via env) and fixed beads list output to show full bead IDs when beads_compatibility is enabled. Verified beads_mode.feature:75 passes.",
+      "created_at": "2026-02-14T03:43:26Z"
+    },
+    {
+      "id": "ff6456de-3302-52c6-891e-8b7af2270612",
+      "author": "Ryan Alyn Porter",
+      "text": "CI: added Python setup to console-ui workflow; black reformatted cli.py after beads list output change.",
+      "created_at": "2026-02-14T03:49:18Z"
+    },
+    {
+      "id": "608ff03d-5ad1-5318-ae13-22a2bdf3b929",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted console dev server env defaults to allow CONSOLE_PROJECT_ROOT override in CI tests; fixed beads list output to show short IDs only when --beads flag used.",
+      "created_at": "2026-02-14T03:59:30Z"
+    },
+    {
+      "id": "0610532b-8782-57bf-94cb-e70cd59d06c3",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed ruff F841 in cli.py; beads mode forced flag now only used in list command.",
+      "created_at": "2026-02-14T04:03:48Z"
+    },
+    {
+      "id": "e95b4f35-fdcc-5fef-8022-a65039d4d426",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting CI fix: focus on python coverage gaps and rust coverage gate. Will add BDD scenarios/steps to cover missing lines and investigate rust coverage failures. Running tests under conda py311.",
+      "created_at": "2026-02-14T04:09:21Z"
+    },
+    {
+      "id": "60149c62-b1df-5a4a-899f-968606bc83cd",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: make CI green after console snapshot changes. Acceptance: all quality gates pass locally (black/ruff, cargo fmt/clippy, behave, cargo test cucumber, coverage gates 100% for python and rust, spec parity), and CI passes in GitHub Actions.",
+      "created_at": "2026-02-14T05:14:15Z"
+    },
+    {
+      "id": "79c3a601-b5d9-549d-aca2-e4c48ac2f604",
+      "author": "Ryan Alyn Porter",
+      "text": "Rust coverage fixed by removing unreachable defaults mapping branch in config_loader. Updated console_ui_steps task issue initializer fields. Tests: cargo test --test cucumber, cargo clippy -- -D warnings, cargo fmt --check, cargo tarpaulin --engine llvm --tests --test cucumber --implicit-test-threads --exclude-files src/bin/* --exclude-files features/steps/* --out Xml --output-dir /tmp/coverage-rust, python tools/coverage_gate.py /tmp/coverage-rust/cobertura.xml --minimum 100, python tools/check_spec_parity.py.",
+      "created_at": "2026-02-14T05:49:32Z"
+    },
+    {
+      "id": "16ef2e66-79f7-50ac-a305-46cd5fe00ce2",
+      "author": "Ryan Alyn Porter",
+      "text": "Additional tests: python -m black --check python, python -m ruff check python, python -m coverage run --source=taskulus -m behave, python -m coverage xml -o /tmp/coverage-python/coverage.xml, python tools/coverage_gate.py /tmp/coverage-python/coverage.xml --minimum 100.",
+      "created_at": "2026-02-14T05:51:09Z"
+    }
+  ],
+  "created_at": "2026-02-14T03:42:38.451927Z",
+  "updated_at": "2026-02-16T01:07:59.186365Z",
+  "closed_at": "2026-02-16T01:07:59.167389Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

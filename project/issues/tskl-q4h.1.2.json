@@ -1,0 +1,20 @@
+{
+  "id": "tskl-q4h.1.2",
+  "title": "Implement snyk_sync.rs (Rust)",
+  "description": "Implement /rust/src/snyk_sync.rs that fetches all issues from Snyk REST API (paginated), deduplicates by vulnerability key, maps severity to Kanbus priority, and creates/updates bugs under a configured parent epic. Support dry-run mode and idempotency.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek",
+  "parent": "tskl-q4h.1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-25T21:37:43.158991Z",
+  "updated_at": "2026-02-25T21:50:43.388121Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek"
+  }
+}

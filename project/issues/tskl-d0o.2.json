@@ -1,0 +1,20 @@
+{
+  "id": "tskl-d0o.2",
+  "title": "Implement nav/footer/homepage + feature page restructuring",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-d0o",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T05:36:10.848641Z",
+  "updated_at": "2026-03-06T07:00:07.041867Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

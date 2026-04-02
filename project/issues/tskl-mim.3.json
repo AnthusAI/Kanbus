@@ -1,0 +1,29 @@
+{
+  "id": "tskl-mim.3",
+  "title": "Support .taskulus additional project paths",
+  "description": "If .taskulus exists in cwd or parents to git root, read newline-delimited paths to include in discovery. Resolve relative paths from the dotfile location.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-mim",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7ae3792a-f210-5309-9b69-a2697400cebc",
+      "author": "Ryan Alyn Porter",
+      "text": ".taskulus support implemented in python/src/taskulus/project.py (_find_taskulus_dotfile/_discover_taskulus_projects) and rust/src/file_io.rs (discover_taskulus_projects/find_taskulus_dotfile). Verified by features/project/project_utilities.feature (dotfile scenarios) in behave and cucumber.",
+      "created_at": "2026-02-11T20:09:07Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:04:40.583003Z",
+  "updated_at": "2026-02-11T20:09:09.868684Z",
+  "closed_at": "2026-02-11T20:09:09.868684Z",
+  "custom": {
+    "beads_acceptance_criteria": ".taskulus is read from cwd upward to git root; paths may be absolute or relative; listed project/ directories are included in discovery.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

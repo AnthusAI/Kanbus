@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ruh.4",
+  "title": "Integrate monorepo benchmarks into check_benchmarks",
+  "description": "Wire new benchmarks into tooling with baseline thresholds and reporting. Ensure reproducible runs and clean temp data.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ruh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f68f72c0-ea46-55a3-a8e2-b74358ad3554",
+      "author": "Ryan Alyn Porter",
+      "text": "check_benchmarks integration complete in tools/check_benchmarks.py with thresholds updated in tools/perf_baseline.json; discovery benchmarks included and temp fixtures cleaned after runs.",
+      "created_at": "2026-02-11T20:10:19Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:05:19.418850Z",
+  "updated_at": "2026-02-11T20:10:22.341517Z",
+  "closed_at": "2026-02-11T20:10:22.341517Z",
+  "custom": {
+    "beads_acceptance_criteria": "check_benchmarks includes monorepo benchmarks with thresholds; temp directories cleaned after runs.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

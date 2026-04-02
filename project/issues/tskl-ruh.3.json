@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ruh.3",
+  "title": "Add Rust monorepo discovery/index benchmarks",
+  "description": "Benchmark discovery and index build for single-folder vs recursive multi-folder layouts, matching Python benchmark scenarios.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ruh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9acbc90b-9a3d-5207-8adb-f70d1fcc14a6",
+      "author": "Ryan Alyn Porter",
+      "text": "Rust benchmarks added in rust/src/bin/discovery_benchmark.rs (single vs multi, serial + parallel) and rust/src/bin/index_benchmark.rs (index build/cache timings).",
+      "created_at": "2026-02-11T20:10:11Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:05:13.715161Z",
+  "updated_at": "2026-02-11T20:10:14.273660Z",
+  "closed_at": "2026-02-11T20:10:14.273660Z",
+  "custom": {
+    "beads_acceptance_criteria": "Rust benchmark reports timings for single vs recursive multi-project layouts and matches Python scenarios.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

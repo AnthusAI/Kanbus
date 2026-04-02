@@ -1,0 +1,20 @@
+{
+  "id": "tskl-4ia.1",
+  "title": "story Add .kanbus.override.yml support for local virtual project mappings",
+  "description": "As a developer, I want to add local virtual project mappings in a gitignored .kanbus.override.yml file so that I can view issues from other local repositories on my board without committing those paths to the shared repository configuration.\n\nThe override file's virtual_projects entries are merged additively with those in .kanbus.yml so both sets of projects are available.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-4ia",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T18:40:01.317801Z",
+  "updated_at": "2026-02-21T18:52:47.227501Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

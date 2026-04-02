@@ -1,0 +1,26 @@
+{
+  "id": "tskl-fzn",
+  "title": "Advanced Index and Cache System",
+  "description": "Implement full indexing with all lookup maps, cache invalidation, and mtime-based staleness detection. Optimizes query performance.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 0,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-9w4",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-11T01:32:57.739077Z",
+  "updated_at": "2026-02-12T01:11:54.980809Z",
+  "closed_at": "2026-02-12T01:11:54.980809Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

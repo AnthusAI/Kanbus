@@ -1,0 +1,39 @@
+{
+  "id": "tskl-wti.2.1",
+  "title": "Rust coverage uplift: console_local bin module",
+  "description": "Target rust/src/bin/console_local.rs (~37.46%, ~895 uncovered lines). Add focused tests for error branches, env/IO edge cases, and handler paths to materially raise line coverage.",
+  "type": "sub-task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wti.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a151ef17-ecac-515f-bef8-2e5562427403",
+      "author": "ryan.porter",
+      "text": "Coverage progress: expanded rust/src/bin/console_local.rs tests to cover tenant-scoped API handlers, asset route wrappers, and favicon behavior (missing -> 204, present -> 200). Also corrected notification endpoint expectations (returns 200). Validation run: cargo test --locked --bin kbsc => 36 passed, 0 failed.",
+      "created_at": "2026-03-12T01:48:20.440598Z"
+    },
+    {
+      "id": "76191a8f-301a-5f28-80c3-5274cdd03d02",
+      "author": "ryan.porter",
+      "text": "Validation update:\n- cargo test --locked --bin kbsc -> 36 passed\n- Full rust coverage rerun (all-features, lib+bins+tests, steps excluded) produced coverage-rust/cobertura.xml\n- Current module delta: rust/src/bin/console_local.rs now 57.93% line coverage (1213/2094)\n- Current overall Rust line coverage from Cobertura root: 81.70%\nNote: coverage ratchet check is currently blocked locally because coverage-python/coverage.xml is missing in this workspace.",
+      "created_at": "2026-03-12T01:52:06.507361Z"
+    },
+    {
+      "id": "0af966f2-a44f-5047-bf51-d82f918de13e",
+      "author": "ryan.porter",
+      "text": "Coverage progress (new increment implemented):\n- Added targeted kbsc tests in rust/src/bin/console_local.rs for success-path wrappers and edge branches:\n  - root + tenant issue endpoints with seeded issue data\n  - full tenant wiki round-trip (create/list/get/update/rename/render/delete)\n  - d2 render endpoint fallback when d2 is unavailable (PATH forced empty)\n- Added helper seed/write logic for deterministic project fixtures in tests.\n- Validation: cargo test --locked --bin kbsc -> 39 passed, 0 failed.\n- Re-ran full rust llvm-cov (all-features, lib+bins+tests, steps excluded) and refreshed coverage-rust/cobertura.xml.\n- Module delta: console_local.rs improved to 66.22% line coverage (1498/2262).\n- Overall Rust line coverage is now 83.48%.",
+      "created_at": "2026-03-12T02:57:48.694979Z"
+    }
+  ],
+  "created_at": "2026-03-12T01:34:33.302274Z",
+  "updated_at": "2026-03-12T02:57:48.694979Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

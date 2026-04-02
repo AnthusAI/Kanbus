@@ -1,0 +1,29 @@
+{
+  "id": "tskl-pkw.2",
+  "title": "Verify zero pytest and spec parity",
+  "description": "Audit repo to ensure no pytest tests or dependencies remain unless required by Behave. Confirm Gherkin specs are identical for Python and Rust and all scenarios pass.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-pkw",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "48f7d073-9ede-5a5e-900c-f35aa70676de",
+      "author": "Ryan Alyn Porter",
+      "text": "Verification: rg pytest shows no references in repo docs/configs. python/pyproject.toml has no pytest deps. Spec parity check passes. Behave passes shared specs; cargo test runs cucumber with rust/features/specs. Coverage via behave is 55%, tracked in tskl-pkw.3.",
+      "created_at": "2026-02-11T15:25:35Z"
+    }
+  ],
+  "created_at": "2026-02-11T15:11:26.547955Z",
+  "updated_at": "2026-02-11T15:25:39.407290Z",
+  "closed_at": "2026-02-11T15:25:39.407290Z",
+  "custom": {
+    "beads_acceptance_criteria": "No pytest references in code or configs. Spec parity check passes with identical Gherkin files. Behave and Cucumber suites pass.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

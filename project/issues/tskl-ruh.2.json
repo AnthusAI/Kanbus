@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ruh.2",
+  "title": "Add Python monorepo discovery/index benchmarks",
+  "description": "Benchmark discovery and index build for single-folder vs recursive multi-folder layouts. Measure end-to-end latency for list/ready-like operations.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ruh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "72c05e32-7a9b-5c2b-893d-ecd14522f09a",
+      "author": "Ryan Alyn Porter",
+      "text": "Python benchmarks added in tools/benchmark_discovery.py (single vs multi project, serial + parallel) and tools/benchmark_index.py (index build/cache timings).",
+      "created_at": "2026-02-11T20:10:05Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:05:10.537037Z",
+  "updated_at": "2026-02-11T20:10:08.705228Z",
+  "closed_at": "2026-02-11T20:10:08.705228Z",
+  "custom": {
+    "beads_acceptance_criteria": "Python benchmark reports timings for single vs recursive multi-project layouts and basic operations.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "tskl-2dj.1",
+  "title": "Implement downward project discovery",
+  "description": "Discover project/ directories by walking downward from cwd; stop descending into project/ and project-local/.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-2dj",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "20dbd4b6-2e87-5faa-959b-1b24b298a197",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented downward project discovery for project/ directories in Python and Rust (no upward walking), updated daemon path tests and added project discovery tests. Tests: python -m pytest --cov=taskulus --cov-report=term-missing python/tests, cargo fmt --manifest-path rust/Cargo.toml, cargo test --manifest-path rust/Cargo.toml --tests.",
+      "created_at": "2026-02-11T14:42:59Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:37:34.722983Z",
+  "updated_at": "2026-02-11T14:43:07.326173Z",
+  "closed_at": "2026-02-11T14:43:07.326173Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

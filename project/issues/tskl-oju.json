@@ -1,0 +1,28 @@
+{
+  "id": "tskl-oju",
+  "title": "Scope epic: Standardize Taskulus configuration across Python and Rust",
+  "description": "Define scope, behaviors, and configuration model for cross-implementation standardization (Python+Rust). Produce follow-up beads for implementation.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "624a4335-166c-5793-a5df-9e6a22ac19aa",
+      "author": "Ryan Alyn Porter",
+      "text": "Scope change: dropped dotyaml crate epic (tskl-9nu closed). New approach: single .taskulus.yml at repo root, no fallbacks. Added task tskl-s3w to define behaviors/specs for the new file, including project directory key (default project/).",
+      "created_at": "2026-02-13T01:41:50Z"
+    }
+  ],
+  "created_at": "2026-02-12T14:52:14.976841Z",
+  "updated_at": "2026-02-16T01:07:59.193885Z",
+  "closed_at": "2026-02-16T01:07:59.168052Z",
+  "custom": {
+    "beads_notes": "Goal: define shared configuration model for Taskulus (Python + Rust), leveraging Python dot-yml semantics; produce spec, behaviors, and follow-up beads for implementation. Outputs: agreed config keys (project key, workflows per issue type, priorities mapping/import), behaviors/Gherkin drafts, plan for Rust dot-yml equivalent and integration.\nCreated worktree ../Taskulus-config-standardization on branch tskl-oju-config-standardization for this session (BEADS_NO_DAEMON recommended). Next: study Python dotyaml behavior, design unified config keys (project key, workflows, priorities), draft Gherkin, and open follow-on beads.\nDependency noted: tskl-9nu (Rust dot-yml crate + publish to crates.io) must complete/land before configuration standardization finalization. Also related: tskl-pjb (publish Taskulus Rust crate).\nCreated child tasks: tskl-oju.1 (schema design), tskl-oju.2 (Gherkin behaviors).\nCreated follow-up tasks: tskl-oju.3 (Python loader), tskl-oju.4 (Rust loader), tskl-oju.5 (CLI override/dotenv parity).\nDocs sweep in progress: renamed config references to taskulus.yml in README, CONFIGURATION, GETTING_STARTED, TROUBLESHOOTING, planning docs, web docs page, tools script, and rust doc comments; further code changes pending.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

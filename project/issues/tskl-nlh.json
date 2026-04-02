@@ -1,0 +1,27 @@
+{
+  "id": "tskl-nlh",
+  "title": "Design workflow configuration",
+  "description": "Define how 'close' behaves with configurable workflows, including explicit open vs closed state sets and per-issue-type workflow mappings. Update CLI/API contracts accordingly.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5cfc9a56-956e-55d1-b83a-520ddfc7f690",
+      "author": "ryan.porter",
+      "text": "Implemented unified status and workflow configuration system:\n\n✅ Statuses list as single source of truth for status order, colors, and collapsed state\n✅ Removed status_colors in favor of co-located status metadata  \n✅ Column order now determined by statuses list order (fixes BTreeMap alphabetical issue)\n✅ Clickable column headers for collapse/expand\n✅ Restored filter button in top navigation\n✅ Fixed collapsed column state persistence across snapshot updates\n✅ Comprehensive validation ensuring workflow references exist in statuses\n\nAll backend (Rust/Python), frontend (TypeScript/React), config, and test files updated.\n\nChild issue tskl-nlh.3 remains open for UI polish (animations, localStorage persistence).",
+      "created_at": "2026-02-18T07:01:26.163188Z"
+    }
+  ],
+  "created_at": "2026-02-15T16:56:19.196441Z",
+  "updated_at": "2026-02-18T07:01:26.163188Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

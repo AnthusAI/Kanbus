@@ -1,0 +1,41 @@
+{
+  "id": "tskl-fzn.6",
+  "title": "Prototype parallel index build in production",
+  "description": "Implement optional parallel index building for Python and Rust while preserving deterministic ordering. Validate with existing Behave/cucumber specs and benchmarks.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-fzn",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d3dea2eb-43a6-53ec-ac3b-57e5d900d46a",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented parallel index build while preserving deterministic order: python/src/taskulus/index.py uses ThreadPoolExecutor with ordered map; rust/src/index.rs uses threaded read with indexed ordering and sequential index insertion. No tests run yet.",
+      "created_at": "2026-02-11T20:19:38Z"
+    },
+    {
+      "id": "b33ef9ad-f797-532b-9f25-677520fd8582",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran tests: cd python && python -m behave (28 features passed, 207 scenarios passed, 8 skipped); cd rust && cargo test --test cucumber (pass). Benchmarks not run yet.",
+      "created_at": "2026-02-11T20:20:30Z"
+    },
+    {
+      "id": "118d4d62-7dc5-5f78-89df-260823ae16bd",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran python3 tools/check_benchmarks.py: status ok. Results: python build_ms 64.15, cache_load_ms 13.57; rust build_ms 45.46, cache_load_ms 4.35. Discovery serial/parallel metrics captured in output. Cleaned tools/tmp afterward.",
+      "created_at": "2026-02-11T20:59:07Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:18:36.317323Z",
+  "updated_at": "2026-02-11T20:59:21.649745Z",
+  "closed_at": "2026-02-11T20:59:21.649745Z",
+  "custom": {
+    "beads_acceptance_criteria": "Index build can run in parallel without changing output order; specs pass for Python and Rust; benchmarks record any change.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

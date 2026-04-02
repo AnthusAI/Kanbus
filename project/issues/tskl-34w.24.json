@@ -1,0 +1,29 @@
+{
+  "id": "tskl-34w.24",
+  "title": "Verify spec parity check",
+  "description": "Run tools/check_spec_parity.py and resolve any mismatches.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0ef2dbf3-ef63-561b-a98e-a8246fef4b25",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran python3 tools/check_spec_parity.py: Feature steps 507, Python steps 331, Rust steps 331; parity check passed.",
+      "created_at": "2026-02-12T00:29:34Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:29:21.651319Z",
+  "updated_at": "2026-02-12T00:29:38.443649Z",
+  "closed_at": "2026-02-12T00:29:38.443649Z",
+  "custom": {
+    "beads_acceptance_criteria": "Spec parity check passes.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

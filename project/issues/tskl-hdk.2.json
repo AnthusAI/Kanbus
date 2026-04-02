@@ -1,0 +1,20 @@
+{
+  "id": "tskl-hdk.2",
+  "title": "Update getting-started docs for source installs",
+  "description": "Add a source-install section to GETTING_STARTED.md with Rust/Node prerequisites and build/run steps for CLI + console. Add/refresh prebuilt binaries section and include console server binary.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-hdk",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T16:10:59.868017Z",
+  "updated_at": "2026-02-15T21:45:38.043597Z",
+  "closed_at": "2026-02-16T01:07:59.168567Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

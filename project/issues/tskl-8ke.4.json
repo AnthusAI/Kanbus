@@ -1,0 +1,28 @@
+{
+  "id": "tskl-8ke.4",
+  "title": "Implement maintenance commands in Rust",
+  "description": "Implement validate and stats in Rust.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-8ke",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5b7a2e7f-2c41-5790-abb1-c63b8387f8ba",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Rust maintenance commands: added maintenance module with validate_project and collect_project_stats, wired CLI validate/stats output, and added Rust tests for validation and stats counts. Tests: cargo fmt --manifest-path rust/Cargo.toml, cargo test --manifest-path rust/Cargo.toml --test maintenance.",
+      "created_at": "2026-02-11T14:23:10Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:04.429944Z",
+  "updated_at": "2026-02-11T14:23:19.053914Z",
+  "closed_at": "2026-02-11T14:23:19.053914Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

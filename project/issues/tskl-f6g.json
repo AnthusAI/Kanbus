@@ -1,0 +1,20 @@
+{
+  "id": "tskl-f6g",
+  "title": "Add integration test for Beads/Kanbus update flow",
+  "description": "Create integration tests for update operations (title, description, status, priority, assignee) to ensure changes made in Beads mode are visible in Kanbus and vice versa. Test scenarios: update title via Beads/Kanbus, update description, change status, modify priority, reassign issues.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T01:45:07.044734Z",
+  "updated_at": "2026-02-16T01:50:21.992691Z",
+  "closed_at": "2026-02-16T01:50:21.984695Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

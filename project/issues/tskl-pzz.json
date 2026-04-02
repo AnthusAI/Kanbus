@@ -1,0 +1,20 @@
+{
+  "id": "tskl-pzz",
+  "title": "kanbusr close returns 'not found' for valid beads issue IDs",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T03:35:45.527589Z",
+  "updated_at": "2026-02-16T03:41:21.180501Z",
+  "closed_at": "2026-02-16T03:50:45.457314Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

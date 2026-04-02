@@ -1,0 +1,27 @@
+{
+  "id": "tskl-tnl",
+  "title": "Virtual Projects",
+  "description": "Enable a master board that virtually imports issue corpora from multiple other projects. Issues from all mapped projects (shared and local) display on one board with proper project labeling, mutations route back to source, creation is configurable, and project+local filters are composable in both CLI and console.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0c6beefc-9f2e-51ed-8d0b-a232225a8c03",
+      "author": "ryan.porter",
+      "text": "All five implementation stories complete. Integration testing in progress with a multi-project workspace mapping five real project corpora as virtual projects.",
+      "created_at": "2026-02-21T17:01:57.508201Z"
+    }
+  ],
+  "created_at": "2026-02-21T14:56:04.699627Z",
+  "updated_at": "2026-02-21T18:41:44.548818Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

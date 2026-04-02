@@ -1,0 +1,33 @@
+{
+  "id": "tskl-oju.6",
+  "title": "Add reusable issue key formatter (global vs project context)",
+  "description": "Add shared helper in Python and Rust to format issue identifiers:\n- global context shows KEY-<git-style abbreviated hash> with key uppercased\n- project context hides key and shows abbreviated hash only\n- numeric IDs pass through unchanged\n- hash abbreviation uses git default length (7 chars) stripping hyphens\nCover with BDD for both implementations.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "@ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-oju",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "bf7c4a6a-630f-5b22-949d-0eb6ec5238de",
+      "author": "Ryan Alyn Porter",
+      "text": "Planning: add dual ID generation modes. Default: generate full UUID-based ID (stored), display abbreviated. Beads compatibility mode: generate Beads-style child IDs when writing JSONL. Update formatter to pass through existing IDs. Add Gherkin scenarios for UUID IDs vs Beads IDs + mode switch. Next: inspect issue_creation + ids + beads mode flow.",
+      "created_at": "2026-02-13T03:57:12Z"
+    },
+    {
+      "id": "44e86095-ed61-59f2-be2e-40d6aeabac99",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented UUID-based ID generation for native Taskulus; added Beads JSONL write path for --beads create (parent-child uses parent.id.N, top-level uses 3-char slug). Added beads create scenario, new beads write modules, and updated ID parsing in tests to handle abbreviated display.",
+      "created_at": "2026-02-13T04:17:36Z"
+    }
+  ],
+  "created_at": "2026-02-13T03:23:27.848142Z",
+  "updated_at": "2026-02-16T01:07:59.197317Z",
+  "closed_at": "2026-02-16T01:07:59.168099Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

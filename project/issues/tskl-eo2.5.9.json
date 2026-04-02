@@ -1,0 +1,39 @@
+{
+  "id": "tskl-eo2.5.9",
+  "title": "CLI API token lifecycle + IoT custom authorizer for MQTT",
+  "description": "Implement DynamoDB-backed API token registry, admin token endpoints, kbs token commands, and AWS IoT custom authorizer for CLI MQTT access without OAuth.",
+  "type": "task",
+  "status": "blocked",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "73084510-c8f8-5961-9dcb-d6ea14a1415a",
+      "author": "ryan.porter",
+      "text": "Progress: Implemented CLI token lifecycle backend and IoT custom authorizer path in CDK, Lambda, and Rust CLI/config plumbing.\nEvidence: Added token_admin.py + mqtt_authorizer.py, DynamoDB+Secrets+IoT Authorizer resources/routes, new kbs cloud token create|list|revoke commands, custom-authorizer MQTT config in gossip/config docs; cargo test and infra tests pass.\nNext: execute live IoT custom-authorizer subscribe test with issued token and capture deny cases for revoked/expired/cross-tenant.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T14:56:43.903389Z"
+    },
+    {
+      "id": "0b19e36b-2d68-5582-a97b-8e0521f33861",
+      "author": "ryan.porter",
+      "text": "Progress: CLI token lifecycle + IoT custom authorizer implementation landed and pushed.\nEvidence: commit 385d623 on dev; token admin API, DynamoDB+secret store, IoT custom authorizer, and kbs cloud token CLI commands integrated; test suites green.\nNext: run live token create/list/revoke and MQTT subscribe deny/allow matrix in deployed env.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T14:57:56.838040Z"
+    },
+    {
+      "id": "b4998a0a-6db0-55a8-b08f-c7cd81b88772",
+      "author": "unknown",
+      "text": "Progress: CLI token/MQTT live matrix is queued but cannot execute until deploy state is recovered.\nEvidence: token resources are not safely deployable while stack is UPDATE_ROLLBACK_FAILED and recovery call is AccessDenied.\nNext: after rollback recovery and redeploy, run create/list/revoke + MQTT allow/deny matrix and attach outputs.\nRisk/Blocker: BLOCKED on CloudFormation recovery IAM permission.",
+      "created_at": "2026-03-07T15:31:12.280204Z"
+    }
+  ],
+  "created_at": "2026-03-07T14:36:13.376255Z",
+  "updated_at": "2026-03-07T15:31:12.280204Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

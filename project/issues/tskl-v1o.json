@@ -1,0 +1,53 @@
+{
+  "id": "tskl-v1o",
+  "title": "Publish Taskulus to PyPI",
+  "description": "Prepare and publish a PyPI release for Taskulus. Requires versioning, build artifacts, and credentials.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4a6d6857-c746-5d8c-9017-b224b2f26272",
+      "author": "Ryan Alyn Porter",
+      "text": "Investigating failed PyPI release publishing workflow. Will check GitHub Actions logs, adjust workflow or semantic-release configuration, and re-run once fixed.",
+      "created_at": "2026-02-12T06:49:02Z"
+    },
+    {
+      "id": "51cc9fb2-666b-5340-b065-9ed93dd35e36",
+      "author": "Ryan Alyn Porter",
+      "text": "Release workflow failed because semantic-release could not find a token. Updated release workflow to export GH_TOKEN from secrets.GITHUB_TOKEN (semantic-release expects GH_TOKEN). Need rerun Release workflow after commit/push.",
+      "created_at": "2026-02-12T06:49:32Z"
+    },
+    {
+      "id": "9aff40e4-4b88-5708-a8a8-916725b13fe4",
+      "author": "Ryan Alyn Porter",
+      "text": "Pushed fix to export GH_TOKEN for semantic-release. CI is running; Release workflow should trigger on CI success to publish to PyPI.",
+      "created_at": "2026-02-12T06:51:01Z"
+    },
+    {
+      "id": "799e07d3-3eea-5095-a734-1e31f3450bd2",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed Python coverage regression (daemon lifecycle scenarios and CLI stderr capture) so CI can pass and Release workflow can trigger.",
+      "created_at": "2026-02-12T07:02:41Z"
+    },
+    {
+      "id": "48989c9a-77e0-525a-b5a5-92964111826b",
+      "author": "Ryan Alyn Porter",
+      "text": "Release workflow failing due to missing tags. Added semantic-release version step and configured allow_zero_version=true, major_on_zero=false so initial release can tag 0.x. Publish now runs after version step.",
+      "created_at": "2026-02-12T07:24:11Z"
+    }
+  ],
+  "created_at": "2026-02-12T06:00:18.860048Z",
+  "updated_at": "2026-02-15T02:20:09.878318Z",
+  "closed_at": "2026-02-15T02:20:09.878318Z",
+  "custom": {
+    "beads_close_reason": "Already published to PyPI long ago (confirmed).",
+    "beads_notes": "Pending PyPI credentials and release process confirmation (version, tag, build). Provide PyPI token or trusted publisher setup to proceed.\nReminder: PyPI publish still pending; needs packaging, versioning, and credentials/trusted publisher setup.\nStarting PyPI publish workflow; need token and version confirmation before uploading.\nAdded semantic-release config in python/pyproject.toml and release workflow .github/workflows/release.yml to publish on CI success. Requires GitHub secret PYPI_TOKEN; release job runs semantic-release publish from python/ directory.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

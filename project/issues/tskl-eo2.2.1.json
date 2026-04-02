@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.2.1",
+  "title": "Gossip envelope publishes full issue snapshots and dedupes",
+  "description": "## Intent\nAs a console user, I want gossip notifications to carry the full updated issue so I can see changes before Git pulls.\n\n## Gherkin\nFeature: Gossip envelope\n  Scenario: Publish an issue mutation with full snapshot\n    Given a project \"kbs\" with issue \"kbs-123\"\n    And a running gossip broker\n    When the issue is updated locally\n    Then a notification is published on \"projects/kbs/events\"\n    And the payload includes id, ts, project, type, issue_id, event_id, producer_id\n    And the payload includes the full issue JSON\n\n  Scenario: Dedupe and ignore self\n    Given a gossip receiver with producer_id \"p1\"\n    And it has already seen notification id \"n1\"\n    When it receives notification id \"n1\" from producer \"p2\"\n    Then the notification is ignored\n    When it receives notification id \"n2\" from producer \"p1\"\n    Then the notification is ignored\n\n## Definition of Done\n- Envelope schema implemented in both runtimes.\n- Dedupe and producer_id filtering behavior implemented with TTL.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:04:50.953866Z",
+  "updated_at": "2026-03-10T03:24:44.212296Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

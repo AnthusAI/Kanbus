@@ -1,0 +1,35 @@
+{
+  "id": "tskl-2dj.7",
+  "title": "Add scope-aware display for list and ready",
+  "description": "When multiple project/ directories are discovered, list and ready output should indicate project path (prefix IDs or group by project). Scoping is based on current directory.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-2dj",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "02afba19-6aba-56b0-9a62-d34d85fac657",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting scope-aware display for list/ready. Plan: inspect current list/ready output, update formatting to include project path prefix when multiple projects discovered, update shared specs + steps, run behavior suites and spec parity.",
+      "created_at": "2026-02-11T19:07:20Z"
+    },
+    {
+      "id": "0daeaa41-6069-5331-901f-15e44997e84a",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated list/ready specs for local-only multi-projects, dotfile missing paths, external project paths, and ready --no-local. Added project setup steps for external/local repos, output assertion for external project path, and ready --no-local step. Removed redundant local dir error handling in issue_listing. Tests: cd python && coverage run --source=taskulus -m behave; coverage report -m (100%); cd rust && cargo test --test cucumber; python tools/check_spec_parity.py.",
+      "created_at": "2026-02-11T19:29:35Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:50:27.580196Z",
+  "updated_at": "2026-02-11T19:29:42.295141Z",
+  "closed_at": "2026-02-11T19:29:42.295141Z",
+  "custom": {
+    "beads_acceptance_criteria": "With multiple project/ directories, tsk list and tsk ready clearly show project path context and match Python/Rust output. Single project output remains unchanged.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

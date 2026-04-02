@@ -1,0 +1,20 @@
+{
+  "id": "tskl-52k.3",
+  "title": "AI Summarization Jinja2 function",
+  "description": "Add ai_summarize(issue, detail=short) to wiki template context. Invoke configured AI provider to summarize issue.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-52k",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-08T21:16:09.712942Z",
+  "updated_at": "2026-03-08T21:31:32.449584Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

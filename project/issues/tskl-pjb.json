@@ -1,0 +1,21 @@
+{
+  "id": "tskl-pjb",
+  "title": "Epic: Publish Taskulus Rust crate to crates.io",
+  "description": "Prepare and publish Taskulus Rust crate (CLI/lib) to crates.io alongside Python package; align metadata, versioning, and release automation.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T14:53:28.871950Z",
+  "updated_at": "2026-02-13T05:56:39.102711Z",
+  "closed_at": "2026-02-13T05:56:39.102714Z",
+  "custom": {
+    "beads_notes": "Publish Taskulus Rust crate to crates.io once config standardization and dependencies (dot-yml crate tskl-9nu) are ready; align release automation with Python package.\nCreated child task tskl-pjb.1 to publish Taskulus crate to crates.io (post config parity and dotyaml crate availability).\nEpic complete: taskulus crate 0.1.0 published to crates.io with MIT license and updated metadata; supporting tasks tskl-pjb.1/.2/.3/.4 closed.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

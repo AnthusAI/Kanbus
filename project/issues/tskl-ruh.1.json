@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ruh.1",
+  "title": "Create monorepo benchmark fixtures",
+  "description": "Generate deterministic multi-project fixtures for benchmarking recursive discovery and indexing. Include single-project and multi-project layouts.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ruh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d0fe8969-4015-55a4-8818-f3888a4fe436",
+      "author": "Ryan Alyn Porter",
+      "text": "Deterministic monorepo fixtures implemented in tools/benchmark_discovery_fixtures.py (single-project and multi-project generators).",
+      "created_at": "2026-02-11T20:09:58Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:05:07.325572Z",
+  "updated_at": "2026-02-11T20:10:02.122637Z",
+  "closed_at": "2026-02-11T20:10:02.122637Z",
+  "custom": {
+    "beads_acceptance_criteria": "Fixture generator produces deterministic datasets for single and multi-project layouts; stored under tools/tmp during runs.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

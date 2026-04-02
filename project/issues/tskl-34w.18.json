@@ -1,0 +1,29 @@
+{
+  "id": "tskl-34w.18",
+  "title": "Docstring hygiene in benchmark fixture helpers",
+  "description": "Add Sphinx-style docstrings for helper functions in tools/benchmark_discovery_fixtures.py without behavior changes.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7a32dd59-bf7e-52d6-aeb1-4258222ee439",
+      "author": "Ryan Alyn Porter",
+      "text": "Added Sphinx-style docstrings for helper functions in tools/benchmark_discovery_fixtures.py (_issue_identifier, _issue_title, _build_issue, _write_issue, _generate_project_issues).",
+      "created_at": "2026-02-11T20:17:54Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:17:31.535392Z",
+  "updated_at": "2026-02-11T20:17:57.957778Z",
+  "closed_at": "2026-02-11T20:17:57.957778Z",
+  "custom": {
+    "beads_acceptance_criteria": "Helper functions in tools/benchmark_discovery_fixtures.py include Sphinx-style docstrings; behavior unchanged.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

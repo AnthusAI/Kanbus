@@ -1,0 +1,22 @@
+{
+  "id": "tskl-pjb.2",
+  "title": "Align Rust crate metadata for crates.io",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-pjb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T04:11:49.413211Z",
+  "updated_at": "2026-02-13T05:50:44.534621Z",
+  "closed_at": "2026-02-13T05:50:44.534623Z",
+  "custom": {
+    "beads_acceptance_criteria": "Cargo.toml [package] includes description, license, readme, repository, homepage, documentation, keywords, categories, authors set per Taskulus policy; version set for release; no fallback fields.",
+    "beads_notes": "Capture required metadata for crates.io publishing; no backward compatibility fields.\nInitiating crate publish work; see AGENTS instructions: no backward compatibility; will follow cargo package/publish flow.\nUpdated rust/Cargo.toml metadata for crates.io: description, license=MIT, readme, repository, homepage, documentation, keywords, categories, authors.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

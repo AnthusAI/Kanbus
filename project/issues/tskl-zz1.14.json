@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.14",
+  "title": "Write BDD specs for policy engine",
+  "description": "Create features/policies/ directory with specs: policy_evaluation.feature, policy_steps_library.feature, policy_rejection.feature, policy_skip.feature. Implement step definitions in both Python and Rust.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:26.426112Z",
+  "updated_at": "2026-02-27T07:00:48.238372Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

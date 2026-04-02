@@ -1,0 +1,29 @@
+{
+  "id": "tskl-cai.2",
+  "title": "Implement Python benchmark for single vs recursive discovery",
+  "description": "Add Python benchmark that measures time to index issues for single project vs recursive discovery across multiple project folders using the fixtures.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-cai",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "8d682b1e-087c-5bf9-b87c-86750eca616b",
+      "author": "Ryan Alyn Porter",
+      "text": "Added tools/benchmark_discovery.py to benchmark single-project vs multi-project discovery/list/ready timings using deterministic fixtures. Script disables daemon, clears caches, and emits JSON. Ran: python tools/benchmark_discovery.py.",
+      "created_at": "2026-02-11T19:36:24Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:52:59.209647Z",
+  "updated_at": "2026-02-11T19:36:31.864473Z",
+  "closed_at": "2026-02-11T19:36:31.864473Z",
+  "custom": {
+    "beads_acceptance_criteria": "Python benchmark runs locally, prints timings for single-project and recursive modes, and uses the shared fixtures.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

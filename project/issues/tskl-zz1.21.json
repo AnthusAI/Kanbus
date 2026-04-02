@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.21",
+  "title": "Create Policy-as-Code documentation page",
+  "description": "Create apps/kanb.us/src/pages/docs/features/policy-as-code.tsx with full step library reference, examples, and CLI commands.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:31.929833Z",
+  "updated_at": "2026-02-27T07:08:35.523390Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-pzv",
+  "title": "Jira sync: website page",
+  "description": "",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-20T02:56:06.456147Z",
+  "updated_at": "2026-02-20T02:56:20.564553Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

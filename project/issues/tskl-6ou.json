@@ -1,0 +1,35 @@
+{
+  "id": "tskl-6ou",
+  "title": "tsk daemon-status fails when multiple projects found",
+  "description": "Running  raises ProjectMarkerError \"multiple projects found\" when multiple projects are discovered. Expected behavior: daemon-status should either disambiguate, scope to cwd project, or emit a user-friendly error with guidance. Stack trace in user report.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3e0bcd2d-72e9-5fa4-9c6b-dff1dba801d0",
+      "author": "Ryan Alyn Porter",
+      "text": "Added shared Gherkin scenario for daemon-status with multiple projects. Updated Python and Rust CLI daemon-status/daemon-stop to catch project discovery errors and emit guidance without traceback. Tests not run.",
+      "created_at": "2026-02-12T06:38:53Z"
+    },
+    {
+      "id": "48f256d8-5d30-5a51-8e37-69772eea30be",
+      "author": "Ryan Alyn Porter",
+      "text": "Added daemon lifecycle scenarios for missing project and missing dotfile paths; updated Behave runner to route error output into stderr when Click writes to stdout. Verified  and coverage gate at 100%.",
+      "created_at": "2026-02-12T07:02:13Z"
+    }
+  ],
+  "created_at": "2026-02-12T06:34:37.542192Z",
+  "updated_at": "2026-02-12T07:02:17.129236Z",
+  "closed_at": "2026-02-12T07:02:17.129236Z",
+  "custom": {
+    "beads_acceptance_criteria": " handles multiple discovered projects without traceback; either scopes to cwd project when unambiguous or returns a clear error with guidance. Error message should mention how to run from a specific project or how to disambiguate. Unit/BDD coverage added.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

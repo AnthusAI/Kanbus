@@ -1,0 +1,20 @@
+{
+  "id": "tskl-52k.5",
+  "title": "Wiki Render Caching",
+  "description": "Cache rendered Markdown and HTML for wiki pages. Invalidate on issue or template change. Support pre-warm.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-52k",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-08T21:16:11.878653Z",
+  "updated_at": "2026-03-08T21:41:25.548365Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "tskl-eyu.2",
+  "title": "Write Gherkin scenarios for wiki rendering",
+  "description": "Scenarios for: render wiki page, template functions (query, count, issue, children, blocked_by), error handling.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-eyu",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c796b93b-372e-536d-a989-b01f4aae6b6d",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting Gherkin scenarios for wiki rendering. Will scope to cross-compatible MiniJinja/Jinja2 subset and keep features shared under root features/ folder.",
+      "created_at": "2026-02-12T01:45:17Z"
+    },
+    {
+      "id": "a84b542c-ec48-5ad0-95a1-15eb1d145445",
+      "author": "Ryan Alyn Porter",
+      "text": "Drafted wiki rendering Gherkin scenarios as planned and placed them in features/wiki/wiki_rendering.feature with @wip tag to keep specs stable until implementation. Scenarios cover count() and query() with simple for-loop ordering expectation.",
+      "created_at": "2026-02-12T01:46:18Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:03.299453Z",
+  "updated_at": "2026-02-12T01:46:23.433549Z",
+  "closed_at": "2026-02-12T01:46:23.433549Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

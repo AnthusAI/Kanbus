@@ -1,0 +1,20 @@
+{
+  "id": "tskl-a10",
+  "title": "Update default workflow: replace deferred with backlog",
+  "description": "Update the default kanbus.yml template to use a backlog-based workflow instead of the old deferred-based workflow. Includes updating Rust/Python defaults, test fixtures, feature specs, display fallbacks, documentation, and regenerating CONTRIBUTING_AGENT.md.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T14:58:46.556023Z",
+  "updated_at": "2026-02-21T15:19:45.640758Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

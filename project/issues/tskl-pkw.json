@@ -1,0 +1,29 @@
+{
+  "id": "tskl-pkw",
+  "title": "Replace pytest suite with shared Gherkin specs",
+  "description": "Remove all pytest unit tests and migrate behavior coverage to shared Gherkin specs with identical feature files for Python and Rust. Ensure BDD parity is exact and pytest is removed if not required by Behave.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a7a76507-9b55-5733-b826-ead90f3701f7",
+      "author": "Ryan Alyn Porter",
+      "text": "All child tasks complete; pytest removed and shared Gherkin specs in root features/ with 100% Python coverage and Rust parity.",
+      "created_at": "2026-02-11T19:44:36Z"
+    }
+  ],
+  "created_at": "2026-02-11T15:11:16.956592Z",
+  "updated_at": "2026-02-11T19:44:40.205846Z",
+  "closed_at": "2026-02-11T19:44:40.205846Z",
+  "custom": {
+    "beads_acceptance_criteria": "No pytest tests remain in the repo. All behavior is covered by shared Gherkin specs used by both Python Behave and Rust Cucumber. Feature files are identical with one-to-one scenarios. Pytest dependency removed unless required by Behave.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

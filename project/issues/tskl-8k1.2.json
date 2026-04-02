@@ -1,0 +1,46 @@
+{
+  "id": "tskl-8k1.2",
+  "title": "Shared daemon lifecycle BDD scenarios",
+  "description": "Add shared feature scenarios for auto-spawn, socket reuse, stale socket recovery, fallback, and freshness repair behavior.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-8k1",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-8k1.1",
+      "type": "blocks"
+    }
+  ],
+  "comments": [
+    {
+      "id": "3eecc44c-297b-5ad3-af73-693779380717",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting work: add shared Gherkin feature file for daemon lifecycle (auto-spawn, socket reuse, stale socket recovery, fallback/no-daemon, freshness repair). Keep scenarios @wip for now and shared across implementations.",
+      "created_at": "2026-02-11T07:39:22Z"
+    },
+    {
+      "id": "c58a7929-7646-58eb-95b0-7314268fac23",
+      "author": "Ryan Alyn Porter",
+      "text": "Added shared @wip Gherkin feature file: specs/features/index/daemon_lifecycle.feature with scenarios for auto-spawn, socket reuse, stale socket recovery, no-daemon fallback, and freshness repair.",
+      "created_at": "2026-02-11T07:39:42Z"
+    },
+    {
+      "id": "484c3360-b398-5acc-aef8-fe88959919c7",
+      "author": "Ryan Alyn Porter",
+      "text": "Completed shared daemon lifecycle scenarios. Tests not run (spec-only change).",
+      "created_at": "2026-02-11T07:39:49Z"
+    }
+  ],
+  "created_at": "2026-02-11T06:31:39.916940Z",
+  "updated_at": "2026-02-11T07:39:46.232578Z",
+  "closed_at": "2026-02-11T07:39:46.232578Z",
+  "custom": {
+    "beads_acceptance_criteria": "Both implementations consume identical scenarios that define daemon and fallback behavior.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

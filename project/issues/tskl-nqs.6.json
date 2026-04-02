@@ -1,0 +1,29 @@
+{
+  "id": "tskl-nqs.6",
+  "title": "Enable Rust coverage in spec runner",
+  "description": "Install cargo-tarpaulin and verify tools/run_specs.py reports Rust coverage successfully.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-nqs",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "8f28ad8a-f475-5a6e-a18b-108472ea2de0",
+      "author": "Ryan Alyn Porter",
+      "text": "Installed cargo-tarpaulin and verified tools/run_specs.py reports Rust coverage via rust/cobertura.xml. Latest run shows rust coverage 0.3% and python coverage 100%.",
+      "created_at": "2026-02-11T21:12:20Z"
+    }
+  ],
+  "created_at": "2026-02-11T21:06:52.507546Z",
+  "updated_at": "2026-02-11T21:12:26.942306Z",
+  "closed_at": "2026-02-11T21:12:26.942306Z",
+  "custom": {
+    "beads_acceptance_criteria": "tools/run_specs.py completes with rust_coverage ok and reports a coverage percentage.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

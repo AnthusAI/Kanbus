@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.3",
+  "title": "Add search command",
+  "description": "Add CLI command to set or clear search query.\n\nCommands:\n  kbs console search <query>  - Set search query\n  kbs console search --clear  - Clear search\n\nBehavior:\n- Updates searchQuery state in frontend\n- Applies same filtering logic as SearchInput component\n- Searches across: title, description, id, labels\n- Case-insensitive matching\n- Works in combination with viewMode and focus filters\n\nImplementation:\n- Add SearchQueryChanged UIControl event\n- Frontend handler updates searchQuery via setSearchQuery\n- Should match existing SearchInput behavior",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:51:05.258135Z",
+  "updated_at": "2026-02-18T13:16:32.429327Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

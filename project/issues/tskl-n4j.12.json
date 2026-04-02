@@ -1,0 +1,27 @@
+{
+  "id": "tskl-n4j.12",
+  "title": "VideoML maintenance documentation exists",
+  "description": "Document the VideoML pipeline so new contributors can render, preview, and publish videos without tribal knowledge.",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-n4j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "db8b2ae0-16fb-5ce2-a3d9-f5908019c402",
+      "author": "unknown",
+      "text": "Feature: VideoML maintenance docs\n  Scenario: AGENTS.md documents video workflow\n    Given I open AGENTS.md\n    Then I see instructions for rendering and uploading videos\n    And required environment variables are listed\n\n  Scenario: videos/README documents pipeline\n    Given I open videos/README.md\n    Then I see steps for bundling components\n    And generating scripts\n    And rendering the intro video",
+      "created_at": "2026-02-22T16:40:34.065518Z"
+    }
+  ],
+  "created_at": "2026-02-22T16:40:31.255941Z",
+  "updated_at": "2026-02-22T16:51:16.033807Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

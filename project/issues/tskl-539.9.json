@@ -1,0 +1,837 @@
+{
+  "id": "tskl-539.9",
+  "title": "Improve console UI contrast and icons",
+  "description": "Adjust kanban contrast between background/columns/cards, move issue ID into type band, remove status badge, add Lucide icons for settings and issue type (icon + label), and add settings panel background to prevent overlap.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-539",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0dfe5f5a-0b46-5a30-b263-c66786c729c7",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated console UI: added Lucide icons (settings + issue type icon+label), moved issue ID into accent band, removed status badge, increased theme contrast by deepening card-muted, and set settings panel background to card-muted. Pending: verify visual contrast and run UI tests.",
+      "created_at": "2026-02-13T13:23:15Z"
+    },
+    {
+      "id": "eb4f0063-cc6c-56b6-960f-eff5ad513a49",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted settings panel to use bg-card and z-40 so it renders above board and is clickable. Set issue accent ID color to text-foreground (no inversion).",
+      "created_at": "2026-02-13T13:33:22Z"
+    },
+    {
+      "id": "90e86bff-6656-53af-ad85-46070eacb74c",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted theme palette to align with Biblicus (Radix gray/blue/sand steps) and increased contrast by bumping card-muted from step 4 to step 5 for clearer separation between page, columns, and cards.",
+      "created_at": "2026-02-13T13:34:29Z"
+    },
+    {
+      "id": "9740f562-332b-56e0-a5aa-aff74d52186a",
+      "author": "Ryan Alyn Porter",
+      "text": "Added settings overlay/backdrop with pointer-events gating; settings panel uses bg-card-muted and z-50 to prevent overlap and ensure selectors are clickable.",
+      "created_at": "2026-02-13T13:35:03Z"
+    },
+    {
+      "id": "ce91612b-15f7-5ef0-b459-96818da6d7f9",
+      "author": "Ryan Alyn Porter",
+      "text": "Raised settings overlay to z-60, added explicit card-muted backdrop (hsl var with opacity), and set panel to bg-card with pointer-events-auto to ensure clickability.",
+      "created_at": "2026-02-13T13:38:07Z"
+    },
+    {
+      "id": "bfb748fc-8c98-50e3-8fc7-8c22caca2572",
+      "author": "Ryan Alyn Porter",
+      "text": "Forced settings overlay/panel inline styles: explicit backgroundColor for backdrop and panel, z-index separation (backdrop 0, panel 1), and inline pointer-events gating to ensure clickability even if classes fail.",
+      "created_at": "2026-02-13T13:41:30Z"
+    },
+    {
+      "id": "5f9cb83e-5197-5fc4-9bd4-4614e8bea3ff",
+      "author": "Ryan Alyn Porter",
+      "text": "Forced settings overlay to always render with inline background and z-index 9999, only displayed when open. Reworked issue card accent strip: left icon + type + id, right priority; removed badges and status display.",
+      "created_at": "2026-02-13T13:43:11Z"
+    },
+    {
+      "id": "01658c0e-62e4-5add-9ece-51fff15b42b7",
+      "author": "Ryan Alyn Porter",
+      "text": "Reworked settings overlay logic: parent pointer-events now controlled by isOpen, added inline background fallbacks for backdrop/panel, added opacity control, and set explicit z-index layering. Also set transform/opacity directly on open/close to ensure visibility even if GSAP fails.",
+      "created_at": "2026-02-13T13:45:07Z"
+    },
+    {
+      "id": "b5141b4d-7d14-5876-b8ee-7e671d685d27",
+      "author": "Ryan Alyn Porter",
+      "text": "Added explicit column background token (var(--column)) to separate page, columns, and cards. Columns now use --column; themes map column to Radix step 4 and card-muted to step 5 for contrast.",
+      "created_at": "2026-02-13T13:45:26Z"
+    },
+    {
+      "id": "6563b187-79ed-5120-b6c6-11c20a8c9206",
+      "author": "Ryan Alyn Porter",
+      "text": "Increased contrast aggressively: background step1, card step3, column step6, card-muted step7 across neutral/cool/warm themes.",
+      "created_at": "2026-02-13T13:46:37Z"
+    },
+    {
+      "id": "39512046-27cb-52de-9c00-511942a35a7e",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed invalid hsl(var(--...)) usage by switching Tailwind and globals to raw var(...) colors; settings panel/backdrop now use var(--card)/var(--background) so backgrounds render. Updated card strip to icon+ID left, priority right; removed type label. Cleaned unused accent type CSS.",
+      "created_at": "2026-02-13T13:50:54Z"
+    },
+    {
+      "id": "06e12db0-4ed5-5c7e-9d6f-94283174a05f",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed per-column scroll area; board now single-row flex with horizontal overflow. Columns stretch to same height and expand with content. Added Show/Hide closed toggle next to view selector; closed column hidden by default and appears on right when enabled.",
+      "created_at": "2026-02-13T13:52:28Z"
+    },
+    {
+      "id": "77e1fe86-98a4-5890-a8d5-6525ea06ff72",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted issue accent colors by mode: light mode uses lighter Radix steps (2/4) so text stays dark on light bands; dark mode overrides use darker steps (4/9) so text stays light on dark bands.",
+      "created_at": "2026-02-13T13:53:38Z"
+    },
+    {
+      "id": "56d85f38-d2dd-5ee0-8e3c-03c55bb11e35",
+      "author": "Ryan Alyn Porter",
+      "text": "Dark mode accent bands deepened to Radix step 10 (muted step 5) to improve contrast; light mode remains step 4/2 so proportions match across modes.",
+      "created_at": "2026-02-13T13:54:06Z"
+    },
+    {
+      "id": "9f7049e2-cfa3-5a5b-8018-90e5de5c492f",
+      "author": "Ryan Alyn Porter",
+      "text": "Added visibility icons for closed toggle: Eye for show closed, EyeOff for hide closed.",
+      "created_at": "2026-02-13T13:54:20Z"
+    },
+    {
+      "id": "6d106d6a-dafa-52b3-9bc8-dd69c5981e9a",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed settings close animation by animating panel/backdrop on close and deferring pointer-events disable until animation completes. Added visual selector content: mode icons (Sun/Moon/Monitor), theme swatches, and font previews with Type icon.",
+      "created_at": "2026-02-13T13:55:54Z"
+    },
+    {
+      "id": "3d68a18c-5253-54d1-b713-d01b593020af",
+      "author": "Ryan Alyn Porter",
+      "text": "Dark mode accent bands deepened again to Radix step 11 (muted 6) to improve contrast against light text and match light-mode contrast proportions.",
+      "created_at": "2026-02-13T13:56:25Z"
+    },
+    {
+      "id": "23f897c1-8d32-52ac-989e-7338d40a3b9c",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated settings selector visuals to match reference: added selector option wrappers/swatches and enforced wrapping within panel to prevent overflow (warm). AnimatedSelector now supports max-width/nowrap buttons.",
+      "created_at": "2026-02-13T13:57:30Z"
+    },
+    {
+      "id": "c8818bfd-5893-5a81-a631-7933b567d806",
+      "author": "Ryan Alyn Porter",
+      "text": "Persisted showClosed in localStorage; transitionKey now includes showClosed so board animates when toggling closed (respecting motion mode via useBoardTransitions).",
+      "created_at": "2026-02-13T13:59:43Z"
+    },
+    {
+      "id": "59031697-d53c-537f-80f4-358c19565f78",
+      "author": "Ryan Alyn Porter",
+      "text": "Reduced background vs column contrast by shifting column token from step 6 to step 5 across neutral/cool/warm themes.",
+      "created_at": "2026-02-13T14:00:22Z"
+    },
+    {
+      "id": "e257ef00-5ffa-57e4-b561-a0385fb6ddeb",
+      "author": "Ryan Alyn Porter",
+      "text": "Further reduced background vs column contrast by shifting column token to step 4 across neutral/cool/warm themes.",
+      "created_at": "2026-02-13T14:00:55Z"
+    },
+    {
+      "id": "e9b01b19-9cbc-59c0-9b47-10d694af8509",
+      "author": "Ryan Alyn Porter",
+      "text": "Reduced column contrast further by aligning column token with card background (step 3) across neutral/cool/warm themes, bringing columns closer to page background.",
+      "created_at": "2026-02-13T14:02:06Z"
+    },
+    {
+      "id": "02797d99-a88d-5542-8f5b-9e31d97d63b9",
+      "author": "Ryan Alyn Porter",
+      "text": "Restored distinct layers with subtle contrast: background step1, card step2, column step3 across neutral/cool/warm themes (card-muted unchanged).",
+      "created_at": "2026-02-13T14:02:52Z"
+    },
+    {
+      "id": "eb5abee8-4dac-5f0d-aef1-34ed8fc2be17",
+      "author": "Ryan Alyn Porter",
+      "text": "Tightened vertical spacing above kanban columns by reducing top section margins and halving column header bottom margin.",
+      "created_at": "2026-02-13T14:13:45Z"
+    },
+    {
+      "id": "b5958a25-ba78-5780-a33d-66a627d41d64",
+      "author": "Ryan Alyn Porter",
+      "text": "Made selector/buttons lighter and same height: AnimatedSelector now bg-card with h-8, reduced padding; show/hide and settings buttons use bg-card, h-8, tighter vertical padding.",
+      "created_at": "2026-02-13T14:14:11Z"
+    },
+    {
+      "id": "d4ffcb59-43b7-5da7-910b-5c08efc5a084",
+      "author": "Ryan Alyn Porter",
+      "text": "Added animated selector highlight background using selector-highlight class: light mode uses card-muted for stronger selection; dark mode uses card. Highlight still moves via GSAP respecting motion settings.",
+      "created_at": "2026-02-13T14:16:59Z"
+    },
+    {
+      "id": "f3ccedd3-f4ad-558f-98cd-e740e4d5f4fe",
+      "author": "Ryan Alyn Porter",
+      "text": "Faded unselected selector items (text-muted/70). Added fixed-width show/hide closed toggle with opacity transition respecting motion mode (duration varies by motion setting).",
+      "created_at": "2026-02-13T14:24:11Z"
+    },
+    {
+      "id": "89853b92-0c52-52fe-b5b9-31add12037f4",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted selector thumb contrast: light mode uses --column (slightly darker), dark mode uses --card-muted (slightly lighter).",
+      "created_at": "2026-02-13T14:24:25Z"
+    },
+    {
+      "id": "2311fa32-39e2-5ee9-a05a-a8f0b3f81f9e",
+      "author": "Ryan Alyn Porter",
+      "text": "Ensured show/hide closed label never wraps (whitespace-nowrap) and widened button to w-40.",
+      "created_at": "2026-02-13T14:24:41Z"
+    },
+    {
+      "id": "544e669d-9c22-5a92-a4b3-de525e2b9571",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted unselected selector text to be more muted per mode: text-muted/60 in light, dark:text-muted/80 in dark; selected stays text-foreground.",
+      "created_at": "2026-02-13T14:25:28Z"
+    },
+    {
+      "id": "50f5b917-8cf5-57d5-b286-df921ae9b015",
+      "author": "Ryan Alyn Porter",
+      "text": "Added icons to view selector options: Target for Initiatives, Flag for Epics, Layers for Tasks.",
+      "created_at": "2026-02-13T14:25:47Z"
+    },
+    {
+      "id": "60453650-d8a6-5dcd-a084-67b36cfee954",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated view selector icons: Lightbulb for Initiatives, ListChecks for Epics.",
+      "created_at": "2026-02-13T14:26:57Z"
+    },
+    {
+      "id": "ecec7b36-eef4-5294-9bc4-29dbd4f5c4c9",
+      "author": "Ryan Alyn Porter",
+      "text": "Recorded future sub-tasks selector icon mapping to CheckCheck; centralized view selector icons in VIEW_ICONS.",
+      "created_at": "2026-02-13T14:29:12Z"
+    },
+    {
+      "id": "f03d53b7-bb11-53db-9f99-f32b63b4b452",
+      "author": "Ryan Alyn Porter",
+      "text": "Set selector text colors to match requirement: selected uses text-foreground, unselected uses text-muted (no opacity variants).",
+      "created_at": "2026-02-13T14:30:46Z"
+    },
+    {
+      "id": "827b6f43-6db8-5947-af5d-723de7d0d828",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed bottom scrollbar pill by hiding kb-grid scrollbar and removing bottom padding; horizontal scroll still works.",
+      "created_at": "2026-02-13T14:33:28Z"
+    },
+    {
+      "id": "ef32f0be-eedc-57c3-97cf-9db2b487598a",
+      "author": "Ryan Alyn Porter",
+      "text": "Muted text made fainter by shifting to Radix step 10 for neutral/cool/warm themes (lighter in light mode, darker in dark mode).",
+      "created_at": "2026-02-13T14:33:44Z"
+    },
+    {
+      "id": "d6e1d5e5-8464-5e10-8a8e-c3b7fe03a83b",
+      "author": "Ryan Alyn Porter",
+      "text": "Replaced theme selector with fixed 3-column button grid to prevent wrapping/overlap; each option includes swatches and label with selected background.",
+      "created_at": "2026-02-13T14:34:58Z"
+    },
+    {
+      "id": "7267aa25-3bae-5001-bdf6-51b9fe4b916c",
+      "author": "Ryan Alyn Porter",
+      "text": "Added X icon to settings Close button.",
+      "created_at": "2026-02-13T14:35:13Z"
+    },
+    {
+      "id": "b0b4bef9-fbab-5a44-88a6-400a9e9af200",
+      "author": "Ryan Alyn Porter",
+      "text": "Matched settings Close button styling to top nav buttons: faint pill bg-card, h-8, tighter vertical padding.",
+      "created_at": "2026-02-13T14:35:29Z"
+    },
+    {
+      "id": "b5115f17-2d44-53c7-acf5-7f79f5c061a6",
+      "author": "Ryan Alyn Porter",
+      "text": "Stacked theme swatches above labels to prevent overlap; switched to vertical layout with taller buttons.",
+      "created_at": "2026-02-13T14:35:51Z"
+    },
+    {
+      "id": "a6fbf3e2-81a9-5245-9a76-f14e05669b11",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted settings Close button background to use page background (bg-background) for contrast against panel.",
+      "created_at": "2026-02-13T14:36:27Z"
+    },
+    {
+      "id": "e495ba23-95a9-5268-8340-05736eceb7d3",
+      "author": "Ryan Alyn Porter",
+      "text": "Refactored detail view into right column: TaskDetailPanel now animates column width (33%) and content transitions; shows issue detail card + comments list; added detail column/card/comment styles to match kanban layout.",
+      "created_at": "2026-02-13T14:41:08Z"
+    },
+    {
+      "id": "63a31072-f905-58b5-908d-94780cc456f5",
+      "author": "Ryan Alyn Porter",
+      "text": "Detail column now gets explicit width/flex-basis/padding when open for non-GSAP fallback, ensuring selected issue renders visibly.",
+      "created_at": "2026-02-13T14:42:25Z"
+    },
+    {
+      "id": "9b2048cd-5858-5ac8-8d3b-d2a30a11a7ca",
+      "author": "Ryan Alyn Porter",
+      "text": "Added 40px fade band at board right edge when detail open; moved detail close button below accent bar with settings-style background; added close row styling.",
+      "created_at": "2026-02-13T14:45:55Z"
+    },
+    {
+      "id": "8aa2f725-46f9-559f-9b02-4abbc89031b2",
+      "author": "Ryan Alyn Porter",
+      "text": "Added drag-resizable detail column with persistent width (20-60%); added resizer handle and widthPercent prop for detail panel.",
+      "created_at": "2026-02-13T14:46:42Z"
+    },
+    {
+      "id": "602df641-feba-5924-bd63-ef0104856275",
+      "author": "Ryan Alyn Porter",
+      "text": "Widened detail fade band from 40px to 100px for smoother gradient.",
+      "created_at": "2026-02-13T14:46:57Z"
+    },
+    {
+      "id": "fc22ab57-2da0-5bed-ac5c-c96abe6ef6aa",
+      "author": "Ryan Alyn Porter",
+      "text": "Moved detail Close button inline with headline for tighter vertical layout.",
+      "created_at": "2026-02-13T14:47:18Z"
+    },
+    {
+      "id": "1abdffeb-33d4-5344-8be0-c9d34a11d519",
+      "author": "Ryan Alyn Porter",
+      "text": "Applied issue-card data attributes to detail card so the accent color band renders.",
+      "created_at": "2026-02-13T14:47:52Z"
+    },
+    {
+      "id": "d994e226-b053-5769-9b32-46af44327f32",
+      "author": "Ryan Alyn Porter",
+      "text": "Added selected card outline: issue-card-selected uses 8px white box-shadow outside card; selection passed from board to cards via selectedIssueId.",
+      "created_at": "2026-02-13T14:49:44Z"
+    },
+    {
+      "id": "585d686f-3ba0-56b1-add5-541ab42dd5bf",
+      "author": "Ryan Alyn Porter",
+      "text": "Reworked detail resize handle to use mouse/touch events (broader support) and ensured resizer stretches and is clickable.",
+      "created_at": "2026-02-13T15:04:50Z"
+    },
+    {
+      "id": "c42fd3ba-7886-5199-93f8-7c6a094663b3",
+      "author": "Ryan Alyn Porter",
+      "text": "Made resize handle visible: width 8px, card-muted background with hover opacity. Should now be easy to spot between board and detail column.",
+      "created_at": "2026-02-13T17:53:13Z"
+    },
+    {
+      "id": "405eb310-3144-5fb8-8cf8-6c7c22ec7853",
+      "author": "Ryan Alyn Porter",
+      "text": "Redesigned layout to frame+slots: page background now column color; layout-frame uses column color with two layout-slot surfaces for board and detail; removed gradient fade between columns.",
+      "created_at": "2026-02-13T17:58:16Z"
+    },
+    {
+      "id": "0320df3a-e26b-5657-b134-89f2b0def1d4",
+      "author": "Ryan Alyn Porter",
+      "text": "Tightened layout: removed column backgrounds, halved paddings, selection outline now uses column color. Detail column has no outer padding (content padded inside), and slots/columns scroll within rounded rectangles.",
+      "created_at": "2026-02-13T18:04:35Z"
+    },
+    {
+      "id": "aa42d1eb-4999-5dcc-98ab-bf3954918681",
+      "author": "Ryan Alyn Porter",
+      "text": "Swapped task-level icon to SquareCheckBig.",
+      "created_at": "2026-02-13T18:04:56Z"
+    },
+    {
+      "id": "785b7111-2455-517b-ad93-dd51e33f1fb2",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed outer padding in detail content wrapper so the detail card sits flush to the rounded slot; card and slot share same 12px radius.",
+      "created_at": "2026-02-13T18:09:47Z"
+    },
+    {
+      "id": "0aaa35b4-d912-520b-8929-60d1d4544c6b",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed GSAP padding animation on detail column to eliminate 12px inline padding; width remains dynamic inline while layout/padding uses Tailwind/CSS.",
+      "created_at": "2026-02-13T18:15:08Z"
+    },
+    {
+      "id": "a87f67f1-f915-5a77-9dca-d9190e7ab6dd",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting fix: remove remaining inline styles to ensure full Tailwind usage, including settings dialog background and selector interactions. Will replace style props with Tailwind/CSS classes and verify layout/detail column behavior.",
+      "created_at": "2026-02-13T18:17:23Z"
+    },
+    {
+      "id": "8a3b7445-0771-517f-8e2b-65be4f949506",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed remaining inline styles in SettingsPanel, added Tailwind classes and CSS swatch classes. Removed GSAP width/padding on detail column so width comes from CSS vars/classes, added width transitions in CSS with motion-off override, and ensured settings panel z-order via Tailwind. Next: verify UI for detail slot padding and any remaining layout issues.",
+      "created_at": "2026-02-13T18:20:05Z"
+    },
+    {
+      "id": "abbec2be-b313-544f-b69e-aa74e063f60b",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed detail column animation to be single CSS transition (opacity/transform/width) and removed GSAP panel animation. Added detail-section wrapper so comments/sub-tasks align with card padding; added CSS for swatches and detail section.",
+      "created_at": "2026-02-13T18:30:29Z"
+    },
+    {
+      "id": "bd1e760d-2563-5578-bcf9-b6fd0a77ddcf",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted layout to make page non-scrollable and slots scrollable: html/body/#root fixed height with overflow hidden; layout frame/slots/detail set to full height; KB grid min-height 100%. AppShell now uses h-screen + overflow-hidden and App.tsx layout wrapper uses flex-1 min-h-0.",
+      "created_at": "2026-02-13T18:32:02Z"
+    },
+    {
+      "id": "06aa34d7-4c53-5e7d-abdc-bb54194decc4",
+      "author": "Ryan Alyn Porter",
+      "text": "Converted layout spacing to Tailwind utilities: board grid/columns, issue cards, accent bar, detail sections/comments, layout frame/slot. Removed p3-based spacing from globals.css and added Tailwind padding/gaps in JSX; badge now adds p-3/gap-3 via Tailwind.",
+      "created_at": "2026-02-13T18:35:46Z"
+    },
+    {
+      "id": "565985e5-32dc-565a-8080-aa8b2c709248",
+      "author": "Ryan Alyn Porter",
+      "text": "Set layout spacing baseline to Tailwind p-2: frame/slot padding p-2, board grid/column gaps 2, card padding/gaps 2, accent bar updated to -m-2/px-2/h-6 with width calc, detail sections/comments p-2, badge p-2.",
+      "created_at": "2026-02-13T18:42:39Z"
+    },
+    {
+      "id": "5ba67570-8c91-56f1-b6fb-e0b9a96d269b",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed padding from layout frame (p-2) per request; frame now only uses gap-2.",
+      "created_at": "2026-02-13T18:43:19Z"
+    },
+    {
+      "id": "efb2da7e-0655-508a-828a-2e81c1fcabb5",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed p-2 padding from kanban columns (kb-column) per request.",
+      "created_at": "2026-02-13T18:43:55Z"
+    },
+    {
+      "id": "eecfd71b-e14a-55b6-97ca-a1c316b47962",
+      "author": "Ryan Alyn Porter",
+      "text": "Added pl-2/pr-2 to column header labels and counts for alignment.",
+      "created_at": "2026-02-13T18:44:32Z"
+    },
+    {
+      "id": "5bfe0a7f-a325-5632-a0cd-a80c9fe2f6e8",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted AnimatedSelector button horizontal padding to px-2 (from px-3).",
+      "created_at": "2026-02-13T18:45:27Z"
+    },
+    {
+      "id": "15b3a80c-42bc-5a50-97f4-fd48ccc50d59",
+      "author": "Ryan Alyn Porter",
+      "text": "Right-aligned view selector with show-closed and settings; removed Show/Hide from toggle label (now Open/Closed) and removed Settings text (icon only).",
+      "created_at": "2026-02-13T18:46:30Z"
+    },
+    {
+      "id": "e7a86bad-bf66-50b2-b449-1a1fe1300580",
+      "author": "Ryan Alyn Porter",
+      "text": "Tightened open/closed toggle button: removed fixed width and reduced horizontal padding to px-2.",
+      "created_at": "2026-02-13T18:48:24Z"
+    },
+    {
+      "id": "2d3440f5-93f8-5bfb-b3f9-1f56525b4b0e",
+      "author": "Ryan Alyn Porter",
+      "text": "Increased common icon size to h-4 w-4 across view selector, toggle, settings, and detail close; issue accent icon size increased to 16px.",
+      "created_at": "2026-02-13T18:49:33Z"
+    },
+    {
+      "id": "f5ced265-9900-51ce-bcbb-00b13153294f",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated epic card icon to ListChecks to match selector (replacing Flag).",
+      "created_at": "2026-02-13T18:50:02Z"
+    },
+    {
+      "id": "71986833-6274-5048-a0c6-fcfbe111a702",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted slot scrollbars: added scrollbar-gutter: stable and thin width for layout slot + detail column; added webkit scrollbar styling to reduce layout shift and keep thumb subtle.",
+      "created_at": "2026-02-13T19:04:08Z"
+    },
+    {
+      "id": "c3db1eb6-fbe0-514c-b6b3-b1c5ddce7cdc",
+      "author": "Ryan Alyn Porter",
+      "text": "Reworked detail panel scrolling: header/accent band stays above scroll; added detail-scroll container (overflow-y auto) and moved comments/sub-tasks into it. Detail column now hides overflow; scrollbar styling moved to detail-scroll.",
+      "created_at": "2026-02-13T19:13:03Z"
+    },
+    {
+      "id": "762627fd-cdff-5530-80bf-b942497f141f",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted detail panel so only accent band is fixed; title/description move into scroll area. Added detail-scroll padding-right and detail-accent strip width/margin to keep band full-width despite scrollbar.",
+      "created_at": "2026-02-13T19:15:27Z"
+    },
+    {
+      "id": "a96efce1-a76c-5db0-b99e-ce0789bd02d6",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed detail-accent-strip width/margin hack and detail-scroll padding-right to fix cropped accent bar.",
+      "created_at": "2026-02-13T19:16:29Z"
+    },
+    {
+      "id": "777c575c-7a9b-5812-b070-82793ce50340",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed negative margin/width from detail accent bar and dropped overflow clipping on the accent container.",
+      "created_at": "2026-02-13T19:17:21Z"
+    },
+    {
+      "id": "f2a196de-e15b-5066-8e7e-972616235a03",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed detail accent bar rounding: now only top corners rounded and clipped; removed issue-card class to avoid full rounding.",
+      "created_at": "2026-02-13T19:25:16Z"
+    },
+    {
+      "id": "ac149bb6-e125-50e6-9d9e-129261dcea89",
+      "author": "Ryan Alyn Porter",
+      "text": "Restored issue-card class on detail accent bar to ensure accent colors apply while keeping top-only rounding via detail-accent-bar styles.",
+      "created_at": "2026-02-13T19:25:43Z"
+    },
+    {
+      "id": "9b83dd97-164f-5444-b1a5-64e963997fdf",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed scrollbar-gutter from detail column/scroll area to eliminate reserved right padding; kept thin scrollbar styling.",
+      "created_at": "2026-02-13T19:27:38Z"
+    },
+    {
+      "id": "f7170ec4-53b7-5dfd-9d9c-1f818b659445",
+      "author": "Ryan Alyn Porter",
+      "text": "Aligned detail accent band with card band: detail header now p-2 with accent bar using -m-2 and width calc like cards; added gap-2 between header and scroll; removed margin-bottom from accent container.",
+      "created_at": "2026-02-13T19:29:30Z"
+    },
+    {
+      "id": "447aa88a-ab4a-5ab9-9ae4-9d187209257a",
+      "author": "Ryan Alyn Porter",
+      "text": "Made kanban column headers fixed with h-6 to align with detail accent band; moved cards into scrollable kb-column-scroll area with matching scrollbar styling.",
+      "created_at": "2026-02-13T19:31:04Z"
+    },
+    {
+      "id": "12b37e0d-2725-57d6-b588-05544d6727c4",
+      "author": "Ryan Alyn Porter",
+      "text": "Aligned top bar heights: column header and issue accent bands now h-7 so baselines match between column headers and detail accent ID.",
+      "created_at": "2026-02-13T19:34:18Z"
+    },
+    {
+      "id": "de61e3a8-c4b6-5d4f-a0b7-60ac3e44928d",
+      "author": "Ryan Alyn Porter",
+      "text": "Matched issue ID text size/baseline to column headers by bumping issue-accent-id to 12px with line-height 1 and 600 weight.",
+      "created_at": "2026-02-13T19:41:46Z"
+    },
+    {
+      "id": "bd2f74b3-3254-5590-b705-950a39f89403",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted detail accent band height to h-8 to lower baseline alignment with column headers.",
+      "created_at": "2026-02-13T19:44:36Z"
+    },
+    {
+      "id": "953250ce-e645-5c56-bebe-cfbfd73b474d",
+      "author": "Ryan Alyn Porter",
+      "text": "Increased detail accent band height to h-9 for more vertical padding around issue ID.",
+      "created_at": "2026-02-13T19:45:12Z"
+    },
+    {
+      "id": "c4e28bc8-7d69-599d-b549-307b3f0ca57f",
+      "author": "Ryan Alyn Porter",
+      "text": "Increased detail accent band height to h-10 to lower ID baseline further.",
+      "created_at": "2026-02-13T19:45:36Z"
+    },
+    {
+      "id": "b1939a51-ed08-5607-b398-39d0f0134dff",
+      "author": "Ryan Alyn Porter",
+      "text": "Aligned detail accent text baseline by switching to items-end with pb-1 inside detail accent band.",
+      "created_at": "2026-02-13T19:45:58Z"
+    },
+    {
+      "id": "6b9d7330-7b63-51b6-a9ec-ff1b7895336c",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted detail accent baseline downshift to pb-0.5 to reduce extra top space.",
+      "created_at": "2026-02-13T19:50:17Z"
+    },
+    {
+      "id": "a44bd973-e070-560a-8126-da34ab0a10ed",
+      "author": "Ryan Alyn Porter",
+      "text": "Added issue type icon to detail accent band using same Lucide icon mapping as cards.",
+      "created_at": "2026-02-13T19:50:52Z"
+    },
+    {
+      "id": "a8da4192-70f4-5235-ad58-2c4e43cc775c",
+      "author": "Ryan Alyn Porter",
+      "text": "Reduced detail accent band height to h-9 while keeping pb-0.5 for baseline alignment; lowers top whitespace.",
+      "created_at": "2026-02-13T19:51:30Z"
+    },
+    {
+      "id": "48c78443-ddbf-5847-804f-48335dcf6f3c",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted detail accent band alignment: h-10 with items-start pt-1 to reduce top whitespace and add more below the ID.",
+      "created_at": "2026-02-13T19:52:18Z"
+    },
+    {
+      "id": "3cc5b56e-6000-553e-9723-6cb57860240e",
+      "author": "Ryan Alyn Porter",
+      "text": "Reset detail accent band to match card proportions: h-7, items-center, -m-2, px-2.",
+      "created_at": "2026-02-13T19:52:58Z"
+    },
+    {
+      "id": "12f88e52-163c-5022-8eae-ec95c0a70b1e",
+      "author": "Ryan Alyn Porter",
+      "text": "Added pt-1 to detail accent band to nudge ID downward from baseline while keeping card-matching proportions.",
+      "created_at": "2026-02-13T19:53:46Z"
+    },
+    {
+      "id": "8555ab1d-35a3-56fd-be07-104a0ed4abfe",
+      "author": "Ryan Alyn Porter",
+      "text": "Increased detail accent band padding top to pt-2 for lower ID baseline.",
+      "created_at": "2026-02-13T19:54:08Z"
+    },
+    {
+      "id": "9d2bdd6b-02b7-5cf4-b262-8e85d6299a1e",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted detail accent band to pt-3 to align ID baseline further down.",
+      "created_at": "2026-02-13T19:54:56Z"
+    },
+    {
+      "id": "de3d6644-7b39-5bad-88c5-c96b37cc1731",
+      "author": "Ryan Alyn Porter",
+      "text": "Raised detail accent band padding to pt-4.",
+      "created_at": "2026-02-13T19:55:17Z"
+    },
+    {
+      "id": "3750ae28-cac2-5464-ae06-a17c1f19f967",
+      "author": "Ryan Alyn Porter",
+      "text": "Increased detail accent band height and added pb-2 to create more color below the ID (h-9, pt-4, pb-2).",
+      "created_at": "2026-02-13T19:55:46Z"
+    },
+    {
+      "id": "0fd6dff3-f3b0-5cfd-a1e8-621eccb2fdf2",
+      "author": "Ryan Alyn Porter",
+      "text": "Moved detail close button up next to the 'Issue detail' label; headline now spans full width. Close button resized to h-7 with smaller text.",
+      "created_at": "2026-02-13T19:56:45Z"
+    },
+    {
+      "id": "c65b6a5f-373b-5b29-9eb9-c71fa55a9ed9",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed duplication and right alignment: Issue detail label with right-justified close button on same baseline; removed extra label copy.",
+      "created_at": "2026-02-13T19:57:12Z"
+    },
+    {
+      "id": "0892cffd-bfb3-516b-9417-2870ade22982",
+      "author": "Ryan Alyn Porter",
+      "text": "Reduced right padding on detail close button (px-2).",
+      "created_at": "2026-02-13T19:57:30Z"
+    },
+    {
+      "id": "7f54e78d-3f97-5dc8-9fb4-2495744a02b1",
+      "author": "Ryan Alyn Porter",
+      "text": "Trimmed detail close button padding to px-1.5.",
+      "created_at": "2026-02-13T19:57:43Z"
+    },
+    {
+      "id": "66fb602d-7dc0-5acf-853d-f09f60f9c17a",
+      "author": "Ryan Alyn Porter",
+      "text": "Tightened detail close button padding further to px-1.",
+      "created_at": "2026-02-13T19:57:57Z"
+    },
+    {
+      "id": "7173df4b-56e9-5a9b-9ebb-435ade66032b",
+      "author": "Ryan Alyn Porter",
+      "text": "Set issue description text in detail view to text-foreground (was text-muted).",
+      "created_at": "2026-02-13T20:00:19Z"
+    },
+    {
+      "id": "e4601d03-f07a-5a5c-b7fa-7e755b7cca5f",
+      "author": "Ryan Alyn Porter",
+      "text": "Replaced 'Issue detail' label with '{type} · {status}' values; kept close button aligned. File: console/src/components/TaskDetailPanel.tsx.",
+      "created_at": "2026-02-13T20:00:52Z"
+    },
+    {
+      "id": "4a1189be-a18c-5c68-a89b-df30988ca593",
+      "author": "Ryan Alyn Porter",
+      "text": "Reduced top padding on detail accent band to pt-3 to tighten space above type/status row.",
+      "created_at": "2026-02-13T20:01:31Z"
+    },
+    {
+      "id": "48d2a810-547f-5bb4-927b-b6d00e0eeb41",
+      "author": "Ryan Alyn Porter",
+      "text": "Named outer frame color: added --frame using Radix *-3 per theme and switched layout-frame background to var(--frame).",
+      "created_at": "2026-02-13T20:05:44Z"
+    },
+    {
+      "id": "7e381d4e-2c38-50ec-bc0b-5d147eba0723",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed duplicate type/status block under description; only assignee remains if present.",
+      "created_at": "2026-02-13T20:13:45Z"
+    },
+    {
+      "id": "413be7d0-2adf-526b-bbf1-a66188161945",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted frame color to Radix step 2 for all themes (gray-2/blue-2/sand-2).",
+      "created_at": "2026-02-13T20:14:32Z"
+    },
+    {
+      "id": "30138209-3bab-5860-ba3d-729bae7f8175",
+      "author": "Ryan Alyn Porter",
+      "text": "Set frame color to white for all themes temporarily to verify binding.",
+      "created_at": "2026-02-13T20:15:05Z"
+    },
+    {
+      "id": "76b1ab36-e3e6-5435-a9ae-758b0446614c",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed right-side halo: issue-card-selected now uses inset 4px highlight instead of 8px outer shadow that protruded past column edge.",
+      "created_at": "2026-02-13T20:17:21Z"
+    },
+    {
+      "id": "7042153d-04fe-5dd4-b711-5e0ff1f3902b",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed outer board scroll (layout-slot now overflow:hidden) so only column scrollbars render; should eliminate right-edge band.",
+      "created_at": "2026-02-13T20:18:39Z"
+    },
+    {
+      "id": "6bf11441-7667-5902-8e8f-f8d6a9371c79",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed gap-2 on kb-grid to eliminate right-edge band/shadow.",
+      "created_at": "2026-02-13T20:19:53Z"
+    },
+    {
+      "id": "a723743a-dfa0-56dd-ac68-13febd553a5e",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed gap-2 on layout-frame (outer board frame) to address right-edge band.",
+      "created_at": "2026-02-13T20:20:47Z"
+    },
+    {
+      "id": "0ae478c5-56e2-5f8a-8252-b9ccdf6c2839",
+      "author": "Ryan Alyn Porter",
+      "text": "Set frame color to Radix step 1 for each theme (gray-1/blue-1/sand-1).",
+      "created_at": "2026-02-13T20:21:05Z"
+    },
+    {
+      "id": "dfdb28e2-3c2a-5ff3-98c5-65d95e5d8aa7",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted frame color to theme step 2 (gray-2/blue-2/sand-2).",
+      "created_at": "2026-02-13T20:21:31Z"
+    },
+    {
+      "id": "37828aa6-5cc1-51b2-8267-528b7ca90eba",
+      "author": "Ryan Alyn Porter",
+      "text": "Set frame color to theme step 3 (gray-3/blue-3/sand-3) for better visibility.",
+      "created_at": "2026-02-13T20:21:55Z"
+    },
+    {
+      "id": "b2feea8a-82ee-5ec1-aaa9-90f760adaeb7",
+      "author": "Ryan Alyn Porter",
+      "text": "Set board and detail backgrounds to match control pill color: layout-slot and detail-column now use var(--card).",
+      "created_at": "2026-02-13T20:22:59Z"
+    },
+    {
+      "id": "3fcc8ad9-b8d1-5377-aa56-0c126e57b9f8",
+      "author": "Ryan Alyn Porter",
+      "text": "Restored gap-2 between kanban columns (kb-grid).",
+      "created_at": "2026-02-13T20:23:24Z"
+    },
+    {
+      "id": "6b83fa59-3d52-5a9e-81d4-8012410f87bd",
+      "author": "Ryan Alyn Porter",
+      "text": "Card content background set to Radix step 1 for all themes (card = background tone).",
+      "created_at": "2026-02-13T20:24:12Z"
+    },
+    {
+      "id": "8f89a026-6b9b-5e11-994b-f28711d87dbc",
+      "author": "Ryan Alyn Porter",
+      "text": "Set board container background to var(--card), same as unselected view selector background.",
+      "created_at": "2026-02-13T20:26:51Z"
+    },
+    {
+      "id": "9f27df08-51f5-5a65-a78a-6bf295483735",
+      "author": "Ryan Alyn Porter",
+      "text": "Aligned surfaces with step-1 increments: card=*1, frame=*2, column=*3 for all themes.",
+      "created_at": "2026-02-13T20:36:43Z"
+    },
+    {
+      "id": "6a9bd3b5-d5be-57c2-b26a-a3e9d9d80127",
+      "author": "Ryan Alyn Porter",
+      "text": "Made view selector distinct: container bg uses column, highlight uses card-muted. Files: animated-selector.tsx, globals.css.",
+      "created_at": "2026-02-13T20:45:57Z"
+    },
+    {
+      "id": "3683ae0c-841d-5189-ac3d-82e3850f2ab6",
+      "author": "Ryan Alyn Porter",
+      "text": "Toggle label now 'Open'/'All' (was 'Open'/'Closed').",
+      "created_at": "2026-02-13T20:47:48Z"
+    },
+    {
+      "id": "c38ab974-14fc-5f53-965e-333fe59697c4",
+      "author": "Ryan Alyn Porter",
+      "text": "Buttons now use board color (bg-column); selector highlight uses background (notch 1). Files: App.tsx, globals.css.",
+      "created_at": "2026-02-13T20:48:23Z"
+    },
+    {
+      "id": "5a6500f6-5d20-537c-aabb-7616017745cb",
+      "author": "Ryan Alyn Porter",
+      "text": "Confirmed buttons use board color (bg-column); selector thumb stays background (step1).",
+      "created_at": "2026-02-13T20:50:34Z"
+    },
+    {
+      "id": "77e4c97d-ed8f-55a0-945d-769f6157bf8a",
+      "author": "Ryan Alyn Porter",
+      "text": "Added tailwind tokens for frame and column colors so bg-frame/bg-column classes use CSS vars; buttons should now pick up board color.",
+      "created_at": "2026-02-13T20:52:17Z"
+    },
+    {
+      "id": "93f4165a-1332-549b-afe8-a05b201dbcb4",
+      "author": "Ryan Alyn Porter",
+      "text": "Added left fade strip to detail panel using ::before gradient (0% transparent to 12% black over 40px) to softly obscure board beneath overlay.",
+      "created_at": "2026-02-13T21:13:00Z"
+    },
+    {
+      "id": "1a1380e1-fd07-5df4-8707-44084fad23a4",
+      "author": "Ryan Alyn Porter",
+      "text": "Prevent detail overlay from clipping board when closed: detail column width now 0/pointer-events none when closed, restores width on open; fade only shows when open.",
+      "created_at": "2026-02-13T21:14:22Z"
+    },
+    {
+      "id": "a43f2f41-a30f-5fd9-94c9-101bec67142a",
+      "author": "Ryan Alyn Porter",
+      "text": "Switched detail to true two-column layout: detail is flex item with width 0 when closed, no overlay/fade; resizer is normal flex item between board and detail; layout-frame flex row with stretch.",
+      "created_at": "2026-02-13T21:28:31Z"
+    },
+    {
+      "id": "b6176265-c611-5046-9a8e-9a0a62e065ca",
+      "author": "Ryan Alyn Porter",
+      "text": "Reintroduced left-edge fade for detail column in two-column mode via ::before gradient from transparent to var(--card), only when open.",
+      "created_at": "2026-02-13T21:36:36Z"
+    },
+    {
+      "id": "d453efe1-8924-5657-bf33-8ffa9fb3763d",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted detail left-edge fade to blend from transparent to board surface (var(--column)) instead of card color.",
+      "created_at": "2026-02-13T21:38:09Z"
+    },
+    {
+      "id": "f2725f81-532c-5278-8189-ab62945b2bfc",
+      "author": "Ryan Alyn Porter",
+      "text": "Made detail fade visible using transparent→rgba overlay with mix-blend-mode:multiply so it visually fades board underlay instead of flat fill.",
+      "created_at": "2026-02-13T21:53:29Z"
+    },
+    {
+      "id": "14f63547-e7d9-5562-922e-dd309300a71c",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed p-2 padding from layout-slot-board to eliminate extra left-side strip before detail panel.",
+      "created_at": "2026-02-13T22:04:35Z"
+    },
+    {
+      "id": "3cb5a788-936e-5ed5-ac03-54be4650846d",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed scrollbar-gutter: stable from layout-slot to eliminate reserved right-side space that looked like padding.",
+      "created_at": "2026-02-13T22:10:06Z"
+    },
+    {
+      "id": "45e75932-e2d2-5942-93f3-7ada06f1182b",
+      "author": "Ryan Alyn Porter",
+      "text": "Moved fade strip into layout frame as real element and positioned it at right: var(--detail-width) with gradient to var(--frame); set detail column z-index to 2 so fade sits above board but below panel.",
+      "created_at": "2026-02-13T22:22:24Z"
+    },
+    {
+      "id": "f699859d-bc4c-56d3-81a5-c139bda43725",
+      "author": "Ryan Alyn Porter",
+      "text": "Persisting detail width explicitly as percent string (e.g., 44%) in localStorage for settings.",
+      "created_at": "2026-02-13T23:01:04Z"
+    },
+    {
+      "id": "82389d58-870b-50c6-8f54-3b8d912c665d",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed detail width persistence: store raw numeric percent (no %) and parseFloat on load so reopened detail retains last width.",
+      "created_at": "2026-02-13T23:02:21Z"
+    }
+  ],
+  "created_at": "2026-02-13T13:21:07.095329Z",
+  "updated_at": "2026-02-16T01:07:59.181785Z",
+  "closed_at": "2026-02-16T01:07:59.166879Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

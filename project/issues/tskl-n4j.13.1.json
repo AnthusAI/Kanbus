@@ -1,0 +1,20 @@
+{
+  "id": "tskl-n4j.13.1",
+  "title": "Implement unlisted demo page for video + kanban",
+  "description": "Add a /demo page that renders the animated Kanban board and the intro video embed without adding navigation links.",
+  "type": "task",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T16:48:29.584942Z",
+  "updated_at": "2026-02-22T16:50:39.516036Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

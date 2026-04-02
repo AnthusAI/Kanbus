@@ -1,0 +1,20 @@
+{
+  "id": "tskl-gzf.1",
+  "title": "Add root-level console routes in local server",
+  "description": "Expose /, /initiatives/, /epics/, /issues/, /issues/:id, /issues/:parent/:id, /issues/:parent/all plus /api/* at root-level in local mode. Keep prefixed routes working without redirects.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-gzf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T05:30:04.740471Z",
+  "updated_at": "2026-02-16T01:07:59.187839Z",
+  "closed_at": "2026-02-16T01:07:59.167681Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-0l2",
+  "title": "Refresh PR110 description for develop->main promotion",
+  "description": "Draft updated PR body for #110 that reflects current scope, notable changes, validation, and known risks after recent fixes.",
+  "type": "chore",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek.norrbom",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-24T21:48:42.082300Z",
+  "updated_at": "2026-03-24T21:48:42.082300Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "id": "tskl-6dc",
+  "title": "Expose project .taskulus configuration to console web app",
+  "description": "Make project configuration available to console web app for UI adjustments (task colors, priority colors, workflow columns).",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [
+    "status:in-progress"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a08e49fe-80f3-5b38-9b39-1a1d533744e4",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: expose project .taskulus configuration to console web app so UI can derive task colors, priority colors, and workflow-based kanban columns. Acceptance: console can read .taskulus without manual copying; supports Radix color names (Olive, Sand, Ruby, Indigo, etc.) for tasks and priorities; workflow states drive kanban columns.",
+      "created_at": "2026-02-14T04:51:44Z"
+    },
+    {
+      "id": "b99c65d8-9680-52d1-9cbf-f3923c2a6eca",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated plan: console snapshot should emit full .taskulus.yml configuration (including status/type colors and priority definitions) and console UI derives Radix color tokens from config. Removing reliance on project/config.yaml avoids fallback paths.",
+      "created_at": "2026-02-14T05:01:20Z"
+    },
+    {
+      "id": "a30a28c5-d9cb-5cc3-8849-fc41680505d2",
+      "author": "Ryan Alyn Porter",
+      "text": "Implement SSE refresh on .taskulus.yml changes so console live-updates config-driven UI (colors, priorities, workflows).",
+      "created_at": "2026-02-14T05:10:12Z"
+    },
+    {
+      "id": "e734e25d-e30b-52fb-8796-7932f56d0d5f",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran python behave for new features and rust cucumber filtered; both passed. Console UI tests failed due to ports 5173/5174 in use and missing step defs; added step defs, need rerun UI tests after freeing ports.",
+      "created_at": "2026-02-14T05:35:32Z"
+    },
+    {
+      "id": "3ef65f71-b433-58ff-930e-63ccb4623211",
+      "author": "Ryan Alyn Porter",
+      "text": "Added exit animation on board removals: clones removed cards and shrinks/fades via GSAP in useBoardTransitions.",
+      "created_at": "2026-02-14T05:52:43Z"
+    },
+    {
+      "id": "92e3165a-4cbc-54d3-9fa7-b14ca1913191",
+      "author": "Ryan Alyn Porter",
+      "text": "Investigating dark-mode band colors: add Radix dark palette imports in console/src/styles/issue-colors.css and darken issue accent scale (DARK_ACCENT) so bands are darker in dark mode.",
+      "created_at": "2026-02-14T06:25:00Z"
+    },
+    {
+      "id": "5cfa2796-3a0f-510c-b18b-3d11af710811",
+      "author": "Ryan Alyn Porter",
+      "text": "Applied fix: import Radix dark palettes in console/src/styles/issue-colors.css and darkened dark-mode accent scale to 5 for issue bands (muted remains 3).",
+      "created_at": "2026-02-14T06:25:12Z"
+    },
+    {
+      "id": "1ee32d0b-2c60-5234-90c9-65257ea99777",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusting issue band scales: dark mode one notch lighter, light mode one notch darker per request.",
+      "created_at": "2026-02-14T06:25:55Z"
+    },
+    {
+      "id": "bb01367b-b643-5d79-8ae9-34a1f141f73a",
+      "author": "Ryan Alyn Porter",
+      "text": "Pushing one more notch: light mode darker (scale 2), dark mode lighter (scale 7) for issue bands.",
+      "created_at": "2026-02-14T06:26:16Z"
+    },
+    {
+      "id": "89b0cc33-1432-52d0-9723-7dc95ca6c7c3",
+      "author": "Ryan Alyn Porter",
+      "text": "Reverting one notch: restore light mode scale 3 and dark mode scale 6 (previous setting).",
+      "created_at": "2026-02-14T06:26:39Z"
+    },
+    {
+      "id": "2416cd40-fb02-5e39-9769-f64ebe1d900b",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusting priority text intensity one notch lighter (scale +1).",
+      "created_at": "2026-02-14T06:27:11Z"
+    },
+    {
+      "id": "810421e5-0065-546e-abd3-a265b45fbbd4",
+      "author": "Ryan Alyn Porter",
+      "text": "Reverting priority text intensity one notch (scale 9 -> 8).",
+      "created_at": "2026-02-14T06:27:22Z"
+    },
+    {
+      "id": "8ab56fb7-ea6d-5b83-a254-02d0e1761628",
+      "author": "Ryan Alyn Porter",
+      "text": "Restoring priority text to scale 9 (one notch lighter).",
+      "created_at": "2026-02-14T06:27:38Z"
+    },
+    {
+      "id": "d64f91cf-64e9-595e-902a-cba40d485f91",
+      "author": "Ryan Alyn Porter",
+      "text": "Switching normal foreground text color to Sky scale 11 per request.",
+      "created_at": "2026-02-14T06:30:48Z"
+    },
+    {
+      "id": "959e61a1-2d07-569f-bbe3-04bdbaeb1c52",
+      "author": "Ryan Alyn Porter",
+      "text": "Setting priority text to scale 11 to match foreground intensity.",
+      "created_at": "2026-02-14T06:33:11Z"
+    },
+    {
+      "id": "9913962b-85e2-509e-8475-534c93e4c282",
+      "author": "Ryan Alyn Porter",
+      "text": "Setting issue band background (accent) scale to 5.",
+      "created_at": "2026-02-14T06:34:14Z"
+    },
+    {
+      "id": "3896809f-3e96-5ab6-88d7-a6ed3c0ecab5",
+      "author": "Ryan Alyn Porter",
+      "text": "Set text foreground/muted tracks by theme: neutral=gray, cool=sky, warm=brown. Align muted colors to same hue tracks.",
+      "created_at": "2026-02-14T06:36:37Z"
+    },
+    {
+      "id": "5da89000-00b0-5eec-a149-ae3dadcb1a6d",
+      "author": "Ryan Alyn Porter",
+      "text": "Switching warm theme text/muted to sand track (11/10).",
+      "created_at": "2026-02-14T06:37:43Z"
+    },
+    {
+      "id": "f89ecbbb-5f2c-5bc7-8d86-98461c06b2a2",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed console run_ui_tests.ts to honor VITE_PORT in start-server-and-test wait URL.",
+      "created_at": "2026-02-14T06:42:42Z"
+    },
+    {
+      "id": "82809716-b401-5d64-81b2-f5be00dfbe08",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed console UI tests base URL: world.js uses VITE_PORT fallback and run_ui_tests.ts sets CONSOLE_BASE_URL.",
+      "created_at": "2026-02-14T06:43:05Z"
+    },
+    {
+      "id": "91894a16-2a56-5dbe-9fe0-9ceff201d141",
+      "author": "Ryan Alyn Porter",
+      "text": "Made console/vite.config.ts honor VITE_PORT and CONSOLE_PORT for dev server and proxy target.",
+      "created_at": "2026-02-14T06:43:32Z"
+    },
+    {
+      "id": "2e9c1f44-718c-52b0-b481-2d85485e0275",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated console comment/issue detail features to switch to Tasks tab before opening task.",
+      "created_at": "2026-02-14T06:47:22Z"
+    },
+    {
+      "id": "2c300883-dbdb-58f7-af06-75f7bd76448d",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated selected task syncing on snapshot changes and cleaned up console time zone override between cucumber scenarios.",
+      "created_at": "2026-02-14T06:49:25Z"
+    },
+    {
+      "id": "5c3cf9c8-fbe8-55b8-91ad-2c65010decb2",
+      "author": "Ryan Alyn Porter",
+      "text": "Console UI tests now poll /api/issues for updated issue data after file writes to avoid stale snapshots.",
+      "created_at": "2026-02-14T06:51:28Z"
+    },
+    {
+      "id": "99771c8f-7611-547e-89e2-c0c4ea07377f",
+      "author": "Ryan Alyn Porter",
+      "text": "Added optional ?refresh=1 to console API for config/issues and use it in UI tests to force snapshot refresh after issue file writes.",
+      "created_at": "2026-02-14T06:53:09Z"
+    },
+    {
+      "id": "c157257c-cc2b-5f02-aeed-cebb3824aff1",
+      "author": "Ryan Alyn Porter",
+      "text": "Normalized timestamp comparisons in console UI steps to avoid Z vs +00:00 mismatches during refresh polling.",
+      "created_at": "2026-02-14T06:54:25Z"
+    },
+    {
+      "id": "e9893be6-232e-5635-b49a-0b0117429bd9",
+      "author": "Ryan Alyn Porter",
+      "text": "Console server now broadcasts refreshed snapshots when ?refresh=1 is used, ensuring SSE clients update after forced refresh.",
+      "created_at": "2026-02-14T06:56:42Z"
+    },
+    {
+      "id": "55ed99a6-3896-5cc8-bef3-8e8029f3010a",
+      "author": "Ryan Alyn Porter",
+      "text": "Tests: python3 -m behave; cargo fmt --check; cargo clippy -- -D warnings; cargo test; console UI tests (VITE_PORT=5175 CONSOLE_PORT=5176 npm run test:ui); tools/check_spec_parity.py. Note: black and ruff not installed locally.",
+      "created_at": "2026-02-14T06:57:35Z"
+    }
+  ],
+  "created_at": "2026-02-14T04:51:33.389601Z",
+  "updated_at": "2026-02-14T07:03:45.035040Z",
+  "closed_at": "2026-02-14T07:03:45.035040Z",
+  "custom": {
+    "beads_acceptance_criteria": "Console web app can read .taskulus configuration without manual copying; front-end can map configured task and priority colors (including Radix color names) and workflow states to UI.",
+    "beads_close_reason": "Closed",
+    "beads_issue_type": "feature",
+    "beads_owner": "rap@endymion.com"
+  }
+}

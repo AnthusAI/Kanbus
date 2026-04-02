@@ -1,0 +1,36 @@
+{
+  "id": "tskl-nqs.1",
+  "title": "Test Python installation on all platforms",
+  "description": "Test pip install on macOS, Linux, Windows (if in scope). Document prerequisites, minimum Python version.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-nqs",
+  "labels": [
+    "backlog"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e4091153-e8ea-58d1-9259-d0af44400fc9",
+      "author": "Ryan Alyn Porter",
+      "text": "Current environment is macOS only; cross-platform installation verification requires Windows and Linux runs. Suggest CI matrix or dedicated runners for: pip install taskulus, tsk init/list/update flows, and uninstall verification. Marking as blocked pending platform access.",
+      "created_at": "2026-02-12T02:55:31Z"
+    },
+    {
+      "id": "4e39dbe8-4f67-54cc-a96c-d43b23099144",
+      "author": "Ryan Alyn Porter",
+      "text": "Added tools/verify_python_installation.py to automate pip install/tsk init/doctor in a fresh venv. Local run failed because system Python is 3.9 and project requires 3.11+. Script supports --python for CI/runners with 3.11.",
+      "created_at": "2026-02-12T03:25:27Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:07.347599Z",
+  "updated_at": "2026-02-12T09:57:42.759958Z",
+  "closed_at": "2026-02-12T09:57:42.759960Z",
+  "custom": {
+    "beads_notes": "Plan: run local Python install in a temp venv, verify tsk --version and tsk doctor in a temp git repo; record results and note remaining platforms.\nLocal macOS test: pip install -e python in temp venv succeeded; tsk --version outputs 'tsk, version 0.1.0'; tsk init + tsk doctor succeed in temp git repo. Added console script entry (project.scripts) and fixed doctor output string. Other platforms still pending.\nAdding CI matrix job to run tools/verify_python_installation.py on macOS, Linux, Windows to validate pip install and CLI basics.\nAdded CI matrix job to run tools/verify_python_installation.py on Ubuntu, macOS, and Windows; run 21941431916 succeeded.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

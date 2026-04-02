@@ -1,0 +1,35 @@
+{
+  "id": "tskl-pjb.4",
+  "title": "Publish Taskulus crate to crates.io",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-pjb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "da007e85-b31d-5ee1-974a-c761e0e0b884",
+      "author": "Ryan Alyn Porter",
+      "text": "cargo publish --locked failed: no token found. Need crates.io API token in CARGO_REGISTRY_TOKEN or run 'cargo login'.",
+      "created_at": "2026-02-13T04:13:22Z"
+    },
+    {
+      "id": "67fef119-cc24-5b9b-8a08-1f46acb28844",
+      "author": "Ryan Alyn Porter",
+      "text": "cargo publish blocked: crates.io requires a verified email for this account. Publishing attempt returned 400 Bad Request with message 'A verified email address is required to publish crates to crates.io'. Need to verify email at https://crates.io/settings/profile then rerun cargo publish --locked.",
+      "created_at": "2026-02-13T05:50:36Z"
+    }
+  ],
+  "created_at": "2026-02-13T04:11:53.746933Z",
+  "updated_at": "2026-02-13T05:56:35.033216Z",
+  "closed_at": "2026-02-13T05:56:35.033218Z",
+  "custom": {
+    "beads_acceptance_criteria": "cargo package --locked succeeds; cargo publish --locked completes; crate page shows correct metadata and README; release tag pushed to origin.",
+    "beads_notes": "Requires crates.io token in env CARGO_REGISTRY_TOKEN; run from rust/ directory.\nInitiating crate publish work; see AGENTS instructions: no backward compatibility; will follow cargo package/publish flow.\nPublish blocked: crates.io account email not verified. Verify email then rerun cargo publish --locked with token loaded.\nEmail verified on crates.io; retrying cargo publish.\nPublished taskulus 0.1.0 to crates.io after category fix; cargo search/info shows crate available with MIT license, homepage/docs links, command-line-utilities category.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

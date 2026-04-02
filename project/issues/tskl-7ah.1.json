@@ -1,0 +1,29 @@
+{
+  "id": "tskl-7ah.1",
+  "title": "Implement recursive downward project discovery",
+  "description": "Discover project/ directories by walking downward from cwd. Do not descend into project/ directories. Remove upward discovery and BEADS_DIR fallback.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-7ah",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "84840d10-d493-50b9-9307-c5bcb8c88789",
+      "author": "Ryan Alyn Porter",
+      "text": "Downward discovery already implemented in python/src/taskulus/project.py and rust/src/file_io.rs; project/ traversal skips project-local and does not walk upward.",
+      "created_at": "2026-02-12T00:37:08Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:33:24.060897Z",
+  "updated_at": "2026-02-12T00:37:12.329982Z",
+  "closed_at": "2026-02-12T00:37:12.329982Z",
+  "custom": {
+    "beads_acceptance_criteria": "Discovery is downward-only and ignores BEADS_DIR/upward search.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

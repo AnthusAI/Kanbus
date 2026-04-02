@@ -1,0 +1,20 @@
+{
+  "id": "tskl-qlp",
+  "title": "kanbusr outputs ANSI color codes in non-interactive mode",
+  "description": "kanbusr outputs ANSI color codes even when stdout is not a TTY (non-interactive mode). It should automatically detect when output is being piped or redirected and disable colors. Standard Rust crates like 'colored' or 'owo-colors' have auto-detection built in. The --porcelain flag exists as a workaround, but colors should be disabled automatically in non-interactive contexts.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T01:37:49.683019Z",
+  "updated_at": "2026-02-16T01:40:37.102329Z",
+  "closed_at": "2026-02-16T01:41:30.443909Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

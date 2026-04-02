@@ -1,0 +1,20 @@
+{
+  "id": "tskl-3ec.3",
+  "title": "Diagram suggestions and diagram syntax validation on create/update/comment",
+  "description": "Diagrams (Mermaid, PlantUML, D2) render visually in the Kanbus console UI and are a powerful communication tool. Two separate signals address diagrams:\n\n1. Suggestion: when a description or comment does not contain any diagram code block, suggest that one might be appropriate.\n2. Error: when a description or comment DOES contain a diagram code block, validate its syntax before accepting it. This already exists for some diagram types (content_validation.rs) but needs to be unified and confirmed to apply on all create/update/comment paths.\n\nScenario: Suggestion emitted when no diagram is present in a description\n\nGiven an agent creates an issue with a description that contains no fenced code block with a diagram language (mermaid, plantuml, d2)\nWhen the CLI creates the issue\nThen a suggestion is printed to stderr noting that diagrams can be embedded using fenced code blocks\nAnd the suggestion is a SUGGESTION-level message (non-blocking)\nAnd the suggestion names the supported diagram languages\n\nScenario: Suggestion emitted when no diagram is present in a comment\n\nGiven an agent adds a comment with no diagram code block\nWhen the CLI adds the comment\nThen a suggestion is printed to stderr about diagram support\n\nScenario: No diagram suggestion when a diagram is already present\n\nGiven a description or comment contains a fenced code block with language mermaid, plantuml, or d2\nWhen the CLI processes it\nThen no diagram suggestion is emitted\n\nScenario: Broken Mermaid diagram syntax is rejected with an error\n\nGiven an agent creates an issue with a description containing a fenced mermaid code block\nAnd the mermaid syntax in that block is invalid\nWhen the CLI validates the content\nThen the issue is NOT created\nAnd an error is printed to stderr identifying the broken diagram\nAnd the error message includes the diagram language and the validation failure reason\n\nScenario: Broken diagram syntax in a comment is rejected\n\nGiven an agent adds a comment containing an invalid diagram code block\nWhen the CLI processes the comment\nThen the comment is NOT saved\nAnd an error is returned identifying the diagram language and failure\n\nScenario: Valid diagram passes through without error\n\nGiven a description contains a valid mermaid flowchart\nWhen the CLI creates the issue\nThen the issue is created with no diagram-related error\nAnd no diagram suggestion is emitted\n\nScenario: --no-validate bypasses diagram validation but not the suggestion\n\nGiven an agent uses --no-validate on a comment containing a broken diagram\nThen the diagram syntax error is suppressed\nBut the suggestion about diagram support is still emitted if applicable (suggestions are never suppressed by --no-validate)",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3ec",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T13:49:17.941038Z",
+  "updated_at": "2026-02-22T14:15:20.740649Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

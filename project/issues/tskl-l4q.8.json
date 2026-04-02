@@ -1,0 +1,42 @@
+{
+  "id": "tskl-l4q.8",
+  "title": "Epic 15: User documentation complete",
+  "description": "All Tier 1 docs written (README, GETTING_STARTED, CLI_REFERENCE, MIGRATION, WIKI_GUIDE, TROUBLESHOOTING). Reviewed by non-developer user.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-l4q",
+  "labels": [
+    "backlog"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "12fd0576-a2f8-5ca0-8402-1f667a181e0e",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting Tier 1 docs completion. MIGRATION.md still needed and non-developer review not yet completed.",
+      "created_at": "2026-02-11T03:00:37Z"
+    },
+    {
+      "id": "3422ca92-18ef-5f40-8238-7f344130c399",
+      "author": "Ryan Alyn Porter",
+      "text": "Added MIGRATION.md and included it in README and docs site. Non-developer review still pending.",
+      "created_at": "2026-02-11T03:01:57Z"
+    },
+    {
+      "id": "61fa2b26-270d-500b-bddb-d5662dd6eb38",
+      "author": "Ryan Alyn Porter",
+      "text": "Tier 1 docs present, non-developer review still pending. No further doc edits made in this session per instruction to avoid README/website changes.",
+      "created_at": "2026-02-12T02:55:46Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:07.209871Z",
+  "updated_at": "2026-02-12T08:51:20.498735Z",
+  "closed_at": "2026-02-12T08:51:20.498744Z",
+  "custom": {
+    "beads_notes": "Documentation set complete and updated; remaining doc tasks are done.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

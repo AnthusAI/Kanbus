@@ -1,0 +1,18 @@
+{
+  "id": "tskl-rcn.1",
+  "title": "State change: status → in_progress",
+  "description": "Set status to in_progress",
+  "type": "event",
+  "status": "closed",
+  "priority": 4,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-rcn",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T06:23:34.264900Z",
+  "updated_at": "2026-02-18T05:39:52.570187Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-ge4",
+  "title": "Implement Python step definitions for interoperability tests",
+  "description": "The new interoperability feature files (comments, delete, dependency, label, update) have 46 scenarios that are erroring because they're missing Python step implementations in python/features/steps/. Need to add step definitions for: creating issues with various attributes, running commands in both Beads and Kanbus modes, and verifying interoperability across modes.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T02:37:14.931711Z",
+  "updated_at": "2026-02-18T05:40:46.986567Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

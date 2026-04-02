@@ -1,0 +1,22 @@
+{
+  "id": "tskl-ruh",
+  "title": "Monorepo discovery/indexing benchmarks",
+  "description": "Create reproducible benchmarks that simulate multiple project folders under a monorepo and compare Python vs Rust latency for common operations (single folder vs recursive discovery).",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-11T20:05:03.997824Z",
+  "updated_at": "2026-02-11T20:10:32.425506Z",
+  "closed_at": "2026-02-11T20:10:32.425506Z",
+  "custom": {
+    "beads_acceptance_criteria": "Benchmarks exist for Python and Rust; fixtures are reproducible; measurements compare single vs recursive discovery; results are documented.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

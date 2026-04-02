@@ -1,0 +1,34 @@
+{
+  "id": "tskl-eyu.4",
+  "title": "Implement wiki in Python",
+  "description": "Implement wiki.py: render_page() with Jinja2, expose query/count/issue functions as template context.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-eyu",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f79c0610-5812-55d9-a3eb-f705cf0afd5c",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting Python wiki implementation work. Plan: implement taskulus.wiki module with render_wiki_page plus template functions (query/count/issue/children/blocked_by/blocks), wire CLI commands under tsk wiki render/list, and add matching step definitions so wiki_rendering.feature can be activated without coverage regressions.",
+      "created_at": "2026-02-12T01:48:11Z"
+    },
+    {
+      "id": "c5339fbb-288d-510c-bf59-d6c2de1ee6ee",
+      "author": "Ryan Alyn Porter",
+      "text": "Completed wiki implementation for Python and shared wiki behavior parity work. Added wiki rendering context serialization, wired templates, and ensured specs pass with full coverage. Ran: python3 tools/run_specs.py --format text (Python 100.0%, Rust 100.0%).",
+      "created_at": "2026-02-12T02:53:26Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:03.541322Z",
+  "updated_at": "2026-02-12T02:53:29.554245Z",
+  "closed_at": "2026-02-12T02:53:29.554245Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

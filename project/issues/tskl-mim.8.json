@@ -1,0 +1,29 @@
+{
+  "id": "tskl-mim.8",
+  "title": "Scope-aware output for tsk list and tsk ready",
+  "description": "When multiple project/ folders are discovered, prefix or group output by project path. tsk ready aggregates across discovered projects.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-mim",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "22e6e52b-4ec9-5ae7-920e-8ff98ca60bf3",
+      "author": "Ryan Alyn Porter",
+      "text": "Scope-aware list/ready output implemented in python/src/taskulus/issue_listing.py + dependencies.py and rust/src/issue_listing.rs + dependencies.rs. Verified by features/queries/queries.feature (project path prefixes) and features/dependencies/dependencies.feature (ready path prefixes) in behave/cucumber.",
+      "created_at": "2026-02-11T20:09:47Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:05:00.013454Z",
+  "updated_at": "2026-02-11T20:09:49.968584Z",
+  "closed_at": "2026-02-11T20:09:49.968584Z",
+  "custom": {
+    "beads_acceptance_criteria": "list output indicates project path for issues when multiple projects exist; ready computes across all discovered projects.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

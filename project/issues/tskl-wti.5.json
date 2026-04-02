@@ -1,0 +1,45 @@
+{
+  "id": "tskl-wti.5",
+  "title": "Implement missing Python steps and align CLI behavior with specs",
+  "description": "Bring Python Behave step coverage to parity with Gherkin specs and align CLI behavior (flags, workflows, interop) to pass all scenarios.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wti",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "557b614e-61fe-5116-a58d-3f3a7f3ae9f2",
+      "author": "ryan.porter",
+      "text": "Baseline (Feb 19, 2026): Python Behave hook error fixed by adding default epic transition_labels. behave --dry-run completes (no hook error). Full run not executed yet because conda/py311 not available in shell; need correct py311 invocation to capture pass/fail counts and coverage baseline.",
+      "created_at": "2026-02-19T05:07:52.257917Z"
+    },
+    {
+      "id": "cc23da32-30a1-5ba3-9a03-5c3c5cfe34bb",
+      "author": "ryan.porter",
+      "text": "Linked to epic decisions (see tskl-wti). Next: get conda py311 behave running, then align Python CLI/steps with decisions (single Beads store, dep syntax, missing flags).",
+      "created_at": "2026-02-19T05:18:03.606828Z"
+    },
+    {
+      "id": "025bf358-46e0-5be2-8a79-492850ab1fbb",
+      "author": "ryan.porter",
+      "text": "Baseline run via /opt/anaconda3/bin/conda run -n py311 python -m behave (Feb 19, 2026): 47 features passed, 3 failed, 7 skipped; 493 scenarios passed, 4 failed, 31 skipped; 2534 steps passed, 4 failed, 133 skipped. Failing scenarios: configuration_standardization.feature:14 (Missing configuration file fails), configuration_validation.feature:48 (Duplicate status names rejected), configuration_validation.feature:54 (Workflow statuses must exist), workflow/status_transitions.feature:46 (Type-specific workflow overrides default).",
+      "created_at": "2026-02-19T05:19:40.735851Z"
+    },
+    {
+      "id": "526bdf16-4c67-5d2f-8d03-7087434f2157",
+      "author": "ryan.porter",
+      "text": "Python: Behave now passing 57 features / 528 scenarios (0 failed, 0 skipped) under conda py311. Recent fixes: config loader missing file error, duplicate status and workflow validation, status validation now emits 'invalid transition' for non-workflow statuses so epic overrides are enforced. Next: run coverage (coverage run -m behave && coverage xml) to refresh 100% report; update TEST_COVERAGE_REPORT.md accordingly.",
+      "created_at": "2026-02-19T05:44:38.686019Z"
+    }
+  ],
+  "created_at": "2026-02-19T05:01:39.563419Z",
+  "updated_at": "2026-03-10T03:30:46.873406Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

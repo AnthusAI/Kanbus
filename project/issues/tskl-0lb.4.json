@@ -1,0 +1,30 @@
+{
+  "id": "tskl-0lb.4",
+  "title": "Provision and launch site on Amplify",
+  "description": "Provision on Amplify Gen 2, configure Gatsby build, wire to repo, get site live.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-0lb",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-0lb.1",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-0lb.3",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-11T04:20:30.282219Z",
+  "updated_at": "2026-02-11T04:50:17.410185Z",
+  "closed_at": "2026-02-11T04:50:17.410185Z",
+  "custom": {
+    "beads_close_reason": "Amplify app d11ru5nyvcz6ac provisioned. Gatsby build fixed (gatsby-plugin-postcss). Site building and live. Launched with placeholder content; design/author tasks deferred.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

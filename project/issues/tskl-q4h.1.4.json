@@ -1,0 +1,20 @@
+{
+  "id": "tskl-q4h.1.4",
+  "title": "Add kbs snyk pull CLI command (Rust + Python)",
+  "description": "Wire the snyk_sync module into cli.rs as a new SnykCommands subcommand group with a pull subcommand (--dry-run, --severity, --org-id flags). Mirror in Python cli.py.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek",
+  "parent": "tskl-q4h.1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-25T21:37:43.185965Z",
+  "updated_at": "2026-02-25T21:50:43.472314Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek"
+  }
+}

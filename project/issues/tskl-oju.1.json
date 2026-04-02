@@ -1,0 +1,36 @@
+{
+  "id": "tskl-oju.1",
+  "title": "Design unified configuration schema (project key, workflows, priorities)",
+  "description": "Define single Taskulus config schema usable by Python and Rust; decide required keys, validation, defaults, no fallbacks.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-oju",
+  "labels": [
+    "status:in_progress"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ddbc6a34-9f43-5b94-b7fb-045696626879",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting investigation to answer user question about configuration system status and dotyaml plan.",
+      "created_at": "2026-02-13T01:36:56Z"
+    },
+    {
+      "id": "157879a0-919d-507b-99bb-6feda8d8cc07",
+      "author": "Ryan Alyn Porter",
+      "text": "Findings 2026-02-13: repo still uses project/config.yaml + .taskulus marker. Python loader taskulus/config_loader.py and Rust config.rs read config.yaml with defaults (DEFAULT_CONFIGURATION/default_project_configuration). No dotyaml crate or taskulus.yml present. dotyaml epic tskl-9nu.* all OPEN; config standardization tasks tskl-oju.* still unimplemented. Docs (README, CONFIGURATION, GETTING_STARTED, TROUBLESHOOTING) still reference config.yaml.",
+      "created_at": "2026-02-13T01:37:38Z"
+    }
+  ],
+  "created_at": "2026-02-12T14:55:58.749092Z",
+  "updated_at": "2026-02-16T01:07:59.194336Z",
+  "closed_at": "2026-02-16T01:07:59.168061Z",
+  "custom": {
+    "beads_notes": "Drafted unified schema and behaviors in docs/CONFIGURATION.md (taskulus.yml single-file, fixed hierarchy, workflow bindings, priorities + import mapping, dotyaml parity).",
+    "beads_owner": "rap@endymion.com"
+  }
+}

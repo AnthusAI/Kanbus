@@ -1,0 +1,34 @@
+{
+  "id": "tskl-540",
+  "title": "Add beads compatibility config flag",
+  "description": "Add beads_compatibility config setting (default false) that is used when --beads CLI flag is absent. Update Python/Rust config loading, CLI behavior, docs, and BDD specs.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "73ef32f8-0d9d-58ce-b251-0516119c6ec1",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: add beads_compatibility config setting default false; CLI --beads overrides config, config used when flag absent. Acceptance: config schema/docs/fixtures updated; BDD covers default false and config-enabled beads mode; Python/Rust load config and resolve beads mode accordingly without fallback logic.",
+      "created_at": "2026-02-13T13:10:31Z"
+    },
+    {
+      "id": "2faf54ed-0195-501a-ba45-24980b43cf95",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated config schema/docs/fixtures for beads_compatibility default false; added BDD scenarios for default false and config-enabled Beads mode; added Python/Rust steps; updated CLI beads resolution and config path helper; fixed beads_mode.feature scenario assertions.",
+      "created_at": "2026-02-13T13:13:14Z"
+    }
+  ],
+  "created_at": "2026-02-13T13:01:05.637392Z",
+  "updated_at": "2026-02-16T01:07:59.182227Z",
+  "closed_at": "2026-02-16T01:07:59.166886Z",
+  "custom": {
+    "beads_acceptance_criteria": "Gherkin specs cover default/override behavior; Python/Rust implementations honor config flag unless --beads passed; docs/config examples updated; parity check passes.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

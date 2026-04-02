@@ -1,0 +1,33 @@
+{
+  "id": "tskl-4uv",
+  "title": "Event history BDD spec + steps (Rust/Python)",
+  "description": "Add a shared Gherkin feature for event history and implement matching step definitions in rust/features/steps and python/features/steps.",
+  "type": "task",
+  "status": "done",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7998cfe8-cced-5fe9-8735-7a7d619df792",
+      "author": "ryan",
+      "text": "Starting BDD spec: will add shared event_history.feature and implement matching Rust/Python step definitions.",
+      "created_at": "2026-02-21T07:23:29.663290Z"
+    },
+    {
+      "id": "440cf190-4bd7-5815-b3cc-0ecf382fecc3",
+      "author": "ryan",
+      "text": "Added shared event_history.feature and implemented matching Rust/Python step definitions for create/update/comment/dependency/delete event logging checks.",
+      "created_at": "2026-02-21T07:28:25.366132Z"
+    }
+  ],
+  "created_at": "2026-02-21T07:23:20.993389Z",
+  "updated_at": "2026-02-21T07:28:29.734966Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan"
+  }
+}

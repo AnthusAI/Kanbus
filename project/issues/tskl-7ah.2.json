@@ -1,0 +1,29 @@
+{
+  "id": "tskl-7ah.2",
+  "title": "Add project-local discovery and filtering flags",
+  "description": "Include project-local/ when sibling of project/. Add --no-local and --local-only flags. Track source (shared vs local) for filtering.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-7ah",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f16a1667-6316-5320-85c0-5c430c9f7a11",
+      "author": "Ryan Alyn Porter",
+      "text": "project-local discovery and filtering implemented in python/src/taskulus/issue_listing.py and CLI flags --no-local/--local-only in python/src/taskulus/cli.py; Rust mirrors in rust/src/issue_listing.rs and rust/src/cli.rs.",
+      "created_at": "2026-02-12T00:37:18Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:33:28.739107Z",
+  "updated_at": "2026-02-12T00:37:22.020394Z",
+  "closed_at": "2026-02-12T00:37:22.020394Z",
+  "custom": {
+    "beads_acceptance_criteria": "Local issues included/excluded per flags; source tracked in index.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.23",
+  "title": "Create VideoML content for Policy-as-Code",
+  "description": "Create videos/content/policy-as-code.babulus.xml with voiceover, visuals showing .policy files, rejected transitions, and kbs policy check command. Create any needed custom Remotion components.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:33.593596Z",
+  "updated_at": "2026-02-27T07:08:35.745154Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "tskl-3du",
+  "title": "CodeQL Backlog Burn-Down (All 37 Open Alerts)",
+  "description": "Track and resolve all open CodeQL alerts (10 high, 27 medium) with a fix-first policy and explicit rationale for any dismissals.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b775d4cf-356d-571b-b53c-b8561fa226ce",
+      "author": "ryan.porter",
+      "text": "Started execution. Tracking all CodeQL remediation work under child tasks. First active item: workflow action pinning (#1-#18) and docs trust-hardening (#19).",
+      "created_at": "2026-03-06T14:06:19.636777Z"
+    },
+    {
+      "id": "1728e01c-9acf-5510-bb9d-e146c74b5ca6",
+      "author": "ryan.porter",
+      "text": "CodeQL remediation epic complete on dev: all child tasks closed, CI green, CodeQL green, and open CodeQL alerts on dev reduced to zero.",
+      "created_at": "2026-03-06T14:40:52.043783Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:05:00.220659Z",
+  "updated_at": "2026-03-06T14:40:52.075029Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

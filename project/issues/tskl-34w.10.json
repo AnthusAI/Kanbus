@@ -1,0 +1,35 @@
+{
+  "id": "tskl-34w.10",
+  "title": "Run shared root features/ without symlinks",
+  "description": "Use a single root features/ directory for Gherkin specs for both Python and Rust. Remove per-language feature copies and ensure Behave and Rust cucumber runners resolve the same files.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c260740e-6a2b-5274-85dd-ba94b86bdeec",
+      "author": "Ryan Alyn Porter",
+      "text": "Validated shared root features/ setup without symlinks. Behave uses ../features with loader; Rust cucumber uses root features. Tests run: (1) cd python && python -m behave (28 features, 207 scenarios, all passed; wip skipped). (2) cd rust && cargo test --test cucumber (pass).",
+      "created_at": "2026-02-11T20:07:03Z"
+    },
+    {
+      "id": "ad3e31f4-7488-5e3e-bada-30988ea014fc",
+      "author": "Ryan Alyn Porter",
+      "text": "Spec parity check: python tools/check_spec_parity.py (Feature steps: 454; Python steps: 296; Rust steps: 296).",
+      "created_at": "2026-02-11T20:07:11Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:05:28.828662Z",
+  "updated_at": "2026-02-11T20:07:14.438484Z",
+  "closed_at": "2026-02-11T20:07:14.438484Z",
+  "custom": {
+    "beads_acceptance_criteria": "Both Python and Rust test runners execute the same root features/ files without symlinks; spec parity tooling passes.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "tskl-539.1",
+  "title": "1. Scaffold console app",
+  "description": "Scaffold console/ with Vite React TypeScript. Add Tailwind, PostCSS, Shadcn UI config, Radix color imports, GSAP dependencies, and system dark mode via Tailwind darkMode media.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-539",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2401fd3f-ea9c-5335-9a98-fa3075e1b7fd",
+      "author": "Ryan Alyn Porter",
+      "text": "Scaffolded console/ directory and base Vite React structure manually (package.json, tsconfig, vite config, tailwind config, base styles).",
+      "created_at": "2026-02-13T07:57:44.832869Z"
+    },
+    {
+      "id": "ca7f1322-9952-592a-8f63-486be16803fb",
+      "author": "Ryan Alyn Porter",
+      "text": "Added console/.gitignore for node_modules and dist.",
+      "created_at": "2026-02-13T08:00:19.528508Z"
+    },
+    {
+      "id": "d58c2df1-971b-52e4-89ca-2e1cc8ec2c89",
+      "author": "Ryan Alyn Porter",
+      "text": "Added console/src/vite-env.d.ts for Vite client typing.",
+      "created_at": "2026-02-13T08:01:02.901135Z"
+    },
+    {
+      "id": "0fa12c1c-69e0-5915-8753-e97f0fa45099",
+      "author": "Ryan Alyn Porter",
+      "text": "Added font loading for IBM Plex Sans and Space Grotesk in console/index.html.",
+      "created_at": "2026-02-13T08:02:58.213761Z"
+    }
+  ],
+  "created_at": "2026-02-13T07:51:29.766945Z",
+  "updated_at": "2026-02-13T08:04:11.910101Z",
+  "closed_at": "2026-02-13T08:04:11.910101Z",
+  "custom": {
+    "beads_acceptance_criteria": "console/ runs with npm run dev; Tailwind + Shadcn components build; theme variables present; no UI toggle for dark mode; Radix color CSS available; GSAP installed.",
+    "beads_close_reason": "Implementation complete; local validation pending.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

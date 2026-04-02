@@ -1,0 +1,29 @@
+{
+  "id": "tskl-cai",
+  "title": "Benchmark recursive project discovery performance",
+  "description": "Add reproducible benchmarks that simulate loading task corpora from multiple project folders in a monorepo to measure indexing latency. Compare single-folder vs recursive multi-folder discovery for Python and Rust.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "eca46faa-e57e-53e0-8b5a-495e97cbc197",
+      "author": "Ryan Alyn Porter",
+      "text": "All benchmark tasks complete: deterministic fixtures, Python/Rust discovery benchmarks with serial/parallel results, and check_benchmarks integration.",
+      "created_at": "2026-02-11T19:44:02Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:52:49.112636Z",
+  "updated_at": "2026-02-11T19:44:06.163856Z",
+  "closed_at": "2026-02-11T19:44:06.163856Z",
+  "custom": {
+    "beads_acceptance_criteria": "Benchmarks exist for Python and Rust, run deterministically on local fixtures, and report timings for single project vs recursive discovery across multiple projects.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "tskl-p8w.1",
+  "title": "Recursive workspace discovery",
+  "description": "As a Kanbus user\nI want workspace-root discovery to find all nested .kanbus.yml projects\nSo that list/show works without per-project cwd.\n\nFeature: Workspace discovery via .kanbus.yml\n\nScenario: Workspace root discovers nested projects\n  Given a workspace root without a .kanbus.yml file\n  And it contains nested repos each with .kanbus.yml\n  When project directories are discovered\n  Then all nested projects are included\n\nScenario: Single project root does not recurse\n  Given a repo root with a .kanbus.yml file\n  When project directories are discovered\n  Then only that project is included",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-p8w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c55ba498-0dba-5f42-af23-3bcd7d70cfe8",
+      "author": "unknown",
+      "text": "Implemented recursive .kanbus.yml workspace discovery in Rust + Python and updated discovery/project specs. Behave run: project_utilities, project_discovery, issue_show, daemon_error_handling all green.",
+      "created_at": "2026-03-05T13:19:06.085183Z"
+    }
+  ],
+  "created_at": "2026-03-05T13:18:41.443838Z",
+  "updated_at": "2026-03-05T13:19:20.999575Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

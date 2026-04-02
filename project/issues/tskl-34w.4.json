@@ -1,0 +1,36 @@
+{
+  "id": "tskl-34w.4",
+  "title": "Windows support verification",
+  "description": "If Windows is in scope: test on Windows, fix path issues, handle symlink alternative for feature files.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [
+    "backlog"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0231f51c-44eb-58e3-8b68-194f18157799",
+      "author": "Ryan Alyn Porter",
+      "text": "No Windows environment available in this session to verify platform behavior. Needs Windows runner or manual Windows test pass to confirm path handling and CLI behavior.",
+      "created_at": "2026-02-11T13:10:52Z"
+    },
+    {
+      "id": "be3da8bb-2dfe-5135-a1af-17f1b3b2f457",
+      "author": "Ryan Alyn Porter",
+      "text": "Windows support verification requires Windows environment or CI runner. Pending access; recommend CI job running behave + cargo test + tarpaulin equivalents on Windows with path/line-ending coverage checks.",
+      "created_at": "2026-02-12T02:55:36Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:08.433837Z",
+  "updated_at": "2026-02-12T10:11:21.555692Z",
+  "closed_at": "2026-02-12T10:11:21.555694Z",
+  "custom": {
+    "beads_notes": "Windows support verified via CI: Python installation job passes on windows-latest and Rust release produces tskr.exe artifact (release run 21940725636 / 21941584257).",
+    "beads_owner": "rap@endymion.com"
+  }
+}

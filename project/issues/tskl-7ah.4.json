@@ -1,0 +1,29 @@
+{
+  "id": "tskl-7ah.4",
+  "title": "Remove role detection and redirect system",
+  "description": "Remove contributor/maintainer detection, ~/.beads fallback, redirect filesystem, bd init --contributor/--team, and beads.role config key.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-7ah",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7fd098f2-2c58-5ce4-8804-0acc4aed6ca2",
+      "author": "Ryan Alyn Porter",
+      "text": "Role detection and redirect system appear removed; no references to beads.role, contributor/maintainer routing, ~/.beads fallback, or redirect filesystem in codebase.",
+      "created_at": "2026-02-12T00:37:35Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:33:36.346849Z",
+  "updated_at": "2026-02-12T00:37:39.553064Z",
+  "closed_at": "2026-02-12T00:37:39.553064Z",
+  "custom": {
+    "beads_acceptance_criteria": "Role-based logic removed; errors guide migration without fallback.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "tskl-l82.9",
+  "title": "Deep link to specific comment within an issue via URL and CLI",
+  "description": "Given an agent has added a comment to an issue\n\nWhen the agent runs kbs console focus tskl-abc --comment 8ea9cd\n\nThen the CLI sends a notification through the server\nAnd the server pushes a URL route to all connected clients: /issues/tskl-abc?focused=tskl-abc&comment=8ea9cd\nAnd the browser navigates to that URL\nAnd the detail panel opens to the issue\nAnd the panel scrolls to the specified comment\nAnd the comment is visually highlighted\n\nGiven a user opens a URL with a comment parameter directly in their browser\n\nWhen the URL contains ?comment=8ea9cd\n\nThen the same scroll-to and highlight behavior occurs\n\nThis extends the URL-as-state model to sub-issue elements. The comment parameter is the first\nsuch element but the pattern should support future element types (e.g., a specific field change).\n\nAcceptance criteria:\n- kbs console focus accepts an optional --comment <id> flag\n- Comment ID is encoded as ?comment=<id> query parameter in the URL\n- Frontend parses ?comment= on load and on SSE-pushed route changes\n- Detail panel scrolls to the comment and highlights it (existing highlight animation can be reused)\n- Works on initial page load (pasting URL) and on SSE push (agent workflow)",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-l82",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6f9b18b0-fec2-585a-b2ac-26b2a823f70a",
+      "author": "ryan.porter",
+      "text": "Implemented comment deep linking. Added --comment <id> flag to kbs console focus. comment_id is passed through IssueFocused event, tracked in ConsoleUiState, persisted, and replayed on SSE connect. Frontend reads ?comment= from URL, passes focusedCommentId to TaskDetailPanel which scrolls to and highlights the target comment with an outline animation. Full round-trip: kbs console focus tskl-abc --comment 8ea9cd -> server -> SSE -> browser scrolls to comment.",
+      "created_at": "2026-02-20T04:37:19.578695Z"
+    },
+    {
+      "id": "9722439c-3dec-521a-b014-ea80601ce1bb",
+      "author": "ryan.porter",
+      "text": "Reopening: scroll-to-comment was not working. The useEffect fired before the panel content was rendered, so querySelector found nothing. Fix: poll for the comment element with retries (up to 10 × 150ms) instead of a single fixed delay.",
+      "created_at": "2026-02-20T04:54:11.924266Z"
+    }
+  ],
+  "created_at": "2026-02-20T03:55:33.124149Z",
+  "updated_at": "2026-02-20T04:58:10.735718Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

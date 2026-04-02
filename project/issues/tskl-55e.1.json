@@ -1,0 +1,20 @@
+{
+  "id": "tskl-55e.1",
+  "title": "Shared RightSidebar component that pushes the kanban board",
+  "description": "Build a reusable RightSidebar component that both the filter panel and the settings panel will use. When the sidebar opens, the kanban board animates to be narrower so the sidebar appears to push it left rather than overlapping or obscuring it. The sidebar sits at the same Z-level as the board with no backdrop overlay.\n\nScenario: Opening a right sidebar\n\nGiven the user is viewing the kanban board\nWhen a right sidebar is opened (filter or settings)\nThen the kanban board animates to become narrower\nAnd the sidebar slides in from the right edge\nAnd the sidebar appears at the same visual Z-level as the board columns (flat, not floating above)\nAnd no overlay or dimming layer is applied to the board\n\nScenario: Closing a right sidebar\n\nGiven a right sidebar is open\nWhen the user clicks the close button inside the sidebar\nThen the sidebar slides back out to the right\nAnd the kanban board animates back to full width\n\nScenario: Sidebar styling matches the board\n\nGiven the right sidebar is open\nThen it uses the same flat card styling, background color, and border treatment as the board columns\nAnd the same typeface, spacing, and color tokens as the rest of the application\n\nScenario: Only one right sidebar open at a time\n\nGiven the filter sidebar is open\nWhen the user clicks the settings button\nThen the filter sidebar closes\nAnd the settings sidebar opens\nAnd the board width reflects the single open sidebar",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-55e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T20:47:53.436489Z",
+  "updated_at": "2026-02-23T04:53:53.549648Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

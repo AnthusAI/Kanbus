@@ -1,0 +1,28 @@
+{
+  "id": "tskl-538.2",
+  "title": "Implement dependencies in Python",
+  "description": "Implement dependencies.py: add/remove deps, build dependency graph, detect_cycles() with DFS, ready_query().",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-538",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b9a6eb1c-b6f0-5f7c-ad6f-4b4928393380",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Python dependencies: new taskulus/dependencies.py with add/remove/list-ready, cycle detection, and dependency validation. Wired CLI commands: tsk dep add/remove and tsk ready. Added unit tests (test_dependencies.py) and CLI error-path tests; dependencies module at 100% coverage locally.",
+      "created_at": "2026-02-11T13:27:53Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:01.747860Z",
+  "updated_at": "2026-02-11T13:28:00.073051Z",
+  "closed_at": "2026-02-11T13:28:00.073051Z",
+  "custom": {
+    "beads_close_reason": "Python dependency operations implemented",
+    "beads_owner": "rap@endymion.com"
+  }
+}

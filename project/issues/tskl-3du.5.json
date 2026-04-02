@@ -1,0 +1,33 @@
+{
+  "id": "tskl-3du.5",
+  "title": "Fix JS indirect command execution alerts #22-#25",
+  "description": "Replace shell-string execution in scripts/upload-videos.js with argument-safe process invocation and input validation.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d0cf26e1-aacb-5f6b-aa18-1333f9752085",
+      "author": "ryan.porter",
+      "text": "Started. Replacing shell-string execSync calls in scripts/upload-videos.js with execFileSync argument arrays and explicit input validation.",
+      "created_at": "2026-03-06T14:09:35.440784Z"
+    },
+    {
+      "id": "ed1d3f89-b6b6-5401-b6c5-047d3ab0059a",
+      "author": "ryan.porter",
+      "text": "Completed. Replaced shell-string execSync usage in scripts/upload-videos.js with execFileSync argument arrays and added AWS profile/S3 bucket validation.",
+      "created_at": "2026-03-06T14:13:26.480718Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:05:10.438699Z",
+  "updated_at": "2026-03-06T14:13:26.513386Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}
