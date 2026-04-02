@@ -116,6 +116,69 @@ def test_migrate_from_beads_success_writes_issues(
     assert writes[0].name == "kanbus-1.json"
 
 
+def test_migrate_from_beads_into_project_error_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        migration,
+        "ensure_git_repository",
+        lambda _root: (_ for _ in ()).throw(RuntimeError("not a git repo")),
+    )
+    with pytest.raises(MigrationError, match="not a git repo"):
+        migration.migrate_from_beads_into_project(tmp_path)
+
+    monkeypatch.setattr(migration, "ensure_git_repository", lambda _root: None)
+    with pytest.raises(MigrationError, match="no .beads directory"):
+        migration.migrate_from_beads_into_project(tmp_path)
+
+    beads = tmp_path / ".beads"
+    beads.mkdir()
+    with pytest.raises(MigrationError, match="no issues.jsonl"):
+        migration.migrate_from_beads_into_project(tmp_path)
+
+    (beads / "issues.jsonl").write_text(
+        json.dumps(_record("kanbus-1")) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        migration,
+        "get_configuration_path",
+        lambda _root: (_ for _ in ()).throw(RuntimeError("project not initialized")),
+    )
+    with pytest.raises(MigrationError, match="project not initialized"):
+        migration.migrate_from_beads_into_project(tmp_path)
+
+
+def test_migrate_from_beads_into_project_success_writes_issues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    beads = tmp_path / ".beads"
+    beads.mkdir()
+    records = [_record("kanbus-1"), _record("kanbus-2")]
+    (beads / "issues.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8"
+    )
+
+    monkeypatch.setattr(migration, "ensure_git_repository", lambda _root: None)
+    monkeypatch.setattr(
+        migration, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        migration,
+        "load_project_configuration",
+        lambda _path: build_project_configuration(),
+    )
+
+    writes: list[Path] = []
+    monkeypatch.setattr(
+        migration, "write_issue_to_file", lambda issue, path: writes.append(path)
+    )
+
+    result = migration.migrate_from_beads_into_project(tmp_path)
+    assert result.issue_count == 2
+    assert len(writes) == 2
+    assert writes[0].name == "kanbus-1.json"
+
+
 def test_load_beads_records_and_dedupe(tmp_path: Path) -> None:
     issues_path = tmp_path / "issues.jsonl"
     issues_path.write_text(

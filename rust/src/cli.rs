@@ -51,6 +51,7 @@ use crate::jira_sync::pull_from_jira;
 use crate::maintenance::{collect_project_stats, validate_project};
 use crate::migration::{
     load_beads_issue_by_id, load_beads_issue_from_workspace, load_beads_issues, migrate_from_beads,
+    migrate_from_beads_into_project,
 };
 use crate::models::IssueData;
 use crate::queries::{filter_issues, search_issues};
@@ -347,7 +348,12 @@ enum Commands {
         command: GithubSecurityCommands,
     },
     /// Migrate Beads issues into Kanbus.
-    Migrate,
+    Migrate {
+        /// Import Beads issues into an already initialized project.
+        /// Repeatable: safely re-runs and overwrites matching issue JSON files.
+        #[arg(long = "into-existing")]
+        into_existing: bool,
+    },
     /// Run environment diagnostics.
     Doctor,
     /// Run the daemon server.
@@ -2738,8 +2744,12 @@ fn execute_command(
                 }
             },
         },
-        Commands::Migrate => {
-            let result = migrate_from_beads(&root_for_beads)?;
+        Commands::Migrate { into_existing } => {
+            let result = if into_existing {
+                migrate_from_beads_into_project(&root_for_beads)?
+            } else {
+                migrate_from_beads(&root_for_beads)?
+            };
             Ok(Some(format!("migrated {} issues", result.issue_count)))
         }
         Commands::Doctor => {

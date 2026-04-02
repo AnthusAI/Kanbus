@@ -212,12 +212,25 @@ def test_doctor_migrate_and_daemon_commands(
     assert "migrated 5 issues" in _run(["migrate"]).output
 
     monkeypatch.setattr(
+        cli, "migrate_from_beads_into_project", lambda _r: SimpleNamespace(issue_count=7)
+    )
+    assert "migrated 7 issues" in _run(["migrate", "--into-existing"]).output
+
+    monkeypatch.setattr(
         cli,
         "migrate_from_beads",
         lambda _r: (_ for _ in ()).throw(MigrationError("migrate fail")),
     )
     result_migrate_fail = _run(["migrate"])
     assert result_migrate_fail.exit_code != 0
+
+    monkeypatch.setattr(
+        cli,
+        "migrate_from_beads_into_project",
+        lambda _r: (_ for _ in ()).throw(MigrationError("migrate existing fail")),
+    )
+    result_migrate_existing_fail = _run(["migrate", "--into-existing"])
+    assert result_migrate_existing_fail.exit_code != 0
 
     monkeypatch.setattr(cli, "request_status", lambda _r: {"ok": True})
     result_status = _run(["daemon-status"])
