@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v0.18.2 (2026-03-26)
+
+### Bug Fixes
+
+- **release**: Add Rust release tagging to semantic-release workflow
+  ([`bb15044`](https://github.com/AnthusAI/Kanbus/commit/bb150448e9dd19d32a1ad5fd349dc029c4465657))
+
+### Chores
+
+- **deps**: Bump black from 26.1.0 to 26.3.1 in /python
+  ([`a461a1e`](https://github.com/AnthusAI/Kanbus/commit/a461a1ef3ff304622a5f407fb56bd96d73436bac))
+
+- **deps**: Bump click from 8.1.8 to 8.3.1 in /python
+  ([`02bc3ad`](https://github.com/AnthusAI/Kanbus/commit/02bc3ad35612a7ba903e3069e881070bd1f9759d))
+
+- **deps**: Bump gherkin from 0.14.0 to 0.15.0 in /rust
+  ([`02d9720`](https://github.com/AnthusAI/Kanbus/commit/02d9720972f0fcb74260decd146498038f258e2a))
+
+
 ## v0.18.1 (2026-03-25)
 
 
