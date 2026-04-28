@@ -1,0 +1,33 @@
+{
+  "id": "tskl-xlh",
+  "title": "kbs binary reports stale hardcoded version instead of semantic release version",
+  "description": "The kbs CLI reports version 0.6.0 (from Cargo.toml) while the actual semantic release version is v0.11.0. The Cargo.toml version is only synced during CI release, so local builds always report a stale version. The binary should derive its version from the latest git tag at build time so it always matches the semantic release version.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 0,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6b3b44d9-7e47-5b73-8eb1-656e5207c497",
+      "author": "ryan.porter",
+      "text": "Clock demo: reopened bug for transition check",
+      "created_at": "2026-03-06T14:37:11.219172Z"
+    },
+    {
+      "id": "1706baf2-c6e4-5e3a-826c-4bb86a7b4a51",
+      "author": "ryan.porter",
+      "text": "Clock demo: re-closed bug",
+      "created_at": "2026-03-06T14:37:16.673385Z"
+    }
+  ],
+  "created_at": "2026-02-21T16:07:07.162413Z",
+  "updated_at": "2026-03-06T14:37:16.673385Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

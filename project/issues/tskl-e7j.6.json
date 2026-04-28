@@ -1,0 +1,20 @@
+{
+  "id": "tskl-e7j.6",
+  "title": "Add real-time notification on issue deletion",
+  "description": "Hook delete_issue() and delete_beads_issue() to publish NotificationEvent::IssueDeleted. Ensure frontend removes deleted issues immediately without waiting for snapshot refresh.\n\n## Implementation Details\n\n### Files to Modify\n- rust/src/issue_delete.rs::delete_issue() (after fs::remove_file(), line 18)\n- rust/src/beads_write.rs::delete_beads_issue() (after write_beads_records(), line 464)\n\n### Pattern\n```rust\n// After successful deletion\npublish_notification(NotificationEvent::IssueDeleted {\n    issue_id: identifier.clone(),\n})?;\n```\n\n### Testing\n1. Create test issue: kbs create \"Test delete\" --type task\n2. Note the issue ID\n3. Delete it: kbs delete <issue-id>\n4. Verify: Issue disappears from board within 100ms\n\n### Error Handling\n- Notification failure should not prevent deletion\n- Log errors but continue operation\n- Frontend polling fallback handles missed notifications\n\n### Dependencies\nRequires notification infrastructure from parent epic.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-e7j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T07:10:05.050280Z",
+  "updated_at": "2026-02-18T07:26:26.776299Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

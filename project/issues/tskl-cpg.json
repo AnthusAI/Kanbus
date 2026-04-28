@@ -1,0 +1,20 @@
+{
+  "id": "tskl-cpg",
+  "title": "Status categories should be configurable; status names should not be magic strings",
+  "description": "The status key 'in_progress' is hard-coded in multiple places, making it impossible for projects to use custom status names.\n\nThe fix is to make status categories configurable (like Jira's status categories). Each status in the workflow config maps to one of a fixed set of categories: 'todo', 'in_progress', and 'done'. Business logic that currently hard-codes the string 'in_progress' (e.g. kbs update --claim, Jira sync, beads import, display color logic) instead looks up which configured status belongs to the 'in_progress' category.\n\nHard-coded locations to fix:\n- rust/src/issue_update.rs: --claim hardcodes target status as \"in_progress\"\n- rust/src/config.rs: default workflow/status definitions hard-code \"in_progress\" as a key\n- rust/src/migration.rs: beads import maps \"in-progress\" to \"in_progress\" as a fixed canonical name\n- rust/src/jira_sync.rs: Jira status mapping hardcodes \"in_progress\" as the target for in-progress-like statuses\n- rust/src/issue_display.rs, issue_line.rs: color/display logic hard-codes \"in_progress\"\n\nApproach:\n- Add a 'category' field to StatusDefinition in ProjectConfiguration (values: 'todo', 'in_progress', 'done')\n- Default config assigns categories to its built-in statuses\n- Business logic resolves the active status by finding the first status with category 'in_progress'\n- Beads and Jira imports map to category rather than a hard-coded key",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-20T03:40:01.270802Z",
+  "updated_at": "2026-02-25T06:24:18.111003Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

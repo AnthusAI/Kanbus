@@ -1,0 +1,20 @@
+{
+  "id": "tskl-3ec.4",
+  "title": "Include ready-to-run follow-up command hint with every suggestion",
+  "description": "When any suggestion is triggered on a create or update command, the output includes a ready-to-run follow-up command that the caller can execute immediately to update the content. The command has the issue ID (or issue ID + comment ID) already filled in, so the caller only needs to supply the improved content.\n\nThis is the most actionable form of a suggestion: it reduces the friction of acting on the hint to a single copy-paste-edit loop.\n\nScenario: Suggestion after creating an issue includes an update hint\n\nGiven a suggestion is triggered when an agent creates issue tskl-xyz\nWhen the suggestion is printed to stderr\nThen it includes a hint of the form:\n  To update the description: kbs update tskl-xyz --description \"<your improved description here>\"\n\nScenario: Suggestion after adding a comment includes a comment update hint\n\nGiven a suggestion is triggered when an agent adds comment abc123 to issue tskl-xyz\nWhen the suggestion is printed to stderr\nThen it includes a hint of the form:\n  To update this comment: kbs comment update tskl-xyz abc123 \"<your improved comment here>\"\n\nScenario: Suggestion after updating a description includes a re-update hint\n\nGiven a suggestion is triggered when an agent updates the description of tskl-xyz\nThen the hint uses the same kbs update tskl-xyz --description form\n\nScenario: Multiple suggestions share one hint block\n\nGiven both the Markdown suggestion and the diagram suggestion are triggered for the same create operation\nThen they are grouped together in the output\nAnd a single update hint is shown once at the bottom of the suggestion block rather than repeated per suggestion\n\nScenario: The hint is clearly delineated from suggestion text\n\nGiven suggestions and their hint are printed\nThen the hint line is visually distinct (e.g. indented or prefixed with a right arrow or \"Hint:\")\nAnd it is easy to identify where the command begins and ends",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3ec",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T13:51:57.607693Z",
+  "updated_at": "2026-02-22T14:15:21.355429Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "id": "tskl-eo2.5.1",
+  "title": "CDK Python foundation for multi-tenant cloud console stack",
+  "description": "## Intent\nBuild a separate Python CDK app that defines the foundational cloud infrastructure for the Kanbus console backend.\n\n## Scope\n- VPC and networking for Lambda + EFS\n- EFS filesystem and access points\n- Lambda container runtime wiring\n- REST API Gateway integration (streaming-compatible)\n- IAM boundaries and stack outputs\n\n## Definition of Done\n- One-command deploy works with `AWS_PROFILE=anthus`.\n- Outputs include API URL, Cognito IDs, IoT endpoint, and EFS mount metadata.\n- Infra synthesis/deploy docs are committed and accurate.\n- Baseline smoke check confirms Lambda can read tenant root on EFS.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "56ccc92b-3ce3-5758-91b0-1d7d1e1b4922",
+      "author": "ryan.porter",
+      "text": "Progress: Workstream activated; starting Python CDK skeleton and deployment shape.\nEvidence: task state moved open -> in_progress; parent epic tskl-eo2.5 in progress.\nNext: add cdk app scaffold + stack boundaries + required outputs.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T06:09:47.691962Z"
+    },
+    {
+      "id": "5b00cd1f-8f72-5c12-8003-d1a5d1cf0ff8",
+      "author": "ryan.porter",
+      "text": "Progress: Continuity note for reconnects.\nEvidence: deployment target profile = anthus; runtime assumptions = multi-tenant, read-only v1, GitHub-webhook sync.\nNext: preserve these assumptions in stack/env docs as they are codified.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T06:09:47.712946Z"
+    },
+    {
+      "id": "5357c483-13ce-5cd4-b4fa-ffe550109817",
+      "author": "ryan.porter",
+      "text": "Progress: CDK foundation scaffold implemented and synthesized successfully.\nEvidence: infra/cloud app+stack+Dockerfile added; `AWS_PROFILE=anthus npx cdk synth -a \"/opt/anaconda3/bin/conda run -n py311 python app.py\"` passes.\nNext: run deploy verification path with AWS_PROFILE=anthus before closing this task.\nRisk/Blocker: deploy step pending.\n",
+      "created_at": "2026-03-07T06:28:10.617913Z"
+    },
+    {
+      "id": "b80b6e03-985e-5d83-8375-6154c6bdd44b",
+      "author": "ryan.porter",
+      "text": "Progress: Starting deploy verification path for cloud foundation.\nEvidence: synth already passing from previous checkpoint.\nNext: run AWS_PROFILE=anthus cdk deploy for KanbusCloudFoundation and capture outputs.\nRisk/Blocker: deployment may require CDK bootstrap or IAM grants.",
+      "created_at": "2026-03-07T06:33:12.923954Z"
+    },
+    {
+      "id": "cbb4ecdd-985a-504f-849d-090efcf40b01",
+      "author": "ryan.porter",
+      "text": "Progress: Deploy verification attempt executed and blocked at image build step.\nEvidence: `cdk deploy` failed with `Cannot connect to the Docker daemon at unix:///Users/ryan.porter/.docker/run/docker.sock` while building ConsoleLambda/AssetImage.\nNext: unblock by starting Docker daemon locally (or switching to prebuilt ECR image path), then rerun deploy.\nRisk/Blocker: BLOCKED - Docker daemon unavailable for container asset build.\n",
+      "created_at": "2026-03-07T06:34:15.323266Z"
+    },
+    {
+      "id": "5a6578c5-cec6-5e34-aef7-47fc6caa484a",
+      "author": "ryan.porter",
+      "text": "Progress: Docker daemon is now available again; deploy verification path unblocked.\nEvidence: local Client:\n Version:    28.1.1\n Context:    desktop-linux\n Debug Mode: true\n Plugins:\n  ai: Docker AI Agent - Ask Gordon (Docker Inc.)\n    Version:  v1.1.7\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-ai\n  buildx: Docker Buildx (Docker Inc.)\n    Version:  v0.23.0-desktop.1\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-buildx\n  cloud: Docker Cloud (Docker Inc.)\n    Version:  v0.3.0\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-cloud\n  compose: Docker Compose (Docker Inc.)\n    Version:  v2.35.1-desktop.1\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-compose\n  debug: Get a shell into any image or container (Docker Inc.)\n    Version:  0.0.38\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-debug\n  desktop: Docker Desktop commands (Docker Inc.)\n    Version:  v0.1.8\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-desktop\n  dev: Docker Dev Environments (Docker Inc.)\n    Version:  v0.1.2\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-dev\n  extension: Manages Docker extensions (Docker Inc.)\n    Version:  v0.2.27\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-extension\n  init: Creates Docker-related starter files for your project (Docker Inc.)\n    Version:  v1.4.0\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-init\n  mcp: Docker MCP Plugin (Docker Inc.)\n    Version:  dev\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-mcp\n  model: Docker Model Runner (Docker Inc.)\n    Version:  v0.1.11\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-model\n  sbom: View the packaged-based Software Bill Of Materials (SBOM) for an image (Anchore Inc.)\n    Version:  0.6.0\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-sbom\n  scout: Docker Scout (Docker Inc.)\n    Version:  v1.17.1\n    Path:     /Users/ryan.porter/.docker/cli-plugins/docker-scout\n\nServer:\n Containers: 2\n  Running: 0\n  Paused: 0\n  Stopped: 2\n Images: 89\n Server Version: 28.1.1\n Storage Driver: overlayfs\n  driver-type: io.containerd.snapshotter.v1\n Logging Driver: json-file\n Cgroup Driver: cgroupfs\n Cgroup Version: 2\n Plugins:\n  Volume: local\n  Network: bridge host ipvlan macvlan null overlay\n  Log: awslogs fluentd gcplogs gelf journald json-file local splunk syslog\n CDI spec directories:\n  /etc/cdi\n  /var/run/cdi\n Swarm: inactive\n Runtimes: io.containerd.runc.v2 runc\n Default Runtime: runc\n Init Binary: docker-init\n containerd version: 05044ec0a9a75232cad458027ca83437aae3f4da\n runc version: v1.2.5-0-g59923ef\n init version: de40ad0\n Security Options:\n  seccomp\n   Profile: unconfined\n  cgroupns\n Kernel Version: 6.10.14-linuxkit\n Operating System: Docker Desktop\n OSType: linux\n Architecture: aarch64\n CPUs: 16\n Total Memory: 7.653GiB\n Name: docker-desktop\n ID: 1c826a16-958b-43b7-8583-69c49e976acd\n Docker Root Dir: /var/lib/docker\n Debug Mode: false\n  File Descriptors: 69\n  Goroutines: 86\n  System Time: 2026-03-07T06:45:47.890492836Z\n  EventsListeners: 17\n HTTP Proxy: http.docker.internal:3128\n HTTPS Proxy: http.docker.internal:3128\n No Proxy: hubproxy.docker.internal\n Labels:\n  com.docker.desktop.address=unix:///Users/ryan.porter/Library/Containers/com.docker.docker/Data/docker-cli.sock\n Experimental: false\n Insecure Registries:\n  hubproxy.docker.internal:5555\n  ::1/128\n  127.0.0.0/8\n Live Restore Enabled: false now succeeds after starting Docker.\nNext: run AWS_PROFILE=anthus CDK deploy for KanbusCloudFoundation and capture stack outputs.\nRisk/Blocker: none currently.",
+      "created_at": "2026-03-07T06:45:47.907908Z"
+    },
+    {
+      "id": "73d54628-7b7b-563a-b178-bf00fd25bba0",
+      "author": "ryan.porter",
+      "text": "Progress: CDK foundation deploy verification completed successfully in anthus.\nEvidence:  succeeded and returned API/Cognito/IoT/EFS outputs; stack reached CREATE_COMPLETE.\nNext: none for this task.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T06:58:00.310493Z"
+    },
+    {
+      "id": "5568fe7c-926e-50bf-9680-ac32229be6e9",
+      "author": "ryan.porter",
+      "text": "Progress: Evidence correction for closure milestone.\nEvidence: AWS_PROFILE=anthus npx cdk deploy KanbusCloudFoundation completed with CREATE_COMPLETE and emitted ApiBaseUrl/UserPool/IdentityPool/IoT/EFS outputs.\nNext: none for this task.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T06:58:11.241563Z"
+    }
+  ],
+  "created_at": "2026-03-07T06:05:00.920677Z",
+  "updated_at": "2026-03-07T06:58:11.241563Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

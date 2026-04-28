@@ -1,0 +1,27 @@
+{
+  "id": "tskl-sjt",
+  "title": "Fix coverage changed-files gate false failures in CI",
+  "description": "Scope changed-files coverage gate to production source files and align it with coverage omit/collection behavior; improve CI logging so failure payload is visible.",
+  "type": "chore",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "derek.norrbom",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "54919c12-3f17-5c34-b592-329f86ede5dc",
+      "author": "derek.norrbom",
+      "text": "Implemented source-scoped changed-files coverage gate and Python omit-awareness. Verified against CI run 23355872293 artifacts + refs (origin/main...581dd789a6258ed543fc78340a6dd65ecfb2c0c6): gate now passes with failed_files=0 and agents_management.py marked skipped due to python/.coveragerc omit. Updated CI workflow to pipe gate JSON through tee for visible failure payloads.",
+      "created_at": "2026-03-24T19:24:35.751670Z"
+    }
+  ],
+  "created_at": "2026-03-24T19:23:18.696794Z",
+  "updated_at": "2026-03-24T19:24:35.751670Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

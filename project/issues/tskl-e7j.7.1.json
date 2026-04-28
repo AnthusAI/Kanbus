@@ -1,0 +1,21 @@
+{
+  "id": "tskl-e7j.7.1",
+  "title": "Auto-scroll detail panel to bottom when comment added to focused issue",
+  "description": "When a comment is added to an issue that is currently focused in the detail panel, automatically scroll to the bottom of the panel with smooth behavior to show the new comment appearing. Only applies when that specific issue is currently focused. Should not scroll if a different issue or no issue is focused.",
+  "type": "story",
+  "status": "backlog",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-e7j.7",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T13:45:39.692787Z",
+  "updated_at": "2026-03-12T00:36:35.941925Z",
+  "closed_at": null,
+  "custom": {
+    "beads_issue_type": "feature",
+    "beads_owner": "ryan.porter"
+  }
+}

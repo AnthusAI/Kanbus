@@ -1,0 +1,141 @@
+{
+  "id": "tskl-eo2.5",
+  "title": "Cloud serverless console backend (AWS Lambda + EFS + IoT Core)",
+  "description": "## Intent\nDeliver a multi-tenant AWS cloud runtime for `kbsc` using Lambda + EFS + API Gateway + IoT Core.\n\n## Scope\n- Read-only v1 backend\n- GitHub webhook-driven EFS sync\n- Cognito auth with strict tenant isolation\n- MQTT-over-WSS as primary realtime channel\n- SSE as compatibility fallback\n\n## Definition of Done\n- Python CDK stack deploys with `AWS_PROFILE=anthus`.\n- Lambda serves console APIs from EFS tenant roots.\n- IoT topic model `projects/{account}/{project}/events` is enforced by policy.\n- GitHub webhook queue/worker sync publishes realtime events.\n- Console frontend consumes MQTT-over-WSS with SSE fallback.\n- Runbook + alarms + E2E launch checklist are complete.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "41ec0bfe-c519-5de6-a09a-009a6e3c1e06",
+      "author": "ryan.porter",
+      "text": "Progress: Filed cloud issue tree under tskl-eo2.5 (7 child tasks), all in open state.\nEvidence: Parent initiative tskl-eo2; task IDs discovered by search: T T T T T .\nNext: Start with CDK foundation task and transition it to in_progress when implementation begins.",
+      "created_at": "2026-03-07T06:05:01.018167Z"
+    },
+    {
+      "id": "4ce356a7-d023-5055-ba33-3ea575d3f153",
+      "author": "ryan.porter",
+      "text": "Progress: Filed cloud papertrail and locked milestone-only update protocol.\nEvidence: child tasks = tskl-eo2.5.1, tskl-eo2.5.2, tskl-eo2.5.3, tskl-eo2.5.4, tskl-eo2.5.5, tskl-eo2.5.6, tskl-eo2.5.7.\nNext: move tskl-eo2.5.1 to in_progress when implementation starts.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T06:05:32.415975Z"
+    },
+    {
+      "id": "10b08db8-8818-5683-bcea-b63acad9727f",
+      "author": "ryan.porter",
+      "text": "Progress: Execution kickoff started; infrastructure foundation is now active.\nEvidence: epic state moved open -> in_progress on 2026-03-07.\nNext: implement tskl-eo2.5.1 first, then sequence 5.2/5.3/5.4.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T06:09:47.628483Z"
+    },
+    {
+      "id": "f79e8f3b-8dbd-5bea-b99a-80a05a6f0eb5",
+      "author": "ryan.porter",
+      "text": "Progress: Foundation scaffold is implemented and parity task 5.2 is now closed.\nEvidence: infra/cloud CDK stack synthesized; console_lambda supports `/api/realtime/bootstrap` + `/api/events/realtime`; unit tests pass.\nNext: finish 5.1 deploy verification, then start 5.3 auth/isolation.\nRisk/Blocker: none.\n",
+      "created_at": "2026-03-07T06:28:10.755219Z"
+    },
+    {
+      "id": "6731d84e-38dc-5ca0-9f85-8619fb00432d",
+      "author": "ryan.porter",
+      "text": "Progress: Foundation deploy verification is blocked by local Docker daemon availability.\nEvidence: CDK deploy reached asset build and failed before stack deployment.\nNext: continue with auth/isolation implementation (5.3) while 5.1 waits for Docker-unblocked deploy run.\nRisk/Blocker: 5.1 blocked on Docker daemon.\n",
+      "created_at": "2026-03-07T06:34:15.387480Z"
+    },
+    {
+      "id": "0c8a6ec5-afba-5452-aa07-9f78699d20ce",
+      "author": "ryan.porter",
+      "text": "Progress: Auth/isolation implementation has started with concrete policy and authorizer changes.\nEvidence: CDK synth still passes after adding Cognito authorizer + IoT tenant-topic policy scaffolding.\nNext: finish 5.3 verification/docs and keep 5.1 blocked until Docker daemon is available for deploy check.\nRisk/Blocker: none beyond 5.1 Docker dependency.\n",
+      "created_at": "2026-03-07T06:35:20.122794Z"
+    },
+    {
+      "id": "0c6ba272-a792-5f1e-9bd6-29ec2ef4f7f1",
+      "author": "ryan.porter",
+      "text": "Progress: Sync pipeline scaffolding is now in place (webhook -> queue -> worker -> IoT publish).\nEvidence: infra/cloud/lambda handlers added; stack includes queue/DLQ/alarm and webhook API route; `cdk synth` still passing.\nNext: continue 5.3/5.4 hardening and close 5.4 after secret + telemetry + validation polish.\nRisk/Blocker: none beyond 5.1 Docker dependency for deploy run.\n",
+      "created_at": "2026-03-07T06:37:25.859079Z"
+    },
+    {
+      "id": "b9d57b0c-f52b-509c-9883-19970d27b344",
+      "author": "ryan.porter",
+      "text": "Progress: Closed 5.3 after authorizer/policy implementation plus automated template assertions.\nEvidence: CDK synth + cloud auth/isolation unit tests passing.\nNext: continue 5.4 hardening; revisit 5.1 once Docker daemon is available for deploy verification.\nRisk/Blocker: 5.1 remains blocked on Docker daemon.\n",
+      "created_at": "2026-03-07T06:38:12.460748Z"
+    },
+    {
+      "id": "7f0d983d-006f-57eb-82c1-ef779d4f4541",
+      "author": "ryan.porter",
+      "text": "Progress: Sync pipeline hardening added secret management and automated handler tests.\nEvidence: Secrets Manager integration for webhook ingress; cloud unittest suite passing (5 tests) plus synth pass.\nNext: unblock deploy path to run full E2E webhook->SQS->EFS sync verification and close 5.4.\nRisk/Blocker: Docker daemon still required for container-asset deploy validation.\n",
+      "created_at": "2026-03-07T06:39:37.788447Z"
+    },
+    {
+      "id": "8ccfb335-a60c-509e-a8af-1e314f69c57c",
+      "author": "ryan.porter",
+      "text": "Progress: Started 5.5 frontend realtime integration while 5.1 remains blocked.\nEvidence: console now consumes `/api/realtime/bootstrap` contract and passes TypeScript typecheck.\nNext: wire MQTT-over-WSS event stream and fallback behavior in client state pipeline.\nRisk/Blocker: deploy-backed runtime validation still gated by Docker daemon availability.\n",
+      "created_at": "2026-03-07T06:40:33.946039Z"
+    },
+    {
+      "id": "f49e229d-22ef-59b0-b19a-ec1f3b683da2",
+      "author": "ryan.porter",
+      "text": "Progress: Realtime and ops workstreams advanced in parallel: MQTT-first client transport added; guardrail alarms/runbook added.\nEvidence: console typecheck + rust route tests + cloud unittest/synth all passing after changes.\nNext: clear Docker daemon blocker to execute deploy + E2E checks for 5.1/5.4/5.5/5.6 closeout and start 5.7 checklist validation.\nRisk/Blocker: deploy-backed validation remains blocked until local Docker daemon is available for CDK asset build.",
+      "created_at": "2026-03-07T06:44:29.599215Z"
+    },
+    {
+      "id": "3b12abd3-2977-50dc-ad85-29bddf71623f",
+      "author": "ryan.porter",
+      "text": "Progress: Cloud foundation stack is now deployed in anthus with live outputs captured; E2E sync validation started.\nEvidence: KanbusCloudFoundation CREATE_COMPLETE; smoke checks show protected API route returns 401 without token and webhook rejects invalid signatures; worker invocation logs captured.\nNext: fix blocked sync runtime dependency (git missing) to complete webhook->sync->IoT flow and advance 5.4/5.7 closure.\nRisk/Blocker: tskl-eo2.5.4 blocked on missing git binary in worker runtime.",
+      "created_at": "2026-03-07T06:58:00.403096Z"
+    },
+    {
+      "id": "e04eb7a2-12af-5e9a-a246-2549a41a40fe",
+      "author": "ryan.porter",
+      "text": "Progress: Deploy-backed validation advanced: worker runtime now includes git and ops task is closed.\nEvidence: KanbusCloudFoundation update replaced TenantSyncWorker image; CloudWatch logs moved from git missing to safe.directory ownership error.\nNext: finish 5.4 by deploying safe-directory fix and capturing successful webhook or SQS sync evidence.\nRisk/Blocker: stack cleanup stall (UPDATE_COMPLETE_CLEANUP_IN_PROGRESS) currently blocks follow-up deploy.",
+      "created_at": "2026-03-07T07:20:09.998719Z"
+    },
+    {
+      "id": "c619e2cc-9227-5f38-b2bd-d41e2b46cff3",
+      "author": "ryan.porter",
+      "text": "Progress: Continued live validation despite CloudFormation stall by hot-patching worker image; sync execution is now succeeding.\nEvidence: Lambda updated with amd64 no-provenance image; latest worker runs complete git sync to HEAD commit without errors.\nNext: resolve stack cleanup lock and re-establish IaC-only deployment flow before closing 5.4/5.7.\nRisk/Blocker: temporary stack drift and UPDATE_COMPLETE_CLEANUP_IN_PROGRESS still active.",
+      "created_at": "2026-03-07T07:35:25.181399Z"
+    },
+    {
+      "id": "b619cede-f794-549f-bb5f-bb40505a9760",
+      "author": "ryan.porter",
+      "text": "Progress: Successfully cleared CloudFormation lock and restored CDK deploy cadence.\nEvidence: stack transitioned from UPDATE_COMPLETE_CLEANUP_IN_PROGRESS to UPDATE_COMPLETE and accepted a new deploy; sync worker path validated post-redeploy.\nNext: complete final realtime/browser validation and close 5.4/5.7 when evidence is captured.\nRisk/Blocker: limited IAM access to webhook secret prevents direct signed webhook exercise from this session.",
+      "created_at": "2026-03-07T07:49:10.963446Z"
+    },
+    {
+      "id": "fd0a87a4-a070-58d5-9895-51b5f497da84",
+      "author": "ryan.porter",
+      "text": "Progress: Cloud runtime routing/data-path hardening landed and is live in anthus after multiple deploy-backed smokes.\nEvidence: commit 78a3a3b pushed; KanbusCloudFoundation UPDATE_COMPLETE at 2026-03-07 03:13 ET; authenticated API reads and realtime bootstrap now return 200.\nNext: unblock webhook secret permissions, complete signed ingress + browser MQTT validation, then close 5.4/5.7.\nRisk/Blocker: IAM access gap to webhook secret prevents final E2E signoff.",
+      "created_at": "2026-03-07T08:14:20.967025Z"
+    },
+    {
+      "id": "8b9b2e74-dc5f-5742-9f56-c58feba5dc7c",
+      "author": "ryan.porter",
+      "text": "Progress: New auth/token implementation wave started from live smoke feedback: authenticated API works, but login UX and CLI non-OAuth MQTT auth were missing.\nEvidence: latest smokes show unauth /dev returns 401 and auth-protected tenant endpoints return 200 once token is provided.\nNext: implement Hosted UI PKCE, auth bootstrap endpoint, API token registry + IoT custom authorizer, and tenant-claim enforcement changes.\nRisk/Blocker: signed webhook E2E still blocked by Secrets Manager permission gap.",
+      "created_at": "2026-03-07T14:36:13.396439Z"
+    },
+    {
+      "id": "d960a83d-33ea-51c2-9fb5-33d029ee0d37",
+      "author": "ryan.porter",
+      "text": "Progress: Auth+token implementation pass is integrated and test-green after resolving a CDK dependency cycle in Cognito callback wiring.\nEvidence: infra pytest (11 tests), cdk synth, rust cargo test, and console typecheck/build all pass in this session.\nNext: deploy/update anthus stack and capture live browser Hosted UI + MQTT authorizer token validation evidence to advance 5.8/5.9/5.10 closure.\nRisk/Blocker: signed webhook ingress validation remains blocked by Secrets Manager permission gap.",
+      "created_at": "2026-03-07T14:57:04.469813Z"
+    },
+    {
+      "id": "e7587ac3-fc84-5979-a722-54cfd859debb",
+      "author": "unknown",
+      "text": "Progress: Live validation phase started for newly merged cloud auth + CLI token MQTT changes.\nEvidence: tskl-eo2.5.10 moved open -> in_progress as active execution issue.\nNext: deploy/update anthus stack and log browser+CLI MQTT evidence across 5.8/5.9/5.10.\nRisk/Blocker: signed webhook evidence still gated by secret access permissions.",
+      "created_at": "2026-03-07T15:17:59.970523Z"
+    },
+    {
+      "id": "81c8474e-fb29-53bd-aa63-273595fcee65",
+      "author": "ryan.porter",
+      "text": "Progress: Cloud serverless backend epic reached functional completion with auth, token lifecycle, webhook sync, MQTT primary realtime, and SSE fallback all validated.\nEvidence: deploy + validation artifact set artifacts/cloud-validation/20260307T222139Z (G0-G6 pass).\nNext: close epic and shift to acceptance/design review track.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T22:24:26.331837Z"
+    }
+  ],
+  "created_at": "2026-03-07T06:05:00.892030Z",
+  "updated_at": "2026-03-07T22:24:26.379584Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

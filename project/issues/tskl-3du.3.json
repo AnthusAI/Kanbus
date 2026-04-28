@@ -1,0 +1,39 @@
+{
+  "id": "tskl-3du.3",
+  "title": "Pin GitHub Actions refs for unpinned-tag alerts #1-#18",
+  "description": "Replace moving action tags with immutable commit SHAs while preserving readable version comments.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "99f92fc9-cdd2-54d4-8788-b73ee167f978",
+      "author": "ryan.porter",
+      "text": "Started. Collecting immutable SHAs for all GitHub Actions refs and updating workflow files to pin tags to commits.",
+      "created_at": "2026-03-06T14:06:19.691265Z"
+    },
+    {
+      "id": "0452e33b-6210-5c8a-b0fd-d17f27172a96",
+      "author": "ryan.porter",
+      "text": "Completed. Pinned GitHub Actions refs to immutable SHAs across CI/release/docs/codeql/release-please workflows; workflow YAML parses cleanly.",
+      "created_at": "2026-03-06T14:13:12.016195Z"
+    },
+    {
+      "id": "6642686b-5866-5cb6-8408-1b39a812946a",
+      "author": "ryan.porter",
+      "text": "Completed. Pinned GitHub Actions refs to immutable SHAs across CI/release/docs/codeql/release-please workflows; workflow YAML parses cleanly.",
+      "created_at": "2026-03-06T14:13:26.362490Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:05:10.408934Z",
+  "updated_at": "2026-03-06T14:13:26.394772Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

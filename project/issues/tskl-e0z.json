@@ -1,0 +1,20 @@
+{
+  "id": "tskl-e0z",
+  "title": "Detail panel: descendants status/priority badges + layout",
+  "description": "In issue detail > All descendants: show status badge with configured color; show priority with color; fix overflow so rows never force the panel wider (wrap/truncate with min-w-0).",
+  "type": "chore",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-19T00:01:18.403801Z",
+  "updated_at": "2026-02-25T06:24:18.111003Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

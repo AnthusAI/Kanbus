@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.3.2",
+  "title": "Overlay GC removes stale entries and hooks run it",
+  "description": "## Intent\nAs a developer, I want stale overlay entries removed automatically so overlays remain self-pruning.\n\n## Gherkin\nFeature: Overlay garbage collection\n  Scenario: Remove stale overlay entries\n    Given a base issue \"kbs-123\" updated_at \"2026-03-03T00:00:00Z\"\n    And an overlay issue \"kbs-123\" with overlay_ts \"2026-03-01T00:00:00Z\"\n    When I run \"kanbus overlay gc\"\n    Then the overlay issue is removed\n\n  Scenario: Hook-based cleanup after git operation\n    Given overlay entries exist\n    When a git post-merge hook runs \"kanbus overlay gc\"\n    Then stale overlay entries are removed\n\n## Definition of Done\n- overlay gc removes stale entries and hook installer registers git hooks.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:05:26.749239Z",
+  "updated_at": "2026-03-10T03:21:43.858264Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

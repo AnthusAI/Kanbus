@@ -1,0 +1,27 @@
+{
+  "id": "tskl-e7j.2",
+  "title": "Agent-invoked issue focus",
+  "description": "",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-e7j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9c827a6a-c7a4-5281-b6a6-1dc7e6386a15",
+      "author": "unknown",
+      "text": "Feature: Agent-invoked issue focus\\n\\nScenario: Agent focuses a specific issue\\n  Given the agent is using the CLI\\n  And I am viewing the board\\n  When the agent requests focus for a specific issue id\\n  Then the board receives a focus message for that issue\\n  And the UI highlights or focuses that issue card\\n\\nScenario: CLI focus command exists\\n  Given I want to focus an issue\\n  When I run a CLI command with the issue id\\n  Then the server receives a focus request\\n  And a focus event is broadcast to the board via SSE",
+      "created_at": "2026-02-18T05:51:46.732743Z"
+    }
+  ],
+  "created_at": "2026-02-18T05:51:42.482407Z",
+  "updated_at": "2026-02-18T13:20:28.857737Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

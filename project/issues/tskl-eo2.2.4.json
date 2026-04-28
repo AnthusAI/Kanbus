@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.2.4",
+  "title": "Implement gossip envelope, config, dedupe, and wiring",
+  "description": "## Scope\n- Add realtime config fields and defaults in Rust and Python models.\n- Implement gossip envelope schema with producer_id and event_id.\n- Add dedupe store with TTL and self-filtering logic.\n- Publish gossip notifications on all mutation paths.\n- Subscribe and apply overlay writes on receipt.\n\n## Definition of Done\n- Both runtimes publish and subscribe with identical envelope semantics.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:05:04.741410Z",
+  "updated_at": "2026-03-10T03:24:44.402538Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

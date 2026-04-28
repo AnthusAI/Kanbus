@@ -1,0 +1,39 @@
+{
+  "id": "tskl-0w4",
+  "title": "Define pub-sub UI control convention for console commands",
+  "description": "Follow-up: replace deprecated console control commands with pub/sub control envelopes and consensus schema.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f56941f6-ae70-5f2d-9c7c-434c847085f1",
+      "author": "ryan.porter",
+      "text": "Status moved to in_progress. Next step is implementing and validating pub/sub UI control envelopes for console commands.",
+      "created_at": "2026-03-07T02:44:13.795009Z"
+    },
+    {
+      "id": "40f3bc41-4c5b-5419-8505-27104ef71996",
+      "author": "ryan.porter",
+      "text": "Python CLI realtime interop check.",
+      "created_at": "2026-03-07T02:45:03.289595Z"
+    },
+    {
+      "id": "a1646e1e-36db-5749-8b3e-049062d13ae1",
+      "author": "ryan.porter",
+      "text": "Moved out of in_progress; this is backlog for now.",
+      "created_at": "2026-03-12T00:04:35.153749Z"
+    }
+  ],
+  "created_at": "2026-03-07T02:17:54.675508Z",
+  "updated_at": "2026-03-12T00:11:50.596066Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

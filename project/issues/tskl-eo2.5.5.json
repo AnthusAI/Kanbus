@@ -1,0 +1,63 @@
+{
+  "id": "tskl-eo2.5.5",
+  "title": "Console frontend MQTT-over-WSS realtime with SSE fallback",
+  "description": "## Intent\nUse browser MQTT-over-WSS as primary realtime path while preserving SSE fallback.\n\n## Scope\n- Realtime bootstrap API consumption\n- IoT MQTT client integration in console frontend\n- Fallback logic to SSE on MQTT failure\n\n## Definition of Done\n- Browser receives tenant events via IoT MQTT.\n- Fallback path activates cleanly when MQTT fails.\n- No route regression for `/:account/:project`.\n- Client behavior and failure modes are documented.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "50d97527-d1cc-517d-b047-7122e1bea6e3",
+      "author": "ryan.porter",
+      "text": "Progress: Started frontend realtime integration work.\nEvidence: task moved open -> in_progress; added client bootstrap fetch for /api/realtime/bootstrap and route-scoped logging in App.tsx.\nNext: wire actual MQTT-over-WSS client subscription path using bootstrap payload and keep SSE as fallback.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T06:40:20.836495Z"
+    },
+    {
+      "id": "c6bc7b37-cd2a-5ea8-b742-4545f1909c38",
+      "author": "ryan.porter",
+      "text": "Progress: Added frontend bootstrap contract consumption for cloud realtime settings.\nEvidence: `apps/console/src/api/client.ts` now exposes `fetchRealtimeBootstrap`; `App.tsx` fetches and logs route-scoped bootstrap metadata; `npm run typecheck` passes.\nNext: implement MQTT-over-WSS client transport and bind live events to issue state updates with SSE fallback retained.\nRisk/Blocker: none.\n",
+      "created_at": "2026-03-07T06:40:33.921421Z"
+    },
+    {
+      "id": "7916358a-5bba-5b36-8848-acb012e6a1f0",
+      "author": "ryan.porter",
+      "text": "Progress: Added realtime transport orchestration in console client (MQTT-over-WSS attempt first, SSE fallback on bootstrap/connect/subscribe failure).\nEvidence: apps/console/src/api/client.ts now exports subscribeToRealtimeFeed; added mqtt dependency and typecheck pass.\nNext: validate live IoT WSS auth path with Cognito credentials in deployed env and close after browser E2E proof.\nRisk/Blocker: live MQTT subscription verification requires deployed stack + credentials; currently gated by deploy blocker in tskl-eo2.5.1.",
+      "created_at": "2026-03-07T06:44:25.021156Z"
+    },
+    {
+      "id": "35b8c115-6767-5aaa-ba0a-82ce596f4a03",
+      "author": "ryan.porter",
+      "text": "Progress: Frontend realtime task now expands to include cloud login UX and authenticated request flow before MQTT fallback validation.\nEvidence: current app shell/API behavior verified by curl; no browser redirect/login flow exists yet for unauth users.\nNext: add Hosted UI PKCE adapter, auth bootstrap contract, and route guard behavior while preserving local-mode no-auth flow.\nRisk/Blocker: none for implementation; webhook secret IAM blocker remains for final E2E signoff.",
+      "created_at": "2026-03-07T14:36:13.426452Z"
+    },
+    {
+      "id": "26bda91b-f8d0-5e86-95fb-4061cfff5f04",
+      "author": "ryan.porter",
+      "text": "Progress: Folded auth-bootstrap + bearer-aware data/SSE client behavior into frontend realtime path based on deployed smoke feedback.\nEvidence: App boot now calls auth bootstrap and installs auth header/query providers before snapshot/realtime subscription; npm typecheck/build and cargo test passing.\nNext: browser verify Hosted UI redirect/callback plus MQTT primary->SSE fallback behavior in cloud env.\nRisk/Blocker: signed webhook evidence remains blocked by Secrets Manager IAM gap (tracked in 5.4/5.7).",
+      "created_at": "2026-03-07T14:56:51.087026Z"
+    },
+    {
+      "id": "b2762b6c-04a6-58ee-b353-6eb08d08b84e",
+      "author": "ryan.porter",
+      "text": "Progress: Frontend realtime/auth integration pass landed with commit-backed evidence.\nEvidence: commit 385d623; authenticated fetch/SSE wiring and auth-bootstrap gate in App.tsx/client.ts; build/typecheck/test suites pass.\nNext: browser E2E for Hosted UI + MQTT primary with SSE fallback forced-failure path.\nRisk/Blocker: signed webhook launch evidence still blocked by Secrets Manager IAM gap.",
+      "created_at": "2026-03-07T14:57:56.860662Z"
+    },
+    {
+      "id": "8fb2dc8f-2917-51d0-9c75-60144130cb16",
+      "author": "ryan.porter",
+      "text": "Progress: Browser MQTT-over-WSS primary path is now live in deployed cloud and validated in full pre-acceptance run.\nEvidence: artifacts/cloud-validation/20260307T222139Z/gate6-browser_probe.log includes [realtime] mqtt subscribed and [notifications] received.\nNext: keep SSE fallback as compatibility path and move to UX polish/review.\nRisk/Blocker: none for MQTT primary functionality.",
+      "created_at": "2026-03-07T22:24:10.200761Z"
+    }
+  ],
+  "created_at": "2026-03-07T06:05:00.964347Z",
+  "updated_at": "2026-03-07T22:24:10.331197Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.4",
+  "title": "Add detail panel maximize/restore commands",
+  "description": "Add CLI commands to maximize or restore the detail panel.\n\nCommands:\n  kbs console maximize   - Maximize detail panel to full width\n  kbs console restore    - Restore detail panel to previous width\n\nBehavior:\n- Maximize: Sets detailMaximized=true, hides board\n- Restore: Sets detailMaximized=false, shows board\n- Only works when detail panel is open (selectedTask != null)\n- Should match existing maximize button behavior\n- Escape key should still work to restore\n\nImplementation:\n- Add DetailPanelMaximized UIControl event (with boolean value)\n- Frontend handler updates detailMaximized state\n- Error if called when no issue is selected",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:51:11.732500Z",
+  "updated_at": "2026-02-18T13:16:32.485218Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

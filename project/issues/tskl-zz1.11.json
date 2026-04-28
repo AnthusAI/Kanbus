@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.11",
+  "title": "Implement Given steps (preconditions/filters)",
+  "description": "Implement Given steps: issue type is, has label, has parent, priority is. These filter which scenarios apply.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:24.277425Z",
+  "updated_at": "2026-02-27T06:58:26.271795Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

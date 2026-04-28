@@ -1,0 +1,75 @@
+{
+  "id": "tskl-eo2.5.7",
+  "title": "End-to-end validation and launch checklist (read-only v1)",
+  "description": "## Intent\nValidate cloud v1 behavior before launch and record release readiness.\n\n## Scope\n- End-to-end verification from Git push to UI update\n- SSE fallback sanity verification\n- Tenant isolation verification\n- Read-only v1 checklist completion\n\n## Definition of Done\n- E2E path (webhook -> sync -> IoT -> UI) passes.\n- SSE fallback sanity checks pass.\n- Security/isolation checks are signed off.\n- Launch checklist is complete and attached to epic context.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "32075161-fa5b-5581-8e88-1177ba8cf9be",
+      "author": "ryan.porter",
+      "text": "Progress: Started launch-readiness tracking with a concrete read-only v1 checklist artifact.\nEvidence: Added docs/CLOUD_LAUNCH_CHECKLIST.md with checklist items tied to deploy/auth/sync/realtime/ops gates.\nNext: execute remaining live checks after deploy blocker is cleared and attach evidence links per checklist section.\nRisk/Blocker: all unchecked items requiring live AWS runtime are currently gated by tskl-eo2.5.1 Docker daemon blocker.",
+      "created_at": "2026-03-07T06:45:17.814071Z"
+    },
+    {
+      "id": "6b0924f5-ec1a-56db-971f-9522fe116ec8",
+      "author": "ryan.porter",
+      "text": "Progress: E2E validation moved past missing-git failure but still not at green path.\nEvidence: worker runtime now includes git; latest deployed worker fails on git safe.directory ownership check against EFS path.\nNext: apply and deploy safe-directory patch, then rerun queue/webhook smoke to capture cloud_sync_completed event.\nRisk/Blocker: stack remains in UPDATE_COMPLETE_CLEANUP_IN_PROGRESS, delaying next deploy.",
+      "created_at": "2026-03-07T07:21:00.864885Z"
+    },
+    {
+      "id": "d66bc60f-34ba-544f-8cc1-6fe8b4e7bac0",
+      "author": "ryan.porter",
+      "text": "Progress: E2E validation advanced with successful queue->worker->repo sync execution in deployed env.\nEvidence: CloudWatch log stream 2026/03/07/[]ba482c47d28448bf8e598b306c0d36fd shows successful fetch/reset to commit 721fb9f; no runtime exception in latest runs.\nNext: complete signed webhook ingress test and browser MQTT receive validation, then finalize checklist.\nRisk/Blocker: CloudFormation stack cleanup stall prevents clean CDK-driven redeploy cadence.",
+      "created_at": "2026-03-07T07:35:25.163866Z"
+    },
+    {
+      "id": "1be6296c-50e5-5e0d-aa6b-6e049e9be52f",
+      "author": "ryan.porter",
+      "text": "Progress: Launch-checklist validation unblocked after stack recovery and clean redeploy.\nEvidence: stack status now UPDATE_COMPLETE; worker invocation and queue smoke both succeed post-fix with repo reset to latest commit.\nNext: finish remaining checklist items: signed webhook ingress evidence + browser MQTT receive/fallback verification.\nRisk/Blocker: obtaining signed webhook payload is gated by secretsmanager:GetSecretValue access.",
+      "created_at": "2026-03-07T07:49:10.945797Z"
+    },
+    {
+      "id": "47930e02-9f3f-5216-8f89-a459d2ced32f",
+      "author": "ryan.porter",
+      "text": "Progress: Checklist advanced with green authenticated API baseline and realtime bootstrap contract validation in deployed cloud stack.\nEvidence: /api/config 200, /api/issues 200, /api/realtime/bootstrap 200 with topic projects/anthus/kanbus/events and IoT endpoint payload.\nNext: finish signed webhook evidence and browser MQTT receive/fallback validation, then close checklist.\nRisk/Blocker: same webhook secret IAM restriction blocks signed ingress verification.",
+      "created_at": "2026-03-07T08:14:20.948491Z"
+    },
+    {
+      "id": "4f4da110-ce85-5460-a56c-c8a207ce569b",
+      "author": "ryan.porter",
+      "text": "Progress: Performed authenticated curl smoke against deployed API and app shell route.\nEvidence: 200 for /anthus/kanbus/api/config, /issues, /realtime/bootstrap, and /anthus/kanbus (HTML app shell).\nNext: validate browser login + MQTT message receive path and signed webhook trigger.\nRisk/Blocker: signed webhook validation still blocked by Secrets Manager permission gap.",
+      "created_at": "2026-03-07T14:14:30.478186Z"
+    },
+    {
+      "id": "cb3b3cb9-ef8b-522a-875b-f798265fe63f",
+      "author": "ryan.porter",
+      "text": "Progress: Launch checklist updated in-practice to reflect test-driven changes: we are actively implementing missing auth UX and tokenized CLI MQTT access from feedback.\nEvidence: authenticated API smoke succeeded; gap identified in user-facing login redirect UX and non-OAuth CLI path.\nNext: capture evidence for Hosted UI login, tenant claim enforcement, and MQTT receive/fallback once code lands.\nRisk/Blocker: signed webhook path still blocked by secretsmanager access.",
+      "created_at": "2026-03-07T14:36:13.446047Z"
+    },
+    {
+      "id": "37312a41-1481-5699-a767-0b29457c40f1",
+      "author": "unknown",
+      "text": "Progress: Launch checklist work is additionally blocked by stack recovery/migration failure in auth rollout attempt.\nEvidence: KanbusCloudFoundation now in UPDATE_ROLLBACK_FAILED and recovery call (ContinueUpdateRollback) is AccessDenied for this principal.\nNext: recover stack and rerun browser/CLI auth MQTT validation steps.\nRisk/Blocker: BLOCKED on CloudFormation recovery IAM permission, in addition to existing webhook secret access gap.",
+      "created_at": "2026-03-07T15:31:50.684635Z"
+    },
+    {
+      "id": "d9fa4d09-eae5-5681-888c-8f48221f542a",
+      "author": "ryan.porter",
+      "text": "Progress: Full pre-acceptance validation passed end-to-end with signed webhook and browser realtime checks.\nEvidence: artifacts/cloud-validation/20260307T222139Z/summary.json (all gates passed).\nNext: proceed to human UX/design acceptance review using this artifact baseline.\nRisk/Blocker: none.",
+      "created_at": "2026-03-07T22:24:26.303834Z"
+    }
+  ],
+  "created_at": "2026-03-07T06:05:00.986770Z",
+  "updated_at": "2026-03-07T22:24:26.303834Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

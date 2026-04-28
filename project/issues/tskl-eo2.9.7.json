@@ -1,0 +1,33 @@
+{
+  "id": "tskl-eo2.9.7",
+  "title": "Dogfood docker mutation task C",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-eo2.9",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "cf50400d-eb5b-5b4a-80ab-4940fe33d21a",
+      "author": "unknown",
+      "text": "Docker mutation comment C",
+      "created_at": "2026-03-08T12:51:20.278919Z"
+    },
+    {
+      "id": "f13fd7ee-e6ae-57b8-b328-749b22a2e1b6",
+      "author": "ryan.porter",
+      "text": "Progress: Starting timed live cloud MQTT demo execution and log capture. Evidence: preparing auth, watcher, and mutator loop. Next: emit 10 events across 12 minutes and publish timestamped output. Risk/Blocker: none.",
+      "created_at": "2026-03-08T13:03:59.639694Z"
+    }
+  ],
+  "created_at": "2026-03-08T12:51:19.912557Z",
+  "updated_at": "2026-03-10T03:24:44.991725Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

@@ -342,6 +342,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout requested Rust tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          tag="${{ github.event.inputs.rust_only }}"
+          tag="${tag#refs/tags/}"
+          case "$tag" in
+            kanbus-rust-*) ;;
+            v*) tag="kanbus-rust-${tag#v}" ;;
+            *) tag="kanbus-rust-${tag}" ;;
+          esac
+          git fetch --tags origin "refs/tags/${tag}:refs/tags/${tag}"
+          git checkout --detach "${tag}"
+
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -385,7 +399,7 @@ jobs:
             rust/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
 
-      - name: Sync crate version to release tag
+      - name: Verify crate version matches release tag
         working-directory: rust
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -393,38 +407,25 @@ jobs:
           else
             tag_version="${{ github.ref_name }}"
           fi
+          tag_version="${tag_version#refs/tags/}"
           tag_version="${tag_version#kanbus-rust-}"
           tag_version="${tag_version#v}"
           if [ -z "$tag_version" ]; then
             echo "Release tag did not include a crate version" >&2
             exit 1
           fi
-          python - <<'PY' "$tag_version"
-          import pathlib, re, sys
+          manifest_version="$(python - <<'PY'
+          import tomllib
 
-          desired = sys.argv[1]
-          path = pathlib.Path("Cargo.toml")
-          text = path.read_text()
-
-          pattern = r'(?m)^version\s*=\s*"([^"]*)"'
-          match = re.search(pattern, text)
-          if not match:
-              print("version field not found; check Cargo.toml format")
-              sys.exit(1)
-
-          current = match.group(1)
-          if current == desired:
-              print(f"version already {current}; nothing to do")
-              sys.exit(0)
-
-          new_text = re.sub(pattern, f'version = \"{desired}\"', text, count=1)
-          path.write_text(new_text)
-          print(f"version updated {current} -> {desired}")
+          with open("Cargo.toml", "rb") as handle:
+              print(tomllib.load(handle)["package"]["version"])
           PY
-
-      - name: Update Cargo.lock
-        working-directory: rust
-        run: cargo generate-lockfile
+          )"
+          if [ "$manifest_version" != "$tag_version" ]; then
+            echo "Cargo.toml version ${manifest_version} does not match release tag version ${tag_version}" >&2
+            exit 1
+          fi
+          echo "Cargo.toml version matches release tag: ${tag_version}"
 
       - name: fmt
         working-directory: rust
@@ -450,6 +451,7 @@ jobs:
           else
             version="${{ github.ref_name }}"
           fi
+          version="${version#refs/tags/}"
           version="${version#kanbus-rust-}"
           version="${version#v}"
           python - <<'PY' "$version"

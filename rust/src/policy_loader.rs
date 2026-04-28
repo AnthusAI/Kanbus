@@ -87,7 +87,7 @@ mod tests {
         fs::write(temp.path().join("notes.txt"), "not a policy").expect("write txt");
 
         let mut loaded = load_policies(temp.path()).expect("load policies");
-        loaded.sort_by(|a, b| a.0.cmp(&b.0));
+        loaded.sort_by_key(|policy| policy.0.clone());
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].0, "valid.policy");
     }

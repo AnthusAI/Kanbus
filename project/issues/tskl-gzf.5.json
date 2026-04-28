@@ -1,0 +1,20 @@
+{
+  "id": "tskl-gzf.5",
+  "title": "Add/adjust tests for root-level routes",
+  "description": "Extend console UI tests to cover root-level URLs and ensure prefixed routes still work. Include /epics/, /issues/:parent/all, /issues/:id.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-gzf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T05:32:46.440319Z",
+  "updated_at": "2026-02-16T01:07:59.189580Z",
+  "closed_at": "2026-02-16T01:07:59.167694Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

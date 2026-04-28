@@ -1,0 +1,27 @@
+{
+  "id": "tskl-qi1.1",
+  "title": "Bulk update issues by query and ID",
+  "description": "As a system utility\nI want to update multiple issues in one command\nSo that I can apply consistent changes without repeating manual steps.\n\nFeature: Bulk update issues\n\nScenario: Update issues selected by filters\n  Given a repository with issues of different types and statuses\n  When I run \"kanbus bulk update --where-type task --where-status open --set-status in_progress --set-assignee \"alex\"\"\n  Then only matching issues should be updated\n\nScenario: Update issues selected by explicit IDs\n  Given a repository with multiple issues\n  When I run \"kanbus bulk update --id <issue-1> --id <issue-2> --set-status closed\"\n  Then only those issues should be updated\n\nScenario: Bulk update prints a summary of changes\n  Given a repository with multiple issues\n  When I run \"kanbus bulk update --where-status open --set-status in_progress\"\n  Then stdout should include the number of issues updated\n",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-qi1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "aa06c4db-5178-55f5-8fe3-33bb155d7230",
+      "author": "ryan.porter",
+      "text": "Implemented bulk update in Rust/Python CLIs with filter+ID selectors and summary output; added BDD coverage in features/issues/issue_bulk_update.feature.",
+      "created_at": "2026-03-06T02:51:58.418751Z"
+    }
+  ],
+  "created_at": "2026-03-05T07:22:45.586362Z",
+  "updated_at": "2026-03-06T02:51:58.436388Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

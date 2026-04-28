@@ -1,0 +1,20 @@
+{
+  "id": "tskl-gzf.6",
+  "title": "Update docs with local URL examples",
+  "description": "Document local-mode URLs (root-level paths) and note that /:account/:project is for hosted/multi-tenant. Mention prefixed URLs still work locally without redirect.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-gzf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T05:33:02.762039Z",
+  "updated_at": "2026-02-16T01:07:59.190014Z",
+  "closed_at": "2026-02-16T01:07:59.167699Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

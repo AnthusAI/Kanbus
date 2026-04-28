@@ -1,0 +1,105 @@
+{
+  "id": "tskl-q4h.3",
+  "title": "Snyk pull returns zero findings + creates duplicate epic",
+  "description": "kbs snyk pull run from Virtuus returns 0 findings even when Snyk shows 4 projects, and re-creates the Snyk Vulnerabilities epic each time instead of updating existing.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek.norrbom",
+  "parent": "tskl-q4h",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b8563774-a9ed-5995-abf7-5104e3fec44d",
+      "author": "derek.norrbom",
+      "text": "Starting investigation. Hypothesis: running from Virtuus repo uses Virtuus .kanbus.yml, creating epic in Virtuus project. Need to verify kbs snyk pull expects to run from Kanbus repo root and/or config needs org/project filters.",
+      "created_at": "2026-02-27T21:17:20.327797Z"
+    },
+    {
+      "id": "7e6daa6f-373f-58d5-97bc-20899b1751b0",
+      "author": "derek.norrbom",
+      "text": "Findings so far:\n- In rust/src/snyk_sync.rs, projects are filtered by repo prefix  where repo is auto-detected from git origin unless snyk.repo is set in .kanbus.yml. If no Snyk project name starts with that prefix, project_map is empty and pull returns 0.\n- In Virtuus .kanbus.yml, snyk.repo is unset, so auto-detect is used. If your Snyk project names don’t start with the GitHub slug (e.g. Org/Repo:...), everything gets filtered out.\nNext: confirm actual Snyk project names and set snyk.repo accordingly (or adjust code to make repo filter optional/fallback).",
+      "created_at": "2026-02-27T21:18:38.051644Z"
+    },
+    {
+      "id": "0c339adc-1336-5a10-a9d2-f1817d47be04",
+      "author": "derek.norrbom",
+      "text": "Findings so far:\n- In rust/src/snyk_sync.rs, projects are filtered by repo prefix \"{repo}:\" where repo is auto-detected from git origin unless snyk.repo is set in .kanbus.yml. If no Snyk project name starts with that prefix, project_map is empty and pull returns 0.\n- In Virtuus .kanbus.yml, snyk.repo is unset, so auto-detect is used. If your Snyk project names don't start with the GitHub slug (e.g. Org/Repo:...), everything gets filtered out.\nNext: confirm actual Snyk project names and set snyk.repo accordingly (or adjust code to make repo filter optional/fallback).",
+      "created_at": "2026-02-27T21:18:43.174546Z"
+    },
+    {
+      "id": "9cf76808-7329-53d1-a125-be585251702f",
+      "author": "derek.norrbom",
+      "text": "Debug results: Snyk API shows 4 projects with name prefix \"AnthusAI/Virtuus\" and 16 medium issues across them. Kanbus filter required names starting with \"{repo}:\" so it excluded the base project named exactly \"AnthusAI/Virtuus\".\nFix: allow exact name match or name starting with \"{repo}:\" in both Rust and Python snyk_sync. This should make repo filter include the base project and pull the 16 issues.",
+      "created_at": "2026-02-27T21:28:55.485916Z"
+    },
+    {
+      "id": "6d349936-8dec-51b7-942c-36aa72e53b8f",
+      "author": "derek.norrbom",
+      "text": "Root cause: Snyk REST projects API sometimes returns an empty string for attributes.target_file on the base project (\"AnthusAI/Virtuus\"). Rust code treated empty target_file as valid, so it never fell back to name and excluded the base project, leaving only 3 subprojects with 0 issues. Python used `or name`, so it worked.\nFix: in rust/src/snyk_sync.rs, treat empty target_file as missing and fall back to name. Added optional KANBUS_SNYK_DEBUG logs to print counts and sample IDs when needed. After rebuild, dry-run pulls 16 medium issues.",
+      "created_at": "2026-02-27T21:35:41.150896Z"
+    },
+    {
+      "id": "303cd3dd-496c-5d70-9f75-73337499d552",
+      "author": "derek.norrbom",
+      "text": "Further debug: Snyk REST /issues endpoint only returns type=package_vulnerability (dependency vulns). No code issues present in that feed, so current sync cannot pull Snyk Code findings. Explains generic descriptions + empty package names for code issues. Need to add Snyk Code endpoint support/mapping.",
+      "created_at": "2026-02-27T21:46:58.545394Z"
+    },
+    {
+      "id": "299c541f-e96c-5f05-9af7-88e4052c258a",
+      "author": "derek.norrbom",
+      "text": "Implemented: Snyk sync now fetches both package_vulnerability and code types, with graceful handling if code fetch is unauthorized. Bumped Snyk REST API version to 2025-11-05. Added mapping for code issues (title, file, line/col, classes, description) and custom fields. Rust + Python updated.",
+      "created_at": "2026-02-27T22:01:15.346329Z"
+    },
+    {
+      "id": "800f3b29-a2dd-53db-9d31-e9061573443a",
+      "author": "derek.norrbom",
+      "text": "Added Snyk Code source location parsing for sourceLocation.region (start/end line+col) and class IDs (e.g. CWE-23). Code issues now include file + precise line range and store custom fields: snyk_file, snyk_line/column, snyk_end_line/column. Python parity updated.",
+      "created_at": "2026-02-27T22:09:38.541529Z"
+    },
+    {
+      "id": "a4fab0af-135a-5e29-8d0f-0d17ab5bc9e0",
+      "author": "derek.norrbom",
+      "text": "Added local snippet extraction for Snyk Code issues using file path + start/end region. Snippets include line numbers and are added to description. Custom fields include start/end line+column. Rust + Python updated.",
+      "created_at": "2026-02-27T22:13:57.891917Z"
+    },
+    {
+      "id": "ced93514-6bcc-5ee3-80cd-b7a1c51fe961",
+      "author": "derek.norrbom",
+      "text": "Fix: Snyk pull now reuses existing \"Snyk Vulnerabilities\" epic (title + label match) when parent_epic is unset, picking most recently updated. This prevents duplicate empty epics. Rust + Python updated.",
+      "created_at": "2026-02-27T22:29:43.832529Z"
+    },
+    {
+      "id": "8ccc6111-e004-57e8-93ff-b3960976cdfb",
+      "author": "derek.norrbom",
+      "text": "Change: kbs snyk pull now creates/uses an Initiative (\"Snyk Vulnerability Remediation\") with two epics (Dependency/Code). Issues are grouped by type and tasks keyed by (category, target_file) with custom field snyk_category. Prevents mixing code/deps and improves LLM clarity. Rust + Python updated.",
+      "created_at": "2026-02-27T22:44:34.217139Z"
+    },
+    {
+      "id": "6b44357e-83b0-58ac-b26e-78ee2893797d",
+      "author": "derek.norrbom",
+      "text": "Change: epic priority now derived from most severe child issue per category. Existing epics get priority updated on pull. Rust + Python updated.",
+      "created_at": "2026-02-27T22:51:52.274126Z"
+    },
+    {
+      "id": "138ea30c-52d6-5139-9647-dca7e8dbf537",
+      "author": "derek.norrbom",
+      "text": "Created structured tasks under initiative tskl-q4h to cover the Snyk pull work: tskl-q4h.4 (Code support/mapping), tskl-q4h.5 (snippets/line ranges), tskl-q4h.6 (hierarchy + epic priority + empty epic suppression).",
+      "created_at": "2026-02-27T23:00:45.657114Z"
+    },
+    {
+      "id": "002d7b2e-9e2d-570c-bef6-b9534ba6de37",
+      "author": "ryan.porter",
+      "text": "Closing: tracked in the wrong project.",
+      "created_at": "2026-03-12T00:05:51.080659Z"
+    }
+  ],
+  "created_at": "2026-02-27T21:16:48.052674Z",
+  "updated_at": "2026-03-12T00:05:51.109585Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

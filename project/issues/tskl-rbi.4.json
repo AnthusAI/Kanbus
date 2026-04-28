@@ -1,0 +1,57 @@
+{
+  "id": "tskl-rbi.4",
+  "title": "Fix semantic-release root config + protected-main compatibility",
+  "description": "Release workflow migrated to reusable semantic-release failed in run 23516776377 due to default config (next=1.0.0, missing root CHANGELOG.md) and blocked push to protected main. Add root semantic-release config, preserve 0.x progression and package tag format, and stop auto runs that attempt direct main push until PR-compatible flow exists.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "derek.norrbom",
+  "parent": "tskl-rbi",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "db8e252c-4e18-5d1a-8132-25bb70a5f3bd",
+      "author": "derek.norrbom",
+      "text": "Triage complete: reusable semantic-release workflow executed from repo root, so python/pyproject [tool.semantic_release] was ignored. This caused defaults (next version 1.0.0, CHANGELOG.md warning) and attempted direct push to protected main (GH013). Applying fix: add root semantic-release config + keep 0.x semantics + use kanbus-py tag format + disable automatic workflow_run trigger for now.",
+      "created_at": "2026-03-24T23:21:23.705195Z"
+    },
+    {
+      "id": "625bfec9-d3fe-5586-8e01-650f005df940",
+      "author": "derek.norrbom",
+      "text": "Implemented fix set for run 23516776377 failure: (1) added root pyproject.toml [tool.semantic_release] so reusable workflow discovers config when running at repo root; (2) switched tag_format to kanbus-py-{version} and changelog_file to python/CHANGELOG.md; (3) kept pre-1.0 behavior via allow_zero_version=true + major_on_zero=false; (4) removed duplicate semantic-release config from python/pyproject.toml to avoid drift; (5) made semantic-release workflow manual-only to avoid protected-main direct-push GH013 failures; (6) release.yml now triggers on kanbus-py-* tags in addition to v* for compatibility. Validation: parsed workflow YAML + parsed root TOML config.",
+      "created_at": "2026-03-24T23:22:08.323515Z"
+    },
+    {
+      "id": "ab54b1e6-2f18-5acb-8d33-0bd4d6c72eb4",
+      "author": "derek.norrbom",
+      "text": "Reworked approach away from root workaround: removed temporary root pyproject.toml semantic-release config, restored package-local config in python/pyproject.toml, and aligned tag_format with historical package tags (kanbus-py-{version}).",
+      "created_at": "2026-03-24T23:25:48.235569Z"
+    },
+    {
+      "id": "af8f6de2-5cef-5ef7-9121-190eb561869d",
+      "author": "derek.norrbom",
+      "text": "User approved enabling protected-main automation path. Next changes: add Anthusbot team bypass actor to main branch ruleset and switch semantic-release workflow to push_changes=true.",
+      "created_at": "2026-03-24T23:44:01.457909Z"
+    },
+    {
+      "id": "6249adee-177d-54c9-8b1a-d54fd0e0c48a",
+      "author": "derek.norrbom",
+      "text": "Applied key automation prerequisite: added Anthusbot team bypass actor to infra/github-rulesets/main-branch-protection.json using same pattern as other projects (actor_id=16575896, actor_type=Team, bypass_mode=always). Also switched semantic-release reusable call back to push_changes=true so semantic-release can push version/changelog/tag updates when run.",
+      "created_at": "2026-03-24T23:44:17.895869Z"
+    },
+    {
+      "id": "013175df-a425-553c-b898-c67583176bb4",
+      "author": "derek.norrbom",
+      "text": "Manual semantic-release verification succeeded. Re-enabling automatic trigger path: workflow_run from CI on successful push to main with repo/actor guards, while keeping workflow_dispatch fallback.",
+      "created_at": "2026-03-25T17:02:49.350203Z"
+    }
+  ],
+  "created_at": "2026-03-24T23:21:17.076540Z",
+  "updated_at": "2026-03-25T17:02:49.350203Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

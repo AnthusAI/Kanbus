@@ -1,0 +1,27 @@
+{
+  "id": "tskl-wti.2.2",
+  "title": "Rust coverage uplift: github_security_sync module",
+  "description": "Target rust/src/github_security_sync.rs (~46.18%, ~697 uncovered lines). Add focused tests for mapping/indexing/error branches and sync edge paths to materially raise line coverage.",
+  "type": "sub-task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wti.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5fb833a0-4080-5c59-95b2-5563b05bf644",
+      "author": "ryan.porter",
+      "text": "Coverage progress (actual implementation landed):\n- Added 7 focused unit tests in rust/src/github_security_sync.rs covering: manifest task creation path, existing initiative/epic selection logic, beads dry-run task + initiative/epic flows, dependabot epic configured/existing preference, and priority conversion error path.\n- Validation: cargo test --locked --lib github_security_sync::tests:: -> 19 passed, 0 failed.\n- Re-ran full rust llvm-cov and regenerated coverage-rust/cobertura.xml.\n- Module delta: github_security_sync.rs improved from 46.18% to 66.86% line coverage (1025/1533).\n- Overall Rust line coverage now 82.63%.",
+      "created_at": "2026-03-12T02:16:07.652412Z"
+    }
+  ],
+  "created_at": "2026-03-12T01:34:33.394209Z",
+  "updated_at": "2026-03-12T02:16:07.652412Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

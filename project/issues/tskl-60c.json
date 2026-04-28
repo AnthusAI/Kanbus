@@ -1,0 +1,45 @@
+{
+  "id": "tskl-60c",
+  "title": "Fix recurring 1 FPS console performance regression",
+  "description": "Investigate and fix recurring console slowdown (~1 FPS) observed during local/cloud usage. Root signal: snapshot-broadcast durations around 3s in console.log from dev server watcher path, likely causing repeated expensive snapshot rebuilds and UI churn. DoD: remove redundant snapshot churn, coalesce refresh work, verify board interaction remains smooth and realtime updates still function.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "62a923a0-4cee-505a-84fe-965cbe6a180a",
+      "author": "ryan.porter",
+      "text": "Progress: Confirmed hotspot in dev console watcher path; snapshot-broadcast takes ~3.2s and is triggered from fs-change churn.\nEvidence: console.log shows repeated snapshot-broadcast durationMs≈3268 with ~1179 overlay issue files.\nNext: patch watcher to coalesce refresh work and avoid unnecessary full snapshot runs; reduce frontend dependence on snapshot SSE stream.\nRisk/Blocker: none.",
+      "created_at": "2026-03-09T01:18:03.948376Z"
+    },
+    {
+      "id": "77cea9ac-827f-59a9-b54a-609f69004198",
+      "author": "ryan.porter",
+      "text": "Progress: Implemented snapshot churn reduction in dev server and disabled redundant snapshot SSE subscription in app init path.\nEvidence: apps/console/server/index.ts now coalesces in-flight refresh and skips expensive refresh when snapshot SSE clients=0; apps/console/src/App.tsx now relies on realtime notifications path for live updates.\nNext: validate typecheck/build and then run smoke to confirm no recurring snapshot-broadcast storms.\nRisk/Blocker: none.",
+      "created_at": "2026-03-09T01:19:09.925441Z"
+    },
+    {
+      "id": "4d4f4db4-661a-582e-a4a3-06465610f63d",
+      "author": "ryan.porter",
+      "text": "Progress: Performance patch committed and pushed after rebasing onto latest dev; CI triggered.\nEvidence: commit 897710c; local apps/console typecheck passes.\nNext: monitor CI and validate runtime logs show reduced snapshot churn (no recurring snapshot-broadcast storms) during active use.\nRisk/Blocker: remote branch has concurrent changes from other sessions that may introduce unrelated CI failures.",
+      "created_at": "2026-03-09T01:19:59.342236Z"
+    },
+    {
+      "id": "913580b1-ebb8-5663-bafa-2e4f7493ee4d",
+      "author": "ryan.porter",
+      "text": "Progress: Rolled back the performance patch at user request (misdirected task).\nEvidence: revert commit cabe674 on dev reverts prior perf commit 897710c.\nNext: no further changes on this issue unless re-requested.\nRisk/Blocker: none.",
+      "created_at": "2026-03-09T01:25:11.163359Z"
+    }
+  ],
+  "created_at": "2026-03-09T01:17:56.740595Z",
+  "updated_at": "2026-03-12T00:01:08.297120Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

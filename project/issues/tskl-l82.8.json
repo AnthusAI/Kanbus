@@ -1,0 +1,27 @@
+{
+  "id": "tskl-l82.8",
+  "title": "New browser tabs connecting to the console server receive the last-pushed route",
+  "description": "Given the console server is running\nAnd a CLI command previously pushed a route (e.g., kbs console focus tskl-abc)\n\nWhen a new browser tab opens the console at the base URL (no deep link in the URL)\n\nThen the server replays the last-pushed route as an SSE event on the realtime channel\nAnd the browser navigates to that route\nAnd the UI renders the same state as all other connected clients\n\nIf no route has been pushed since server start, the browser shows the default board.\n\nAcceptance criteria:\n- On SSE connection, the server replays the last route-push event to the new subscriber\n- The frontend handles this the same as any other SSE route-push (navigates to the URL)\n- No special endpoint needed -- uses the existing SSE realtime channel",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-l82",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e06b6bbb-02e8-54f7-8ce3-89624f54cddd",
+      "author": "ryan.porter",
+      "text": "Implemented: get_realtime_events_root() now sends replay events to new subscribers before joining the live broadcast stream. Replays focused issue (IssueFocused), view mode (SetViewMode), and search (SetSearch) if they are set in the cached state.",
+      "created_at": "2026-02-20T04:17:35.303293Z"
+    }
+  ],
+  "created_at": "2026-02-20T03:51:20.938275Z",
+  "updated_at": "2026-02-20T04:17:35.303293Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

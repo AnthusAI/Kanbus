@@ -1,0 +1,33 @@
+{
+  "id": "tskl-3du.8",
+  "title": "Fix Python Jinja autoescape alerts #20 and #21",
+  "description": "Use safer Jinja autoescape configuration for non-HTML templates while preserving intended output semantics.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "60773a64-332a-5c67-8e4d-8b09a93d0271",
+      "author": "ryan.porter",
+      "text": "Started. Migrating Jinja environment setup to select_autoescape with file-based template loading to remove autoescape=False usage.",
+      "created_at": "2026-03-06T14:09:35.471526Z"
+    },
+    {
+      "id": "002318aa-db07-5a59-8468-bef7d91ace02",
+      "author": "ryan.porter",
+      "text": "Completed. Replaced Jinja autoescape=False configuration with select_autoescape + loader-based template rendering in agents management and wiki rendering.",
+      "created_at": "2026-03-06T14:13:26.657348Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:05:10.485223Z",
+  "updated_at": "2026-03-06T14:13:26.688648Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

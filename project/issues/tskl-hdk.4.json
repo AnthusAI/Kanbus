@@ -1,0 +1,20 @@
+{
+  "id": "tskl-hdk.4",
+  "title": "Add Docker integration test for prebuilt binaries",
+  "description": "Add a CI job/script that downloads the prebuilt CLI + console server binaries and runs smoke tests inside a fresh Linux Docker container to validate they work without building from source.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-hdk",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T16:11:15.595688Z",
+  "updated_at": "2026-02-15T21:44:36.584945Z",
+  "closed_at": "2026-02-16T01:07:59.168577Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

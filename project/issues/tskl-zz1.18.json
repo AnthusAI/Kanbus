@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.18",
+  "title": "Implement clean policy violation error formatting",
+  "description": "Format PolicyViolation errors in CLI with clear output: policy file, scenario name, failed step, and helpful message.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:29.547837Z",
+  "updated_at": "2026-02-27T07:04:12.479363Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

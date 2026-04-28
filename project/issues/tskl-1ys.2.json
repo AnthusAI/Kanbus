@@ -1,0 +1,20 @@
+{
+  "id": "tskl-1ys.2",
+  "title": "Revise Intro video and homepage to emphasize embedding project context to eliminate disconnected PM tools",
+  "description": "Update intro video voiceover and homepage hero/subtitle/paragraph to introduce the problem (disconnected trackers, coordination with agents), then present Kanbus as eliminating that friction by embedding PM in the repo with a clear paper trail.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-1ys",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-09T12:30:33.781347Z",
+  "updated_at": "2026-03-12T00:11:11.815205Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

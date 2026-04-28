@@ -1,0 +1,20 @@
+{
+  "id": "tskl-5y8.2",
+  "title": "Non-done columns default to FIFO (oldest first) ordering",
+  "description": "Issues in any column whose status does not belong to the Done category are displayed oldest-first (by created_at ascending) by default. This is FIFO order. It is the baseline behavior when no sort_order configuration is present.\n\n## Rationale\n\nFIFO is the correct default for any queue that feeds a continuous delivery process. In Vacanti's framework, aging work in active columns is a signal — the longer something has been sitting, the more likely it is to be blocking flow or accumulating risk. Oldest-first ordering makes that signal impossible to ignore: the card that needs attention most is right at the top. Any other default — priority order, recency, alphabetical — hides aging and trains teams to ignore it.\n\nScenario: Discovery column shows oldest issue first by default\n\nGiven several issues are in the Discovery column with different created_at timestamps\nAnd no sort_order is configured in .kanbus.yml\nWhen the user views the kanban board\nThen the issue with the earliest created_at timestamp appears at the top of the Discovery column\nAnd issues are ordered from oldest to newest going downward\n\nScenario: In Progress column shows oldest issue first by default\n\nGiven several issues are in the In Progress column with different created_at timestamps\nAnd no sort_order is configured\nWhen the user views the kanban board\nThen the issue with the earliest created_at timestamp appears at the top of In Progress\n\nScenario: Blocked column shows oldest blocked issue first by default\n\nGiven several issues are in the Blocked column\nAnd no sort_order is configured\nWhen the user views the kanban board\nThen the oldest blocked issue appears at the top of the Blocked column\n\nScenario: FIFO order applies to Backlog column by default\n\nGiven the Backlog column has issues with different created_at timestamps\nAnd no sort_order is configured\nWhen the user views the kanban board\nThen the oldest issue in Backlog appears at the top",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-5y8",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T13:23:52.894549Z",
+  "updated_at": "2026-03-06T05:50:22.076155Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

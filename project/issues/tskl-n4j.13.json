@@ -1,0 +1,20 @@
+{
+  "id": "tskl-n4j.13",
+  "title": "Unlisted video demo page shows live board and embedded video",
+  "description": "Feature: Video demo page\n  Scenario: Demo page exposes live kanban and video\n    Given I open /demo\n    Then I see an animated kanban board component\n    And I see an embedded intro video player\n\n  Scenario: Demo page is unlisted\n    Given I inspect the primary navigation and footer\n    Then I do not see a link to /demo",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-n4j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T16:48:26.796981Z",
+  "updated_at": "2026-02-22T16:51:18.666147Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}
