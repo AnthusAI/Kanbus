@@ -76,12 +76,14 @@ CI runs this suite in the `beads-interop` job after the standard quality gates.
 
 ## CI publish (semantic-release + crates.io)
 
-Semantic-release runs in `python/` and creates version tags. The release workflow then:
-1. Builds and uploads Python to PyPI (semantic-release).
-2. Syncs `rust/Cargo.toml` version to the semantic-release tag.
-3. Publishes the Rust crate from `rust/`.
+Semantic-release runs in `python/` and creates the release commit. That commit
+updates the Python package version, `rust/Cargo.toml`, and `rust/Cargo.lock`
+before creating the `kanbus-py-*` tag. The semantic-release workflow then adds a
+companion `kanbus-rust-*` tag at the same commit, and `release.yml` publishes
+from that tagged source tree.
 
 Rust publish guardrails:
+- The crate version in `rust/Cargo.toml` must match the `kanbus-rust-*` tag.
 - Steps: `cargo fmt --check`, `cargo clippy --locked -- -D warnings`, `cargo test --locked`, `cargo package --locked`, `cargo publish --locked`.
 - Requires repository secret `CARGO_REGISTRY_TOKEN`.
 
