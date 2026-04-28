@@ -1,0 +1,28 @@
+{
+  "id": "tskl-p3i.1",
+  "title": "Write Gherkin scenarios for dep tree",
+  "description": "Scenarios for: ASCII tree display, depth limit, large trees, --format json/dot options.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-p3i",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "cb88af43-3ae1-5ccd-9058-fafa9308de8d",
+      "author": "Ryan Alyn Porter",
+      "text": "Drafted Gherkin scenarios for dependency tree display (ASCII tree, depth limit, large tree summary, JSON and DOT formats) in specs/features/dependencies/dependency_tree.feature.",
+      "created_at": "2026-02-11T14:29:22Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:04.694588Z",
+  "updated_at": "2026-02-11T14:29:26.265783Z",
+  "closed_at": "2026-02-11T14:29:26.265783Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

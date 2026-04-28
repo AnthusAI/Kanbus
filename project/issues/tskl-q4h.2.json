@@ -1,0 +1,27 @@
+{
+  "id": "tskl-q4h.2",
+  "title": "Remediate Plexus Snyk findings",
+  "description": "Track and remediate all security vulnerabilities found by Snyk in the Plexus repository. 141 unique issues across Python deps, JS/Node deps, and OS/container base images.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek",
+  "parent": "tskl-q4h",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "efe99f29-5bf4-54c2-b648-10b244f7f16b",
+      "author": "derek.norrbom",
+      "text": "Closing in Kanbus repo: Plexus remediation tracking should live in Plexus, not here.",
+      "created_at": "2026-04-02T20:45:27.194725Z"
+    }
+  ],
+  "created_at": "2026-02-25T21:37:31.639249Z",
+  "updated_at": "2026-04-02T20:45:27.194725Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek"
+  }
+}

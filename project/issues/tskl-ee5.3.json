@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ee5.3",
+  "title": "Add Rust discovery/indexing benchmark",
+  "description": "Benchmark Rust indexing for single-project vs recursive multi-project discovery. Capture latency metrics.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ee5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d73068bb-b2a5-580c-8795-072bab509b3e",
+      "author": "Ryan Alyn Porter",
+      "text": "Rust discovery/indexing benchmark implemented in rust/src/bin/discovery_benchmark.rs (serial and parallel, single vs multi).",
+      "created_at": "2026-02-12T00:35:30Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:34:03.462917Z",
+  "updated_at": "2026-02-12T00:35:33.875811Z",
+  "closed_at": "2026-02-12T00:35:33.875811Z",
+  "custom": {
+    "beads_acceptance_criteria": "Rust benchmark or binary reports timing for both modes.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

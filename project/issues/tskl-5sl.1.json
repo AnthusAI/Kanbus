@@ -1,0 +1,39 @@
+{
+  "id": "tskl-5sl.1",
+  "title": "Make CI green: fix rust steps and list output parity",
+  "description": "Fix failing Rust cucumber steps (signatures, duplicates, config fixtures), align list output for local-only/external projects, update ID capture for 6-char display, then run full Black/Ruff/Behave and cargo fmt/clippy/test/coverage until CI is green.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-5sl",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6dcdea70-882d-5211-adf0-fc977dd2e668",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting CI stabilization: analyze /tmp/behave.log for Python failures and undefined steps, fix behavior/spec mismatches (project discovery, list output, config errors), run behave/ruff/black/cargo gates, then commit and push.",
+      "created_at": "2026-02-13T07:27:55Z"
+    },
+    {
+      "id": "fb277cf7-3316-5b51-b43b-a38cce8ced51",
+      "author": "Ryan Alyn Porter",
+      "text": "Work in progress: fixed migration multiple-parents error, removed redundant config reload on create (IssueCreationResult), added Rust daemon test hooks to avoid Unix socket restrictions and updated list/daemon steps. Tests: python3 -m behave (pass), cargo test --manifest-path rust/Cargo.toml --test cucumber -- --fail-fast (pass), cargo clippy --manifest-path rust/Cargo.toml -- -D warnings (pass), cargo fmt --check (pass), python3 -m ruff check python/ (pass), python3 -m black --check python/ (pass), python3 tools/check_spec_parity.py (pass), python3 tools/run_specs.py (Python coverage 95.7%, Rust coverage 92.6%).",
+      "created_at": "2026-02-13T08:42:53Z"
+    },
+    {
+      "id": "bff730ef-9596-5891-baab-ff165a0301f8",
+      "author": "Ryan Alyn Porter",
+      "text": "Resuming work. Updated daemon lifecycle steps and client test helpers; added project dotfile scenarios and beads write error scenarios. Need to finish migration parity, fix remaining coverage gaps, and re-run full quality gates before commit/push.",
+      "created_at": "2026-02-13T09:25:04Z"
+    }
+  ],
+  "created_at": "2026-02-13T06:54:10.948344Z",
+  "updated_at": "2026-02-16T01:07:59.183959Z",
+  "closed_at": "2026-02-16T01:07:59.166953Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

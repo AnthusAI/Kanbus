@@ -1,0 +1,27 @@
+{
+  "id": "tskl-eo2",
+  "title": "Realtime gossip and overlay cache",
+  "description": "## Intent\nAs a contributor, I want realtime gossip and an overlay cache so that collaborators can see changes immediately without weakening Git as the source of truth.\n\n## Definition of Done\n- UDS and MQTT transports implemented with identical semantics in Rust and Python.\n- Overlay merge and GC behavior implemented and verified.\n- CLI commands for gossip and overlay available in both runtimes.\n- Documentation updated with realtime guide and references.\n- BDD specs green and parity check passes.",
+  "type": "initiative",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "01037be2-3f0b-50be-8765-ebd83983926c",
+      "author": "ryan.porter",
+      "text": "Progress: Added cloud runtime epic tskl-eo2.5 with full DoD and child task breakdown.\nEvidence: New epic title 'Cloud serverless console backend (AWS Lambda + EFS + IoT Core)'.\nNext: Track cloud implementation milestones in tskl-eo2.5 with low-noise state/comments.",
+      "created_at": "2026-03-07T06:05:01.037174Z"
+    }
+  ],
+  "created_at": "2026-03-06T18:04:20.528526Z",
+  "updated_at": "2026-03-10T03:24:57.325762Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

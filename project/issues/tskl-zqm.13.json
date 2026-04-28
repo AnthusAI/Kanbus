@@ -1,0 +1,33 @@
+{
+  "id": "tskl-zqm.13",
+  "title": "Ensure Python coverage data",
+  "description": "Ensure Python coverage collects data by importing taskulus in tests.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "your@email.com",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-zqm",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "90221b61-b242-5eb5-b5bd-8f637f594cb7",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated placeholder test to import taskulus and assert __version__ to ensure coverage data is collected.",
+      "created_at": "2026-02-11T04:34:16Z"
+    },
+    {
+      "id": "320202be-5fd8-5745-b7e7-4eb5a50b353a",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated placeholder test to import taskulus by adjusting sys.path to python/src, ensuring coverage data is collected. make check-python passed.",
+      "created_at": "2026-02-11T04:35:25Z"
+    }
+  ],
+  "created_at": "2026-02-11T04:33:56.533190Z",
+  "updated_at": "2026-02-11T04:35:32.579562Z",
+  "closed_at": "2026-02-11T04:35:32.579565Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

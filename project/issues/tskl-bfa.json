@@ -1,0 +1,20 @@
+{
+  "id": "tskl-bfa",
+  "title": "epic Local configuration overrides",
+  "description": "Support a .kanbus.override.yml file that is gitignored and merges additively with .kanbus.yml, enabling per-developer local settings such as virtual project mappings.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T18:39:42.067376Z",
+  "updated_at": "2026-02-21T18:52:46.978844Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

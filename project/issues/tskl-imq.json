@@ -1,0 +1,27 @@
+{
+  "id": "tskl-imq",
+  "title": "Fix CONTRIBUTING_AGENT.md documenting non-existent deferred status",
+  "description": "CONTRIBUTING_AGENT.md documents a 'deferred' status and its workflow transitions, but this status doesn't exist in the current .kanbus.yml configuration. The file needs to be regenerated after the default config is updated to use backlog.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "41c683c2-169b-51ea-bcd8-f8db82d613e8",
+      "author": "ryan.porter",
+      "text": "Regenerated CONTRIBUTING_AGENT.md. Now shows backlog workflow correctly.",
+      "created_at": "2026-02-21T15:19:44.930577Z"
+    }
+  ],
+  "created_at": "2026-02-21T14:57:34.223568Z",
+  "updated_at": "2026-02-21T15:19:44.930577Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -407,6 +407,7 @@ fn apply_query(
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
+    use serial_test::serial;
     use std::env;
     use tempfile::TempDir;
 
@@ -501,6 +502,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn list_issues_with_local_respects_local_only_and_combined_modes() {
         let temp_dir = TempDir::new().expect("tempdir");
         let project_dir = temp_dir.path().join("project");
@@ -551,6 +553,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn list_issues_with_local_uses_test_error_override() {
         let temp_dir = TempDir::new().expect("tempdir");
         let project_dir = temp_dir.path().join("project");

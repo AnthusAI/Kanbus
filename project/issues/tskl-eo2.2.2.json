@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.2.2",
+  "title": "UDS broker fans out to topic subscribers",
+  "description": "## Intent\nAs a local developer, I want a UDS broker to fan out publications so local tools can subscribe without MQTT.\n\n## Gherkin\nFeature: UDS broker\n  Scenario: Fan out by topic\n    Given the UDS broker is running\n    And a subscriber is registered for \"projects/kbs/events\"\n    When a publisher sends a message to that topic\n    Then the subscriber receives the message\n\n## Definition of Done\n- UDS broker supports multiple subscribers and publishes to matching topics.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:04:55.830775Z",
+  "updated_at": "2026-03-10T03:24:44.271534Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

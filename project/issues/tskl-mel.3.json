@@ -1,0 +1,33 @@
+{
+  "id": "tskl-mel.3",
+  "title": "Implement tsk init in Rust",
+  "description": "Implement config.rs, file_io.rs, cli.rs with clap. Make all scenarios pass. Ensure JSON/YAML output matches Python exactly.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "your@email.com",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-mel",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "eb8f2392-78d1-5a2c-8a81-16e53285e3aa",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: implement tsk init in Rust with matching behavior and step definitions; remove @wip tags and ensure parity checks pass.",
+      "created_at": "2026-02-11T05:04:49Z"
+    },
+    {
+      "id": "8aa8b986-8590-555c-bcb8-c7750e4a5a7d",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Rust tsk init with CLI, config defaults, file IO, error handling, and cucumber step definitions. Removed @wip tags and confirmed parity check passes. make check-rust passed.",
+      "created_at": "2026-02-11T05:11:09Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:38:42.482704Z",
+  "updated_at": "2026-02-11T05:11:18.267547Z",
+  "closed_at": "2026-02-11T05:11:18.267549Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

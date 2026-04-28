@@ -1,0 +1,66 @@
+{
+  "id": "tskl-pkw.3",
+  "title": "Raise Python coverage to 100% with Gherkin-only specs",
+  "description": "Convert remaining behavior into shared Gherkin specs and implement matching steps so behave covers all Python code. No pytest allowed.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-pkw",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5178396e-3ea1-5d48-be15-4fe40cb203fa",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting work: rerun behave after daemon override, fix failing specs, then drive coverage to 100% via shared Gherkin only. Will keep parity with Rust features and steps.",
+      "created_at": "2026-02-11T15:33:49Z"
+    },
+    {
+      "id": "f214e2eb-cc9f-5e35-83fc-be632ade0191",
+      "author": "Ryan Alyn Porter",
+      "text": "Moved shared Gherkin location to repo root features/. Updated python/features/specs and rust/features/specs symlinks to ../../features, updated parity tool path, and refreshed AGENTS.md and planning references. Features now run from a single root folder.",
+      "created_at": "2026-02-11T15:58:27Z"
+    },
+    {
+      "id": "3f79f37f-c19c-5a2e-a831-a632e373ee93",
+      "author": "Ryan Alyn Porter",
+      "text": "Removed feature symlinks and added shared root features/ with proxy steps loader (features/steps/steps.py) and environment proxy (features/environment.py). Updated behave config and rust cucumber path. Python behave and Rust cucumber both pass; parity tool updated to normalize placeholder quotes.",
+      "created_at": "2026-02-11T16:49:06Z"
+    },
+    {
+      "id": "051014b9-6627-5708-b306-3aaa50e3a1b6",
+      "author": "Ryan Alyn Porter",
+      "text": "Resuming coverage push: run python coverage report for behave run, identify uncovered modules/lines, add shared Gherkin scenarios and steps to cover remaining taskulus code while keeping Rust parity. No commits per instruction; will update task with progress and rerun behave + rust cucumber + parity check.",
+      "created_at": "2026-02-11T16:50:24Z"
+    },
+    {
+      "id": "18d70634-8d4b-5f49-9a70-17f548e0e77c",
+      "author": "Ryan Alyn Porter",
+      "text": "Resuming work. Plan: fix remaining Rust cucumber failures (env leakage, timestamp, id generation), re-run rust cucumber, re-run spec parity and python coverage. No commits per instructions.",
+      "created_at": "2026-02-11T18:43:13Z"
+    },
+    {
+      "id": "118fcbde-baec-595a-bd68-93cb226e6d06",
+      "author": "Ryan Alyn Porter",
+      "text": "Updates: added CLI entrypoint feature + steps, covered daemon entrypoint via run_module and stale socket removal, refactored dependency cycle check to use project_dir. Python coverage now 100%. Rust cucumber passing. Tests run: python tools/check_spec_parity.py, cd python && coverage run --source=taskulus -m behave && coverage report -m, cd rust && cargo test --test cucumber.",
+      "created_at": "2026-02-11T18:53:33Z"
+    },
+    {
+      "id": "5f8857b4-32c3-5fcd-ab9a-3ed87bc1ae08",
+      "author": "Ryan Alyn Porter",
+      "text": "Benchmarks work did not touch python/src/taskulus behavior; previous behave coverage remains 100% and shared Gherkin parity intact.",
+      "created_at": "2026-02-11T19:44:27Z"
+    }
+  ],
+  "created_at": "2026-02-11T15:25:11.097343Z",
+  "updated_at": "2026-02-11T19:44:32.719116Z",
+  "closed_at": "2026-02-11T19:44:32.719116Z",
+  "custom": {
+    "beads_acceptance_criteria": "Coverage report via behave reaches 100% for python/src/taskulus. All specs are shared and identical for Rust and Python.",
+    "beads_close_reason": "Closed",
+    "beads_notes": "Starting work: fix remaining Gherkin parity and failing migration errors; run Python/Rust Gherkin suites and parity checks. No commits per instruction.\nProgress: fixed migration malformed-records test data and Rust migration run_case mutability; added Rust project module + made file_io discovery helpers pub(crate); removed Rust comment generic step and added specific comment steps for query scenarios; fixed Rust CLI create title parsing to allow missing title (returns \"title is required\"); aligned Rust stats invalid-json error message; removed duplicate issue_show description step to avoid ambiguity; aligned workflow lookup step to be parameterized; added Python comment steps for tsk-note/tsk-dup and removed generic comment step; removed Python issue_show description step; aligned Rust/Python parity. Tests: cd python && behave; cd rust && cargo test --test cucumber; python tools/check_spec_parity.py.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

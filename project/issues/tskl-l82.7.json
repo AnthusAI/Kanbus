@@ -1,0 +1,33 @@
+{
+  "id": "tskl-l82.7",
+  "title": "Search query and focused issue are encoded in the URL so any state can be reached via deep link",
+  "description": "Given a user is viewing the console board with a search query active\n\nWhen I copy the URL from the browser address bar\nAnd open it in a new tab\n\nThen the new tab renders the same search results\n\nGiven an issue is focused (showing issue and descendants)\n\nWhen I copy the URL from the browser address bar\nAnd open it in a new tab\n\nThen the new tab shows the same focused issue and its descendants\n\nAcceptance criteria:\n- Search query is encoded as a query parameter: ?search=<query>\n- Focused issue is encoded in the URL path (already partially works via /issues/:parentId/all pattern)\n- View mode is in the URL path (already works)\n- On page load, the frontend reads ALL state from the URL and renders accordingly\n- Refreshing the page preserves the complete UI state\n- This means SSE ui_control events just trigger URL changes, and the frontend renders from the URL",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-l82",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9290e7d1-5881-5ca8-b6de-f02184236b8f",
+      "author": "ryan.porter",
+      "text": "Implemented: search query and focused issue are now encoded in the URL as query parameters (?search=, ?focused=). parseRoute() reads them on every parse. buildUrl() helper constructs URLs with these params. Handlers for search change/clear, focus, clear_focus, and set_search all update the URL via replaceState. Back/forward navigation hydrates React state from URL params. Build and tsc both clean.",
+      "created_at": "2026-02-20T04:06:34.597616Z"
+    },
+    {
+      "id": "2a2f251e-18f1-5830-873b-b99c8c22c588",
+      "author": "ryan.porter",
+      "text": "Implemented: search query and focused issue are now encoded in the URL as query parameters (?search=, ?focused=). parseRoute() reads them on every parse. buildUrl() helper constructs URLs with these params. Handlers for search change/clear, focus, clear_focus, and set_search all update the URL via replaceState. Back/forward navigation hydrates React state from URL params. Build and tsc both clean.",
+      "created_at": "2026-02-20T04:06:39.225274Z"
+    }
+  ],
+  "created_at": "2026-02-20T03:15:49.745499Z",
+  "updated_at": "2026-02-20T04:06:39.225274Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "tskl-538",
+  "title": "Dependency Management",
+  "description": "Implement dependency operations (blocked-by, relates-to), cycle detection, and ready query. Full dependency graph management.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 0,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-9w4",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-11T01:32:57.866747Z",
+  "updated_at": "2026-02-12T03:42:49.096605Z",
+  "closed_at": "2026-02-12T03:42:49.096605Z",
+  "custom": {
+    "beads_close_reason": "All child tasks completed; dependency management implemented and parity verified.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

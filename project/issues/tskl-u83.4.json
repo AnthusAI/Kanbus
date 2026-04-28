@@ -1,0 +1,20 @@
+{
+  "id": "tskl-u83.4",
+  "title": "Document per-project keys with shared datastore",
+  "description": "Note for features page: Taskulus uses configurable project_key per repository and can share a central datastore while keeping IDs namespaced, preventing collisions across projects.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "@ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-u83",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T03:22:39.960932Z",
+  "updated_at": "2026-02-16T01:07:59.199769Z",
+  "closed_at": "2026-02-16T01:07:59.168302Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "tskl-25d",
+  "title": "Repair PR110 rust embedded-assets CI regression from malformed Beads issue store",
+  "description": "PR #110 CI run 23508740344 failed rust cucumber embedded-assets scenarios because /api/config returned 500 (JSON parse EOF) due malformed .beads/issues.jsonl introduced in commit d00a3f3. Restore issue store from previous good revision and verify embedded-assets scenarios pass.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "derek.norrbom",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "fe08aec5-35d2-555f-95d3-cbae203b8707",
+      "author": "derek.norrbom",
+      "text": "Reproduced CI failure locally: cargo test --locked --test cucumber -- --name 'Embedded console assets|Zero-config console execution|Filesystem override takes precedence|Development build uses filesystem only' -vv failed 3/3 scenarios at 'When I start the console server' with 'Console server failed to become ready'. Root cause confirmed: /api/config returned HTTP 500 with JSON parse error 'EOF while parsing a string at line 1 column 479' due malformed .beads/issues.jsonl in commit d00a3f3.",
+      "created_at": "2026-03-24T19:57:48.509385Z"
+    },
+    {
+      "id": "cde2def3-9c5e-564e-bd16-b3561f550048",
+      "author": "derek.norrbom",
+      "text": "Found and fixed Beads issue-store corruption: removed malformed truncated line in .beads/issues.jsonl and removed duplicate stale tskl-rbi.3 record. Validation: jq parses full JSONL; kbs list works again for open/in_progress.",
+      "created_at": "2026-03-24T22:15:03.742420Z"
+    }
+  ],
+  "created_at": "2026-03-24T19:57:44.072064Z",
+  "updated_at": "2026-03-24T22:15:03.742420Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

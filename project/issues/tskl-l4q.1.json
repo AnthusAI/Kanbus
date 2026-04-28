@@ -1,0 +1,33 @@
+{
+  "id": "tskl-l4q.1",
+  "title": "Write README.md",
+  "description": "Project intro, features, installation (pip/cargo), quick start (5 commands), link to other docs. Explicitly state Python vs Rust guidance.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "your@email.com",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-l4q",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "8c7aca5b-f4e4-57aa-8b29-018265dcc315",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: update README with intro, features, installation for pip and cargo, 5-command quick start, links to other docs, and Python vs Rust guidance.",
+      "created_at": "2026-02-11T02:52:29Z"
+    },
+    {
+      "id": "04a1564e-d520-5e78-a5ab-25ee770d94d5",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated README with installation section (pip/cargo), 5-command quick start, ASCII project tree, expanded documentation links, and removed non-ASCII symbols and emoji checkmarks.",
+      "created_at": "2026-02-11T02:53:42Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:06.212766Z",
+  "updated_at": "2026-02-11T02:53:48.182357Z",
+  "closed_at": "2026-02-11T02:53:48.182360Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

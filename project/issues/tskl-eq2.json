@@ -1,0 +1,29 @@
+{
+  "id": "tskl-eq2",
+  "title": "Adjust footer attribution layout",
+  "description": "Move footer attribution block to right side, avoid double footer rows, and change text to 'by Ryan Porter' with link.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "568fa91a-93e6-5289-877a-6389f37cb59c",
+      "author": "Ryan Alyn Porter",
+      "text": "Moved footer attribution into the main footer grid on the right side and updated text to 'by Ryan Porter'. Tests not run (site build not executed).",
+      "created_at": "2026-02-12T07:34:12Z"
+    }
+  ],
+  "created_at": "2026-02-12T07:33:15.681778Z",
+  "updated_at": "2026-02-12T07:34:16.952125Z",
+  "closed_at": "2026-02-12T07:34:16.952125Z",
+  "custom": {
+    "beads_acceptance_criteria": "Footer attribution moved to right side, avoids extra footer row, and shows 'by Ryan Porter' with link.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

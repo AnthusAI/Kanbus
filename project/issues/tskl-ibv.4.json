@@ -1,0 +1,27 @@
+{
+  "id": "tskl-ibv.4",
+  "title": "Backend: load and paginate events for an issue",
+  "description": "As an API consumer viewing an issue, I want to retrieve that issue’s events with predictable paging, so that the UI can show timelines without indexing.\n\nAcceptance Criteria:\n- Backend scans project/events/*.json, filters by issue_id, orders by filename/timestamp.\n- Supports pagination and/or time-window parameters to bound IO.\n- No alternate storage or indexing; file scan is the single path.\n- Returns event list with event-specific payloads intact.",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan",
+  "parent": "tskl-ibv",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "728f3032-ac62-56b3-bd6b-379cd0990308",
+      "author": "ryan",
+      "text": "Completed: console backend now scans event files and exposes GET /api/issues/:id/events (and multi-tenant path) with limit/before cursor, returning {issue_id, events, next_before}.",
+      "created_at": "2026-02-21T07:09:36.119365Z"
+    }
+  ],
+  "created_at": "2026-02-21T06:16:17.978806Z",
+  "updated_at": "2026-02-21T07:09:36.119365Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan"
+  }
+}

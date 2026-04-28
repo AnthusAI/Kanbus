@@ -1,0 +1,42 @@
+{
+  "id": "tskl-nqs.5",
+  "title": "Epic 16: Installation smooth on all platforms",
+  "description": "Tested on 3+ platforms, doctor command helps users diagnose issues, pre-built binaries available.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-nqs",
+  "labels": [
+    "backlog"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3e26ad41-f3b2-5c4b-b010-97b61eec7b88",
+      "author": "Ryan Alyn Porter",
+      "text": "Installation smoothness depends on packaging outputs and platform verification; blocked pending tskl-nqs.1/tskl-nqs.2 outcomes.",
+      "created_at": "2026-02-12T03:23:14Z"
+    },
+    {
+      "id": "4d93c680-792b-5f2d-a9c0-c9b4e45af0ce",
+      "author": "Ryan Alyn Porter",
+      "text": "Added tools/verify_rust_binary.py to smoke-test the release binary (tsk init/doctor in temp repo). Local run succeeded against rust/target/release/taskulus; cross-platform validation still pending.",
+      "created_at": "2026-02-12T03:26:54Z"
+    },
+    {
+      "id": "43bada75-2919-5625-afad-4f6faefe26f9",
+      "author": "Ryan Alyn Porter",
+      "text": "Added tools/verify_installation_suite.py to orchestrate Rust release build + binary verification and optional Python install check (--python). Local run with --skip-python succeeded.",
+      "created_at": "2026-02-12T03:27:39Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:07.861619Z",
+  "updated_at": "2026-02-12T09:57:48.873645Z",
+  "closed_at": "2026-02-12T09:57:48.873647Z",
+  "custom": {
+    "beads_notes": "Plan: record current install status by platform in INSTALL.md; note remaining platform validation for Python/Rust binaries.\nAdded platform status table to INSTALL.md. macOS local validation recorded; Linux/Windows pending.\nAdding a short note in INSTALL.md about PATH/venv for the tsk console script to improve readability.\nNo further local-only improvements available without cross-platform testing or binary packaging. Remaining work requires Linux/Windows validation or CI/packaging pipeline.\nPython install matrix and Rust binaries complete; installation distribution epic satisfied.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

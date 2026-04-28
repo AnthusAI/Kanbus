@@ -52,6 +52,7 @@ from kanbus.migration import (
     load_beads_issue,
     load_beads_issues,
     migrate_from_beads,
+    migrate_from_beads_into_project,
 )
 from kanbus.doctor import DoctorError, run_doctor
 from kanbus.maintenance import (
@@ -2596,14 +2597,25 @@ def doctor() -> None:
 
 
 @cli.command("migrate")
-def migrate() -> None:
+@click.option(
+    "--into-existing",
+    is_flag=True,
+    help=(
+        "Import Beads issues into an already initialized project. "
+        "Repeatable: re-runs and overwrites matching issue JSON files."
+    ),
+)
+def migrate(into_existing: bool) -> None:
     """Migrate Beads issues into Kanbus.
 
     :raises click.ClickException: If migration fails.
     """
     root = Path.cwd()
     try:
-        result = migrate_from_beads(root)
+        if into_existing:
+            result = migrate_from_beads_into_project(root)
+        else:
+            result = migrate_from_beads(root)
     except MigrationError as error:
         raise click.ClickException(str(error)) from error
     click.echo(f"migrated {result.issue_count} issues")

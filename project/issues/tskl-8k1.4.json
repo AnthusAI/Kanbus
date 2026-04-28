@@ -1,0 +1,62 @@
+{
+  "id": "tskl-8k1.4",
+  "title": "Python daemon and client path",
+  "description": "Implement connect-or-spawn client behavior and resident daemon in Python with in-memory query indexes and write-through updates.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-8k1",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-8k1.2",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-8k1.3",
+      "type": "blocks"
+    }
+  ],
+  "comments": [
+    {
+      "id": "9af75b46-487c-5480-8676-4b66ff4ed9ff",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting: plan Python client connect-or-spawn and daemon skeleton based on daemon lifecycle spec and IPC protocol doc.",
+      "created_at": "2026-02-11T07:42:04Z"
+    },
+    {
+      "id": "e56bb70f-a0d8-59f5-b54e-819d42c73a37",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Python daemon scaffolding: protocol models, daemon server/client, socket/cache path helpers, and list command using daemon by default with local fallback when TASKULUS_NO_DAEMON=1. Added IPC index.list action and daemon entry point.",
+      "created_at": "2026-02-11T07:45:32Z"
+    },
+    {
+      "id": "8a5c6ab6-ba47-530e-b3bc-752a88ccdf3f",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran make check-python after daemon client/server additions; black/ruff/pytest/behave passing (behave skips @wip).",
+      "created_at": "2026-02-11T07:46:10Z"
+    },
+    {
+      "id": "36e5961d-0b94-55ce-a831-81d68dc3f6e3",
+      "author": "Ryan Alyn Porter",
+      "text": "Completed Python daemon/client path with socket reuse, spawn-on-missing, stale socket recovery, and no-daemon fallback via TASKULUS_NO_DAEMON. Added list command backed by daemon index.list action.",
+      "created_at": "2026-02-11T07:46:22Z"
+    },
+    {
+      "id": "d069c395-79ab-56d6-a4b1-0ddd2fb15f10",
+      "author": "Ryan Alyn Porter",
+      "text": "Commit: 7b8f23f. Tests: make check-python.",
+      "created_at": "2026-02-11T07:47:34Z"
+    }
+  ],
+  "created_at": "2026-02-11T06:31:40.246825Z",
+  "updated_at": "2026-02-11T07:46:17.349826Z",
+  "closed_at": "2026-02-11T07:46:17.349826Z",
+  "custom": {
+    "beads_acceptance_criteria": "Python CLI auto-starts daemon when needed, reuses socket when healthy, and serves indexed query paths.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

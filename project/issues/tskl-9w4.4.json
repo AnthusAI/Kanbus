@@ -1,0 +1,33 @@
+{
+  "id": "tskl-9w4.4",
+  "title": "Write Gherkin scenarios for tsk close and delete",
+  "description": "Scenarios for: close issue, delete issue, delete with children error, delete with dependencies warning.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "your@email.com",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-9w4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "8e2a2c40-8013-531f-9bd6-187875785812",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: write Gherkin scenarios for tsk close and tsk delete. Acceptance: close sets status closed and closed_at, delete removes issue, missing issue errors, all @wip.",
+      "created_at": "2026-02-11T06:26:26Z"
+    },
+    {
+      "id": "4b10e642-345e-5a55-a71a-bcbe1ea5a066",
+      "author": "Ryan Alyn Porter",
+      "text": "Added issue_close_delete.feature with close/delete scenarios.",
+      "created_at": "2026-02-11T06:26:39Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:38:45.721312Z",
+  "updated_at": "2026-02-11T06:26:43.627867Z",
+  "closed_at": "2026-02-11T06:26:43.627869Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

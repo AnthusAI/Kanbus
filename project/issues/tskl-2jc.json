@@ -1,0 +1,20 @@
+{
+  "id": "tskl-2jc",
+  "title": "Fix behave failures in check-all",
+  "description": "make check-all on 2026-02-14 failed: agents_management non-interactive overwrite; beads_mode compatibility; multi-project list/ready; daemon status/stop; migration malformed records; project utilities; console snapshot scenarios; workflow transitions. See last make check-all output.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T17:39:05.857881Z",
+  "updated_at": "2026-02-16T01:07:59.179859Z",
+  "closed_at": "2026-02-16T01:07:59.166078Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

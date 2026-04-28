@@ -1,0 +1,70 @@
+{
+  "id": "tskl-5sl",
+  "title": "CRUD CLI parity testing for tsk/tskr vs beads",
+  "description": "Establish a temporary test repository under tmp/test-project with Beads initialized to validate CRUD commands. Document one-to-one mappings between tsk/tskr CLI commands and their beads equivalents and note gaps. Polish behaviors and tests as needed.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5991847f-1be1-519b-9e18-a2c8ced4ccb4",
+      "author": "Ryan Alyn Porter",
+      "text": "Created tmp/test-project as isolated git repo and copied .beads from Taskulus (excluding bd.sock/lock/pid) for CLI parity testing.",
+      "created_at": "2026-02-12T21:18:11Z"
+    },
+    {
+      "id": "f35529a9-ba13-5427-ba9c-1cd8b7fb8654",
+      "author": "Ryan Alyn Porter",
+      "text": "Initialized tmp/test-project as standalone git repo, copied .beads (excluding socket/lock/pid), updated repo ID with bd migrate --update-repo-id, imported JSONL, and removed redirect file so bd commands run cleanly there.",
+      "created_at": "2026-02-12T21:20:31Z"
+    },
+    {
+      "id": "4e98e304-af2c-50ca-9625-f2e46161f452",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran CLI parity smoke in tmp/test-project:\\n- bd create -> tskl-aws (stored in .beads; bd show renders Beads formatting).\\n- tsk (python) --beads create -> tsk-f33794 stored in project/issues/*.json (not visible to bd).\\n- tskr (rust) --beads create -> tsk-9fbf53 stored in project/issues/*.json (not visible to bd).\\nUsed project-local init for tsk/tskr; outputs captured for comparison.",
+      "created_at": "2026-02-12T21:26:01Z"
+    },
+    {
+      "id": "11716ac5-d2bd-5821-96c5-668e19686f39",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran CLI parity smoke in tmp/test-project:\\n- bd create -> tskl-aws (stored in .beads; bd show renders Beads formatting).\\n- tsk (python) --beads create -> kanbus-f33794 stored in project/issues/*.json (not visible to bd).\\n- tskr (rust) --beads create -> kanbus-9fbf53 stored in project/issues/*.json (not visible to bd).\\nUsed project-local init for tsk/tskr; outputs captured for comparison.",
+      "created_at": "2026-02-12T21:26:01Z"
+    },
+    {
+      "id": "fccee6e2-be63-5ae5-ab6d-a88ef35e3e74",
+      "author": "Ryan Alyn Porter",
+      "text": "Patched rust cucumber runner to avoid canonicalize failure on features path; cargo test (rust) now passes. Cleaned tmp/test-project and pushed commit 0654d6e to main after bd sync.",
+      "created_at": "2026-02-13T00:51:30Z"
+    },
+    {
+      "id": "4e62219f-60ae-57ae-bfc8-33615d7b1ae3",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran Python behave suite under .venv (Python 3.11) with coverage collection. All 34 features passed (272 scenarios, 0 failed). Coverage when measuring all code showed 99% overall including step defs; source-only report (coverage run --source=src) currently ~72% (many step-driven paths not fully covered). No code changes after tests; working tree clean.",
+      "created_at": "2026-02-13T01:37:40Z"
+    },
+    {
+      "id": "2cd486d8-46da-571b-a787-cdfc50c64b60",
+      "author": "Ryan Alyn Porter",
+      "text": "Recreated tmp/test-project with copied .beads, added .taskulus.yml to include event type. Ran CRUD smoke:\n- tsk create -> tsk-29cf7a; tskr create -> tsk-56a696; bd create -> tskl-y7j.\n- Updated each to in_progress with descriptions using respective CLIs.\n- Verified show outputs for all three; list works now in tsk/tskr with Beads data after config and repo-id migration. tmp/test-project left in place for further CRUD comparisons.",
+      "created_at": "2026-02-13T01:52:13Z"
+    },
+    {
+      "id": "5dba252f-7da5-5bf2-9cb1-b344120d6240",
+      "author": "Ryan Alyn Porter",
+      "text": "Recreated tmp/test-project with copied .beads, added .taskulus.yml to include event type. Ran CRUD smoke:\n- tsk create -> kanbus-29cf7a; tskr create -> kanbus-56a696; bd create -> tskl-y7j.\n- Updated each to in_progress with descriptions using respective CLIs.\n- Verified show outputs for all three; list works now in tsk/tskr with Beads data after config and repo-id migration. tmp/test-project left in place for further CRUD comparisons.",
+      "created_at": "2026-02-13T01:52:13Z"
+    }
+  ],
+  "created_at": "2026-02-12T21:17:16.006061Z",
+  "updated_at": "2026-02-16T01:07:59.183104Z",
+  "closed_at": "2026-02-16T01:07:59.166943Z",
+  "custom": {
+    "beads_acceptance_criteria": "1) Temporary repo tmp/test-project exists with Beads initialized using copied .beads state.\n2) Mappings documented for each CRUD-related tsk/tskr command to beads equivalents, including any discrepancies.\n3) Scenarios/tests added or updated to cover CRUD CLI behaviors using the test repo.\n4) Epic status updated with results and follow-ups.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

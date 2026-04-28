@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.5",
+  "title": "Add detail panel close command",
+  "description": "Add CLI command to close the detail panel.\n\nCommand: kbs console close-detail\n\nBehavior:\n- Closes detail panel (clears selectedTask)\n- Navigates to current viewMode root URL\n- Returns to board view\n- Idempotent (safe when detail already closed)\n\nImplementation:\n- Add DetailPanelClosed UIControl event\n- Frontend handler calls same logic as detail panel close button\n- Should match onClose handler behavior (lines 1076-1086 in App.tsx)",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:51:17.426590Z",
+  "updated_at": "2026-02-18T13:16:32.532505Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

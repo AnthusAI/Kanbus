@@ -1,0 +1,27 @@
+{
+  "id": "tskl-q4h.5",
+  "title": "Add snippets + line ranges",
+  "description": "Include file path, start/end line+column, and local code snippets in Snyk Code issue descriptions.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek.norrbom",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "238c1d0a-f042-59d1-ada7-f04dfed6d0c5",
+      "author": "derek.norrbom",
+      "text": "Closing: file/region parsing + line/column custom fields + local snippet extraction implemented in Rust/Python with tests.",
+      "created_at": "2026-04-02T20:45:27.009868Z"
+    }
+  ],
+  "created_at": "2026-02-27T23:00:35.814522Z",
+  "updated_at": "2026-04-02T20:45:27.009868Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

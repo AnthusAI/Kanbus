@@ -1,0 +1,47 @@
+{
+  "id": "tskl-l4q.12",
+  "title": "Add spec runner tool",
+  "description": "Create a tool script to run all Gherkin specs for Python and Rust and report results plus coverage in a single summary.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-l4q",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b390d896-c2af-5c68-9aeb-227563832017",
+      "author": "Ryan Alyn Porter",
+      "text": "Added tools/run_specs.py to run Python Behave with coverage, Rust cucumber tests, and cargo-tarpaulin coverage with a JSON summary. Includes --skip-rust-coverage flag.",
+      "created_at": "2026-02-11T21:01:15Z"
+    },
+    {
+      "id": "8cd83f2d-9cbc-5e66-8b78-a3dd9b3c12b1",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran tools/run_specs.py after updating coverage --source. Python ok with 100% coverage. Rust specs ok. Rust coverage failed because cargo-tarpaulin is not installed; tool reports the error and exits 1 unless --skip-rust-coverage is used.",
+      "created_at": "2026-02-11T21:06:13Z"
+    },
+    {
+      "id": "60036806-01da-572a-a7de-84ba0ad40eb9",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated tools/run_specs.py to scope Python coverage to taskulus and to read rust/cobertura.xml from cargo-tarpaulin. Added rust coverage error reporting in JSON summary.",
+      "created_at": "2026-02-11T21:12:32Z"
+    },
+    {
+      "id": "2f24ad0f-81a8-5f97-8e16-abf221a68688",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated tools/run_specs.py to run cargo tarpaulin with engine llvm, run-types Tests, test cucumber, implicit test threads, and exclude src/bin/*. Rust coverage still reports ~0.3%.",
+      "created_at": "2026-02-11T21:18:32Z"
+    }
+  ],
+  "created_at": "2026-02-11T21:00:39.955405Z",
+  "updated_at": "2026-02-11T21:01:19.465270Z",
+  "closed_at": "2026-02-11T21:01:19.465270Z",
+  "custom": {
+    "beads_acceptance_criteria": "Tool runs Python behave with coverage and Rust cucumber tests; prints summary including pass/fail and coverage metrics.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

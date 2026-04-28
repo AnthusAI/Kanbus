@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ee5.2",
+  "title": "Add Python discovery/indexing benchmark",
+  "description": "Benchmark Python indexing for single-project vs recursive multi-project discovery. Capture latency metrics.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ee5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b63793e9-11cb-5ada-8510-a584967a3192",
+      "author": "Ryan Alyn Porter",
+      "text": "Python discovery/indexing benchmark implemented in tools/benchmark_discovery.py (serial and parallel, single vs multi).",
+      "created_at": "2026-02-12T00:35:17Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:34:00.599539Z",
+  "updated_at": "2026-02-12T00:35:24.730047Z",
+  "closed_at": "2026-02-12T00:35:24.730047Z",
+  "custom": {
+    "beads_acceptance_criteria": "Python benchmark script reports timing for both modes.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

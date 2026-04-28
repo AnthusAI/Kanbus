@@ -1,0 +1,20 @@
+{
+  "id": "tskl-3et.4",
+  "title": "Stacked bar chart showing issues by status category color",
+  "description": "Implement the stacked bar chart in the metrics panel. Bars are grouped by a chosen dimension (e.g. issue type or project) and each bar is segmented by status, with segments colored by the status category color from .kanbus.yml.\n\nScenario: Chart shows a bar per issue type\n\nGiven the metrics view is active\nThen the chart displays one bar per issue type that has at least one issue in the current filtered view\nAnd each bar is labeled with the issue type name\n\nScenario: Each bar segment is colored by status category\n\nGiven the chart is rendered\nThen each segment within a bar represents a status\nAnd the segment color matches the category color for that status: grey (Radix gray) for To Do, blue for In Progress, green for Done\nAnd if a status has no category color a neutral fallback color is used\n\nScenario: Chart colors use the same Radix color tokens as the rest of the UI\n\nGiven the chart is rendered in light mode\nThen chart segment colors use the Radix light-mode scale values for gray, blue, and green\nGiven the chart is rendered in dark mode\nThen chart segment colors use the Radix dark-mode scale values\n\nScenario: Chart is responsive\n\nGiven the metrics panel is visible\nThen the chart fills the available width of its container\nAnd rescales when the panel or viewport is resized\n\nScenario: Chart reflects active filters\n\nGiven the user has filtered the board to show only epics from one project\nWhen the metrics view is active\nThen the chart only includes issues that match the current active filters\nAnd the total count in the left column matches the data shown in the chart\n\nScenario: Chart has a legend\n\nGiven the chart is rendered\nThen a legend is shown identifying which color corresponds to which status or status category",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3et",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T21:01:15.290433Z",
+  "updated_at": "2026-02-25T01:35:48.260409Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

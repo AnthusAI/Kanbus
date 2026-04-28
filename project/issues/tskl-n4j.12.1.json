@@ -1,0 +1,20 @@
+{
+  "id": "tskl-n4j.12.1",
+  "title": "Document video pipeline in AGENTS.md and README",
+  "description": "Update AGENTS.md and videos/README.md with render, preview, and upload instructions; list required env vars and common pitfalls.",
+  "type": "task",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T16:40:36.189669Z",
+  "updated_at": "2026-02-22T16:50:37.609501Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

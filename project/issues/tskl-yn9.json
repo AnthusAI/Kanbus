@@ -1,0 +1,53 @@
+{
+  "id": "tskl-yn9",
+  "title": "Design issue listing output (colorized vs porcelain)",
+  "description": "Investigate and design the default and porcelain list outputs for beads and Taskulus CLIs. Capture per-issue line schema, token-efficient formatting, and colorized human-friendly variant.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ed6a68d0-a4ac-575b-918c-1b3fb66b9efd",
+      "author": "Ryan Alyn Porter",
+      "text": "Setup: created bd worktree tskl-yn9 (branch tskl-yn9). Added .taskulus pointing to project/ for Taskulus CLI discovery. Provisioned Python 3.11 venv via uv and installed taskulus in editable mode. Collected baseline outputs: 'bd list --limit 5' (status/priority/assignee/short title) and Taskulus 'TASKULUS_NO_DAEMON=1 tsk list' from project/ (id + title only).",
+      "created_at": "2026-02-12T14:37:03Z"
+    },
+    {
+      "id": "ccf73ab0-b40a-530d-b49d-2e488a9a4b89",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Beads-style list line formatting in Taskulus: new porcelain flag, status glyph, priority badge, type, assignee, title; colorized by default. Added shared formatter module, BDD scenario for porcelain output, and Rust parity (ANSI via owo-colors). Cargo.lock updated. Manual tsk list outputs now mirror Beads structure.",
+      "created_at": "2026-02-12T14:54:47Z"
+    },
+    {
+      "id": "4be10e6e-9b43-594b-b2fa-ac7f9aa1e177",
+      "author": "Ryan Alyn Porter",
+      "text": "Added follow-up bead tskl-0ox to design config-driven issue type color mapping; will wire list formatting to project config and keep porcelain uncolored.",
+      "created_at": "2026-02-12T20:09:55Z"
+    },
+    {
+      "id": "da5c5159-139b-5d17-af12-cf31a6b926b3",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated list output to include parent column: order now TypeLetter, ID, Parent, Status, Priority, Title. Normal mode aligned with padding, porcelain pipe-delimited ASCII. Added parent-step defs in Python and Rust and updated list format feature. Added temporary type color mapping.",
+      "created_at": "2026-02-12T20:31:12Z"
+    },
+    {
+      "id": "8eecc9c1-9f0e-53c5-b679-d5e763df476d",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated list output tests for external project path matching; added Rust step parity for full-metadata issue; disabled ANSI colors in Rust list output when stdout is not a TTY. Ran: make check-all (passes).",
+      "created_at": "2026-02-12T21:06:28Z"
+    }
+  ],
+  "created_at": "2026-02-12T14:33:53.956813Z",
+  "updated_at": "2026-02-16T01:07:59.201462Z",
+  "closed_at": "2026-02-16T01:07:59.168398Z",
+  "custom": {
+    "beads_acceptance_criteria": "1) Sample current list outputs collected from beads and Taskulus. 2) Proposed field ordering and formatting for humans vs porcelain. 3) Plan for color handling with porcelain toggle and parity across Python/Rust. 4) Notes recorded in task.",
+    "beads_notes": "Set up workspace for designing beads/taskulus list outputs. Will create isolated git worktree, gather sample list outputs from both CLIs, and propose per-line schema plus porcelain vs colorized formatting guidance.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

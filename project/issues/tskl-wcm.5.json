@@ -1,0 +1,28 @@
+{
+  "id": "tskl-wcm.5",
+  "title": "Rename executables to kanbus and kanbusr",
+  "description": "Update Python and Rust CLI entrypoints/binary names from tsk/tskr to kanbus/kanbusr and adjust docs/tests accordingly.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wcm",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b02bf037-dff3-56be-8849-a8e789d62365",
+      "author": "Ryan Alyn Porter",
+      "text": "Executables renamed to kanbus/kanbusr and release packaging updated.",
+      "created_at": "2026-02-14T23:37:59Z"
+    }
+  ],
+  "created_at": "2026-02-14T22:00:11.220424Z",
+  "updated_at": "2026-02-14T23:37:52.136765Z",
+  "closed_at": "2026-02-14T23:37:52.136765Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "ryan.porter"
+  }
+}

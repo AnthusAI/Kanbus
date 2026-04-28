@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59",
+  "title": "Programmatic UI Control via CLI Commands",
+  "description": "Enable complete programmatic control of the console UI through CLI commands using the real-time notification system. This extends the socket+SSE architecture from tskl-e7j to support all UI actions: view switching, search, filtering, settings, detail panel control, and more. This enables agents and scripts to drive the UI remotely.\n\nArchitecture:\n- Reuse existing notification infrastructure from tskl-e7j\n- CLI commands publish UI control events via Unix socket\n- Console server broadcasts events via SSE to frontend\n- Frontend updates state in response to events\n\nBenefits:\n1. Agent Integration: Agents can control the UI to guide human attention\n2. Testing: Automated UI state verification\n3. Scripting: Batch UI operations\n4. Remote Control: Drive UI from external tools\n5. Consistency: All UI actions accessible via both GUI and CLI",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:50:45.058250Z",
+  "updated_at": "2026-02-18T13:16:40.671678Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

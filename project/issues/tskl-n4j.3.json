@@ -1,0 +1,27 @@
+{
+  "id": "tskl-n4j.3",
+  "title": "Marketing homepage embeds videos from CDN",
+  "description": "",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-n4j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a7bc7b8a-35bc-5d3c-a050-800ce91a5565",
+      "author": "unknown",
+      "text": "Feature: Homepage video embeds\n  Scenario: Homepage embeds intro video\n    Given the marketing homepage is loaded\n    Then I see the intro video player\n    And its source resolves from GATSBY_VIDEOS_BASE_URL",
+      "created_at": "2026-02-22T05:36:25.471914Z"
+    }
+  ],
+  "created_at": "2026-02-22T05:36:22.952816Z",
+  "updated_at": "2026-02-22T16:51:00.125730Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

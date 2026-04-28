@@ -1,0 +1,28 @@
+{
+  "id": "tskl-p3i.4",
+  "title": "Epic 13: Verify tree parity",
+  "description": "All scenarios pass.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-p3i",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "222eb076-8792-5b72-80a5-ba25c86c7e69",
+      "author": "Ryan Alyn Porter",
+      "text": "Shared dependency tree scenarios pass in Python and Rust with full coverage (tools/run_specs.py --format text).",
+      "created_at": "2026-02-12T02:54:41Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:05.138504Z",
+  "updated_at": "2026-02-12T02:54:46.810743Z",
+  "closed_at": "2026-02-12T02:54:46.810743Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

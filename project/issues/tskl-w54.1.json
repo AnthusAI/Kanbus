@@ -1,0 +1,20 @@
+{
+  "id": "tskl-w54.1",
+  "title": "Inventory console path dependencies",
+  "description": "Map all references to console/ across code, scripts, docs, CI, Vite/Playwright, Rust server assets paths, and package links.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-w54",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T16:05:39.442375Z",
+  "updated_at": "2026-02-15T21:45:38.011235Z",
+  "closed_at": "2026-02-16T01:07:59.168537Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

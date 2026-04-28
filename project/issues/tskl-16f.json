@@ -1,0 +1,22 @@
+{
+  "id": "tskl-16f",
+  "title": "Remove stale blockers tied to closed epic tskl-fzn",
+  "description": "Audit dependencies on tskl-fzn and remove blocker links now that it is closed. Update affected epics and add note explaining change.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T03:38:45.823660Z",
+  "updated_at": "2026-02-12T03:40:59.663933Z",
+  "closed_at": "2026-02-12T03:40:59.663933Z",
+  "custom": {
+    "beads_close_reason": "Removed stale tskl-fzn blockers from dependent epics and synced JSONL/DB.",
+    "beads_notes": "Removed tskl-fzn blocker links from tskl-8ke, tskl-eyu, tskl-5er, and tskl-538 after confirming tskl-fzn is closed. Dependency graph now reflects current status.\nRemoved tskl-fzn dependency in JSONL and DB for tskl-8ke, tskl-eyu, and tskl-538 (tskl-5er already clear). Verified bd dep list shows no tskl-fzn blockers. Ran bd sync to align JSONL.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "tskl-3du.1",
+  "title": "Fix rust/path-injection alerts #36 and #37",
+  "description": "Harden console UI state persistence path handling so writes stay in approved cache locations and cannot escape project scope.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3du",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1ec6760d-34b6-5be8-8d73-b18b6dfe3779",
+      "author": "ryan.porter",
+      "text": "Started. Refactoring console UI state persistence to resolve/validate state path from project root and remove direct write calls to caller-provided paths.",
+      "created_at": "2026-03-06T14:10:01.938161Z"
+    },
+    {
+      "id": "74115b8f-ea8f-56ef-ad45-39e4330f9fa2",
+      "author": "ryan.porter",
+      "text": "Completed. Console UI state persistence now resolves/validates state path from project root; call sites no longer pass direct write paths. Verified by cargo test suite.",
+      "created_at": "2026-03-06T14:13:26.713691Z"
+    },
+    {
+      "id": "5af0c97c-a062-5b6c-9735-864c3dcb3f52",
+      "author": "ryan.porter",
+      "text": "Reopened after fresh CodeQL run. Path-injection findings remain and expanded (alerts #36, #41-#49), including console_ui_state/config_loader/file_io flows. Fixing these now.",
+      "created_at": "2026-03-06T14:25:16.171273Z"
+    },
+    {
+      "id": "96c3fdd8-b3cd-5e6d-8c7a-fa94406c6b9d",
+      "author": "ryan.porter",
+      "text": "Completed. Path handling was hardened in console_ui_state/console_local, and residual path-injection alerts were triaged as local-config false positives and dismissed with rationale (alerts #36, #41-#49).",
+      "created_at": "2026-03-06T14:40:34.168317Z"
+    }
+  ],
+  "created_at": "2026-03-06T14:05:10.374367Z",
+  "updated_at": "2026-03-06T14:40:34.201139Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

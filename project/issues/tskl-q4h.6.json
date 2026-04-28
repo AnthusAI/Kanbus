@@ -1,0 +1,27 @@
+{
+  "id": "tskl-q4h.6",
+  "title": "Restructure Snyk hierarchy",
+  "description": "Create initiative + split epics (Dependency vs Code), route issues accordingly, suppress empty epics, and derive epic priority from child severity.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek.norrbom",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4641b15d-fba2-5374-90f7-2c0cbe96469d",
+      "author": "derek.norrbom",
+      "text": "Closing: hierarchy restructure implemented (initiative + dependency/code epics, category routing, severity-derived epic priority).",
+      "created_at": "2026-04-02T20:45:27.103215Z"
+    }
+  ],
+  "created_at": "2026-02-27T23:00:39.333603Z",
+  "updated_at": "2026-04-02T20:45:27.103215Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek.norrbom"
+  }
+}

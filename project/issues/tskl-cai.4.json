@@ -1,0 +1,29 @@
+{
+  "id": "tskl-cai.4",
+  "title": "Wire benchmarks into tools/check_benchmarks.py",
+  "description": "Add the new benchmarks to the benchmark runner so Python and Rust timings can be executed consistently with flags for single vs recursive discovery.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-cai",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ed78a757-4d35-5502-830d-fb47782a1ab4",
+      "author": "Ryan Alyn Porter",
+      "text": "Extended tools/check_benchmarks.py to run discovery benchmarks for Python and Rust, added threshold checks, and updated tools/perf_baseline.json with discovery baselines. Ran: python tools/check_benchmarks.py.",
+      "created_at": "2026-02-11T19:39:58Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:53:07.342268Z",
+  "updated_at": "2026-02-11T19:40:03.004007Z",
+  "closed_at": "2026-02-11T19:40:03.004007Z",
+  "custom": {
+    "beads_acceptance_criteria": "tools/check_benchmarks.py runs both Python and Rust benchmarks and reports timings for each mode.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

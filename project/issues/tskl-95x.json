@@ -1,0 +1,22 @@
+{
+  "id": "tskl-95x",
+  "title": "Add website setup docs for Taskulus",
+  "description": "Add website documentation about Taskulus setup, covering initial init and ongoing updates.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T13:40:56.869618Z",
+  "updated_at": "2026-02-14T13:47:17.725914Z",
+  "closed_at": "2026-02-14T13:47:17.725914Z",
+  "custom": {
+    "beads_close_reason": "Completed",
+    "beads_notes": "Include init steps, config updates, and guidance for running in beads compatibility mode during transition.\nAdded website docs sections for setup and ongoing updates in apps/taskul.us/src/pages/docs.tsx and getting-started.tsx (init steps, config updates, beads compatibility during transition).\nCompleted: added setup/init/update/compatibility documentation on website pages.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

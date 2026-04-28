@@ -1,0 +1,27 @@
+{
+  "id": "tskl-dvi.1",
+  "title": "Global keyword search from top nav",
+  "description": "",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-dvi",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5a7ad1e5-7b3c-58fd-971c-2c31e4620052",
+      "author": "unknown",
+      "text": "Feature: Global issue search\\n\\nScenario: Search from the top navigation bar\\n  Given I am viewing the issue list\\n  And the Initiatives, Epics, and Issues type filters are set to specific values\\n  When I enter a search keyword or phrase in the top navigation bar\\n  Then the search runs across all issues regardless of type\\n  And the type filters are temporarily disabled\\n  And the results list shows all matching issues\\n  When I clear or close the search\\n  Then the previous type filter settings are restored",
+      "created_at": "2026-02-18T05:44:44.974455Z"
+    }
+  ],
+  "created_at": "2026-02-18T05:44:39.545287Z",
+  "updated_at": "2026-02-18T13:19:06.710116Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

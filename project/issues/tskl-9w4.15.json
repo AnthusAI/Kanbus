@@ -1,0 +1,118 @@
+{
+  "id": "tskl-9w4.15",
+  "title": "Switch Python BDD to Behave",
+  "description": "Replace pytest-bdd with Behave for Python Gherkin execution, keep shared specs in specs/features, update tooling and parity checks.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "your@email.com",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-9w4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "bbe0e13b-06f5-5a6f-a534-dc4e3d3b6754",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: migrate Python BDD from pytest-bdd to Behave while keeping specs in specs/features and parity with Rust. Acceptance: behave runs shared Gherkin, pytest only for unit tests, parity tool updated, remove pytest-bdd usage.",
+      "created_at": "2026-02-11T07:00:19Z"
+    },
+    {
+      "id": "777f25e0-9253-5b58-8f64-9ee2cdebe7fe",
+      "author": "Ryan Alyn Porter",
+      "text": "Continuing work on aligning Python specs with Gherkin/Behave. Next: locate current pytest-bdd usage, identify failing scenarios, and update Python step definitions/runner accordingly.",
+      "created_at": "2026-02-11T07:16:03Z"
+    },
+    {
+      "id": "e751872d-3d6f-5def-9c10-62f99b950faa",
+      "author": "Ryan Alyn Porter",
+      "text": "Aligned spec parity tooling to read Behave steps under python/features/steps and added Python close/delete step definitions. Added python/features/specs symlink to shared specs and ensured Behave environment adds python/src to sys.path. Updated check_spec_parity to decode escaped quotes correctly. Still need to validate behave run setup and any doc updates.",
+      "created_at": "2026-02-11T07:24:15Z"
+    },
+    {
+      "id": "590a030f-724a-5e81-86ef-1b7e70cf3819",
+      "author": "Ryan Alyn Porter",
+      "text": "Continuing with plan: run Behave against shared specs, capture failures, and implement missing Python steps or harness fixes. Will update docs if any references to pytest-bdd remain.",
+      "created_at": "2026-02-11T07:25:16Z"
+    },
+    {
+      "id": "bfa084e3-e23d-5174-a19c-994d83ac4b7d",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran Behave; resolved ambiguous step definitions by moving common Given into python/features/steps/common_steps.py. Added python/behave.ini to target features/specs and skip @wip scenarios. Updated issue creation/update specs and step definitions to quote multi-word --title/--description values so CLI parsing matches behavior. Behave now passes for non-wip scenarios; parity check still clean.",
+      "created_at": "2026-02-11T07:29:45Z"
+    },
+    {
+      "id": "8e5dd450-94e6-5822-9bee-82f545f21903",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated implementation plan references from pytest-bdd to Behave, including layout and configuration notes. Added Behave config in python/behave.ini to target features/specs and skip @wip. Re-ran check_spec_parity and behave; non-wip scenarios pass.",
+      "created_at": "2026-02-11T07:31:22Z"
+    },
+    {
+      "id": "f822ce1f-370c-57b6-9631-53bd04de583f",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran make check-python: black/ruff/pytest/behave all passing (behave skips @wip). Formatted python/features/steps/issue_update_steps.py with black after initial check failure.",
+      "created_at": "2026-02-11T07:31:52Z"
+    },
+    {
+      "id": "63321759-7ca1-575e-b413-7b96b84e500f",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran check-parity and check-rust; all clean. Updated AGENTS quality gates to reference behave for Gherkin scenarios and pytest for unit tests. Updated VISION testing table to reflect behave + pytest.",
+      "created_at": "2026-02-11T07:32:44Z"
+    },
+    {
+      "id": "389128d5-a548-53e4-adff-b1db18e668bb",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran make check-all (black/ruff/pytest/behave, rust fmt/clippy/test, parity). All passed with behave skipping @wip scenarios.",
+      "created_at": "2026-02-11T07:33:15Z"
+    },
+    {
+      "id": "e958932e-76cf-5378-b144-89e0b0c4bd88",
+      "author": "Ryan Alyn Porter",
+      "text": "Added a Testing section to README with make check-all/check-python/check-rust commands. Kept scope to documentation/readability.",
+      "created_at": "2026-02-11T07:33:51Z"
+    },
+    {
+      "id": "a934271d-f9f0-5b9c-a519-4242d75aaaa3",
+      "author": "Ryan Alyn Porter",
+      "text": "Added Testing section to README with make check-all/check-python/check-rust. No additional tests run for doc-only change.",
+      "created_at": "2026-02-11T07:34:08Z"
+    },
+    {
+      "id": "6bb458da-ff06-5d88-8ba2-975c17297bca",
+      "author": "Ryan Alyn Porter",
+      "text": "Adjusted IMPLEMENTATION_PLAN quality gates to include behave and clarified behave.ini discovery for shared features.",
+      "created_at": "2026-02-11T07:34:32Z"
+    },
+    {
+      "id": "afbc2ca4-9b1b-5978-b976-fbf10fea3c39",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated quality gate pipeline in IMPLEMENTATION_PLAN to list behave for behavior specs and pytest for unit tests.",
+      "created_at": "2026-02-11T07:34:50Z"
+    },
+    {
+      "id": "64e99239-16f8-5394-a6f1-6d84a7531e3a",
+      "author": "Ryan Alyn Porter",
+      "text": "Minor documentation cleanup in IMPLEMENTATION_PLAN: clarified conftest.py note to pytest unit test configuration.",
+      "created_at": "2026-02-11T07:35:07Z"
+    },
+    {
+      "id": "a853faf7-e107-5b9d-a854-aec9f479d88b",
+      "author": "Ryan Alyn Porter",
+      "text": "All acceptance criteria met: Behave runs shared specs (skipping @wip), pytest kept for unit tests, parity tool updated, pytest-bdd removed. Quality gates pass. Ready for commit/push when approved.",
+      "created_at": "2026-02-11T07:35:38Z"
+    },
+    {
+      "id": "5e3b744f-f24f-5821-aa27-d3872530b596",
+      "author": "Ryan Alyn Porter",
+      "text": "Completed Behave migration and documentation updates. Tests: make check-all, make check-python, make check-rust, make check-parity. Commit: d1d730d.",
+      "created_at": "2026-02-11T07:37:31Z"
+    }
+  ],
+  "created_at": "2026-02-11T07:00:09.418241Z",
+  "updated_at": "2026-02-11T07:37:28.306978Z",
+  "closed_at": "2026-02-11T07:37:28.306978Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

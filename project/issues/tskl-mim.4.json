@@ -1,0 +1,29 @@
+{
+  "id": "tskl-mim.4",
+  "title": "Remove role detection, global fallback, and redirect system",
+  "description": "Delete contributor/maintainer role auto-detection, git config beads.role logic, ~/.beads fallback, and .beads/redirect system. Remove bd init contributor/team modes.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-mim",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4de9c62b-fbb6-57d2-8387-238d65635207",
+      "author": "Ryan Alyn Porter",
+      "text": "Role-based routing removed: no references to beads.role, contributor/maintainer, ~/.beads fallback, or redirect system in python/rust sources. Init now only supports --local (see python/src/taskulus/cli.py and rust/src/cli.rs).",
+      "created_at": "2026-02-11T20:09:13Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:04:44.566985Z",
+  "updated_at": "2026-02-11T20:09:16.582161Z",
+  "closed_at": "2026-02-11T20:09:16.582161Z",
+  "custom": {
+    "beads_acceptance_criteria": "No role detection code remains; ~/.beads fallback removed; redirect system removed; init has no contributor/team mode; beads.role config is unused.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

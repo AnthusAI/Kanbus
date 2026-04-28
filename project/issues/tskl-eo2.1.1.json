@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.1.1",
+  "title": "Realtime guide with operational and developer coverage",
+  "description": "## Intent\nAs a developer or operator, I want a single authoritative guide to configure, run, and troubleshoot realtime gossip and overlay behavior across UDS and MQTT.\n\n## Gherkin\nFeature: Realtime documentation\n  Scenario: Realtime guide is complete\n    Given a user reads docs/REALTIME.md\n    Then it documents transport selection, broker discovery, and autostart behavior\n    And it documents envelope schema and dedupe rules\n    And it documents overlay merge rules and GC\n    And it documents example CLI commands and config blocks\n\n## Definition of Done\n- docs/REALTIME.md includes quickstart, architecture overview, CLI reference tables, config examples, dedupe and loop protection, overlay semantics, GC and hooks, troubleshooting, and AWS IoT Core outline.\n- Document explicit policy exception for discovery precedence.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:04:35.990362Z",
+  "updated_at": "2026-03-10T03:24:42.996369Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

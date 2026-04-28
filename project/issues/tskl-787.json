@@ -1,0 +1,20 @@
+{
+  "id": "tskl-787",
+  "title": "Use bookmark icon for story issue type",
+  "description": "The current icon used for the story issue type is a book, which is visually confusing and inconsistent with industry conventions. Replace it with a bookmark icon (as used by Jira for stories) wherever the story type icon appears in the UI.\n\nAcceptance criteria:\n- The book icon is replaced with a bookmark icon for the story issue type in all places it appears (issue cards, detail panel accent bar, type selector, filter sidebar, etc.)\n- The bookmark icon is sourced from lucide-react (the icon library already in use)\n- No other issue type icons are changed",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T21:00:44.300255Z",
+  "updated_at": "2026-02-25T06:24:18.111003Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

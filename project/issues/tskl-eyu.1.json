@@ -1,0 +1,34 @@
+{
+  "id": "tskl-eyu.1",
+  "title": "Research MiniJinja compatibility with Jinja2",
+  "description": "Document known incompatibilities. Decide on supported Jinja2 subset. Create test fixtures for every Jinja2 feature to be used.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-eyu",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "64b7f33e-2a98-5091-acc0-b4c9915a77d4",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting research on MiniJinja compatibility with Jinja2 to inform wiki templating. Will capture findings and implications for Rust/Python parity.",
+      "created_at": "2026-02-12T01:43:41Z"
+    },
+    {
+      "id": "013dc9eb-3765-5bee-8fbd-86909a03d4ab",
+      "author": "Ryan Alyn Porter",
+      "text": "Research summary: MiniJinja aims to stay close to Jinja2 and supports core Jinja2 features like inheritance, filters, and expression evaluation (per project docs). It does not chase full compatibility at all costs; some templates that look valid in Jinja2 will not render in MiniJinja, but cross-compatible templates are possible. MiniJinja syntax matches Jinja2 in many areas but has documented differences, e.g., line statement/comment whitespace behavior differs from Jinja2 and requires custom_syntax, and inline if without else returns a silent undefined. Also, template imports behave differently: imports are not cached and only exported variables/macros are available. Implication for Taskulus wiki: keep template feature set small and explicitly documented, avoid reliance on Jinja2-only edge cases (line statements whitespace, import side effects), and build specs around the shared subset.",
+      "created_at": "2026-02-12T01:45:05Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:03.176749Z",
+  "updated_at": "2026-02-12T01:45:09.879543Z",
+  "closed_at": "2026-02-12T01:45:09.879543Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

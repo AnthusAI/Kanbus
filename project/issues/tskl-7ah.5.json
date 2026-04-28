@@ -1,0 +1,29 @@
+{
+  "id": "tskl-7ah.5",
+  "title": "Add tsk create --local routing",
+  "description": "Default create writes to project/. --local writes to project-local/, creating it and .gitignore entry if missing.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-7ah",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "267f5016-30cb-5028-9860-2b2e1c63780c",
+      "author": "Ryan Alyn Porter",
+      "text": "tsk create --local routing implemented in python/src/taskulus/cli.py and rust/src/cli.rs; ensure_project_local_directory handles gitignore.",
+      "created_at": "2026-02-12T00:37:42Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:33:39.621072Z",
+  "updated_at": "2026-02-12T00:37:49.959307Z",
+  "closed_at": "2026-02-12T00:37:49.959307Z",
+  "custom": {
+    "beads_acceptance_criteria": "Create routes correctly; project-local created and ignored.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "tskl-p3i.3",
+  "title": "Implement tsk dep tree in Rust",
+  "description": "Implement tree display in Rust matching Python.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-p3i",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "727876df-db5d-5e14-8ccb-50a7728a7764",
+      "author": "Ryan Alyn Porter",
+      "text": "Dependency tree commands and rendering already implemented in Rust and covered by shared specs. Verified with tools/run_specs.py --format text showing Rust specs pass with 100.0% coverage.",
+      "created_at": "2026-02-12T02:54:32Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:04.969047Z",
+  "updated_at": "2026-02-12T02:54:37.014586Z",
+  "closed_at": "2026-02-12T02:54:37.014586Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-abcdef2",
+  "title": "Custom hash standalone",
+  "description": "test non-numeric standalone",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-zqm",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T03:48:52.978379Z",
+  "updated_at": "2026-02-16T01:07:59.185422Z",
+  "closed_at": "2026-02-16T01:07:59.167367Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

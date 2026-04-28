@@ -1,0 +1,29 @@
+{
+  "id": "tskl-34w.17",
+  "title": "Docstring hygiene in benchmark_discovery",
+  "description": "Add Sphinx-style docstrings for public functions in tools/benchmark_discovery.py without changing behavior.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "63557ef8-5096-57b0-910a-77a20d511cab",
+      "author": "Ryan Alyn Porter",
+      "text": "Added Sphinx-style docstrings for public helpers in tools/benchmark_discovery.py (arg parsing, cache cleanup, timing, serial/parallel benchmarks, loaders).",
+      "created_at": "2026-02-11T20:17:00Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:16:26.978493Z",
+  "updated_at": "2026-02-11T20:17:04.612414Z",
+  "closed_at": "2026-02-11T20:17:04.612414Z",
+  "custom": {
+    "beads_acceptance_criteria": "Public functions in tools/benchmark_discovery.py have Sphinx-style docstrings.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

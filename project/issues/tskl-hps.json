@@ -1,0 +1,20 @@
+{
+  "id": "tskl-hps",
+  "title": "Console board animates reload after unrelated issue changes",
+  "description": "After creating a new issue (e.g., tskl-nlh) the console board sometimes triggers a ripple/refresh animation even when the visible data does not change. Investigate SSE update handling and avoid no-op animations.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T16:57:02.369202Z",
+  "updated_at": "2026-02-15T22:28:48.968476Z",
+  "closed_at": "2026-02-16T01:07:59.168583Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

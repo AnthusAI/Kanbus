@@ -1,0 +1,20 @@
+{
+  "id": "tskl-3et.1",
+  "title": "Board/Metrics view toggle selector in toolbar",
+  "description": "Add an AnimatedSelector to the toolbar that switches between the board view and the metrics view. Selecting Board slides the kanban board back into view and pushes the metrics panel away to the right. Selecting Metrics slides the metrics panel in from the right and pushes the kanban board out to the left.\n\nScenario: Default view is board\n\nGiven the user opens the Kanbus console for the first time\nThen the board view is active\nAnd the toggle selector shows Board as the selected option\nAnd the kanban board is fully visible\n\nScenario: Switching to metrics view\n\nGiven the board view is active\nWhen the user clicks the Metrics option in the view toggle\nThen the metrics panel slides in from the right\nAnd the kanban board animates out to the left\nAnd the Metrics option appears selected in the toggle\n\nScenario: Switching back to board view\n\nGiven the metrics view is active\nWhen the user clicks the Board option in the view toggle\nThen the kanban board slides in from the right (back to its normal position)\nAnd the metrics panel animates out to the right\nAnd the Board option appears selected in the toggle\n\nScenario: Toggle uses recognizable icons\n\nGiven the user views the toolbar\nThen the Board option has a grid/kanban-board icon\nAnd the Metrics option has a bar-chart icon\nAnd both options follow the same AnimatedSelector styling as other selectors in the toolbar\n\nScenario: View selection persists across reload\n\nGiven the user has switched to the metrics view\nWhen the page is reloaded\nThen the metrics view is shown again\nAnd the toggle reflects Metrics as selected",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3et",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T21:00:44.168279Z",
+  "updated_at": "2026-02-25T01:35:43.759625Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

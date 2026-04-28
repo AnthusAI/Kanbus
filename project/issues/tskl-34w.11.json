@@ -1,0 +1,29 @@
+{
+  "id": "tskl-34w.11",
+  "title": "Docstring hygiene in tools",
+  "description": "Add missing Sphinx-style docstrings for public functions in tools modules without changing behavior. Keep scope limited to documentation/readability.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4dcd2790-59f4-5d6f-a1e9-f7aec76cb6a6",
+      "author": "Ryan Alyn Porter",
+      "text": "Added Sphinx-style docstrings for public functions in tools/benchmark_index.py (create_issue, generate_issues, run_benchmark). No behavior changes.",
+      "created_at": "2026-02-11T20:12:01Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:11:16.311469Z",
+  "updated_at": "2026-02-11T20:12:04.531689Z",
+  "closed_at": "2026-02-11T20:12:04.531689Z",
+  "custom": {
+    "beads_acceptance_criteria": "Public functions in tools modules have Sphinx-style docstrings; no behavior changes.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

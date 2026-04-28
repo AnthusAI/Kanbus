@@ -1,0 +1,56 @@
+{
+  "id": "tskl-8k1.5",
+  "title": "Rust daemon and client path",
+  "description": "Implement connect-or-spawn client behavior and resident daemon in Rust with protocol parity and index update handling.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-8k1",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-8k1.2",
+      "type": "blocks"
+    },
+    {
+      "target": "tskl-8k1.3",
+      "type": "blocks"
+    }
+  ],
+  "comments": [
+    {
+      "id": "bd655e78-2a6d-5c97-a5b3-786b288c5c56",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting Rust daemon/client path to mirror Python behavior: socket reuse, spawn-on-missing, stale socket recovery, and index.list IPC.",
+      "created_at": "2026-02-11T07:48:06Z"
+    },
+    {
+      "id": "68c00890-4491-508e-88c7-06dcdbe4042f",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Rust daemon/client path: protocol models, cache helpers, socket paths, daemon server, list command using daemon index.list with TASKULUS_NO_DAEMON fallback. Ran make check-rust (fmt/clippy/test).",
+      "created_at": "2026-02-11T07:53:00Z"
+    },
+    {
+      "id": "be13b1e6-0009-563b-9dc8-cd1ff9a0f395",
+      "author": "Ryan Alyn Porter",
+      "text": "Completed Rust daemon/client path to match Python behavior (spawn, reuse, stale socket recovery, index.list). Tests: make check-rust.",
+      "created_at": "2026-02-11T07:53:12Z"
+    },
+    {
+      "id": "189f9b78-d0e9-5c75-a30a-9d36bef23a7e",
+      "author": "Ryan Alyn Porter",
+      "text": "Commit: c926635. Tests: make check-rust.",
+      "created_at": "2026-02-11T07:54:19Z"
+    }
+  ],
+  "created_at": "2026-02-11T06:31:40.458948Z",
+  "updated_at": "2026-02-11T07:53:06.766360Z",
+  "closed_at": "2026-02-11T07:53:06.766360Z",
+  "custom": {
+    "beads_acceptance_criteria": "Rust CLI behavior matches Python for startup, reuse, and daemon RPC responses.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

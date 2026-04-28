@@ -1,0 +1,40 @@
+{
+  "id": "tskl-2dj",
+  "title": "Replace role system with project/project-local discovery",
+  "description": "Replace contributor/maintainer role detection, global fallback, and redirect system with convention-based project/ and project-local/ discovery. Implement downward discovery, optional .taskulus paths, local/shared filtering, local create/promote/localize, init folder changes, and scope-aware list/ready output.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "04d7d495-d523-5407-9e5a-00ea1303cbd1",
+      "author": "Ryan Alyn Porter",
+      "text": "Added initial @wip Gherkin for convention-based discovery in specs/features/discovery/project_discovery.feature.",
+      "created_at": "2026-02-11T14:36:36Z"
+    },
+    {
+      "id": "43e1396f-220c-592c-bcf9-7f87b2ad9418",
+      "author": "Ryan Alyn Porter",
+      "text": "Note: storage format remains JSON. The earlier YAML reference was a mistake; do not change issue storage format.",
+      "created_at": "2026-02-11T14:50:35Z"
+    },
+    {
+      "id": "b1b5cfce-b9a2-5aef-a5ad-f5c9183e1630",
+      "author": "Ryan Alyn Porter",
+      "text": "All child tasks complete and verified; features and implementations for project/project-local discovery, local routing, init, and scoped output are in place with 100% Python coverage and passing Rust cucumber.",
+      "created_at": "2026-02-11T19:32:25Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:35:45.911274Z",
+  "updated_at": "2026-02-11T19:32:29.851811Z",
+  "closed_at": "2026-02-11T19:32:29.851811Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

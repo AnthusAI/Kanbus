@@ -1,0 +1,25 @@
+{
+  "id": "kbs-42430916-b248-4ce0-b854-9a9f687fc24c",
+  "title": "Validate migration on local workspace",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4d84bed2-8177-48e2-bef2-805812b3a0cc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0dd9e99c-529a-4b47-9a42-f8788bcfcfd9",
+      "author": "derek.norrbom",
+      "text": "Completed in commits 01ac79c and 5ac07a1 as part of Beads->Kanbus migration. PR to develop pending.",
+      "created_at": "2026-04-02T21:11:17.524701Z"
+    }
+  ],
+  "created_at": "2026-04-02T21:11:14.394701Z",
+  "updated_at": "2026-04-02T21:11:17.539970Z",
+  "closed_at": "2026-04-02T21:11:17.539970Z",
+  "custom": {}
+}

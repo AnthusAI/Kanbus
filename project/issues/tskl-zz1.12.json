@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.12",
+  "title": "Implement When steps (trigger conditions)",
+  "description": "Implement When steps: transitioning to/from status, creating issue, closing issue. These narrow operation triggers.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:50:24.912671Z",
+  "updated_at": "2026-02-27T06:58:26.373389Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

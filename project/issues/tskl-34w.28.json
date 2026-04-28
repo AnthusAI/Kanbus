@@ -1,0 +1,34 @@
+{
+  "id": "tskl-34w.28",
+  "title": "Align wiki step definitions across Python and Rust",
+  "description": "Update step definitions so check_spec_parity passes for wiki-related steps (use shared steps or matching patterns in both languages).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "fa05d6a0-3e30-5d03-b4a7-f8b0e01a0239",
+      "author": "Ryan Alyn Porter",
+      "text": "Plan: run tools/check_spec_parity.py to identify mismatched steps; align wiki steps by adding generic steps or matching patterns on both Python and Rust; re-run check_spec_parity and full spec suite.",
+      "created_at": "2026-02-12T02:56:38Z"
+    },
+    {
+      "id": "1064c1e2-8e68-5de4-b0e9-4121a65ae869",
+      "author": "Ryan Alyn Porter",
+      "text": "Aligned wiki step definitions to a shared generic form in Python and Rust; updated tarpaulin command in tools/run_specs.py to use --tests --test cucumber; added tarpaulin-only coverage helper in rust/wiki.rs; adjusted wiki feature templates back to issue_type. Ran: python3 tools/check_spec_parity.py; python3 tools/run_specs.py --format text (Python 100.0%, Rust 100.0%).",
+      "created_at": "2026-02-12T03:22:43Z"
+    }
+  ],
+  "created_at": "2026-02-12T02:56:30.787612Z",
+  "updated_at": "2026-02-12T03:22:48.076100Z",
+  "closed_at": "2026-02-12T03:22:48.076100Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

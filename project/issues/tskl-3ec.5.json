@@ -1,0 +1,21 @@
+{
+  "id": "tskl-3ec.5",
+  "title": "Kairos --help enrichment: quality hints in comment, create, and update help text",
+  "description": "AI coding agents frequently call --help to discover commands and capabilities before using them. This is kairos — the right moment to deliver guidance. Embedding quality hints directly in --help output means the agent receives the guidance at the exact moment it is deciding how to call the command, before it makes mistakes.\n\nTwo levels of enrichment:\n\n1. Command-specific help (kbs comment, kbs create --help, kbs update --help): full, clear guidance on Markdown support, diagram support, and correct multiline text passing — because an agent reading these is about to use the command.\n\n2. Top-level help (kbs --help, kbs help): a single brief line referencing the most common quality pitfall (literal backslash-n), kept very token-efficient because the agent may be scanning a broad command list.\n\nScenario: kbs comment --help mentions Markdown and diagram support\n\nGiven an agent calls kbs comment --help\nThen the output includes a section noting that comment body supports full Markdown\nAnd it mentions that diagrams can be embedded as fenced code blocks (mermaid, plantuml, d2)\nAnd it shows the correct pattern for passing multiline text (heredoc or newline-containing string)\nAnd it warns that literal backslash-n will be auto-converted with a warning\n\nScenario: kbs create --help mentions Markdown in description\n\nGiven an agent calls kbs create --help\nThen the help for the --description option notes that Markdown is supported\nAnd it includes a brief note about avoiding literal backslash-n sequences\n\nScenario: kbs update --help mentions Markdown in description\n\nGiven an agent calls kbs update --help\nThen the help for the --description option notes the same quality guidance as create\n\nScenario: Top-level kbs --help includes a one-line quality reminder\n\nGiven an agent calls kbs --help or kbs help\nThen the output includes a brief reminder such as:\n  Tip: Use real newlines in --description and comments, not backslash-n. Markdown and diagrams are supported.\nAnd this tip is clearly separate from the command listing and does not add significant noise\n\nScenario: Help text is token-efficient on the command-specific pages\n\nGiven an agent reads kbs comment --help\nThen the quality guidance section is concise (no more than 6-8 lines)\nAnd each sentence carries actionable information\nAnd there is no padding or filler text",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3ec",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T13:52:19.355315Z",
+  "updated_at": "2026-02-23T04:52:38.395493Z",
+  "closed_at": "2026-02-23T04:52:38.395493Z",
+  "custom": {
+    "beads_close_reason": "Completed with epic merge.",
+    "beads_owner": "ryan.porter"
+  }
+}

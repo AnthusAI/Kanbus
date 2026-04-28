@@ -1,0 +1,29 @@
+{
+  "id": "tskl-539.3",
+  "title": "3. Client data layer",
+  "description": "Create client data loader for initial fetch and SSE subscription. Maintain in-memory store for config and issues with loading and error states.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-539",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "bf0743c7-db57-5fd7-9aa6-e86014714f0d",
+      "author": "Ryan Alyn Porter",
+      "text": "Added client data loader and SSE subscription with in-memory snapshot state and error handling.",
+      "created_at": "2026-02-13T07:58:39.343992Z"
+    }
+  ],
+  "created_at": "2026-02-13T07:51:36.636202Z",
+  "updated_at": "2026-02-13T08:04:18.246445Z",
+  "closed_at": "2026-02-13T08:04:18.246445Z",
+  "custom": {
+    "beads_acceptance_criteria": "App loads initial data; reconnects SSE on drop; updates board on full snapshot events; shows non-blocking error state on fetch failure.",
+    "beads_close_reason": "Implementation complete; local validation pending.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tskl-fei",
+  "title": "Publish initial Taskulus release to PyPI",
+  "description": "Manually upload the first release to PyPI to create the project so trusted publishing can take over.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T12:35:05.660961Z",
+  "updated_at": "2026-02-12T12:36:26.471945Z",
+  "closed_at": "2026-02-12T12:36:26.471948Z",
+  "custom": {
+    "beads_notes": "Preparing manual PyPI upload to create project for trusted publisher.\nManual twine upload succeeded; PyPI project created at https://pypi.org/project/taskulus/0.1.0/. Trusted publisher can now be configured.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

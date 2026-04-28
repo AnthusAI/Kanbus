@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ee5.4",
+  "title": "Add benchmark summary runner",
+  "description": "Add a unified runner that executes Python and Rust benchmarks and prints a summary table for latency.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ee5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b521fc5d-5150-5cf5-83ca-7e1df8223ce6",
+      "author": "Ryan Alyn Porter",
+      "text": "Benchmark summary checks are in tools/check_benchmarks.py, which runs Python/Rust index and discovery benchmarks and parses JSON output.",
+      "created_at": "2026-02-12T00:35:37Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:34:06.825546Z",
+  "updated_at": "2026-02-12T00:35:40.970739Z",
+  "closed_at": "2026-02-12T00:35:40.970739Z",
+  "custom": {
+    "beads_acceptance_criteria": "Runner prints consolidated results for both implementations.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

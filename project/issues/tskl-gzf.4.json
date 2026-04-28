@@ -1,0 +1,20 @@
+{
+  "id": "tskl-gzf.4",
+  "title": "Keep prefixed URLs working in local mode",
+  "description": "Local server should continue to serve /:account/:project/... routes without redirect, mapping to the single local project.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-gzf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T05:32:10.383927Z",
+  "updated_at": "2026-02-16T01:07:59.189142Z",
+  "closed_at": "2026-02-16T01:07:59.167691Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

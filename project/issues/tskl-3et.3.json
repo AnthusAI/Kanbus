@@ -1,0 +1,27 @@
+{
+  "id": "tskl-3et.3",
+  "title": "Select and integrate a chart visualization library",
+  "description": "Evaluate and select a React chart library for the stacked bar chart in the metrics view, then integrate it into the project.\n\nRequirements:\n- React-compatible\n- Fully styleable: no opinionated default themes that conflict with the Kanbus design system; must support custom colors, fonts, and spacing via CSS or props\n- Supports stacked bar charts\n- Actively maintained\n- Reasonably small bundle size impact\n\nCandidates to evaluate (not exhaustive): Recharts, Victory, Nivo, visx (Airbnb), Chart.js via react-chartjs-2\n\nDeliverable: A brief comparison note in the PR/commit explaining why the chosen library was selected, then install and add it to the console app package.json.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-3et",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "72c6d679-f9b7-51da-b029-1f004587ff8c",
+      "author": "ryan.porter",
+      "text": "Selected Visx (Airbnb) for the metrics chart: it is unopinionated/stylable, supports stacked bars via primitives, and keeps bundle impact smaller than charting suites like Nivo/Victory while remaining actively maintained.",
+      "created_at": "2026-02-23T14:08:10.531347Z"
+    }
+  ],
+  "created_at": "2026-02-21T21:01:03.933173Z",
+  "updated_at": "2026-02-25T01:35:46.834152Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

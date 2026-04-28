@@ -1,0 +1,27 @@
+{
+  "id": "tskl-i1i",
+  "title": "Enforce config validation on issue creation and updates",
+  "description": "Enforce config-driven validation at create/update time. Invalid issue types, invalid status transitions, and invalid parent-child relationships must fail immediately as errors (not warnings). Prevent models from creating or updating to types/states that are not defined in configuration.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "00e76cae-0392-54b0-a2d9-8179e5b23dc6",
+      "author": "Ryan Alyn Porter",
+      "text": "Feature: Validation enforcement\\n\\nScenario: Create rejects invalid issue types\\nGiven a Kanbus project with default configuration\\nWhen I run \"kanbus create Bad Type --type invalid\"\\nThen the command should fail with exit code 1\\nAnd stderr should contain \"unknown issue type\"\\n\\nScenario: Create rejects invalid parent-child relationships\\nGiven a Kanbus project with default configuration\\nAnd an issue \"kanbus-epic01\" exists of type \"epic\"\\nWhen I run \"kanbus create Bad Parent --type epic --parent kanbus-epic01\"\\nThen the command should fail with exit code 1\\nAnd stderr should contain \"invalid parent-child relationship\"\\n\\nScenario: Update rejects invalid status transitions\\nGiven a Kanbus project with default configuration\\nAnd an issue \"kanbus-test01\" of type \"task\" with status \"open\"\\nWhen I run \"kanbus update kanbus-test01 --status blocked\"\\nThen the command should fail with exit code 1\\nAnd stderr should contain \"invalid transition\"\\n\\nScenario: Bypass validation with --no-validate\\nGiven a Kanbus project with default configuration\\nAnd an issue \"kanbus-epic01\" exists of type \"epic\"\\nWhen I run \"kanbus create Bad Parent --type epic --parent kanbus-epic01 --no-validate\"\\nThen the command should succeed",
+      "created_at": "2026-02-14T23:43:07Z"
+    }
+  ],
+  "created_at": "2026-02-14T23:39:11.981848Z",
+  "updated_at": "2026-02-16T01:07:59.190462Z",
+  "closed_at": "2026-02-16T01:07:59.167725Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

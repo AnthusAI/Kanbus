@@ -1,0 +1,26 @@
+{
+  "id": "tskl-0lb.2",
+  "title": "Design site content and structure",
+  "description": "Design content strategy, IA, pages, sections, navigation for taskul.us. May include wireframes/outlines.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-0lb",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-0lb.1",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-11T04:20:27.425648Z",
+  "updated_at": "2026-02-11T05:05:02.820472Z",
+  "closed_at": "2026-02-11T05:05:02.820472Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

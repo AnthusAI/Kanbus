@@ -1,0 +1,20 @@
+{
+  "id": "tskl-gzf.3",
+  "title": "Ensure navigation builds root-level URLs",
+  "description": "Update navigation helpers so tab clicks and issue selection use basePath when present and root-level paths when basePath is empty.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-gzf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T05:31:31.030530Z",
+  "updated_at": "2026-02-16T01:07:59.188695Z",
+  "closed_at": "2026-02-16T01:07:59.167688Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

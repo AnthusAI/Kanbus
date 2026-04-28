@@ -1,0 +1,22 @@
+{
+  "id": "tskl-9nu.1",
+  "title": "Design dotyaml Rust crate API",
+  "description": "Define API and behavior to mirror Python dotyaml (dotenv preload, env interpolation, flatten to env with prefix, override flag, list/boolean/null handling); prepare crate naming and docs.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-9nu",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T15:29:33.450137Z",
+  "updated_at": "2026-02-13T01:41:36.141976Z",
+  "closed_at": "2026-02-13T01:41:36.141976Z",
+  "custom": {
+    "beads_close_reason": "Abandoned dotyaml crate approach; moving to single .taskulus.yml config file strategy.",
+    "beads_notes": "Drafted crate design in docs/dotyaml_rust.md: options struct, load/export semantics matching Python dotyaml, error cases, testing strategy, Taskulus integration notes.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

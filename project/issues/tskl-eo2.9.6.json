@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.9.6",
+  "title": "Dogfood docker mutation task B",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-eo2.9",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-08T12:50:40.131056Z",
+  "updated_at": "2026-03-10T03:24:44.934497Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

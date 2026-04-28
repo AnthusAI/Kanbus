@@ -1,0 +1,33 @@
+{
+  "id": "tskl-ibv.1",
+  "title": "Record issue events to per-event JSON files",
+  "description": "As a backend engineer, I want every issue create/update/delete/state-change/comment action to emit a single JSON event file in project/events/ named with the ISO8601 timestamp, so that the system has an append-only, time-ordered log without relying on filesystem mtimes.\n\nAcceptance Criteria:\n- Event types at minimum: issue_created, state_transition, comment_added, field_updated, issue_deleted.\n- Each file contains: event_id, issue_id, event_type, occurred_at (ISO8601), actor_id, and a payload specific to the type (e.g., from_state/to_state; comment_id; changed_fields).\n- Exactly one file per event; no batching; no alternate storage.",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan",
+  "parent": "tskl-ibv",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "eca68615-8ed2-5351-b386-6b30168d6e11",
+      "author": "ryan",
+      "text": "Starting implementation. Focus first on event model/helpers + event writing in Rust/Python for issue creation/update/comment/delete/deps/transfer and console API+UI tab. Will keep event writes strict (rollback on failure) and use RFC3339+UUID filenames under project/events or project-local/events.",
+      "created_at": "2026-02-21T06:45:09.565473Z"
+    },
+    {
+      "id": "5d1dc015-eccc-5423-95f8-974124a8d440",
+      "author": "ryan",
+      "text": "Completed: issue create/update/comment/delete/dependency/transfer/beads now emit per-event JSON files (RFC3339+UUID) with strict rollback on write failure. Events land in project/events or project-local/events based on issue location.",
+      "created_at": "2026-02-21T07:09:28.801444Z"
+    }
+  ],
+  "created_at": "2026-02-21T06:16:11.198645Z",
+  "updated_at": "2026-02-21T07:09:28.801444Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan"
+  }
+}

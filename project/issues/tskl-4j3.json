@@ -1,0 +1,21 @@
+{
+  "id": "tskl-4j3",
+  "title": "Improve server connection error message with live timer",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T00:13:20.590242Z",
+  "updated_at": "2026-02-16T01:18:28.782773Z",
+  "closed_at": "2026-02-16T01:18:28.782783Z",
+  "custom": {
+    "beads_notes": "Implemented ErrorStatusDisplay component with live timer, GSAP smooth crossfade animations, responsive compact layout, and danger color tokens. Component shows 'Unable to reach the server' with live-updating duration counter and last updated timestamp. All features working as requested.",
+    "beads_owner": "ryan.porter"
+  }
+}

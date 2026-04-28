@@ -1,0 +1,41 @@
+{
+  "id": "tskl-539.2",
+  "title": "2. Node API and SSE",
+  "description": "Implement Node API under console/server to read project/config.yaml and project/issues/*.json. Add SSE endpoint that emits full snapshot on changes. Watch project/ with 250ms debounce.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-539",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "53df6157-011c-59f9-9e83-69a486407e4e",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Node server with config/issues endpoints and SSE stream. Added chokidar watch on project/ with 250ms debounce and full snapshot pushes.",
+      "created_at": "2026-02-13T07:58:36.015246Z"
+    },
+    {
+      "id": "3991dcfe-8a04-53d1-bc90-77d5b710498c",
+      "author": "Ryan Alyn Porter",
+      "text": "Improved server errors for missing project/config.yaml or project/issues and sorted issues by id for deterministic ordering.",
+      "created_at": "2026-02-13T08:02:24.814029Z"
+    },
+    {
+      "id": "c3cfaa93-6d2e-5062-a1af-ed2c4dae58fe",
+      "author": "Ryan Alyn Porter",
+      "text": "Added SSE retry hint for clients (1s).",
+      "created_at": "2026-02-13T08:03:04.419780Z"
+    }
+  ],
+  "created_at": "2026-02-13T07:51:33.170777Z",
+  "updated_at": "2026-02-13T08:04:14.218167Z",
+  "closed_at": "2026-02-13T08:04:14.218167Z",
+  "custom": {
+    "beads_acceptance_criteria": "GET /api/config and /api/issues return data; GET /api/issues/:id returns single issue; GET /api/events streams full snapshot on project/ changes with 250ms debounce; clear errors for missing paths.",
+    "beads_close_reason": "Implementation complete; local validation pending.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

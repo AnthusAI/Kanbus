@@ -1,0 +1,22 @@
+{
+  "id": "tskl-mim",
+  "title": "Project directory discovery model",
+  "description": "Replace role-based routing with convention-based project directories. Use project/ for shared issues and project-local/ for personal issues. Discovery is downward from cwd; optional .taskulus file lists additional project paths. Remove contributor/maintainer detection, global fallback, and redirect system. Storage format remains current JSONL; no YAML migration.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-11T20:04:29.950238Z",
+  "updated_at": "2026-02-11T20:09:54.005251Z",
+  "closed_at": "2026-02-11T20:09:54.005251Z",
+  "custom": {
+    "beads_acceptance_criteria": "Commands discover project/ folders downward from cwd; project-local/ is included when present; .taskulus additional paths supported; contributor/maintainer logic and ~/.beads fallback removed; redirect system removed; no YAML storage introduced.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

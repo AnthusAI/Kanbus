@@ -1,0 +1,39 @@
+{
+  "id": "tskl-n12",
+  "title": "Workspace discovery skips invalid configs",
+  "description": "As a Kanbus user\nI want workspace discovery to skip invalid .kanbus.yml configs\nSo that kbs show/list still works for valid projects.\n\nFeature: Workspace discovery tolerates invalid configs\n\nScenario: Workspace root with one invalid config\n  Given a workspace with one valid project and one invalid .kanbus.yml\n  When project directories are discovered\n  Then the valid project is included\n  And discovery does not fail",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "519d6f9a-605c-5409-a3e7-a86d6108bb63",
+      "author": "unknown",
+      "text": "Implementing: workspace discovery now skips invalid .kanbus.yml configs and continues; adding BDD scenario in project_utilities.",
+      "created_at": "2026-03-05T14:10:06.862498Z"
+    },
+    {
+      "id": "8bc56f0c-76ea-5461-bce6-80fc0760ca3e",
+      "author": "unknown",
+      "text": "BDD green after adding workspace-invalid-config scenario; discovery now skips invalid configs in workspace mode.",
+      "created_at": "2026-03-05T14:10:33.571548Z"
+    },
+    {
+      "id": "60dcbefe-2f5e-5043-acda-aa0cb46d3ed5",
+      "author": "ryan.porter",
+      "text": "Closing as completed: behavior implemented and validated via project_utilities scenario for invalid workspace config skip.",
+      "created_at": "2026-03-06T02:42:22.405844Z"
+    }
+  ],
+  "created_at": "2026-03-05T14:09:29.062682Z",
+  "updated_at": "2026-03-06T02:42:22.486271Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

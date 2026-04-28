@@ -1,0 +1,29 @@
+{
+  "id": "tskl-mim.2",
+  "title": "Add project-local discovery and filtering flags",
+  "description": "Include project-local/ when it exists as sibling of project/. Track source (shared vs local) in index. Add --no-local and --local-only flags for relevant commands.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-mim",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d2041456-345f-543c-b0b0-914aba76c124",
+      "author": "Ryan Alyn Porter",
+      "text": "Project-local discovery and filters implemented in python/src/taskulus/issue_listing.py + dependencies.py and rust/src/issue_listing.rs + dependencies.rs with --no-local and --local-only flags in CLI. Verified by features/discovery/project_discovery.feature, features/queries/local_listing.feature, and features/dependencies/dependencies.feature (behave + cucumber).",
+      "created_at": "2026-02-11T20:08:58Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:04:37.194734Z",
+  "updated_at": "2026-02-11T20:09:01.802009Z",
+  "closed_at": "2026-02-11T20:09:01.802009Z",
+  "custom": {
+    "beads_acceptance_criteria": "Index marks issues as shared or local; project-local/ discovered only as sibling; --no-local excludes local issues; --local-only shows only local issues.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

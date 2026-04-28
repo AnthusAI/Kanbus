@@ -1,0 +1,20 @@
+{
+  "id": "tskl-hdk.3",
+  "title": "Publish prebuilt console server binary",
+  "description": "Extend release workflow to build/package the Rust console server binary (console_local or renamed server binary) for supported platforms and upload to GitHub Releases.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-hdk",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T16:11:08.183049Z",
+  "updated_at": "2026-02-16T06:27:47.465121Z",
+  "closed_at": "2026-02-16T06:27:47.456938Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "tskl-7pd",
+  "title": "Signal Test Issue",
+  "description": "Line 1\\nLine 2\\nLine 3",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f7bf905f-425b-5c6f-98c9-b1017add36da",
+      "author": "unknown",
+      "text": "Clock test after restart",
+      "created_at": "2026-03-05T13:53:59.041791Z"
+    },
+    {
+      "id": "b01a2231-0d62-5ca7-bdf7-253f79bfb5f2",
+      "author": "unknown",
+      "text": "Clock test debug",
+      "created_at": "2026-03-05T14:07:24.875782Z"
+    },
+    {
+      "id": "f5b32d97-a30d-5b05-b27c-c73dc58df0a8",
+      "author": "unknown",
+      "text": "Clock test after workspace fix",
+      "created_at": "2026-03-05T14:11:27.521453Z"
+    },
+    {
+      "id": "ef90dfcf-832d-5eb4-a913-e0c0078cc71b",
+      "author": "ryan.porter",
+      "text": "Closing cleanup: signal test issue no longer needed.",
+      "created_at": "2026-03-06T02:42:22.576343Z"
+    }
+  ],
+  "created_at": "2026-02-22T14:27:43.667255Z",
+  "updated_at": "2026-03-06T02:42:22.657174Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

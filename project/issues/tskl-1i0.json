@@ -1,0 +1,25 @@
+{
+  "id": "tskl-1i0",
+  "title": "Workflow State Machine",
+  "description": "Implement workflow status validation and state transitions. Includes state machine enforcement, transition side-effects, and per-type workflows.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 0,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-1z1",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-11T01:32:57.253866Z",
+  "updated_at": "2026-02-11T06:15:56.002489Z",
+  "closed_at": "2026-02-11T06:15:56.002491Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

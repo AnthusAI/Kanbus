@@ -1,0 +1,22 @@
+{
+  "id": "tskl-het",
+  "title": "Switch repo task tracking to Taskulus",
+  "description": "Remove Beads task-management guidance, enable Taskulus beads compatibility mode for this repo, and update docs to reflect Taskulus self-hosting.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T13:37:41.785833Z",
+  "updated_at": "2026-02-14T13:47:24.620788Z",
+  "closed_at": "2026-02-14T13:47:24.620788Z",
+  "custom": {
+    "beads_close_reason": "Completed",
+    "beads_notes": "Plan: update AGENTS.md, remove beads skill files, set beads_compatibility true in config, update README references, run smoke checks.\nProgress: removed Beads agent policy pointers, deleted .agent-skills, set beads_compatibility=true in .taskulus.yml and project/config.yaml, updated README/python/README to reference Taskulus. Smoke checks via PYTHONPATH=python/src python3 -m taskulus.cli list/ready/show failed with InvalidHierarchyError (story cannot have child event). Filed follow-up Taskulus issue tskl-ezt.\nCompleted: removed Beads agent policy, set beads_compatibility true in repo configs, updated README/python README, filed compatibility bug issue (tskl-ezt).",
+    "beads_owner": "rap@endymion.com"
+  }
+}

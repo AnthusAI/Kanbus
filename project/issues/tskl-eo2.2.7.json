@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.2.7",
+  "title": "Cross-machine MQTT interoperability validation",
+  "description": "## Intent\nValidate cross-machine realtime interoperability over MQTT so one machine can publish mutations and another machine's running console hub receives them, writes overlay updates, and pushes immediate SSE/UI updates.\n\n## Test Topology\n- Machine A: Broker host (Mosquitto)\n- Machine B: Console hub + UI watcher (kbsc / kanbus-console)\n- Machine C: Producer (kbs or kanbus mutating commands)\n\nMinimum topology for smoke test:\n- Machine A and Machine B can be the same host.\n- Machine C must be a different host from Machine B for cross-machine validation.\n\n## Broker Setup (Machine A)\n1. Create LAN test config:\n   - listener 1883 0.0.0.0\n   - allow_anonymous true\n   - persistence false\n2. Start broker:\n   - mosquitto -c ~/mosquitto-lan.conf -v\n3. Record broker endpoint:\n   - mqtt://<BROKER_IP>:1883\n\n## Receiver Setup (Machine B)\n1. Configure realtime for MQTT:\n   - KANBUS_REALTIME_TRANSPORT=mqtt\n   - KANBUS_REALTIME_BROKER=mqtt://<BROKER_IP>:1883\n   - KANBUS_REALTIME_AUTOSTART=false\n2. Start console hub:\n   - kbsc (or kanbus-console)\n3. Open UI route:\n   - http://127.0.0.1:<PORT>/local/kanbus/\n4. Optional SSE verification:\n   - curl -N http://127.0.0.1:<PORT>/api/events/realtime\n\n## Producer Setup (Machine C)\n1. Configure matching MQTT endpoint:\n   - KANBUS_REALTIME_TRANSPORT=mqtt\n   - KANBUS_REALTIME_BROKER=mqtt://<BROKER_IP>:1883\n   - KANBUS_REALTIME_AUTOSTART=false\n2. Run mutation from kbs and kanbus:\n   - kbs comment <ISSUE_ID> \"MQTT cross-machine test <timestamp>\"\n   - kanbus comment <ISSUE_ID> \"MQTT cross-machine test <timestamp>\"\n\n## Expected Results\n- Console UI on Machine B updates immediately for each new comment.\n- SSE stream emits issue_updated events with issue_data payload.\n- Overlay snapshot/tombstone behavior remains consistent with existing merge rules.\n- Mutation commands succeed even if publish fails (best-effort policy).\n\n## Optional Wire-Level Validation\n- Subscribe on broker host:\n  - mosquitto_sub -h <BROKER_IP> -p 1883 -t 'projects/+/events' -v\n- Confirm envelopes arrive for both Rust and Python producers.\n\n## Troubleshooting Checklist\n- Verify broker host firewall allows TCP/1883.\n- Confirm all machines use identical broker endpoint and topic template.\n- Confirm no stale local-only transport env vars are set.\n- Confirm producer command output has no realtime publish warning.\n\n## Acceptance Criteria (BDD)\nFeature: Cross-machine MQTT interoperability\n  Scenario: Rust producer updates remote console in realtime\n    Given a reachable MQTT broker\n    And a running console hub subscribed via MQTT on machine B\n    When machine C runs `kbs comment <id> ...`\n    Then machine B UI receives an immediate issue update\n    And SSE emits issue_updated for that issue\n\n  Scenario: Python producer updates remote console in realtime\n    Given a reachable MQTT broker\n    And a running console hub subscribed via MQTT on machine B\n    When machine C runs `kanbus comment <id> ...`\n    Then machine B UI receives an immediate issue update\n    And SSE emits issue_updated for that issue",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-07T02:52:47.263999Z",
+  "updated_at": "2026-03-10T03:24:44.589166Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-ezt",
+  "title": "Fix beads compatibility parent-child validation",
+  "description": "Beads compatibility mode fails when Beads data includes parent-child links that do not match Taskulus hierarchy (example error: invalid parent-child relationship: 'story' cannot have child 'event'). Running list/ready/show in beads compatibility raises InvalidHierarchyError during record conversion. Compatibility mode should tolerate or map Beads parent-child relationships without failing.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T13:40:08.448122Z",
+  "updated_at": "2026-02-16T01:07:59.186906Z",
+  "closed_at": "2026-02-16T01:07:59.167537Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

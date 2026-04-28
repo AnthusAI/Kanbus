@@ -1,0 +1,59 @@
+{
+  "id": "tskl-yrt",
+  "title": "Fix coverage gaps for daemon and list formatting",
+  "description": "Goal: reach 100% coverage and keep spec parity.\\n\\nAcceptance:\\n- New/updated Gherkin scenarios cover daemon main, daemon server/request handling, retry logic, and list formatting for parent dash.\\n- Python and Rust steps updated to match.\\n- python coverage reaches 100% and rust tests remain green.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [
+    "status:in_progress"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "998f0c10-b793-5e1b-920d-1930bd1ab9ec",
+      "author": "Ryan Alyn Porter",
+      "text": "Progress: updated daemon failure scenarios and steps in Python and Rust; made daemon CLI step use fake daemon; added non-connection error scenario; resolved ambiguous list format steps by moving formatting to list_format_steps and renaming show assertions to 'formatted output should contain text'. Pending: rerun python coverage/behave, cargo test, cargo clippy, spec parity, and address any failures.",
+      "created_at": "2026-02-13T11:21:01Z"
+    },
+    {
+      "id": "a405935f-5ef6-5e04-ae92-658b574aae2e",
+      "author": "Ryan Alyn Porter",
+      "text": "Tests: python3 -m coverage run --source=taskulus -m behave; python3 -m coverage report -m (100%); python3 -m black --check python; python3 -m ruff check python; cargo test --manifest-path rust/Cargo.toml; cargo fmt --check --manifest-path rust/Cargo.toml; cargo clippy --manifest-path rust/Cargo.toml -- -D warnings; python3 tools/check_spec_parity.py.",
+      "created_at": "2026-02-13T11:23:01Z"
+    },
+    {
+      "id": "ac52c668-f4a5-5007-a42f-99f95b456621",
+      "author": "Ryan Alyn Porter",
+      "text": "Plan: fix Python coverage shortfall by removing try/except branches in issue color helpers. Add explicit color validation and normalize invalid/None to no color in issue_line.py and issue_display.py. Re-run black/ruff and tools/run_specs.py to confirm 100% coverage.",
+      "created_at": "2026-02-13T12:00:09Z"
+    },
+    {
+      "id": "cedc5c94-8e1e-5188-b081-50a73efc0121",
+      "author": "Ryan Alyn Porter",
+      "text": "Update: added Unix listener in Rust daemon empty-response step to cover read_line empty response path; validated color normalization changes in Python. Tests: python3 -m black python/; python3 -m ruff check python/; cargo fmt --manifest-path rust/Cargo.toml; python3 tools/run_specs.py (Python coverage 100%, Rust coverage 100%).",
+      "created_at": "2026-02-13T12:08:50Z"
+    },
+    {
+      "id": "c62ff162-80a2-587d-a826-dc275130fefc",
+      "author": "Ryan Alyn Porter",
+      "text": "Additional checks: cargo fmt --check --manifest-path rust/Cargo.toml; cargo clippy --manifest-path rust/Cargo.toml -- -D warnings; python3 tools/check_spec_parity.py.",
+      "created_at": "2026-02-13T12:09:29Z"
+    },
+    {
+      "id": "c826829f-17b6-5b20-9689-c666b6acd1f7",
+      "author": "Ryan Alyn Porter",
+      "text": "Pushed commit 236d865 to main after bd sync. Unable to monitor GitHub Actions via gh because gh is not installed in this environment.",
+      "created_at": "2026-02-13T12:10:25Z"
+    }
+  ],
+  "created_at": "2026-02-13T10:26:46.883132Z",
+  "updated_at": "2026-02-16T01:07:59.201860Z",
+  "closed_at": "2026-02-16T01:07:59.168409Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

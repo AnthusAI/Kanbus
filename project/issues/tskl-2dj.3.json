@@ -1,0 +1,28 @@
+{
+  "id": "tskl-2dj.3",
+  "title": "Implement .taskulus dotfile inclusion",
+  "description": "Read .taskulus list of paths (relative to dotfile) to include additional project directories.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-2dj",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1e05181f-2d8b-5770-8082-d185c7059738",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented .taskulus dotfile inclusion for project discovery in Python and Rust, with validation of referenced paths. Added tests for dotfile discovery in both implementations. Tests: python -m pytest --cov=taskulus --cov-report=term-missing python/tests; cargo test --manifest-path rust/Cargo.toml --tests",
+      "created_at": "2026-02-11T14:59:46Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:37:46.283330Z",
+  "updated_at": "2026-02-11T14:59:50.939772Z",
+  "closed_at": "2026-02-11T14:59:50.939772Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

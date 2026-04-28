@@ -1,0 +1,20 @@
+{
+  "id": "tskl-acp.8",
+  "title": "Blank page when serving assets locally for theme support",
+  "description": "When the board is loaded using local asset serving (required for theme support), the webview shows a blank black page instead of rendering the kanban board.\n\nRoot cause: missing or incorrect Content-Security-Policy nonce. The injected patch script must carry the same nonce as declared in the CSP meta tag, and the CSP must allow scripts from the webview resource URI origin.\n\nAcceptance criteria:\n- Given the extension serves console-assets locally\n- When the user runs Kanbus: Open Board\n- Then the kanban board renders correctly (not blank)\n- And the board respects VSCode light/dark theme",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-acp",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T19:28:05.941870Z",
+  "updated_at": "2026-02-21T19:28:05.941870Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

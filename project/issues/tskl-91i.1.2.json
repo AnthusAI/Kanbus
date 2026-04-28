@@ -1,0 +1,27 @@
+{
+  "id": "tskl-91i.1.2",
+  "title": "Version alignment",
+  "description": "Align Python version sources to latest tag and prepare release commit.",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-91i.1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2e7e872b-9e62-5ada-a22d-67909e1ef307",
+      "author": "ryan.porter",
+      "text": "Aligned python/src/kanbus/__init__.py to 0.9.0 and committed fix. semantic-release --noop now reports next version 0.9.1, which is > published_max 0.8.2.",
+      "created_at": "2026-02-20T12:45:31.137126Z"
+    }
+  ],
+  "created_at": "2026-02-20T12:40:28.049633Z",
+  "updated_at": "2026-02-20T12:45:32.875509Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

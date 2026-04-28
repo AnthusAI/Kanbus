@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.4",
+  "title": "Implement lightweight internal Gherkin policy runner with clean CLI error output",
+  "description": "Implement fast Gherkin evaluator in Kanbus that avoids overhead of a full test framework.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:38:43.569436Z",
+  "updated_at": "2026-03-01T07:09:19.233149Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-zz1.3",
+  "title": "Define and implement the standard Kanbus Gherkin step library for policies",
+  "description": "Create built-in library of Gherkin steps for project management policies.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-zz1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-27T06:38:43.473055Z",
+  "updated_at": "2026-03-01T07:09:18.846969Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

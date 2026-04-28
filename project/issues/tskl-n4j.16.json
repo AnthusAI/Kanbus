@@ -1,0 +1,20 @@
+{
+  "id": "tskl-n4j.16",
+  "title": "Render and upload all 9 production videos to S3",
+  "description": "Render all 9 production MP4s with working video (no blank frames) and upload to S3 production bucket with CloudFront invalidation.",
+  "type": "task",
+  "status": "done",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Claude Code",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-08T23:51:36.069015Z",
+  "updated_at": "2026-03-08T23:51:36.069015Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

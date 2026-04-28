@@ -1,0 +1,39 @@
+{
+  "id": "tskl-587",
+  "title": "Skip Rust crate publish when version already exists",
+  "description": "Release workflow should not fail if the Rust crate version is already published. Add a version existence check against crates.io and skip cargo publish when already present. Ensure Release workflow succeeds.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5a8513bb-d371-5953-8459-b3a894a163b6",
+      "author": "Ryan Alyn Porter",
+      "text": "Starting: Release failed because rust crate version already exists on crates.io. Will add a check in .github/workflows/release.yml to skip publish when version is already published.",
+      "created_at": "2026-02-14T13:10:30Z"
+    },
+    {
+      "id": "a3e2566a-8faa-5e9f-8b41-4318abbd8ede",
+      "author": "Ryan Alyn Porter",
+      "text": "Added release workflow check to query crates.io for taskulus version and skip cargo publish when version already exists.",
+      "created_at": "2026-02-14T13:10:56Z"
+    },
+    {
+      "id": "ee664dc2-c343-529f-a74a-0bf472f2bcf3",
+      "author": "Ryan Alyn Porter",
+      "text": "Checked Release run 22013247194: rust-crate publish failed because taskulus 0.4.0 already exists on crates.io. Watching CI run 22018019359 for workflow fix; will verify Release after CI completes.",
+      "created_at": "2026-02-14T13:16:40Z"
+    }
+  ],
+  "created_at": "2026-02-14T13:10:20.756652Z",
+  "updated_at": "2026-02-16T01:07:59.182682Z",
+  "closed_at": "2026-02-16T01:07:59.166896Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

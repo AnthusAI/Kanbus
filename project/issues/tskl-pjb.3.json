@@ -1,0 +1,22 @@
+{
+  "id": "tskl-pjb.3",
+  "title": "Add LICENSE and crate README to rust/",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-pjb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T04:11:51.669780Z",
+  "updated_at": "2026-02-13T05:50:47.149374Z",
+  "closed_at": "2026-02-13T05:50:47.149376Z",
+  "custom": {
+    "beads_acceptance_criteria": "rust/ contains LICENSE file matching license field; rust/README.md renders on crates.io with install usage; cargo package --list shows both included.",
+    "beads_notes": "Ensure crate bundle includes legal and docs content required by crates.io.\nInitiating crate publish work; see AGENTS instructions: no backward compatibility; will follow cargo package/publish flow.\nAdded rust/LICENSE (MIT) and rust/README.md for crate packaging; cargo package --locked includes both.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

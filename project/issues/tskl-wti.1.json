@@ -1,0 +1,27 @@
+{
+  "id": "tskl-wti.1",
+  "title": "Unblock Python Behave runner (transition_labels workflow 'epic')",
+  "description": "Fix the Python test initialization hook so Behave runs without configuration errors.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-wti",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e623405f-7224-5d67-a190-7d3a92d1face",
+      "author": "ryan.porter",
+      "text": "Added missing epic transition_labels to Python default configuration to fix Behave before_all hook error. Dry-run behave now completes without the transition_labels missing workflow 'epic' error.",
+      "created_at": "2026-02-19T04:45:34.791882Z"
+    }
+  ],
+  "created_at": "2026-02-19T04:44:47.374588Z",
+  "updated_at": "2026-02-19T04:45:51.208050Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

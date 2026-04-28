@@ -1,0 +1,29 @@
+{
+  "id": "tskl-34w.12",
+  "title": "Docstring hygiene in benchmark fixtures",
+  "description": "Add Sphinx-style docstrings to public functions in benchmark fixture scripts without altering behavior.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2a02046a-892b-560f-8a94-bcb14f09ac34",
+      "author": "Ryan Alyn Porter",
+      "text": "Added Sphinx-style docstrings for public fixture generators in tools/benchmark_discovery_fixtures.py (generate_single_project, generate_multi_project).",
+      "created_at": "2026-02-11T20:12:47Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:12:19.415605Z",
+  "updated_at": "2026-02-11T20:12:50.492453Z",
+  "closed_at": "2026-02-11T20:12:50.492453Z",
+  "custom": {
+    "beads_acceptance_criteria": "Public functions in benchmark fixture scripts include Sphinx-style docstrings; behavior unchanged.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

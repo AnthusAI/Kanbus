@@ -1,0 +1,29 @@
+{
+  "id": "tskl-7ah.3",
+  "title": "Support .taskulus dotfile include paths",
+  "description": "Read .taskulus from cwd or parents up to git root and include listed project/ paths (absolute or relative).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-7ah",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e97e9d96-2899-50ee-9e64-9baa8db50f29",
+      "author": "Ryan Alyn Porter",
+      "text": ".taskulus dotfile support implemented in python/src/taskulus/project.py and rust/src/file_io.rs (find up to git root, include relative/absolute paths, error on missing).",
+      "created_at": "2026-02-12T00:37:27Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:33:32.423448Z",
+  "updated_at": "2026-02-12T00:37:30.657092Z",
+  "closed_at": "2026-02-12T00:37:30.657092Z",
+  "custom": {
+    "beads_acceptance_criteria": ".taskulus paths are included in discovery; invalid paths error clearly.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

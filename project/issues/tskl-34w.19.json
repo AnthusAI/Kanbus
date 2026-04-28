@@ -1,0 +1,29 @@
+{
+  "id": "tskl-34w.19",
+  "title": "Fix Behave stderr capture",
+  "description": "Ensure click CliRunner captures stderr separately so stderr assertions work in Behave.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "080bcb87-7ff6-5526-a714-03e52be45bcc",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated python/features/steps/shared.py to use CliRunner(mix_stderr=False). Behave run now succeeds; coverage run with --source=taskulus returns 100%.",
+      "created_at": "2026-02-11T21:06:32Z"
+    }
+  ],
+  "created_at": "2026-02-11T21:06:21.192779Z",
+  "updated_at": "2026-02-11T21:06:36.595992Z",
+  "closed_at": "2026-02-11T21:06:36.595992Z",
+  "custom": {
+    "beads_acceptance_criteria": "Behave steps can assert stderr without ValueError; tests pass.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

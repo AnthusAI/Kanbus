@@ -1,0 +1,21 @@
+{
+  "id": "tskl-m6p",
+  "title": "Rename Rust CLI binary to tskr",
+  "description": "Change the Rust CLI binary name from taskulus to tskr, and update any docs/tests that reference it.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T06:25:10.623729Z",
+  "updated_at": "2026-02-12T08:38:16.580416Z",
+  "closed_at": "2026-02-12T08:38:16.580419Z",
+  "custom": {
+    "beads_notes": "Starting work on renaming Rust CLI binary to tskr; will update cargo metadata, build outputs, docs, and tests.\nRenamed Rust CLI binary to tskr: added Cargo [[bin]] entry, updated Rust CLI tests, release workflow asset names, install docs, and tooling defaults (benchmarks/build/verify).\nRenamed Rust CLI to tskr, updated release artifacts, docs, and tooling defaults. Release run 21939141377 succeeded after change.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

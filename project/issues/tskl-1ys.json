@@ -1,0 +1,20 @@
+{
+  "id": "tskl-1ys",
+  "title": "Improve Kanbus narrative and storytelling across site and video",
+  "description": "Update site and intro video to tell a compelling story: why embedding PM in the repo eliminates coordination headaches, supports AI agents and humans, and gives a clear paper trail. Add high-level narrative (context switching, agent coordination, developer flow) and revise intro video/homepage to emphasize embedding project context.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-09T12:30:29.503100Z",
+  "updated_at": "2026-03-12T00:11:11.860085Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

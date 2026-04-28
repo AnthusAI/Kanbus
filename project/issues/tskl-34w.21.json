@@ -1,0 +1,36 @@
+{
+  "id": "tskl-34w.21",
+  "title": "Add combined spec runner summary tool",
+  "description": "Add a simple tool that runs all specs for Rust and Python and reports results with coverage in one summary.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d2438fde-67a9-5bca-8412-8892af5b9ef7",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran tools/run_specs.py --format text. Summary: Python specs passed with 100.0% coverage; Rust specs passed with 94.0% coverage.",
+      "created_at": "2026-02-11T22:37:02Z"
+    },
+    {
+      "id": "796be28c-b6fe-51a2-96a7-de5d174b04b5",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated wiki rendering to serialize issues with alias fields so issue.id works in templates; switched wiki feature queries to type=; added small delay for empty daemon response scenario stability; adjusted Rust wiki filter to retain with defaulted type for coverage. Ran: python3 tools/run_specs.py --format text (Python 100.0%, Rust 100.0%).",
+      "created_at": "2026-02-12T02:52:47Z"
+    }
+  ],
+  "created_at": "2026-02-11T22:05:49.013507Z",
+  "updated_at": "2026-02-12T02:52:52.723449Z",
+  "closed_at": "2026-02-12T02:52:52.723449Z",
+  "custom": {
+    "beads_acceptance_criteria": "Tool runs Rust and Python spec suites using shared features and prints a single summary of pass/fail and coverage metrics.",
+    "beads_close_reason": "Closed",
+    "beads_notes": "Starting implementation. Plan: add a single runner script to execute Python behave and Rust cucumber, collect exit status and coverage outputs, and print a unified summary.\nAdded optional text summary output to tools/run_specs.py via --format text while preserving default JSON output.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-n4j.2",
+  "title": "Implement VideoML subproject and intro content",
+  "description": "",
+  "type": "task",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-n4j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-22T05:36:20.573048Z",
+  "updated_at": "2026-02-22T16:50:22.860331Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

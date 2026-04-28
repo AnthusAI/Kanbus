@@ -1,0 +1,41 @@
+{
+  "id": "tskl-34w.22",
+  "title": "Add unified spec runner summary tool",
+  "description": "Create a simple tool that runs Python and Rust specs and reports pass/fail plus coverage summary in one output.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "724440d7-2064-5970-bab1-af8515383d1f",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated tools/run_specs.py to default to text summary and include error details in the final output (Python/Rust spec errors and Rust coverage errors).",
+      "created_at": "2026-02-12T00:18:30Z"
+    },
+    {
+      "id": "09d9af49-35db-5af4-a775-afed2fd28516",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran python3 tools/run_specs.py --format text: Python specs passed with 99.8% coverage; Rust specs passed with 100.0% coverage.",
+      "created_at": "2026-02-12T00:23:57Z"
+    },
+    {
+      "id": "88d10f95-4cc1-5250-82d7-05ab21457a03",
+      "author": "Ryan Alyn Porter",
+      "text": "Added direct protocol handling scenario to cover daemon_server ProtocolError mapping and updated run_specs error handling. Ran python3 tools/run_specs.py --format text: Python specs 100.0% coverage; Rust specs 100.0% coverage.",
+      "created_at": "2026-02-12T00:27:51Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:15:38.260514Z",
+  "updated_at": "2026-02-12T00:27:58.753153Z",
+  "closed_at": "2026-02-12T00:27:58.753153Z",
+  "custom": {
+    "beads_acceptance_criteria": "Tool runs both Python behave and Rust cucumber/tarpaulin, prints per-language status and coverage in a final summary. No commits.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

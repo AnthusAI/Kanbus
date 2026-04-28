@@ -1,0 +1,33 @@
+{
+  "id": "tskl-ibv.3",
+  "title": "Guarantee globally unique comment IDs",
+  "description": "As a developer consuming events, I want every comment to have a globally unique ID, so that comment_added events can reference comments unambiguously across storage and APIs.\n\nAcceptance Criteria:\n- Audit current comment creation/storage to confirm uniqueness and persistence of comment_id.\n- If any gap exists, add UUID generation, persistence, and migration for existing comments.\n- Event writer relies solely on comment_id (no fallbacks to text or position).",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan",
+  "parent": "tskl-ibv",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e600d9ff-88fc-59c6-960f-15af9a6e5087",
+      "author": "ryan",
+      "text": "Verified comment IDs are globally unique in Rust/Python for project issues; added deterministic UUID assignment for Beads comments in Python migration and event logging uses canonical UUIDs.",
+      "created_at": "2026-02-21T07:05:39.750137Z"
+    },
+    {
+      "id": "8c24091a-ae77-54a2-8518-e8a2f10821d9",
+      "author": "ryan",
+      "text": "Completed: comment IDs are UUIDs in standard issues; beads migration assigns deterministic uuid5 IDs and event writers use canonical comment IDs (no comment text stored).",
+      "created_at": "2026-02-21T07:09:33.723767Z"
+    }
+  ],
+  "created_at": "2026-02-21T06:16:15.795539Z",
+  "updated_at": "2026-02-21T07:09:33.723767Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan"
+  }
+}

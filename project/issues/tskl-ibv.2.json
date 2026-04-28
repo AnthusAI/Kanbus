@@ -1,0 +1,27 @@
+{
+  "id": "tskl-ibv.2",
+  "title": "Define event schema and types",
+  "description": "As a platform architect, I want a canonical event schema and type catalog, so that all services write and validate event files consistently.\n\nAcceptance Criteria:\n- Define required fields for each event type (issue_created, state_transition, comment_added, field_updated, issue_deleted).\n- Enforce ISO8601 filenames and occurred_at, include actor_id, issue_id, event_id.\n- Provide validation helpers that reject events missing required payload fields before writing.",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan",
+  "parent": "tskl-ibv",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e094aa80-7b8c-5980-b289-f1144c7c858c",
+      "author": "ryan",
+      "text": "Completed: shared EventRecord schema + EventType catalog and payload helpers in Rust/Python; filename generation and event helpers enforce required fields on write.",
+      "created_at": "2026-02-21T07:09:31.294764Z"
+    }
+  ],
+  "created_at": "2026-02-21T06:16:13.389892Z",
+  "updated_at": "2026-02-21T07:09:31.294764Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "id": "tskl-y3m",
+  "title": "Workspace discovery fails due to invalid nested config",
+  "description": "When running kbs from a workspace root, discovery loads every nested .kanbus.yml. If any config is invalid (e.g., legacy external_projects), discovery errors and kbs show fails for unrelated issues.\n\nFix: in workspace mode, skip invalid configs and continue; single-project root remains strict.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1c582162-5b0c-5ae1-8335-8c5d634253a1",
+      "author": "unknown",
+      "text": "Root cause for NO DESCRIPTION appears to be workspace kbs show failing when a discovered project lacks an issues/ dir (read_dir error). Planning change: in issue lookup, skip missing issues dirs instead of erroring; keep workspace discovery intact. Will update tests accordingly.",
+      "created_at": "2026-03-05T14:13:35.104249Z"
+    },
+    {
+      "id": "1b8a84ef-9aca-5fa7-b8d0-b9bd9579c12b",
+      "author": "unknown",
+      "text": "Implemented guard in rust issue_lookup: if issues_dir missing, return empty matches instead of error. Next: rebuild kbs and verify kbs show works from workspace root; then update PyPixoo clock debug.",
+      "created_at": "2026-03-05T14:15:10.725847Z"
+    },
+    {
+      "id": "6f0791cc-c3af-5fa7-97f6-ee6c63b72243",
+      "author": "unknown",
+      "text": "Adjusted workspace handling further: added beads fallback in kbs show when non-beads workspace root can't find issue in project/issues. Implemented load_beads_issue_from_workspace and wired into show; also tightened discovery to skip missing project dirs in workspace. Rebuilding kbs next.",
+      "created_at": "2026-03-05T14:28:57.461193Z"
+    },
+    {
+      "id": "6392f83f-7a47-5c6f-8338-811babc33510",
+      "author": "unknown",
+      "text": "Added kbs show --project-root to disambiguate workspace lookups and support beads-mode repos. Show now uses project-root to load issues; workspace beads fallback remains for no project-root. Rebuilt kbs.",
+      "created_at": "2026-03-05T14:34:45.341110Z"
+    },
+    {
+      "id": "bc16ce01-6848-5308-8c99-df15540f4ef9",
+      "author": "ryan.porter",
+      "text": "Closing as completed: workspace discovery now skips invalid nested .kanbus.yml and valid projects continue to resolve.",
+      "created_at": "2026-03-06T02:42:22.237480Z"
+    }
+  ],
+  "created_at": "2026-03-05T14:09:20.550394Z",
+  "updated_at": "2026-03-06T02:42:22.319228Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

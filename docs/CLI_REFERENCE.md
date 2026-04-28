@@ -235,7 +235,11 @@ Migrate Beads issues into Kanbus.
 
 ```bash
 kanbus migrate
+kanbus migrate --into-existing
 ```
+
+`--into-existing` imports Beads issues into an already initialized Kanbus
+project and is safe to re-run.
 
 ## Diagnostics
 

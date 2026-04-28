@@ -1,0 +1,29 @@
+{
+  "id": "tskl-mim.1",
+  "title": "Implement downward discovery for project/ directories",
+  "description": "Walk filesystem downward from cwd to collect project/ directories. Stop descending into project/ directories. Remove upward-walking discovery and BEADS_DIR fallback.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-mim",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ef050711-fba9-51e9-ba84-697e311026cf",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented downward discovery in python/src/taskulus/project.py discover_project_directories and rust/src/file_io.rs discover_project_directories (skip project/ and project-local/ descent). Verified via features/project/project_utilities.feature and features/discovery/project_discovery.feature in behave and rust cucumber.",
+      "created_at": "2026-02-11T20:08:48Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:04:34.026202Z",
+  "updated_at": "2026-02-11T20:08:51.779239Z",
+  "closed_at": "2026-02-11T20:08:51.779239Z",
+  "custom": {
+    "beads_acceptance_criteria": "Discovery returns all project/ directories at or below cwd; no upward walking; BEADS_DIR fallback removed.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

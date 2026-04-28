@@ -1,0 +1,22 @@
+{
+  "id": "tskl-ee5",
+  "title": "Indexing benchmarks for multi-project discovery",
+  "description": "Add reproducible benchmarks simulating recursive multi-project discovery and indexing in monorepos for Python and Rust. Compare single-folder vs recursive modes and evaluate parallelization speedups.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T00:33:53.302399Z",
+  "updated_at": "2026-02-12T00:35:52.178712Z",
+  "closed_at": "2026-02-12T00:35:52.178712Z",
+  "custom": {
+    "beads_acceptance_criteria": "Benchmark tools exist for Python and Rust, with fixtures and summary output; parallelization experiment documented.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

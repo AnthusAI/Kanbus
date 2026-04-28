@@ -1,0 +1,33 @@
+{
+  "id": "tskl-ibv",
+  "title": "Event History",
+  "description": "As a product owner, I want every discrete issue action captured as an immutable event history, so that we can audit changes, surface timelines in the UI, and reconstruct state without hidden systems.\n\nDefinition of Done:\n- Event history is the single source of truth for issue-level actions (no alternate locations).\n- Stories under this epic deliver recording, schema, backend retrieval, and frontend display.",
+  "type": "epic",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ba12eae4-a369-52eb-b0d6-df40d2a0616c",
+      "author": "ryan",
+      "text": "Implementation started. Added event history module (Rust/Python), event directory creation, event writes with rollback across create/update/comment/delete/deps/transfer/beads, console API endpoints for issue events, and UI tab plan in progress. Next: finish UI wiring, docs/tests, run checks, then mark stories done.",
+      "created_at": "2026-02-21T07:03:31.644089Z"
+    },
+    {
+      "id": "95bae59a-80cd-59fa-9794-6e2fb401f89c",
+      "author": "ryan",
+      "text": "All stories done. Event log implemented (Rust/Python), event dirs created on init, console API + Event History UI tab wired, docs updated. Checks: cargo check (rust) ok. Python tests not run (pytest missing in py311).",
+      "created_at": "2026-02-21T07:09:41.104786Z"
+    }
+  ],
+  "created_at": "2026-02-21T06:16:08.221478Z",
+  "updated_at": "2026-02-21T07:09:41.104786Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan"
+  }
+}

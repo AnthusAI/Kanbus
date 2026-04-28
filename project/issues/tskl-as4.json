@@ -1,0 +1,21 @@
+{
+  "id": "tskl-as4",
+  "title": "Improve console animations",
+  "description": "The console needs better animations throughout. Review all UI transitions and interactions to make them smoother and more polished. Consider: card transitions when filtering/sorting, panel slides, hover states, loading states, and any other user interactions that could benefit from improved animation timing and easing.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T01:19:39.793171Z",
+  "updated_at": "2026-02-18T05:40:37.705154Z",
+  "closed_at": null,
+  "custom": {
+    "beads_issue_type": "feature",
+    "beads_owner": "rap@endymion.com"
+  }
+}

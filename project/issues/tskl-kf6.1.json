@@ -1,0 +1,29 @@
+{
+  "id": "tskl-kf6.1",
+  "title": "Automate crates.io publish via GitHub Actions",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-kf6",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d24c986e-218e-5a70-a0e6-87af5c8422c3",
+      "author": "Ryan Alyn Porter",
+      "text": "Integrated crate publish into existing release workflow: new rust-crate job in .github/workflows/release.yml runs after semantic-release tag; removes standalone publish-crate workflow to avoid double publish.",
+      "created_at": "2026-02-13T06:06:08Z"
+    }
+  ],
+  "created_at": "2026-02-13T05:57:47.065014Z",
+  "updated_at": "2026-02-13T06:11:53.567725Z",
+  "closed_at": "2026-02-13T06:11:53.567727Z",
+  "custom": {
+    "beads_acceptance_criteria": "Workflow publishes Taskulus crate to crates.io on tagged release; uses CARGO_REGISTRY_TOKEN secret; runs cargo fmt/clippy/tests/package before publish; works from rust/ subdir; documented in README/INSTALL.",
+    "beads_notes": "Set up GitHub Actions similar to PyPI publish, but for Rust crate. Trigger on tags v*.*.* or release published.\nPlanning workflow similar to PyPI publish: trigger on tagged release, run fmt/clippy/tests/package, then cargo publish with secret token.\nAdded GitHub Actions workflow .github/workflows/publish-crate.yml to publish taskulus crate on tag push v*.*.*. Workflow runs fmt, clippy, tests, package, publishes with CARGO_REGISTRY_TOKEN secret and tag-version check. Documented in INSTALL.md CI section.\nRemoved .github/workflows/publish-crate.yml; rust publish now rides release.yml rust-crate job triggered by semantic-release tag. Docs updated in INSTALL.md.\nAdjusting release workflow to auto-sync rust crate version to semantic-release tag so publish is fully automatic.\nWorkflow now auto-syncs rust/Cargo.toml version to semantic-release tag and publishes crate in release.yml; documentation updated.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

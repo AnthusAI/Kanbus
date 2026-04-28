@@ -1,0 +1,27 @@
+{
+  "id": "tskl-n4j.7",
+  "title": "Kanban board renders with frame-based animation",
+  "description": "",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-n4j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "15ce579d-a56f-5bef-aca0-bd13b239ac68",
+      "author": "unknown",
+      "text": "Feature: Frame-based Kanban rendering\n  Scenario: Kanban board supports frame-based motion\n    Given a frame-based renderer\n    When the Kanban board is rendered with a frame number\n    Then animations are derived from the frame input\n    And no CSS or GSAP timelines are required",
+      "created_at": "2026-02-22T05:36:40.960010Z"
+    }
+  ],
+  "created_at": "2026-02-22T05:36:38.222399Z",
+  "updated_at": "2026-02-22T16:51:05.930093Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

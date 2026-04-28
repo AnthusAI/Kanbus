@@ -1,0 +1,27 @@
+{
+  "id": "tskl-dvi",
+  "title": "Issue Search",
+  "description": "Enable global keyword search across all issues from the top navigation bar, temporarily overriding type filters and restoring prior filter state after search.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c0a0fa5b-86d5-52b1-8f1a-6fa045307320",
+      "author": "ryan.porter",
+      "text": "Implemented live search control in console toolbar with real-time filtering. Search works across title, description, comments, labels, assignee, and creator fields. X button clears search. Responsive design collapses to icon on mobile. Committed in 821ffae.",
+      "created_at": "2026-02-18T07:26:17.251982Z"
+    }
+  ],
+  "created_at": "2026-02-18T05:44:37.515795Z",
+  "updated_at": "2026-02-18T07:26:17.251982Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

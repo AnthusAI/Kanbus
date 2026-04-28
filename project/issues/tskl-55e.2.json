@@ -1,0 +1,20 @@
+{
+  "id": "tskl-55e.2",
+  "title": "Filter button opens filter right-sidebar; FolderOpen button removed",
+  "description": "Replace the existing dual-button arrangement (filter toggle + FolderOpen) with a single filter button that opens the new filter right-sidebar. The FolderOpen icon and its popup panel are removed entirely. The existing filter button icon is kept but its behavior changes from toggling focus-clear to opening the sidebar.\n\nScenario: Filter button opens the filter sidebar\n\nGiven the user is viewing the kanban board\nAnd the filter sidebar is closed\nWhen the user clicks the filter button in the toolbar\nThen the filter right-sidebar opens using the shared RightSidebar component\nAnd the kanban board animates narrower\n\nScenario: Filter button closes the filter sidebar\n\nGiven the filter sidebar is open\nWhen the user clicks the filter button again\nThen the filter sidebar closes\nAnd the kanban board animates back to full width\n\nScenario: FolderOpen button no longer appears\n\nGiven the user has virtual projects configured\nWhen the user views the toolbar\nThen no FolderOpen folder icon button is present\nAnd the project checkboxes that were in the folder popup are now in the filter sidebar\n\nScenario: Filter button no longer clears focus directly\n\nGiven the user has focused on a particular issue\nWhen the user views the toolbar filter button\nThen the filter button does not show a Focused/clear state\nAnd clicking the filter button opens the filter sidebar rather than clearing focus\nAnd focus is only cleared via the focus pill inside the filter sidebar",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-55e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T20:48:10.925300Z",
+  "updated_at": "2026-02-23T04:53:53.549648Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "tskl-l82.3",
+  "title": "kbs console status prints human-readable summary of all current UI state",
+  "description": "Given the console server is running with some UI state\n\nWhen I run kbs console status\n\nThen I see a human-readable summary showing:\n  - Whether an issue is currently focused (and which one)\n  - The current view mode (initiatives / epics / issues)\n  - The current search query (if any)\n\nWhen the console server is not running\n\nThen I see 'Console server is not running.' and the command exits 0\n\nAcceptance criteria:\n- Output is human-readable (not raw JSON)\n- All three state fields are shown, even if they are empty/default\n- No error exit code when server is offline -- just prints the 'not running' message",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-l82",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3d056c62-6123-50da-b48b-4c236e1a4be3",
+      "author": "ryan.porter",
+      "text": "Implemented kbs console status command. Calls GET /api/ui-state, prints focus/view/search fields human-readably, or 'Console server is not running.' if server is offline.",
+      "created_at": "2026-02-20T04:21:16.131Z"
+    }
+  ],
+  "created_at": "2026-02-20T03:15:22.632920Z",
+  "updated_at": "2026-02-20T04:21:16.131Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

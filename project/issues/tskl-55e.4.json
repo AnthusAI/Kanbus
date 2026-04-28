@@ -1,0 +1,20 @@
+{
+  "id": "tskl-55e.4",
+  "title": "Focus pill in filter sidebar shows active focus and lets user clear it",
+  "description": "When the user has focused on a particular issue (using the Focus button in the detail panel), a pill appears at the top of the filter sidebar showing which issue is focused. The pill has a close/X button that deactivates the focus. This replaces the old Focused state on the toolbar filter button.\n\nScenario: Focus pill appears when focus is active\n\nGiven the user has activated focus on an issue (e.g. \"Epic: User Authentication\" tskl-abc)\nWhen the user opens the filter sidebar\nThen a pill is visible at the very top of the filter sidebar above the project checkboxes\nAnd the pill displays the title of the focused issue\nAnd the pill has an X or close icon on its right side\n\nScenario: Focus pill is absent when no focus is active\n\nGiven no focus is currently active\nWhen the user opens the filter sidebar\nThen no focus pill is shown\nAnd the project checkboxes appear at the top of the filter content\n\nScenario: Clicking the focus pill close button deactivates focus\n\nGiven the user has activated focus on an issue\nAnd the filter sidebar is open showing the focus pill\nWhen the user clicks the X button on the focus pill\nThen the focus is deactivated\nAnd the kanban board returns to showing all issues (subject to other active filters)\nAnd the focus pill disappears from the filter sidebar\n\nScenario: Focus pill label truncates for long titles\n\nGiven the focused issue has a long title\nWhen the focus pill is displayed in the filter sidebar\nThen the title is truncated with an ellipsis to fit within the sidebar width\nAnd the X button remains visible and clickable",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-55e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T20:49:17.650790Z",
+  "updated_at": "2026-02-23T04:53:53.549648Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

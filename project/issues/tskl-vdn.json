@@ -1,0 +1,22 @@
+{
+  "id": "tskl-vdn",
+  "title": "Clean up epic dependencies for tskl-l4q and tskl-34w",
+  "description": "Remove stale blockers from tskl-34w now that upstream epics are closed; verify tskl-l4q block relationship and leave clear status.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T03:44:27.617425Z",
+  "updated_at": "2026-02-12T03:44:56.667738Z",
+  "closed_at": "2026-02-12T03:44:56.667738Z",
+  "custom": {
+    "beads_close_reason": "Removed closed-epic blockers from tskl-34w; verified tskl-l4q remains open due to backlog review task.",
+    "beads_notes": "Removed closed-epic blockers from tskl-34w: tskl-5er, tskl-76b, tskl-8ke, tskl-eyu, tskl-p3i, tskl-2ly. Remaining blockers are open epics tskl-l4q and tskl-nqs. Synced JSONL.\nReviewed tskl-l4q: only remaining child is tskl-l4q.8 (backlog, non-developer review pending). Left tskl-l4q open and still blocking tskl-34w.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

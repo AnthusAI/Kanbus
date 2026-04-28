@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.11",
+  "title": "Fix view mode selector not updating board filter",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T13:07:15.832061Z",
+  "updated_at": "2026-02-18T13:10:43.434243Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

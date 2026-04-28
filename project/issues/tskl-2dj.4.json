@@ -1,0 +1,28 @@
+{
+  "id": "tskl-2dj.4",
+  "title": "Remove role detection and global fallback",
+  "description": "Remove contributor/maintainer role logic, ~/.beads fallback, redirect system, and related CLI options.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-2dj",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f206a9ab-e31c-5893-953b-08a924f00fd4",
+      "author": "Ryan Alyn Porter",
+      "text": "Searched codebase for role detection, beads.role, BEADS_DIR, redirect routing, and ~/.beads usage. No role detection or redirect logic found in Taskulus runtime; only .beads references are migration paths. No code changes required for this task.",
+      "created_at": "2026-02-11T15:00:29Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:37:53.423045Z",
+  "updated_at": "2026-02-11T15:00:35.613783Z",
+  "closed_at": "2026-02-11T15:00:35.613783Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

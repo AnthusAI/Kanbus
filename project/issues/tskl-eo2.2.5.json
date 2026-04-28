@@ -1,0 +1,20 @@
+{
+  "id": "tskl-eo2.2.5",
+  "title": "Implement UDS broker server and client CLI",
+  "description": "## Scope\n- Add UDS broker service using NDJSON frames.\n- Add broker CLI command to run it.\n- Add UDS client for publish and subscribe.\n\n## Definition of Done\n- UDS broker supports multiple subscribers and topic fanout.\n- Both runtimes can publish and subscribe via UDS.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-06T18:05:08.297642Z",
+  "updated_at": "2026-03-10T03:24:44.461738Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

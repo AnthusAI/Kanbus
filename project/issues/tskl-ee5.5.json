@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ee5.5",
+  "title": "Evaluate parallel loading speedups",
+  "description": "Experiment with parallelized discovery/index loading to reduce latency; report before/after benchmark data.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ee5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "79ce1dbb-dd35-5f8c-b61c-2f58e25d4395",
+      "author": "Ryan Alyn Porter",
+      "text": "Parallel discovery/index loading implemented in tools/benchmark_discovery.py and rust/src/bin/discovery_benchmark.rs; planning/INDEX_BENCHMARK_PARALLEL.md documents parallel benchmark approach.",
+      "created_at": "2026-02-12T00:35:44Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:34:11.876335Z",
+  "updated_at": "2026-02-12T00:35:49.041947Z",
+  "closed_at": "2026-02-12T00:35:49.041947Z",
+  "custom": {
+    "beads_acceptance_criteria": "Documented benchmark results comparing baseline vs parallel loading.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "tskl-e7j.1",
+  "title": "Auto-focus newly created issues",
+  "description": "",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-e7j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4f983de9-7918-5e60-9d2b-e5b9bf1262f1",
+      "author": "unknown",
+      "text": "Feature: Auto-focus newly created issues\\n\\nScenario: New issue creation triggers focus\\n  Given I create a new issue via the issue create tool\\n  And I am viewing the board\\n  When the issue is created\\n  Then the board receives a focus message for that issue\\n  And the UI highlights or focuses the new issue card\\n  And the focus action does not require a manual reload",
+      "created_at": "2026-02-18T05:51:37.858627Z"
+    }
+  ],
+  "created_at": "2026-02-18T05:51:32.210281Z",
+  "updated_at": "2026-02-18T13:23:22.396496Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

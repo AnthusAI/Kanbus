@@ -1,0 +1,27 @@
+{
+  "id": "tskl-l82.6",
+  "title": "kbs console get search prints active search query",
+  "description": "Given the console server is running\nAnd a search query is active (e.g., after kbs console search 'login bug')\n\nWhen I run kbs console get search\n\nThen the command prints the current search query (e.g., 'login bug')\n\nGiven no search query is active (search is clear)\n\nWhen I run kbs console get search\n\nThen the command prints 'none'\n\nGiven the console server is not running\n\nWhen I run kbs console get search\n\nThen the command prints 'Console server is not running.' and exits 0\n\nAcceptance criteria:\n- Output is a single line\n- No error exit code when server is offline",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-l82",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "61027ea7-0960-56fb-bd34-7a5fa8ea6482",
+      "author": "ryan.porter",
+      "text": "Implemented kbs console get focus/view/search. Each field prints a single line (issue ID, view mode, or search query), 'none' if unset, or 'Console server is not running.' if offline.",
+      "created_at": "2026-02-20T04:21:16.181371Z"
+    }
+  ],
+  "created_at": "2026-02-20T03:15:42.947246Z",
+  "updated_at": "2026-02-20T04:21:16.181371Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

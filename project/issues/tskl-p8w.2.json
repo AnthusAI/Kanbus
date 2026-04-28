@@ -1,0 +1,27 @@
+{
+  "id": "tskl-p8w.2",
+  "title": "Show by fragment requires uniqueness across workspace",
+  "description": "As a Kanbus user\nI want kbs show <fragment> to fail when ambiguous across projects\nSo that I am forced to use a canonical key.\n\nFeature: Workspace fragment resolution\n\nScenario: Fragment matches multiple issues\n  Given a workspace with multiple projects\n  And two issues share the same fragment\n  When I run \"kanbus show <fragment>\"\n  Then the command should fail with \"ambiguous identifier\"",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": "tskl-p8w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "012f8b46-1869-5c95-b566-9e65d5c651ab",
+      "author": "unknown",
+      "text": "Added workspace ambiguous-fragment scenario; issue show now errors on ambiguous identifiers across projects. BDD green.",
+      "created_at": "2026-03-05T13:19:15.580315Z"
+    }
+  ],
+  "created_at": "2026-03-05T13:18:47.054812Z",
+  "updated_at": "2026-03-05T13:19:25.840469Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}

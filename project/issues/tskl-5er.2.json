@@ -1,0 +1,28 @@
+{
+  "id": "tskl-5er.2",
+  "title": "Implement queries in Python",
+  "description": "Implement queries.py: filter(), sort(), search(). Use index for fast lookups.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-5er",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "bafdcbef-a463-5b05-aa58-f82d703ebfba",
+      "author": "Ryan Alyn Porter",
+      "text": "Added search_issues de-duplication via identifier guard and added coverage to prevent duplicate matches when term is in title and comments. Tests: python -m pytest python/tests/test_queries.py, black python/src/taskulus/queries.py python/tests/test_queries.py, ruff check python/src/taskulus/queries.py python/tests/test_queries.py.",
+      "created_at": "2026-02-11T13:55:56Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:02.262890Z",
+  "updated_at": "2026-02-11T13:55:58.775229Z",
+  "closed_at": "2026-02-11T13:55:58.775229Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

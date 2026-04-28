@@ -1,0 +1,29 @@
+{
+  "id": "tskl-34w.14",
+  "title": "Docstring hygiene in check_spec_parity",
+  "description": "Add Sphinx-style docstrings for public functions in tools/check_spec_parity.py without changing behavior.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "35629474-2d75-55ce-b73c-234cf9cf8ad0",
+      "author": "Ryan Alyn Porter",
+      "text": "Added Sphinx-style docstrings for public functions in tools/check_spec_parity.py (collect_feature_steps, collect_python_steps, collect_rust_steps, build_results, report, parse_args, main).",
+      "created_at": "2026-02-11T20:14:15Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:13:56.498221Z",
+  "updated_at": "2026-02-11T20:14:18.558363Z",
+  "closed_at": "2026-02-11T20:14:18.558363Z",
+  "custom": {
+    "beads_acceptance_criteria": "Public functions in tools/check_spec_parity.py have Sphinx-style docstrings.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

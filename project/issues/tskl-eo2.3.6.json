@@ -1,0 +1,39 @@
+{
+  "id": "tskl-eo2.3.6",
+  "title": "Run reconcile from git hooks after pull/rebase/checkout",
+  "description": "Update overlay hook installer so post-merge/post-rewrite/post-checkout run reconcile+gc, ensuring stale overrides are pruned on remote sync.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-eo2.3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "11e42a62-7d38-5386-8c13-69716c63b632",
+      "author": "ryan.porter",
+      "text": "Progress: Hook installer now writes reconcile+gc commands for post-merge/post-checkout/post-rewrite and includes guardrails for disabled hooksPath. Evidence: hook block updated to run  before ; install now returns explicit message when core.hooksPath=/dev/null. Next: close task after docs/test updates are merged. Risk/Blocker: local repo currently has core.hooksPath=/dev/null so hook installation is intentionally blocked until unset.",
+      "created_at": "2026-03-08T14:07:30.438023Z"
+    },
+    {
+      "id": "7e94cf05-572e-583d-80f0-3b40b10b5fd6",
+      "author": "ryan.porter",
+      "text": "Progress: Hook maintenance logic now targets reconcile+gc and reports disabled hooksPath clearly. Evidence: hook block includes  before ; installer returns explicit guidance when . Next: enable hooks in target repos by unsetting core.hooksPath, then run install-hooks. Risk/Blocker: current repo keeps hooks disabled by configuration.",
+      "created_at": "2026-03-08T14:08:01.938855Z"
+    },
+    {
+      "id": "3f69c02a-055d-5802-aaaf-fe88b40136ef",
+      "author": "ryan.porter",
+      "text": "Progress: Hook maintenance logic now targets reconcile plus gc and reports disabled hooksPath clearly.\nEvidence: Hook block includes overlay reconcile all prune before overlay gc all; installer now reports explicit guidance when core hooksPath points to dev null.\nNext: Enable hooks in target repos by unsetting hooksPath, then run install-hooks.\nRisk/Blocker: current repo keeps hooks disabled by configuration.",
+      "created_at": "2026-03-08T14:08:27.991019Z"
+    }
+  ],
+  "created_at": "2026-03-08T14:00:26.205673Z",
+  "updated_at": "2026-03-08T14:08:27.991019Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

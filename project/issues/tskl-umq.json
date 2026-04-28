@@ -1,0 +1,83 @@
+{
+  "id": "tskl-umq",
+  "title": "Add Taskulus agent instructions and README section management",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [
+    "status:in_progress"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0936038a-f09d-5f98-97b2-44b133554050",
+      "author": "Ryan Alyn Porter",
+      "text": "Plan: add CLI command to ensure AGENTS.md and README Taskulus section. Behavior: create files/sections if missing; if Taskulus section exists, prompt for confirmation before overwrite. Need exact default content and non-interactive behavior.",
+      "created_at": "2026-02-13T20:10:55Z"
+    },
+    {
+      "id": "4f0fa25e-42b7-58c0-845f-20377bf53548",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Taskulus AGENTS.md management in Python and Rust, added Gherkin feature and fixtures, added step definitions, and introduced setup agents command. Still need to run tests and adjust any failures.",
+      "created_at": "2026-02-13T21:11:55Z"
+    },
+    {
+      "id": "33b8afbc-079b-5672-8487-c904862eaafe",
+      "author": "Ryan Alyn Porter",
+      "text": "Ran: conda run -n taskulus python -m behave features/agents/agents_management.feature (pass). Rust cucumber full run still fails due to existing unrelated failures; new steps now rebuild tskr before running.",
+      "created_at": "2026-02-13T21:15:00Z"
+    },
+    {
+      "id": "98c747b7-6612-5cbc-9438-b3582373a996",
+      "author": "Ryan Alyn Porter",
+      "text": "New requirement: add full integration test that uses examples/rube-goldberg project, deletes/recreates folder, writes stub README, runs tsk setup agents, and verifies files created.",
+      "created_at": "2026-02-13T21:15:24Z"
+    },
+    {
+      "id": "3a53f23d-4816-59d9-b7d8-a0908bc956c5",
+      "author": "Ryan Alyn Porter",
+      "text": "Working on integration test for examples/rube-goldberg project setup using tsk setup agents. Need Rust CLI to allow setup agents without config in example folder and ensure AGENTS.md created. Will add/adjust steps and run tests.",
+      "created_at": "2026-02-13T21:18:09Z"
+    },
+    {
+      "id": "bdb3b026-2623-56fb-abb0-fc6c76803589",
+      "author": "Ryan Alyn Porter",
+      "text": "Fixed Rust CLI setup agents to bypass config when running setup, so examples integration test can run without config. Removed unused import in rust examples steps. Ran: conda run -n taskulus cargo test --test cucumber -- --name \"Create Rube Goldberg example project\" (pass).",
+      "created_at": "2026-02-13T21:19:12Z"
+    },
+    {
+      "id": "61e22127-523a-53e9-bec5-9840d89b6a8c",
+      "author": "Ryan Alyn Porter",
+      "text": "Updated Taskulus AGENTS template to point to AGENT_INSTRUCTIONS.md and added generation of AGENT_INSTRUCTIONS.md with Taskulus workflow and command examples in both Python and Rust. Added BDD steps to require the instructions file in agents and examples features, updated example project files. Fixed Rust steps to invoke tskr without the extra 'tsk' token. Tests: conda run -n taskulus python -m behave features/agents/agents_management.feature; conda run -n taskulus python -m behave features/integration/examples_setup.feature; conda run -n taskulus cargo test --test cucumber -- --name \"Create AGENTS.md when missing\"; conda run -n taskulus cargo test --test cucumber -- --name \"Create Rube Goldberg example project\".",
+      "created_at": "2026-02-13T21:29:44Z"
+    },
+    {
+      "id": "dd18ca05-e7b9-53c1-abdd-f46dafc0ce8a",
+      "author": "Ryan Alyn Porter",
+      "text": "Expanded AGENT_INSTRUCTIONS.md generation to derive issue types, hierarchy, workflows, statuses, and priorities from .taskulus.yml. Added configuration-driven command examples and updated Taskulus section reference text. Updated Python/Rust BDD steps to validate generated instructions and copy configuration into temp repos. Updated example AGENTS and AGENT_INSTRUCTIONS outputs. Tests: conda run -n taskulus python -m behave features/agents/agents_management.feature; conda run -n taskulus python -m behave features/integration/examples_setup.feature; conda run -n taskulus cargo test --test cucumber -- --name \"Create AGENTS.md when missing\"; conda run -n taskulus cargo test --test cucumber -- --name \"Create Rube Goldberg example project\".",
+      "created_at": "2026-02-13T22:24:56Z"
+    },
+    {
+      "id": "4fb75007-f19f-596f-a55b-038e6537ed99",
+      "author": "Ryan Alyn Porter",
+      "text": "Renamed AGENT_INSTRUCTIONS.md to PROJECT_MANAGEMENT.md and updated AGENTS.md reference. PROJECT_MANAGEMENT.md now generated from project config. Integration test now starts with empty folder: git init -> tsk init -> add README stub -> tsk setup agents, and asserts .taskulus.yml + project/ exist. Init now optionally prompts in interactive terminals to run setup agents (skips in non-interactive). Updated Python/Rust steps and example files accordingly. Tests: conda run -n taskulus python -m behave features/agents/agents_management.feature; conda run -n taskulus python -m behave features/integration/examples_setup.feature; conda run -n taskulus cargo test --test cucumber -- --name \"Create AGENTS.md when missing\"; conda run -n taskulus cargo test --test cucumber -- --name \"Create Rube Goldberg example project\".",
+      "created_at": "2026-02-13T22:45:33Z"
+    },
+    {
+      "id": "ee931d82-9eb5-57aa-8f3c-8043f62a304f",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented template-driven PROJECT_MANAGEMENT.md generation (Jinja2/MiniJinja) with configurable template path, conventional filename, and embedded default template. Init now writes PROJECT_MANAGEMENT.template.md. Added config field project_management_template in Python/Rust. Added default template files at repo root and in example project, re-rendered example PROJECT_MANAGEMENT.md. Tests: behave agents_management + examples_setup; rust cucumber scenarios for AGENTS and example. Note: rust example test created examples/rube-goldberg/.git; attempted removal blocked by policy; please delete that directory.",
+      "created_at": "2026-02-13T23:27:16Z"
+    }
+  ],
+  "created_at": "2026-02-13T20:10:52.031211Z",
+  "updated_at": "2026-02-16T01:07:59.200097Z",
+  "closed_at": "2026-02-16T01:07:59.168330Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

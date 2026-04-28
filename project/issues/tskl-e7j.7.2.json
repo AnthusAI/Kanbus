@@ -1,0 +1,21 @@
+{
+  "id": "tskl-e7j.7.2",
+  "title": "Auto-scroll detail panel to top when status changes on focused issue",
+  "description": "When the status of an issue changes and that issue is currently focused in the detail panel, automatically scroll to the top of the panel with smooth behavior BEFORE the status change animates, so the user can see the flash animation. Only applies when that specific issue is currently focused. Should not scroll if a different issue or no issue is focused.",
+  "type": "story",
+  "status": "backlog",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-e7j.7",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T13:45:44.137653Z",
+  "updated_at": "2026-03-12T00:36:35.983431Z",
+  "closed_at": null,
+  "custom": {
+    "beads_issue_type": "feature",
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tskl-hcp",
+  "title": "Fix tskr install snippet on getting started page",
+  "description": "Update getting started page to reference tskr binary name and archive filename instead of taskulus.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T10:25:47.295380Z",
+  "updated_at": "2026-02-12T10:26:22.618493Z",
+  "closed_at": "2026-02-12T10:26:22.618496Z",
+  "custom": {
+    "beads_notes": "Updating getting started page snippet to use tskr binary name and archive filename.\nUpdated getting started page to use tskr binary name and archive filename, including source build snippet.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

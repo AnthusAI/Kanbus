@@ -1,0 +1,20 @@
+{
+  "id": "tskl-oju.5",
+  "title": "CLI parity: override and dotenv flags",
+  "description": "Add CLI options/envs to control taskulus.yml override behavior and dotenv path/enabled flag consistently across Python and Rust CLIs; document usage.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-oju",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T15:29:29.715553Z",
+  "updated_at": "2026-02-16T01:07:59.196951Z",
+  "closed_at": "2026-02-16T01:07:59.168090Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

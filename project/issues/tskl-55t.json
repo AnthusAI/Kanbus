@@ -1,0 +1,22 @@
+{
+  "id": "tskl-55t",
+  "title": "Fix CI failure: daemon empty response",
+  "description": "Resolve CI failing scenario 'Daemon client reports empty responses' in Python behave.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T04:39:21.947360Z",
+  "updated_at": "2026-02-12T04:39:35.683879Z",
+  "closed_at": "2026-02-12T04:39:35.683879Z",
+  "custom": {
+    "beads_close_reason": "Fixed empty response daemon test timing and verified scenario passes.",
+    "beads_notes": "Adjusted empty-response daemon test to keep server alive long enough to receive the request before closing, so client reads empty response reliably. Ran behave scenario for daemon_error_handling feature with name filter; scenario passes.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

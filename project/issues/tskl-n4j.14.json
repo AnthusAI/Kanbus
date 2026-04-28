@@ -1,0 +1,20 @@
+{
+  "id": "tskl-n4j.14",
+  "title": "Fix blank video frame rendering and eliminate manual bundle copying",
+  "description": "Fix blank video frames caused by window.renderFrame stub in render.tsx shadowing babulus-standard.js. Remove manual babulus-standard.js copy, add babulus as npm dependency, eliminate VIDEOML_CLI and BABULUS_BUNDLE env vars.",
+  "type": "task",
+  "status": "done",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Claude Code",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-08T23:51:36.069015Z",
+  "updated_at": "2026-03-08T23:51:36.069015Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

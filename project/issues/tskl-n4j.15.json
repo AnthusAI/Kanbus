@@ -1,0 +1,20 @@
+{
+  "id": "tskl-n4j.15",
+  "title": "Refactor intro video: one scene per feature with voiceover, no transition gaps",
+  "description": "Refactor intro.babulus.xml to split single feature-tour scene (16.4s cycling 8 features) into individual scenes with one voiceover cue each. Remove all transition mode=insert elements that caused blank-screen gaps between scenes.",
+  "type": "task",
+  "status": "done",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Claude Code",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-08T23:51:36.069015Z",
+  "updated_at": "2026-03-08T23:51:36.069015Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

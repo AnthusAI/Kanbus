@@ -1,0 +1,22 @@
+{
+  "id": "tskl-7ah",
+  "title": "Convention-based project directories",
+  "description": "Replace role-based routing and global fallback with convention-based project/ and project-local/ directories. Discovery is recursive downward, optional .taskulus dotfile adds extra paths. No YAML storage format change.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T00:33:19.461477Z",
+  "updated_at": "2026-02-12T00:38:19.522201Z",
+  "closed_at": "2026-02-12T00:38:19.522201Z",
+  "custom": {
+    "beads_acceptance_criteria": "Role detection, global fallback, and redirect system removed. project/ and project-local/ discovery works with optional .taskulus. create/promote/localize/init/list/ready updated. Specs updated with parity.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

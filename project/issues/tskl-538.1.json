@@ -1,0 +1,28 @@
+{
+  "id": "tskl-538.1",
+  "title": "Write Gherkin scenarios for dependencies",
+  "description": "Scenarios for: add blocked-by, add relates-to, remove dependency, cycle detection with error, tsk ready query (issues with no open blockers).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-538",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2f53f7c4-086b-5818-a8dc-a61d605e63e8",
+      "author": "Ryan Alyn Porter",
+      "text": "Replaced placeholder dependencies.feature with @wip scenarios for add blocked-by, add relates-to, remove dependency, cycle detection, and ready query. Left @wip to avoid enforcing until implementation.",
+      "created_at": "2026-02-11T13:20:48Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:41:01.616998Z",
+  "updated_at": "2026-02-11T13:20:52.326857Z",
+  "closed_at": "2026-02-11T13:20:52.326857Z",
+  "custom": {
+    "beads_close_reason": "Dependency Gherkin scenarios drafted (wip)",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -225,9 +225,41 @@ pub fn migrate_from_beads(root: &Path) -> Result<MigrationResult, KanbusError> {
     }
 
     initialize_project(root, false)?;
-    let project_dir = root.join("project");
-    let configuration =
-        load_project_configuration(&get_configuration_path(project_dir.as_path())?)?;
+    migrate_from_beads_into_project(root)
+}
+
+/// Import Beads issues.jsonl into an existing Kanbus project.
+///
+/// This operation is repeatable and overwrites matching issue JSON files in
+/// `project/issues/` (or the configured project directory).
+///
+/// # Arguments
+/// * `root` - Repository root path.
+///
+/// # Errors
+/// Returns `KanbusError` if Beads data or Kanbus configuration is missing, or
+/// if any issue conversion/write fails.
+pub fn migrate_from_beads_into_project(root: &Path) -> Result<MigrationResult, KanbusError> {
+    ensure_git_repository(root)?;
+
+    let beads_dir = root.join(".beads");
+    if !beads_dir.exists() {
+        return Err(KanbusError::IssueOperation(
+            "no .beads directory".to_string(),
+        ));
+    }
+
+    let issues_path = beads_dir.join("issues.jsonl");
+    if !issues_path.exists() {
+        return Err(KanbusError::IssueOperation("no issues.jsonl".to_string()));
+    }
+
+    let configuration_path = get_configuration_path(root)?;
+    let configuration = load_project_configuration(&configuration_path)?;
+    let project_dir = configuration_path
+        .parent()
+        .ok_or_else(|| KanbusError::Io("configuration path lookup failed".to_string()))?
+        .join(&configuration.project_directory);
 
     let records = load_beads_records(&issues_path)?;
     let records = dedupe_beads_records(records, &issues_path)?;

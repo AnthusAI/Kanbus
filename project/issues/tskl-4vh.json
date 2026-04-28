@@ -1,0 +1,22 @@
+{
+  "id": "tskl-4vh",
+  "title": "Close completed epics without backlog blockers",
+  "description": "Close open epics whose child tasks are complete and are not blocked by backlog-only work.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T03:42:44.351270Z",
+  "updated_at": "2026-02-12T03:43:03.870871Z",
+  "closed_at": "2026-02-12T03:43:03.870871Z",
+  "custom": {
+    "beads_close_reason": "Closed completed epics; backlog-only epics left open.",
+    "beads_notes": "Closed epics tskl-538, tskl-5er, tskl-eyu, and tskl-p3i after confirming all children complete. Left epics with backlog child tasks (tskl-nqs, tskl-l4q, tskl-34w) open.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

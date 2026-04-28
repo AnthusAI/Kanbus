@@ -1,0 +1,20 @@
+{
+  "id": "tskl-2vo.2",
+  "title": "Gherkin scenarios for Beads duplicate auto-merge",
+  "description": "",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-2vo",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-25T02:34:03.743942Z",
+  "updated_at": "2026-02-25T02:36:31.138799Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

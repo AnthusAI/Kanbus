@@ -1,0 +1,29 @@
+{
+  "id": "tskl-cai.3",
+  "title": "Implement Rust benchmark for single vs recursive discovery",
+  "description": "Add Rust benchmark that measures time to index issues for single project vs recursive discovery across multiple project folders using the fixtures.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-cai",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "8cdec28f-bece-57e7-8ddd-d20e3e499abf",
+      "author": "Ryan Alyn Porter",
+      "text": "Added rust/src/bin/discovery_benchmark.rs to benchmark single vs multi-project discovery/list/ready using deterministic fixture layout. Ran: cargo run --manifest-path rust/Cargo.toml --bin discovery_benchmark -- --root tools/tmp/benchmark-discovery-fixtures.",
+      "created_at": "2026-02-11T19:38:12Z"
+    }
+  ],
+  "created_at": "2026-02-11T14:53:02.543833Z",
+  "updated_at": "2026-02-11T19:38:17.369758Z",
+  "closed_at": "2026-02-11T19:38:17.369758Z",
+  "custom": {
+    "beads_acceptance_criteria": "Rust benchmark runs locally, prints timings for single-project and recursive modes, and uses the shared fixtures.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

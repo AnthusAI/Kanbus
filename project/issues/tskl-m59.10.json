@@ -1,0 +1,20 @@
+{
+  "id": "tskl-m59.10",
+  "title": "Create UIControl notification event type",
+  "description": "Create new UIControl notification event type to extend the existing notification system for UI state control.\n\nThis is the foundation task that enables all other UI control commands.\n\nImplementation:\n1. Extend NotificationEvent enum in notification_events.rs:\n   - Add UIControl variant with nested enum for action types\n   - Action types: ClearFocus, SetViewMode, SetSearch, MaximizeDetail, CloseDetail, ToggleSettings, SetSetting, CollapseColumn, etc.\n\n2. Frontend handler in App.tsx:\n   - Add new case in notification subscription\n   - Dispatch to appropriate state setter based on action type\n   - Reuse existing state management functions\n\n3. CLI commands:\n   - Add 'kbs console' subcommands for each action\n   - Publish UIControl events via existing socket mechanism\n\n4. Testing:\n   - Verify each UI control command works end-to-end\n   - Test that UI state matches both CLI and GUI actions\n   - Verify localStorage persistence where applicable\n\nDependencies: None (extends existing notification system from tskl-e7j)",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-m59",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T12:52:13.176785Z",
+  "updated_at": "2026-02-18T13:05:22.869037Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

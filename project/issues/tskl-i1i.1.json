@@ -1,0 +1,20 @@
+{
+  "id": "tskl-i1i.1",
+  "title": "Define validation rules and error messages",
+  "description": "Specify which constraints are enforced at create/update (valid issue type, valid status, valid parent-child relationships, valid workflow transitions). Define exact error messages to emit (no warnings).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-i1i",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T23:39:26.037937Z",
+  "updated_at": "2026-02-16T01:07:59.190891Z",
+  "closed_at": "2026-02-16T01:07:59.167728Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

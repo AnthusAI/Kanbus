@@ -1,0 +1,29 @@
+{
+  "id": "tskl-7ah.7",
+  "title": "Update tsk init for project/ layout",
+  "description": "Replace bd init flow with creation of project/ and optional project-local/ plus gitignore entry. No config/db/daemon.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-7ah",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d931a72d-5236-5de0-8401-e4600596c35d",
+      "author": "Ryan Alyn Porter",
+      "text": "tsk init updated to create project/ (and optional project-local/) via python/src/taskulus/file_io.py and rust/src/file_io.rs; no config/db/daemon setup.",
+      "created_at": "2026-02-12T00:38:02Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:33:46.418996Z",
+  "updated_at": "2026-02-12T00:38:06.887031Z",
+  "closed_at": "2026-02-12T00:38:06.887031Z",
+  "custom": {
+    "beads_acceptance_criteria": "tsk init creates project/ structure only.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

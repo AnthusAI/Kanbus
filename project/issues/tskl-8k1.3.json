@@ -1,0 +1,40 @@
+{
+  "id": "tskl-8k1.3",
+  "title": "IPC protocol and versioning",
+  "description": "Define request/response envelope, protocol version checks, and error contracts for client-daemon communication.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-8k1",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "tskl-8k1.1",
+      "type": "blocks"
+    }
+  ],
+  "comments": [
+    {
+      "id": "1dac4e6e-22c8-5734-91bb-ca747246bd1f",
+      "author": "Ryan Alyn Porter",
+      "text": "Drafted IPC protocol doc in docs/IPC_PROTOCOL.md and added to mkdocs nav. Defines envelope, versioning rules, and error contract for enforcement.",
+      "created_at": "2026-02-11T07:40:38Z"
+    },
+    {
+      "id": "4ca1336e-665f-58b3-943a-f69528fdc1a7",
+      "author": "Ryan Alyn Porter",
+      "text": "Completed IPC protocol documentation. Tests not run (doc-only change).",
+      "created_at": "2026-02-11T07:40:46Z"
+    }
+  ],
+  "created_at": "2026-02-11T06:31:40.090741Z",
+  "updated_at": "2026-02-11T07:40:41.687825Z",
+  "closed_at": "2026-02-11T07:40:41.687825Z",
+  "custom": {
+    "beads_acceptance_criteria": "Protocol schema and compatibility checks are documented and enforceable in Python and Rust.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

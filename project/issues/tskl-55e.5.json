@@ -1,0 +1,20 @@
+{
+  "id": "tskl-55e.5",
+  "title": "Toolbar type selector supports deselected state to show all issue types",
+  "description": "Change the toolbar AnimatedSelector (Initiatives / Epics / Issues) so that clicking the currently-selected option deselects it, resulting in a none/unfiltered state where all issue types are visible. Clicking any option re-activates filtering for that type.\n\nScenario: Clicking the selected option deselects it\n\nGiven the type selector currently has Epics selected\nWhen the user clicks Epics again\nThen no option is selected (the selector shows a deselected/neutral state)\nAnd the kanban board shows all issue types (initiatives, epics, tasks, bugs, etc.)\nAnd no type filtering is applied\n\nScenario: Clicking an option when nothing is selected activates filtering\n\nGiven the type selector is in the deselected state\nWhen the user clicks Issues\nThen Issues becomes selected\nAnd the kanban board filters to show only issue-type items\nAnd initiatives, epics, and sub-tasks are hidden\n\nScenario: Clicking a different option switches the active filter\n\nGiven the type selector has Epics selected\nWhen the user clicks Initiatives\nThen Initiatives becomes selected\nAnd Epics is no longer selected\nAnd the board filters to show only initiatives\n\nScenario: Deselected state is visually distinct\n\nGiven the type selector is in the deselected state\nThen no option appears highlighted or active\nAnd the selector communicates the neutral/all state visually\n\nScenario: Deselected state persists across page reload\n\nGiven the user has deselected all type filters\nWhen the page is reloaded\nThen the type selector remains in the deselected state\nAnd all issue types are shown",
+  "type": "story",
+  "status": "done",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-55e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-21T20:49:26.972751Z",
+  "updated_at": "2026-02-23T04:53:53.549648Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "tskl-7ah.6",
+  "title": "Add tsk promote and tsk localize",
+  "description": "Move issue files between project-local/ and project/ while preserving IDs and updating index.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-7ah",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d8b2df08-3d62-5334-984a-ccee2884133b",
+      "author": "Ryan Alyn Porter",
+      "text": "tsk promote/localize implemented in python/src/taskulus/issue_transfer.py and rust/src/issue_transfer.rs with CLI commands in python/src/taskulus/cli.py and rust/src/cli.rs.",
+      "created_at": "2026-02-12T00:37:53Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:33:42.894186Z",
+  "updated_at": "2026-02-12T00:37:57.449695Z",
+  "closed_at": "2026-02-12T00:37:57.449695Z",
+  "custom": {
+    "beads_acceptance_criteria": "promote/localize moves files and updates index consistently.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

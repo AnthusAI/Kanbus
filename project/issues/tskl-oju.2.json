@@ -1,0 +1,21 @@
+{
+  "id": "tskl-oju.2",
+  "title": "Draft Gherkin for configuration behaviors",
+  "description": "Author cross-implementation Gherkin scenarios covering config loading, workflows per type, priority import/mapping rules, fixed hierarchy enforcement.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "ryan.porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-oju",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T14:56:00.889020Z",
+  "updated_at": "2026-02-16T01:07:59.195106Z",
+  "closed_at": "2026-02-16T01:07:59.168070Z",
+  "custom": {
+    "beads_notes": "Added cross-implementation Gherkin draft in features/configuration/configuration_standardization.feature covering: single taskulus.yml load, missing file error, unknown fields, fixed hierarchy, workflow binding requirement, transition validation, priority import/alias enforcement, dotenv/env precedence matching Python dotyaml.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

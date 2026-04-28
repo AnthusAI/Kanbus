@@ -1,0 +1,20 @@
+{
+  "id": "tskl-52k.1",
+  "title": "Init project creates default wiki pages",
+  "description": "Modify kanbus init to create project/wiki/index.md and project/wiki/whats-next.md. index.md links to whats-next. whats-next.md is a Jinja2 template querying issues sorted by priority/status.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-52k",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-08T21:16:07.830997Z",
+  "updated_at": "2026-03-08T21:20:10.782853Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

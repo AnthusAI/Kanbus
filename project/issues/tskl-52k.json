@@ -1,0 +1,27 @@
+{
+  "id": "tskl-52k",
+  "title": "AI-Powered Wiki Reports and Initialization",
+  "description": "Tracks the addition of AI-based summarization to Kanbus Wiki templates, caching to maintain performance, and updating the project initializer to scaffold a What's Next report automatically.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3e95aed9-99a8-5743-826f-36006a159a75",
+      "author": "unknown",
+      "text": "Marked complete per user instruction; closing epic.",
+      "created_at": "2026-03-11T00:18:40.509727Z"
+    }
+  ],
+  "created_at": "2026-03-08T21:16:04.430287Z",
+  "updated_at": "2026-03-11T00:18:40.509727Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-j60",
+  "title": "Add integration test for Beads/Kanbus dependency flow",
+  "description": "Create integration tests for dependency/relationship operations between Beads and Kanbus. Test scenarios: add blocked-by dependency via Beads/Kanbus, add parent-child relationships, remove dependencies, verify dependency preservation across both systems.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T01:45:11.762040Z",
+  "updated_at": "2026-02-16T01:51:46.167368Z",
+  "closed_at": "2026-02-16T01:51:46.159765Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

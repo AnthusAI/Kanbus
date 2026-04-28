@@ -1,0 +1,20 @@
+{
+  "id": "tskl-q4h.1",
+  "title": "Snyk sync command for Kanbus",
+  "description": "Add a `kbs snyk pull` command to Kanbus (Rust + Python) that fetches vulnerabilities from the Snyk API and creates/updates Kanbus issues automatically. Follows the same architecture as the existing Jira sync.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "derek",
+  "parent": "tskl-q4h",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-25T21:37:26.994426Z",
+  "updated_at": "2026-02-25T21:50:43.514674Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "derek"
+  }
+}

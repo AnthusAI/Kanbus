@@ -1,0 +1,29 @@
+{
+  "id": "tskl-ruh.5",
+  "title": "Evaluate parallel loading for benchmark speedups",
+  "description": "Prototype parallel discovery/index loading for Python and Rust and compare benchmark deltas. Keep deterministic ordering in results.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-ruh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7f9ba42e-fd0b-53be-8969-0e54593b6000",
+      "author": "Ryan Alyn Porter",
+      "text": "Parallel loading evaluation implemented in tools/benchmark_discovery.py (_parallel_load) and rust/src/bin/discovery_benchmark.rs (parallel variants). Deterministic ordering preserved via sorted paths and ordered results.",
+      "created_at": "2026-02-11T20:10:26Z"
+    }
+  ],
+  "created_at": "2026-02-11T20:05:23.037006Z",
+  "updated_at": "2026-02-11T20:10:29.527770Z",
+  "closed_at": "2026-02-11T20:10:29.527770Z",
+  "custom": {
+    "beads_acceptance_criteria": "Parallel loading prototypes are measured against baseline and documented; ordering remains deterministic.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "tskl-e7j.5",
+  "title": "Add real-time notification on issue updates",
+  "description": "Hook all update operations to publish NotificationEvent::IssueUpdated. Include field change tracking. Ensure all changes propagate immediately to frontend.\n\n## Implementation Details\n\n### Files to Modify\n- rust/src/issue_update.rs::update_issue() (after write_issue_to_file(), line 122)\n- rust/src/issue_close.rs::close_issue() (after update_issue() call, line 17)\n- rust/src/issue_comment.rs::add_comment() (line 103)\n- rust/src/issue_comment.rs::update_comment() (line 143)\n- rust/src/issue_comment.rs::delete_comment() (line 165)\n- rust/src/dependencies.rs::add_dependency() (line 30)\n- rust/src/dependencies.rs::remove_dependency() (line 70)\n- rust/src/beads_write.rs::update_beads_issue() (line 320)\n- rust/src/beads_write.rs::add_beads_comment() (line 168)\n- rust/src/beads_write.rs::update_beads_comment() (line 229)\n- rust/src/beads_write.rs::delete_beads_comment() (line 276)\n\n### Pattern\n```rust\n// After successful update\npublish_notification(NotificationEvent::IssueUpdated {\n    issue_id: issue.id.clone(),\n    fields_changed: vec![\"status\".to_string()],\n    issue_data: issue.clone(),\n})?;\n```\n\n### Testing\n1. kbs update <issue-id> --status in_progress\n2. Verify: Status updates on board within 100ms\n3. kbs comment <issue-id> \"Test comment\"\n4. Verify: Comment appears immediately\n\n### Dependencies\nRequires notification infrastructure from parent epic.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": "tskl-e7j",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-18T07:10:04.947659Z",
+  "updated_at": "2026-02-18T07:25:48.404766Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

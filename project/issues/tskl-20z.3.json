@@ -1,0 +1,33 @@
+{
+  "id": "tskl-20z.3",
+  "title": "Implement basic index in Rust",
+  "description": "Implement index.rs: scan and build HashMap. Match Python behavior.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "your@email.com",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-20z",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "052a6b21-b68b-540e-92ea-336cfca2f4ce",
+      "author": "Ryan Alyn Porter",
+      "text": "Goal: implement basic index building in Rust mirroring Python. Acceptance: IssueIndex struct with lookup maps, build_index_from_directory reading JSON files, tests matching Python behavior.",
+      "created_at": "2026-02-11T06:21:54Z"
+    },
+    {
+      "id": "2ea3a757-14ac-530e-a243-d29ffc0a26e0",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Rust index module + tests. Ran: cd rust && cargo test",
+      "created_at": "2026-02-11T06:23:03Z"
+    }
+  ],
+  "created_at": "2026-02-11T01:38:45.037913Z",
+  "updated_at": "2026-02-11T06:23:07.910351Z",
+  "closed_at": "2026-02-11T06:23:07.910353Z",
+  "custom": {
+    "beads_owner": "rap@endymion.com"
+  }
+}

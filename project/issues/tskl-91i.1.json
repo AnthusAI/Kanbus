@@ -1,0 +1,27 @@
+{
+  "id": "tskl-91i.1",
+  "title": "Determine target version and alignment plan",
+  "description": "Identify current versions on PyPI and Crates.io, decide the next synchronized version, and document the release approach.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": "ryan.porter",
+  "parent": "tskl-91i",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c2b08693-fc4f-55d6-b1b2-b015b7b38777",
+      "author": "ryan.porter",
+      "text": "Implementing approved release-alignment plan. Next: version audit -> version alignment -> release run.",
+      "created_at": "2026-02-20T12:40:20.651529Z"
+    }
+  ],
+  "created_at": "2026-02-20T12:30:53.737731Z",
+  "updated_at": "2026-02-25T06:24:18.111003Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}

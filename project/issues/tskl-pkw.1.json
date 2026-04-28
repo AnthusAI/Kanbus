@@ -1,0 +1,35 @@
+{
+  "id": "tskl-pkw.1",
+  "title": "Delete pytest suite and migrate behavior specs",
+  "description": "Delete all pytest tests and replace coverage with shared Gherkin specs plus matching Behave/Cucumber steps. Ensure Python and Rust run identical feature files.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-pkw",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7451130c-5221-5ec5-95a7-b652ba6233eb",
+      "author": "Ryan Alyn Porter",
+      "text": "Deleted python/tests and removed pytest/pytest-cov from python/pyproject.toml. Removed pytest from Makefile and CI, switched coverage to behave. Moved Rust BDD runner to rust/features (specs symlink) and moved step defs to rust/features/steps. Deleted Rust integration/unit tests in rust/tests except cucumber runner. Spec parity check now clean; behave passes shared specs.",
+      "created_at": "2026-02-11T15:22:32Z"
+    },
+    {
+      "id": "9d1cfe8c-1b13-5e7d-8c23-98eb96526e4d",
+      "author": "Ryan Alyn Porter",
+      "text": "Deleted python/tests and removed pytest/pytest-cov from python/pyproject.toml. Removed pytest from Makefile/CI, switched coverage runner to behave. Moved Rust BDD to rust/features (specs symlink and steps) and removed rust unit/integration tests. Spec parity check passes; behave and cargo test pass. Coverage via behave currently 55% (needs follow-up in tskl-pkw.3).",
+      "created_at": "2026-02-11T15:25:23Z"
+    }
+  ],
+  "created_at": "2026-02-11T15:11:21.900800Z",
+  "updated_at": "2026-02-11T15:25:27.658483Z",
+  "closed_at": "2026-02-11T15:25:27.658483Z",
+  "custom": {
+    "beads_acceptance_criteria": "python/tests removed or empty. Shared specs under specs/features are the only behavior source. Behave and Cucumber both pass with identical feature files.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

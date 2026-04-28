@@ -1,0 +1,35 @@
+{
+  "id": "tskl-34w.27",
+  "title": "Add Beads compatibility mode flag",
+  "description": "Introduce CLI --beads mode to read Beads JSONL directly (live, no conversion), disable recursive project discovery in this mode to avoid duplicates, and reuse existing JSONL parsing logic. Intended for transitional use.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "Ryan Alyn Porter",
+  "creator": "Ryan Alyn Porter",
+  "parent": "tskl-34w",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e65f935f-9ec0-5425-a574-eaf5907cb74d",
+      "author": "Ryan Alyn Porter",
+      "text": "Resuming: implement Beads --beads mode in Rust CLI (list/ready/show), add shared Gherkin feature for beads mode, then run full specs and report coverage. Keeping read-only behavior and no commits.",
+      "created_at": "2026-02-12T01:25:01Z"
+    },
+    {
+      "id": "374c867c-5937-58dc-b891-2564792b4349",
+      "author": "Ryan Alyn Porter",
+      "text": "Implemented Beads --beads compatibility mode for Rust CLI list/ready/show, added shared compatibility feature scenarios, and added compatibility step definitions for Python/Rust. Updated Beads mode scenarios to use global flag ordering (tsk --beads ...), added error coverage for missing .beads/issues.jsonl, local filtering rejection, and missing issue. Specs run: python3 tools/run_specs.py --format text (Python 100%, Rust 100%).",
+      "created_at": "2026-02-12T01:43:04Z"
+    }
+  ],
+  "created_at": "2026-02-12T00:56:06.398097Z",
+  "updated_at": "2026-02-12T01:43:07.174627Z",
+  "closed_at": "2026-02-12T01:43:07.174627Z",
+  "custom": {
+    "beads_acceptance_criteria": "CLI supports --beads mode with JSONL read path; discovery avoids recursive Taskulus project scan; specs updated with parity.",
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

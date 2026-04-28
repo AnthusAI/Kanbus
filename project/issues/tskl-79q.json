@@ -1,0 +1,20 @@
+{
+  "id": "tskl-79q",
+  "title": "kanbusr cannot manage issues with non-standard ID formats",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "ryan.porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-15T21:41:39.410983Z",
+  "updated_at": "2026-02-15T22:13:58.114401Z",
+  "closed_at": "2026-02-16T01:07:59.168592Z",
+  "custom": {
+    "beads_owner": "ryan.porter"
+  }
+}
