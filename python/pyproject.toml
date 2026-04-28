@@ -62,10 +62,14 @@ line-length = 88
 target-version = "py311"
 
 [tool.semantic_release]
-version_toml = ["pyproject.toml:project.version"]
-version_variable = ["src/kanbus/__init__.py:__version__"]
+version_toml = [
+    "pyproject.toml:project.version",
+    "../rust/Cargo.toml:package.version",
+]
+version_variables = ["src/kanbus/__init__.py:__version__"]
 tag_format = "kanbus-py-{version}"
 changelog_file = "CHANGELOG.md"
-build_command = "python -m build"
+assets = ["rust/Cargo.lock"]
+build_command = "cargo update --manifest-path ../rust/Cargo.toml -p kanbus --precise $NEW_VERSION && python -m build"
 allow_zero_version = true
 major_on_zero = false
