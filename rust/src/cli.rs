@@ -454,9 +454,7 @@ fn merge_issue_views(mut beads: IssueData, project: IssueData) -> IssueData {
             beads.comments.push(comment);
         }
     }
-    beads
-        .comments
-        .sort_by(|a, b| a.created_at.cmp(&b.created_at));
+    beads.comments.sort_by_key(|comment| comment.created_at);
 
     // Fill in empty descriptive fields from the project copy when beads lacks them.
     if beads.description.is_empty() && !project.description.is_empty() {
