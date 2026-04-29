@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.18.3 (2026-04-29)
+
+### Bug Fixes
+
+- Add git submodule for shared hooks to prevent commit messages without semantic release style tags
+  ([`17d4574`](https://github.com/AnthusAI/Kanbus/commit/17d45745dacbf1e31d094ef4de9fb142d600abb1))
+
+- **ci**: Use Behave boolean tag expression
+  ([`8a91ad5`](https://github.com/AnthusAI/Kanbus/commit/8a91ad5786642784f4bc4f63f83436b729960738))
+
+
 ## v0.18.2 (2026-03-26)
 
 ### Bug Fixes
