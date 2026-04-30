@@ -455,6 +455,9 @@ enum OrchestratorCommands {
         /// Maximum concurrent workers.
         #[arg(long = "max-concurrent", default_value_t = 1)]
         max_concurrent: usize,
+        /// Explicit issue identifier to dispatch instead of claiming the next ready issue.
+        #[arg(long)]
+        issue: Option<String>,
         /// Worker identity.
         #[arg(long, default_value = "kanbus-orchestrator")]
         worker: String,
@@ -2756,6 +2759,7 @@ fn execute_command(
                 workflow,
                 once,
                 max_concurrent,
+                issue,
                 worker,
             } => {
                 if !once {
@@ -2763,7 +2767,13 @@ fn execute_command(
                         "only --once is supported for orchestration runs".to_string(),
                     ));
                 }
-                let record = run_orchestrator_once(root, &workflow, max_concurrent, &worker)?;
+                let record = run_orchestrator_once(
+                    root,
+                    &workflow,
+                    max_concurrent,
+                    issue.as_deref(),
+                    &worker,
+                )?;
                 Ok(Some(
                     serde_json::to_string_pretty(&record)
                         .map_err(|error| KanbusError::Io(error.to_string()))?,

@@ -215,6 +215,41 @@ pub fn claim_next_issue(
     )
 }
 
+/// Claim one explicit ready issue for a worker.
+pub fn claim_issue(root: &Path, issue_id: &str, worker_id: &str) -> Result<IssueData, KanbusError> {
+    let issue = load_issue_from_project(root, issue_id)?.issue;
+    if issue.status != "open" {
+        return Err(KanbusError::IssueOperation(
+            "explicit issue is not open".to_string(),
+        ));
+    }
+    let ready_issues = list_ready_issues(root, false, false)?;
+    if !ready_issues
+        .iter()
+        .any(|ready_issue| ready_issue.identifier == issue.identifier)
+    {
+        return Err(KanbusError::IssueOperation(
+            "explicit issue is not ready".to_string(),
+        ));
+    }
+    update_issue(
+        root,
+        &issue.identifier,
+        None,
+        None,
+        None,
+        Some(worker_id),
+        None,
+        true,
+        true,
+        &[],
+        &[],
+        None,
+        None,
+        None,
+    )
+}
+
 /// Create a durable run record for an issue.
 pub fn create_run_record(
     root: &Path,
@@ -391,6 +426,7 @@ pub fn run_orchestrator_once(
     root: &Path,
     workflow_path: &Path,
     max_concurrent: usize,
+    issue_id: Option<&str>,
     worker_id: &str,
 ) -> Result<OrchestrationRunRecord, KanbusError> {
     if max_concurrent == 0 {
@@ -405,7 +441,11 @@ pub fn run_orchestrator_once(
         .repo
         .as_deref()
         .ok_or_else(|| KanbusError::Configuration("target.repo is required".to_string()))?;
-    let issue = claim_next_issue(root, true, worker_id)?;
+    let issue = if let Some(issue_id) = issue_id {
+        claim_issue(root, issue_id, worker_id)?
+    } else {
+        claim_next_issue(root, true, worker_id)?
+    };
     run_worker(
         root,
         &issue.identifier,
@@ -894,6 +934,44 @@ mod tests {
     use super::*;
     use chrono::TimeZone;
 
+    fn create_test_issue(root: &Path, title: &str, status: &str) -> IssueData {
+        let request = crate::issue_creation::IssueCreationRequest {
+            root: root.to_path_buf(),
+            title: title.to_string(),
+            issue_type: Some("task".to_string()),
+            priority: Some(0),
+            assignee: None,
+            parent: None,
+            labels: Vec::new(),
+            description: Some("Description".to_string()),
+            local: false,
+            validate: true,
+        };
+        let issue = crate::issue_creation::create_issue(&request)
+            .expect("create issue")
+            .issue;
+        if status == "open" {
+            return issue;
+        }
+        update_issue(
+            root,
+            &issue.identifier,
+            None,
+            None,
+            Some(status),
+            None,
+            None,
+            false,
+            true,
+            &[],
+            &[],
+            None,
+            None,
+            None,
+        )
+        .expect("update issue status")
+    }
+
     fn issue(identifier: &str) -> IssueData {
         IssueData {
             identifier: identifier.to_string(),
@@ -964,6 +1042,38 @@ mod tests {
             KanbusError::Configuration(_) => {}
             other => panic!("expected configuration error, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn explicit_issue_claims_only_requested_issue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        crate::file_io::initialize_project(temp.path(), false).expect("init");
+        let untouched_issue = create_test_issue(temp.path(), "Trial issue one", "open");
+        let requested_issue = create_test_issue(temp.path(), "Trial issue two", "open");
+
+        let claimed = claim_issue(temp.path(), &requested_issue.identifier, "worker-one")
+            .expect("claim issue");
+
+        assert_eq!(claimed.identifier, requested_issue.identifier);
+        assert_eq!(claimed.status, "in_progress");
+        assert_eq!(claimed.assignee.as_deref(), Some("worker-one"));
+        let untouched = load_issue_from_project(temp.path(), &untouched_issue.identifier)
+            .expect("load untouched")
+            .issue;
+        assert_eq!(untouched.status, "open");
+        assert_eq!(untouched.assignee, None);
+    }
+
+    #[test]
+    fn explicit_issue_rejects_non_open_issue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        crate::file_io::initialize_project(temp.path(), false).expect("init");
+        let issue = create_test_issue(temp.path(), "Trial issue", "in_progress");
+
+        let error =
+            claim_issue(temp.path(), &issue.identifier, "worker-one").expect_err("claim error");
+
+        assert_eq!(error.to_string(), "explicit issue is not open");
     }
 
     #[test]

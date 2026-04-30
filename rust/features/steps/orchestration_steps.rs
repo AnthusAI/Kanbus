@@ -162,8 +162,14 @@ done
     )
     .expect("write fake app server");
     run_command(cwd, Command::new("chmod").arg("+x").arg(&fake_app_server));
+    let target_repo = world
+        .orchestration_target_repo
+        .as_ref()
+        .map(|path| format!("  repo: {}\n", path.to_string_lossy()))
+        .unwrap_or_default();
     let workflow = format!(
-        "---\ntarget:\n  branch: develop\n  validation: \"true\"\n  publish: {publish_mode}\nworkspace:\n  root: {}\nworker:\n  branch_pattern: {}\ncodex:\n  command: {}\n---\nDo harmless work for {{{{ issue.identifier }}}}.\n",
+        "---\ntarget:\n{}  branch: develop\n  validation: \"true\"\n  publish: {publish_mode}\nworkspace:\n  root: {}\nworker:\n  branch_pattern: {}\ncodex:\n  command: {}\n---\nDo harmless work for {{{{ issue.identifier }}}}.\n",
+        target_repo,
         workspace_root.to_string_lossy(),
         branch_pattern,
         fake_app_server.to_string_lossy()

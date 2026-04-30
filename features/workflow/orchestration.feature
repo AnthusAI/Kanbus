@@ -67,3 +67,22 @@ Feature: Kanbus orchestration
     When I run the orchestration worker for issue "kanbus-run01" with workflow "missing/workflow"
     Then the command should fail with exit code 1
     And stderr should contain "workflow preset not found"
+
+  Scenario: Orchestrator runs a specific open ready issue
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run02" of type "task" with status "open"
+    And a local orchestration target repository
+    And a repository orchestration workflow preset "call-criteria/poetry-upgrade"
+    When I run "kanbus orchestrator run --workflow call-criteria/poetry-upgrade --once --max-concurrent 1 --issue kanbus-run02"
+    Then the command should succeed
+    And stdout should contain "\"issue_id\": \"kanbus-run02\""
+
+  Scenario: Orchestrator rejects an explicit issue that is not open
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "in_progress"
+    And a local orchestration target repository
+    And a repository orchestration workflow preset "call-criteria/poetry-upgrade"
+    When I run "kanbus orchestrator run --workflow call-criteria/poetry-upgrade --once --max-concurrent 1 --issue kanbus-run01"
+    Then the command should fail with exit code 1
+    And stderr should contain "explicit issue is not open"
