@@ -424,74 +424,70 @@ fn default_pr_draft_procedure() -> OrchestrationProcedureConfig {
 }
 
 fn default_pr_draft_tactus_source() -> String {
-    r#"local json = require("tactus.io.json")
-local done = require("tactus.tools.done")
-
-pr_writer = Agent {
-    provider = "openai",
-    model = "gpt-4o",
-    model_type = "chat",
-    temperature = 0.0,
-    max_tokens = 4096,
-    system_prompt = [[You draft high-quality pull request titles and bodies from verified Kanbus orchestration evidence.
-
-Rules:
-- Call the done tool with reason set to one JSON object and no Markdown fence.
-- The JSON object must have exactly these string keys: title, body.
-- Title must use Conventional Commit style.
-- Body must use these exact Markdown headings:
-  **Summary**
-  **Why**
-  **Validation**
-  **Expected Outcome**
-  **Kanbus / Task Tracking**
-- Use repository-relative paths only.
-- Never include absolute local paths.
-- Do not invent validation commands or results.
-- Include the Kanbus issue id and run id.
-- Be concise, factual, and reviewer-focused.]],
-    initial_message = [[Draft the pull request from this evidence JSON:
-
-{input.evidence_json}]],
-    tools = {done}
-}
-
-Procedure {
+    r#"Procedure {
     input = {
-        evidence = field.object{required = true},
-        evidence_json = field.string{required = true}
+        evidence = field.object{required = true}
     },
     output = {
         title = field.string{required = true},
         body = field.string{required = true}
     },
     function(input)
-        local max_turns = 3
-        local turn_count = 0
-        while not done.called() and turn_count < max_turns do
-            pr_writer()
-            turn_count = turn_count + 1
+        local evidence = input.evidence
+        local issue = evidence.issue
+        local run = evidence.run
+        local git = evidence.git
+
+        local title = run.commit_subject or issue.title
+        if not string.match(title, "^[a-z]+%(.+%): ") and not string.match(title, "^[a-z]+: ") then
+            title = "chore: " .. string.lower(string.sub(issue.title, 1, 1)) .. string.sub(issue.title, 2)
         end
-        if not done.called() then
-            error("PR draft agent did not call done")
+
+        local changed_files = {}
+        if git.changed_files ~= nil and git.changed_files ~= "" then
+            for line in string.gmatch(git.changed_files, "[^\n]+") do
+                table.insert(changed_files, "- `" .. line .. "`")
+            end
         end
-        local call = done.last_call()
-        local raw = ""
-        if call ~= nil and call.args ~= nil and call.args.reason ~= nil then
-            raw = call.args.reason
-        else
-            raw = done.last_result() or ""
+        if #changed_files == 0 then
+            table.insert(changed_files, "- No changed files were reported.")
         end
-        local ok, decoded = pcall(function() return json.decode(raw) end)
-        if not ok or type(decoded) ~= "table" then
-            error("PR draft agent did not return JSON")
+
+        local validation_result = run.validation_summary
+        if validation_result == nil or validation_result == "" then
+            validation_result = "Completed without output."
         end
-        if type(decoded.title) ~= "string" or type(decoded.body) ~= "string" then
-            error("PR draft JSON must include title and body strings")
+
+        local description = issue.description or "Implements the assigned Kanbus issue."
+        if description == "" then
+            description = "Implements the assigned Kanbus issue."
         end
+
+        local body = table.concat({
+            "**Summary**",
+            "- " .. issue.title,
+            table.concat(changed_files, "\n"),
+            "",
+            "**Why**",
+            "- " .. description,
+            "",
+            "**Validation**",
+            "- `" .. run.validation_command .. "`",
+            "- Result: " .. validation_result,
+            "",
+            "**Expected Outcome**",
+            "- The requested change is available on `" .. run.branch .. "` targeting `" .. run.target_branch .. "`.",
+            "",
+            "**Kanbus / Task Tracking**",
+            "- Issue: `" .. issue.id .. "`",
+            "- Run: `" .. run.id .. "`",
+            "- Worker: `" .. run.worker_id .. "`",
+            "- Commit: `" .. (run.commit_sha or "not recorded") .. "`"
+        }, "\n")
+
         return {
-            title = decoded.title,
-            body = decoded.body
+            title = title,
+            body = body
         }
     end
 }
@@ -1786,10 +1782,7 @@ runtime = TactusRuntime(
 )
 result = asyncio.run(runtime.execute(
     source,
-    {
-        "evidence": evidence,
-        "evidence_json": payload["evidence_json"],
-    },
+    {"evidence": evidence},
     format="lua",
 ))
 if not result.get("success"):
@@ -1803,7 +1796,6 @@ print(json.dumps(output))
         "source": source,
         "source_file_path": source_file_path,
         "storage_dir": storage_dir,
-        "evidence_json": evidence_json,
         "evidence": serde_json::from_str::<Value>(evidence_json)
             .map_err(|error| KanbusError::Io(error.to_string()))?
     });
@@ -2089,10 +2081,10 @@ mod tests {
             .source
             .as_deref()
             .expect("source");
-        assert!(source.contains("tactus.tools.done"));
-        assert!(source.contains("done.last_call()"));
-        assert!(source.contains("json.decode(raw)"));
-        assert!(source.contains("PR draft agent did not call done"));
+        assert!(source.contains("local evidence = input.evidence"));
+        assert!(source.contains("local changed_files = {}"));
+        assert!(source.contains("Completed without output."));
+        assert!(!source.contains("Agent {"));
         assert!(workflow.prompt_template.contains("{{ issue.description }}"));
     }
 
@@ -2375,21 +2367,13 @@ case "$script" in
   *"run_id=run_id"*) ;;
   *) echo "missing run id" >&2; exit 4 ;;
 esac
-case "$script" in
-  *"\"evidence_json\": payload[\"evidence_json\"]"*) ;;
-  *) echo "missing runtime evidence_json input" >&2; exit 5 ;;
-esac
 case "$payload" in
   *"\"storage_dir\":\""*".kanbus/tactus/pr-draft\""*) ;;
-  *) echo "missing isolated storage dir" >&2; exit 6 ;;
+  *) echo "missing isolated storage dir" >&2; exit 5 ;;
 esac
 case "$payload" in
   *"\"id\":\"ccpy-run-12345678\""*) ;;
-  *) echo "missing evidence run id" >&2; exit 7 ;;
-esac
-case "$payload" in
-  *"\"evidence_json\":\""*ccpy-run-12345678*) ;;
-  *) echo "missing evidence json input" >&2; exit 8 ;;
+  *) echo "missing evidence run id" >&2; exit 6 ;;
 esac
 printf '{"title":"chore: generated title","body":"body"}\n'
 "#,
