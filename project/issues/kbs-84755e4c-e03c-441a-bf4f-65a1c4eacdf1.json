@@ -1,0 +1,18 @@
+{
+  "id": "kbs-84755e4c-e03c-441a-bf4f-65a1c4eacdf1",
+  "title": "Add orchestration worker end-to-end fake app-server scenarios",
+  "description": "Cover a successful worker run against a local bare remote with fake app-server, validation failure persistence, branch push proof, commit SHA recording, and no PR behavior in Rust-only Gherkin.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:33:26.058661Z",
+  "updated_at": "2026-04-30T04:33:26.058661Z",
+  "closed_at": null,
+  "custom": {}
+}

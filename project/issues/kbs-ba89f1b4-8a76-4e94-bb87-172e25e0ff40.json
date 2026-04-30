@@ -1,0 +1,18 @@
+{
+  "id": "kbs-ba89f1b4-8a76-4e94-bb87-172e25e0ff40",
+  "title": "Harden orchestration publish and commit contents",
+  "description": "Prevent validation artifacts, local config, or secrets from being committed by git add all. Capture the worker diff before validation, review post-validation changes, and add allowed/denied path controls before push-only publication.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:33:25.877657Z",
+  "updated_at": "2026-04-30T04:33:25.877657Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -1,0 +1,18 @@
+{
+  "id": "kbs-6371e997-1c83-424c-af79-dc90a9dfed04",
+  "title": "Implement fail-closed orchestration boundaries",
+  "description": "Add Rust-first behavior and tests for fail-closed orchestration boundaries: unsupported publish modes, unsafe workspace roots, and deterministic run/workspace safety. Keep Python parity explicitly out of scope for this task except for spec skipping behavior already established.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:27:29.116707Z",
+  "updated_at": "2026-04-30T04:33:59.638885Z",
+  "closed_at": "2026-04-30T04:33:59.638885Z",
+  "custom": {}
+}

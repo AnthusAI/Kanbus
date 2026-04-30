@@ -108,6 +108,7 @@ pub struct KanbusWorld {
     pub kanbusr_has_all: Option<bool>,
     pub sample_issue: Option<kanbus::models::IssueData>,
     pub dependency_error: Option<String>,
+    pub orchestration_target_repo: Option<PathBuf>,
     pub original_invalid_status_env: Option<Option<String>>,
     pub virtual_project_state: Option<VirtualProjectState>,
     pub simulated_configuration_error: Option<String>,

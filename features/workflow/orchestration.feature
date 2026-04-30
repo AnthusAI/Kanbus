@@ -23,3 +23,30 @@ Feature: Kanbus orchestration
     When I run "kanbus runs list --json"
     Then the command should succeed
     And stdout should contain "\"kanbus-run01\""
+
+  Scenario: Unsupported publish modes are rejected before work starts
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And a local orchestration target repository
+    And an orchestration workflow "workflow.md" with publish mode "pull-request"
+    When I run the orchestration worker for issue "kanbus-run01" with workflow "workflow.md"
+    Then the command should fail with exit code 1
+    And stderr should contain "unsupported publish mode"
+
+  Scenario: Workspace roots inside the Kanbus repository are rejected
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And a local orchestration target repository
+    And an orchestration workflow "workflow.md" with workspace root inside the Kanbus repository
+    When I run the orchestration worker for issue "kanbus-run01" with workflow "workflow.md"
+    Then the command should fail with exit code 1
+    And stderr should contain "workspace root must be outside the Kanbus repository"
+
+  Scenario: Worker branches outside the agent namespace are rejected
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And a local orchestration target repository
+    And an orchestration workflow "workflow.md" with worker branch pattern "experiment/{{ issue.identifier }}"
+    When I run the orchestration worker for issue "kanbus-run01" with workflow "workflow.md"
+    Then the command should fail with exit code 1
+    And stderr should contain "worker branch must be under agent/"

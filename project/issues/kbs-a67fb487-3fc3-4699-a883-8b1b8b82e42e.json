@@ -1,0 +1,18 @@
+{
+  "id": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "title": "Production hardening for Kanbus orchestration",
+  "description": "Harden the Rust-first orchestration implementation so AI-agent workers can run safely against production branches without relying on trial-only assumptions.\n\nDefinition of Done:\n- Dangerous publish/workspace states fail closed with clear errors.\n- Run lifecycle state is recoverable and auditable.\n- Behavior is specified outside-in before implementation.\n- Rust and relevant shared gates pass locally and in CI before any PR is considered.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "codex",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:27:20.694819Z",
+  "updated_at": "2026-04-30T04:27:29.267259Z",
+  "closed_at": null,
+  "custom": {}
+}

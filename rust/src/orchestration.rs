@@ -2,7 +2,7 @@
 
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use chrono::{DateTime, Utc};
@@ -335,6 +335,7 @@ pub fn run_worker(
     worker_id: &str,
 ) -> Result<OrchestrationRunRecord, KanbusError> {
     let workflow = load_workflow(workflow_path)?;
+    validate_workspace_root(root, &workflow)?;
     let issue = load_issue_from_project(root, issue_id)?.issue;
     let mut record = create_run_record(root, issue_id, worker_id)?;
     let result = run_worker_inner(root, &workflow, &issue, target_repo, &mut record);
@@ -396,6 +397,7 @@ fn run_worker_inner(
     record.updated_at = Utc::now();
     record.last_event = Some("worker running".to_string());
     let branch = render_branch_name(workflow, issue, record)?;
+    validate_worker_branch(&branch, &workflow.target.branch)?;
     let workspace = workspace_path(workflow, issue, record);
     record.workspace_path = Some(workspace.to_string_lossy().to_string());
     record.branch = Some(branch.clone());
@@ -412,11 +414,6 @@ fn run_worker_inner(
     record.validation_summary = Some(validation);
     let commit_sha = ensure_commit(&workspace, issue)?;
     record.commit_sha = Some(commit_sha);
-    if workflow.target.publish != "push-only" {
-        return Err(KanbusError::Configuration(
-            "only publish: push-only is supported".to_string(),
-        ));
-    }
     run_git(&workspace, &["push", "-u", "origin", &branch])?;
     record.remote_branch = Some(branch);
     Ok(())
@@ -451,7 +448,87 @@ fn validate_workflow(workflow: &OrchestrationWorkflow) -> Result<(), KanbusError
             "codex.command is required".to_string(),
         ));
     }
+    if workflow.target.publish.trim() != "push-only" {
+        return Err(KanbusError::Configuration(format!(
+            "unsupported publish mode {:?}: only push-only is supported",
+            workflow.target.publish
+        )));
+    }
     Ok(())
+}
+
+fn validate_workspace_root(
+    kanbus_root: &Path,
+    workflow: &OrchestrationWorkflow,
+) -> Result<(), KanbusError> {
+    let kanbus_root = normalize_absolute_path(kanbus_root, kanbus_root)?;
+    let workspace_root = normalize_absolute_path(
+        Path::new(&expand_home(&workflow.workspace.root)),
+        kanbus_root.as_path(),
+    )?;
+    if workspace_root == kanbus_root || workspace_root.starts_with(&kanbus_root) {
+        return Err(KanbusError::Configuration(
+            "workspace root must be outside the Kanbus repository".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_worker_branch(branch: &str, target_branch: &str) -> Result<(), KanbusError> {
+    let branch = branch.trim();
+    if !branch.starts_with("agent/") {
+        return Err(KanbusError::Configuration(
+            "worker branch must be under agent/".to_string(),
+        ));
+    }
+    if branch == target_branch || matches!(branch, "develop" | "main" | "master") {
+        return Err(KanbusError::Configuration(
+            "worker branch must not target a protected branch".to_string(),
+        ));
+    }
+    let ref_name = format!("refs/heads/{branch}");
+    let output = Command::new("git")
+        .args(["check-ref-format", &ref_name])
+        .output()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !output.status.success() {
+        return Err(KanbusError::Configuration(format!(
+            "worker branch is not a valid git ref: {branch}"
+        )));
+    }
+    Ok(())
+}
+
+fn normalize_absolute_path(path: &Path, base: &Path) -> Result<PathBuf, KanbusError> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        base.join(path)
+    };
+    if absolute.exists() {
+        return fs::canonicalize(&absolute).map_err(|error| KanbusError::Io(error.to_string()));
+    }
+    if let Some(parent) = absolute.parent() {
+        if parent.exists() {
+            let mut canonical =
+                fs::canonicalize(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+            if let Some(name) = absolute.file_name() {
+                canonical.push(name);
+            }
+            return Ok(canonical);
+        }
+    }
+    let mut normalized = PathBuf::new();
+    for component in absolute.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            other => normalized.push(other.as_os_str()),
+        }
+    }
+    Ok(normalized)
 }
 
 fn render_template(
@@ -853,6 +930,66 @@ mod tests {
             KanbusError::Configuration(_) => {}
             other => panic!("expected configuration error, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn unsupported_publish_mode_is_rejected() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let workflow_path = temp.path().join("WORKFLOW.md");
+        fs::write(
+            &workflow_path,
+            "---\ntarget:\n  publish: pull-request\n---\nBody",
+        )
+        .expect("write workflow");
+
+        let error = load_workflow(&workflow_path).expect_err("workflow error");
+
+        assert!(error.to_string().contains("unsupported publish mode"));
+    }
+
+    #[test]
+    fn workspace_root_inside_kanbus_repository_is_rejected() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let workflow = OrchestrationWorkflow {
+            workspace: OrchestrationWorkspaceConfig {
+                root: temp
+                    .path()
+                    .join("unsafe-workspaces")
+                    .to_string_lossy()
+                    .to_string(),
+            },
+            ..OrchestrationWorkflow {
+                target: OrchestrationTargetConfig::default(),
+                workspace: OrchestrationWorkspaceConfig::default(),
+                worker: OrchestrationWorkerConfig::default(),
+                codex: OrchestrationCodexConfig::default(),
+                prompt_template: String::new(),
+            }
+        };
+
+        let error = validate_workspace_root(temp.path(), &workflow).expect_err("workspace error");
+
+        assert_eq!(
+            error.to_string(),
+            "workspace root must be outside the Kanbus repository"
+        );
+    }
+
+    #[test]
+    fn worker_branch_must_use_agent_namespace() {
+        let error = validate_worker_branch("feature/work", "develop").expect_err("branch error");
+
+        assert_eq!(error.to_string(), "worker branch must be under agent/");
+    }
+
+    #[test]
+    fn worker_branch_must_not_target_protected_branch() {
+        let error = validate_worker_branch("agent/run", "agent/run").expect_err("branch error");
+
+        assert_eq!(
+            error.to_string(),
+            "worker branch must not target a protected branch"
+        );
     }
 
     #[test]

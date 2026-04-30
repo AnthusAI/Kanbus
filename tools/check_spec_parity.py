@@ -53,13 +53,14 @@ class StepPattern:
 @dataclass(frozen=True)
 class ParityResults:
     feature_steps: Set[str]
+    python_required_feature_steps: Set[str]
     python_steps: Set[str]
     rust_steps: Set[str]
     python_patterns: Sequence[StepPattern]
     rust_patterns: Sequence[StepPattern]
 
     def missing_in_python(self) -> Set[str]:
-        return _find_missing(self.feature_steps, self.python_patterns)
+        return _find_missing(self.python_required_feature_steps, self.python_patterns)
 
     def missing_in_rust(self) -> Set[str]:
         return _find_missing(self.feature_steps, self.rust_patterns)
@@ -79,9 +80,12 @@ def _extract_tag_names(tag_line: str) -> Set[str]:
     return tags
 
 
-def _iter_feature_steps(feature_path: Path) -> Iterable[str]:
+def _iter_feature_steps(
+    feature_path: Path, include_rust_only: bool = True
+) -> Iterable[str]:
     current_feature_tags: Set[str] = set()
-    current_scenario_tags: Set[str] = set()
+    pending_tags: Set[str] = set()
+    active_scenario_tags: Set[str] = set()
     in_scenario = False
     skip_scenario = False
     in_docstring = False
@@ -99,23 +103,23 @@ def _iter_feature_steps(feature_path: Path) -> Iterable[str]:
             continue
         if line.startswith("@"):
             tags = _extract_tag_names(line)
-            if in_scenario:
-                current_scenario_tags |= tags
-            else:
-                current_feature_tags |= tags
+            pending_tags |= tags
             continue
         if line.startswith("Feature:"):
+            current_feature_tags = pending_tags
+            pending_tags = set()
             in_scenario = False
-            current_scenario_tags = set()
+            active_scenario_tags = set()
             skip_scenario = False
             continue
         if line.startswith("Scenario"):
             in_scenario = True
-            skip_scenario = (
-                "wip" in current_feature_tags
-                or "wip" in current_scenario_tags
+            active_scenario_tags = pending_tags
+            pending_tags = set()
+            all_tags = current_feature_tags | active_scenario_tags
+            skip_scenario = "wip" in all_tags or (
+                "rust-only" in all_tags and not include_rust_only
             )
-            current_scenario_tags = set()
             continue
         if in_scenario and line.split(maxsplit=1)[0] in STEP_KEYWORDS:
             if skip_scenario:
@@ -124,7 +128,9 @@ def _iter_feature_steps(feature_path: Path) -> Iterable[str]:
             yield step_text
 
 
-def collect_feature_steps(features_root: Path) -> Set[str]:
+def collect_feature_steps(
+    features_root: Path, include_rust_only: bool = True
+) -> Set[str]:
     """Collect scenario step text from feature files.
 
     :param features_root: Root directory containing feature files.
@@ -134,7 +140,7 @@ def collect_feature_steps(features_root: Path) -> Set[str]:
     """
     steps: Set[str] = set()
     for path in features_root.rglob("*.feature"):
-        steps.update(_iter_feature_steps(path))
+        steps.update(_iter_feature_steps(path, include_rust_only=include_rust_only))
     return steps
 
 
@@ -313,12 +319,16 @@ def build_results(repo_root: Path) -> ParityResults:
     :rtype: ParityResults
     """
     feature_steps = collect_feature_steps(repo_root / "features")
+    python_required_feature_steps = collect_feature_steps(
+        repo_root / "features", include_rust_only=False
+    )
     python_patterns = collect_python_steps(repo_root / "python" / "features" / "steps")
     rust_patterns = collect_rust_steps(repo_root / "rust" / "features" / "steps")
     python_steps = {_normalize_step_text(pattern.text) for pattern in python_patterns}
     rust_steps = {_normalize_step_text(pattern.text) for pattern in rust_patterns}
     return ParityResults(
         feature_steps=feature_steps,
+        python_required_feature_steps=python_required_feature_steps,
         python_steps=python_steps,
         rust_steps=rust_steps,
         python_patterns=python_patterns,
