@@ -1,0 +1,18 @@
+{
+  "id": "kbs-364e1758-f262-4e35-a4f6-13a8aa1f3e87",
+  "title": "Preserve GitHub remotes and compact orchestration errors",
+  "description": "Make orchestration workspaces cloned from local repositories preserve the source repository's GitHub origin so pull-request publishing can use gh. Store compact failure messages in run records instead of committing full command stderr dumps.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T05:50:26.712694Z",
+  "updated_at": "2026-04-30T05:51:46.071750Z",
+  "closed_at": "2026-04-30T05:51:46.071750Z",
+  "custom": {}
+}

@@ -421,7 +421,7 @@ pub fn run_worker(
         Err(error) => {
             record.status = OrchestrationRunStatus::Failed;
             record.updated_at = Utc::now();
-            record.error = Some(error.to_string());
+            record.error = Some(compact_error_message(&error.to_string()));
             record.last_event = Some("worker failed".to_string());
             write_run_record(root, &record)?;
             Err(error)
@@ -954,6 +954,7 @@ fn prepare_workspace(
         let repo = target_repo
             .or(workflow.target.repo.as_deref())
             .ok_or_else(|| KanbusError::Configuration("target.repo is required".to_string()))?;
+        let source_origin = source_origin_url(repo);
         let parent = workspace.parent().ok_or_else(|| {
             KanbusError::Io(format!("workspace has no parent: {}", workspace.display()))
         })?;
@@ -962,6 +963,9 @@ fn prepare_workspace(
             parent,
             Command::new("git").arg("clone").arg(repo).arg(workspace),
         )?;
+        if let Some(origin_url) = source_origin {
+            run_git(workspace, &["remote", "set-url", "origin", &origin_url])?;
+        }
     }
     run_git(workspace, &["fetch", "origin", &workflow.target.branch])?;
     let upstream = format!("origin/{}", workflow.target.branch);
@@ -969,6 +973,30 @@ fn prepare_workspace(
     run_git(workspace, &["reset", "--hard", &upstream])?;
     run_git(workspace, &["clean", "-ffdx"])?;
     Ok(())
+}
+
+fn source_origin_url(repo: &str) -> Option<String> {
+    let repo_path = Path::new(repo);
+    if !repo_path.exists() {
+        return None;
+    }
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .arg("remote")
+        .arg("get-url")
+        .arg("origin")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let origin = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if origin.is_empty() {
+        None
+    } else {
+        Some(origin)
+    }
 }
 
 fn run_codex_app_server(
@@ -1188,6 +1216,28 @@ fn run_command(workspace: &Path, command: &mut Command) -> Result<String, Kanbus
         return Err(KanbusError::IssueOperation(message));
     }
     Ok(stdout)
+}
+
+fn compact_error_message(message: &str) -> String {
+    const MAX_ERROR_CHARS: usize = 2000;
+    let mut compact = message
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .rev()
+        .take(40)
+        .collect::<Vec<_>>();
+    compact.reverse();
+    let compact = compact.join("\n");
+    if compact.chars().count() <= MAX_ERROR_CHARS {
+        return compact;
+    }
+    let mut truncated = compact
+        .chars()
+        .rev()
+        .take(MAX_ERROR_CHARS)
+        .collect::<Vec<_>>();
+    truncated.reverse();
+    format!("...{}", truncated.into_iter().collect::<String>())
 }
 
 fn ensure_commit(workspace: &Path, issue: &IssueData) -> Result<String, KanbusError> {
@@ -1631,6 +1681,46 @@ mod tests {
         assert_eq!(pull_request_title(&issue), "ccpy-d2fd1d: Trial issue");
         assert!(pull_request_body(&issue, &record).contains("ccpy-run-12345678"));
         assert!(pull_request_body(&issue, &record).contains("worker-one"));
+    }
+
+    #[test]
+    fn local_source_origin_url_is_preserved_when_available() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let repo = temp.path().join("repo");
+        fs::create_dir_all(&repo).expect("repo dir");
+        run_command(&repo, Command::new("git").arg("init")).expect("git init");
+        run_command(
+            &repo,
+            Command::new("git")
+                .arg("remote")
+                .arg("add")
+                .arg("origin")
+                .arg("https://github.com/AnthusAI/Call-Criteria-Python.git"),
+        )
+        .expect("add origin");
+
+        assert_eq!(
+            source_origin_url(repo.to_str().expect("repo path")).as_deref(),
+            Some("https://github.com/AnthusAI/Call-Criteria-Python.git")
+        );
+        assert_eq!(
+            source_origin_url("https://github.com/AnthusAI/Call-Criteria-Python.git"),
+            None
+        );
+    }
+
+    #[test]
+    fn run_errors_are_compacted_to_recent_context() {
+        let verbose = (0..200)
+            .map(|index| format!("line {index}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let compact = compact_error_message(&verbose);
+
+        assert!(!compact.contains("line 0"));
+        assert!(compact.contains("line 199"));
+        assert!(compact.chars().count() <= 2003);
     }
 
     #[test]
