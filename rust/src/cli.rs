@@ -447,8 +447,10 @@ enum OrchestratorCommands {
     /// Run the orchestrator.
     Run {
         /// Workflow preset name from workflows/ or explicit workflow file path.
+        ///
+        /// Defaults to workflows/default.md when present, otherwise the built-in generic workflow.
         #[arg(long)]
-        workflow: std::path::PathBuf,
+        workflow: Option<std::path::PathBuf>,
         /// Run one dispatch cycle.
         #[arg(long)]
         once: bool,
@@ -471,11 +473,13 @@ enum WorkerCommands {
         /// Issue identifier.
         issue_id: String,
         /// Workflow preset name from workflows/ or explicit workflow file path.
+        ///
+        /// Defaults to workflows/default.md when present, otherwise the built-in generic workflow.
         #[arg(long)]
-        workflow: std::path::PathBuf,
+        workflow: Option<std::path::PathBuf>,
         /// Target repository path or URL.
         #[arg(long = "target-repo")]
-        target_repo: String,
+        target_repo: Option<String>,
         /// Worker identity.
         #[arg(long, default_value = "kanbus-worker")]
         worker: String,
@@ -2769,7 +2773,7 @@ fn execute_command(
                 }
                 let record = run_orchestrator_once(
                     root,
-                    &workflow,
+                    workflow.as_deref(),
                     max_concurrent,
                     issue.as_deref(),
                     &worker,
@@ -2787,7 +2791,13 @@ fn execute_command(
                 target_repo,
                 worker,
             } => {
-                let record = run_worker(root, &issue_id, &workflow, Some(&target_repo), &worker)?;
+                let record = run_worker(
+                    root,
+                    &issue_id,
+                    workflow.as_deref(),
+                    target_repo.as_deref(),
+                    &worker,
+                )?;
                 Ok(Some(
                     serde_json::to_string_pretty(&record)
                         .map_err(|error| KanbusError::Io(error.to_string()))?,

@@ -80,6 +80,12 @@ pub struct OrchestrationTargetConfig {
     #[serde(default = "default_publish")]
     pub publish: String,
     #[serde(default)]
+    pub commit_message: Option<String>,
+    #[serde(default)]
+    pub pr_title: Option<String>,
+    #[serde(default)]
+    pub pr_body: Option<String>,
+    #[serde(default)]
     pub allowed_paths: Vec<String>,
 }
 
@@ -90,6 +96,9 @@ impl Default for OrchestrationTargetConfig {
             branch: default_target_branch(),
             validation: default_validation_command(),
             publish: default_publish(),
+            commit_message: None,
+            pr_title: None,
+            pr_body: None,
             allowed_paths: Vec::new(),
         }
     }
@@ -148,7 +157,7 @@ fn default_target_branch() -> String {
 }
 
 fn default_validation_command() -> String {
-    "make test".to_string()
+    "git diff --check".to_string()
 }
 
 fn default_publish() -> String {
@@ -343,6 +352,59 @@ pub fn load_workflow(path: &Path) -> Result<OrchestrationWorkflow, KanbusError> 
     Ok(workflow)
 }
 
+fn load_workflow_or_default(
+    root: &Path,
+    workflow_path: Option<&Path>,
+) -> Result<OrchestrationWorkflow, KanbusError> {
+    if let Some(workflow_path) = workflow_path {
+        let workflow_path = resolve_workflow_path(root, workflow_path)?;
+        return load_workflow(&workflow_path);
+    }
+    let default_path = root.join("workflows").join("default.md");
+    if default_path.is_file() {
+        return load_workflow(&default_path);
+    }
+    Ok(default_orchestration_workflow())
+}
+
+fn default_orchestration_workflow() -> OrchestrationWorkflow {
+    OrchestrationWorkflow {
+        target: OrchestrationTargetConfig {
+            publish: "pull-request".to_string(),
+            ..OrchestrationTargetConfig::default()
+        },
+        workspace: OrchestrationWorkspaceConfig::default(),
+        worker: OrchestrationWorkerConfig::default(),
+        codex: OrchestrationCodexConfig::default(),
+        prompt_template: default_prompt_template(),
+    }
+}
+
+fn default_prompt_template() -> String {
+    r#"You are working in an isolated workspace for the assigned Kanbus issue.
+
+Issue:
+- Identifier: {{ issue.identifier }}
+- Run: {{ run.id }}
+- Title: {{ issue.title }}
+- Type: {{ issue.issue_type }}
+- Description:
+{{ issue.description }}
+
+Rules:
+- Use the issue title and description as the source of truth for the task.
+- Work only in the isolated workspace supplied by Kanbus orchestration.
+- The assigned Kanbus issue is supplied by the orchestrator. Do not create, update, or close Kanbus issues from inside the target workspace.
+- You may comment only on the assigned Kanbus issue when useful.
+- Do not modify files under project/issues, project/events, or project/runs.
+- Do not run git add, git commit, git push, gh pr create, or merge. Kanbus orchestration handles publication after validation.
+- Use only non-interactive commands. Do not start shell sessions or commands that require stdin.
+- Keep changes scoped to the assigned issue.
+- Run the validation that is appropriate for the change before finishing.
+"#
+    .to_string()
+}
+
 /// Resolve a workflow file path or repository-owned workflow preset name.
 pub fn resolve_workflow_path(root: &Path, workflow: &Path) -> Result<PathBuf, KanbusError> {
     let explicit_path = if workflow.is_absolute() {
@@ -400,16 +462,19 @@ pub fn render_worker_prompt(
 pub fn run_worker(
     root: &Path,
     issue_id: &str,
-    workflow_path: &Path,
+    workflow_path: Option<&Path>,
     target_repo: Option<&str>,
     worker_id: &str,
 ) -> Result<OrchestrationRunRecord, KanbusError> {
-    let workflow_path = resolve_workflow_path(root, workflow_path)?;
-    let workflow = load_workflow(&workflow_path)?;
+    let workflow = load_workflow_or_default(root, workflow_path)?;
     validate_workspace_root(root, &workflow)?;
     let issue = load_issue_from_project(root, issue_id)?.issue;
     let mut record = create_run_record(root, issue_id, worker_id)?;
-    let result = run_worker_inner(root, &workflow, &issue, target_repo, &mut record);
+    let default_target_repo = root.to_string_lossy().to_string();
+    let resolved_target_repo = target_repo
+        .or(workflow.target.repo.as_deref())
+        .or(Some(default_target_repo.as_str()));
+    let result = run_worker_inner(root, &workflow, &issue, resolved_target_repo, &mut record);
     match result {
         Ok(()) => {
             record.status = OrchestrationRunStatus::Completed;
@@ -432,7 +497,7 @@ pub fn run_worker(
 /// Run one orchestrator dispatch cycle.
 pub fn run_orchestrator_once(
     root: &Path,
-    workflow_path: &Path,
+    workflow_path: Option<&Path>,
     max_concurrent: usize,
     issue_id: Option<&str>,
     worker_id: &str,
@@ -442,25 +507,12 @@ pub fn run_orchestrator_once(
             "max-concurrent must be greater than zero".to_string(),
         ));
     }
-    let workflow_path = resolve_workflow_path(root, workflow_path)?;
-    let workflow = load_workflow(&workflow_path)?;
-    let target_repo = workflow
-        .target
-        .repo
-        .as_deref()
-        .ok_or_else(|| KanbusError::Configuration("target.repo is required".to_string()))?;
     let issue = if let Some(issue_id) = issue_id {
         claim_issue(root, issue_id, worker_id)?
     } else {
         claim_next_issue(root, true, worker_id)?
     };
-    run_worker(
-        root,
-        &issue.identifier,
-        &workflow_path,
-        Some(target_repo),
-        worker_id,
-    )
+    run_worker(root, &issue.identifier, workflow_path, None, worker_id)
 }
 
 fn has_parent_component(path: &Path) -> bool {
@@ -507,7 +559,7 @@ fn run_worker_inner(
     record.validation_summary = Some(validation);
     reject_project_management_artifact_changes(&workspace)?;
     reject_unallowed_publish_changes(&workspace, workflow)?;
-    let commit_sha = ensure_commit(&workspace, issue)?;
+    let commit_sha = ensure_commit(&workspace, workflow, issue, record)?;
     record.commit_sha = Some(commit_sha);
     publish_run(&workspace, workflow, issue, record, &branch)?;
     Ok(())
@@ -1240,11 +1292,16 @@ fn compact_error_message(message: &str) -> String {
     format!("...{}", truncated.into_iter().collect::<String>())
 }
 
-fn ensure_commit(workspace: &Path, issue: &IssueData) -> Result<String, KanbusError> {
+fn ensure_commit(
+    workspace: &Path,
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+) -> Result<String, KanbusError> {
     let status = run_git(workspace, &["status", "--porcelain"])?;
     if !status.trim().is_empty() {
         run_git(workspace, &["add", "."])?;
-        let message = format!("Kanbus orchestration {}", issue.identifier);
+        let message = commit_message(workflow, issue, record)?;
         run_git(
             workspace,
             &[
@@ -1285,8 +1342,8 @@ fn create_pull_request(
     record: &OrchestrationRunRecord,
     branch: &str,
 ) -> Result<String, KanbusError> {
-    let title = pull_request_title(issue);
-    let body = pull_request_body(issue, record);
+    let title = pull_request_title(workflow, issue, record)?;
+    let body = pull_request_body(workflow, issue, record)?;
     run_gh(
         workspace,
         &[
@@ -1304,19 +1361,104 @@ fn create_pull_request(
     )
 }
 
-fn pull_request_title(issue: &IssueData) -> String {
-    format!(
-        "{}: {}",
-        short_issue_identifier(&issue.identifier),
-        issue.title
+fn commit_message(
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+) -> Result<String, KanbusError> {
+    render_publication_template(
+        workflow.target.commit_message.as_deref(),
+        &conventional_issue_subject(issue),
+        issue,
+        record,
     )
 }
 
-fn pull_request_body(issue: &IssueData, record: &OrchestrationRunRecord) -> String {
-    format!(
-        "Kanbus orchestration completed for `{}`.\n\nRun: `{}`\n\nWorker: `{}`",
-        issue.identifier, record.run_id, record.worker_id
+fn pull_request_title(
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+) -> Result<String, KanbusError> {
+    render_publication_template(
+        workflow.target.pr_title.as_deref(),
+        &conventional_issue_subject(issue),
+        issue,
+        record,
     )
+}
+
+fn pull_request_body(
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+) -> Result<String, KanbusError> {
+    let default_body = format!(
+        "## Summary\n{}\n\n## Kanbus\n- Issue: `{}`\n- Run: `{}`\n- Worker: `{}`",
+        issue.description.trim(),
+        issue.identifier,
+        record.run_id,
+        record.worker_id
+    );
+    render_publication_template(
+        workflow.target.pr_body.as_deref(),
+        &default_body,
+        issue,
+        record,
+    )
+}
+
+fn render_publication_template(
+    template: Option<&str>,
+    default_value: &str,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+) -> Result<String, KanbusError> {
+    let value = template.unwrap_or(default_value);
+    render_template(value, issue, Some(record))
+}
+
+fn conventional_issue_subject(issue: &IssueData) -> String {
+    if looks_like_conventional_commit(&issue.title) {
+        return issue.title.clone();
+    }
+    let prefix = match issue.issue_type.as_str() {
+        "bug" => "fix",
+        "story" | "feature" | "epic" => "feat",
+        _ => "chore",
+    };
+    format!("{}: {}", prefix, sentence_case_title(&issue.title))
+}
+
+fn looks_like_conventional_commit(title: &str) -> bool {
+    let Some((prefix, _)) = title.split_once(':') else {
+        return false;
+    };
+    let base = prefix
+        .split_once('(')
+        .map(|(base, _)| base)
+        .unwrap_or(prefix);
+    matches!(
+        base,
+        "feat"
+            | "fix"
+            | "docs"
+            | "style"
+            | "refactor"
+            | "perf"
+            | "test"
+            | "build"
+            | "ci"
+            | "chore"
+            | "revert"
+    )
+}
+
+fn sentence_case_title(title: &str) -> String {
+    let mut chars = title.chars();
+    let Some(first) = chars.next() else {
+        return String::new();
+    };
+    first.to_lowercase().chain(chars).collect()
 }
 
 fn run_gh(workspace: &Path, args: &[&str]) -> Result<String, KanbusError> {
@@ -1497,8 +1639,19 @@ mod tests {
 
         assert_eq!(workflow.target.repo.as_deref(), Some("/tmp/repo"));
         assert_eq!(workflow.target.branch, "develop");
-        assert_eq!(workflow.target.validation, "make test");
+        assert_eq!(workflow.target.validation, "git diff --check");
         assert_eq!(workflow.prompt_template, "Hello {{ issue.identifier }}");
+    }
+
+    #[test]
+    fn missing_workflow_uses_builtin_generic_workflow() {
+        let temp = tempfile::tempdir().expect("tempdir");
+
+        let workflow = load_workflow_or_default(temp.path(), None).expect("default workflow");
+
+        assert_eq!(workflow.target.repo, None);
+        assert_eq!(workflow.target.publish, "pull-request");
+        assert!(workflow.prompt_template.contains("{{ issue.description }}"));
     }
 
     #[test]
@@ -1616,19 +1769,12 @@ mod tests {
     #[test]
     fn named_workflow_presets_resolve_from_repository_workflows() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let preset_path = temp
-            .path()
-            .join("workflows")
-            .join("call-criteria")
-            .join("poetry-upgrade.md");
+        let preset_path = temp.path().join("workflows").join("default.md");
         fs::create_dir_all(preset_path.parent().expect("parent")).expect("create preset parent");
         fs::write(&preset_path, "---\n---\nBody").expect("write preset");
 
-        let resolved = resolve_workflow_path(
-            temp.path(),
-            Path::new("call-criteria").join("poetry-upgrade").as_path(),
-        )
-        .expect("resolve preset");
+        let resolved =
+            resolve_workflow_path(temp.path(), Path::new("default")).expect("resolve preset");
 
         assert_eq!(resolved, preset_path);
     }
@@ -1677,10 +1823,33 @@ mod tests {
     fn pull_request_metadata_is_rendered_from_issue_and_run() {
         let issue = issue("ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554");
         let record = run_record("ccpy-run-12345678");
+        let workflow = default_orchestration_workflow();
 
-        assert_eq!(pull_request_title(&issue), "ccpy-d2fd1d: Trial issue");
-        assert!(pull_request_body(&issue, &record).contains("ccpy-run-12345678"));
-        assert!(pull_request_body(&issue, &record).contains("worker-one"));
+        assert_eq!(
+            commit_message(&workflow, &issue, &record).expect("commit message"),
+            "chore: trial issue"
+        );
+        assert_eq!(
+            pull_request_title(&workflow, &issue, &record).expect("pr title"),
+            "chore: trial issue"
+        );
+        assert!(pull_request_body(&workflow, &issue, &record)
+            .expect("pr body")
+            .contains("ccpy-run-12345678"));
+        assert!(pull_request_body(&workflow, &issue, &record)
+            .expect("pr body")
+            .contains("worker-one"));
+    }
+
+    #[test]
+    fn conventional_commit_titles_are_preserved() {
+        let mut issue = issue("ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554");
+        issue.title = "fix(parser): handle missing values".to_string();
+
+        assert_eq!(
+            conventional_issue_subject(&issue),
+            "fix(parser): handle missing values"
+        );
     }
 
     #[test]
