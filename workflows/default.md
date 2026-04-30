@@ -16,14 +16,19 @@ procedures:
     timeout_seconds: 120
     source: |
       local json = require("tactus.io.json")
+      local done = require("tactus.tools.done")
 
       pr_writer = Agent {
           provider = "openai",
           model = "gpt-4o",
+          model_type = "chat",
+          temperature = 0.0,
+          max_tokens = 4096,
           system_prompt = [[You draft high-quality pull request titles and bodies from verified Kanbus orchestration evidence.
 
       Rules:
-      - Return only structured output matching the schema.
+      - Call the done tool with reason set to one JSON object and no Markdown fence.
+      - The JSON object must have exactly these string keys: title, body.
       - Title must use Conventional Commit style.
       - Body must use these exact Markdown headings:
         **Summary**
@@ -36,26 +41,42 @@ procedures:
       - Do not invent validation commands or results.
       - Include the Kanbus issue id and run id.
       - Be concise, factual, and reviewer-focused.]],
-          output = {
-              title = field.string{required = true},
-              body = field.string{required = true}
-          }
+          initial_message = [[Draft the pull request from this evidence JSON:
+
+      {input.evidence_json}]],
+          tools = {done}
       }
 
       Procedure {
           input = {
-              evidence = field.object{required = true}
+              evidence = field.object{required = true},
+              evidence_json = field.string{required = true}
           },
           output = {
               title = field.string{required = true},
               body = field.string{required = true}
           },
           function(input)
-              local evidence_json = json.encode(input.evidence)
-              local result = pr_writer(evidence_json)
+              local max_turns = 3
+              local turn_count = 0
+              while not done.called() and turn_count < max_turns do
+                  pr_writer()
+                  turn_count = turn_count + 1
+              end
+              if not done.called() then
+                  error("PR draft agent did not call done")
+              end
+              local raw = done.last_result() or ""
+              local ok, decoded = pcall(function() return json.decode(raw) end)
+              if not ok or type(decoded) ~= "table" then
+                  error("PR draft agent did not return JSON")
+              end
+              if type(decoded.title) ~= "string" or type(decoded.body) ~= "string" then
+                  error("PR draft JSON must include title and body strings")
+              end
               return {
-                  title = result.output.title,
-                  body = result.output.body
+                  title = decoded.title,
+                  body = decoded.body
               }
           end
       }

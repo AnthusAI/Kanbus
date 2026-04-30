@@ -1,0 +1,18 @@
+{
+  "id": "kbs-2e263597-ab8a-45e4-9400-df5a2a82e841",
+  "title": "Use done-tool Tactus PR drafting contract",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T06:42:42.335448Z",
+  "updated_at": "2026-04-30T06:45:18.297204Z",
+  "closed_at": "2026-04-30T06:45:18.297204Z",
+  "custom": {}
+}
