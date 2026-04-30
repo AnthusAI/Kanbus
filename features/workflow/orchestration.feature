@@ -50,3 +50,20 @@ Feature: Kanbus orchestration
     When I run the orchestration worker for issue "kanbus-run01" with workflow "workflow.md"
     Then the command should fail with exit code 1
     And stderr should contain "worker branch must be under agent/"
+
+  Scenario: Named workflow presets are resolved from the repository
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And a local orchestration target repository
+    And a repository orchestration workflow preset "call-criteria/poetry-upgrade"
+    When I run the orchestration worker for issue "kanbus-run01" with workflow "call-criteria/poetry-upgrade"
+    Then the command should succeed
+    And stdout should contain "\"remote_branch\""
+
+  Scenario: Missing named workflow presets fail clearly
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And a local orchestration target repository
+    When I run the orchestration worker for issue "kanbus-run01" with workflow "missing/workflow"
+    Then the command should fail with exit code 1
+    And stderr should contain "workflow preset not found"

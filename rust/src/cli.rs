@@ -446,7 +446,7 @@ enum Commands {
 enum OrchestratorCommands {
     /// Run the orchestrator.
     Run {
-        /// Workflow file path.
+        /// Workflow preset name from workflows/ or explicit workflow file path.
         #[arg(long)]
         workflow: std::path::PathBuf,
         /// Run one dispatch cycle.
@@ -467,7 +467,7 @@ enum WorkerCommands {
     Run {
         /// Issue identifier.
         issue_id: String,
-        /// Workflow file path.
+        /// Workflow preset name from workflows/ or explicit workflow file path.
         #[arg(long)]
         workflow: std::path::PathBuf,
         /// Target repository path or URL.

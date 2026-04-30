@@ -1,0 +1,18 @@
+{
+  "id": "kbs-c4a378f0-08de-43c3-8042-a4c38d481a43",
+  "title": "Orchestration workflows are reusable named presets",
+  "description": "As an operator, I want orchestration workflows to be committed named presets, so that production agent runs do not depend on temporary per-run workflow files.\n\nFeature: Named orchestration workflows\n\nScenario: Worker resolves a named workflow from project workflows\nGiven a Kanbus project with default configuration\nAnd a local orchestration target repository\nAnd a project orchestration workflow \"call-criteria/poetry-upgrade\"\nWhen I run \"kanbus worker run kanbus-run01 --workflow call-criteria/poetry-upgrade --target-repo target\"\nThen the named workflow should be resolved from project/workflows\n\nScenario: Missing named workflow fails clearly\nGiven a Kanbus project with default configuration\nWhen I run \"kanbus worker run kanbus-run01 --workflow missing/workflow --target-repo target\"\nThen the command should fail with exit code 1\nAnd stderr should contain \"workflow preset not found\"",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:42:15.475851Z",
+  "updated_at": "2026-04-30T04:46:05.307045Z",
+  "closed_at": "2026-04-30T04:46:05.307045Z",
+  "custom": {}
+}

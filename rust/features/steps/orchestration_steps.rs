@@ -80,10 +80,19 @@ fn given_orchestration_workflow_with_worker_branch_pattern(
     );
 }
 
+#[given(expr = "a repository orchestration workflow preset {string}")]
+fn given_repository_orchestration_workflow_preset(world: &mut KanbusWorld, name: String) {
+    write_orchestration_workflow(
+        world,
+        &format!("workflows/{name}.md"),
+        "push-only",
+        workspace_root_outside(world),
+    );
+}
+
 #[when(expr = "I run the orchestration worker for issue {string} with workflow {string}")]
 fn when_run_orchestration_worker(world: &mut KanbusWorld, issue_id: String, workflow: String) {
     let cwd = world.working_directory.as_ref().expect("working directory");
-    let workflow_path = cwd.join(workflow);
     let target_repo = world
         .orchestration_target_repo
         .as_ref()
@@ -91,7 +100,7 @@ fn when_run_orchestration_worker(world: &mut KanbusWorld, issue_id: String, work
     let command = format!(
         "kanbus worker run {} --workflow {} --target-repo {}",
         issue_id,
-        workflow_path.to_string_lossy(),
+        workflow,
         target_repo.to_string_lossy()
     );
     let args = shell_words::split(&command).expect("parse command");
@@ -159,7 +168,11 @@ done
         branch_pattern,
         fake_app_server.to_string_lossy()
     );
-    fs::write(cwd.join(filename), workflow).expect("write workflow");
+    let path = cwd.join(filename);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("create workflow parent");
+    }
+    fs::write(path, workflow).expect("write workflow");
 }
 
 fn workspace_root_outside(world: &KanbusWorld) -> PathBuf {

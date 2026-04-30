@@ -1,21 +1,3 @@
-This workflow is installed as the reusable preset:
-
-```bash
-call-criteria/poetry-upgrade
-```
-
-Run it by name:
-
-```bash
-kbs worker run <issue-id> \
-  --workflow call-criteria/poetry-upgrade \
-  --target-repo /Users/derek.norrbom/Projects/Call-Criteria-Python
-```
-
-Workflow preset source: `workflows/call-criteria/poetry-upgrade.md`.
-
-The Markdown below is the preset content.
-
 ---
 target:
   repo: /Users/derek.norrbom/Projects/Call-Criteria-Python
@@ -38,9 +20,15 @@ Issue:
 - Title: {{ issue.title }}
 - Description: {{ issue.description }}
 
+Task:
+Upgrade the requested Poetry dependency pin.
+
 Rules:
-- Work only in the isolated workspace supplied by the App Server.
-- Modify only files required by the issue.
-- Do not alter production behavior.
-- Run `make test` before finishing.
-- Do not open a PR or merge anything.
+- Work only in the isolated workspace supplied by Kanbus orchestration.
+- Do not add or use requirements.txt.
+- Use pyproject.toml and poetry.lock as the source of truth.
+- Update only files required by the dependency pin upgrade.
+- Do not change unrelated production behavior.
+- Run the configured validation command before finishing.
+- Push the branch only.
+- Do not open a PR or merge.

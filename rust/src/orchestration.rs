@@ -149,10 +149,7 @@ fn default_publish() -> String {
 }
 
 fn default_workspace_root() -> String {
-    std::env::temp_dir()
-        .join("kanbus-orchestration-workspaces")
-        .to_string_lossy()
-        .to_string()
+    "~/.kanbus/orchestration-workspaces".to_string()
 }
 
 fn default_branch_pattern() -> String {
@@ -303,6 +300,36 @@ pub fn load_workflow(path: &Path) -> Result<OrchestrationWorkflow, KanbusError> 
     Ok(workflow)
 }
 
+/// Resolve a workflow file path or repository-owned workflow preset name.
+pub fn resolve_workflow_path(root: &Path, workflow: &Path) -> Result<PathBuf, KanbusError> {
+    let explicit_path = if workflow.is_absolute() {
+        workflow.to_path_buf()
+    } else {
+        root.join(workflow)
+    };
+    if explicit_path.is_file() {
+        return Ok(explicit_path);
+    }
+    if workflow.is_absolute() || has_parent_component(workflow) {
+        return Err(KanbusError::Configuration(format!(
+            "workflow file not found: {}",
+            workflow.display()
+        )));
+    }
+
+    let mut preset_path = root.join("workflows").join(workflow);
+    if preset_path.extension().is_none() {
+        preset_path.set_extension("md");
+    }
+    if preset_path.is_file() {
+        return Ok(preset_path);
+    }
+    Err(KanbusError::Configuration(format!(
+        "workflow preset not found: {}",
+        workflow.display()
+    )))
+}
+
 /// Render the branch name for an issue.
 pub fn render_branch_name(
     workflow: &OrchestrationWorkflow,
@@ -334,7 +361,8 @@ pub fn run_worker(
     target_repo: Option<&str>,
     worker_id: &str,
 ) -> Result<OrchestrationRunRecord, KanbusError> {
-    let workflow = load_workflow(workflow_path)?;
+    let workflow_path = resolve_workflow_path(root, workflow_path)?;
+    let workflow = load_workflow(&workflow_path)?;
     validate_workspace_root(root, &workflow)?;
     let issue = load_issue_from_project(root, issue_id)?.issue;
     let mut record = create_run_record(root, issue_id, worker_id)?;
@@ -370,7 +398,8 @@ pub fn run_orchestrator_once(
             "max-concurrent must be greater than zero".to_string(),
         ));
     }
-    let workflow = load_workflow(workflow_path)?;
+    let workflow_path = resolve_workflow_path(root, workflow_path)?;
+    let workflow = load_workflow(&workflow_path)?;
     let target_repo = workflow
         .target
         .repo
@@ -380,10 +409,15 @@ pub fn run_orchestrator_once(
     run_worker(
         root,
         &issue.identifier,
-        workflow_path,
+        &workflow_path,
         Some(target_repo),
         worker_id,
     )
+}
+
+fn has_parent_component(path: &Path) -> bool {
+    path.components()
+        .any(|component| matches!(component, Component::ParentDir))
 }
 
 fn run_worker_inner(
@@ -930,6 +964,51 @@ mod tests {
             KanbusError::Configuration(_) => {}
             other => panic!("expected configuration error, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn named_workflow_presets_resolve_from_repository_workflows() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let preset_path = temp
+            .path()
+            .join("workflows")
+            .join("call-criteria")
+            .join("poetry-upgrade.md");
+        fs::create_dir_all(preset_path.parent().expect("parent")).expect("create preset parent");
+        fs::write(&preset_path, "---\n---\nBody").expect("write preset");
+
+        let resolved = resolve_workflow_path(
+            temp.path(),
+            Path::new("call-criteria").join("poetry-upgrade").as_path(),
+        )
+        .expect("resolve preset");
+
+        assert_eq!(resolved, preset_path);
+    }
+
+    #[test]
+    fn missing_named_workflow_presets_fail_clearly() {
+        let temp = tempfile::tempdir().expect("tempdir");
+
+        let error =
+            resolve_workflow_path(temp.path(), Path::new("missing/workflow")).expect_err("error");
+
+        assert_eq!(
+            error.to_string(),
+            "workflow preset not found: missing/workflow"
+        );
+    }
+
+    #[test]
+    fn explicit_relative_workflow_paths_are_resolved_from_repo_root() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let workflow_path = temp.path().join("workflow.md");
+        fs::write(&workflow_path, "---\n---\nBody").expect("write workflow");
+
+        let resolved =
+            resolve_workflow_path(temp.path(), Path::new("workflow.md")).expect("resolve workflow");
+
+        assert_eq!(resolved, workflow_path);
     }
 
     #[test]
