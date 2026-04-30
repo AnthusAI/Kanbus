@@ -42,6 +42,7 @@ pub mod issue_transfer;
 pub mod issue_update;
 pub mod jira_sync;
 pub mod maintenance;
+pub mod maximus;
 pub mod migration;
 pub mod models;
 pub mod notification_events;

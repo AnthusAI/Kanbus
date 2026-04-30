@@ -1,0 +1,31 @@
+{
+  "id": "kbs-4ca74f42-3632-4f39-88cf-05a21bbc6c72",
+  "title": "Kanbus Maximus trial orchestration",
+  "description": "Purpose: Build Kanbus-native orchestration for a no-merge Call Criteria trial run.\n\nDefinition of Done:\n- Kanbus can claim ready work for a worker without double-dispatch.\n- Kanbus can persist and inspect orchestration run records.\n- Kanbus can load a workflow file, create an isolated target workspace, run a worker through Codex App Server, and push a trial branch only.\n- Rust validation passes for the implemented scope.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0611657e-6183-4225-a728-f08b9dc47f69",
+      "author": "derek.norrbom",
+      "text": "Implementation started on branch feature/kanbus-maximus-trial. Scope: Rust-first Kanbus Maximus trial commands, durable run storage, workflow loading, and worker path for a safe Call Criteria trial. No PR or merge planned.",
+      "created_at": "2026-04-30T03:32:55.647205Z"
+    },
+    {
+      "id": "eed44d41-ecd7-4def-b03d-0dd7dc27bf1e",
+      "author": "derek.norrbom",
+      "text": "Kanbus Maximus trial branch implementation is complete for the Rust-first scope. Local Kanbus gates passed; Call Criteria end-to-end trial produced run records and exposed target environment failures before publish.",
+      "created_at": "2026-04-30T03:53:59.928429Z"
+    }
+  ],
+  "created_at": "2026-04-30T03:32:36.464277Z",
+  "updated_at": "2026-04-30T03:53:59.960589Z",
+  "closed_at": "2026-04-30T03:53:59.960589Z",
+  "custom": {}
+}

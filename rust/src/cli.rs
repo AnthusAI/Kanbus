@@ -49,6 +49,10 @@ use crate::issue_transfer::{localize_issue, promote_issue};
 use crate::issue_update::update_issue;
 use crate::jira_sync::pull_from_jira;
 use crate::maintenance::{collect_project_stats, validate_project};
+use crate::maximus::{
+    cancel_run_record, claim_next_issue, create_run_record, list_run_records,
+    run_orchestrator_once, run_worker, show_run_record,
+};
 use crate::migration::{
     load_beads_issue_by_id, load_beads_issue_from_workspace, load_beads_issues, migrate_from_beads,
     migrate_from_beads_into_project,
@@ -331,6 +335,34 @@ enum Commands {
         #[arg(long = "local-only")]
         local_only: bool,
     },
+    /// Claim the next issue for an orchestrated worker.
+    #[command(name = "claim-next")]
+    ClaimNext {
+        /// Only claim ready issues.
+        #[arg(long)]
+        ready: bool,
+        /// Worker identity to assign.
+        #[arg(long)]
+        assignee: String,
+        /// Emit JSON output.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Run Kanbus Maximus orchestration.
+    Orchestrator {
+        #[command(subcommand)]
+        command: OrchestratorCommands,
+    },
+    /// Run a Kanbus Maximus worker.
+    Worker {
+        #[command(subcommand)]
+        command: WorkerCommands,
+    },
+    /// Manage Kanbus Maximus runs.
+    Runs {
+        #[command(subcommand)]
+        command: RunsCommands,
+    },
     /// Jira synchronization commands.
     Jira {
         #[command(subcommand)]
@@ -408,6 +440,77 @@ enum Commands {
     /// Stop the daemon process.
     #[command(name = "daemon-stop")]
     DaemonStop,
+}
+
+#[derive(Debug, Subcommand)]
+enum OrchestratorCommands {
+    /// Run the orchestrator.
+    Run {
+        /// Workflow file path.
+        #[arg(long)]
+        workflow: std::path::PathBuf,
+        /// Run one dispatch cycle.
+        #[arg(long)]
+        once: bool,
+        /// Maximum concurrent workers.
+        #[arg(long = "max-concurrent", default_value_t = 1)]
+        max_concurrent: usize,
+        /// Worker identity.
+        #[arg(long, default_value = "kanbus-maximus")]
+        worker: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum WorkerCommands {
+    /// Run one worker for an issue.
+    Run {
+        /// Issue identifier.
+        issue_id: String,
+        /// Workflow file path.
+        #[arg(long)]
+        workflow: std::path::PathBuf,
+        /// Target repository path or URL.
+        #[arg(long = "target-repo")]
+        target_repo: String,
+        /// Worker identity.
+        #[arg(long, default_value = "kanbus-maximus")]
+        worker: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum RunsCommands {
+    /// Create a run record.
+    Create {
+        /// Issue identifier.
+        issue_id: String,
+        /// Worker identity.
+        #[arg(long)]
+        worker: String,
+        /// Emit JSON output.
+        #[arg(long)]
+        json: bool,
+    },
+    /// List run records.
+    List {
+        /// Emit JSON output.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show a run record.
+    Show {
+        /// Run identifier.
+        run_id: String,
+        /// Emit JSON output.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Cancel a run record.
+    Cancel {
+        /// Run identifier.
+        run_id: String,
+    },
 }
 
 fn is_help_request(kind: ErrorKind) -> bool {
@@ -2624,6 +2727,120 @@ fn execute_command(
             )?;
             Ok(Some(lines.join("\n")))
         }
+        Commands::ClaimNext {
+            ready,
+            assignee,
+            json,
+        } => {
+            if beads_mode {
+                return Err(KanbusError::IssueOperation(
+                    "beads mode does not support claim-next".to_string(),
+                ));
+            }
+            let issue = claim_next_issue(root, ready, &assignee)?;
+            if json {
+                Ok(Some(
+                    serde_json::to_string_pretty(&issue)
+                        .map_err(|error| KanbusError::Io(error.to_string()))?,
+                ))
+            } else {
+                Ok(Some(format!(
+                    "claimed {} for {}",
+                    format_issue_key(&issue.identifier, false),
+                    assignee
+                )))
+            }
+        }
+        Commands::Orchestrator { command } => match command {
+            OrchestratorCommands::Run {
+                workflow,
+                once,
+                max_concurrent,
+                worker,
+            } => {
+                if !once {
+                    return Err(KanbusError::IssueOperation(
+                        "only --once is supported in the Kanbus Maximus trial".to_string(),
+                    ));
+                }
+                let record = run_orchestrator_once(root, &workflow, max_concurrent, &worker)?;
+                Ok(Some(
+                    serde_json::to_string_pretty(&record)
+                        .map_err(|error| KanbusError::Io(error.to_string()))?,
+                ))
+            }
+        },
+        Commands::Worker { command } => match command {
+            WorkerCommands::Run {
+                issue_id,
+                workflow,
+                target_repo,
+                worker,
+            } => {
+                let record = run_worker(root, &issue_id, &workflow, Some(&target_repo), &worker)?;
+                Ok(Some(
+                    serde_json::to_string_pretty(&record)
+                        .map_err(|error| KanbusError::Io(error.to_string()))?,
+                ))
+            }
+        },
+        Commands::Runs { command } => match command {
+            RunsCommands::Create {
+                issue_id,
+                worker,
+                json,
+            } => {
+                let record = create_run_record(root, &issue_id, &worker)?;
+                if json {
+                    Ok(Some(
+                        serde_json::to_string_pretty(&record)
+                            .map_err(|error| KanbusError::Io(error.to_string()))?,
+                    ))
+                } else {
+                    Ok(Some(format!("created {}", record.run_id)))
+                }
+            }
+            RunsCommands::List { json } => {
+                let records = list_run_records(root)?;
+                if json {
+                    Ok(Some(
+                        serde_json::to_string_pretty(&records)
+                            .map_err(|error| KanbusError::Io(error.to_string()))?,
+                    ))
+                } else {
+                    Ok(Some(
+                        records
+                            .iter()
+                            .map(|record| {
+                                format!(
+                                    "{} | {} | {:?} | {}",
+                                    record.run_id, record.issue_id, record.status, record.worker_id
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    ))
+                }
+            }
+            RunsCommands::Show { run_id, json } => {
+                let record = show_run_record(root, &run_id)?;
+                if json {
+                    Ok(Some(
+                        serde_json::to_string_pretty(&record)
+                            .map_err(|error| KanbusError::Io(error.to_string()))?,
+                    ))
+                } else {
+                    Ok(Some(format!(
+                        "{} | {} | {:?} | {}",
+                        record.run_id, record.issue_id, record.status, record.worker_id
+                    )))
+                }
+            }
+            RunsCommands::Cancel { run_id } => {
+                let record = cancel_run_record(root, &run_id)?;
+                Ok(Some(format!("cancelled {}", record.run_id)))
+            }
+        },
         Commands::Jira { command } => match command {
             JiraCommands::Pull { dry_run } => {
                 let config_path = get_configuration_path(root)?;
