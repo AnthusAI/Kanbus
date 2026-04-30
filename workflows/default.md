@@ -10,6 +10,55 @@ worker:
 codex:
   command: codex app-server
   timeout_seconds: 300
+procedures:
+  pr_draft:
+    runtime: tactus
+    timeout_seconds: 120
+    source: |
+      local json = require("tactus.io.json")
+
+      pr_writer = Agent {
+          provider = "openai",
+          model = "gpt-4o",
+          system_prompt = [[You draft high-quality pull request titles and bodies from verified Kanbus orchestration evidence.
+
+      Rules:
+      - Return only structured output matching the schema.
+      - Title must use Conventional Commit style.
+      - Body must use these exact Markdown headings:
+        **Summary**
+        **Why**
+        **Validation**
+        **Expected Outcome**
+        **Kanbus / Task Tracking**
+      - Use repository-relative paths only.
+      - Never include absolute local paths.
+      - Do not invent validation commands or results.
+      - Include the Kanbus issue id and run id.
+      - Be concise, factual, and reviewer-focused.]],
+          output = {
+              title = field.string{required = true},
+              body = field.string{required = true}
+          }
+      }
+
+      Procedure {
+          input = {
+              evidence = field.object{required = true}
+          },
+          output = {
+              title = field.string{required = true},
+              body = field.string{required = true}
+          },
+          function(input)
+              local evidence_json = json.encode(input.evidence)
+              local result = pr_writer(evidence_json)
+              return {
+                  title = result.output.title,
+                  body = result.output.body
+              }
+          end
+      }
 ---
 You are working in an isolated workspace for the assigned Kanbus issue.
 

@@ -66,7 +66,36 @@ pub struct OrchestrationWorkflow {
     #[serde(default)]
     pub codex: OrchestrationCodexConfig,
     #[serde(default)]
+    pub procedures: OrchestrationProceduresConfig,
+    #[serde(default)]
     pub prompt_template: String,
+}
+
+/// Optional bounded procedure hooks used by orchestration.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
+pub struct OrchestrationProceduresConfig {
+    #[serde(default)]
+    pub pr_draft: Option<OrchestrationProcedureConfig>,
+}
+
+/// One configured procedure invocation.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct OrchestrationProcedureConfig {
+    #[serde(default = "default_procedure_runtime")]
+    pub runtime: String,
+    pub file: Option<String>,
+    pub source: Option<String>,
+    pub command: Option<String>,
+    #[serde(default = "default_procedure_timeout_seconds")]
+    pub timeout_seconds: u64,
+}
+
+fn default_procedure_runtime() -> String {
+    "command".to_string()
+}
+
+fn default_procedure_timeout_seconds() -> u64 {
+    120
 }
 
 /// Target repository settings for worker execution.
@@ -341,6 +370,7 @@ pub fn load_workflow(path: &Path) -> Result<OrchestrationWorkflow, KanbusError> 
             workspace: OrchestrationWorkspaceConfig::default(),
             worker: OrchestrationWorkerConfig::default(),
             codex: OrchestrationCodexConfig::default(),
+            procedures: OrchestrationProceduresConfig::default(),
             prompt_template: String::new(),
         }
     } else {
@@ -376,8 +406,70 @@ fn default_orchestration_workflow() -> OrchestrationWorkflow {
         workspace: OrchestrationWorkspaceConfig::default(),
         worker: OrchestrationWorkerConfig::default(),
         codex: OrchestrationCodexConfig::default(),
+        procedures: OrchestrationProceduresConfig {
+            pr_draft: Some(default_pr_draft_procedure()),
+        },
         prompt_template: default_prompt_template(),
     }
+}
+
+fn default_pr_draft_procedure() -> OrchestrationProcedureConfig {
+    OrchestrationProcedureConfig {
+        runtime: "tactus".to_string(),
+        file: None,
+        source: Some(default_pr_draft_tactus_source()),
+        command: None,
+        timeout_seconds: 120,
+    }
+}
+
+fn default_pr_draft_tactus_source() -> String {
+    r#"local json = require("tactus.io.json")
+
+pr_writer = Agent {
+    provider = "openai",
+    model = "gpt-4o",
+    system_prompt = [[You draft high-quality pull request titles and bodies from verified Kanbus orchestration evidence.
+
+Rules:
+- Return only structured output matching the schema.
+- Title must use Conventional Commit style.
+- Body must use these exact Markdown headings:
+  **Summary**
+  **Why**
+  **Validation**
+  **Expected Outcome**
+  **Kanbus / Task Tracking**
+- Use repository-relative paths only.
+- Never include absolute local paths.
+- Do not invent validation commands or results.
+- Include the Kanbus issue id and run id.
+- Be concise, factual, and reviewer-focused.]],
+    output = {
+        title = field.string{required = true},
+        body = field.string{required = true}
+    }
+}
+
+Procedure {
+    input = {
+        evidence = field.object{required = true}
+    },
+    output = {
+        title = field.string{required = true},
+        body = field.string{required = true}
+    },
+    function(input)
+        local evidence_json = json.encode(input.evidence)
+        local result = pr_writer(evidence_json)
+        return {
+            title = result.output.title,
+            body = result.output.body
+        }
+    end
+}
+"#
+    .to_string()
 }
 
 fn default_prompt_template() -> String {
@@ -1250,6 +1342,55 @@ fn run_shell_command(workspace: &Path, command: &str) -> Result<String, KanbusEr
     run_command(workspace, Command::new("sh").arg("-lc").arg(command))
 }
 
+fn run_shell_command_with_stdin(
+    workspace: &Path,
+    command: &str,
+    stdin_text: &str,
+    timeout_seconds: u64,
+) -> Result<String, KanbusError> {
+    let mut child = Command::new("sh")
+        .arg("-lc")
+        .arg(command)
+        .current_dir(workspace)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(stdin_text.as_bytes())
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    let deadline = Instant::now() + Duration::from_secs(timeout_seconds);
+    loop {
+        if child
+            .try_wait()
+            .map_err(|error| KanbusError::Io(error.to_string()))?
+            .is_some()
+        {
+            let output = child
+                .wait_with_output()
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if !output.status.success() {
+                let message = if stderr.is_empty() { stdout } else { stderr };
+                return Err(KanbusError::IssueOperation(message));
+            }
+            return Ok(stdout);
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(KanbusError::IssueOperation(format!(
+                "procedure command timed out after {timeout_seconds} seconds"
+            )));
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
 fn run_git(workspace: &Path, args: &[&str]) -> Result<String, KanbusError> {
     let mut command = Command::new("git");
     command.args(args);
@@ -1342,8 +1483,7 @@ fn create_pull_request(
     record: &OrchestrationRunRecord,
     branch: &str,
 ) -> Result<String, KanbusError> {
-    let title = pull_request_title(workflow, issue, record)?;
-    let body = pull_request_body(workflow, issue, record)?;
+    let draft = pull_request_draft(workspace, workflow, issue, record, branch)?;
     run_gh(
         workspace,
         &[
@@ -1354,11 +1494,36 @@ fn create_pull_request(
             "--head",
             branch,
             "--title",
-            &title,
+            &draft.title,
             "--body",
-            &body,
+            &draft.body,
         ],
     )
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+struct PullRequestDraft {
+    title: String,
+    body: String,
+}
+
+fn pull_request_draft(
+    workspace: &Path,
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+    branch: &str,
+) -> Result<PullRequestDraft, KanbusError> {
+    let draft = if let Some(procedure) = workflow.procedures.pr_draft.as_ref() {
+        run_pr_draft_procedure(workspace, workflow, issue, record, branch, procedure)?
+    } else {
+        PullRequestDraft {
+            title: pull_request_title(workflow, issue, record)?,
+            body: pull_request_body(workflow, issue, record)?,
+        }
+    };
+    validate_pull_request_draft(workspace, workflow, issue, record, &draft)?;
+    Ok(draft)
 }
 
 fn commit_message(
@@ -1393,8 +1558,9 @@ fn pull_request_body(
     record: &OrchestrationRunRecord,
 ) -> Result<String, KanbusError> {
     let default_body = format!(
-        "## Summary\n{}\n\n## Kanbus\n- Issue: `{}`\n- Run: `{}`\n- Worker: `{}`",
+        "**Summary**\n- {}\n\n**Why**\n- Implements the assigned Kanbus issue.\n\n**Validation**\n- `{}`\n\n**Expected Outcome**\n- The requested change is available from the published branch.\n\n**Kanbus / Task Tracking**\n- Issue: `{}`\n- Run: `{}`\n- Worker: `{}`",
         issue.description.trim(),
+        workflow.target.validation,
         issue.identifier,
         record.run_id,
         record.worker_id
@@ -1459,6 +1625,218 @@ fn sentence_case_title(title: &str) -> String {
         return String::new();
     };
     first.to_lowercase().chain(chars).collect()
+}
+
+fn run_pr_draft_procedure(
+    workspace: &Path,
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+    branch: &str,
+    procedure: &OrchestrationProcedureConfig,
+) -> Result<PullRequestDraft, KanbusError> {
+    let evidence = pr_evidence(workspace, workflow, issue, record, branch)?;
+    let evidence_json =
+        serde_json::to_string(&evidence).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let output = match procedure.runtime.trim() {
+        "command" => run_pr_draft_command(workspace, procedure, &evidence_json)?,
+        "tactus" => run_tactus_pr_draft(workspace, procedure, &evidence_json)?,
+        other => {
+            return Err(KanbusError::Configuration(format!(
+                "unsupported pr_draft procedure runtime: {other}"
+            )));
+        }
+    };
+    parse_pull_request_draft(&output)
+}
+
+fn pr_evidence(
+    workspace: &Path,
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+    branch: &str,
+) -> Result<Value, KanbusError> {
+    let base_ref = format!("origin/{}", workflow.target.branch);
+    let changed_files = run_git(workspace, &["diff", "--name-status", &base_ref, "HEAD"])?;
+    let diff_stat = run_git(workspace, &["diff", "--stat", &base_ref, "HEAD"])?;
+    let commit_subject = run_git(workspace, &["log", "-1", "--pretty=%s"])?;
+    Ok(json!({
+        "issue": {
+            "id": issue.identifier,
+            "short_id": short_issue_identifier(&issue.identifier),
+            "title": issue.title,
+            "description": issue.description,
+            "type": issue.issue_type,
+            "status": issue.status,
+        },
+        "run": {
+            "id": record.run_id,
+            "worker_id": record.worker_id,
+            "commit_sha": record.commit_sha,
+            "branch": branch,
+            "target_branch": workflow.target.branch,
+            "validation_command": workflow.target.validation,
+            "validation_summary": record.validation_summary,
+            "commit_subject": commit_subject,
+        },
+        "git": {
+            "changed_files": changed_files,
+            "diff_stat": diff_stat,
+        },
+        "required_sections": [
+            "**Summary**",
+            "**Why**",
+            "**Validation**",
+            "**Expected Outcome**",
+            "**Kanbus / Task Tracking**"
+        ],
+        "policy": {
+            "title": "Use Conventional Commit style.",
+            "body": "Use only repository-relative paths. Do not invent validation. Include the issue id and run id."
+        }
+    }))
+}
+
+fn run_pr_draft_command(
+    workspace: &Path,
+    procedure: &OrchestrationProcedureConfig,
+    evidence_json: &str,
+) -> Result<String, KanbusError> {
+    let command = procedure.command.as_deref().ok_or_else(|| {
+        KanbusError::Configuration("procedures.pr_draft.command is required".to_string())
+    })?;
+    run_shell_command_with_stdin(workspace, command, evidence_json, procedure.timeout_seconds)
+}
+
+fn run_tactus_pr_draft(
+    workspace: &Path,
+    procedure: &OrchestrationProcedureConfig,
+    evidence_json: &str,
+) -> Result<String, KanbusError> {
+    let (source, source_file_path) = if let Some(source) = procedure.source.as_deref() {
+        (source.to_string(), procedure.file.clone())
+    } else {
+        let file = procedure.file.as_deref().ok_or_else(|| {
+            KanbusError::Configuration("procedures.pr_draft.file is required".to_string())
+        })?;
+        let file_path = if Path::new(file).is_absolute() {
+            PathBuf::from(file)
+        } else {
+            workspace.join(file)
+        };
+        let source = fs::read_to_string(&file_path).map_err(|error| {
+            KanbusError::Io(format!("failed to read pr_draft procedure file: {error}"))
+        })?;
+        (source, Some(file_path.to_string_lossy().to_string()))
+    };
+    let python = procedure.command.as_deref().unwrap_or("python");
+    let script = r#"
+import asyncio
+import json
+import sys
+from tactus.core.runtime import TactusRuntime
+from tactus.protocols.result import TactusResult
+
+payload = json.load(sys.stdin)
+source = payload["source"]
+source_file_path = payload.get("source_file_path")
+evidence = payload["evidence"]
+runtime = TactusRuntime(
+    procedure_id="kanbus-pr-draft",
+    source_file_path=source_file_path,
+)
+result = asyncio.run(runtime.execute(
+    source,
+    {"evidence": evidence},
+    format="lua",
+))
+if not result.get("success"):
+    raise SystemExit(result.get("error") or "Tactus procedure failed")
+output = result.get("result")
+if isinstance(output, TactusResult):
+    output = output.output
+print(json.dumps(output))
+"#;
+    let input = json!({
+        "source": source,
+        "source_file_path": source_file_path,
+        "evidence": serde_json::from_str::<Value>(evidence_json)
+            .map_err(|error| KanbusError::Io(error.to_string()))?
+    });
+    let input_json =
+        serde_json::to_string(&input).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let command = format!("{} -c '{}'", python, shell_single_quote(script));
+    run_shell_command_with_stdin(workspace, &command, &input_json, procedure.timeout_seconds)
+}
+
+fn parse_pull_request_draft(output: &str) -> Result<PullRequestDraft, KanbusError> {
+    let value: Value = serde_json::from_str(output.trim()).map_err(|error| {
+        KanbusError::IssueOperation(format!("pr_draft procedure returned invalid JSON: {error}"))
+    })?;
+    serde_json::from_value(value).map_err(|error| {
+        KanbusError::IssueOperation(format!(
+            "pr_draft procedure returned invalid draft: {error}"
+        ))
+    })
+}
+
+fn validate_pull_request_draft(
+    workspace: &Path,
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+    draft: &PullRequestDraft,
+) -> Result<(), KanbusError> {
+    let title = draft.title.trim();
+    if title.is_empty() || title.contains('\n') {
+        return Err(KanbusError::IssueOperation(
+            "PR title must be one non-empty line".to_string(),
+        ));
+    }
+    if !looks_like_conventional_commit(title) {
+        return Err(KanbusError::IssueOperation(
+            "PR title must use Conventional Commit style".to_string(),
+        ));
+    }
+    let required_sections = [
+        "**Summary**",
+        "**Why**",
+        "**Validation**",
+        "**Expected Outcome**",
+        "**Kanbus / Task Tracking**",
+    ];
+    for section in required_sections {
+        if !draft.body.contains(section) {
+            return Err(KanbusError::IssueOperation(format!(
+                "PR body missing required section {section}"
+            )));
+        }
+    }
+    if !draft.body.contains(&issue.identifier) || !draft.body.contains(&record.run_id) {
+        return Err(KanbusError::IssueOperation(
+            "PR body must include the Kanbus issue id and run id".to_string(),
+        ));
+    }
+    if !draft.body.contains(&workflow.target.validation) {
+        return Err(KanbusError::IssueOperation(
+            "PR body must include the validation command Kanbus ran".to_string(),
+        ));
+    }
+    let workspace_text = workspace.to_string_lossy();
+    if draft.body.contains("/Users/")
+        || draft.body.contains("C:\\")
+        || (!workspace_text.is_empty() && draft.body.contains(workspace_text.as_ref()))
+    {
+        return Err(KanbusError::IssueOperation(
+            "PR body must not contain absolute local paths".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn shell_single_quote(value: &str) -> String {
+    value.replace('\'', "'\"'\"'")
 }
 
 fn run_gh(workspace: &Path, args: &[&str]) -> Result<String, KanbusError> {
@@ -1651,6 +2029,15 @@ mod tests {
 
         assert_eq!(workflow.target.repo, None);
         assert_eq!(workflow.target.publish, "pull-request");
+        assert_eq!(
+            workflow
+                .procedures
+                .pr_draft
+                .as_ref()
+                .expect("pr draft")
+                .runtime,
+            "tactus"
+        );
         assert!(workflow.prompt_template.contains("{{ issue.description }}"));
     }
 
@@ -1823,7 +2210,10 @@ mod tests {
     fn pull_request_metadata_is_rendered_from_issue_and_run() {
         let issue = issue("ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554");
         let record = run_record("ccpy-run-12345678");
-        let workflow = default_orchestration_workflow();
+        let workflow = OrchestrationWorkflow {
+            procedures: OrchestrationProceduresConfig::default(),
+            ..default_orchestration_workflow()
+        };
 
         assert_eq!(
             commit_message(&workflow, &issue, &record).expect("commit message"),
@@ -1850,6 +2240,59 @@ mod tests {
             conventional_issue_subject(&issue),
             "fix(parser): handle missing values"
         );
+    }
+
+    #[test]
+    fn pr_drafts_require_policy_sections_and_tracking() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issue = issue("ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554");
+        let record = run_record("ccpy-run-12345678");
+        let workflow = OrchestrationWorkflow {
+            procedures: OrchestrationProceduresConfig::default(),
+            ..default_orchestration_workflow()
+        };
+        let draft = PullRequestDraft {
+            title: "chore: generated title".to_string(),
+            body: format!(
+                "**Summary**\n- Done\n\n**Why**\n- Needed\n\n**Validation**\n- `{}`\n\n**Expected Outcome**\n- Works\n\n**Kanbus / Task Tracking**\n- `{}`\n- `{}`",
+                workflow.target.validation, issue.identifier, record.run_id
+            ),
+        };
+
+        validate_pull_request_draft(temp.path(), &workflow, &issue, &record, &draft)
+            .expect("valid draft");
+
+        let invalid = PullRequestDraft {
+            title: "Generated title".to_string(),
+            body: draft.body,
+        };
+        let error = validate_pull_request_draft(temp.path(), &workflow, &issue, &record, &invalid)
+            .expect_err("invalid title");
+
+        assert!(error.to_string().contains("Conventional Commit"));
+    }
+
+    #[test]
+    fn pr_drafts_reject_absolute_local_paths() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issue = issue("ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554");
+        let record = run_record("ccpy-run-12345678");
+        let workflow = OrchestrationWorkflow {
+            procedures: OrchestrationProceduresConfig::default(),
+            ..default_orchestration_workflow()
+        };
+        let draft = PullRequestDraft {
+            title: "chore: generated title".to_string(),
+            body: format!(
+                "**Summary**\n- Changed /Users/derek/project/file.rs\n\n**Why**\n- Needed\n\n**Validation**\n- `{}`\n\n**Expected Outcome**\n- Works\n\n**Kanbus / Task Tracking**\n- `{}`\n- `{}`",
+                workflow.target.validation, issue.identifier, record.run_id
+            ),
+        };
+
+        let error = validate_pull_request_draft(temp.path(), &workflow, &issue, &record, &draft)
+            .expect_err("absolute path");
+
+        assert!(error.to_string().contains("absolute local paths"));
     }
 
     #[test]
@@ -1923,6 +2366,7 @@ mod tests {
                 workspace: OrchestrationWorkspaceConfig::default(),
                 worker: OrchestrationWorkerConfig::default(),
                 codex: OrchestrationCodexConfig::default(),
+                procedures: OrchestrationProceduresConfig::default(),
                 prompt_template: String::new(),
             }
         };
@@ -1963,6 +2407,7 @@ mod tests {
                 workspace: OrchestrationWorkspaceConfig::default(),
                 worker: OrchestrationWorkerConfig::default(),
                 codex: OrchestrationCodexConfig::default(),
+                procedures: OrchestrationProceduresConfig::default(),
                 prompt_template: String::new(),
             }
         };
