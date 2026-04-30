@@ -1,0 +1,25 @@
+{
+  "id": "kbs-0e6ed133-d463-4d64-b4d8-b508e3d4c680",
+  "title": "Provide isolated Tactus storage for PR draft procedures",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7fe27952-9adb-4d5b-8892-4b8b91e20185",
+      "author": "derek.norrbom",
+      "text": "Implemented isolated Tactus FileStorage for PR-draft procedures, keyed by the Kanbus run id. Validation: cargo fmt --check, cargo test --lib orchestration::tests, cargo clippy -- -D warnings, and full cargo test all pass.",
+      "created_at": "2026-04-30T06:36:49.573048Z"
+    }
+  ],
+  "created_at": "2026-04-30T06:32:57.351295Z",
+  "updated_at": "2026-04-30T06:36:49.573652Z",
+  "closed_at": "2026-04-30T06:36:49.573652Z",
+  "custom": {}
+}

@@ -1730,11 +1730,18 @@ fn run_tactus_pr_draft(
         })?;
         (source, Some(file_path.to_string_lossy().to_string()))
     };
+    let storage_dir = workspace
+        .join(".kanbus")
+        .join("tactus")
+        .join("pr-draft")
+        .to_string_lossy()
+        .to_string();
     let python = procedure.command.as_deref().unwrap_or("python");
     let script = r#"
 import asyncio
 import json
 import sys
+from tactus.adapters.file_storage import FileStorage
 from tactus.core.runtime import TactusRuntime
 from tactus.protocols.result import TactusResult
 
@@ -1742,8 +1749,12 @@ payload = json.load(sys.stdin)
 source = payload["source"]
 source_file_path = payload.get("source_file_path")
 evidence = payload["evidence"]
+run_id = evidence["run"]["id"]
+storage = FileStorage(storage_dir=payload["storage_dir"])
 runtime = TactusRuntime(
-    procedure_id="kanbus-pr-draft",
+    procedure_id=f"kanbus-pr-draft-{run_id}",
+    storage_backend=storage,
+    run_id=run_id,
     source_file_path=source_file_path,
 )
 result = asyncio.run(runtime.execute(
@@ -1761,6 +1772,7 @@ print(json.dumps(output))
     let input = json!({
         "source": source,
         "source_file_path": source_file_path,
+        "storage_dir": storage_dir,
         "evidence": serde_json::from_str::<Value>(evidence_json)
             .map_err(|error| KanbusError::Io(error.to_string()))?
     });
@@ -2293,6 +2305,69 @@ mod tests {
             .expect_err("absolute path");
 
         assert!(error.to_string().contains("absolute local paths"));
+    }
+
+    #[test]
+    fn tactus_pr_draft_receives_isolated_storage() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let fake_python = temp.path().join("fake-python");
+        fs::write(
+            &fake_python,
+            r#"#!/bin/sh
+if [ "$1" != "-c" ]; then
+  echo "expected -c" >&2
+  exit 1
+fi
+script="$2"
+payload=$(cat)
+case "$script" in
+  *"from tactus.adapters.file_storage import FileStorage"*) ;;
+  *) echo "missing FileStorage import" >&2; exit 2 ;;
+esac
+case "$script" in
+  *"storage_backend=storage"*) ;;
+  *) echo "missing storage backend" >&2; exit 3 ;;
+esac
+case "$script" in
+  *"run_id=run_id"*) ;;
+  *) echo "missing run id" >&2; exit 4 ;;
+esac
+case "$payload" in
+  *"\"storage_dir\":\""*".kanbus/tactus/pr-draft\""*) ;;
+  *) echo "missing isolated storage dir" >&2; exit 5 ;;
+esac
+case "$payload" in
+  *"\"id\":\"ccpy-run-12345678\""*) ;;
+  *) echo "missing evidence run id" >&2; exit 6 ;;
+esac
+printf '{"title":"chore: generated title","body":"body"}\n'
+"#,
+        )
+        .expect("write fake python");
+        run_command(
+            temp.path(),
+            Command::new("chmod").arg("+x").arg(&fake_python),
+        )
+        .expect("chmod");
+
+        let procedure = OrchestrationProcedureConfig {
+            runtime: "tactus".to_string(),
+            file: None,
+            source: Some("Procedure {}".to_string()),
+            command: Some(fake_python.to_string_lossy().to_string()),
+            timeout_seconds: 5,
+        };
+        let evidence = json!({
+            "run": {
+                "id": "ccpy-run-12345678"
+            }
+        })
+        .to_string();
+
+        let output = run_tactus_pr_draft(temp.path(), &procedure, &evidence)
+            .expect("run fake Tactus procedure");
+
+        assert!(output.contains("chore: generated title"));
     }
 
     #[test]

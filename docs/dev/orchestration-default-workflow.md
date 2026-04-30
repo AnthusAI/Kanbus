@@ -21,7 +21,7 @@ The repository default workflow lives at `workflows/default.md`.
 
 Pull request copy is produced by the `procedures.pr_draft` hook. Kanbus sends a verified evidence bundle to the procedure, expects JSON with `title` and `body`, then validates the result before `gh pr create`.
 
-The built-in and repository default use a Tactus procedure for PR drafting. Kanbus still owns publication and enforces:
+The built-in and repository default use a Tactus procedure for PR drafting. Each invocation receives isolated Tactus file storage under the worker workspace, keyed by the Kanbus run id. Kanbus still owns publication and enforces:
 
 - Conventional Commit PR titles.
 - Required body sections: `Summary`, `Why`, `Validation`, `Expected Outcome`, and `Kanbus / Task Tracking`.
