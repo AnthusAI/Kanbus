@@ -2,8 +2,8 @@
 target:
   repo: /Users/derek.norrbom/Projects/Call-Criteria-Python
   branch: develop
-  validation: POETRY_PYTHON=/opt/homebrew/bin/python3.11 ./scripts/cc-prod && poetry run make test
-  publish: push-only
+  validation: poetry check --lock
+  publish: pull-request
   allowed_paths:
     - pyproject.toml
     - poetry.lock
@@ -37,4 +37,4 @@ Rules:
 - Run the configured validation command before finishing.
 - Do not run git add, git commit, git push, or open a PR. Kanbus orchestration handles commit and push after validation.
 - Use only non-interactive commands. Do not start shell sessions or commands that require stdin.
-- Do not open a PR or merge.
+- Do not open a PR or merge. Kanbus orchestration handles the configured publish mode after validation.

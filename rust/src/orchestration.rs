@@ -49,6 +49,7 @@ pub struct OrchestrationRunRecord {
     pub last_event: Option<String>,
     pub commit_sha: Option<String>,
     pub remote_branch: Option<String>,
+    pub pull_request_url: Option<String>,
     pub validation_summary: Option<String>,
     pub error: Option<String>,
 }
@@ -278,6 +279,7 @@ pub fn create_run_record(
         last_event: Some("run created".to_string()),
         commit_sha: None,
         remote_branch: None,
+        pull_request_url: None,
         validation_summary: None,
         error: None,
     };
@@ -507,8 +509,7 @@ fn run_worker_inner(
     reject_unallowed_publish_changes(&workspace, workflow)?;
     let commit_sha = ensure_commit(&workspace, issue)?;
     record.commit_sha = Some(commit_sha);
-    run_git(&workspace, &["push", "-u", "origin", &branch])?;
-    record.remote_branch = Some(branch);
+    publish_run(&workspace, workflow, issue, record, &branch)?;
     Ok(())
 }
 
@@ -541,9 +542,10 @@ fn validate_workflow(workflow: &OrchestrationWorkflow) -> Result<(), KanbusError
             "codex.command is required".to_string(),
         ));
     }
-    if workflow.target.publish.trim() != "push-only" {
+    let publish = workflow.target.publish.trim();
+    if publish != "push-only" && publish != "pull-request" {
         return Err(KanbusError::Configuration(format!(
-            "unsupported publish mode {:?}: only push-only is supported",
+            "unsupported publish mode {:?}: supported modes are push-only and pull-request",
             workflow.target.publish
         )));
     }
@@ -1209,6 +1211,70 @@ fn ensure_commit(workspace: &Path, issue: &IssueData) -> Result<String, KanbusEr
     run_git(workspace, &["rev-parse", "HEAD"])
 }
 
+fn publish_run(
+    workspace: &Path,
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &mut OrchestrationRunRecord,
+    branch: &str,
+) -> Result<(), KanbusError> {
+    run_git(workspace, &["push", "-u", "origin", branch])?;
+    record.remote_branch = Some(branch.to_string());
+    if workflow.target.publish.trim() == "pull-request" {
+        record.pull_request_url = Some(create_pull_request(
+            workspace, workflow, issue, record, branch,
+        )?);
+    }
+    Ok(())
+}
+
+fn create_pull_request(
+    workspace: &Path,
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+    branch: &str,
+) -> Result<String, KanbusError> {
+    let title = pull_request_title(issue);
+    let body = pull_request_body(issue, record);
+    run_gh(
+        workspace,
+        &[
+            "pr",
+            "create",
+            "--base",
+            &workflow.target.branch,
+            "--head",
+            branch,
+            "--title",
+            &title,
+            "--body",
+            &body,
+        ],
+    )
+}
+
+fn pull_request_title(issue: &IssueData) -> String {
+    format!(
+        "{}: {}",
+        short_issue_identifier(&issue.identifier),
+        issue.title
+    )
+}
+
+fn pull_request_body(issue: &IssueData, record: &OrchestrationRunRecord) -> String {
+    format!(
+        "Kanbus orchestration completed for `{}`.\n\nRun: `{}`\n\nWorker: `{}`",
+        issue.identifier, record.run_id, record.worker_id
+    )
+}
+
+fn run_gh(workspace: &Path, args: &[&str]) -> Result<String, KanbusError> {
+    let mut command = Command::new("gh");
+    command.args(args);
+    run_command(workspace, &mut command)
+}
+
 fn reject_project_management_artifact_changes(workspace: &Path) -> Result<(), KanbusError> {
     let status = run_git(
         workspace,
@@ -1361,6 +1427,7 @@ mod tests {
             last_event: None,
             commit_sha: None,
             remote_branch: None,
+            pull_request_url: None,
             validation_summary: None,
             error: None,
         }
@@ -1542,12 +1609,37 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_publish_mode_is_rejected() {
+    fn pull_request_publish_mode_is_supported() {
         let temp = tempfile::tempdir().expect("tempdir");
         let workflow_path = temp.path().join("WORKFLOW.md");
         fs::write(
             &workflow_path,
             "---\ntarget:\n  publish: pull-request\n---\nBody",
+        )
+        .expect("write workflow");
+
+        let workflow = load_workflow(&workflow_path).expect("load workflow");
+
+        assert_eq!(workflow.target.publish, "pull-request");
+    }
+
+    #[test]
+    fn pull_request_metadata_is_rendered_from_issue_and_run() {
+        let issue = issue("ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554");
+        let record = run_record("ccpy-run-12345678");
+
+        assert_eq!(pull_request_title(&issue), "ccpy-d2fd1d: Trial issue");
+        assert!(pull_request_body(&issue, &record).contains("ccpy-run-12345678"));
+        assert!(pull_request_body(&issue, &record).contains("worker-one"));
+    }
+
+    #[test]
+    fn unsupported_publish_mode_is_rejected() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let workflow_path = temp.path().join("WORKFLOW.md");
+        fs::write(
+            &workflow_path,
+            "---\ntarget:\n  publish: merge-direct\n---\nBody",
         )
         .expect("write workflow");
 
