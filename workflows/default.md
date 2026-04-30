@@ -66,7 +66,13 @@ procedures:
               if not done.called() then
                   error("PR draft agent did not call done")
               end
-              local raw = done.last_result() or ""
+              local call = done.last_call()
+              local raw = ""
+              if call ~= nil and call.args ~= nil and call.args.reason ~= nil then
+                  raw = call.args.reason
+              else
+                  raw = done.last_result() or ""
+              end
               local ok, decoded = pcall(function() return json.decode(raw) end)
               if not ok or type(decoded) ~= "table" then
                   error("PR draft agent did not return JSON")
