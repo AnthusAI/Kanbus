@@ -31,7 +31,7 @@ worker:
   branch_pattern: agent/{{ issue.identifier }}/{{ run.short_id }}
 codex:
   command: codex app-server
-  timeout_seconds: 3600
+  timeout_seconds: 300
 ---
 You are working on the Call Criteria Python repository through Kanbus orchestration.
 
@@ -47,6 +47,7 @@ Rules:
 - Do not modify files under project/issues, project/events, or project/runs.
 - Modify only files required by the issue.
 - Do not run git add, git commit, git push, or open a PR. Kanbus orchestration handles commit and push after validation.
+- Use only non-interactive commands. Do not start shell sessions or commands that require stdin.
 - Do not alter production behavior.
 - Run `make test` before finishing.
 - Do not open a PR or merge anything.

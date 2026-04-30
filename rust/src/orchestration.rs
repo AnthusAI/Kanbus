@@ -4,6 +4,8 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use minijinja::Environment;
@@ -489,6 +491,7 @@ fn run_worker_inner(
         &workspace,
         &prompt,
         &capability.bin_dir,
+        workflow.codex.timeout_seconds,
     );
     apply_worker_comments(root, issue, record, &capability.comments_dir)?;
     let codex_event = codex_result?;
@@ -971,6 +974,7 @@ fn run_codex_app_server(
     workspace: &Path,
     prompt: &str,
     path_prefix: &Path,
+    timeout_seconds: u64,
 ) -> Result<String, KanbusError> {
     let existing_path = std::env::var("PATH").unwrap_or_default();
     let worker_path = format!("{}:{existing_path}", path_prefix.to_string_lossy());
@@ -992,7 +996,25 @@ fn run_codex_app_server(
         .stdout
         .take()
         .ok_or_else(|| KanbusError::Io("failed to open app-server stdout".to_string()))?;
-    let mut reader = BufReader::new(stdout);
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut reader = BufReader::new(stdout);
+        loop {
+            match read_json_line(&mut reader) {
+                Ok(value) => {
+                    if sender.send(Ok(value)).is_err() {
+                        break;
+                    }
+                }
+                Err(error) => {
+                    let _ = sender.send(Err(error));
+                    break;
+                }
+            }
+        }
+    });
+    let timeout = Duration::from_secs(timeout_seconds.max(1));
+    let deadline = Instant::now() + timeout;
 
     send_json(
         &mut stdin,
@@ -1007,7 +1029,7 @@ fn run_codex_app_server(
             }
         }),
     )?;
-    read_response(&mut reader, 1)?;
+    read_response(&receiver, 1, deadline, &mut child)?;
 
     send_json(
         &mut stdin,
@@ -1021,7 +1043,7 @@ fn run_codex_app_server(
             }
         }),
     )?;
-    let thread_response = read_response(&mut reader, 2)?;
+    let thread_response = read_response(&receiver, 2, deadline, &mut child)?;
     let thread_id = thread_response["result"]["thread"]["id"]
         .as_str()
         .ok_or_else(|| {
@@ -1049,8 +1071,8 @@ fn run_codex_app_server(
             }
         }),
     )?;
-    read_response(&mut reader, 3)?;
-    let last_event = read_until_turn_completed(&mut reader)?;
+    read_response(&receiver, 3, deadline, &mut child)?;
+    let last_event = read_until_turn_completed(&receiver, deadline, &mut child)?;
     let _ = child.kill();
     let _ = child.wait();
     Ok(last_event)
@@ -1064,9 +1086,14 @@ fn send_json(stdin: &mut impl Write, value: Value) -> Result<(), KanbusError> {
         .map_err(|error| KanbusError::Io(error.to_string()))
 }
 
-fn read_response(reader: &mut impl BufRead, expected_id: i64) -> Result<Value, KanbusError> {
+fn read_response(
+    receiver: &mpsc::Receiver<Result<Value, KanbusError>>,
+    expected_id: i64,
+    deadline: Instant,
+    child: &mut std::process::Child,
+) -> Result<Value, KanbusError> {
     loop {
-        let value = read_json_line(reader)?;
+        let value = receive_app_server_value(receiver, deadline, child)?;
         if value.get("id").and_then(Value::as_i64) != Some(expected_id) {
             continue;
         }
@@ -1077,15 +1104,49 @@ fn read_response(reader: &mut impl BufRead, expected_id: i64) -> Result<Value, K
     }
 }
 
-fn read_until_turn_completed(reader: &mut impl BufRead) -> Result<String, KanbusError> {
+fn read_until_turn_completed(
+    receiver: &mpsc::Receiver<Result<Value, KanbusError>>,
+    deadline: Instant,
+    child: &mut std::process::Child,
+) -> Result<String, KanbusError> {
     loop {
-        let value = read_json_line(reader)?;
+        let value = receive_app_server_value(receiver, deadline, child)?;
         let method = value.get("method").and_then(Value::as_str).unwrap_or("");
         if method == "error" {
             return Err(KanbusError::ProtocolError(value.to_string()));
         }
         if method == "turn/completed" {
             return Ok("turn/completed".to_string());
+        }
+    }
+}
+
+fn receive_app_server_value(
+    receiver: &mpsc::Receiver<Result<Value, KanbusError>>,
+    deadline: Instant,
+    child: &mut std::process::Child,
+) -> Result<Value, KanbusError> {
+    let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(KanbusError::ProtocolError(
+            "codex app-server turn timed out".to_string(),
+        ));
+    };
+    match receiver.recv_timeout(remaining) {
+        Ok(result) => result,
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            Err(KanbusError::ProtocolError(
+                "codex app-server turn timed out".to_string(),
+            ))
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            let _ = child.wait();
+            Err(KanbusError::ProtocolError(
+                "app-server closed stdout".to_string(),
+            ))
         }
     }
 }
@@ -1594,6 +1655,7 @@ done
             temp.path(),
             "perform a harmless task",
             temp.path(),
+            5,
         )
         .expect("run fake app server");
 
