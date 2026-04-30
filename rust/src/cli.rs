@@ -49,15 +49,15 @@ use crate::issue_transfer::{localize_issue, promote_issue};
 use crate::issue_update::update_issue;
 use crate::jira_sync::pull_from_jira;
 use crate::maintenance::{collect_project_stats, validate_project};
-use crate::maximus::{
-    cancel_run_record, claim_next_issue, create_run_record, list_run_records,
-    run_orchestrator_once, run_worker, show_run_record,
-};
 use crate::migration::{
     load_beads_issue_by_id, load_beads_issue_from_workspace, load_beads_issues, migrate_from_beads,
     migrate_from_beads_into_project,
 };
 use crate::models::IssueData;
+use crate::orchestration::{
+    cancel_run_record, claim_next_issue, create_run_record, list_run_records,
+    run_orchestrator_once, run_worker, show_run_record,
+};
 use crate::queries::{filter_issues, search_issues};
 use crate::rich_text_signals::{
     apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
@@ -348,17 +348,17 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Run Kanbus Maximus orchestration.
+    /// Run orchestration.
     Orchestrator {
         #[command(subcommand)]
         command: OrchestratorCommands,
     },
-    /// Run a Kanbus Maximus worker.
+    /// Run an orchestration worker.
     Worker {
         #[command(subcommand)]
         command: WorkerCommands,
     },
-    /// Manage Kanbus Maximus runs.
+    /// Manage orchestration runs.
     Runs {
         #[command(subcommand)]
         command: RunsCommands,
@@ -456,7 +456,7 @@ enum OrchestratorCommands {
         #[arg(long = "max-concurrent", default_value_t = 1)]
         max_concurrent: usize,
         /// Worker identity.
-        #[arg(long, default_value = "kanbus-maximus")]
+        #[arg(long, default_value = "kanbus-orchestrator")]
         worker: String,
     },
 }
@@ -474,7 +474,7 @@ enum WorkerCommands {
         #[arg(long = "target-repo")]
         target_repo: String,
         /// Worker identity.
-        #[arg(long, default_value = "kanbus-maximus")]
+        #[arg(long, default_value = "kanbus-worker")]
         worker: String,
     },
 }
@@ -2760,7 +2760,7 @@ fn execute_command(
             } => {
                 if !once {
                     return Err(KanbusError::IssueOperation(
-                        "only --once is supported in the Kanbus Maximus trial".to_string(),
+                        "only --once is supported for orchestration runs".to_string(),
                     ));
                 }
                 let record = run_orchestrator_once(root, &workflow, max_concurrent, &worker)?;

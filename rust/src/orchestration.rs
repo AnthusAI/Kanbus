@@ -11,17 +11,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+use crate::config_loader::load_project_configuration;
 use crate::dependencies::list_ready_issues;
 use crate::error::KanbusError;
+use crate::file_io::get_configuration_path;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_update::update_issue;
 use crate::models::IssueData;
 use crate::project::load_project_directory;
 
-/// Durable status for a Kanbus Maximus run.
+/// Durable status for an orchestration run.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum MaximusRunStatus {
+pub enum OrchestrationRunStatus {
     Claimed,
     Running,
     Completed,
@@ -31,11 +33,11 @@ pub enum MaximusRunStatus {
 
 /// Durable run metadata managed by Kanbus commands.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct MaximusRunRecord {
+pub struct OrchestrationRunRecord {
     pub run_id: String,
     pub issue_id: String,
     pub worker_id: String,
-    pub status: MaximusRunStatus,
+    pub status: OrchestrationRunStatus,
     pub workspace_path: Option<String>,
     pub branch: Option<String>,
     pub started_at: DateTime<Utc>,
@@ -50,22 +52,22 @@ pub struct MaximusRunRecord {
 
 /// Workflow settings loaded from a Markdown workflow file.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct MaximusWorkflow {
+pub struct OrchestrationWorkflow {
     #[serde(default)]
-    pub target: MaximusTargetConfig,
+    pub target: OrchestrationTargetConfig,
     #[serde(default)]
-    pub workspace: MaximusWorkspaceConfig,
+    pub workspace: OrchestrationWorkspaceConfig,
     #[serde(default)]
-    pub worker: MaximusWorkerConfig,
+    pub worker: OrchestrationWorkerConfig,
     #[serde(default)]
-    pub codex: MaximusCodexConfig,
+    pub codex: OrchestrationCodexConfig,
     #[serde(default)]
     pub prompt_template: String,
 }
 
 /// Target repository settings for worker execution.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct MaximusTargetConfig {
+pub struct OrchestrationTargetConfig {
     pub repo: Option<String>,
     #[serde(default = "default_target_branch")]
     pub branch: String,
@@ -75,7 +77,7 @@ pub struct MaximusTargetConfig {
     pub publish: String,
 }
 
-impl Default for MaximusTargetConfig {
+impl Default for OrchestrationTargetConfig {
     fn default() -> Self {
         Self {
             repo: None,
@@ -88,12 +90,12 @@ impl Default for MaximusTargetConfig {
 
 /// Workspace settings for worker execution.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct MaximusWorkspaceConfig {
+pub struct OrchestrationWorkspaceConfig {
     #[serde(default = "default_workspace_root")]
     pub root: String,
 }
 
-impl Default for MaximusWorkspaceConfig {
+impl Default for OrchestrationWorkspaceConfig {
     fn default() -> Self {
         Self {
             root: default_workspace_root(),
@@ -103,12 +105,12 @@ impl Default for MaximusWorkspaceConfig {
 
 /// Worker branch settings.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct MaximusWorkerConfig {
+pub struct OrchestrationWorkerConfig {
     #[serde(default = "default_branch_pattern")]
     pub branch_pattern: String,
 }
 
-impl Default for MaximusWorkerConfig {
+impl Default for OrchestrationWorkerConfig {
     fn default() -> Self {
         Self {
             branch_pattern: default_branch_pattern(),
@@ -118,14 +120,14 @@ impl Default for MaximusWorkerConfig {
 
 /// Codex App Server settings.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct MaximusCodexConfig {
+pub struct OrchestrationCodexConfig {
     #[serde(default = "default_codex_command")]
     pub command: String,
     #[serde(default = "default_codex_timeout_seconds")]
     pub timeout_seconds: u64,
 }
 
-impl Default for MaximusCodexConfig {
+impl Default for OrchestrationCodexConfig {
     fn default() -> Self {
         Self {
             command: default_codex_command(),
@@ -148,13 +150,13 @@ fn default_publish() -> String {
 
 fn default_workspace_root() -> String {
     std::env::temp_dir()
-        .join("kanbus-maximus-workspaces")
+        .join("kanbus-orchestration-workspaces")
         .to_string_lossy()
         .to_string()
 }
 
 fn default_branch_pattern() -> String {
-    "experiment/kanbus-maximus-{{ issue.identifier }}".to_string()
+    "agent/{{ issue.identifier }}/{{ run.short_id }}".to_string()
 }
 
 fn default_codex_command() -> String {
@@ -221,14 +223,15 @@ pub fn create_run_record(
     root: &Path,
     issue_id: &str,
     worker_id: &str,
-) -> Result<MaximusRunRecord, KanbusError> {
+) -> Result<OrchestrationRunRecord, KanbusError> {
     load_issue_from_project(root, issue_id)?;
     let now = Utc::now();
-    let record = MaximusRunRecord {
-        run_id: format!("kmx-{}", Uuid::new_v4()),
+    let project_key = project_key(root)?;
+    let record = OrchestrationRunRecord {
+        run_id: format!("{}-run-{}", project_key, Uuid::new_v4()),
         issue_id: issue_id.to_string(),
         worker_id: worker_id.to_string(),
-        status: MaximusRunStatus::Claimed,
+        status: OrchestrationRunStatus::Claimed,
         workspace_path: None,
         branch: None,
         started_at: now,
@@ -245,7 +248,7 @@ pub fn create_run_record(
 }
 
 /// List durable run records.
-pub fn list_run_records(root: &Path) -> Result<Vec<MaximusRunRecord>, KanbusError> {
+pub fn list_run_records(root: &Path) -> Result<Vec<OrchestrationRunRecord>, KanbusError> {
     let runs_dir = runs_directory(root)?;
     if !runs_dir.exists() {
         return Ok(Vec::new());
@@ -259,36 +262,36 @@ pub fn list_run_records(root: &Path) -> Result<Vec<MaximusRunRecord>, KanbusErro
         }
         records.push(read_run_record_from_path(&path)?);
     }
-    records.sort_by(|left, right| left.started_at.cmp(&right.started_at));
+    records.sort_by_key(|record| record.started_at);
     Ok(records)
 }
 
 /// Show one durable run record.
-pub fn show_run_record(root: &Path, run_id: &str) -> Result<MaximusRunRecord, KanbusError> {
+pub fn show_run_record(root: &Path, run_id: &str) -> Result<OrchestrationRunRecord, KanbusError> {
     let path = run_record_path(root, run_id)?;
     read_run_record_from_path(&path)
 }
 
 /// Mark one run as cancelled.
-pub fn cancel_run_record(root: &Path, run_id: &str) -> Result<MaximusRunRecord, KanbusError> {
+pub fn cancel_run_record(root: &Path, run_id: &str) -> Result<OrchestrationRunRecord, KanbusError> {
     let mut record = show_run_record(root, run_id)?;
-    record.status = MaximusRunStatus::Cancelled;
+    record.status = OrchestrationRunStatus::Cancelled;
     record.updated_at = Utc::now();
     record.last_event = Some("run cancelled".to_string());
     write_run_record(root, &record)?;
     Ok(record)
 }
 
-/// Load a Kanbus Maximus workflow from Markdown with YAML front matter.
-pub fn load_workflow(path: &Path) -> Result<MaximusWorkflow, KanbusError> {
+/// Load an orchestration workflow from Markdown with YAML front matter.
+pub fn load_workflow(path: &Path) -> Result<OrchestrationWorkflow, KanbusError> {
     let content = fs::read_to_string(path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let (front_matter, prompt_template) = split_front_matter(&content)?;
-    let mut workflow: MaximusWorkflow = if front_matter.trim().is_empty() {
-        MaximusWorkflow {
-            target: MaximusTargetConfig::default(),
-            workspace: MaximusWorkspaceConfig::default(),
-            worker: MaximusWorkerConfig::default(),
-            codex: MaximusCodexConfig::default(),
+    let mut workflow: OrchestrationWorkflow = if front_matter.trim().is_empty() {
+        OrchestrationWorkflow {
+            target: OrchestrationTargetConfig::default(),
+            workspace: OrchestrationWorkspaceConfig::default(),
+            worker: OrchestrationWorkerConfig::default(),
+            codex: OrchestrationCodexConfig::default(),
             prompt_template: String::new(),
         }
     } else {
@@ -302,23 +305,25 @@ pub fn load_workflow(path: &Path) -> Result<MaximusWorkflow, KanbusError> {
 
 /// Render the branch name for an issue.
 pub fn render_branch_name(
-    workflow: &MaximusWorkflow,
+    workflow: &OrchestrationWorkflow,
     issue: &IssueData,
+    run: &OrchestrationRunRecord,
 ) -> Result<String, KanbusError> {
-    render_template(&workflow.worker.branch_pattern, issue)
+    render_template(&workflow.worker.branch_pattern, issue, Some(run))
 }
 
 /// Render the worker prompt for an issue.
 pub fn render_worker_prompt(
-    workflow: &MaximusWorkflow,
+    workflow: &OrchestrationWorkflow,
     issue: &IssueData,
+    run: &OrchestrationRunRecord,
 ) -> Result<String, KanbusError> {
     let template = if workflow.prompt_template.trim().is_empty() {
         "You are working on Kanbus issue {{ issue.identifier }}: {{ issue.title }}."
     } else {
         workflow.prompt_template.as_str()
     };
-    render_template(template, issue)
+    render_template(template, issue, Some(run))
 }
 
 /// Run a single worker for an issue.
@@ -328,21 +333,21 @@ pub fn run_worker(
     workflow_path: &Path,
     target_repo: Option<&str>,
     worker_id: &str,
-) -> Result<MaximusRunRecord, KanbusError> {
+) -> Result<OrchestrationRunRecord, KanbusError> {
     let workflow = load_workflow(workflow_path)?;
     let issue = load_issue_from_project(root, issue_id)?.issue;
     let mut record = create_run_record(root, issue_id, worker_id)?;
     let result = run_worker_inner(root, &workflow, &issue, target_repo, &mut record);
     match result {
         Ok(()) => {
-            record.status = MaximusRunStatus::Completed;
+            record.status = OrchestrationRunStatus::Completed;
             record.updated_at = Utc::now();
             record.last_event = Some("worker completed".to_string());
             write_run_record(root, &record)?;
             Ok(record)
         }
         Err(error) => {
-            record.status = MaximusRunStatus::Failed;
+            record.status = OrchestrationRunStatus::Failed;
             record.updated_at = Utc::now();
             record.error = Some(error.to_string());
             record.last_event = Some("worker failed".to_string());
@@ -358,7 +363,7 @@ pub fn run_orchestrator_once(
     workflow_path: &Path,
     max_concurrent: usize,
     worker_id: &str,
-) -> Result<MaximusRunRecord, KanbusError> {
+) -> Result<OrchestrationRunRecord, KanbusError> {
     if max_concurrent == 0 {
         return Err(KanbusError::IssueOperation(
             "max-concurrent must be greater than zero".to_string(),
@@ -382,22 +387,22 @@ pub fn run_orchestrator_once(
 
 fn run_worker_inner(
     root: &Path,
-    workflow: &MaximusWorkflow,
+    workflow: &OrchestrationWorkflow,
     issue: &IssueData,
     target_repo: Option<&str>,
-    record: &mut MaximusRunRecord,
+    record: &mut OrchestrationRunRecord,
 ) -> Result<(), KanbusError> {
-    record.status = MaximusRunStatus::Running;
+    record.status = OrchestrationRunStatus::Running;
     record.updated_at = Utc::now();
     record.last_event = Some("worker running".to_string());
-    let branch = render_branch_name(workflow, issue)?;
-    let workspace = workspace_path(workflow, issue);
+    let branch = render_branch_name(workflow, issue, record)?;
+    let workspace = workspace_path(workflow, issue, record);
     record.workspace_path = Some(workspace.to_string_lossy().to_string());
     record.branch = Some(branch.clone());
     write_run_record(root, record)?;
 
     prepare_workspace(workflow, target_repo, &workspace, &branch)?;
-    let prompt = render_worker_prompt(workflow, issue)?;
+    let prompt = render_worker_prompt(workflow, issue, record)?;
     let codex_event = run_codex_app_server(&workflow.codex.command, &workspace, &prompt)?;
     record.last_event = Some(codex_event);
     record.heartbeat_at = Some(Utc::now());
@@ -430,7 +435,7 @@ fn split_front_matter(content: &str) -> Result<(&str, &str), KanbusError> {
     Ok((&rest[..end], &rest[(end + 4)..]))
 }
 
-fn validate_workflow(workflow: &MaximusWorkflow) -> Result<(), KanbusError> {
+fn validate_workflow(workflow: &OrchestrationWorkflow) -> Result<(), KanbusError> {
     if workflow.target.branch.trim().is_empty() {
         return Err(KanbusError::Configuration(
             "target.branch is required".to_string(),
@@ -449,7 +454,11 @@ fn validate_workflow(workflow: &MaximusWorkflow) -> Result<(), KanbusError> {
     Ok(())
 }
 
-fn render_template(template: &str, issue: &IssueData) -> Result<String, KanbusError> {
+fn render_template(
+    template: &str,
+    issue: &IssueData,
+    run: Option<&OrchestrationRunRecord>,
+) -> Result<String, KanbusError> {
     let mut environment = Environment::new();
     environment
         .add_template("template", template)
@@ -465,9 +474,30 @@ fn render_template(template: &str, issue: &IssueData) -> Result<String, KanbusEr
             Value::String(issue.identifier.clone()),
         );
     }
+    let run_value = run.map(|record| {
+        json!({
+            "id": record.run_id,
+            "short_id": run_short_id(&record.run_id),
+            "worker_id": record.worker_id
+        })
+    });
     template
-        .render(json!({ "issue": issue_value }))
+        .render(json!({ "issue": issue_value, "run": run_value }))
         .map_err(|error| KanbusError::Configuration(error.to_string()))
+}
+
+fn project_key(root: &Path) -> Result<String, KanbusError> {
+    let config_path = get_configuration_path(root)?;
+    let configuration = load_project_configuration(&config_path)?;
+    Ok(sanitize_identifier_segment(&configuration.project_key))
+}
+
+fn run_short_id(run_id: &str) -> String {
+    let unique = run_id
+        .split_once("-run-")
+        .map(|(_, suffix)| suffix)
+        .unwrap_or(run_id);
+    unique.chars().take(8).collect()
 }
 
 fn runs_directory(root: &Path) -> Result<PathBuf, KanbusError> {
@@ -478,7 +508,7 @@ fn run_record_path(root: &Path, run_id: &str) -> Result<PathBuf, KanbusError> {
     Ok(runs_directory(root)?.join(format!("{run_id}.json")))
 }
 
-fn write_run_record(root: &Path, record: &MaximusRunRecord) -> Result<(), KanbusError> {
+fn write_run_record(root: &Path, record: &OrchestrationRunRecord) -> Result<(), KanbusError> {
     let runs_dir = runs_directory(root)?;
     fs::create_dir_all(&runs_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     let path = runs_dir.join(format!("{}.json", record.run_id));
@@ -487,14 +517,20 @@ fn write_run_record(root: &Path, record: &MaximusRunRecord) -> Result<(), Kanbus
     fs::write(path, payload).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
-fn read_run_record_from_path(path: &Path) -> Result<MaximusRunRecord, KanbusError> {
+fn read_run_record_from_path(path: &Path) -> Result<OrchestrationRunRecord, KanbusError> {
     let payload = fs::read_to_string(path).map_err(|error| KanbusError::Io(error.to_string()))?;
     serde_json::from_str(&payload).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
-fn workspace_path(workflow: &MaximusWorkflow, issue: &IssueData) -> PathBuf {
+fn workspace_path(
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    run: &OrchestrationRunRecord,
+) -> PathBuf {
     let root = expand_home(&workflow.workspace.root);
-    PathBuf::from(root).join(sanitize_path_segment(&issue.identifier))
+    PathBuf::from(root)
+        .join(sanitize_path_segment(&issue.identifier))
+        .join(sanitize_path_segment(&run.run_id))
 }
 
 fn expand_home(path: &str) -> String {
@@ -522,8 +558,23 @@ fn sanitize_path_segment(value: &str) -> String {
         .collect()
 }
 
+fn sanitize_identifier_segment(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '-' {
+                character.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
+}
+
 fn prepare_workspace(
-    workflow: &MaximusWorkflow,
+    workflow: &OrchestrationWorkflow,
     target_repo: Option<&str>,
     workspace: &Path,
     branch: &str,
@@ -580,7 +631,7 @@ fn run_codex_app_server(
             "method": "initialize",
             "params": {
                 "clientInfo": {
-                    "name": "kanbus-maximus",
+                    "name": "kanbus-orchestration",
                     "version": env!("GIT_VERSION")
                 }
             }
@@ -710,14 +761,14 @@ fn ensure_commit(workspace: &Path, issue: &IssueData) -> Result<String, KanbusEr
     let status = run_git(workspace, &["status", "--porcelain"])?;
     if !status.trim().is_empty() {
         run_git(workspace, &["add", "."])?;
-        let message = format!("Kanbus Maximus trial {}", issue.identifier);
+        let message = format!("Kanbus orchestration {}", issue.identifier);
         run_git(
             workspace,
             &[
                 "-c",
-                "user.name=Kanbus Maximus",
+                "user.name=Kanbus Orchestration",
                 "-c",
-                "user.email=kanbus-maximus@example.invalid",
+                "user.email=kanbus-orchestration@example.invalid",
                 "commit",
                 "-m",
                 &message,
@@ -750,6 +801,25 @@ mod tests {
             updated_at: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
             closed_at: None,
             custom: Default::default(),
+        }
+    }
+
+    fn run_record(run_id: &str) -> OrchestrationRunRecord {
+        OrchestrationRunRecord {
+            run_id: run_id.to_string(),
+            issue_id: "kanbus-123".to_string(),
+            worker_id: "worker-one".to_string(),
+            status: OrchestrationRunStatus::Claimed,
+            workspace_path: None,
+            branch: None,
+            started_at: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
+            updated_at: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
+            heartbeat_at: None,
+            last_event: None,
+            commit_sha: None,
+            remote_branch: None,
+            validation_summary: None,
+            error: None,
         }
     }
 
@@ -787,22 +857,27 @@ mod tests {
 
     #[test]
     fn branch_names_are_rendered_from_issue_context() {
-        let workflow = MaximusWorkflow {
-            worker: MaximusWorkerConfig {
-                branch_pattern: "experiment/{{ issue.identifier }}".to_string(),
+        let workflow = OrchestrationWorkflow {
+            worker: OrchestrationWorkerConfig {
+                branch_pattern: "agent/{{ issue.identifier }}/{{ run.short_id }}".to_string(),
             },
-            ..MaximusWorkflow {
-                target: MaximusTargetConfig::default(),
-                workspace: MaximusWorkspaceConfig::default(),
-                worker: MaximusWorkerConfig::default(),
-                codex: MaximusCodexConfig::default(),
+            ..OrchestrationWorkflow {
+                target: OrchestrationTargetConfig::default(),
+                workspace: OrchestrationWorkspaceConfig::default(),
+                worker: OrchestrationWorkerConfig::default(),
+                codex: OrchestrationCodexConfig::default(),
                 prompt_template: String::new(),
             }
         };
 
-        let branch = render_branch_name(&workflow, &issue("kanbus-123")).expect("branch");
+        let branch = render_branch_name(
+            &workflow,
+            &issue("kanbus-123"),
+            &run_record("kanbus-run-12345678-90ab-cdef-1234-567890abcdef"),
+        )
+        .expect("branch");
 
-        assert_eq!(branch, "experiment/kanbus-123");
+        assert_eq!(branch, "agent/kanbus-123/12345678");
     }
 
     #[test]

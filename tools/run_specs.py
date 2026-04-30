@@ -110,6 +110,8 @@ def _run_python_specs() -> tuple[bool, CoverageResult | None, CommandResult]:
         "kanbus",
         "-m",
         "behave",
+        "--tags",
+        "not @rust-only",
     ]
     result = _run_command(command, cwd=python_dir)
     ok = result.return_code == 0

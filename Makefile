@@ -12,7 +12,7 @@ build:
 check-python:
 	cd python && black --check .
 	cd python && ruff check .
-	cd python && behave
+	cd python && behave --tags "not @rust-only"
 
 check-rust:
 	cd rust && cargo fmt --check
@@ -30,7 +30,7 @@ fmt:
 	cd rust && cargo fmt
 
 test:
-	cd python && behave
+	cd python && behave --tags "not @rust-only"
 	cd rust && cargo test
 
 codeql-local:

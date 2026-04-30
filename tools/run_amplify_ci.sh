@@ -60,7 +60,7 @@ cd python
 black --check .
 ruff check .
 mkdir -p ../coverage-python
-python3.11 -m coverage run --source=kanbus -m behave
+python3.11 -m coverage run --source=kanbus -m behave --tags "not @rust-only"
 python3.11 -m coverage xml -o ../coverage-python/coverage.xml
 cd ..
 python3.11 tools/check_spec_parity.py
