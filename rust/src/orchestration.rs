@@ -15,6 +15,7 @@ use crate::config_loader::load_project_configuration;
 use crate::dependencies::list_ready_issues;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
+use crate::issue_comment::add_comment;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_update::update_issue;
 use crate::models::IssueData;
@@ -75,6 +76,8 @@ pub struct OrchestrationTargetConfig {
     pub validation: String,
     #[serde(default = "default_publish")]
     pub publish: String,
+    #[serde(default)]
+    pub allowed_paths: Vec<String>,
 }
 
 impl Default for OrchestrationTargetConfig {
@@ -84,6 +87,7 @@ impl Default for OrchestrationTargetConfig {
             branch: default_target_branch(),
             validation: default_validation_command(),
             publish: default_publish(),
+            allowed_paths: Vec::new(),
         }
     }
 }
@@ -478,14 +482,26 @@ fn run_worker_inner(
     write_run_record(root, record)?;
 
     prepare_workspace(workflow, target_repo, &workspace, &branch)?;
+    let capability = prepare_worker_capability_bridge(&workspace, issue, record)?;
     let prompt = render_worker_prompt(workflow, issue, record)?;
-    let codex_event = run_codex_app_server(&workflow.codex.command, &workspace, &prompt)?;
+    let codex_result = run_codex_app_server(
+        &workflow.codex.command,
+        &workspace,
+        &prompt,
+        &capability.bin_dir,
+    );
+    apply_worker_comments(root, issue, record, &capability.comments_dir)?;
+    let codex_event = codex_result?;
     record.last_event = Some(codex_event);
     record.heartbeat_at = Some(Utc::now());
     write_run_record(root, record)?;
 
+    reject_project_management_artifact_changes(&workspace)?;
+    reject_unallowed_publish_changes(&workspace, workflow)?;
     let validation = run_shell_command(&workspace, &workflow.target.validation)?;
     record.validation_summary = Some(validation);
+    reject_project_management_artifact_changes(&workspace)?;
+    reject_unallowed_publish_changes(&workspace, workflow)?;
     let commit_sha = ensure_commit(&workspace, issue)?;
     record.commit_sha = Some(commit_sha);
     run_git(&workspace, &["push", "-u", "origin", &branch])?;
@@ -724,6 +740,205 @@ fn sanitize_identifier_segment(value: &str) -> String {
         .to_string()
 }
 
+struct WorkerCapabilityBridge {
+    bin_dir: PathBuf,
+    comments_dir: PathBuf,
+}
+
+fn prepare_worker_capability_bridge(
+    workspace: &Path,
+    issue: &IssueData,
+    run: &OrchestrationRunRecord,
+) -> Result<WorkerCapabilityBridge, KanbusError> {
+    let bridge_dir = workspace.with_extension("kanbus-capabilities");
+    let bin_dir = bridge_dir.join("bin");
+    let comments_dir = bridge_dir.join("comments");
+    fs::create_dir_all(&bin_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    fs::create_dir_all(&comments_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+
+    let issue_json_path = bridge_dir.join("issue.json");
+    let issue_text_path = bridge_dir.join("issue.txt");
+    fs::write(
+        &issue_json_path,
+        serde_json::to_string_pretty(issue).map_err(|error| KanbusError::Io(error.to_string()))?,
+    )
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
+    fs::write(&issue_text_path, render_capability_issue_text(issue, run))
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+
+    let wrapper =
+        render_restricted_kanbus_wrapper(issue, &issue_json_path, &issue_text_path, &comments_dir);
+    let kbs_path = bin_dir.join("kbs");
+    let kanbus_path = bin_dir.join("kanbus");
+    fs::write(&kbs_path, &wrapper).map_err(|error| KanbusError::Io(error.to_string()))?;
+    fs::write(&kanbus_path, &wrapper).map_err(|error| KanbusError::Io(error.to_string()))?;
+    run_command(workspace, Command::new("chmod").arg("+x").arg(&kbs_path))?;
+    run_command(workspace, Command::new("chmod").arg("+x").arg(&kanbus_path))?;
+    install_worker_git_hooks(workspace)?;
+
+    Ok(WorkerCapabilityBridge {
+        bin_dir,
+        comments_dir,
+    })
+}
+
+fn render_capability_issue_text(issue: &IssueData, run: &OrchestrationRunRecord) -> String {
+    format!(
+        "ID: {}\nTitle: {}\nType: {}\nStatus: {}\nPriority: P{}\nAssignee: {}\nRun: {}\n\nDescription:\n{}\n",
+        issue.identifier,
+        issue.title,
+        issue.issue_type,
+        issue.status,
+        issue.priority,
+        issue.assignee.as_deref().unwrap_or("-"),
+        run.run_id,
+        issue.description
+    )
+}
+
+fn render_restricted_kanbus_wrapper(
+    issue: &IssueData,
+    issue_json_path: &Path,
+    issue_text_path: &Path,
+    comments_dir: &Path,
+) -> String {
+    let issue_id = shell_quote(&issue.identifier);
+    let short_id = shell_quote(&short_issue_identifier(&issue.identifier));
+    let issue_json = shell_quote(&issue_json_path.to_string_lossy());
+    let issue_text = shell_quote(&issue_text_path.to_string_lossy());
+    let comments_dir = shell_quote(&comments_dir.to_string_lossy());
+    format!(
+        r#"#!/bin/sh
+set -eu
+assigned_issue={issue_id}
+assigned_short={short_id}
+issue_json={issue_json}
+issue_text={issue_text}
+comments_dir={comments_dir}
+
+matches_issue() {{
+  [ "${{1:-}}" = "$assigned_issue" ] || [ "${{1:-}}" = "$assigned_short" ]
+}}
+
+case "${{1:-}}" in
+  show)
+    shift
+    json=0
+    if [ "${{1:-}}" = "--json" ]; then
+      json=1
+      shift
+    fi
+    target="${{1:-$assigned_issue}}"
+    if ! matches_issue "$target"; then
+      echo "restricted Kanbus bridge can only show $assigned_issue" >&2
+      exit 2
+    fi
+    if [ "$json" = "1" ]; then
+      cat "$issue_json"
+    else
+      cat "$issue_text"
+    fi
+    ;;
+  comment)
+    shift
+    target="${{1:-}}"
+    if ! matches_issue "$target"; then
+      echo "restricted Kanbus bridge can only comment on $assigned_issue" >&2
+      exit 2
+    fi
+    shift
+    if [ "${{1:-}}" = "--body-file" ]; then
+      body_file="${{2:-}}"
+      if [ -z "$body_file" ]; then
+        echo "comment body file is required" >&2
+        exit 2
+      fi
+      text="$(cat "$body_file")"
+    else
+      text="$*"
+    fi
+    if [ -z "$text" ]; then
+      echo "comment text is required" >&2
+      exit 2
+    fi
+    umask 077
+    file="$comments_dir/$(date +%s)-$$.txt"
+    printf '%s\n' "$text" > "$file"
+    echo "queued comment for $assigned_issue"
+    ;;
+  help|--help|-h)
+    echo "Restricted Kanbus bridge. Allowed: show $assigned_issue, comment $assigned_issue <text>."
+    ;;
+  *)
+    echo "restricted Kanbus bridge allows only show/comment for $assigned_issue" >&2
+    exit 2
+    ;;
+esac
+"#
+    )
+}
+
+fn short_issue_identifier(identifier: &str) -> String {
+    let Some((prefix, rest)) = identifier.split_once('-') else {
+        return identifier.to_string();
+    };
+    let short: String = rest.chars().take(6).collect();
+    format!("{prefix}-{short}")
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn install_worker_git_hooks(workspace: &Path) -> Result<(), KanbusError> {
+    let hooks_dir = workspace.join(".git").join("hooks");
+    fs::create_dir_all(&hooks_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let hook_path = hooks_dir.join("pre-commit");
+    fs::write(
+        &hook_path,
+        r#"#!/bin/sh
+blocked="$(git diff --cached --name-only -- project/issues project/events project/runs)"
+if [ -n "$blocked" ]; then
+  echo "orchestrated workers must not commit Kanbus project artifacts:" >&2
+  echo "$blocked" >&2
+  exit 1
+fi
+"#,
+    )
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
+    run_command(workspace, Command::new("chmod").arg("+x").arg(&hook_path))?;
+    Ok(())
+}
+
+fn apply_worker_comments(
+    root: &Path,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+    comments_dir: &Path,
+) -> Result<(), KanbusError> {
+    if !comments_dir.exists() {
+        return Ok(());
+    }
+    let mut entries = fs::read_dir(comments_dir)
+        .map_err(|error| KanbusError::Io(error.to_string()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    entries.sort_by_key(|entry| entry.path());
+    for entry in entries {
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("txt") {
+            continue;
+        }
+        let text = fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
+        let text = text.trim();
+        if text.is_empty() {
+            continue;
+        }
+        add_comment(root, &issue.identifier, &record.worker_id, text)?;
+    }
+    Ok(())
+}
+
 fn prepare_workspace(
     workflow: &OrchestrationWorkflow,
     target_repo: Option<&str>,
@@ -755,11 +970,15 @@ fn run_codex_app_server(
     command: &str,
     workspace: &Path,
     prompt: &str,
+    path_prefix: &Path,
 ) -> Result<String, KanbusError> {
+    let existing_path = std::env::var("PATH").unwrap_or_default();
+    let worker_path = format!("{}:{existing_path}", path_prefix.to_string_lossy());
     let mut child = Command::new("sh")
         .arg("-lc")
         .arg(command)
         .current_dir(workspace)
+        .env("PATH", worker_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
@@ -929,6 +1148,74 @@ fn ensure_commit(workspace: &Path, issue: &IssueData) -> Result<String, KanbusEr
     run_git(workspace, &["rev-parse", "HEAD"])
 }
 
+fn reject_project_management_artifact_changes(workspace: &Path) -> Result<(), KanbusError> {
+    let status = run_git(
+        workspace,
+        &["status", "--porcelain", "--untracked-files=all"],
+    )?;
+    let forbidden_paths: Vec<String> = status
+        .lines()
+        .filter_map(project_management_artifact_path)
+        .collect();
+    if forbidden_paths.is_empty() {
+        return Ok(());
+    }
+    Err(KanbusError::IssueOperation(format!(
+        "orchestrated workers must not modify Kanbus project artifacts: {}",
+        forbidden_paths.join(", ")
+    )))
+}
+
+fn project_management_artifact_path(status_line: &str) -> Option<String> {
+    let path = status_line.get(3..)?.trim().trim_matches('"');
+    let path = path.split(" -> ").last().unwrap_or(path);
+    if path.starts_with("project/issues/")
+        || path.starts_with("project/events/")
+        || path.starts_with("project/runs/")
+    {
+        Some(path.to_string())
+    } else {
+        None
+    }
+}
+
+fn reject_unallowed_publish_changes(
+    workspace: &Path,
+    workflow: &OrchestrationWorkflow,
+) -> Result<(), KanbusError> {
+    if workflow.target.allowed_paths.is_empty() {
+        return Ok(());
+    }
+    let status = run_git(
+        workspace,
+        &["status", "--porcelain", "--untracked-files=all"],
+    )?;
+    let changed_paths: Vec<String> = status.lines().filter_map(git_status_path).collect();
+    let unallowed_paths: Vec<String> = changed_paths
+        .into_iter()
+        .filter(|path| !is_allowed_publish_path(path, &workflow.target.allowed_paths))
+        .collect();
+    if unallowed_paths.is_empty() {
+        return Ok(());
+    }
+    Err(KanbusError::IssueOperation(format!(
+        "orchestrated worker changed files outside allowed publish paths: {}",
+        unallowed_paths.join(", ")
+    )))
+}
+
+fn git_status_path(status_line: &str) -> Option<String> {
+    let path = status_line.get(3..)?.trim().trim_matches('"');
+    Some(path.split(" -> ").last().unwrap_or(path).to_string())
+}
+
+fn is_allowed_publish_path(path: &str, allowed_paths: &[String]) -> bool {
+    allowed_paths.iter().any(|allowed_path| {
+        let allowed_path = allowed_path.trim().trim_matches('/');
+        path == allowed_path || path.starts_with(&format!("{allowed_path}/"))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1074,6 +1361,68 @@ mod tests {
             claim_issue(temp.path(), &issue.identifier, "worker-one").expect_err("claim error");
 
         assert_eq!(error.to_string(), "explicit issue is not open");
+    }
+
+    #[test]
+    fn project_management_artifact_status_lines_are_detected() {
+        assert_eq!(
+            project_management_artifact_path("?? project/events/event.json").as_deref(),
+            Some("project/events/event.json")
+        );
+        assert_eq!(
+            project_management_artifact_path(" M project/issues/issue.json").as_deref(),
+            Some("project/issues/issue.json")
+        );
+        assert_eq!(
+            project_management_artifact_path("R  old.json -> project/runs/run.json").as_deref(),
+            Some("project/runs/run.json")
+        );
+        assert_eq!(project_management_artifact_path(" M pyproject.toml"), None);
+    }
+
+    #[test]
+    fn publish_allowed_paths_match_exact_files_and_directories() {
+        let allowed_paths = vec!["pyproject.toml".to_string(), "docs".to_string()];
+
+        assert!(is_allowed_publish_path("pyproject.toml", &allowed_paths));
+        assert!(is_allowed_publish_path("docs/guide.md", &allowed_paths));
+        assert!(!is_allowed_publish_path("poetry.lock", &allowed_paths));
+        assert!(!is_allowed_publish_path(
+            "docs-other/file.md",
+            &allowed_paths
+        ));
+    }
+
+    #[test]
+    fn short_issue_identifiers_use_project_prefix_and_six_id_chars() {
+        assert_eq!(
+            short_issue_identifier("ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554"),
+            "ccpy-d2fd1d"
+        );
+    }
+
+    #[test]
+    fn worker_comments_are_applied_to_assigned_issue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        crate::file_io::initialize_project(temp.path(), false).expect("init");
+        let issue = create_test_issue(temp.path(), "Trial issue", "open");
+        let record = OrchestrationRunRecord {
+            issue_id: issue.identifier.clone(),
+            worker_id: "worker-one".to_string(),
+            ..run_record("kanbus-run-12345678")
+        };
+        let comments_dir = temp.path().join("comments");
+        fs::create_dir_all(&comments_dir).expect("comments dir");
+        fs::write(comments_dir.join("1.txt"), "progress note").expect("comment");
+
+        apply_worker_comments(temp.path(), &issue, &record, &comments_dir).expect("apply comments");
+
+        let updated = load_issue_from_project(temp.path(), &issue.identifier)
+            .expect("load issue")
+            .issue;
+        assert_eq!(updated.comments.len(), 1);
+        assert_eq!(updated.comments[0].author, "worker-one");
+        assert_eq!(updated.comments[0].text, "progress note");
     }
 
     #[test]
@@ -1234,6 +1583,7 @@ done
             &fake.to_string_lossy(),
             temp.path(),
             "perform a harmless task",
+            temp.path(),
         )
         .expect("run fake app server");
 

@@ -22,6 +22,9 @@ target:
   branch: develop
   validation: POETRY_PYTHON=/opt/homebrew/bin/python3.11 ./scripts/cc-prod && poetry run make test
   publish: push-only
+  allowed_paths:
+    - pyproject.toml
+    - poetry.lock
 workspace:
   root: ~/.kanbus/orchestration-workspaces
 worker:
@@ -40,6 +43,8 @@ Issue:
 
 Rules:
 - Work only in the isolated workspace supplied by the App Server.
+- The assigned Kanbus issue is supplied by the orchestrator. Do not create, update, or close Kanbus issues from inside the target workspace.
+- Do not modify files under project/issues, project/events, or project/runs.
 - Modify only files required by the issue.
 - Do not alter production behavior.
 - Run `make test` before finishing.
