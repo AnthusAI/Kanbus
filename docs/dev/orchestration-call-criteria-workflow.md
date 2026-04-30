@@ -46,6 +46,7 @@ Rules:
 - The assigned Kanbus issue is supplied by the orchestrator. Do not create, update, or close Kanbus issues from inside the target workspace.
 - Do not modify files under project/issues, project/events, or project/runs.
 - Modify only files required by the issue.
+- Do not run git add, git commit, git push, or open a PR. Kanbus orchestration handles commit and push after validation.
 - Do not alter production behavior.
 - Run `make test` before finishing.
 - Do not open a PR or merge anything.

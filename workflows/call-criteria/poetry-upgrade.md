@@ -35,5 +35,5 @@ Rules:
 - Update only files required by the dependency pin upgrade.
 - Do not change unrelated production behavior.
 - Run the configured validation command before finishing.
-- Push the branch only.
+- Do not run git add, git commit, git push, or open a PR. Kanbus orchestration handles commit and push after validation.
 - Do not open a PR or merge.

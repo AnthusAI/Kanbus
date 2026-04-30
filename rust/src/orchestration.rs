@@ -1167,7 +1167,7 @@ fn reject_project_management_artifact_changes(workspace: &Path) -> Result<(), Ka
 }
 
 fn project_management_artifact_path(status_line: &str) -> Option<String> {
-    let path = status_line.get(3..)?.trim().trim_matches('"');
+    let path = porcelain_status_path(status_line)?;
     let path = path.split(" -> ").last().unwrap_or(path);
     if path.starts_with("project/issues/")
         || path.starts_with("project/events/")
@@ -1205,8 +1205,14 @@ fn reject_unallowed_publish_changes(
 }
 
 fn git_status_path(status_line: &str) -> Option<String> {
-    let path = status_line.get(3..)?.trim().trim_matches('"');
+    let path = porcelain_status_path(status_line)?;
     Some(path.split(" -> ").last().unwrap_or(path).to_string())
+}
+
+fn porcelain_status_path(status_line: &str) -> Option<&str> {
+    status_line
+        .get(2..)
+        .map(|path| path.trim().trim_matches('"'))
 }
 
 fn is_allowed_publish_path(path: &str, allowed_paths: &[String]) -> bool {
@@ -1376,6 +1382,10 @@ mod tests {
         assert_eq!(
             project_management_artifact_path("R  old.json -> project/runs/run.json").as_deref(),
             Some("project/runs/run.json")
+        );
+        assert_eq!(
+            git_status_path("AM poetry.lock").as_deref(),
+            Some("poetry.lock")
         );
         assert_eq!(project_management_artifact_path(" M pyproject.toml"), None);
     }
