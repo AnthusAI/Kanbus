@@ -1780,7 +1780,10 @@ runtime = TactusRuntime(
 )
 result = asyncio.run(runtime.execute(
     source,
-    {"evidence": evidence},
+    {
+        "evidence": evidence,
+        "evidence_json": payload["evidence_json"],
+    },
     format="lua",
 ))
 if not result.get("success"):
@@ -2365,17 +2368,21 @@ case "$script" in
   *"run_id=run_id"*) ;;
   *) echo "missing run id" >&2; exit 4 ;;
 esac
+case "$script" in
+  *"\"evidence_json\": payload[\"evidence_json\"]"*) ;;
+  *) echo "missing runtime evidence_json input" >&2; exit 5 ;;
+esac
 case "$payload" in
   *"\"storage_dir\":\""*".kanbus/tactus/pr-draft\""*) ;;
-  *) echo "missing isolated storage dir" >&2; exit 5 ;;
+  *) echo "missing isolated storage dir" >&2; exit 6 ;;
 esac
 case "$payload" in
   *"\"id\":\"ccpy-run-12345678\""*) ;;
-  *) echo "missing evidence run id" >&2; exit 6 ;;
+  *) echo "missing evidence run id" >&2; exit 7 ;;
 esac
 case "$payload" in
   *"\"evidence_json\":\""*ccpy-run-12345678*) ;;
-  *) echo "missing evidence json input" >&2; exit 7 ;;
+  *) echo "missing evidence json input" >&2; exit 8 ;;
 esac
 printf '{"title":"chore: generated title","body":"body"}\n'
 "#,
