@@ -223,6 +223,7 @@ fn default_codex_timeout_seconds() -> u64 {
 const DISPATCH_LOCK_FILENAME: &str = ".orchestration-dispatch.lock";
 const DISPATCH_LOCK_TIMEOUT_SECONDS: u64 = 10;
 const DISPATCH_LOCK_POLL_MS: u64 = 50;
+const APP_SERVER_POLL_MS: u64 = 250;
 
 /// Claim the next eligible issue for a worker.
 pub fn claim_next_issue(
@@ -652,6 +653,9 @@ pub fn run_worker(
     );
     match result {
         Ok(()) => {
+            if run_is_cancelled(root, &record.run_id)? {
+                return Err(KanbusError::IssueOperation("run cancelled".to_string()));
+            }
             record.status = OrchestrationRunStatus::Completed;
             record.updated_at = Utc::now();
             record.last_event = Some("worker completed".to_string());
@@ -659,6 +663,9 @@ pub fn run_worker(
             Ok(record)
         }
         Err(error) => {
+            if run_is_cancelled(root, &record.run_id)? {
+                return Err(KanbusError::IssueOperation("run cancelled".to_string()));
+            }
             record.status = OrchestrationRunStatus::Failed;
             record.updated_at = Utc::now();
             record.error = Some(compact_error_message(&error.to_string()));
@@ -695,6 +702,9 @@ pub fn run_orchestrator_once(
     );
     match result {
         Ok(()) => {
+            if run_is_cancelled(root, &record.run_id)? {
+                return Err(KanbusError::IssueOperation("run cancelled".to_string()));
+            }
             record.status = OrchestrationRunStatus::Completed;
             record.updated_at = Utc::now();
             record.last_event = Some("worker completed".to_string());
@@ -702,6 +712,9 @@ pub fn run_orchestrator_once(
             Ok(record)
         }
         Err(error) => {
+            if run_is_cancelled(root, &record.run_id)? {
+                return Err(KanbusError::IssueOperation("run cancelled".to_string()));
+            }
             record.status = OrchestrationRunStatus::Failed;
             record.updated_at = Utc::now();
             record.error = Some(compact_error_message(&error.to_string()));
@@ -736,6 +749,11 @@ fn ensure_worker_owns_issue(issue: &IssueData, worker_id: &str) -> Result<(), Ka
         )));
     }
     Ok(())
+}
+
+fn run_is_cancelled(root: &Path, run_id: &str) -> Result<bool, KanbusError> {
+    let record = show_run_record(root, run_id)?;
+    Ok(record.status == OrchestrationRunStatus::Cancelled)
 }
 
 fn claim_and_create_run_record(
@@ -837,6 +855,7 @@ fn run_worker_inner(
     target_repo: Option<&str>,
     record: &mut OrchestrationRunRecord,
 ) -> Result<(), KanbusError> {
+    assert_run_not_cancelled(root, &record.run_id)?;
     record.status = OrchestrationRunStatus::Running;
     record.updated_at = Utc::now();
     record.last_event = Some("worker running".to_string());
@@ -851,11 +870,13 @@ fn run_worker_inner(
     let capability = prepare_worker_capability_bridge(&workspace, issue, record)?;
     let worker_result =
         run_configured_worker(root, workflow, issue, record, &workspace, &capability);
+    assert_run_not_cancelled(root, &record.run_id)?;
     apply_worker_comments(root, issue, record, &capability.comments_dir)?;
     record.last_event = Some(worker_result?);
     record.heartbeat_at = Some(Utc::now());
     write_run_record(root, record)?;
 
+    assert_run_not_cancelled(root, &record.run_id)?;
     reject_project_management_artifact_changes(&workspace)?;
     reject_unallowed_publish_changes(&workspace, workflow)?;
     let validation = run_shell_command_with_env(
@@ -872,6 +893,13 @@ fn run_worker_inner(
     Ok(())
 }
 
+fn assert_run_not_cancelled(root: &Path, run_id: &str) -> Result<(), KanbusError> {
+    if run_is_cancelled(root, run_id)? {
+        return Err(KanbusError::IssueOperation("run cancelled".to_string()));
+    }
+    Ok(())
+}
+
 fn run_configured_worker(
     root: &Path,
     workflow: &OrchestrationWorkflow,
@@ -881,6 +909,7 @@ fn run_configured_worker(
     capability: &WorkerCapabilityBridge,
 ) -> Result<String, KanbusError> {
     let prompt = render_worker_prompt(workflow, issue, record)?;
+    let cancellation_probe = RunCancellationProbe::new(root, &record.run_id);
     match workflow.worker.runtime.trim() {
         "codex-app-server" | "codex" => run_codex_app_server(
             &workflow.codex.command,
@@ -888,6 +917,7 @@ fn run_configured_worker(
             &prompt,
             &capability.bin_dir,
             workflow.codex.timeout_seconds,
+            Some(&cancellation_probe),
         ),
         "tactus" => run_tactus_worker(root, workflow, issue, record, workspace, capability, &prompt),
         other => Err(KanbusError::Configuration(format!(
@@ -1434,6 +1464,7 @@ fn run_codex_app_server(
     prompt: &str,
     path_prefix: &Path,
     timeout_seconds: u64,
+    cancellation_probe: Option<&RunCancellationProbe>,
 ) -> Result<String, KanbusError> {
     let existing_path = std::env::var("PATH").unwrap_or_default();
     let worker_path = format!("{}:{existing_path}", path_prefix.to_string_lossy());
@@ -1488,7 +1519,7 @@ fn run_codex_app_server(
             }
         }),
     )?;
-    read_response(&receiver, 1, deadline, &mut child)?;
+    read_response(&receiver, 1, deadline, &mut child, cancellation_probe)?;
 
     send_json(
         &mut stdin,
@@ -1502,7 +1533,7 @@ fn run_codex_app_server(
             }
         }),
     )?;
-    let thread_response = read_response(&receiver, 2, deadline, &mut child)?;
+    let thread_response = read_response(&receiver, 2, deadline, &mut child, cancellation_probe)?;
     let thread_id = thread_response["result"]["thread"]["id"]
         .as_str()
         .ok_or_else(|| {
@@ -1530,8 +1561,9 @@ fn run_codex_app_server(
             }
         }),
     )?;
-    read_response(&receiver, 3, deadline, &mut child)?;
-    let last_event = read_until_turn_completed(&receiver, deadline, &mut child)?;
+    read_response(&receiver, 3, deadline, &mut child, cancellation_probe)?;
+    let last_event =
+        read_until_turn_completed(&receiver, deadline, &mut child, cancellation_probe)?;
     let _ = child.kill();
     let _ = child.wait();
     Ok(last_event)
@@ -1837,9 +1869,10 @@ fn read_response(
     expected_id: i64,
     deadline: Instant,
     child: &mut std::process::Child,
+    cancellation_probe: Option<&RunCancellationProbe>,
 ) -> Result<Value, KanbusError> {
     loop {
-        let value = receive_app_server_value(receiver, deadline, child)?;
+        let value = receive_app_server_value(receiver, deadline, child, cancellation_probe)?;
         if value.get("id").and_then(Value::as_i64) != Some(expected_id) {
             continue;
         }
@@ -1854,9 +1887,10 @@ fn read_until_turn_completed(
     receiver: &mpsc::Receiver<Result<Value, KanbusError>>,
     deadline: Instant,
     child: &mut std::process::Child,
+    cancellation_probe: Option<&RunCancellationProbe>,
 ) -> Result<String, KanbusError> {
     loop {
-        let value = receive_app_server_value(receiver, deadline, child)?;
+        let value = receive_app_server_value(receiver, deadline, child, cancellation_probe)?;
         let method = value.get("method").and_then(Value::as_str).unwrap_or("");
         if method == "error" {
             return Err(KanbusError::ProtocolError(value.to_string()));
@@ -1871,29 +1905,54 @@ fn receive_app_server_value(
     receiver: &mpsc::Receiver<Result<Value, KanbusError>>,
     deadline: Instant,
     child: &mut std::process::Child,
+    cancellation_probe: Option<&RunCancellationProbe>,
 ) -> Result<Value, KanbusError> {
-    let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err(KanbusError::ProtocolError(
-            "codex app-server turn timed out".to_string(),
-        ));
-    };
-    match receiver.recv_timeout(remaining) {
-        Ok(result) => result,
-        Err(mpsc::RecvTimeoutError::Timeout) => {
+    loop {
+        let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
             let _ = child.kill();
             let _ = child.wait();
-            Err(KanbusError::ProtocolError(
+            return Err(KanbusError::ProtocolError(
                 "codex app-server turn timed out".to_string(),
-            ))
+            ));
+        };
+        let wait = remaining.min(Duration::from_millis(APP_SERVER_POLL_MS));
+        match receiver.recv_timeout(wait) {
+            Ok(result) => return result,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                if let Some(probe) = cancellation_probe {
+                    if probe.is_cancelled()? {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        return Err(KanbusError::IssueOperation("run cancelled".to_string()));
+                    }
+                }
+                continue;
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                let _ = child.wait();
+                return Err(KanbusError::ProtocolError(
+                    "app-server closed stdout".to_string(),
+                ));
+            }
         }
-        Err(mpsc::RecvTimeoutError::Disconnected) => {
-            let _ = child.wait();
-            Err(KanbusError::ProtocolError(
-                "app-server closed stdout".to_string(),
-            ))
+    }
+}
+
+struct RunCancellationProbe {
+    root: PathBuf,
+    run_id: String,
+}
+
+impl RunCancellationProbe {
+    fn new(root: &Path, run_id: &str) -> Self {
+        Self {
+            root: root.to_path_buf(),
+            run_id: run_id.to_string(),
         }
+    }
+
+    fn is_cancelled(&self) -> Result<bool, KanbusError> {
+        run_is_cancelled(&self.root, &self.run_id)
     }
 }
 
@@ -3527,9 +3586,53 @@ done
             "perform a harmless task",
             temp.path(),
             5,
+            None,
         )
         .expect("run fake app server");
 
         assert_eq!(event, "turn/completed");
+    }
+
+    #[test]
+    fn app_server_client_stops_when_run_is_cancelled() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        crate::file_io::initialize_project(temp.path(), false).expect("init");
+        let issue = create_test_issue(temp.path(), "Trial issue", "open");
+        let mut record =
+            create_run_record(temp.path(), &issue.identifier, "worker-one").expect("run record");
+        record.status = OrchestrationRunStatus::Running;
+        write_run_record(temp.path(), &record).expect("write running run");
+
+        let fake = temp.path().join("fake-app-server-slow.sh");
+        fs::write(
+            &fake,
+            r#"#!/bin/sh
+sleep 30
+"#,
+        )
+        .expect("write fake");
+        run_command(temp.path(), Command::new("chmod").arg("+x").arg(&fake)).expect("chmod");
+
+        let root = temp.path().to_path_buf();
+        let run_id = record.run_id.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(300));
+            cancel_run_record(&root, &run_id).expect("cancel run");
+        });
+
+        let probe = RunCancellationProbe::new(temp.path(), &record.run_id);
+        let started = Instant::now();
+        let error = run_codex_app_server(
+            &fake.to_string_lossy(),
+            temp.path(),
+            "perform a harmless task",
+            temp.path(),
+            20,
+            Some(&probe),
+        )
+        .expect_err("run cancelled");
+
+        assert_eq!(error.to_string(), "run cancelled");
+        assert!(started.elapsed() < Duration::from_secs(5));
     }
 }
