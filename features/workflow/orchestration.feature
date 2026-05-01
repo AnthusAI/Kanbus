@@ -26,7 +26,7 @@ Feature: Kanbus orchestration
 
   Scenario: Unknown publish modes are rejected before work starts
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     And an orchestration workflow "workflow.md" with publish mode "merge-direct"
     When I run the orchestration worker for issue "kanbus-run01" with workflow "workflow.md"
@@ -35,7 +35,7 @@ Feature: Kanbus orchestration
 
   Scenario: Workspace roots inside the Kanbus repository are rejected
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     And an orchestration workflow "workflow.md" with workspace root inside the Kanbus repository
     When I run the orchestration worker for issue "kanbus-run01" with workflow "workflow.md"
@@ -44,7 +44,7 @@ Feature: Kanbus orchestration
 
   Scenario: Worker branches outside the agent namespace are rejected
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     And an orchestration workflow "workflow.md" with worker branch pattern "experiment/{{ issue.identifier }}"
     When I run the orchestration worker for issue "kanbus-run01" with workflow "workflow.md"
@@ -53,7 +53,7 @@ Feature: Kanbus orchestration
 
   Scenario: Unknown worker runtimes are rejected before work starts
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     And an orchestration workflow "workflow.md" with worker runtime "shell-agent"
     When I run the orchestration worker for issue "kanbus-run01" with workflow "workflow.md"
@@ -62,7 +62,7 @@ Feature: Kanbus orchestration
 
   Scenario: Named workflow presets are resolved from the repository
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     And a repository orchestration workflow preset "default"
     When I run the orchestration worker for issue "kanbus-run01" with workflow "default"
@@ -71,7 +71,7 @@ Feature: Kanbus orchestration
 
   Scenario: Repo-level orchestration config is used without a workflow file
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     And repo-level orchestration config
     When I run the orchestration worker for issue "kanbus-run01" without a workflow
@@ -80,7 +80,7 @@ Feature: Kanbus orchestration
 
   Scenario: Missing named workflow presets fail clearly
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     When I run the orchestration worker for issue "kanbus-run01" with workflow "missing/workflow"
     Then the command should fail with exit code 1
@@ -98,7 +98,7 @@ Feature: Kanbus orchestration
 
   Scenario: Orchestrator rejects an explicit issue that is not open
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "in_progress"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     And a repository orchestration workflow preset "default"
     When I run "kanbus orchestrator run --once --max-concurrent 1 --issue kanbus-run01"
@@ -107,7 +107,7 @@ Feature: Kanbus orchestration
 
   Scenario: Tactus worker storage is outside the target checkout
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     And repo-level orchestration config using the Tactus worker runtime
     When I run the orchestration worker for issue "kanbus-run01" without a workflow
@@ -117,7 +117,7 @@ Feature: Kanbus orchestration
 
   Scenario: Generic Tactus workers cannot overwrite existing files wholesale
     Given a Kanbus project with default configuration
-    And an issue "kanbus-run01" of type "task" with status "open"
+    And an issue "kanbus-run01" exists with status "in_progress", priority 2, type "task", and assignee "kanbus-worker"
     And a local orchestration target repository
     And repo-level orchestration config using the Tactus worker runtime
     When I run the orchestration worker for issue "kanbus-run01" without a workflow

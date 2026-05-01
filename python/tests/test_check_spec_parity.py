@@ -45,6 +45,7 @@ def test_collect_feature_steps_ignores_docstring_content(tmp_path: Path) -> None
 def test_report_respects_non_strict_mode(monkeypatch) -> None:
     results = check_spec_parity.ParityResults(
         feature_steps={"a missing step"},
+        python_required_feature_steps={"a missing step"},
         python_steps=set(),
         rust_steps=set(),
         python_patterns=[],
@@ -60,6 +61,7 @@ def test_report_respects_non_strict_mode(monkeypatch) -> None:
 def test_report_fails_in_strict_mode_when_missing_steps(monkeypatch) -> None:
     results = check_spec_parity.ParityResults(
         feature_steps={"a missing step"},
+        python_required_feature_steps={"a missing step"},
         python_steps=set(),
         rust_steps=set(),
         python_patterns=[],
