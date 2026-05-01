@@ -5,6 +5,10 @@
 
 local kanbus = require("kanbus")
 local done = require("tactus.tools.done")
+local plan_state = {
+    plan = nil,
+    files = {}
+}
 
 read_file = Tool {
     description = "Read a repository-relative file from the isolated workspace.",
@@ -58,20 +62,33 @@ comment_on_task = Tool {
     end
 }
 
+record_plan = Tool {
+    description = "Record the planner's implementation plan for the assigned Kanbus task.",
+    input = {
+        plan = field.string{required = true},
+        files = field.array{required = false}
+    },
+    function(args)
+        plan_state.plan = args.plan
+        plan_state.files = args.files or {}
+        return {
+            ok = true,
+            plan = plan_state.plan,
+            files = plan_state.files
+        }
+    end
+}
+
 planner = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
 You plan the assigned Kanbus task. Use the provided issue and repository policy.
-Return structured output only:
+Do not edit files. Call record_plan exactly once with:
 - plan: a concise implementation plan
 - files: repository-relative files expected to change
-Do not edit files.
 ]],
-    output = {
-        plan = field.string{required = true},
-        files = field.array{required = false}
-    }
+    tools = {record_plan}
 }
 
 implementer = Agent {
@@ -121,19 +138,22 @@ Procedure {
         notes = field.array{required = false}
     },
     function(input)
-        local plan_result = planner({
-            message = input.prompt,
-            context = {
-                issue = input.issue,
-                repo_policy = input.repo_policy,
-                workspace = input.workspace,
-                run = input.run
-            }
-        })
-
         local plan_text = "Inspect the relevant files, make the smallest scoped change, then call done."
-        if plan_result and plan_result.output and plan_result.output.plan then
-            plan_text = tostring(plan_result.output.plan)
+        local plan_turns = 0
+        while not Tool.called("record_plan") and plan_turns < 3 do
+            plan_turns = plan_turns + 1
+            planner({
+                message = input.prompt,
+                context = {
+                    issue = input.issue,
+                    repo_policy = input.repo_policy,
+                    workspace = input.workspace,
+                    run = input.run
+                }
+            })
+        end
+        if plan_state.plan and plan_state.plan ~= "" then
+            plan_text = tostring(plan_state.plan)
         end
 
         local max_turns = 12
