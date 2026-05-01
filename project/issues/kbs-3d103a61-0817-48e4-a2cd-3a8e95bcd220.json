@@ -1,0 +1,18 @@
+{
+  "id": "kbs-3d103a61-0817-48e4-a2cd-3a8e95bcd220",
+  "title": "Support PR publishing for orchestration workflows",
+  "description": "Allow production orchestration workflows to publish completed worker branches by opening a pull request to the target branch when target.publish is pull-request. Keep push-only supported. Update the Call Criteria Plexus upgrade workflow to validate the Poetry lock without requiring DB-backed tests.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T05:43:21.763903Z",
+  "updated_at": "2026-04-30T05:45:34.959007Z",
+  "closed_at": "2026-04-30T05:45:34.959007Z",
+  "custom": {}
+}

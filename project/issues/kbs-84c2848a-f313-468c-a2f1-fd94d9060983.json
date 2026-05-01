@@ -1,0 +1,28 @@
+{
+  "id": "kbs-84c2848a-f313-468c-a2f1-fd94d9060983",
+  "title": "Productionize Tactus procedure layer for Kanbus orchestration",
+  "description": "Goal: make Kanbus orchestration production-ready with Tactus as the procedure layer, without replacing Kanbus.\n\nPrinciples:\n- Kanbus remains the source of truth for issues, claims, leases, run records, validation, commits, pushes, and PR publication.\n- Tactus procedures orchestrate bounded agent work inside Kanbus-owned workspaces and capability boundaries.\n- We control both Kanbus and Tactus, so missing runtime/tooling capabilities should become explicit follow-up work instead of awkward local workarounds.\n- Default behavior should be safe for AI agents: narrow task context, constrained tools, durable evidence, clear recovery, and no accidental project artifact mutation.\n\nCurrent proof:\n- A small Tactus worker integration successfully claimed a Call Criteria task, updated README.md, commented on the assigned task, validated, pushed, and opened a PR through Kanbus.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "orchestration",
+    "tactus"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0cfc7fd9-09ff-4af3-ad02-4df0cebef5ef",
+      "author": "derek.norrbom",
+      "text": "Recommended initial sequence:\n1. Write the architecture note so future work has a stable north star.\n2. Implement validation profiles because the Call Criteria smoke test exposed why one default gate is not enough.\n3. Improve PR/commit evidence generation next, since the current orchestration path works but the output quality is still not production-grade.\n4. Use the Tactus platform-gap tasks to decide what should move into Tactus rather than becoming Kanbus-only workaround code.",
+      "created_at": "2026-05-01T02:42:52.169261Z"
+    }
+  ],
+  "created_at": "2026-05-01T02:41:54.152445Z",
+  "updated_at": "2026-05-01T02:42:52.169261Z",
+  "closed_at": null,
+  "custom": {}
+}

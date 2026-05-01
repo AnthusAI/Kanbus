@@ -1,0 +1,25 @@
+{
+  "id": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "title": "Production hardening for Kanbus orchestration",
+  "description": "Harden the Rust-first orchestration implementation so AI-agent workers can run safely against production branches without relying on trial-only assumptions.\n\nDefinition of Done:\n- Dangerous publish/workspace states fail closed with clear errors.\n- Run lifecycle state is recoverable and auditable.\n- Behavior is specified outside-in before implementation.\n- Rust and relevant shared gates pass locally and in CI before any PR is considered.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "codex",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "93074737-a92e-46ac-8503-e9e3d645c165",
+      "author": "derek.norrbom",
+      "text": "Superseded by Python-first control-plane direction. Orchestration feature development should not be implemented as Rust binary logic inside kbs; continue via kbs-03f328 and related stories.",
+      "created_at": "2026-05-01T19:04:55.466628Z"
+    }
+  ],
+  "created_at": "2026-04-30T04:27:20.694819Z",
+  "updated_at": "2026-05-01T19:04:55.469401Z",
+  "closed_at": "2026-05-01T19:04:55.469401Z",
+  "custom": {}
+}

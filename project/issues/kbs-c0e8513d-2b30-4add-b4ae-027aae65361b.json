@@ -1,0 +1,20 @@
+{
+  "id": "kbs-c0e8513d-2b30-4add-b4ae-027aae65361b",
+  "title": "Add run retry and stale lease recovery flow",
+  "description": "Workstream: run lifecycle.\n\nDefine and implement safe retry/recovery behavior for failed or stale runs. Retrying should avoid double-dispatch, preserve old evidence, and make the next worker context clear.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-84c2848a-f313-468c-a2f1-fd94d9060983",
+  "labels": [
+    "orchestration"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T02:42:47.576924Z",
+  "updated_at": "2026-05-01T02:42:47.576924Z",
+  "closed_at": null,
+  "custom": {}
+}

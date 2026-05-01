@@ -1,0 +1,18 @@
+{
+  "id": "kbs-45a02865-866d-4e6c-bd4f-4f0a4b733dda",
+  "title": "Productionize orchestration naming and run identifiers",
+  "description": "Rename trial/codename concepts to production orchestration terminology. Use project-scoped run IDs and run-aware branch defaults. Keep Rust-first scope; do not add Python execution parity yet.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "codex",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:00:49.095034Z",
+  "updated_at": "2026-04-30T04:06:28.683360Z",
+  "closed_at": "2026-04-30T04:06:28.683360Z",
+  "custom": {}
+}

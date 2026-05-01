@@ -1,0 +1,21 @@
+{
+  "id": "kbs-03f328a8-5434-42b5-bc22-e36d6ffc9039",
+  "title": "Python-first orchestration control plane (outside kbs binary)",
+  "description": "Architecture pivot: orchestration logic lives in a standalone Python utility that calls kbs/kanbus as execution primitives.\n\nWhy:\n- Orchestration has no hot inner loop requiring Rust compilation into kbs.\n- Keeping orchestration outside Rust avoids Python/Rust parity drag for this workstream.\n- kbs remains the fast issue/index primitive and source-of-truth operations surface.\n\nScope:\n- Python utility owns orchestration control flow, worker lifecycle, and policy wiring.\n- Utility may invoke either kbs or kanbus commands for issue/run operations.\n- No requirement to implement orchestration feature parity inside Rust and Python for this utility layer.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "orchestration",
+    "python"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T19:04:25.502343Z",
+  "updated_at": "2026-05-01T19:04:25.502343Z",
+  "closed_at": null,
+  "custom": {}
+}

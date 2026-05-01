@@ -1,0 +1,18 @@
+{
+  "id": "kbs-f48d710f-3fcb-49b5-9255-badb2553bfaf",
+  "title": "Orchestration fails closed around unsafe runs",
+  "description": "As an operator, I want orchestration to reject unsafe workflow, workspace, and publish states, so that AI agents cannot accidentally mutate the wrong repository or publish outside the configured boundary.\n\nFeature: Orchestration run safety\n\nScenario: Unsupported publish modes are rejected\nGiven a Kanbus project with default configuration\nAnd an issue \"kanbus-run01\" of type \"task\" with status \"open\"\nAnd an orchestration workflow with publish mode \"pull-request\"\nWhen I run \"kanbus worker run kanbus-run01 --workflow workflow.md --target-repo target\"\nThen the command should fail with exit code 1\nAnd stderr should contain \"unsupported publish mode\"\n\nScenario: Workspace roots inside the Kanbus repository are rejected\nGiven a Kanbus project with default configuration\nAnd an issue \"kanbus-run01\" of type \"task\" with status \"open\"\nAnd an orchestration workflow with workspace root inside the Kanbus repository\nWhen I run \"kanbus worker run kanbus-run01 --workflow workflow.md --target-repo target\"\nThen the command should fail with exit code 1\nAnd stderr should contain \"workspace root must be outside the Kanbus repository\"",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:27:25.792832Z",
+  "updated_at": "2026-04-30T04:33:59.882046Z",
+  "closed_at": "2026-04-30T04:33:59.882046Z",
+  "custom": {}
+}

@@ -1,0 +1,21 @@
+{
+  "id": "kbs-3d7553ab-0196-40a0-9c53-1e360a7ead58",
+  "title": "Define Python orchestrator architecture and boundaries",
+  "description": "Write the architecture note for the Python control-plane utility, including:\n- Kanbus primitive responsibilities (issue state, claims, run records, git/publish boundaries).\n- Python utility responsibilities (control flow, retries, cancellation, policy composition).\n- Tactus integration point as procedure layer, without replacing Kanbus.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-03f328a8-5434-42b5-bc22-e36d6ffc9039",
+  "labels": [
+    "orchestration",
+    "python"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T19:04:31.585855Z",
+  "updated_at": "2026-05-01T19:04:31.585855Z",
+  "closed_at": null,
+  "custom": {}
+}

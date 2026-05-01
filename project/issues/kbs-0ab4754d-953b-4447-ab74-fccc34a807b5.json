@@ -1,0 +1,21 @@
+{
+  "id": "kbs-0ab4754d-953b-4447-ab74-fccc34a807b5",
+  "title": "Define Python orchestrator test harness (Behave + targeted unit tests)",
+  "description": "Create test scaffolding for the Python orchestrator utility using Behave scenarios and focused unit tests for command composition, error handling, cancellation, and lease safety. Avoid Rust/Python parity coupling for this layer.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-03f328a8-5434-42b5-bc22-e36d6ffc9039",
+  "labels": [
+    "orchestration",
+    "python"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T19:05:05.438209Z",
+  "updated_at": "2026-05-01T19:05:05.438209Z",
+  "closed_at": null,
+  "custom": {}
+}

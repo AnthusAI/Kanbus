@@ -1,0 +1,18 @@
+{
+  "id": "kbs-0761b3a5-28e4-4332-a78e-89f511b00125",
+  "title": "Implement named orchestration workflow presets",
+  "description": "Resolve --workflow values as either existing paths or named presets under project/workflows/<name>.md. Add a committed Call Criteria Poetry upgrade preset and specs. Keep path support as the explicit development escape hatch.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:42:15.658453Z",
+  "updated_at": "2026-04-30T04:46:05.059240Z",
+  "closed_at": "2026-04-30T04:46:05.059240Z",
+  "custom": {}
+}

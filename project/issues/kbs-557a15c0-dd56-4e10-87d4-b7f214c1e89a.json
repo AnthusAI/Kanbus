@@ -1,0 +1,21 @@
+{
+  "id": "kbs-557a15c0-dd56-4e10-87d4-b7f214c1e89a",
+  "title": "Implement standalone Python orchestration utility",
+  "description": "Build Python orchestration entrypoints that drive runs by invoking kbs/kanbus commands and existing worker runtimes. Keep orchestration logic out of the Rust binary path.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-03f328a8-5434-42b5-bc22-e36d6ffc9039",
+  "labels": [
+    "orchestration",
+    "python"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T19:04:31.587474Z",
+  "updated_at": "2026-05-01T19:04:31.587474Z",
+  "closed_at": null,
+  "custom": {}
+}

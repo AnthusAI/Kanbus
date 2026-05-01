@@ -1,0 +1,18 @@
+{
+  "id": "kbs-efacbf9a-7e64-43f3-a20f-4097861a2edf",
+  "title": "Implement explicit orchestration issue selection",
+  "description": "Add orchestrator run --issue <id>. It must claim exactly that open ready issue, reject non-open or blocked issues clearly, and leave claim-next as the default when --issue is omitted.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:59:41.613926Z",
+  "updated_at": "2026-04-30T05:02:21.336746Z",
+  "closed_at": "2026-04-30T05:02:21.336746Z",
+  "custom": {}
+}

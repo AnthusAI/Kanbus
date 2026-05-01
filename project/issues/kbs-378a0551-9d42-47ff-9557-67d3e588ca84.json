@@ -1,0 +1,18 @@
+{
+  "id": "kbs-378a0551-9d42-47ff-9557-67d3e588ca84",
+  "title": "Claim ready work for orchestrated workers",
+  "description": "As an operator, I want Kanbus to claim exactly one ready issue for a worker, so that multiple workers cannot execute the same task.\n\nFeature: Orchestrated issue claiming\nScenario: Claim the next ready issue\nGiven multiple open issues and one worker id\nWhen the operator runs claim-next with ready filtering\nThen exactly one unblocked open issue is moved to in_progress and assigned to that worker.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4ca74f42-3632-4f39-88cf-05a21bbc6c72",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T03:32:50.972309Z",
+  "updated_at": "2026-04-30T03:53:56.873930Z",
+  "closed_at": "2026-04-30T03:53:56.873930Z",
+  "custom": {}
+}

@@ -1,0 +1,18 @@
+{
+  "id": "kbs-75716613-2ed8-4ff4-89b7-939886d8a7bb",
+  "title": "Record and inspect orchestration runs",
+  "description": "As an operator, I want durable run records for workers, so that orchestration can be audited and recovered.\n\nFeature: Orchestration run records\nScenario: Inspect a worker run\nGiven a worker run has been created\nWhen the operator lists or shows runs\nThen the output includes issue id, worker id, run status, workspace, branch, timestamps, proof, and errors.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4ca74f42-3632-4f39-88cf-05a21bbc6c72",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T03:32:51.060298Z",
+  "updated_at": "2026-04-30T03:53:56.874588Z",
+  "closed_at": "2026-04-30T03:53:56.874588Z",
+  "custom": {}
+}

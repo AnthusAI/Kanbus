@@ -1,0 +1,18 @@
+{
+  "id": "kbs-e1eb0983-fff8-4736-b0dd-9db45abb9fd1",
+  "title": "Use one generic orchestration workflow for all tasks",
+  "description": "Replace task-specific workflow requirements with a single generic orchestration workflow. The orchestrator should run from the current Kanbus project by default, use the current repository as the target when target.repo is omitted, and let task details come from the assigned Kanbus issue.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T05:57:42.290942Z",
+  "updated_at": "2026-04-30T06:00:58.202668Z",
+  "closed_at": "2026-04-30T06:00:58.202668Z",
+  "custom": {}
+}

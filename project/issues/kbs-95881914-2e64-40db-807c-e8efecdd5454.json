@@ -1,0 +1,18 @@
+{
+  "id": "kbs-95881914-2e64-40db-807c-e8efecdd5454",
+  "title": "Run a specific issue through orchestration",
+  "description": "As an operator, I want orchestration runs to target an explicit issue id, so that production agent dispatch cannot accidentally claim unrelated ready work.\n\nFeature: Explicit orchestration issue selection\n\nScenario: Orchestrator runs a specific open ready issue\nGiven a Kanbus project with default configuration\nAnd an issue \"kanbus-run01\" of type \"task\" with status \"open\"\nAnd an issue \"kanbus-run02\" of type \"task\" with status \"open\"\nAnd a local orchestration target repository\nAnd a repository orchestration workflow preset \"call-criteria/poetry-upgrade\"\nWhen I run \"kanbus orchestrator run --workflow call-criteria/poetry-upgrade --once --max-concurrent 1 --issue kanbus-run02\"\nThen the command should succeed\nAnd stdout should contain \"\\\"issue_id\\\": \\\"kanbus-run02\\\"\"\n\nScenario: Orchestrator rejects an explicit issue that is not open\nGiven a Kanbus project with default configuration\nAnd an issue \"kanbus-run01\" of type \"task\" with status \"in_progress\"\nAnd a local orchestration target repository\nAnd a repository orchestration workflow preset \"call-criteria/poetry-upgrade\"\nWhen I run \"kanbus orchestrator run --workflow call-criteria/poetry-upgrade --once --max-concurrent 1 --issue kanbus-run01\"\nThen the command should fail with exit code 1\nAnd stderr should contain \"explicit issue is not open\"",
+  "type": "story",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:59:41.613966Z",
+  "updated_at": "2026-04-30T05:02:21.649654Z",
+  "closed_at": "2026-04-30T05:02:21.649654Z",
+  "custom": {}
+}

@@ -1,0 +1,21 @@
+{
+  "id": "kbs-9d5bfcfe-e1e1-4757-8b9d-d4de5cba3093",
+  "title": "Test Python orchestrator with Behave-focused coverage",
+  "description": "Add simple Behave scenarios and targeted unit tests for Python orchestrator behavior. Do not require Rust/Python parity for this utility-layer orchestration flow.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-03f328a8-5434-42b5-bc22-e36d6ffc9039",
+  "labels": [
+    "orchestration",
+    "python"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T19:04:31.605149Z",
+  "updated_at": "2026-05-01T19:04:31.605149Z",
+  "closed_at": null,
+  "custom": {}
+}

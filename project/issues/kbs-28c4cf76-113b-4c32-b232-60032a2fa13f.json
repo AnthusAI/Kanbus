@@ -1,0 +1,18 @@
+{
+  "id": "kbs-28c4cf76-113b-4c32-b232-60032a2fa13f",
+  "title": "Draft orchestration PR copy with Tactus procedures",
+  "description": "Add a bounded Tactus procedure extension point for orchestration PR drafting. Kanbus should build verified PR evidence, optionally invoke a Tactus procedure to produce title/body JSON, validate the draft policy, and fall back to deterministic copy only when no procedure is configured.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T06:18:58.023868Z",
+  "updated_at": "2026-04-30T06:24:05.275380Z",
+  "closed_at": "2026-04-30T06:24:05.275380Z",
+  "custom": {}
+}

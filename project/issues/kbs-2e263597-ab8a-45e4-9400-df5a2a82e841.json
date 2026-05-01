@@ -1,0 +1,25 @@
+{
+  "id": "kbs-2e263597-ab8a-45e4-9400-df5a2a82e841",
+  "title": "Use done-tool Tactus PR drafting contract",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "91c644be-ab4d-4734-854f-09ccfc5de785",
+      "author": "derek.norrbom",
+      "text": "Changed the default PR drafting procedure to deterministic Tactus formatting from verified Kanbus evidence. This removes the brittle extra LLM call while keeping Tactus as the procedure layer and Kanbus as the validator/publisher. Validation: cargo fmt --check, cargo test --lib orchestration::tests, cargo clippy -- -D warnings.",
+      "created_at": "2026-04-30T07:00:00.323202Z"
+    }
+  ],
+  "created_at": "2026-04-30T06:42:42.335448Z",
+  "updated_at": "2026-04-30T07:00:00.324190Z",
+  "closed_at": "2026-04-30T07:00:00.324190Z",
+  "custom": {}
+}

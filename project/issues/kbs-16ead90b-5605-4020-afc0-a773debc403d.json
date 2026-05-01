@@ -1,0 +1,18 @@
+{
+  "id": "kbs-16ead90b-5605-4020-afc0-a773debc403d",
+  "title": "Require owned workspaces before destructive cleanup",
+  "description": "Apply workspace safety rules in the Python orchestration utility path: reject symlinked or mismatched workspaces, add an orchestration-owned marker, verify origin remote before reuse, and refuse destructive cleanup unless workspace is canonical and Kanbus-owned.",
+  "type": "task",
+  "status": "open",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-03f328a8-5434-42b5-bc22-e36d6ffc9039",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:33:25.698856Z",
+  "updated_at": "2026-05-01T19:04:48.018830Z",
+  "closed_at": null,
+  "custom": {}
+}

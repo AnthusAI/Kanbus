@@ -1,0 +1,28 @@
+{
+  "id": "kbs-618fe7de-a18b-4c76-ac9a-672f47287d0e",
+  "title": "Use tool contract for Tactus planner phase",
+  "description": "The Tactus planner phase still fails model-native structured output validation. Preserve the planner agent, but make it complete by calling a record_plan tool so Kanbus can evaluate a production-shaped multi-agent procedure using tool contracts.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "derek.norrbom",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "41cdd429-f9e4-4542-a5f3-9e22709d0ad5",
+      "author": "derek.norrbom",
+      "text": "Changed the planner phase from model-native structured output to an explicit record_plan tool contract. This preserves a separate planner agent while making the phase observable through Tactus tool semantics.",
+      "created_at": "2026-05-01T01:48:17.190139Z"
+    }
+  ],
+  "created_at": "2026-05-01T01:47:52.678640Z",
+  "updated_at": "2026-05-01T01:48:17.200755Z",
+  "closed_at": "2026-05-01T01:48:17.200755Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

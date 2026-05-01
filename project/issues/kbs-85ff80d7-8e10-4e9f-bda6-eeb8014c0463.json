@@ -1,0 +1,18 @@
+{
+  "id": "kbs-85ff80d7-8e10-4e9f-bda6-eeb8014c0463",
+  "title": "Execute workflow-backed worker in isolated workspace",
+  "description": "As an operator, I want Kanbus to run a worker from a repo-owned workflow, so that a target repository can be changed safely in an isolated branch.\n\nFeature: Workflow-backed worker execution\nScenario: Run a Call Criteria trial worker\nGiven a workflow file and a synthetic safe task\nWhen the orchestrator dispatches one worker\nThen the worker creates an isolated workspace from develop, runs Codex App Server, validates with make test, pushes a trial branch, and does not open a PR.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4ca74f42-3632-4f39-88cf-05a21bbc6c72",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T03:32:51.154664Z",
+  "updated_at": "2026-04-30T03:53:56.897382Z",
+  "closed_at": "2026-04-30T03:53:56.897382Z",
+  "custom": {}
+}

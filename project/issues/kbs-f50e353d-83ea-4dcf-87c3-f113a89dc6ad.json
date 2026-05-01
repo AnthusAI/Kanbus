@@ -1,0 +1,20 @@
+{
+  "id": "kbs-f50e353d-83ea-4dcf-87c3-f113a89dc6ad",
+  "title": "Create Tactus follow-up issues for platform gaps",
+  "description": "Workstream: Tactus platform feedback.\n\nFor gaps that belong in Tactus, create corresponding Tactus repo issues and link them from this Kanbus epic. Do not hide platform needs in Kanbus-specific wrappers.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-84c2848a-f313-468c-a2f1-fd94d9060983",
+  "labels": [
+    "tactus"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T02:42:47.627478Z",
+  "updated_at": "2026-05-01T02:42:47.627478Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -1,0 +1,21 @@
+{
+  "id": "kbs-25eb657f-2d8e-4369-a025-d5f593353e16",
+  "title": "Build Python orchestrator CLI wrapper over kbs/kanbus",
+  "description": "Implement a Python CLI/module that executes orchestration control flow by invoking kbs/kanbus commands. It should support one-shot run execution, explicit issue selection, and worker selection without adding new orchestration logic to Rust binaries.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-03f328a8-5434-42b5-bc22-e36d6ffc9039",
+  "labels": [
+    "orchestration",
+    "python"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T19:05:05.437210Z",
+  "updated_at": "2026-05-01T19:05:05.437210Z",
+  "closed_at": null,
+  "custom": {}
+}

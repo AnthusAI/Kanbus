@@ -1,0 +1,25 @@
+{
+  "id": "kbs-cc372894-bc04-4d29-85ac-010f6747c30a",
+  "title": "Implement Kanbus Maximus Rust commands",
+  "description": "Add claim-next, orchestrator, worker, and runs commands in the Rust CLI.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "derek.norrbom",
+  "creator": null,
+  "parent": "kbs-4ca74f42-3632-4f39-88cf-05a21bbc6c72",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "68cca484-7ee0-4212-b64b-524d44e99038",
+      "author": "derek.norrbom",
+      "text": "Implemented Rust Kanbus Maximus CLI surface, durable run records, workflow parsing, App Server worker execution, and workspace cleanup. Validation passed: cargo fmt --check, cargo clippy -- -D warnings, cargo test.",
+      "created_at": "2026-04-30T03:53:50.611237Z"
+    }
+  ],
+  "created_at": "2026-04-30T03:32:51.243531Z",
+  "updated_at": "2026-04-30T03:53:53.586360Z",
+  "closed_at": "2026-04-30T03:53:53.586360Z",
+  "custom": {}
+}

@@ -1,0 +1,21 @@
+{
+  "id": "kbs-931f477d-e7b4-4542-8d96-7f8110448cc9",
+  "title": "Document operator workflow for Python orchestrator utility",
+  "description": "Document install/run workflow for teams that use kbs today: how to run Python orchestrator utility, required env, how it shells out to kbs/kanbus, and how to troubleshoot failures.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-03f328a8-5434-42b5-bc22-e36d6ffc9039",
+  "labels": [
+    "orchestration",
+    "docs"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T19:05:05.465207Z",
+  "updated_at": "2026-05-01T19:05:05.465207Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -1,0 +1,18 @@
+{
+  "id": "kbs-3f58e6d1-5375-4edc-b548-1503f6358c00",
+  "title": "Make orchestration cancellation and timeouts authoritative",
+  "description": "Use codex timeout_seconds as a real deadline, prevent cancelled runs from being overwritten by workers, and design child-process cancellation so runs cancel can stop active app-server work instead of only changing metadata.",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-30T04:33:25.520360Z",
+  "updated_at": "2026-05-01T03:07:03.595932Z",
+  "closed_at": "2026-05-01T03:07:03.595932Z",
+  "custom": {}
+}
