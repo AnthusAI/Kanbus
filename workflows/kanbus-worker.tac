@@ -63,8 +63,15 @@ planner = Agent {
     model = "gpt-4o-mini",
     system_prompt = [[
 You plan the assigned Kanbus task. Use the provided issue and repository policy.
-Return a concise implementation plan. Do not edit files.
+Return structured output only:
+- plan: a concise implementation plan
+- files: repository-relative files expected to change
+Do not edit files.
 ]],
+    output = {
+        plan = field.string{required = true},
+        files = field.array{required = false}
+    }
 }
 
 implementer = Agent {
@@ -124,9 +131,9 @@ Procedure {
             }
         })
 
-        local plan_text = "Plan was generated."
-        if plan_result and plan_result.output then
-            plan_text = tostring(plan_result.output)
+        local plan_text = "Inspect the relevant files, make the smallest scoped change, then call done."
+        if plan_result and plan_result.output and plan_result.output.plan then
+            plan_text = tostring(plan_result.output.plan)
         end
 
         local max_turns = 12
