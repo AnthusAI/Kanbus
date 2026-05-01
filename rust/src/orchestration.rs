@@ -153,12 +153,18 @@ impl Default for OrchestrationWorkspaceConfig {
 pub struct OrchestrationWorkerConfig {
     #[serde(default = "default_branch_pattern")]
     pub branch_pattern: String,
+    #[serde(default = "default_worker_runtime")]
+    pub runtime: String,
+    #[serde(default)]
+    pub procedure: Option<OrchestrationProcedureConfig>,
 }
 
 impl Default for OrchestrationWorkerConfig {
     fn default() -> Self {
         Self {
             branch_pattern: default_branch_pattern(),
+            runtime: default_worker_runtime(),
+            procedure: None,
         }
     }
 }
@@ -199,6 +205,10 @@ fn default_workspace_root() -> String {
 
 fn default_branch_pattern() -> String {
     "agent/{{ issue.identifier }}/{{ run.short_id }}".to_string()
+}
+
+fn default_worker_runtime() -> String {
+    "codex-app-server".to_string()
 }
 
 fn default_codex_command() -> String {
@@ -695,17 +705,10 @@ fn run_worker_inner(
 
     prepare_workspace(workflow, target_repo, &workspace, &branch)?;
     let capability = prepare_worker_capability_bridge(&workspace, issue, record)?;
-    let prompt = render_worker_prompt(workflow, issue, record)?;
-    let codex_result = run_codex_app_server(
-        &workflow.codex.command,
-        &workspace,
-        &prompt,
-        &capability.bin_dir,
-        workflow.codex.timeout_seconds,
-    );
+    let worker_result =
+        run_configured_worker(root, workflow, issue, record, &workspace, &capability);
     apply_worker_comments(root, issue, record, &capability.comments_dir)?;
-    let codex_event = codex_result?;
-    record.last_event = Some(codex_event);
+    record.last_event = Some(worker_result?);
     record.heartbeat_at = Some(Utc::now());
     write_run_record(root, record)?;
 
@@ -719,6 +722,30 @@ fn run_worker_inner(
     record.commit_sha = Some(commit_sha);
     publish_run(&workspace, workflow, issue, record, &branch)?;
     Ok(())
+}
+
+fn run_configured_worker(
+    root: &Path,
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+    workspace: &Path,
+    capability: &WorkerCapabilityBridge,
+) -> Result<String, KanbusError> {
+    let prompt = render_worker_prompt(workflow, issue, record)?;
+    match workflow.worker.runtime.trim() {
+        "codex-app-server" | "codex" => run_codex_app_server(
+            &workflow.codex.command,
+            workspace,
+            &prompt,
+            &capability.bin_dir,
+            workflow.codex.timeout_seconds,
+        ),
+        "tactus" => run_tactus_worker(root, workflow, issue, record, workspace, capability, &prompt),
+        other => Err(KanbusError::Configuration(format!(
+            "unsupported worker runtime {other:?}: supported runtimes are codex-app-server and tactus"
+        ))),
+    }
 }
 
 fn split_front_matter(content: &str) -> Result<(&str, &str), KanbusError> {
@@ -743,6 +770,18 @@ fn validate_workflow(workflow: &OrchestrationWorkflow) -> Result<(), KanbusError
     if workflow.worker.branch_pattern.trim().is_empty() {
         return Err(KanbusError::Configuration(
             "worker.branch_pattern is required".to_string(),
+        ));
+    }
+    let runtime = workflow.worker.runtime.trim();
+    if runtime != "codex-app-server" && runtime != "codex" && runtime != "tactus" {
+        return Err(KanbusError::Configuration(format!(
+            "unsupported worker runtime {:?}: supported runtimes are codex-app-server and tactus",
+            workflow.worker.runtime
+        )));
+    }
+    if runtime == "tactus" && workflow.worker.procedure.is_none() {
+        return Err(KanbusError::Configuration(
+            "worker.procedure is required when worker.runtime is tactus".to_string(),
         ));
     }
     if workflow.codex.command.trim().is_empty() {
@@ -1314,6 +1353,261 @@ fn run_codex_app_server(
     let _ = child.kill();
     let _ = child.wait();
     Ok(last_event)
+}
+
+#[derive(Debug, Deserialize)]
+struct TactusWorkerEvidence {
+    status: String,
+    #[serde(default)]
+    summary: Option<String>,
+    #[serde(default)]
+    changed_files: Vec<String>,
+    #[serde(default)]
+    notes: Vec<String>,
+}
+
+fn run_tactus_worker(
+    root: &Path,
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+    workspace: &Path,
+    capability: &WorkerCapabilityBridge,
+    prompt: &str,
+) -> Result<String, KanbusError> {
+    let procedure = workflow.worker.procedure.as_ref().ok_or_else(|| {
+        KanbusError::Configuration(
+            "worker.procedure is required when worker.runtime is tactus".to_string(),
+        )
+    })?;
+    let (source, source_file_path) = load_worker_procedure_source(root, procedure)?;
+    let storage_dir = workspace
+        .join(".kanbus")
+        .join("tactus")
+        .join("worker")
+        .to_string_lossy()
+        .to_string();
+    let worker_input = worker_procedure_input(workflow, issue, record, workspace, prompt)?;
+    let python = procedure.command.as_deref().unwrap_or("python");
+    let script = tactus_worker_python_runner();
+    let input = json!({
+        "source": source,
+        "source_file_path": source_file_path,
+        "storage_dir": storage_dir,
+        "worker_input": worker_input,
+        "workspace": workspace.to_string_lossy(),
+        "comments_dir": capability.comments_dir.to_string_lossy(),
+        "path_prefix": capability.bin_dir.to_string_lossy(),
+    });
+    let input_json =
+        serde_json::to_string(&input).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let command = format!("{} -c '{}'", python, shell_single_quote(&script));
+    let output =
+        run_shell_command_with_stdin(workspace, &command, &input_json, procedure.timeout_seconds)?;
+    let evidence = parse_tactus_worker_evidence(&output)?;
+    if evidence.status.trim() != "completed" && evidence.status.trim() != "success" {
+        return Err(KanbusError::IssueOperation(format!(
+            "Tactus worker did not complete successfully: {}",
+            evidence.status
+        )));
+    }
+    let summary = evidence
+        .summary
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("Tactus worker completed");
+    Ok(format!(
+        "tactus/completed: {summary}; changed_files={}; notes={}",
+        evidence.changed_files.len(),
+        evidence.notes.len()
+    ))
+}
+
+fn load_worker_procedure_source(
+    root: &Path,
+    procedure: &OrchestrationProcedureConfig,
+) -> Result<(String, Option<String>), KanbusError> {
+    if let Some(source) = procedure.source.as_deref() {
+        return Ok((source.to_string(), procedure.file.clone()));
+    }
+    let file = procedure.file.as_deref().ok_or_else(|| {
+        KanbusError::Configuration("worker.procedure.file is required".to_string())
+    })?;
+    let file_path = if Path::new(file).is_absolute() {
+        PathBuf::from(file)
+    } else {
+        root.join(file)
+    };
+    let source = fs::read_to_string(&file_path).map_err(|error| {
+        KanbusError::Io(format!("failed to read worker procedure file: {error}"))
+    })?;
+    Ok((source, Some(file_path.to_string_lossy().to_string())))
+}
+
+fn worker_procedure_input(
+    workflow: &OrchestrationWorkflow,
+    issue: &IssueData,
+    record: &OrchestrationRunRecord,
+    workspace: &Path,
+    prompt: &str,
+) -> Result<Value, KanbusError> {
+    Ok(json!({
+        "issue": serde_json::to_value(issue).map_err(|error| KanbusError::Io(error.to_string()))?,
+        "repo_policy": {
+            "target_branch": workflow.target.branch,
+            "validation": workflow.target.validation,
+            "publish": workflow.target.publish,
+            "allowed_paths": workflow.target.allowed_paths,
+        },
+        "workspace": {
+            "path": workspace.to_string_lossy(),
+        },
+        "run": {
+            "id": record.run_id,
+            "worker_id": record.worker_id,
+            "branch": record.branch,
+        },
+        "prompt": prompt,
+    }))
+}
+
+fn parse_tactus_worker_evidence(output: &str) -> Result<TactusWorkerEvidence, KanbusError> {
+    let value: Value = serde_json::from_str(output.trim()).map_err(|error| {
+        KanbusError::IssueOperation(format!("Tactus worker returned invalid JSON: {error}"))
+    })?;
+    serde_json::from_value(value).map_err(|error| {
+        KanbusError::IssueOperation(format!("Tactus worker returned invalid evidence: {error}"))
+    })
+}
+
+fn tactus_worker_python_runner() -> String {
+    r#"
+import asyncio
+import json
+import os
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+from tactus.adapters.file_storage import FileStorage
+from tactus.core.runtime import TactusRuntime
+from tactus.protocols.result import TactusResult
+
+payload = json.load(sys.stdin)
+workspace = Path(payload["workspace"]).resolve()
+comments_dir = Path(payload["comments_dir"]).resolve()
+path_prefix = payload["path_prefix"]
+
+def guarded_path(path):
+    if path is None:
+        raise ValueError("path is required")
+    raw = str(path)
+    if raw.startswith("/") or raw.startswith("~"):
+        raise ValueError("paths must be repository-relative")
+    resolved = (workspace / raw).resolve()
+    if resolved != workspace and workspace not in resolved.parents:
+        raise ValueError("path escapes workspace")
+    relative = resolved.relative_to(workspace).as_posix()
+    if relative == ".git" or relative.startswith(".git/"):
+        raise ValueError(".git is not writable by worker tools")
+    if (
+        relative == "project/issues"
+        or relative.startswith("project/issues/")
+        or relative == "project/events"
+        or relative.startswith("project/events/")
+        or relative == "project/runs"
+        or relative.startswith("project/runs/")
+    ):
+        raise ValueError("Kanbus project artifacts are not writable by worker tools")
+    return resolved
+
+def check_command(command):
+    parts = shlex.split(command)
+    if not parts:
+        raise ValueError("command is required")
+    executable = Path(parts[0]).name
+    subcommand = parts[1] if len(parts) > 1 else ""
+    if executable == "git" and subcommand in {
+        "add", "commit", "push", "reset", "checkout", "clean", "merge",
+        "rebase", "tag", "branch", "rm", "mv", "switch", "restore",
+    }:
+        raise ValueError(f"git {subcommand} is reserved for Kanbus orchestration")
+    if executable == "gh":
+        raise ValueError("GitHub publication is reserved for Kanbus orchestration")
+    if executable in {"kbs", "kanbus"} and subcommand not in {"show", "comment", "help", "--help", "-h"}:
+        raise ValueError("Kanbus mutation is reserved for Kanbus orchestration")
+
+class KanbusHost:
+    def read_file(self, path):
+        return guarded_path(path).read_text()
+
+    def write_file(self, path, content):
+        target = guarded_path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(str(content))
+        return {"ok": True, "path": str(path)}
+
+    def list_files(self, path=""):
+        root = guarded_path(path or ".")
+        if root.is_file():
+            return [root.relative_to(workspace).as_posix()]
+        results = []
+        for candidate in sorted(root.rglob("*")):
+            if candidate.is_file():
+                relative = candidate.relative_to(workspace).as_posix()
+                if not relative.startswith(".git/"):
+                    results.append(relative)
+        return results
+
+    def run_command(self, command, timeout_seconds=120):
+        check_command(str(command))
+        env = os.environ.copy()
+        env["PATH"] = path_prefix + os.pathsep + env.get("PATH", "")
+        completed = subprocess.run(
+            str(command),
+            cwd=workspace,
+            shell=True,
+            text=True,
+            capture_output=True,
+            timeout=int(timeout_seconds or 120),
+            env=env,
+        )
+        return {
+            "stdout": completed.stdout,
+            "stderr": completed.stderr,
+            "returncode": completed.returncode,
+            "success": completed.returncode == 0,
+        }
+
+    def comment(self, text):
+        comments_dir.mkdir(parents=True, exist_ok=True)
+        comment_path = comments_dir / f"tactus-{len(list(comments_dir.glob('*.txt'))) + 1}.txt"
+        comment_path.write_text(str(text).strip() + "\n")
+        return {"ok": True}
+
+storage = FileStorage(storage_dir=payload["storage_dir"])
+run_id = payload["worker_input"]["run"]["id"]
+runtime = TactusRuntime(
+    procedure_id=f"kanbus-worker-{run_id}",
+    storage_backend=storage,
+    run_id=run_id,
+    source_file_path=payload.get("source_file_path"),
+)
+runtime.register_python_module("kanbus", KanbusHost())
+result = asyncio.run(runtime.execute(
+    payload["source"],
+    payload["worker_input"],
+    format="lua",
+))
+if not result.get("success"):
+    raise SystemExit(result.get("error") or "Tactus worker procedure failed")
+output = result.get("result")
+if isinstance(output, TactusResult):
+    output = output.output
+print(json.dumps(output))
+"#
+    .to_string()
 }
 
 fn send_json(stdin: &mut impl Write, value: Value) -> Result<(), KanbusError> {
@@ -2174,6 +2468,125 @@ worker:
     }
 
     #[test]
+    fn tactus_worker_runtime_requires_procedure_config() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let workflow_path = temp.path().join("workflow.md");
+        fs::write(
+            &workflow_path,
+            "---\nworker:\n  runtime: tactus\n---\nUse Tactus.",
+        )
+        .expect("write workflow");
+
+        let error = load_workflow(&workflow_path).expect_err("workflow error");
+
+        assert!(error.to_string().contains("worker.procedure is required"));
+    }
+
+    #[test]
+    fn unsupported_worker_runtime_is_rejected() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let workflow_path = temp.path().join("workflow.md");
+        fs::write(
+            &workflow_path,
+            "---\nworker:\n  runtime: shell-agent\n---\nUse agent.",
+        )
+        .expect("write workflow");
+
+        let error = load_workflow(&workflow_path).expect_err("workflow error");
+
+        assert!(error.to_string().contains("unsupported worker runtime"));
+    }
+
+    #[test]
+    fn tactus_worker_receives_structured_input_and_isolated_storage() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let workspace = temp.path().join("workspace");
+        fs::create_dir_all(&workspace).expect("workspace");
+        let comments_dir = temp.path().join("comments");
+        let bin_dir = temp.path().join("bin");
+        fs::create_dir_all(&comments_dir).expect("comments");
+        fs::create_dir_all(&bin_dir).expect("bin");
+        let fake_python = temp.path().join("fake-python");
+        fs::write(
+            &fake_python,
+            r#"#!/bin/sh
+if [ "$1" != "-c" ]; then
+  echo "expected -c" >&2
+  exit 1
+fi
+script="$2"
+payload=$(cat)
+case "$script" in
+  *"runtime.register_python_module(\"kanbus\", KanbusHost())"*) ;;
+  *) echo "missing Kanbus host module" >&2; exit 2 ;;
+esac
+case "$payload" in
+  *"\"storage_dir\":\""*".kanbus/tactus/worker\""*) ;;
+  *) echo "missing isolated worker storage" >&2; exit 3 ;;
+esac
+case "$payload" in
+  *"\"id\":\"ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554\""*) ;;
+  *) echo "missing issue id" >&2; exit 4 ;;
+esac
+case "$payload" in
+  *"\"validation\":\"make test\""*) ;;
+  *) echo "missing validation policy" >&2; exit 5 ;;
+esac
+case "$payload" in
+  *"\"path_prefix\":\""*"/bin\""*) ;;
+  *) echo "missing bridge path prefix" >&2; exit 6 ;;
+esac
+printf '{"status":"completed","summary":"fake tactus worker","changed_files":["README.md"],"notes":[]}\n'
+"#,
+        )
+        .expect("write fake python");
+        run_command(
+            temp.path(),
+            Command::new("chmod").arg("+x").arg(&fake_python),
+        )
+        .expect("chmod");
+        let workflow = OrchestrationWorkflow {
+            target: OrchestrationTargetConfig {
+                validation: "make test".to_string(),
+                ..OrchestrationTargetConfig::default()
+            },
+            worker: OrchestrationWorkerConfig {
+                runtime: "tactus".to_string(),
+                procedure: Some(OrchestrationProcedureConfig {
+                    runtime: "tactus".to_string(),
+                    file: None,
+                    source: Some("Procedure {}".to_string()),
+                    command: Some(fake_python.to_string_lossy().to_string()),
+                    timeout_seconds: 5,
+                }),
+                ..OrchestrationWorkerConfig::default()
+            },
+            ..default_orchestration_workflow()
+        };
+        let issue = issue("ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554");
+        let mut record = run_record("ccpy-run-12345678");
+        record.branch = Some("agent/ccpy-d2fd1d/12345678".to_string());
+        let capability = WorkerCapabilityBridge {
+            bin_dir,
+            comments_dir,
+        };
+
+        let event = run_tactus_worker(
+            temp.path(),
+            &workflow,
+            &issue,
+            &record,
+            &workspace,
+            &capability,
+            "worker prompt",
+        )
+        .expect("run fake Tactus worker");
+
+        assert!(event.contains("tactus/completed"));
+        assert!(event.contains("fake tactus worker"));
+    }
+
+    #[test]
     fn explicit_workflow_file_overrides_repository_orchestration_config() {
         let temp = tempfile::tempdir().expect("tempdir");
         crate::file_io::initialize_project(temp.path(), false).expect("initialize project");
@@ -2658,6 +3071,7 @@ printf '{"title":"chore: generated title","body":"body"}\n'
         let workflow = OrchestrationWorkflow {
             worker: OrchestrationWorkerConfig {
                 branch_pattern: "agent/{{ issue.identifier }}/{{ run.short_id }}".to_string(),
+                ..OrchestrationWorkerConfig::default()
             },
             ..OrchestrationWorkflow {
                 target: OrchestrationTargetConfig::default(),

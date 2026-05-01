@@ -1,0 +1,25 @@
+{
+  "id": "kbs-5d465398-5eb9-4e41-89f9-b72680e322cd",
+  "title": "Add Tactus worker runtime for orchestration",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "derek.norrbom",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "40752691-52d5-4a2f-849f-ed8cebb20aee",
+      "author": "derek.norrbom",
+      "text": "Implemented an experimental Tactus worker runtime for Kanbus orchestration. Added worker.runtime config, worker.procedure support, a guarded Kanbus host module for Tactus, structured worker evidence validation, a generic Tactus worker procedure, docs, and focused tests.",
+      "created_at": "2026-05-01T01:36:51.280042Z"
+    }
+  ],
+  "created_at": "2026-05-01T01:32:37.932793Z",
+  "updated_at": "2026-05-01T01:36:51.294957Z",
+  "closed_at": "2026-05-01T01:36:51.294957Z",
+  "custom": {}
+}

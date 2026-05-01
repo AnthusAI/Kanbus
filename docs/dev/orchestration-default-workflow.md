@@ -33,6 +33,21 @@ orchestration:
     branch_pattern: agent/{{ issue.identifier }}/{{ run.short_id }}
 ```
 
+Workers use `codex-app-server` by default. A repository can opt into the Tactus worker runtime for controlled experiments by supplying a worker procedure:
+
+```yaml
+orchestration:
+  worker:
+    runtime: tactus
+    branch_pattern: agent/{{ issue.identifier }}/{{ run.short_id }}
+    procedure:
+      runtime: tactus
+      file: workflows/kanbus-worker.tac
+      timeout_seconds: 3600
+```
+
+The Tactus procedure receives the assigned issue, repo policy, workspace path, run metadata, and rendered worker prompt. Kanbus also registers a `kanbus` host module for the procedure with path-checked tools for reading, writing, listing files, running guarded workspace commands, and commenting on the assigned issue. Kanbus still owns final validation, artifact checks, commit, push, and PR creation.
+
 Legacy or highly specialized repository workflow files can still live at `workflows/default.md`, but they are lower precedence than `.kanbus.yml` because repo policy belongs with the rest of Kanbus project configuration.
 
 Pull request copy is produced by the `procedures.pr_draft` hook. Kanbus sends a verified evidence bundle to the procedure, expects JSON with `title` and `body`, then validates the result before `gh pr create`.

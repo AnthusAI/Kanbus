@@ -51,6 +51,15 @@ Feature: Kanbus orchestration
     Then the command should fail with exit code 1
     And stderr should contain "worker branch must be under agent/"
 
+  Scenario: Unknown worker runtimes are rejected before work starts
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And a local orchestration target repository
+    And an orchestration workflow "workflow.md" with worker runtime "shell-agent"
+    When I run the orchestration worker for issue "kanbus-run01" with workflow "workflow.md"
+    Then the command should fail with exit code 1
+    And stderr should contain "unsupported worker runtime"
+
   Scenario: Named workflow presets are resolved from the repository
     Given a Kanbus project with default configuration
     And an issue "kanbus-run01" of type "task" with status "open"
