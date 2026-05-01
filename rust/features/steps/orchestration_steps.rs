@@ -90,6 +90,25 @@ fn given_repository_orchestration_workflow_preset(world: &mut KanbusWorld, name:
     );
 }
 
+#[given("repo-level orchestration config")]
+fn given_repo_level_orchestration_config(world: &mut KanbusWorld) {
+    let cwd = world.working_directory.as_ref().expect("working directory");
+    let fake_app_server = write_fake_app_server(cwd);
+    let target_repo = world
+        .orchestration_target_repo
+        .as_ref()
+        .expect("target repo");
+    let config_path = cwd.join(".kanbus.yml");
+    let mut config = fs::read_to_string(&config_path).expect("read config");
+    config.push_str(&format!(
+        "\norchestration:\n  target:\n    repo: {}\n    branch: develop\n    validation: \"true\"\n    publish: push-only\n  workspace:\n    root: {}\n  worker:\n    branch_pattern: agent/{{{{ issue.identifier }}}}/{{{{ run.short_id }}}}\n  codex:\n    command: {}\n",
+        target_repo.to_string_lossy(),
+        workspace_root_outside(world).to_string_lossy(),
+        fake_app_server.to_string_lossy()
+    ));
+    fs::write(config_path, config).expect("write config");
+}
+
 #[when(expr = "I run the orchestration worker for issue {string} with workflow {string}")]
 fn when_run_orchestration_worker(world: &mut KanbusWorld, issue_id: String, workflow: String) {
     let cwd = world.working_directory.as_ref().expect("working directory");
@@ -103,6 +122,26 @@ fn when_run_orchestration_worker(world: &mut KanbusWorld, issue_id: String, work
         workflow,
         target_repo.to_string_lossy()
     );
+    let args = shell_words::split(&command).expect("parse command");
+    let result = run_from_args_with_output(args, cwd);
+    match result {
+        Ok(output) => {
+            world.exit_code = Some(0);
+            world.stdout = Some(output.stdout);
+            world.stderr = Some(output.stderr);
+        }
+        Err(error) => {
+            world.exit_code = Some(1);
+            world.stdout = Some(String::new());
+            world.stderr = Some(error.to_string());
+        }
+    }
+}
+
+#[when(expr = "I run the orchestration worker for issue {string} without a workflow")]
+fn when_run_orchestration_worker_without_workflow(world: &mut KanbusWorld, issue_id: String) {
+    let cwd = world.working_directory.as_ref().expect("working directory");
+    let command = format!("kanbus worker run {issue_id}");
     let args = shell_words::split(&command).expect("parse command");
     let result = run_from_args_with_output(args, cwd);
     match result {
@@ -142,6 +181,27 @@ fn write_orchestration_workflow_with_branch(
     branch_pattern: &str,
 ) {
     let cwd = world.working_directory.as_ref().expect("working directory");
+    let fake_app_server = write_fake_app_server(cwd);
+    let target_repo = world
+        .orchestration_target_repo
+        .as_ref()
+        .map(|path| format!("  repo: {}\n", path.to_string_lossy()))
+        .unwrap_or_default();
+    let workflow = format!(
+        "---\ntarget:\n{}  branch: develop\n  validation: \"true\"\n  publish: {publish_mode}\nworkspace:\n  root: {}\nworker:\n  branch_pattern: {}\ncodex:\n  command: {}\n---\nDo harmless work for {{{{ issue.identifier }}}}.\n",
+        target_repo,
+        workspace_root.to_string_lossy(),
+        branch_pattern,
+        fake_app_server.to_string_lossy()
+    );
+    let path = cwd.join(filename);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("create workflow parent");
+    }
+    fs::write(path, workflow).expect("write workflow");
+}
+
+fn write_fake_app_server(cwd: &Path) -> PathBuf {
     let fake_app_server = cwd.join("fake-app-server.sh");
     fs::write(
         &fake_app_server,
@@ -162,23 +222,7 @@ done
     )
     .expect("write fake app server");
     run_command(cwd, Command::new("chmod").arg("+x").arg(&fake_app_server));
-    let target_repo = world
-        .orchestration_target_repo
-        .as_ref()
-        .map(|path| format!("  repo: {}\n", path.to_string_lossy()))
-        .unwrap_or_default();
-    let workflow = format!(
-        "---\ntarget:\n{}  branch: develop\n  validation: \"true\"\n  publish: {publish_mode}\nworkspace:\n  root: {}\nworker:\n  branch_pattern: {}\ncodex:\n  command: {}\n---\nDo harmless work for {{{{ issue.identifier }}}}.\n",
-        target_repo,
-        workspace_root.to_string_lossy(),
-        branch_pattern,
-        fake_app_server.to_string_lossy()
-    );
-    let path = cwd.join(filename);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).expect("create workflow parent");
-    }
-    fs::write(path, workflow).expect("write workflow");
+    fake_app_server
 }
 
 fn workspace_root_outside(world: &KanbusWorld) -> PathBuf {

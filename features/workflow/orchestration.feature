@@ -60,6 +60,15 @@ Feature: Kanbus orchestration
     Then the command should succeed
     And stdout should contain "\"remote_branch\""
 
+  Scenario: Repo-level orchestration config is used without a workflow file
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And a local orchestration target repository
+    And repo-level orchestration config
+    When I run the orchestration worker for issue "kanbus-run01" without a workflow
+    Then the command should succeed
+    And stdout should contain "\"remote_branch\""
+
   Scenario: Missing named workflow presets fail clearly
     Given a Kanbus project with default configuration
     And an issue "kanbus-run01" of type "task" with status "open"

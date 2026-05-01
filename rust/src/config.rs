@@ -255,6 +255,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         wiki_directory: None,
         ai: None,
         hooks: HooksConfiguration::default(),
+        orchestration: None,
         github_security: None,
     }
 }

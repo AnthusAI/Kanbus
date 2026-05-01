@@ -899,6 +899,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         realtime: RealtimeConfig::default(),
         overlay: OverlayConfig::default(),
         hooks: HooksConfiguration::default(),
+        orchestration: None,
         wiki_directory: None,
         ai: None,
         github_security: None,

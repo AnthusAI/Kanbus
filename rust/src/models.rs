@@ -310,6 +310,8 @@ pub struct ProjectConfiguration {
     pub overlay: OverlayConfig,
     #[serde(default)]
     pub hooks: HooksConfiguration,
+    #[serde(default)]
+    pub orchestration: Option<serde_yaml::Value>,
     pub github_security: Option<GithubSecurityConfiguration>,
 }
 

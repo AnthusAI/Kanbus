@@ -1,0 +1,25 @@
+{
+  "id": "kbs-c439de43-b9cb-42d4-9bba-fbf2e0891455",
+  "title": "Add repo-level orchestration configuration",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 0,
+  "assignee": "codex",
+  "creator": null,
+  "parent": "kbs-a67fb487-3fc3-4699-a883-8b1b8b82e42e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6ebdf88f-89df-4fc6-a97c-722489c53432",
+      "author": "derek.norrbom",
+      "text": "Implemented repo-level orchestration config in .kanbus.yml as an overlay on the built-in generic workflow. Added resolution tests, Gherkin coverage, docs, and validation for invalid repo config.",
+      "created_at": "2026-05-01T01:25:15.755134Z"
+    }
+  ],
+  "created_at": "2026-05-01T01:17:24.272702Z",
+  "updated_at": "2026-05-01T01:25:15.769269Z",
+  "closed_at": "2026-05-01T01:25:15.769269Z",
+  "custom": {}
+}

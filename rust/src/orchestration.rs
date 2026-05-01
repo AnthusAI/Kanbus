@@ -54,8 +54,8 @@ pub struct OrchestrationRunRecord {
     pub error: Option<String>,
 }
 
-/// Workflow settings loaded from a Markdown workflow file.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+/// Workflow settings loaded from Markdown or repository configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OrchestrationWorkflow {
     #[serde(default)]
     pub target: OrchestrationTargetConfig,
@@ -72,14 +72,14 @@ pub struct OrchestrationWorkflow {
 }
 
 /// Optional bounded procedure hooks used by orchestration.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct OrchestrationProceduresConfig {
     #[serde(default)]
     pub pr_draft: Option<OrchestrationProcedureConfig>,
 }
 
 /// One configured procedure invocation.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OrchestrationProcedureConfig {
     #[serde(default = "default_procedure_runtime")]
     pub runtime: String,
@@ -99,7 +99,7 @@ fn default_procedure_timeout_seconds() -> u64 {
 }
 
 /// Target repository settings for worker execution.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OrchestrationTargetConfig {
     pub repo: Option<String>,
     #[serde(default = "default_target_branch")]
@@ -134,7 +134,7 @@ impl Default for OrchestrationTargetConfig {
 }
 
 /// Workspace settings for worker execution.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OrchestrationWorkspaceConfig {
     #[serde(default = "default_workspace_root")]
     pub root: String,
@@ -149,7 +149,7 @@ impl Default for OrchestrationWorkspaceConfig {
 }
 
 /// Worker branch settings.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OrchestrationWorkerConfig {
     #[serde(default = "default_branch_pattern")]
     pub branch_pattern: String,
@@ -164,7 +164,7 @@ impl Default for OrchestrationWorkerConfig {
 }
 
 /// Codex App Server settings.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OrchestrationCodexConfig {
     #[serde(default = "default_codex_command")]
     pub command: String,
@@ -390,11 +390,52 @@ fn load_workflow_or_default(
         let workflow_path = resolve_workflow_path(root, workflow_path)?;
         return load_workflow(&workflow_path);
     }
+    if let Some(workflow) = load_repository_orchestration_workflow(root)? {
+        return Ok(workflow);
+    }
     let default_path = root.join("workflows").join("default.md");
     if default_path.is_file() {
         return load_workflow(&default_path);
     }
     Ok(default_orchestration_workflow())
+}
+
+fn load_repository_orchestration_workflow(
+    root: &Path,
+) -> Result<Option<OrchestrationWorkflow>, KanbusError> {
+    let config_path = match get_configuration_path(root) {
+        Ok(config_path) => config_path,
+        Err(_) => return Ok(None),
+    };
+    let configuration = load_project_configuration(&config_path)?;
+    let Some(orchestration) = configuration.orchestration else {
+        return Ok(None);
+    };
+    let mut base = serde_yaml::to_value(default_orchestration_workflow())
+        .map_err(|error| KanbusError::Configuration(error.to_string()))?;
+    merge_yaml_value(&mut base, orchestration);
+    let workflow: OrchestrationWorkflow = serde_yaml::from_value(base)
+        .map_err(|error| KanbusError::Configuration(error.to_string()))?;
+    validate_workflow(&workflow)?;
+    Ok(Some(workflow))
+}
+
+fn merge_yaml_value(base: &mut serde_yaml::Value, overlay: serde_yaml::Value) {
+    match (base, overlay) {
+        (serde_yaml::Value::Mapping(base_map), serde_yaml::Value::Mapping(overlay_map)) => {
+            for (key, overlay_value) in overlay_map {
+                match base_map.get_mut(&key) {
+                    Some(base_value) => merge_yaml_value(base_value, overlay_value),
+                    None => {
+                        base_map.insert(key, overlay_value);
+                    }
+                }
+            }
+        }
+        (base_value, overlay_value) => {
+            *base_value = overlay_value;
+        }
+    }
 }
 
 fn default_orchestration_workflow() -> OrchestrationWorkflow {
@@ -2086,6 +2127,112 @@ mod tests {
         assert!(source.contains("Completed without output."));
         assert!(!source.contains("Agent {"));
         assert!(workflow.prompt_template.contains("{{ issue.description }}"));
+    }
+
+    #[test]
+    fn repository_orchestration_config_overlays_builtin_workflow() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        crate::file_io::initialize_project(temp.path(), false).expect("initialize project");
+        let config_path = temp.path().join(".kanbus.yml");
+        let mut configuration =
+            load_project_configuration(&config_path).expect("load default configuration");
+        configuration.orchestration = Some(
+            serde_yaml::from_str(
+                r#"
+target:
+  validation: poetry check --lock
+worker:
+  branch_pattern: agent/{{ issue.identifier }}/repo-config
+"#,
+            )
+            .expect("orchestration value"),
+        );
+        fs::write(
+            &config_path,
+            serde_yaml::to_string(&configuration).expect("serialize config"),
+        )
+        .expect("write config");
+
+        let workflow = load_workflow_or_default(temp.path(), None).expect("repo workflow");
+
+        assert_eq!(workflow.target.validation, "poetry check --lock");
+        assert_eq!(
+            workflow.worker.branch_pattern,
+            "agent/{{ issue.identifier }}/repo-config"
+        );
+        assert_eq!(workflow.target.publish, "pull-request");
+        assert_eq!(
+            workflow
+                .procedures
+                .pr_draft
+                .as_ref()
+                .expect("default pr draft procedure")
+                .runtime,
+            "tactus"
+        );
+        assert!(workflow.prompt_template.contains("{{ issue.description }}"));
+    }
+
+    #[test]
+    fn explicit_workflow_file_overrides_repository_orchestration_config() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        crate::file_io::initialize_project(temp.path(), false).expect("initialize project");
+        let config_path = temp.path().join(".kanbus.yml");
+        let mut configuration =
+            load_project_configuration(&config_path).expect("load default configuration");
+        configuration.orchestration = Some(
+            serde_yaml::from_str(
+                r#"
+target:
+  validation: poetry check --lock
+"#,
+            )
+            .expect("orchestration value"),
+        );
+        fs::write(
+            &config_path,
+            serde_yaml::to_string(&configuration).expect("serialize config"),
+        )
+        .expect("write config");
+        let workflow_path = temp.path().join("workflow.md");
+        fs::write(
+            &workflow_path,
+            "---\ntarget:\n  validation: cargo test\n---\nUse file workflow.",
+        )
+        .expect("write workflow");
+
+        let workflow = load_workflow_or_default(temp.path(), Some(Path::new("workflow.md")))
+            .expect("workflow");
+
+        assert_eq!(workflow.target.validation, "cargo test");
+        assert_eq!(workflow.prompt_template, "Use file workflow.");
+    }
+
+    #[test]
+    fn invalid_repository_orchestration_config_fails_clearly() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        crate::file_io::initialize_project(temp.path(), false).expect("initialize project");
+        let config_path = temp.path().join(".kanbus.yml");
+        let mut configuration =
+            load_project_configuration(&config_path).expect("load default configuration");
+        configuration.orchestration = Some(
+            serde_yaml::from_str(
+                r#"
+target:
+  publish: merge-direct
+"#,
+            )
+            .expect("orchestration value"),
+        );
+        fs::write(
+            &config_path,
+            serde_yaml::to_string(&configuration).expect("serialize config"),
+        )
+        .expect("write config");
+
+        let error = load_workflow_or_default(temp.path(), None).expect_err("invalid workflow");
+
+        assert!(error.to_string().contains("unsupported publish mode"));
     }
 
     #[test]

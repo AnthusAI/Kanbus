@@ -12,12 +12,28 @@ kbs orchestrator run \
 
 Resolution order:
 
-1. If the current Kanbus project has `workflows/default.md`, Kanbus uses it.
-2. Otherwise Kanbus uses the built-in generic workflow.
+1. If `--workflow <path-or-preset>` is supplied, Kanbus uses that explicit workflow.
+2. If the current Kanbus project has an `orchestration:` block in `.kanbus.yml`, Kanbus overlays it onto the built-in generic workflow and uses the result.
+3. If the current Kanbus project has `workflows/default.md`, Kanbus uses it.
+4. Otherwise Kanbus uses the built-in generic workflow.
 
 Task-specific details belong in the Kanbus issue title and description. Workflow files describe project policy: target branch, validation command, publish mode, workspace root, branch naming, generic worker rules, and bounded procedure hooks.
 
-The repository default workflow lives at `workflows/default.md`.
+The preferred repository default lives in `.kanbus.yml` so operators can run the same command for every task without supplying a workflow file:
+
+```yaml
+orchestration:
+  target:
+    branch: develop
+    validation: make test
+    publish: pull-request
+  workspace:
+    root: ~/.kanbus/orchestration-workspaces
+  worker:
+    branch_pattern: agent/{{ issue.identifier }}/{{ run.short_id }}
+```
+
+Legacy or highly specialized repository workflow files can still live at `workflows/default.md`, but they are lower precedence than `.kanbus.yml` because repo policy belongs with the rest of Kanbus project configuration.
 
 Pull request copy is produced by the `procedures.pr_draft` hook. Kanbus sends a verified evidence bundle to the procedure, expects JSON with `title` and `body`, then validates the result before `gh pr create`.
 
