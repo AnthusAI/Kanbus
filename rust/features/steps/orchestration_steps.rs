@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use cucumber::{given, when};
+use cucumber::{given, then, when};
 
 use kanbus::cli::run_from_args_with_output;
 
@@ -115,14 +115,43 @@ fn given_repo_level_orchestration_config(world: &mut KanbusWorld) {
         .as_ref()
         .expect("target repo");
     let config_path = cwd.join(".kanbus.yml");
-    let mut config = fs::read_to_string(&config_path).expect("read config");
-    config.push_str(&format!(
-        "\norchestration:\n  target:\n    repo: {}\n    branch: develop\n    validation: \"true\"\n    publish: push-only\n  workspace:\n    root: {}\n  worker:\n    branch_pattern: agent/{{{{ issue.identifier }}}}/{{{{ run.short_id }}}}\n  codex:\n    command: {}\n",
-        target_repo.to_string_lossy(),
-        workspace_root_outside(world).to_string_lossy(),
-        fake_app_server.to_string_lossy()
-    ));
+    append_repo_orchestration_config(
+        &config_path,
+        &format!(
+            "orchestration:\n  target:\n    repo: {}\n    branch: develop\n    validation: \"true\"\n    publish: push-only\n  workspace:\n    root: {}\n  worker:\n    branch_pattern: agent/{{{{ issue.identifier }}}}/{{{{ run.short_id }}}}\n  codex:\n    command: {}\n",
+            target_repo.to_string_lossy(),
+            workspace_root_outside(world).to_string_lossy(),
+            fake_app_server.to_string_lossy()
+        ),
+    );
+}
+
+fn append_repo_orchestration_config(config_path: &Path, orchestration_block: &str) {
+    let config = fs::read_to_string(config_path).expect("read config");
+    let mut config = config.replace("\norchestration: null\n", "\n");
+    config.push('\n');
+    config.push_str(orchestration_block);
     fs::write(config_path, config).expect("write config");
+}
+
+#[given("repo-level orchestration config using the Tactus worker runtime")]
+fn given_repo_level_tactus_orchestration_config(world: &mut KanbusWorld) {
+    let cwd = world.working_directory.as_ref().expect("working directory");
+    let fake_tactus_python = write_fake_tactus_python(cwd);
+    let target_repo = world
+        .orchestration_target_repo
+        .as_ref()
+        .expect("target repo");
+    let config_path = cwd.join(".kanbus.yml");
+    append_repo_orchestration_config(
+        &config_path,
+        &format!(
+            "orchestration:\n  target:\n    repo: {}\n    branch: develop\n    validation: \"true\"\n    publish: push-only\n  workspace:\n    root: {}\n  worker:\n    branch_pattern: agent/{{{{ issue.identifier }}}}/{{{{ run.short_id }}}}\n    runtime: tactus\n    procedure:\n      runtime: tactus\n      command: {}\n      source: |\n        Procedure {{}}\n",
+            target_repo.to_string_lossy(),
+            workspace_root_outside(world).to_string_lossy(),
+            fake_tactus_python.to_string_lossy()
+        ),
+    );
 }
 
 #[when(expr = "I run the orchestration worker for issue {string} with workflow {string}")]
@@ -268,6 +297,88 @@ fn workspace_root_outside(world: &KanbusWorld) -> PathBuf {
         .parent()
         .expect("working directory parent")
         .join("orchestration-workspaces")
+}
+
+#[then(expr = "the target checkout should not contain {string}")]
+fn then_target_checkout_should_not_contain(world: &mut KanbusWorld, relative_path: String) {
+    let root = workspace_root_outside(world);
+    if !root.exists() {
+        return;
+    }
+    assert!(
+        !contains_relative_path(&root, Path::new(&relative_path)),
+        "target checkout contains {relative_path}"
+    );
+}
+
+#[then("the generic Tactus worker should expose constrained edit tools")]
+fn then_generic_tactus_worker_exposes_constrained_edit_tools(_: &mut KanbusWorld) {
+    let source = read_generic_tactus_worker_source();
+    assert!(source.contains("append_text = Tool"));
+    assert!(source.contains("replace_text = Tool"));
+    assert!(source.contains("create_file = Tool"));
+}
+
+#[then("the generic Tactus worker should not expose an existing-file overwrite tool")]
+fn then_generic_tactus_worker_has_no_existing_file_overwrite_tool(_: &mut KanbusWorld) {
+    let source = read_generic_tactus_worker_source();
+    assert!(!source.contains("tools = {read_file, write_file"));
+}
+
+fn read_generic_tactus_worker_source() -> String {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("repo root");
+    fs::read_to_string(repo_root.join("workflows/kanbus-worker.tac"))
+        .expect("read worker procedure")
+}
+
+fn write_fake_tactus_python(cwd: &Path) -> PathBuf {
+    let fake_python = cwd.join("fake-tactus-python.sh");
+    fs::write(
+        &fake_python,
+        r#"#!/bin/sh
+if [ "$1" != "-c" ]; then
+  echo "expected -c" >&2
+  exit 1
+fi
+script="$2"
+payload=$(cat)
+case "$script" in
+  *"def append_text(self, path, text):"*) ;;
+  *) echo "missing append_text host tool" >&2; exit 2 ;;
+esac
+case "$script" in
+  *"def replace_text(self, path, old_text, new_text):"*) ;;
+  *) echo "missing replace_text host tool" >&2; exit 3 ;;
+esac
+case "$script" in
+  *"def write_file(self, path, content):"*) echo "unsafe write_file host tool exposed" >&2; exit 4 ;;
+esac
+case "$payload" in
+  *"\"storage_dir\":\""*".kanbus-capabilities/tactus/worker\""*) ;;
+  *) echo "worker storage is not outside target checkout" >&2; exit 5 ;;
+esac
+printf '{"status":"completed","summary":"fake tactus worker","changed_files":[],"notes":[]}\n'
+"#,
+    )
+    .expect("write fake tactus python");
+    run_command(cwd, Command::new("chmod").arg("+x").arg(&fake_python));
+    fake_python
+}
+
+fn contains_relative_path(root: &Path, relative_path: &Path) -> bool {
+    let entries = fs::read_dir(root).expect("read directory");
+    for entry in entries {
+        let path = entry.expect("directory entry").path();
+        if path.ends_with(relative_path) {
+            return true;
+        }
+        if path.is_dir() && contains_relative_path(&path, relative_path) {
+            return true;
+        }
+    }
+    false
 }
 
 fn run_git(root: &Path, args: &[&str]) {

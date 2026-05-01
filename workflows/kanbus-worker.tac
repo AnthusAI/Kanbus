@@ -20,14 +20,37 @@ read_file = Tool {
     end
 }
 
-write_file = Tool {
-    description = "Write a repository-relative file in the isolated workspace.",
+create_file = Tool {
+    description = "Create a new repository-relative file in the isolated workspace. This fails if the file already exists.",
     input = {
         path = field.string{required = true},
         content = field.string{required = true}
     },
     function(args)
-        return kanbus.write_file(args.path, args.content)
+        return kanbus.create_file(args.path, args.content)
+    end
+}
+
+append_text = Tool {
+    description = "Append text to an existing repository-relative file in the isolated workspace.",
+    input = {
+        path = field.string{required = true},
+        text = field.string{required = true}
+    },
+    function(args)
+        return kanbus.append_text(args.path, args.text)
+    end
+}
+
+replace_text = Tool {
+    description = "Replace one exact text occurrence in an existing repository-relative file. This fails unless old_text appears exactly once.",
+    input = {
+        path = field.string{required = true},
+        old_text = field.string{required = true},
+        new_text = field.string{required = true}
+    },
+    function(args)
+        return kanbus.replace_text(args.path, args.old_text, args.new_text)
     end
 }
 
@@ -101,11 +124,13 @@ Rules:
 - Use only the tools provided for this turn.
 - Read files before changing them.
 - Keep edits scoped to the issue.
+- For existing files, use append_text or replace_text. Do not rewrite a whole existing file.
+- Use create_file only when the assigned task explicitly requires a new file.
 - Do not run git add, git commit, git push, gh, or Kanbus mutation commands.
 - You may comment only on the assigned Kanbus task.
 - When finished, call done with a concise summary.
 ]],
-    tools = {read_file, write_file, list_files, run_command, comment_on_task, done},
+    tools = {read_file, append_text, replace_text, create_file, list_files, run_command, comment_on_task, done},
 }
 
 local function changed_files()

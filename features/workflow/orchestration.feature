@@ -104,3 +104,22 @@ Feature: Kanbus orchestration
     When I run "kanbus orchestrator run --once --max-concurrent 1 --issue kanbus-run01"
     Then the command should fail with exit code 1
     And stderr should contain "explicit issue is not open"
+
+  Scenario: Tactus worker storage is outside the target checkout
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And a local orchestration target repository
+    And repo-level orchestration config using the Tactus worker runtime
+    When I run the orchestration worker for issue "kanbus-run01" without a workflow
+    Then the command should succeed
+    And the target checkout should not contain ".kanbus/tactus/worker"
+
+  Scenario: Generic Tactus workers cannot overwrite existing files wholesale
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-run01" of type "task" with status "open"
+    And a local orchestration target repository
+    And repo-level orchestration config using the Tactus worker runtime
+    When I run the orchestration worker for issue "kanbus-run01" without a workflow
+    Then the command should succeed
+    And the generic Tactus worker should expose constrained edit tools
+    And the generic Tactus worker should not expose an existing-file overwrite tool

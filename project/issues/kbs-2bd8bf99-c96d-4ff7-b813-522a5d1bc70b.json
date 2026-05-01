@@ -1,0 +1,18 @@
+{
+  "id": "kbs-2bd8bf99-c96d-4ff7-b813-522a5d1bc70b",
+  "title": "Harden Tactus worker file tools",
+  "description": "The Tactus worker runtime exposed a whole-file write tool and stored runtime state inside the target checkout. A smoke run against Call Criteria proved this can destructively rewrite a tracked file and leave .kanbus runtime artifacts in the worker workspace.\n\nFeature: Tactus worker safety\n\nScenario: Runtime state stays outside the target checkout\nGiven a Tactus worker run has an isolated target workspace\nWhen Kanbus prepares worker runtime storage\nThen the storage path is outside the target workspace\nAnd no .kanbus runtime directory is created in the target checkout\n\nScenario: Existing files are changed through constrained edit tools\nGiven a generic Tactus worker receives a task that edits a tracked file\nWhen the worker is given file modification tools\nThen existing-file changes require exact append or replace operations\nAnd the worker is not given a tool that can overwrite an existing file wholesale.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "codex",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T01:54:24.332147Z",
+  "updated_at": "2026-05-01T02:04:04.549765Z",
+  "closed_at": "2026-05-01T02:04:04.549765Z",
+  "custom": {}
+}

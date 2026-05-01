@@ -995,6 +995,7 @@ fn sanitize_identifier_segment(value: &str) -> String {
 struct WorkerCapabilityBridge {
     bin_dir: PathBuf,
     comments_dir: PathBuf,
+    tactus_dir: PathBuf,
 }
 
 fn prepare_worker_capability_bridge(
@@ -1005,8 +1006,10 @@ fn prepare_worker_capability_bridge(
     let bridge_dir = workspace.with_extension("kanbus-capabilities");
     let bin_dir = bridge_dir.join("bin");
     let comments_dir = bridge_dir.join("comments");
+    let tactus_dir = bridge_dir.join("tactus");
     fs::create_dir_all(&bin_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     fs::create_dir_all(&comments_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    fs::create_dir_all(&tactus_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let issue_json_path = bridge_dir.join("issue.json");
     let issue_text_path = bridge_dir.join("issue.txt");
@@ -1031,6 +1034,7 @@ fn prepare_worker_capability_bridge(
     Ok(WorkerCapabilityBridge {
         bin_dir,
         comments_dir,
+        tactus_dir,
     })
 }
 
@@ -1381,9 +1385,8 @@ fn run_tactus_worker(
         )
     })?;
     let (source, source_file_path) = load_worker_procedure_source(root, procedure)?;
-    let storage_dir = workspace
-        .join(".kanbus")
-        .join("tactus")
+    let storage_dir = capability
+        .tactus_dir
         .join("worker")
         .to_string_lossy()
         .to_string();
@@ -1511,6 +1514,8 @@ def guarded_path(path):
     relative = resolved.relative_to(workspace).as_posix()
     if relative == ".git" or relative.startswith(".git/"):
         raise ValueError(".git is not writable by worker tools")
+    if relative == ".kanbus" or relative.startswith(".kanbus/"):
+        raise ValueError(".kanbus runtime state is not writable by worker tools")
     if (
         relative == "project/issues"
         or relative.startswith("project/issues/")
@@ -1542,10 +1547,34 @@ class KanbusHost:
     def read_file(self, path):
         return guarded_path(path).read_text()
 
-    def write_file(self, path, content):
+    def create_file(self, path, content):
         target = guarded_path(path)
+        if target.exists():
+            raise ValueError("create_file cannot overwrite an existing file")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(str(content))
+        return {"ok": True, "path": str(path)}
+
+    def append_text(self, path, text):
+        target = guarded_path(path)
+        if not target.is_file():
+            raise ValueError("append_text requires an existing file")
+        with target.open("a") as handle:
+            handle.write(str(text))
+        return {"ok": True, "path": str(path)}
+
+    def replace_text(self, path, old_text, new_text):
+        target = guarded_path(path)
+        if not target.is_file():
+            raise ValueError("replace_text requires an existing file")
+        old_text = str(old_text)
+        if old_text == "":
+            raise ValueError("old_text is required")
+        content = target.read_text()
+        count = content.count(old_text)
+        if count != 1:
+            raise ValueError(f"old_text must appear exactly once; found {count}")
+        target.write_text(content.replace(old_text, str(new_text), 1))
         return {"ok": True, "path": str(path)}
 
     def list_files(self, path=""):
@@ -1556,7 +1585,7 @@ class KanbusHost:
         for candidate in sorted(root.rglob("*")):
             if candidate.is_file():
                 relative = candidate.relative_to(workspace).as_posix()
-                if not relative.startswith(".git/"):
+                if not relative.startswith(".git/") and not relative.startswith(".kanbus/"):
                     results.append(relative)
         return results
 
@@ -2089,7 +2118,7 @@ fn run_tactus_pr_draft(
         (source, Some(file_path.to_string_lossy().to_string()))
     };
     let storage_dir = workspace
-        .join(".kanbus")
+        .with_extension("kanbus-capabilities")
         .join("tactus")
         .join("pr-draft")
         .to_string_lossy()
@@ -2228,7 +2257,7 @@ fn reject_project_management_artifact_changes(workspace: &Path) -> Result<(), Ka
         return Ok(());
     }
     Err(KanbusError::IssueOperation(format!(
-        "orchestrated workers must not modify Kanbus project artifacts: {}",
+        "orchestrated workers must not modify Kanbus artifacts: {}",
         forbidden_paths.join(", ")
     )))
 }
@@ -2239,6 +2268,8 @@ fn project_management_artifact_path(status_line: &str) -> Option<String> {
     if path.starts_with("project/issues/")
         || path.starts_with("project/events/")
         || path.starts_with("project/runs/")
+        || path == ".kanbus"
+        || path.starts_with(".kanbus/")
     {
         Some(path.to_string())
     } else {
@@ -2504,8 +2535,13 @@ worker:
         fs::create_dir_all(&workspace).expect("workspace");
         let comments_dir = temp.path().join("comments");
         let bin_dir = temp.path().join("bin");
+        let tactus_dir = temp
+            .path()
+            .join("workspace.kanbus-capabilities")
+            .join("tactus");
         fs::create_dir_all(&comments_dir).expect("comments");
         fs::create_dir_all(&bin_dir).expect("bin");
+        fs::create_dir_all(&tactus_dir).expect("tactus");
         let fake_python = temp.path().join("fake-python");
         fs::write(
             &fake_python,
@@ -2521,7 +2557,7 @@ case "$script" in
   *) echo "missing Kanbus host module" >&2; exit 2 ;;
 esac
 case "$payload" in
-  *"\"storage_dir\":\""*".kanbus/tactus/worker\""*) ;;
+  *"\"storage_dir\":\""*".kanbus-capabilities/tactus/worker\""*) ;;
   *) echo "missing isolated worker storage" >&2; exit 3 ;;
 esac
 case "$payload" in
@@ -2569,6 +2605,7 @@ printf '{"status":"completed","summary":"fake tactus worker","changed_files":["R
         let capability = WorkerCapabilityBridge {
             bin_dir,
             comments_dir,
+            tactus_dir,
         };
 
         let event = run_tactus_worker(
@@ -2584,6 +2621,23 @@ printf '{"status":"completed","summary":"fake tactus worker","changed_files":["R
 
         assert!(event.contains("tactus/completed"));
         assert!(event.contains("fake tactus worker"));
+    }
+
+    #[test]
+    fn generic_tactus_worker_uses_constrained_edit_tools() {
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("repo root");
+        let source = fs::read_to_string(repo_root.join("workflows/kanbus-worker.tac"))
+            .expect("read worker procedure");
+
+        assert!(source.contains("append_text = Tool"));
+        assert!(source.contains("replace_text = Tool"));
+        assert!(source.contains("create_file = Tool"));
+        assert!(source.contains(
+            "tools = {read_file, append_text, replace_text, create_file, list_files, run_command, comment_on_task, done}"
+        ));
+        assert!(!source.contains("tools = {read_file, write_file"));
     }
 
     #[test]
@@ -2707,6 +2761,10 @@ target:
         assert_eq!(
             project_management_artifact_path("R  old.json -> project/runs/run.json").as_deref(),
             Some("project/runs/run.json")
+        );
+        assert_eq!(
+            project_management_artifact_path("?? .kanbus/tactus/worker/state.json").as_deref(),
+            Some(".kanbus/tactus/worker/state.json")
         );
         assert_eq!(
             git_status_path("AM poetry.lock").as_deref(),
@@ -2928,7 +2986,7 @@ case "$script" in
   *) echo "missing run id" >&2; exit 4 ;;
 esac
 case "$payload" in
-  *"\"storage_dir\":\""*".kanbus/tactus/pr-draft\""*) ;;
+  *"\"storage_dir\":\""*".kanbus-capabilities/tactus/pr-draft\""*) ;;
   *) echo "missing isolated storage dir" >&2; exit 5 ;;
 esac
 case "$payload" in
