@@ -714,7 +714,11 @@ fn run_worker_inner(
 
     reject_project_management_artifact_changes(&workspace)?;
     reject_unallowed_publish_changes(&workspace, workflow)?;
-    let validation = run_shell_command(&workspace, &workflow.target.validation)?;
+    let validation = run_shell_command_with_env(
+        &workspace,
+        &workflow.target.validation,
+        &orchestration_command_env(&capability),
+    )?;
     record.validation_summary = Some(validation);
     reject_project_management_artifact_changes(&workspace)?;
     reject_unallowed_publish_changes(&workspace, workflow)?;
@@ -995,6 +999,7 @@ fn sanitize_identifier_segment(value: &str) -> String {
 struct WorkerCapabilityBridge {
     bin_dir: PathBuf,
     comments_dir: PathBuf,
+    env_dir: PathBuf,
     tactus_dir: PathBuf,
 }
 
@@ -1006,9 +1011,11 @@ fn prepare_worker_capability_bridge(
     let bridge_dir = workspace.with_extension("kanbus-capabilities");
     let bin_dir = bridge_dir.join("bin");
     let comments_dir = bridge_dir.join("comments");
+    let env_dir = bridge_dir.join("env");
     let tactus_dir = bridge_dir.join("tactus");
     fs::create_dir_all(&bin_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     fs::create_dir_all(&comments_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    fs::create_dir_all(&env_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     fs::create_dir_all(&tactus_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let issue_json_path = bridge_dir.join("issue.json");
@@ -1034,8 +1041,35 @@ fn prepare_worker_capability_bridge(
     Ok(WorkerCapabilityBridge {
         bin_dir,
         comments_dir,
+        env_dir,
         tactus_dir,
     })
+}
+
+fn orchestration_command_env(capability: &WorkerCapabilityBridge) -> Vec<(String, String)> {
+    let env_dir = &capability.env_dir;
+    vec![
+        (
+            "POETRY_VIRTUALENVS_IN_PROJECT".to_string(),
+            "false".to_string(),
+        ),
+        (
+            "POETRY_VIRTUALENVS_PATH".to_string(),
+            env_dir.join("poetry-venvs").to_string_lossy().to_string(),
+        ),
+        (
+            "POETRY_CACHE_DIR".to_string(),
+            env_dir.join("poetry-cache").to_string_lossy().to_string(),
+        ),
+        (
+            "PIP_CACHE_DIR".to_string(),
+            env_dir.join("pip-cache").to_string_lossy().to_string(),
+        ),
+        (
+            "UV_CACHE_DIR".to_string(),
+            env_dir.join("uv-cache").to_string_lossy().to_string(),
+        ),
+    ]
 }
 
 fn render_capability_issue_text(issue: &IssueData, run: &OrchestrationRunRecord) -> String {
@@ -1391,12 +1425,17 @@ fn run_tactus_worker(
         .to_string_lossy()
         .to_string();
     let worker_input = worker_procedure_input(workflow, issue, record, workspace, prompt)?;
+    let command_env: serde_json::Map<String, Value> = orchestration_command_env(capability)
+        .into_iter()
+        .map(|(key, value)| (key, Value::String(value)))
+        .collect();
     let python = procedure.command.as_deref().unwrap_or("python");
     let script = tactus_worker_python_runner();
     let input = json!({
         "source": source,
         "source_file_path": source_file_path,
         "storage_dir": storage_dir,
+        "command_env": command_env,
         "worker_input": worker_input,
         "workspace": workspace.to_string_lossy(),
         "comments_dir": capability.comments_dir.to_string_lossy(),
@@ -1501,6 +1540,7 @@ payload = json.load(sys.stdin)
 workspace = Path(payload["workspace"]).resolve()
 comments_dir = Path(payload["comments_dir"]).resolve()
 path_prefix = payload["path_prefix"]
+command_env = {str(key): str(value) for key, value in payload.get("command_env", {}).items()}
 
 def guarded_path(path):
     if path is None:
@@ -1593,6 +1633,7 @@ class KanbusHost:
         check_command(str(command))
         env = os.environ.copy()
         env["PATH"] = path_prefix + os.pathsep + env.get("PATH", "")
+        env.update(command_env)
         completed = subprocess.run(
             str(command),
             cwd=workspace,
@@ -1725,8 +1766,17 @@ fn read_json_line(reader: &mut impl BufRead) -> Result<Value, KanbusError> {
     serde_json::from_str(line.trim()).map_err(|error| KanbusError::ProtocolError(error.to_string()))
 }
 
-fn run_shell_command(workspace: &Path, command: &str) -> Result<String, KanbusError> {
-    run_command(workspace, Command::new("sh").arg("-lc").arg(command))
+fn run_shell_command_with_env(
+    workspace: &Path,
+    command: &str,
+    env: &[(String, String)],
+) -> Result<String, KanbusError> {
+    let mut shell = Command::new("sh");
+    shell.arg("-lc").arg(command);
+    for (key, value) in env {
+        shell.env(key, value);
+    }
+    run_command(workspace, &mut shell)
 }
 
 fn run_shell_command_with_stdin(
@@ -1762,8 +1812,9 @@ fn run_shell_command_with_stdin(
             let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
             if !output.status.success() {
-                let message = if stderr.is_empty() { stdout } else { stderr };
-                return Err(KanbusError::IssueOperation(message));
+                return Err(KanbusError::IssueOperation(command_failure_message(
+                    &stdout, &stderr,
+                )));
             }
             return Ok(stdout);
         }
@@ -1792,10 +1843,46 @@ fn run_command(workspace: &Path, command: &mut Command) -> Result<String, Kanbus
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
     if !output.status.success() {
-        let message = if stderr.is_empty() { stdout } else { stderr };
-        return Err(KanbusError::IssueOperation(message));
+        return Err(KanbusError::IssueOperation(command_failure_message(
+            &stdout, &stderr,
+        )));
     }
     Ok(stdout)
+}
+
+fn command_failure_message(stdout: &str, stderr: &str) -> String {
+    let stdout = compact_output_stream(stdout);
+    let stderr = compact_output_stream(stderr);
+    match (stdout.is_empty(), stderr.is_empty()) {
+        (true, true) => "command failed without output".to_string(),
+        (false, true) => stdout,
+        (true, false) => stderr,
+        (false, false) => format!("stdout:\n{stdout}\nstderr:\n{stderr}"),
+    }
+}
+
+fn compact_output_stream(output: &str) -> String {
+    const MAX_STREAM_CHARS: usize = 800;
+    let mut compact = output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .rev()
+        .take(20)
+        .collect::<Vec<_>>();
+    compact.reverse();
+    let compact = compact.join("\n");
+    if compact.chars().count() <= MAX_STREAM_CHARS {
+        return compact;
+    }
+    let tail = compact
+        .chars()
+        .rev()
+        .take(MAX_STREAM_CHARS)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    format!("...{tail}")
 }
 
 fn compact_error_message(message: &str) -> String {
@@ -2535,12 +2622,17 @@ worker:
         fs::create_dir_all(&workspace).expect("workspace");
         let comments_dir = temp.path().join("comments");
         let bin_dir = temp.path().join("bin");
+        let env_dir = temp
+            .path()
+            .join("workspace.kanbus-capabilities")
+            .join("env");
         let tactus_dir = temp
             .path()
             .join("workspace.kanbus-capabilities")
             .join("tactus");
         fs::create_dir_all(&comments_dir).expect("comments");
         fs::create_dir_all(&bin_dir).expect("bin");
+        fs::create_dir_all(&env_dir).expect("env");
         fs::create_dir_all(&tactus_dir).expect("tactus");
         let fake_python = temp.path().join("fake-python");
         fs::write(
@@ -2559,6 +2651,14 @@ esac
 case "$payload" in
   *"\"storage_dir\":\""*".kanbus-capabilities/tactus/worker\""*) ;;
   *) echo "missing isolated worker storage" >&2; exit 3 ;;
+esac
+case "$payload" in
+  *"\"POETRY_VIRTUALENVS_IN_PROJECT\":\"false\""*) ;;
+  *) echo "missing external poetry venv policy" >&2; exit 31 ;;
+esac
+case "$payload" in
+  *"\"POETRY_VIRTUALENVS_PATH\":\""*".kanbus-capabilities/env/poetry-venvs\""*) ;;
+  *) echo "missing external poetry venv path" >&2; exit 32 ;;
 esac
 case "$payload" in
   *"\"id\":\"ccpy-d2fd1dff-b73c-48cc-809e-f8b84408a554\""*) ;;
@@ -2605,6 +2705,7 @@ printf '{"status":"completed","summary":"fake tactus worker","changed_files":["R
         let capability = WorkerCapabilityBridge {
             bin_dir,
             comments_dir,
+            env_dir,
             tactus_dir,
         };
 
@@ -2784,6 +2885,54 @@ target:
             "docs-other/file.md",
             &allowed_paths
         ));
+    }
+
+    #[test]
+    fn orchestration_command_environment_keeps_dependency_state_outside_checkout() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let workspace = temp.path().join("workspace");
+        let capability = WorkerCapabilityBridge {
+            bin_dir: temp.path().join("workspace.kanbus-capabilities/bin"),
+            comments_dir: temp.path().join("workspace.kanbus-capabilities/comments"),
+            env_dir: temp.path().join("workspace.kanbus-capabilities/env"),
+            tactus_dir: temp.path().join("workspace.kanbus-capabilities/tactus"),
+        };
+
+        let env = orchestration_command_env(&capability);
+
+        assert!(env
+            .iter()
+            .any(|(key, value)| key == "POETRY_VIRTUALENVS_IN_PROJECT" && value == "false"));
+        for (key, value) in env {
+            if key.ends_with("_DIR") || key == "POETRY_VIRTUALENVS_PATH" {
+                assert!(
+                    !Path::new(&value).starts_with(&workspace),
+                    "{key} should not be inside worker checkout"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn command_failure_message_preserves_stdout_and_stderr() {
+        let message = command_failure_message("test failure", "installer warning");
+
+        assert!(message.contains("stdout:\ntest failure"));
+        assert!(message.contains("stderr:\ninstaller warning"));
+    }
+
+    #[test]
+    fn command_failure_message_keeps_stdout_when_stderr_is_verbose() {
+        let stderr = (0..200)
+            .map(|index| format!("installer warning {index}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let message = command_failure_message("real validation failure", &stderr);
+
+        assert!(message.contains("stdout:\nreal validation failure"));
+        assert!(message.contains("installer warning 199"));
+        assert!(!message.contains("installer warning 0"));
     }
 
     #[test]

@@ -113,6 +113,7 @@ Feature: Kanbus orchestration
     When I run the orchestration worker for issue "kanbus-run01" without a workflow
     Then the command should succeed
     And the target checkout should not contain ".kanbus/tactus/worker"
+    And the target checkout should not contain ".venv"
 
   Scenario: Generic Tactus workers cannot overwrite existing files wholesale
     Given a Kanbus project with default configuration

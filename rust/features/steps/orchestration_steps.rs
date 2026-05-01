@@ -359,6 +359,14 @@ case "$payload" in
   *"\"storage_dir\":\""*".kanbus-capabilities/tactus/worker\""*) ;;
   *) echo "worker storage is not outside target checkout" >&2; exit 5 ;;
 esac
+case "$payload" in
+  *"\"POETRY_VIRTUALENVS_IN_PROJECT\":\"false\""*) ;;
+  *) echo "missing external poetry venv policy" >&2; exit 6 ;;
+esac
+case "$payload" in
+  *"\"POETRY_VIRTUALENVS_PATH\":\""*".kanbus-capabilities/env/poetry-venvs\""*) ;;
+  *) echo "poetry venv path is not outside target checkout" >&2; exit 7 ;;
+esac
 printf '{"status":"completed","summary":"fake tactus worker","changed_files":[],"notes":[]}\n'
 "#,
     )

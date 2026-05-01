@@ -1,0 +1,18 @@
+{
+  "id": "kbs-44975a06-e2f0-4730-ae10-da7e8045de22",
+  "title": "Keep orchestration validation environment outside worker checkout",
+  "description": "Validation commands can create repository-local environments such as .venv inside isolated worker checkouts, and noisy install output can hide the actual failure. Orchestration should provide external cache/venv paths and report the useful failure tail.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "codex",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-01T02:07:52.440004Z",
+  "updated_at": "2026-05-01T02:11:49.614848Z",
+  "closed_at": "2026-05-01T02:11:49.614848Z",
+  "custom": {}
+}
