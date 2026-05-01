@@ -1,6 +1,7 @@
 //! Kanbus-native orchestration primitives.
 
 use std::fs;
+use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -218,6 +219,10 @@ fn default_codex_command() -> String {
 fn default_codex_timeout_seconds() -> u64 {
     3600
 }
+
+const DISPATCH_LOCK_FILENAME: &str = ".orchestration-dispatch.lock";
+const DISPATCH_LOCK_TIMEOUT_SECONDS: u64 = 10;
+const DISPATCH_LOCK_POLL_MS: u64 = 50;
 
 /// Claim the next eligible issue for a worker.
 pub fn claim_next_issue(
@@ -635,12 +640,16 @@ pub fn run_worker(
     let workflow = load_workflow_or_default(root, workflow_path)?;
     validate_workspace_root(root, &workflow)?;
     let issue = load_issue_from_project(root, issue_id)?.issue;
+    ensure_worker_owns_issue(&issue, worker_id)?;
     let mut record = create_run_record(root, issue_id, worker_id)?;
-    let default_target_repo = root.to_string_lossy().to_string();
-    let resolved_target_repo = target_repo
-        .or(workflow.target.repo.as_deref())
-        .or(Some(default_target_repo.as_str()));
-    let result = run_worker_inner(root, &workflow, &issue, resolved_target_repo, &mut record);
+    let resolved_target_repo = resolve_target_repo(root, &workflow, target_repo);
+    let result = run_worker_inner(
+        root,
+        &workflow,
+        &issue,
+        Some(resolved_target_repo.as_str()),
+        &mut record,
+    );
     match result {
         Ok(()) => {
             record.status = OrchestrationRunStatus::Completed;
@@ -673,12 +682,147 @@ pub fn run_orchestrator_once(
             "max-concurrent must be greater than zero".to_string(),
         ));
     }
+    let workflow = load_workflow_or_default(root, workflow_path)?;
+    validate_workspace_root(root, &workflow)?;
+    let (issue, mut record) = claim_and_create_run_record(root, issue_id, worker_id)?;
+    let resolved_target_repo = resolve_target_repo(root, &workflow, None);
+    let result = run_worker_inner(
+        root,
+        &workflow,
+        &issue,
+        Some(resolved_target_repo.as_str()),
+        &mut record,
+    );
+    match result {
+        Ok(()) => {
+            record.status = OrchestrationRunStatus::Completed;
+            record.updated_at = Utc::now();
+            record.last_event = Some("worker completed".to_string());
+            write_run_record(root, &record)?;
+            Ok(record)
+        }
+        Err(error) => {
+            record.status = OrchestrationRunStatus::Failed;
+            record.updated_at = Utc::now();
+            record.error = Some(compact_error_message(&error.to_string()));
+            record.last_event = Some("worker failed".to_string());
+            write_run_record(root, &record)?;
+            Err(error)
+        }
+    }
+}
+
+fn resolve_target_repo<'a>(
+    root: &'a Path,
+    workflow: &'a OrchestrationWorkflow,
+    target_repo: Option<&'a str>,
+) -> String {
+    let default_target_repo = root.to_string_lossy().to_string();
+    target_repo
+        .or(workflow.target.repo.as_deref())
+        .unwrap_or(default_target_repo.as_str())
+        .to_string()
+}
+
+fn ensure_worker_owns_issue(issue: &IssueData, worker_id: &str) -> Result<(), KanbusError> {
+    if issue.status != "in_progress" {
+        return Err(KanbusError::IssueOperation(
+            "worker run requires issue status in_progress".to_string(),
+        ));
+    }
+    if issue.assignee.as_deref() != Some(worker_id) {
+        return Err(KanbusError::IssueOperation(format!(
+            "worker run requires assignee {worker_id}"
+        )));
+    }
+    Ok(())
+}
+
+fn claim_and_create_run_record(
+    root: &Path,
+    issue_id: Option<&str>,
+    worker_id: &str,
+) -> Result<(IssueData, OrchestrationRunRecord), KanbusError> {
+    let _lock = DispatchLock::acquire(root)?;
     let issue = if let Some(issue_id) = issue_id {
         claim_issue(root, issue_id, worker_id)?
     } else {
         claim_next_issue(root, true, worker_id)?
     };
-    run_worker(root, &issue.identifier, workflow_path, None, worker_id)
+    match create_run_record(root, &issue.identifier, worker_id) {
+        Ok(record) => Ok((issue, record)),
+        Err(error) => {
+            let rollback = update_issue(
+                root,
+                &issue.identifier,
+                None,
+                None,
+                Some("open"),
+                Some(""),
+                None,
+                false,
+                true,
+                &[],
+                &[],
+                None,
+                None,
+                None,
+            );
+            match rollback {
+                Ok(_) => Err(error),
+                Err(rollback_error) => Err(KanbusError::IssueOperation(format!(
+                    "failed to create run record after claim: {error}; rollback failed: {rollback_error}"
+                ))),
+            }
+        }
+    }
+}
+
+struct DispatchLock {
+    path: PathBuf,
+}
+
+impl DispatchLock {
+    fn acquire(root: &Path) -> Result<Self, KanbusError> {
+        let lock_path = dispatch_lock_path(root)?;
+        if let Some(parent) = lock_path.parent() {
+            fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+        }
+        let deadline = Instant::now() + Duration::from_secs(DISPATCH_LOCK_TIMEOUT_SECONDS);
+        loop {
+            match OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&lock_path)
+            {
+                Ok(mut file) => {
+                    let _ = writeln!(file, "pid={} time={}", std::process::id(), Utc::now());
+                    return Ok(Self { path: lock_path });
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    if Instant::now() >= deadline {
+                        return Err(KanbusError::IssueOperation(
+                            "orchestration dispatch is busy; retry after the active dispatch finishes".to_string(),
+                        ));
+                    }
+                    std::thread::sleep(Duration::from_millis(DISPATCH_LOCK_POLL_MS));
+                }
+                Err(error) => {
+                    return Err(KanbusError::Io(error.to_string()));
+                }
+            }
+        }
+    }
+}
+
+impl Drop for DispatchLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+fn dispatch_lock_path(root: &Path) -> Result<PathBuf, KanbusError> {
+    Ok(load_project_directory(root)?.join(DISPATCH_LOCK_FILENAME))
 }
 
 fn has_parent_component(path: &Path) -> bool {
@@ -2847,6 +2991,59 @@ target:
             claim_issue(temp.path(), &issue.identifier, "worker-one").expect_err("claim error");
 
         assert_eq!(error.to_string(), "explicit issue is not open");
+    }
+
+    #[test]
+    fn worker_run_requires_issue_owned_by_worker() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        crate::file_io::initialize_project(temp.path(), false).expect("init");
+        let issue = create_test_issue(temp.path(), "Trial issue", "open");
+
+        let error =
+            run_worker(temp.path(), &issue.identifier, None, None, "worker-one").expect_err("run");
+
+        assert_eq!(
+            error.to_string(),
+            "worker run requires issue status in_progress"
+        );
+    }
+
+    #[test]
+    fn run_creation_failure_rolls_back_claimed_issue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        crate::file_io::initialize_project(temp.path(), false).expect("init");
+        let issue = create_test_issue(temp.path(), "Trial issue", "open");
+
+        let project_dir = load_project_directory(temp.path()).expect("project dir");
+        let runs_path = project_dir.join("runs");
+        if runs_path.exists() {
+            if runs_path.is_dir() {
+                fs::remove_dir_all(&runs_path).expect("remove runs dir");
+            } else {
+                fs::remove_file(&runs_path).expect("remove runs file");
+            }
+        }
+        fs::write(&runs_path, "blocked").expect("write runs blocker file");
+
+        let error = run_orchestrator_once(
+            temp.path(),
+            None,
+            1,
+            Some(issue.identifier.as_str()),
+            "worker-one",
+        )
+        .expect_err("orchestrator failure");
+
+        let message = error.to_string();
+        assert!(
+            message.contains("Not a directory") || message.contains("File exists"),
+            "unexpected error: {error}"
+        );
+        let rolled_back = load_issue_from_project(temp.path(), &issue.identifier)
+            .expect("load issue")
+            .issue;
+        assert_eq!(rolled_back.status, "open");
+        assert_eq!(rolled_back.assignee.as_deref(), Some(""));
     }
 
     #[test]
