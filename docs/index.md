@@ -14,3 +14,4 @@ Welcome to the Kanbus documentation site. Kanbus is a git-backed project managem
 - [Migration from Beads](MIGRATION.md)
 - [Kanbus vs. Beads](VS_BEADS.md)
 - [Architecture](ARCHITECTURE.md)
+- [Orchestrator Architecture](ORCHESTRATOR_ARCHITECTURE.md)
