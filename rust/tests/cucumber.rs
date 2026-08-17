@@ -295,8 +295,32 @@ fn cover_additional_paths() {
         None,
     );
 
-    let _ = list_issues(root, None, None, None, None, None, None, &[], true, false);
-    let _ = list_issues(root, None, None, None, None, None, None, &[], false, true);
+    let _ = list_issues(
+        root,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        &[],
+        true,
+        false,
+    );
+    let _ = list_issues(
+        root,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        &[],
+        false,
+        true,
+    );
 
     let _ = build_console_snapshot(root);
 
@@ -412,12 +436,14 @@ fn cover_additional_paths() {
         None,
         None,
         None,
+        None,
         &[],
         true,
         true,
     );
     let _ = list_issues(
         root_multi,
+        None,
         None,
         None,
         None,

@@ -24,6 +24,29 @@ def test_filter_issues_without_filters_returns_all() -> None:
     assert [issue.identifier for issue in result] == ["kanbus-1", "kanbus-2"]
 
 
+def test_filter_issues_matches_parent_by_full_id_and_prefix() -> None:
+    child = build_issue("kanbus-child")
+    child.parent = "B0-0fb0cdb3-32c3-4b5f-8c00-c2b4d7a78d8b"
+    other = build_issue("kanbus-other")
+    other.parent = "kanbus-unrelated"
+    orphan = build_issue("kanbus-orphan")
+
+    prefix_matches = queries.filter_issues(
+        [child, other, orphan], None, None, None, None, "B0-0fb0cd"
+    )
+    assert [issue.identifier for issue in prefix_matches] == ["kanbus-child"]
+
+    exact_matches = queries.filter_issues(
+        [child, other, orphan],
+        None,
+        None,
+        None,
+        None,
+        "B0-0fb0cdb3-32c3-4b5f-8c00-c2b4d7a78d8b",
+    )
+    assert [issue.identifier for issue in exact_matches] == ["kanbus-child"]
+
+
 def test_sort_issues_priority_and_invalid_key() -> None:
     hi = build_issue("kanbus-hi", priority=0)
     low = build_issue("kanbus-low", priority=4)
