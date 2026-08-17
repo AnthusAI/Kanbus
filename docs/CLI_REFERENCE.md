@@ -133,6 +133,7 @@ Example:
 
 ```bash
 kanbus list --status open --sort priority --limit 10
+kanbus list --parent kanbus-a1b2c3
 ```
 
 ## Daemon

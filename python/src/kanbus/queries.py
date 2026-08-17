@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Iterable, List
 
+from kanbus.ids import matches_issue_identifier
 from kanbus.models import IssueData
 
 
@@ -17,6 +18,7 @@ def filter_issues(
     issue_type: str | None,
     assignee: str | None,
     label: str | None,
+    parent: str | None = None,
 ) -> List[IssueData]:
     """Filter issues by common fields.
 
@@ -30,6 +32,8 @@ def filter_issues(
     :type assignee: str | None
     :param label: Label filter.
     :type label: str | None
+    :param parent: Parent identifier filter. Accepts full ids and unique prefixes.
+    :type parent: str | None
     :return: Filtered issues.
     :rtype: List[IssueData]
     """
@@ -42,6 +46,13 @@ def filter_issues(
         result = [issue for issue in result if issue.assignee == assignee]
     if label:
         result = [issue for issue in result if label in issue.labels]
+    if parent:
+        result = [
+            issue
+            for issue in result
+            if issue.parent is not None
+            and matches_issue_identifier(parent, issue.parent)
+        ]
     return result
 
 

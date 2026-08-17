@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use crate::error::KanbusError;
+use crate::ids::issue_identifier_matches;
 use crate::models::IssueData;
 
 /// Filter issues by common fields.
@@ -13,12 +14,14 @@ use crate::models::IssueData;
 /// * `issue_type` - Type filter.
 /// * `assignee` - Assignee filter.
 /// * `label` - Label filter.
+/// * `parent` - Parent identifier filter. Accepts full ids and unique prefixes.
 pub fn filter_issues(
     issues: Vec<IssueData>,
     status: Option<&str>,
     issue_type: Option<&str>,
     assignee: Option<&str>,
     label: Option<&str>,
+    parent: Option<&str>,
 ) -> Vec<IssueData> {
     issues
         .into_iter()
@@ -26,6 +29,14 @@ pub fn filter_issues(
         .filter(|issue| issue_type.is_none_or(|value| issue.issue_type == value))
         .filter(|issue| assignee.is_none_or(|value| issue.assignee.as_deref() == Some(value)))
         .filter(|issue| label.is_none_or(|value| issue.labels.iter().any(|label| label == value)))
+        .filter(|issue| {
+            parent.is_none_or(|value| {
+                issue
+                    .parent
+                    .as_deref()
+                    .is_some_and(|parent_id| issue_identifier_matches(value, parent_id))
+            })
+        })
         .collect()
 }
 
@@ -87,4 +98,69 @@ pub fn search_issues(issues: Vec<IssueData>, term: Option<&str>) -> Vec<IssueDat
     }
 
     matches
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    use std::collections::BTreeMap;
+
+    fn issue(identifier: &str) -> IssueData {
+        let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        IssueData {
+            identifier: identifier.to_string(),
+            title: identifier.to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: timestamp,
+            updated_at: timestamp,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn filter_issues_matches_parent_by_full_id_and_prefix() {
+        let mut child = issue("kanbus-child");
+        child.parent = Some("B0-0fb0cdb3-32c3-4b5f-8c00-c2b4d7a78d8b".to_string());
+        let mut other = issue("kanbus-other");
+        other.parent = Some("kanbus-unrelated".to_string());
+        let orphan = issue("kanbus-orphan");
+
+        let prefix_matches = filter_issues(
+            vec![child.clone(), other.clone(), orphan.clone()],
+            None,
+            None,
+            None,
+            None,
+            Some("B0-0fb0cd"),
+        );
+        assert_eq!(
+            prefix_matches
+                .iter()
+                .map(|issue| issue.identifier.as_str())
+                .collect::<Vec<_>>(),
+            vec!["kanbus-child"]
+        );
+
+        let exact_matches = filter_issues(
+            vec![child, other, orphan],
+            None,
+            None,
+            None,
+            None,
+            Some("B0-0fb0cdb3-32c3-4b5f-8c00-c2b4d7a78d8b"),
+        );
+        assert_eq!(exact_matches.len(), 1);
+        assert_eq!(exact_matches[0].identifier, "kanbus-child");
+    }
 }
