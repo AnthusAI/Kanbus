@@ -42,6 +42,7 @@ def list_issues(
     include_local: bool = True,
     local_only: bool = False,
     beads_mode: bool = False,
+    parent: str | None = None,
 ) -> List[IssueData]:
     """List issues in the project.
 
@@ -67,7 +68,9 @@ def list_issues(
         # Default: exclude closed issues unless status is explicitly specified
         if status is None:
             issues = [issue for issue in issues if issue.status != "closed"]
-        return _apply_query(issues, status, issue_type, assignee, label, sort, search)
+        return _apply_query(
+            issues, status, issue_type, assignee, label, sort, search, parent
+        )
 
     if project_filter:
         return _list_with_project_filter(
@@ -81,6 +84,7 @@ def list_issues(
             search,
             include_local,
             local_only,
+            parent,
         )
 
     try:
@@ -111,7 +115,9 @@ def list_issues(
             overlay_configs,
             project_labels,
         )
-        return _apply_query(issues, status, issue_type, assignee, label, sort, search)
+        return _apply_query(
+            issues, status, issue_type, assignee, label, sort, search, parent
+        )
 
     project_dir = project_dirs[0]
     overlay_config = _overlay_config_for_project(project_dir, root_configuration)
@@ -132,7 +138,7 @@ def list_issues(
                 project_labels.get(project_dir),
             )
             return _apply_query(
-                issues, status, issue_type, assignee, label, sort, search
+                issues, status, issue_type, assignee, label, sort, search, parent
             )
         except Exception as error:
             raise IssueListingError(str(error)) from error
@@ -177,7 +183,7 @@ def list_issues(
             raise IssueListingError(str(error)) from error
 
     return _apply_query(
-        shared_issues, status, issue_type, assignee, label, sort, search
+        shared_issues, status, issue_type, assignee, label, sort, search, parent
     )
 
 
@@ -192,6 +198,7 @@ def _list_with_project_filter(
     search: str | None,
     include_local: bool,
     local_only: bool,
+    parent: str | None = None,
 ) -> List[IssueData]:
     try:
         labeled = resolve_labeled_projects(root)
@@ -219,7 +226,9 @@ def _list_with_project_filter(
         configuration,
         project_labels,
     )
-    return _apply_query(issues, status, issue_type, assignee, label, sort, search)
+    return _apply_query(
+        issues, status, issue_type, assignee, label, sort, search, parent
+    )
 
 
 def _list_issues_locally(root: Path) -> List[IssueData]:
@@ -355,8 +364,9 @@ def _apply_query(
     label: str | None,
     sort: str | None,
     search: str | None,
+    parent: str | None = None,
 ) -> List[IssueData]:
-    filtered = filter_issues(issues, status, issue_type, assignee, label)
+    filtered = filter_issues(issues, status, issue_type, assignee, label, parent)
     searched = search_issues(filtered, search)
     return sort_issues(searched, sort)
 

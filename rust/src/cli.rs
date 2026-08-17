@@ -259,6 +259,7 @@ enum Commands {
     ///   kbs list --type epic                        only epics
     ///   kbs list --status open                      only open issues
     ///   kbs list --type task --status in_progress
+    ///   kbs list --parent <id>                      children of an issue
     ///   kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
     List {
         /// Status filter.
@@ -273,6 +274,9 @@ enum Commands {
         /// Label filter.
         #[arg(long)]
         label: Option<String>,
+        /// Parent identifier filter. Accepts full ids and unique prefixes.
+        #[arg(long)]
+        parent: Option<String>,
         /// Sort key.
         #[arg(long)]
         sort: Option<String>,
@@ -1806,6 +1810,7 @@ fn execute_command(
                         None,
                         None,
                         None,
+                        None,
                         &[],
                         true,
                         false,
@@ -2305,6 +2310,7 @@ fn execute_command(
             issue_type,
             assignee,
             label,
+            parent,
             sort,
             search,
             project,
@@ -2322,6 +2328,7 @@ fn execute_command(
                     "issue_type": issue_type.clone(),
                     "assignee": assignee.clone(),
                     "label": label.clone(),
+                    "parent": parent.clone(),
                     "sort": sort.clone(),
                     "search": search.clone(),
                     "projects": project.clone(),
@@ -2345,6 +2352,7 @@ fn execute_command(
                     issue_type.as_deref(),
                     assignee.as_deref(),
                     label.as_deref(),
+                    parent.as_deref(),
                 );
                 let mut searched = search_issues(filtered, search.as_deref());
                 // Beads fixtures include closed issues; align with Kanbus list default by hiding
@@ -2366,6 +2374,7 @@ fn execute_command(
                     issue_type.as_deref(),
                     assignee.as_deref(),
                     label.as_deref(),
+                    parent.as_deref(),
                     sort.as_deref(),
                     search.as_deref(),
                     &project,
@@ -3669,6 +3678,7 @@ mod tests {
             issue_type: None,
             assignee: None,
             label: None,
+            parent: None,
             sort: None,
             search: None,
             project: Vec::new(),
