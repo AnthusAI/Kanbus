@@ -2,6 +2,40 @@
 
 <!-- version list -->
 
+## v0.18.4 (2026-08-17)
+
+### Bug Fixes
+
+- **ci**: Pin ruff and satisfy clippy question_mark
+  ([`08aa2b5`](https://github.com/AnthusAI/Kanbus/commit/08aa2b5fb229f8597daf496119af8f06517eb348))
+
+- **cli**: Honor documented list --parent filter
+  ([`b9e3c2a`](https://github.com/AnthusAI/Kanbus/commit/b9e3c2adb3cadf1bef7b4a985901b2c420deaf95))
+
+- **test**: Pass parent=None in list_command behave step
+  ([`25e4798`](https://github.com/AnthusAI/Kanbus/commit/25e4798f0432e6fef66aa510c5644d31261dfbbb))
+
+### Chores
+
+- **deps**: Bump @tailwindcss/postcss in /apps/kanb.us
+  ([`10c50de`](https://github.com/AnthusAI/Kanbus/commit/10c50de7093c1dec77e9cc7b9db5985c0ac15a0e))
+
+- **deps**: Bump click from 8.3.1 to 8.4.1 in /python
+  ([`f93fc62`](https://github.com/AnthusAI/Kanbus/commit/f93fc62071b71f822e7fc1bbb70cf548cd512a1f))
+
+- **deps**: Bump minijinja from 1.0.22 to 2.18.0 in /rust
+  ([`b06627b`](https://github.com/AnthusAI/Kanbus/commit/b06627b033572747c32aace567634212a8fcbff2))
+
+- **deps**: Bump react-dom from 18.3.1 to 19.2.4 in /apps/kanb.us
+  ([`b4bb8d8`](https://github.com/AnthusAI/Kanbus/commit/b4bb8d8b5e579d864eb3e67055e15e3afecd4037))
+
+- **deps-dev**: Bump the npm-root group across 1 directory with 4 updates
+  ([`d90d2fb`](https://github.com/AnthusAI/Kanbus/commit/d90d2fbe3e3654d2245985f9cf4c3edc802687bd))
+
+- **release**: Stage Cargo.lock without release asset
+  ([`3cb1f3b`](https://github.com/AnthusAI/Kanbus/commit/3cb1f3b58156e8a0d10c1fcede12d20841b3e38b))
+
+
 ## v0.18.3 (2026-04-29)
 
 ### Bug Fixes
