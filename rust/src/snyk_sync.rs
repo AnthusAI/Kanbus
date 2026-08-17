@@ -695,13 +695,11 @@ fn detect_repo_from_git(root: &Path) -> Option<String> {
     let url = String::from_utf8(output.stdout).ok()?;
     let url = url.trim();
     // Handle https://github.com/Org/Repo.git and git@github.com:Org/Repo.git
-    let slug = if let Some(rest) = url.strip_prefix("https://github.com/") {
-        rest.trim_end_matches(".git").to_string()
-    } else if let Some(rest) = url.strip_prefix("git@github.com:") {
-        rest.trim_end_matches(".git").to_string()
-    } else {
-        return None;
-    };
+    let slug = url
+        .strip_prefix("https://github.com/")
+        .or_else(|| url.strip_prefix("git@github.com:"))?
+        .trim_end_matches(".git")
+        .to_string();
     Some(slug)
 }
 
