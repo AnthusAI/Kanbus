@@ -9,6 +9,16 @@ Feature: Issue list formatting
     When I run "kanbus list --porcelain"
     Then stdout should contain the line "T | child | parent | open | P2 | Title"
 
+  Scenario: List can filter by parent issue
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-parent" exists
+    And an issue "kanbus-child" exists with status "open"
+    And issue "kanbus-child" has parent "kanbus-parent"
+    And an issue "kanbus-other" exists
+    When I run "kanbus list --parent kanbus-parent --porcelain"
+    Then stdout should contain the line "T | child | parent | open | P2 | Title"
+    And stdout should not contain "T | other |"
+
   Scenario: List can force full issue keys in single-project context
     Given a Kanbus project with default configuration
     And an issue "kanbus-0123456789ab" exists

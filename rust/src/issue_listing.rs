@@ -29,6 +29,7 @@ pub fn list_issues(
     issue_type: Option<&str>,
     assignee: Option<&str>,
     label: Option<&str>,
+    parent: Option<&str>,
     sort: Option<&str>,
     search: Option<&str>,
     project_filter: &[String],
@@ -48,6 +49,7 @@ pub fn list_issues(
             issue_type,
             assignee,
             label,
+            parent,
             sort,
             search,
             include_local,
@@ -115,7 +117,9 @@ pub fn list_issues(
             &overlay_configs,
             &project_labels,
         )?;
-        return apply_query(issues, status, issue_type, assignee, label, sort, search);
+        return apply_query(
+            issues, status, issue_type, assignee, label, parent, sort, search,
+        );
     }
 
     let project_dir = projects[0].clone();
@@ -142,7 +146,9 @@ pub fn list_issues(
                     issues.extend(load_issues_from_directory(&local_issues_dir)?);
                 }
             }
-            return apply_query(issues, status, issue_type, assignee, label, sort, search);
+            return apply_query(
+                issues, status, issue_type, assignee, label, parent, sort, search,
+            );
         }
         let issues = list_issues_with_local(
             &project_dir,
@@ -151,7 +157,9 @@ pub fn list_issues(
             &overlay_config,
             project_labels.get(&project_dir).map(|value| value.as_str()),
         )?;
-        return apply_query(issues, status, issue_type, assignee, label, sort, search);
+        return apply_query(
+            issues, status, issue_type, assignee, label, parent, sort, search,
+        );
     }
     if is_daemon_enabled() {
         let payloads = request_index_list(root)?;
@@ -166,10 +174,14 @@ pub fn list_issues(
             &overlay_config,
             project_labels.get(&project_dir).map(|value| value.as_str()),
         )?;
-        return apply_query(issues, status, issue_type, assignee, label, sort, search);
+        return apply_query(
+            issues, status, issue_type, assignee, label, parent, sort, search,
+        );
     }
     let issues = list_issues_local(&project_dir, &overlay_config, &project_labels)?;
-    apply_query(issues, status, issue_type, assignee, label, sort, search)
+    apply_query(
+        issues, status, issue_type, assignee, label, parent, sort, search,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -180,6 +192,7 @@ fn list_with_project_filter(
     issue_type: Option<&str>,
     assignee: Option<&str>,
     label: Option<&str>,
+    parent: Option<&str>,
     sort: Option<&str>,
     search: Option<&str>,
     include_local: bool,
@@ -219,7 +232,9 @@ fn list_with_project_filter(
         &overlay_configs,
         &project_labels,
     )?;
-    apply_query(issues, status, issue_type, assignee, label, sort, search)
+    apply_query(
+        issues, status, issue_type, assignee, label, parent, sort, search,
+    )
 }
 
 fn list_issues_local(
@@ -389,16 +404,18 @@ pub fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, K
     Ok(issues)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_query(
     issues: Vec<IssueData>,
     status: Option<&str>,
     issue_type: Option<&str>,
     assignee: Option<&str>,
     label: Option<&str>,
+    parent: Option<&str>,
     sort: Option<&str>,
     search: Option<&str>,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    let filtered = filter_issues(issues, status, issue_type, assignee, label);
+    let filtered = filter_issues(issues, status, issue_type, assignee, label, parent);
     let searched = search_issues(filtered, search);
     sort_issues(searched, sort)
 }
@@ -494,11 +511,34 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("apply query");
 
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].identifier, "kanbus-1");
+    }
+
+    #[test]
+    fn apply_query_filters_by_parent() {
+        let mut child = issue("kanbus-child", "Child");
+        child.parent = Some("kanbus-parent-123456".to_string());
+        let sibling = issue("kanbus-other", "Other");
+
+        let filtered = apply_query(
+            vec![child, sibling],
+            None,
+            None,
+            None,
+            None,
+            Some("kanbus-parent"),
+            None,
+            None,
+        )
+        .expect("apply query");
+
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].identifier, "kanbus-child");
     }
 
     #[test]
@@ -581,6 +621,7 @@ mod tests {
 
         let queried = apply_query(
             vec![alpha, beta],
+            None,
             None,
             None,
             None,

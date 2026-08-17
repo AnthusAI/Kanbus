@@ -1565,6 +1565,7 @@ def comment(
 @click.option("--type", "issue_type")
 @click.option("--assignee")
 @click.option("--label")
+@click.option("--parent")
 @click.option("--sort")
 @click.option("--search")
 @click.option("--project", "projects", multiple=True, help="Filter by project label.")
@@ -1597,6 +1598,7 @@ def list_command(
     issue_type: str | None,
     assignee: str | None,
     label: str | None,
+    parent: str | None,
     sort: str | None,
     search: str | None,
     projects: tuple[str, ...],
@@ -1614,6 +1616,7 @@ def list_command(
       kbs list --type epic
       kbs list --status open
       kbs list --type task --status in_progress
+      kbs list --parent <id>
       kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
     """
     root = Path.cwd()
@@ -1629,6 +1632,7 @@ def list_command(
             "issue_type": issue_type,
             "assignee": assignee,
             "label": label,
+            "parent": parent,
             "sort": sort,
             "search": search,
             "projects": list(projects),
@@ -1648,6 +1652,7 @@ def list_command(
             issue_type=issue_type,
             assignee=assignee,
             label=label,
+            parent=parent,
             sort=sort,
             search=search,
             project_filter=list(projects),
