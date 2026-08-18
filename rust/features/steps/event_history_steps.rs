@@ -396,8 +396,8 @@ fn then_event_log_includes_type(world: &mut KanbusWorld, event_type: String) {
     );
 }
 
-#[then("the event log filenames for the last issue should be ISO timestamped")]
-fn then_event_filenames_iso(world: &mut KanbusWorld) {
+#[then("the event log filenames for the last issue should be filesystem-safe UTC timestamps")]
+fn then_event_filenames_filesystem_safe(world: &mut KanbusWorld) {
     let identifier = last_issue_id(world);
     let events = load_issue_events(world, &identifier);
     let filename_regex =
@@ -405,8 +405,33 @@ fn then_event_filenames_iso(world: &mut KanbusWorld) {
     assert!(!events.is_empty(), "expected events for issue");
     for (filename, _) in events {
         assert!(
+            !filename.contains(':'),
+            "event filename contains colon: {filename}"
+        );
+        assert!(
             filename_regex.is_match(&filename),
             "unexpected event filename: {filename}"
+        );
+    }
+}
+
+#[then(
+    "the event log occurred_at values for the last issue should remain RFC3339 timestamps"
+)]
+fn then_event_occurred_at_rfc3339(world: &mut KanbusWorld) {
+    let identifier = last_issue_id(world);
+    let events = load_issue_events(world, &identifier);
+    let occurred_at_regex =
+        Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$").expect("regex");
+    assert!(!events.is_empty(), "expected events for issue");
+    for (_, record) in events {
+        let occurred_at = record
+            .get("occurred_at")
+            .and_then(|value| value.as_str())
+            .expect("expected occurred_at string");
+        assert!(
+            occurred_at_regex.is_match(occurred_at),
+            "unexpected occurred_at: {occurred_at}"
         );
     }
 }

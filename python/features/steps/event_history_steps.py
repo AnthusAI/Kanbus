@@ -179,14 +179,29 @@ def then_event_log_includes_type(context: object, event_type: str) -> None:
     assert any(event.get("event_type") == event_type for _, event in events)
 
 
-@then("the event log filenames for the last issue should be ISO timestamped")
-def then_event_filenames_iso(context: object) -> None:
+@then("the event log filenames for the last issue should be filesystem-safe UTC timestamps")
+def then_event_filenames_filesystem_safe(context: object) -> None:
     identifier = _last_issue_id(context)
     events = _load_issue_events(context, identifier)
-    pattern = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z__.+\.json$")
+    pattern = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z__.+\.json$")
     assert events, "expected events for issue"
     for filename, _ in events:
+        assert ":" not in filename, f"event filename contains colon: {filename}"
         assert pattern.match(filename), f"unexpected event filename: {filename}"
+
+
+@then(
+    "the event log occurred_at values for the last issue should remain RFC3339 timestamps"
+)
+def then_event_occurred_at_rfc3339(context: object) -> None:
+    identifier = _last_issue_id(context)
+    events = _load_issue_events(context, identifier)
+    pattern = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")
+    assert events, "expected events for issue"
+    for _, event in events:
+        occurred_at = event.get("occurred_at")
+        assert isinstance(occurred_at, str), "expected occurred_at string"
+        assert pattern.match(occurred_at), f"unexpected occurred_at: {occurred_at}"
 
 
 @then(
