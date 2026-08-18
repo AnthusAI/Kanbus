@@ -5,6 +5,7 @@ use rumqttc::{
     AsyncClient, Event, MqttOptions, Outgoing, Packet, QoS, TlsConfiguration, Transport,
 };
 use serde::{Deserialize, Serialize};
+#[cfg(unix)]
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
@@ -533,6 +534,11 @@ fn ensure_local_uds_broker(realtime: &RealtimeConfig) -> Result<(), KanbusError>
     )))
 }
 
+#[cfg(not(unix))]
+fn ensure_local_uds_broker(_realtime: &RealtimeConfig) -> Result<(), KanbusError> {
+    Ok(())
+}
+
 /// Run a UDS gossip broker.
 #[cfg(unix)]
 pub fn run_gossip_broker(root: &Path, socket_override: Option<PathBuf>) -> Result<(), KanbusError> {
@@ -805,6 +811,24 @@ fn publish_uds(
     stream
         .write_all(line.as_bytes())
         .map_err(|error| KanbusError::Io(error.to_string()))
+}
+
+#[cfg(not(unix))]
+fn publish_uds_if_available(
+    _topic: &str,
+    _envelope: &GossipEnvelope,
+    _realtime: &RealtimeConfig,
+) -> bool {
+    false
+}
+
+#[cfg(not(unix))]
+fn publish_uds(
+    _topic: &str,
+    _envelope: &GossipEnvelope,
+    _realtime: &RealtimeConfig,
+) -> Result<(), KanbusError> {
+    Ok(())
 }
 
 fn publish_mqtt(
