@@ -401,7 +401,7 @@ fn then_event_filenames_iso(world: &mut KanbusWorld) {
     let identifier = last_issue_id(world);
     let events = load_issue_events(world, &identifier);
     let filename_regex =
-        Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z__.+\.json$").expect("regex");
+        Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z__.+\.json$").expect("regex");
     assert!(!events.is_empty(), "expected events for issue");
     for (filename, _) in events {
         assert!(

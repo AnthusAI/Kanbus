@@ -14,9 +14,9 @@ def test_now_timestamp_and_event_filename_shapes() -> None:
     ts = event_history.now_timestamp()
     assert ts.endswith("Z")
     assert "T" in ts
-    assert event_history.event_filename("2026-03-09T00:00:00.000Z", "evt-1").endswith(
-        "__evt-1.json"
-    )
+    filename = event_history.event_filename("2026-03-09T00:00:00.000Z", "evt-1")
+    assert filename == "2026-03-09T00-00-00.000Z__evt-1.json"
+    assert ":" not in filename
 
 
 def test_create_event_uses_given_or_generated_timestamp() -> None:
