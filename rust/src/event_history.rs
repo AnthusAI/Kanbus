@@ -66,7 +66,8 @@ pub fn now_timestamp() -> String {
 }
 
 pub fn event_filename(occurred_at: &str, event_id: &str) -> String {
-    format!("{occurred_at}__{event_id}.json")
+    let filesystem_safe_timestamp = occurred_at.replace(':', "-");
+    format!("{filesystem_safe_timestamp}__{event_id}.json")
 }
 
 pub fn events_dir_for_project(project_dir: &Path) -> PathBuf {
@@ -402,7 +403,7 @@ mod tests {
     #[test]
     fn event_filename_uses_timestamp_and_id() {
         let filename = event_filename("2026-03-06T12:00:00.000Z", "abc123");
-        assert_eq!(filename, "2026-03-06T12:00:00.000Z__abc123.json");
+        assert_eq!(filename, "2026-03-06T12-00-00.000Z__abc123.json");
     }
 
     #[test]

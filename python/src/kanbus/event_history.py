@@ -37,7 +37,9 @@ def now_timestamp() -> str:
 
 
 def event_filename(occurred_at: str, event_id: str) -> str:
-    return f"{occurred_at}__{event_id}.json"
+    """Return a Windows-safe event filename derived from its timestamp."""
+    filesystem_safe_timestamp = occurred_at.replace(":", "-")
+    return f"{filesystem_safe_timestamp}__{event_id}.json"
 
 
 def create_event(
