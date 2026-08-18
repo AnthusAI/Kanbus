@@ -8,7 +8,8 @@ Feature: Event history
     When I run the command "kanbus create Implement OAuth2 flow"
     And I capture the issue identifier
     Then the event log for the last issue should include event type "issue_created"
-    And the event log filenames for the last issue should be ISO timestamped
+    And the event log filenames for the last issue should be filesystem-safe UTC timestamps
+    And the event log occurred_at values for the last issue should remain RFC3339 timestamps
 
   Scenario: Status updates emit state transition events
     Given a Kanbus project with default configuration
