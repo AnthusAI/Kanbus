@@ -415,9 +415,7 @@ fn then_event_filenames_filesystem_safe(world: &mut KanbusWorld) {
     }
 }
 
-#[then(
-    "the event log occurred_at values for the last issue should remain RFC3339 timestamps"
-)]
+#[then("the event log occurred_at values for the last issue should remain RFC3339 timestamps")]
 fn then_event_occurred_at_rfc3339(world: &mut KanbusWorld) {
     let identifier = last_issue_id(world);
     let events = load_issue_events(world, &identifier);
