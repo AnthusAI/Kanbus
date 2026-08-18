@@ -13,8 +13,11 @@ The file must exist; there is no fallback path. A missing file is a hard error w
 ## Event history storage
 
 - Event files are written to `project/events/` (shared issues) or `project-local/events/` (local issues).
-- Each event is a standalone JSON file named with an RFC3339 timestamp and UUID suffix, e.g. `2026-02-21T06:09:40.180Z__<event_id>.json`.
+- Each event is a standalone JSON file named with a UTC timestamp and UUID suffix. Filenames use hyphens instead of colons in the time portion so they are valid on Windows, e.g. `2026-02-21T06-09-40.180Z__<event_id>.json`.
+- Inside the JSON record, `occurred_at` remains RFC3339 with colons, e.g. `2026-02-21T06:09:40.180Z`.
 - Event records include `schema_version`, `event_id`, `issue_id`, `event_type`, `occurred_at`, `actor_id`, and an action-specific `payload`.
+- Beads mode (`kanbus --beads`) still writes event history to `project/events/` even when issue records live in `.beads/issues.jsonl`.
+- Some repositories, including Kanbus itself, gitignore `project/events/` because event files are runtime audit data. Other Anthus repos may commit them. A missing `project/events/` directory in git does not mean Kanbus skips event recording.
 
 ## Loading semantics (dotyaml parity)
 
