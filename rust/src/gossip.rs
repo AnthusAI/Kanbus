@@ -8,8 +8,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
+#[cfg(unix)]
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpStream, ToSocketAddrs};
+#[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -348,14 +350,20 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
         }
     });
 
-    let mut use_uds =
-        transport == "uds" || (transport == "auto" && uds_socket_path(Some(realtime)).exists());
-    if options.autostart_local_uds && !use_uds && (transport == "uds" || transport == "auto") {
+    let mut use_uds = cfg!(unix)
+        && (transport == "uds"
+            || (transport == "auto" && uds_socket_path(Some(realtime)).exists()));
+    if cfg!(unix)
+        && options.autostart_local_uds
+        && !use_uds
+        && (transport == "uds" || transport == "auto")
+    {
         ensure_local_uds_broker(realtime)?;
         use_uds = true;
     }
 
-    let dual_transport_local_fallback = options.autostart_local_uds && transport == "mqtt";
+    let dual_transport_local_fallback =
+        cfg!(unix) && options.autostart_local_uds && transport == "mqtt";
     if dual_transport_local_fallback {
         ensure_local_uds_broker(realtime)?;
         let topics_for_mqtt = topics.clone();
@@ -494,6 +502,7 @@ fn run_mqtt_subscription_resilient(
     }
 }
 
+#[cfg(unix)]
 fn ensure_local_uds_broker(realtime: &RealtimeConfig) -> Result<(), KanbusError> {
     let socket_path = uds_socket_path(Some(realtime));
     if socket_path.exists() {
@@ -525,6 +534,7 @@ fn ensure_local_uds_broker(realtime: &RealtimeConfig) -> Result<(), KanbusError>
 }
 
 /// Run a UDS gossip broker.
+#[cfg(unix)]
 pub fn run_gossip_broker(root: &Path, socket_override: Option<PathBuf>) -> Result<(), KanbusError> {
     let socket_path = match socket_override {
         Some(path) => path,
@@ -536,6 +546,17 @@ pub fn run_gossip_broker(root: &Path, socket_override: Option<PathBuf>) -> Resul
     run_uds_broker(&socket_path)
 }
 
+#[cfg(not(unix))]
+pub fn run_gossip_broker(
+    _root: &Path,
+    _socket_override: Option<PathBuf>,
+) -> Result<(), KanbusError> {
+    Err(KanbusError::IssueOperation(
+        "unix domain socket gossip broker is not supported on this platform".to_string(),
+    ))
+}
+
+#[cfg(unix)]
 fn run_uds_broker(socket_path: &Path) -> Result<(), KanbusError> {
     if socket_path.exists() {
         let _ = fs::remove_file(socket_path);
@@ -557,12 +578,14 @@ fn run_uds_broker(socket_path: &Path) -> Result<(), KanbusError> {
     Ok(())
 }
 
+#[cfg(unix)]
 #[derive(Clone)]
 struct Subscriber {
     topic: String,
     stream: Arc<Mutex<UnixStream>>,
 }
 
+#[cfg(unix)]
 fn handle_uds_connection(stream: UnixStream, subscribers: Arc<Mutex<Vec<Subscriber>>>) {
     let Ok(read_stream) = stream.try_clone() else {
         return;
@@ -596,6 +619,7 @@ fn handle_uds_connection(stream: UnixStream, subscribers: Arc<Mutex<Vec<Subscrib
     }
 }
 
+#[cfg(unix)]
 fn broadcast_payload(payload: &Value, subscribers: &Arc<Mutex<Vec<Subscriber>>>) {
     let Some(topic) = payload.get("topic").and_then(|v| v.as_str()) else {
         return;
@@ -631,6 +655,7 @@ fn broadcast_payload(payload: &Value, subscribers: &Arc<Mutex<Vec<Subscriber>>>)
     }
 }
 
+#[cfg(unix)]
 fn run_uds_subscription(
     realtime: &RealtimeConfig,
     topics: &[String],
@@ -669,6 +694,17 @@ fn run_uds_subscription(
     Ok(())
 }
 
+#[cfg(not(unix))]
+fn run_uds_subscription(
+    _realtime: &RealtimeConfig,
+    _topics: &[String],
+    _handler: Arc<dyn Fn(GossipEnvelope) + Send + Sync>,
+) -> Result<(), KanbusError> {
+    Err(KanbusError::IssueOperation(
+        "unix domain socket realtime is not supported on this platform".to_string(),
+    ))
+}
+
 fn publish_envelope(
     _root: &Path,
     configuration: &ProjectConfiguration,
@@ -695,12 +731,16 @@ fn publish_with_transport(
     autostart: bool,
     keepalive: bool,
 ) -> Result<(), KanbusError> {
-    if transport == "uds" || (transport == "auto" && uds_socket_path(Some(realtime)).exists()) {
+    if cfg!(unix)
+        && (transport == "uds" || (transport == "auto" && uds_socket_path(Some(realtime)).exists()))
+    {
         let _ = publish_uds(topic, envelope, realtime);
         return Ok(());
     }
     if broker == "off" {
-        let _ = publish_uds_if_available(topic, envelope, realtime);
+        if cfg!(unix) {
+            let _ = publish_uds_if_available(topic, envelope, realtime);
+        }
         return Ok(());
     }
     let mut endpoint = resolve_broker_endpoint(broker)?;
@@ -710,7 +750,9 @@ fn publish_with_transport(
             endpoint = parse_broker_url("mqtt://127.0.0.1:1883")?;
         }
         if !autostart {
-            let _ = publish_uds_if_available(topic, envelope, realtime);
+            if cfg!(unix) {
+                let _ = publish_uds_if_available(topic, envelope, realtime);
+            }
             return Ok(());
         }
         let startup = ensure_mosquitto(&endpoint)?;
@@ -722,7 +764,7 @@ fn publish_with_transport(
         broker_process = Some(startup.process);
     }
     if let Err(error) = publish_mqtt(&endpoint, topic, envelope, realtime) {
-        if publish_uds_if_available(topic, envelope, realtime) {
+        if cfg!(unix) && publish_uds_if_available(topic, envelope, realtime) {
             return Ok(());
         }
         return Err(error);
@@ -735,6 +777,7 @@ fn publish_with_transport(
     Ok(())
 }
 
+#[cfg(unix)]
 fn publish_uds_if_available(
     topic: &str,
     envelope: &GossipEnvelope,
@@ -747,6 +790,7 @@ fn publish_uds_if_available(
     publish_uds(topic, envelope, realtime).is_ok()
 }
 
+#[cfg(unix)]
 fn publish_uds(
     topic: &str,
     envelope: &GossipEnvelope,
@@ -1086,6 +1130,8 @@ mod tests {
     use crate::models::RealtimeTopics;
     use crate::models::VirtualProjectConfig;
     use once_cell::sync::Lazy;
+    #[cfg(unix)]
+    use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
     use std::sync::{mpsc, Mutex};
     use tempfile::TempDir;
@@ -1141,6 +1187,7 @@ mod tests {
         ));
     }
 
+    #[cfg(unix)]
     #[test]
     fn publish_uds_if_available_returns_true_with_running_broker() {
         let tmp = TempDir::new().expect("temp dir");
@@ -1164,6 +1211,7 @@ mod tests {
         ));
     }
 
+    #[cfg(unix)]
     #[test]
     fn publish_with_mqtt_unreachable_falls_back_to_uds_delivery() {
         let tmp = TempDir::new().expect("temp dir");
@@ -1476,6 +1524,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn run_uds_subscription_ignores_invalid_payloads_before_valid_envelope() {
         let tmp = TempDir::new().expect("temp dir");

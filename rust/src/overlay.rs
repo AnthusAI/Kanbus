@@ -573,15 +573,15 @@ fn overlay_hook_block() -> String {
     .join("\n")
 }
 
-fn ensure_executable(path: &Path) -> Result<(), KanbusError> {
+fn ensure_executable(_path: &Path) -> Result<(), KanbusError> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let metadata = fs::metadata(path).map_err(|error| KanbusError::Io(error.to_string()))?;
+        let metadata = fs::metadata(_path).map_err(|error| KanbusError::Io(error.to_string()))?;
         let mut permissions = metadata.permissions();
         let mode = permissions.mode();
         permissions.set_mode(mode | 0o111);
-        fs::set_permissions(path, permissions)
+        fs::set_permissions(_path, permissions)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     Ok(())
