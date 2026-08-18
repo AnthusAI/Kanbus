@@ -1,6 +1,7 @@
 //! Daemon server for just-in-time index access.
 
 use std::collections::BTreeMap;
+#[cfg(unix)]
 use std::io::{BufRead, BufReader, Write};
 #[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -9,7 +10,9 @@ use std::path::Path;
 use serde_json::Value;
 
 use crate::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
-use crate::daemon_paths::{get_daemon_socket_path, get_index_cache_path};
+#[cfg(unix)]
+use crate::daemon_paths::get_daemon_socket_path;
+use crate::daemon_paths::get_index_cache_path;
 use crate::daemon_protocol::{
     validate_protocol_compatibility, ErrorEnvelope, RequestEnvelope, ResponseEnvelope,
     PROTOCOL_VERSION,
