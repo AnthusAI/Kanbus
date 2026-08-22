@@ -23,7 +23,7 @@ use crate::issue_files::{
 };
 use crate::models::{IssueData, SnykConfiguration};
 
-const SNYK_API_BASE: &str = "https://api.snyk.io";
+fn snyk_api_base() -> String { std::env::var("KANBUS_SNYK_API_BASE").unwrap_or_else(|_| "https://api.snyk.io".to_string()) }
 const SNYK_API_VERSION: &str = "2025-11-05";
 const SNYK_INITIATIVE_TITLE: &str = "Snyk Vulnerability Remediation";
 const SNYK_DEP_EPIC_TITLE: &str = "Snyk Dependency Vulnerabilities";
@@ -716,7 +716,7 @@ fn fetch_snyk_projects(
     let prefix = repo_filter.map(|r| format!("{r}:"));
 
     let mut url = Some(format!(
-        "{SNYK_API_BASE}/rest/orgs/{org_id}/projects?version={SNYK_API_VERSION}&limit=100"
+        "{}/rest/orgs/{org_id}/projects?version={SNYK_API_VERSION}&limit=100", snyk_api_base()
     ));
 
     while let Some(current_url) = url {
@@ -781,7 +781,7 @@ fn fetch_snyk_projects(
 
         url = body["links"]["next"]
             .as_str()
-            .map(|next| format!("{SNYK_API_BASE}{next}"));
+            .map(|next| format!("{}{next}", snyk_api_base()));
     }
 
     Ok(map)
@@ -800,7 +800,7 @@ fn fetch_v1_enrichment(
 
     for proj_id in &project_ids {
         let url =
-            format!("{SNYK_API_BASE}/api/v1/org/{org_id}/project/{proj_id}/aggregated-issues");
+            format!("{}/api/v1/org/{org_id}/project/{proj_id}/aggregated-issues", snyk_api_base());
         let response = client
             .post(&url)
             .bearer_auth(token)
@@ -867,7 +867,7 @@ fn fetch_snyk_issues_for_type(
     let mut all_issues: Vec<Value> = Vec::new();
 
     let mut url = Some(format!(
-        "{SNYK_API_BASE}/rest/orgs/{org_id}/issues?version={SNYK_API_VERSION}&limit=100&type={issue_type}"
+        "{}/rest/orgs/{org_id}/issues?version={SNYK_API_VERSION}&limit=100&type={issue_type}", snyk_api_base()
     ));
 
     while let Some(current_url) = url {
@@ -910,7 +910,7 @@ fn fetch_snyk_issues_for_type(
 
         url = body["links"]["next"]
             .as_str()
-            .map(|next| format!("{SNYK_API_BASE}{next}"));
+            .map(|next| format!("{}{next}", snyk_api_base()));
     }
 
     Ok(all_issues)
@@ -2094,5 +2094,52 @@ mod tests {
         assert!(mapped
             .description
             .contains("Pin `openssl` to version 1.2.3 or later."));
+    }
+}
+
+#[cfg(test)]
+
+#[cfg(test)]
+mod snyk_sync_err_tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_fetch_projects_conn_error() {
+        std::env::set_var("KANBUS_SNYK_API_BASE", "http://127.0.0.1:9");
+        let err = fetch_snyk_projects("org", "token", None).unwrap_err();
+        assert!(err.to_string().contains("request failed"));
+    }
+
+    #[test]
+    fn test_fetch_issues_conn_error() {
+        std::env::set_var("KANBUS_SNYK_API_BASE", "http://127.0.0.1:9");
+        let res = fetch_all_snyk_issues("org", "token", 0, &["code"]).unwrap();
+        assert!(res.is_empty());
+    }
+
+    #[test]
+    fn test_fetch_v1_conn_error() {
+        std::env::set_var("KANBUS_SNYK_API_BASE", "http://127.0.0.1:9");
+        let err = fetch_v1_enrichment("org", "token", vec!["proj-1".to_string()]).unwrap_err();
+        assert!(err.to_string().contains("request failed"));
+    }
+
+    #[test]
+    fn test_pull_from_snyk_missing_issues_dir() {
+        std::env::set_var("SNYK_TOKEN", "fake");
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("project")).unwrap(); // no issues dir
+        std::fs::write(root.join("kanbus.yaml"), "project_key: TST").unwrap();
+        
+        let config = crate::models::SnykConfiguration {
+            org_id: "org".to_string(),
+            min_severity: "low".to_string(),
+            repo: Some("repo".to_string()),
+            parent_epic: None,
+        };
+        let err = pull_from_snyk(root, &config, "TST", false).unwrap_err();
+        assert!(err.to_string().contains("issues directory does not exist"), "Actual err: {}", err);
     }
 }

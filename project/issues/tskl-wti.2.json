@@ -3,7 +3,7 @@
   "title": "Implement missing Rust step definitions for skipped scenarios",
   "description": "Fill in Rust Cucumber step implementations for currently skipped scenarios.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "ryan.porter",
@@ -133,8 +133,8 @@
     }
   ],
   "created_at": "2026-02-19T04:44:49.029321Z",
-  "updated_at": "2026-03-13T16:17:30.417372Z",
-  "closed_at": null,
+  "updated_at": "2026-08-22T17:21:59.901251Z",
+  "closed_at": "2026-08-22T17:21:59.901251Z",
   "custom": {
     "beads_owner": "ryan.porter"
   }

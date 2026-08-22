@@ -3773,3 +3773,83 @@ mod tests {
         assert_eq!(beads_root(&nested), temp.path());
     }
 }
+
+#[cfg(test)]
+mod additional_cli_tests {
+    use super::*;
+    use crate::models::{IssueData, IssueComment, DependencyLink};
+    use std::collections::BTreeMap;
+    use chrono::{Utc, TimeZone};
+
+    #[test]
+    fn test_merge_issue_views_full_coverage() {
+        let mut beads = IssueData {
+            identifier: "test-1".to_string(),
+            title: "beads title".to_string(),
+            description: "".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec![],
+            dependencies: vec![DependencyLink { target: "test-2".to_string(), dependency_type: "blocks".to_string() }],
+            comments: vec![IssueComment {
+                id: None,
+                author: "alice".to_string(),
+                text: "c1".to_string(),
+                created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
+            }],
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::new(),
+        };
+
+        let project = IssueData {
+            identifier: "test-1".to_string(),
+            title: "project title".to_string(),
+            description: "proj desc".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: Some("bob".to_string()),
+            creator: Some("alice".to_string()),
+            parent: Some("epic-1".to_string()),
+            labels: vec!["bug".to_string()],
+            dependencies: vec![
+                DependencyLink { target: "test-2".to_string(), dependency_type: "blocks".to_string() },
+                DependencyLink { target: "test-3".to_string(), dependency_type: "relates-to".to_string() }
+            ],
+            comments: vec![
+                IssueComment {
+                    id: None,
+                    author: "alice".to_string(),
+                    text: "c1".to_string(),
+                    created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
+                },
+                IssueComment {
+                    id: None,
+                    author: "bob".to_string(),
+                    text: "c2".to_string(),
+                    created_at: Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap(),
+                }
+            ],
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: BTreeMap::from([("k1".to_string(), serde_json::json!("v1"))]),
+        };
+
+        let merged = merge_issue_views(beads, project);
+        assert_eq!(merged.description, "proj desc");
+        assert_eq!(merged.parent.as_deref(), Some("epic-1"));
+        assert_eq!(merged.assignee.as_deref(), Some("bob"));
+        assert_eq!(merged.creator.as_deref(), Some("alice"));
+        assert_eq!(merged.labels, vec!["bug".to_string()]);
+        assert_eq!(merged.dependencies.len(), 2);
+        assert_eq!(merged.comments.len(), 2);
+        assert_eq!(merged.custom.get("k1").unwrap().as_str().unwrap(), "v1");
+    }
+}
