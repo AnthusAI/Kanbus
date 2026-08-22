@@ -2059,7 +2059,6 @@ mod tests {
     }
 }
 
-#[cfg(test)]
 
 #[cfg(test)]
 mod github_sync_err_tests {
