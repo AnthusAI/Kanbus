@@ -1665,4 +1665,47 @@ mod tests {
             .to_string()
             .contains("realtime broker is disabled"));
     }
+
+    #[test]
+    fn publish_issue_mutation_early_returns_when_broker_off() {
+        let temp = TempDir::new().expect("temp dir");
+        write_test_config(temp.path(), "off", "mqtt");
+        let issue = IssueData {
+            identifier: "test-1".to_string(),
+            title: "Test".to_string(),
+            description: "".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec![],
+            dependencies: vec![],
+            comments: vec![],
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            custom: Default::default(),
+        };
+        // Should return early and not panic or error.
+        publish_issue_mutation(temp.path(), &temp.path().join("projects/test"), &issue, None, "issue.mutated");
+    }
+
+    #[test]
+    fn publish_issue_deleted_early_returns_when_broker_off() {
+        let temp = TempDir::new().expect("temp dir");
+        write_test_config(temp.path(), "off", "mqtt");
+        // Should return early and not panic or error.
+        publish_issue_deleted(temp.path(), &temp.path().join("projects/test"), "test-1", None);
+    }
+
+    #[test]
+    fn run_gossip_watch_returns_error_when_broker_off_and_no_override() {
+        let temp = TempDir::new().expect("temp dir");
+        write_test_config(temp.path(), "off", "mqtt");
+        let result = run_gossip_watch(temp.path(), None, None, None, None, None, false);
+        assert!(result.is_err());
+        assert!(result.expect_err("error").to_string().contains("realtime broker is disabled"));
+    }
 }
