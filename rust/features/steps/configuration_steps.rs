@@ -771,7 +771,7 @@ fn given_project_with_kanbus_yml_containing(world: &mut KanbusWorld, step: &Step
         .working_directory
         .as_ref()
         .expect("working directory not set");
-    let config_path = root.join("kanbus.yml");
+    let config_path = root.join(".kanbus.yml");
     let default_config = default_project_configuration();
     let default_value = serde_yaml::to_value(&default_config).expect("serialize default config");
     let mut mapping = default_value
@@ -817,7 +817,7 @@ fn given_project_with_valid_config_file(world: &mut KanbusWorld, filename: Strin
     world.configuration_path = Some(config_path);
 }
 
-#[given(expr = "the environment variable {word} is not set")]
+#[given(expr = "the environment variable {string} is not set")]
 fn given_env_var_not_set(world: &mut KanbusWorld, var_name: String) {
     world
         .jira_unset_env_vars
@@ -825,7 +825,7 @@ fn given_env_var_not_set(world: &mut KanbusWorld, var_name: String) {
     std::env::remove_var(&var_name);
 }
 
-#[given(expr = "the environment variable {word} is set to {string}")]
+#[given(expr = "the environment variable {string} is set to {string}")]
 fn given_env_var_set(world: &mut KanbusWorld, var_name: String, value: String) {
     world
         .jira_unset_env_vars

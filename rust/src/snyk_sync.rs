@@ -2097,7 +2097,6 @@ mod tests {
     }
 }
 
-#[cfg(test)]
 
 #[cfg(test)]
 mod snyk_sync_err_tests {
