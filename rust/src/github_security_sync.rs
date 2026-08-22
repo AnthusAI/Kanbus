@@ -19,7 +19,7 @@ use crate::issue_files::{
 use crate::migration::load_beads_issues;
 use crate::models::{GithubSecurityConfiguration, IssueData};
 
-const GITHUB_API_BASE: &str = "https://api.github.com";
+fn github_api_base() -> String { std::env::var("KANBUS_GITHUB_API_BASE").unwrap_or_else(|_| "https://api.github.com".to_string()) }
 const GITHUB_API_VERSION: &str = "2022-11-28";
 const GITHUB_SECURITY_INITIATIVE_TITLE: &str = "GitHub Security Remediation";
 const GITHUB_DEPENDABOT_EPIC_TITLE: &str = "GitHub Dependabot Alerts";
@@ -803,7 +803,7 @@ fn fetch_dependabot_alerts(
     let mut alerts = Vec::new();
 
     let mut next_url = Some(format!(
-        "{GITHUB_API_BASE}/repos/{repository}/dependabot/alerts?state={state}&per_page=100"
+        "{}/repos/{repository}/dependabot/alerts?state={state}&per_page=100", github_api_base()
     ));
 
     while let Some(url) = next_url {
@@ -2056,5 +2056,52 @@ mod tests {
         
         let result = pull_dependabot_from_github_beads(temp.path(), &config, false);
         assert!(matches!(result, Err(KanbusError::Configuration(msg)) if msg.contains("repository slug")));
+    }
+}
+
+#[cfg(test)]
+
+#[cfg(test)]
+mod github_sync_err_tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_pull_dependabot_conn_error() {
+        std::env::set_var("KANBUS_GITHUB_API_BASE", "http://127.0.0.1:9");
+        std::env::set_var("GITHUB_TOKEN", "fake_token");
+        
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("issues")).unwrap();
+        std::fs::write(root.join(".kanbus.yml"), "project_key: TST\nproject_directory: .").unwrap();
+        std::fs::create_dir_all(root.join(".git")).unwrap();
+        std::fs::write(root.join(".git/config"), "[remote \"origin\"]\nurl = git@github.com:test-org/test-repo.git").unwrap();
+        
+        let config = crate::models::GithubSecurityConfiguration {
+            repo: Some("repo".to_string()),
+            dependabot: Some(crate::models::DependabotConfiguration {
+                state: "open".to_string(),
+                min_severity: "low".to_string(),
+                parent_epic: None,
+            }),
+        };
+        let err = pull_dependabot_from_github(root, &config, "TST", false).unwrap_err();
+        assert!(err.to_string().contains("GitHub request failed") || err.to_string().contains("issues directory does not exist"), "Actual error: {}", err);
+    }
+
+    #[test]
+    fn test_pull_dependabot_invalid_state() {
+        let temp = TempDir::new().unwrap();
+        let config = crate::models::GithubSecurityConfiguration {
+            repo: Some("repo".to_string()),
+            dependabot: Some(crate::models::DependabotConfiguration {
+                state: "invalid".to_string(),
+                min_severity: "low".to_string(),
+                parent_epic: None,
+            }),
+        };
+        let err = pull_dependabot_from_github(temp.path(), &config, "TST", false).unwrap_err();
+        assert!(err.to_string().contains("invalid dependabot state"));
     }
 }
