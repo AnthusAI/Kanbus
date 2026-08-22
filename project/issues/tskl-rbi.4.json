@@ -3,7 +3,7 @@
   "title": "Fix semantic-release root config + protected-main compatibility",
   "description": "Release workflow migrated to reusable semantic-release failed in run 23516776377 due to default config (next=1.0.0, missing root CHANGELOG.md) and blocked push to protected main. Add root semantic-release config, preserve 0.x progression and package tag format, and stop auto runs that attempt direct main push until PR-compatible flow exists.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": "derek.norrbom",
@@ -46,12 +46,20 @@
       "author": "derek.norrbom",
       "text": "Manual semantic-release verification succeeded. Re-enabling automatic trigger path: workflow_run from CI on successful push to main with repo/actor guards, while keeping workflow_dispatch fallback.",
       "created_at": "2026-03-25T17:02:49.350203Z"
+    },
+    {
+      "id": "8dd2d8eb-dcc2-4f97-a0dd-6b15a70c6d02",
+      "author": "ryan",
+      "text": "Closing as complete: Semantic-release root config and main branch protection fixed.",
+      "created_at": "2026-08-22T15:33:45.009887Z"
     }
   ],
   "created_at": "2026-03-24T23:21:17.076540Z",
-  "updated_at": "2026-03-25T17:02:49.350203Z",
-  "closed_at": null,
+  "updated_at": "2026-08-22T15:33:45.021252Z",
+  "closed_at": "2026-08-22T15:33:45.021252Z",
   "custom": {
-    "beads_owner": "derek.norrbom"
+    "beads_owner": "derek.norrbom",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }
