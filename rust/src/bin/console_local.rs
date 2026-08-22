@@ -2853,4 +2853,64 @@ mod tests {
         assert_eq!(scoped.project.as_deref(), Some("proj"));
         assert_eq!(scoped.mode, "none");
     }
+
+    #[tokio::test]
+    async fn get_issue_events_root_returns_not_found_for_missing_issue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        let state = test_state(root.clone(), root, false);
+        let response = get_issue_events_root(State(state), AxumPath("missing".to_string()), Query(IssueEventsQuery { before: None, limit: None })).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn get_issue_events_returns_not_found_for_missing_issue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        let tenant_dir = FileStore::resolve_tenant_root(&root, "acct", "proj");
+        setup_project_root(&tenant_dir);
+        let state = test_state(root.clone(), root, true);
+        let response = get_issue_events(State(state), AxumPath(("acct".to_string(), "proj".to_string(), "missing".to_string())), Query(IssueEventsQuery { before: None, limit: None })).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn get_events_returns_events_in_multi_tenant_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        let tenant_dir = FileStore::resolve_tenant_root(&root, "acct", "proj");
+        setup_project_root(&tenant_dir);
+        write_issue(&tenant_dir, "kbs-1");
+        let state = test_state(root.clone(), root, true);
+        let response = get_events(State(state), AxumPath(("acct".to_string(), "proj".to_string()))).await.into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn post_render_d2_returns_bad_request_for_invalid_json() {
+        let _guard = env_guard();
+        let response = post_render_d2(Bytes::from(r#"{"source":"#)).await;
+        let status = response.status();
+        assert!(status == StatusCode::BAD_REQUEST || status == StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn get_issues_root_returns_error_when_snapshot_fails() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        let state = test_state(root.clone(), root, false);
+        let response = get_issues_root(State(state)).await;
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn get_config_root_returns_error_when_snapshot_fails() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        let state = test_state(root.clone(), root, false);
+        let response = get_config_root(State(state)).await;
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
 }
