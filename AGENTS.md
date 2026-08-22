@@ -456,3 +456,24 @@ This project follows a standard Git Flow workflow:
 -   If implementing a feature, ensure you branch from `dev`.
 -   If asked to switch branches, preserve uncommitted changes unless instructed otherwise.
 -   Do not create or amend commits without explicit user approval after they have reviewed the changes.
+
+## Cursor Cloud specific instructions
+
+These notes apply to the Cursor Cloud Agent VM. The startup update script already runs
+`pip install -e python`, `npm ci` + `npm run build` in `packages/ui`, and `npm ci` in `apps/console`.
+
+### Toolchain and PATH
+-   The VM ships Node 22, Python 3.12 (repo supports 3.11+), Rust stable, and Go 1.22. There is no `conda` here, so ignore the `py311` conda guidance in `AGENTS.override.md`; use plain `python3` (the pip-installed `kanbus` package is importable and on PATH).
+-   Rust must be >= 1.85 because a transitive dependency requires the `edition2024` feature. The VM's default stable toolchain already satisfies this. If `cargo` ever errors with "feature `edition2024` is required", run `rustup update stable && rustup default stable` (then `rustup component add clippy rustfmt`).
+-   CLIs are on `/usr/local/bin` (the agent PATH): `kanbus`/`kanbusr` (Python, symlinked from `~/.local/bin`) and `kbs`/`kbsc` (Rust debug binaries symlinked from `rust/target/debug/`). Rebuild the Rust binaries after Rust code changes with `cargo build --locked --bin kbs --bin kbsc` in `rust/` (or `tools/install-system.sh` for release + symlink). `~/.local/bin` is also added to `~/.bashrc`.
+
+### Running the console (the main product surface)
+-   Recommended dev workflow is `./dev.sh`, but it defaults the CLI backend to conda. Override it so it uses the pip-installed CLI: `KANBUS_PYTHON=python3 KANBUS_PYTHON_ARGS=" " ./dev.sh` (the single-space `KANBUS_PYTHON_ARGS` is intentional: an empty value re-triggers the conda default, whereas a space collapses to an empty arg list so the server runs `python3 -m kanbus.cli ...`). Vite serves on the `console_port` from `.kanbus.yml` (4242) and the Express API on 5174.
+-   Simpler alternative: run the prebuilt Rust server directly with `CONSOLE_DATA_ROOT=/workspace/project kbsc`, which serves the embedded console at http://127.0.0.1:5174/ reading `project/` live (no Python or Node needed).
+
+### Known non-actionable test failures in this environment
+-   The Cloud VM's git config rewrites all `github.com` remote URLs to inject an auth token (`url.https://x-access-token:***@github.com/.insteadOf https://github.com/`). This makes git-remote-slug detection return `None`, so these two parity tests fail here and can be ignored: pytest `tests/test_snyk_sync.py::test_detect_repo_from_git_*` and `cargo test --lib` `snyk_sync::tests::detect_repo_from_git_normalizes_origin_url` / `github_security_sync::tests::detect_repo_from_git_reads_origin_remote`. Everything else passes.
+-   `kbs`/`kanbus` print a harmless "Mosquitto not found" notice; the MQTT gossip broker is optional and not required for the console.
+
+### Lint / test / build references
+-   Quality gates and commands are documented above and in the `Makefile` (`make check-python`, `make check-rust`, `make check-all`) and `.github/workflows/ci.yml`. The Python `behave` suite and full `cargo test`/`cargo clippy` runs are large and slow; prefer targeted runs (e.g. `cargo test --lib`, `pytest`) during iteration.
