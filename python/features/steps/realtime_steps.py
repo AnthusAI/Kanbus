@@ -222,8 +222,9 @@ def then_overlay_version(context: object) -> None:
 def given_overlay_snapshot(context: object, identifier: str, timestamp: str) -> None:
     updated_at = _parse_ts(timestamp)
     overlay_issue = _issue(identifier, updated_at)
+    project_dir = getattr(context, "overlay_project_dir", None) or (context.working_directory / "project")
     write_overlay_issue(
-        context.overlay_project_dir,
+        project_dir,
         overlay_issue,
         updated_at.isoformat().replace("+00:00", "Z"),
         None,
@@ -377,3 +378,21 @@ def then_broker_remains_running(context: object) -> None:
     # Give the thread a moment to process or crash
     time.sleep(0.1)
     assert context.uds_thread.is_alive()
+
+@given("a configuration with realtime broker disabled")
+def given_config_broker_disabled(context: object) -> None:
+    from pathlib import Path
+    
+    root = context.working_directory
+    config_path = root / "project" / "config.yaml"
+    if not config_path.exists():
+        # Re-use common steps if possible, or just generate it.
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text("project_key: kanbus\nrealtime:\n  broker: off\n")
+    else:
+        content = config_path.read_text()
+        if "realtime:" not in content:
+            content += "\nrealtime:\n  broker: off\n"
+        else:
+            content = content.replace("broker: auto", "broker: off")
+        config_path.write_text(content)
