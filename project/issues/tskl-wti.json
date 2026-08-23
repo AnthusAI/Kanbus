@@ -3,7 +3,7 @@
   "title": "Achieve 100% test coverage (Rust + Python)",
   "description": "Bring Rust and Python implementations to 100% test coverage with all Gherkin scenarios implemented and coverage tooling green.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": "ryan.porter",
@@ -121,11 +121,11 @@
     }
   ],
   "created_at": "2026-02-19T04:44:44.087647Z",
-  "updated_at": "2026-08-22T18:04:24.318869Z",
-  "closed_at": null,
+  "updated_at": "2026-08-23T12:48:47.878906Z",
+  "closed_at": "2026-08-23T12:48:47.878906Z",
   "custom": {
     "beads_owner": "ryan.porter",
-    "source": "shared",
-    "project_label": "kbs"
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

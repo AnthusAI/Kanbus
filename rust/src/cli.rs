@@ -1054,7 +1054,7 @@ fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), Ka
         None => return Ok(()),
     };
 
-    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+    if std::env::var("KANBUS_FORCE_INTERACTIVE").is_err() && (!std::io::stdin().is_terminal() || !std::io::stdout().is_terminal()) {
         return Ok(());
     }
 
