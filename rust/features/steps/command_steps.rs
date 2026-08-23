@@ -182,25 +182,7 @@ fn current_issue_ids(world: &KanbusWorld) -> HashSet<String> {
 }
 
 fn build_kbs_binary() -> PathBuf {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let target_dir = std::env::var("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| manifest_dir.join("target"));
-    let binary_path = target_dir.join("debug").join("kbs");
-    if binary_path.exists() {
-        return binary_path;
-    }
-
-    let status = Command::new("cargo")
-        .args(["build", "--bin", "kbs"])
-        .current_dir(&manifest_dir)
-        .env("CARGO_TARGET_DIR", &target_dir)
-        .status()
-        .expect("build kbs binary");
-    if !status.success() {
-        panic!("failed to build kbs binary");
-    }
-    binary_path
+    PathBuf::from(env!("CARGO_BIN_EXE_kbs"))
 }
 
 fn run_cli_command_with_stdin(world: &mut KanbusWorld, command: &str, input: &str) {
