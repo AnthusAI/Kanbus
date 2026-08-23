@@ -295,3 +295,4 @@ fn when_run_command_with_stdin(world: &mut KanbusWorld, command: String, stdin_t
 fn when_run_command_with_response(world: &mut KanbusWorld, command: String, response: String) {
     run_cli_command_with_stdin(world, &command, &format!("{response}\n"));
 }
+
