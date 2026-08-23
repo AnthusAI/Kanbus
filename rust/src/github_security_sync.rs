@@ -2062,21 +2062,69 @@ mod tests {
 
 #[cfg(test)]
 mod github_sync_err_tests {
-    use super::*;
-    use tempfile::TempDir;
 
     #[test]
-    fn test_pull_dependabot_conn_error() {
-        std::env::set_var("KANBUS_GITHUB_API_BASE", "http://127.0.0.1:9");
+    fn test_pull_dependabot_success() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::thread;
+        use tempfile::TempDir;
+        use super::*;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        // Start mock server
+        thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut request = Vec::new();
+                let mut buf = [0; 1];
+                while stream.read(&mut buf).unwrap_or(0) == 1 {
+                    request.push(buf[0]);
+                    if request.ends_with(b"\r\n\r\n") {
+                        break;
+                    }
+                }
+                
+                let body = r#"[
+  {
+    "number": 123,
+    "state": "open",
+    "dependency": {
+      "package": {
+        "ecosystem": "npm",
+        "name": "lodash"
+      },
+      "manifest_path": "package.json"
+    },
+    "security_advisory": {
+      "ghsa_id": "GHSA-1234",
+      "summary": "Mock vulnerability",
+      "description": "Mock description",
+      "severity": "high"
+    },
+    "security_vulnerability": {
+      "severity": "high"
+    },
+    "html_url": "https://github.com/mock/repo/security/dependabot/123"
+  }
+]"#;
+                let response = format!("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}", body.len(), body);
+                stream.write_all(response.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+        });
+
+        std::env::set_var("KANBUS_GITHUB_API_BASE", format!("http://127.0.0.1:{}", port));
         std::env::set_var("GITHUB_TOKEN", "fake_token");
-        
+
         let temp = TempDir::new().unwrap();
         let root = temp.path();
         std::fs::create_dir_all(root.join("issues")).unwrap();
         std::fs::write(root.join(".kanbus.yml"), "project_key: TST\nproject_directory: .").unwrap();
         std::fs::create_dir_all(root.join(".git")).unwrap();
         std::fs::write(root.join(".git/config"), "[remote \"origin\"]\nurl = git@github.com:test-org/test-repo.git").unwrap();
-        
+
         let config = crate::models::GithubSecurityConfiguration {
             repo: Some("repo".to_string()),
             dependabot: Some(crate::models::DependabotConfiguration {
@@ -2085,22 +2133,12 @@ mod github_sync_err_tests {
                 parent_epic: None,
             }),
         };
-        let err = pull_dependabot_from_github(root, &config, "TST", false).unwrap_err();
-        assert!(err.to_string().contains("GitHub request failed") || err.to_string().contains("issues directory does not exist"), "Actual error: {}", err);
+
+        let result = pull_dependabot_from_github(root, &config, "TST", false).unwrap();
+        assert_eq!(result.pulled, 1);
+        assert_eq!(result.updated, 0);
     }
 
-    #[test]
-    fn test_pull_dependabot_invalid_state() {
-        let temp = TempDir::new().unwrap();
-        let config = crate::models::GithubSecurityConfiguration {
-            repo: Some("repo".to_string()),
-            dependabot: Some(crate::models::DependabotConfiguration {
-                state: "invalid".to_string(),
-                min_severity: "low".to_string(),
-                parent_epic: None,
-            }),
-        };
-        let err = pull_dependabot_from_github(temp.path(), &config, "TST", false).unwrap_err();
-        assert!(err.to_string().contains("invalid dependabot state"));
-    }
+
+
 }

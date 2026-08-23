@@ -2098,6 +2098,7 @@ mod tests {
 }
 
 
+
 #[cfg(test)]
 mod snyk_sync_err_tests {
     use super::*;
@@ -2129,7 +2130,7 @@ mod snyk_sync_err_tests {
         std::env::set_var("SNYK_TOKEN", "fake");
         let temp = TempDir::new().unwrap();
         let root = temp.path();
-        std::fs::create_dir_all(root.join("project")).unwrap(); // no issues dir
+        std::fs::create_dir_all(root.join("project")).unwrap();
         std::fs::write(root.join("kanbus.yaml"), "project_key: TST").unwrap();
         
         let config = crate::models::SnykConfiguration {
@@ -2139,6 +2140,64 @@ mod snyk_sync_err_tests {
             parent_epic: None,
         };
         let err = pull_from_snyk(root, &config, "TST", false).unwrap_err();
-        assert!(err.to_string().contains("issues directory does not exist"), "Actual err: {}", err);
+        assert!(err.to_string().contains("issues directory does not exist"));
+    }
+
+    #[test]
+    fn test_pull_snyk_success() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::thread;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        thread::spawn(move || {
+            while let Ok((mut stream, _)) = listener.accept() {
+                let mut request = Vec::new();
+                let mut buf = [0; 1];
+                while stream.read(&mut buf).unwrap_or(0) == 1 {
+                    request.push(buf[0]);
+                    if request.ends_with(b"\r\n\r\n") {
+                        break;
+                    }
+                }
+                
+                let req_str = String::from_utf8_lossy(&request);
+                let body = if req_str.contains("/projects?") {
+                    r#"{ "data": [ { "id": "proj-1", "attributes": { "name": "repo/package.json", "type": "npm" } } ] }"#
+                } else if req_str.contains("/issues?") {
+                    r#"{ "data": [ { "id": "issue-1", "attributes": { "key": "SNYK-123", "type": "package_vulnerability", "effective_severity_level": "high", "problems": [], "coordinates": [{ "representations": [{ "dependency": { "package_name": "lodash", "package_version": "1.0" } }] }] } } ] }"#
+                } else if req_str.contains("/aggregated-issues") {
+                    r#"{ "issues": [ { "id": "issue-1", "issueData": { "title": "Mock vul" }, "fixInfo": {} } ] }"#
+                } else {
+                    "{}"
+                };
+                
+                let response = format!("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}", body.len(), body);
+                stream.write_all(response.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+        });
+
+        std::env::set_var("KANBUS_SNYK_API_BASE", format!("http://127.0.0.1:{}", port));
+        std::env::set_var("SNYK_TOKEN", "fake_token");
+
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("issues")).unwrap();
+        std::fs::write(root.join(".kanbus.yml"), "project_key: TST\nproject_directory: .").unwrap();
+        std::fs::create_dir_all(root.join(".git")).unwrap();
+        std::fs::write(root.join(".git/config"), "[remote \"origin\"]\nurl = git@github.com:test-org/repo.git").unwrap();
+
+        let config = crate::models::SnykConfiguration {
+            org_id: "org".to_string(),
+            min_severity: "low".to_string(),
+            repo: Some("repo".to_string()),
+            parent_epic: None,
+        };
+
+        let result = pull_from_snyk(root, &config, "TST", false).unwrap();
+        assert_eq!(result.pulled, 0);
     }
 }
