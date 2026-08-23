@@ -160,6 +160,9 @@ enum Commands {
         /// Emit JSON output.
         #[arg(long)]
         json: bool,
+        /// Bypass summary interception and show full raw data.
+        #[arg(long)]
+        raw: bool,
         /// Project root to scope lookup (directory containing .kanbus.yml).
         #[arg(long = "project-root")]
         project_root: Option<std::path::PathBuf>,
@@ -412,6 +415,17 @@ enum Commands {
     /// Stop the daemon process.
     #[command(name = "daemon-stop")]
     DaemonStop,
+    /// Summarize an issue
+    Summarize {
+        identifier: String,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Show LLM cost
+    Cost {
+        #[arg(long)]
+        days: Option<u32>,
+    },
 }
 
 fn is_help_request(kind: ErrorKind) -> bool {
@@ -1054,7 +1068,9 @@ fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), Ka
         None => return Ok(()),
     };
 
-    if std::env::var("KANBUS_FORCE_INTERACTIVE").is_err() && (!std::io::stdin().is_terminal() || !std::io::stdout().is_terminal()) {
+    if std::env::var("KANBUS_FORCE_INTERACTIVE").is_err()
+        && (!std::io::stdin().is_terminal() || !std::io::stdout().is_terminal())
+    {
         return Ok(());
     }
 
@@ -1312,6 +1328,7 @@ fn execute_command(
         Commands::Show {
             identifier,
             json,
+            raw,
             project_root,
         } => {
             let lookup_root = project_root.as_deref().unwrap_or(root);
@@ -1379,24 +1396,34 @@ fn execute_command(
             let output = if json {
                 serde_json::to_string_pretty(&issue).expect("failed to serialize issue")
             } else {
-                let use_color = should_use_color();
-                let all_issues = if beads_mode {
-                    None
+                let summary_comment = issue
+                    .comments
+                    .iter()
+                    .rev()
+                    .find(|c| c.comment_type.as_str() == "summary");
+
+                if let (Some(summary), false) = (summary_comment, raw) {
+                    summary.text.clone()
                 } else {
-                    let store = crate::console_backend::FileStore::new(lookup_root);
-                    if let Ok(config) = store.load_config() {
-                        store.load_issues(&config).ok()
-                    } else {
+                    let use_color = should_use_color();
+                    let all_issues = if beads_mode {
                         None
-                    }
-                };
-                format_issue_for_display(
-                    &issue,
-                    configuration.as_ref(),
-                    use_color,
-                    false,
-                    all_issues.as_deref(),
-                )
+                    } else {
+                        let store = crate::console_backend::FileStore::new(lookup_root);
+                        if let Ok(config) = store.load_config() {
+                            store.load_issues(&config).ok()
+                        } else {
+                            None
+                        }
+                    };
+                    format_issue_for_display(
+                        &issue,
+                        configuration.as_ref(),
+                        use_color,
+                        false,
+                        all_issues.as_deref(),
+                    )
+                }
             };
             run_lifecycle_hooks_for_context(
                 root,
@@ -3309,11 +3336,51 @@ fn execute_command(
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             Ok(Some(payload))
         }
+
         Commands::DaemonStop => {
             let status = request_shutdown(root).map_err(format_daemon_project_error)?;
             let payload = serde_json::to_string_pretty(&status)
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             Ok(Some(payload))
+        }
+        Commands::Summarize {
+            identifier,
+            dry_run,
+        } => {
+            let mut command = std::process::Command::new("kanbus");
+            command.arg("summarize").arg(identifier);
+            if dry_run {
+                command.arg("--dry-run");
+            }
+            command.current_dir(root);
+            let status = command.status().map_err(|error| {
+                KanbusError::Io(format!("Failed to execute 'kanbus summarize': {error}"))
+            })?;
+            if !status.success() {
+                return Err(KanbusError::Io(format!(
+                    "Command 'kanbus summarize' failed with exit code {}",
+                    status.code().unwrap_or(1)
+                )));
+            }
+            Ok(None)
+        }
+        Commands::Cost { days } => {
+            let mut command = std::process::Command::new("kanbus");
+            command.arg("cost");
+            if let Some(d) = days {
+                command.arg("--days").arg(d.to_string());
+            }
+            command.current_dir(root);
+            let status = command.status().map_err(|error| {
+                KanbusError::Io(format!("Failed to execute 'kanbus cost': {error}"))
+            })?;
+            if !status.success() {
+                return Err(KanbusError::Io(format!(
+                    "Command 'kanbus cost' failed with exit code {}",
+                    status.code().unwrap_or(1)
+                )));
+            }
+            Ok(None)
         }
     }
 }
@@ -3777,9 +3844,9 @@ mod tests {
 #[cfg(test)]
 mod additional_cli_tests {
     use super::*;
-    use crate::models::{IssueData, IssueComment, DependencyLink};
+    use crate::models::{DependencyLink, IssueComment, IssueData};
+    use chrono::{TimeZone, Utc};
     use std::collections::BTreeMap;
-    use chrono::{Utc, TimeZone};
 
     #[test]
     fn test_merge_issue_views_full_coverage() {
@@ -3794,7 +3861,10 @@ mod additional_cli_tests {
             creator: None,
             parent: None,
             labels: vec![],
-            dependencies: vec![DependencyLink { target: "test-2".to_string(), dependency_type: "blocks".to_string() }],
+            dependencies: vec![DependencyLink {
+                target: "test-2".to_string(),
+                dependency_type: "blocks".to_string(),
+            }],
             comments: vec![IssueComment {
                 id: None,
                 author: "alice".to_string(),
@@ -3819,8 +3889,14 @@ mod additional_cli_tests {
             parent: Some("epic-1".to_string()),
             labels: vec!["bug".to_string()],
             dependencies: vec![
-                DependencyLink { target: "test-2".to_string(), dependency_type: "blocks".to_string() },
-                DependencyLink { target: "test-3".to_string(), dependency_type: "relates-to".to_string() }
+                DependencyLink {
+                    target: "test-2".to_string(),
+                    dependency_type: "blocks".to_string(),
+                },
+                DependencyLink {
+                    target: "test-3".to_string(),
+                    dependency_type: "relates-to".to_string(),
+                },
             ],
             comments: vec![
                 IssueComment {
@@ -3834,7 +3910,7 @@ mod additional_cli_tests {
                     author: "bob".to_string(),
                     text: "c2".to_string(),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap(),
-                }
+                },
             ],
             created_at: Utc::now(),
             updated_at: Utc::now(),

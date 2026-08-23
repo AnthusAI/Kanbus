@@ -38,6 +38,7 @@ pub fn ensure_comment_ids(issue: &IssueData) -> (IssueData, bool) {
                     author: comment.author.clone(),
                     text: comment.text.clone(),
                     created_at: comment.created_at,
+                    comment_type: comment.comment_type.clone(),
                 }
             } else {
                 comment.clone()
@@ -118,6 +119,7 @@ pub fn add_comment(
         author: author.to_string(),
         text: text.to_string(),
         created_at: timestamp,
+        comment_type: "default".to_string(),
     };
     let (base_issue, _) = ensure_comment_ids(&lookup.issue);
     let mut comments = base_issue.comments.clone();
