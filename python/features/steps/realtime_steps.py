@@ -353,3 +353,27 @@ def _mosquitto_on_path() -> bool:
         if candidate.exists():
             return True
     return False
+
+@when("a subscriber connects and sends a blank line")
+def when_subscriber_sends_blank_line(context: object) -> None:
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(2.0)
+    sock.connect(str(context.uds_socket_path))
+    sock.sendall(b"\n")
+    sock.close()
+
+
+@when("a subscriber connects and sends invalid JSON")
+def when_subscriber_sends_invalid_json(context: object) -> None:
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(2.0)
+    sock.connect(str(context.uds_socket_path))
+    sock.sendall(b"{not-json\n")
+    sock.close()
+
+
+@then("the broker should remain running")
+def then_broker_remains_running(context: object) -> None:
+    # Give the thread a moment to process or crash
+    time.sleep(0.1)
+    assert context.uds_thread.is_alive()
