@@ -405,3 +405,25 @@ fn mosquitto_on_path() -> bool {
     }
     false
 }
+
+#[when("a subscriber connects and sends a blank line")]
+fn when_subscriber_sends_blank_line(world: &mut KanbusWorld) {
+    let socket_path = world.uds_socket_path.clone().expect("socket");
+    let mut stream = UnixStream::connect(socket_path).expect("connect");
+    stream.write_all(b"\n").expect("write");
+}
+
+#[when("a subscriber connects and sends invalid JSON")]
+fn when_subscriber_sends_invalid_json(world: &mut KanbusWorld) {
+    let socket_path = world.uds_socket_path.clone().expect("socket");
+    let mut stream = UnixStream::connect(socket_path).expect("connect");
+    stream.write_all(b"{not-json\n").expect("write");
+}
+
+#[then("the broker should remain running")]
+fn then_broker_remains_running(world: &mut KanbusWorld) {
+    thread::sleep(Duration::from_millis(100));
+    // The Unix socket should still accept connections.
+    let socket_path = world.uds_socket_path.clone().expect("socket");
+    let _stream = UnixStream::connect(socket_path).expect("broker crashed");
+}
