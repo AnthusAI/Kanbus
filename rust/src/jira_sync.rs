@@ -371,6 +371,7 @@ fn extract_comments(comment_field: &Value) -> Vec<IssueComment> {
                     text
                 },
                 created_at,
+                comment_type: "default".to_string(),
             }
         })
         .collect()

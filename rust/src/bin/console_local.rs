@@ -2860,7 +2860,15 @@ mod tests {
         let root = temp.path().canonicalize().expect("canonical root");
         setup_project_root(&root);
         let state = test_state(root.clone(), root, false);
-        let response = get_issue_events_root(State(state), AxumPath("missing".to_string()), Query(IssueEventsQuery { before: None, limit: None })).await;
+        let response = get_issue_events_root(
+            State(state),
+            AxumPath("missing".to_string()),
+            Query(IssueEventsQuery {
+                before: None,
+                limit: None,
+            }),
+        )
+        .await;
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
@@ -2871,7 +2879,19 @@ mod tests {
         let tenant_dir = FileStore::resolve_tenant_root(&root, "acct", "proj");
         setup_project_root(&tenant_dir);
         let state = test_state(root.clone(), root, true);
-        let response = get_issue_events(State(state), AxumPath(("acct".to_string(), "proj".to_string(), "missing".to_string())), Query(IssueEventsQuery { before: None, limit: None })).await;
+        let response = get_issue_events(
+            State(state),
+            AxumPath((
+                "acct".to_string(),
+                "proj".to_string(),
+                "missing".to_string(),
+            )),
+            Query(IssueEventsQuery {
+                before: None,
+                limit: None,
+            }),
+        )
+        .await;
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
@@ -2883,7 +2903,12 @@ mod tests {
         setup_project_root(&tenant_dir);
         write_issue(&tenant_dir, "kbs-1");
         let state = test_state(root.clone(), root, true);
-        let response = get_events(State(state), AxumPath(("acct".to_string(), "proj".to_string()))).await.into_response();
+        let response = get_events(
+            State(state),
+            AxumPath(("acct".to_string(), "proj".to_string())),
+        )
+        .await
+        .into_response();
         assert_eq!(response.status(), StatusCode::OK);
     }
 
@@ -2912,5 +2937,4 @@ mod tests {
         let response = get_config_root(State(state)).await;
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
-
 }

@@ -37,12 +37,15 @@ class IssueComment(BaseModel):
     :type text: str
     :param created_at: Timestamp when the comment was created.
     :type created_at: datetime
+    :param comment_type: Type of comment (e.g. default, summary).
+    :type comment_type: str
     """
 
     id: Optional[str] = None
     author: str = Field(min_length=1)
     text: str = Field(min_length=1)
     created_at: datetime
+    comment_type: str = "default"
 
 
 class IssueData(BaseModel):

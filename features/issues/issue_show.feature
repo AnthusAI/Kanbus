@@ -131,3 +131,16 @@ Feature: Issue display
       | 0        |
       | 3        |
       | 4        |
+
+  Scenario: Show issue raw data bypasses summary interception
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-raw" exists with title "Needs raw data"
+    And issue "kanbus-raw" has description "Detailed description"
+    And the issue "kanbus-raw" has a summary comment containing "This is the summary."
+    When I run "kanbus show kanbus-raw"
+    Then the command should succeed
+    And stdout should contain "This is the summary."
+    And stdout should not contain "Detailed description"
+    When I run "kanbus show kanbus-raw --raw"
+    Then the command should succeed
+    And stdout should contain "Detailed description"

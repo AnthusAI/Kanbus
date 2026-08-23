@@ -23,7 +23,9 @@ use crate::issue_files::{
 };
 use crate::models::{IssueData, SnykConfiguration};
 
-fn snyk_api_base() -> String { std::env::var("KANBUS_SNYK_API_BASE").unwrap_or_else(|_| "https://api.snyk.io".to_string()) }
+fn snyk_api_base() -> String {
+    std::env::var("KANBUS_SNYK_API_BASE").unwrap_or_else(|_| "https://api.snyk.io".to_string())
+}
 const SNYK_API_VERSION: &str = "2025-11-05";
 const SNYK_INITIATIVE_TITLE: &str = "Snyk Vulnerability Remediation";
 const SNYK_DEP_EPIC_TITLE: &str = "Snyk Dependency Vulnerabilities";
@@ -716,7 +718,8 @@ fn fetch_snyk_projects(
     let prefix = repo_filter.map(|r| format!("{r}:"));
 
     let mut url = Some(format!(
-        "{}/rest/orgs/{org_id}/projects?version={SNYK_API_VERSION}&limit=100", snyk_api_base()
+        "{}/rest/orgs/{org_id}/projects?version={SNYK_API_VERSION}&limit=100",
+        snyk_api_base()
     ));
 
     while let Some(current_url) = url {
@@ -799,8 +802,10 @@ fn fetch_v1_enrichment(
     let mut enrichment: BTreeMap<String, Value> = BTreeMap::new();
 
     for proj_id in &project_ids {
-        let url =
-            format!("{}/api/v1/org/{org_id}/project/{proj_id}/aggregated-issues", snyk_api_base());
+        let url = format!(
+            "{}/api/v1/org/{org_id}/project/{proj_id}/aggregated-issues",
+            snyk_api_base()
+        );
         let response = client
             .post(&url)
             .bearer_auth(token)
@@ -867,7 +872,8 @@ fn fetch_snyk_issues_for_type(
     let mut all_issues: Vec<Value> = Vec::new();
 
     let mut url = Some(format!(
-        "{}/rest/orgs/{org_id}/issues?version={SNYK_API_VERSION}&limit=100&type={issue_type}", snyk_api_base()
+        "{}/rest/orgs/{org_id}/issues?version={SNYK_API_VERSION}&limit=100&type={issue_type}",
+        snyk_api_base()
     ));
 
     while let Some(current_url) = url {
@@ -2097,8 +2103,6 @@ mod tests {
     }
 }
 
-
-
 #[cfg(test)]
 mod snyk_sync_err_tests {
     use super::*;
@@ -2132,7 +2136,7 @@ mod snyk_sync_err_tests {
         let root = temp.path();
         std::fs::create_dir_all(root.join("project")).unwrap();
         std::fs::write(root.join("kanbus.yaml"), "project_key: TST").unwrap();
-        
+
         let config = crate::models::SnykConfiguration {
             org_id: "org".to_string(),
             min_severity: "low".to_string(),
@@ -2162,7 +2166,7 @@ mod snyk_sync_err_tests {
                         break;
                     }
                 }
-                
+
                 let req_str = String::from_utf8_lossy(&request);
                 let body = if req_str.contains("/projects?") {
                     r#"{ "data": [ { "id": "proj-1", "attributes": { "name": "repo/package.json", "type": "npm" } } ] }"#
@@ -2173,7 +2177,7 @@ mod snyk_sync_err_tests {
                 } else {
                     "{}"
                 };
-                
+
                 let response = format!("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}", body.len(), body);
                 stream.write_all(response.as_bytes()).unwrap();
                 stream.flush().unwrap();
@@ -2186,9 +2190,17 @@ mod snyk_sync_err_tests {
         let temp = TempDir::new().unwrap();
         let root = temp.path();
         std::fs::create_dir_all(root.join("issues")).unwrap();
-        std::fs::write(root.join(".kanbus.yml"), "project_key: TST\nproject_directory: .").unwrap();
+        std::fs::write(
+            root.join(".kanbus.yml"),
+            "project_key: TST\nproject_directory: .",
+        )
+        .unwrap();
         std::fs::create_dir_all(root.join(".git")).unwrap();
-        std::fs::write(root.join(".git/config"), "[remote \"origin\"]\nurl = git@github.com:test-org/repo.git").unwrap();
+        std::fs::write(
+            root.join(".git/config"),
+            "[remote \"origin\"]\nurl = git@github.com:test-org/repo.git",
+        )
+        .unwrap();
 
         let config = crate::models::SnykConfiguration {
             org_id: "org".to_string(),

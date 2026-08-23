@@ -637,6 +637,7 @@ fn convert_comments(
                 author: author.to_string(),
                 text: text.to_string(),
                 created_at,
+                comment_type: "default".to_string(),
             });
         }
     }

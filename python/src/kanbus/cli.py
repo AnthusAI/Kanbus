@@ -210,6 +210,8 @@ def _delete_terminal_is_interactive() -> bool:
 
 
 def _maybe_prompt_project_repair(context: click.Context) -> None:
+    print(f"DEBUG REPAIR CWD: {Path.cwd()}")
+
     print("SHOULD CHECK:", _should_check_project_structure(context))
     if not _should_check_project_structure(context):
         return
@@ -221,7 +223,9 @@ def _maybe_prompt_project_repair(context: click.Context) -> None:
     if plan is None:
         print("PLAN IS NONE", file=sys.stderr)
         return
-    if not os.environ.get("KANBUS_FORCE_INTERACTIVE") and (not sys.stdin.isatty() or not sys.stdout.isatty()):
+    if not os.environ.get("KANBUS_FORCE_INTERACTIVE") and (
+        not sys.stdin.isatty() or not sys.stdout.isatty()
+    ):
         print("NOT INTERACTIVE", file=sys.stderr)
         return
     missing = []
@@ -505,14 +509,17 @@ def create(
 @cli.command("show")
 @click.argument("identifier")
 @click.option("--json", "as_json", is_flag=True)
+@click.option("--raw", is_flag=True, help="Show raw issue data without summary interception")
 @click.pass_context
-def show(context: click.Context, identifier: str, as_json: bool) -> None:
+def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> None:
     """Show details for an issue.
 
     :param identifier: Issue identifier.
     :type identifier: str
     :param as_json: Emit JSON output when set.
     :type as_json: bool
+    :param raw: Bypass summary interception when set.
+    :type raw: bool
     """
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
@@ -576,14 +583,25 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
         except Exception:
             pass
 
-    click.echo(
-        format_issue_for_display(
-            issue,
-            configuration=configuration,
-            project_context=False,
-            all_issues=all_issues,
-        )
+    summary_comment = next(
+        (
+            c
+            for c in reversed(issue.comments)
+            if getattr(c, "comment_type", "default") == "summary"
+        ),
+        None,
     )
+    if summary_comment and not raw:
+        click.echo(summary_comment.text)
+    else:
+        click.echo(
+            format_issue_for_display(
+                issue,
+                configuration=configuration,
+                project_context=False,
+                all_issues=all_issues,
+            )
+        )
     _run_lifecycle_hooks_for_context(
         context,
         phase=HookPhase.AFTER,
@@ -3137,5 +3155,69 @@ def bugs_alias(context: click.Context) -> None:
     context.invoke(list_command, issue_type="bug")
 
 
+@cli.command("summarize")
+@click.argument("identifier")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print the summary without saving to issue.",
+)
+@click.pass_context
+def summarize(context: click.Context, identifier: str, dry_run: bool) -> None:
+    """Summarize an issue using AI."""
+    root = Path.cwd()
+    from kanbus.summarize import compaction_summarize
+
+    try:
+        compaction_summarize(root, identifier, dry_run=dry_run)
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("cost")
+@click.option(
+    "--days", type=int, default=None, help="Number of days to aggregate over."
+)
+@click.pass_context
+def cost(context: click.Context, days: int | None) -> None:
+    """Report LLM usage costs."""
+    from kanbus.config_loader import load_project_configuration
+    from kanbus.project import get_configuration_path
+    import json
+    from datetime import datetime, timezone, timedelta
+    from pathlib import Path
+
+    root = Path.cwd()
+    config_path = get_configuration_path(root)
+    config = load_project_configuration(config_path)
+    log_path = root / config.project_directory / "events" / "llm_usage.jsonl"
+
+    if not log_path.exists():
+        click.echo("No LLM usage logs found.")
+        return
+
+    total_tokens = 0
+    total_cost = 0.0
+    cutoff = None
+    if days is not None:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    with open(log_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            data = json.loads(line)
+            ts = datetime.fromisoformat(data["timestamp"])
+            if cutoff and ts < cutoff:
+                continue
+            total_tokens += data.get("tokens", 0)
+            total_cost += data.get("cost", 0.0)
+
+    click.echo(f"Total Tokens: {total_tokens}")
+    click.echo(f"Total Cost:   ${total_cost:.4f}")
+
+
 if __name__ == "__main__":
+
     cli()

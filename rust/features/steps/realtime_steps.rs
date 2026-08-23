@@ -271,7 +271,10 @@ fn then_overlay_version(world: &mut KanbusWorld) {
 fn given_overlay_snapshot(world: &mut KanbusWorld, identifier: String, timestamp: String) {
     let updated_at = parse_ts(&timestamp);
     let overlay_issue = issue(&identifier, updated_at);
-    let project_dir = world.overlay_project_dir.clone().unwrap_or_else(|| world.working_directory.as_ref().unwrap().join("project"));
+    let project_dir = world
+        .overlay_project_dir
+        .clone()
+        .unwrap_or_else(|| world.working_directory.as_ref().unwrap().join("project"));
     write_overlay_issue(
         &project_dir,
         &overlay_issue,
@@ -430,10 +433,18 @@ fn then_broker_remains_running(world: &mut KanbusWorld) {
 
 #[given("a configuration with realtime broker disabled")]
 async fn given_config_broker_disabled(world: &mut KanbusWorld) -> Result<(), std::io::Error> {
-    let config_path = world.working_directory.as_ref().unwrap().join("project").join("config.yaml");
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .unwrap()
+        .join("project")
+        .join("config.yaml");
     if !config_path.exists() {
         std::fs::create_dir_all(config_path.parent().unwrap())?;
-        std::fs::write(&config_path, "project_key: kanbus\nrealtime:\n  broker: off\n")?;
+        std::fs::write(
+            &config_path,
+            "project_key: kanbus\nrealtime:\n  broker: off\n",
+        )?;
     } else {
         let mut content = std::fs::read_to_string(&config_path)?;
         if !content.contains("realtime:") {
