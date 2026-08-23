@@ -273,3 +273,6 @@ cd rust && cargo run --release --bin index_benchmark
 ## License
 
 MIT
+
+## Single Source of Truth
+We firmly believe in the ideal single-source-of-spec religion: all system behavior should be codified into shared Gherkin `.feature` specifications that run against both Python and Rust implementations, minimizing language-specific unit tests.
