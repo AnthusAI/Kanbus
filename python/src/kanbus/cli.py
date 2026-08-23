@@ -192,6 +192,7 @@ def cli(
 
 
 def _should_check_project_structure(context: click.Context) -> bool:
+    print("INVOKED:", context.invoked_subcommand, file=sys.stderr)
     if context.invoked_subcommand is None:
         return False
     return context.invoked_subcommand not in {"init", "setup", "repair", "edit"}
@@ -209,6 +210,7 @@ def _delete_terminal_is_interactive() -> bool:
 
 
 def _maybe_prompt_project_repair(context: click.Context) -> None:
+    print("SHOULD CHECK:", _should_check_project_structure(context))
     if not _should_check_project_structure(context):
         return
     root = Path.cwd()
@@ -217,8 +219,10 @@ def _maybe_prompt_project_repair(context: click.Context) -> None:
     except PermissionError:
         return
     if plan is None:
+        print("PLAN IS NONE", file=sys.stderr)
         return
-    if not sys.stdin.isatty() or not sys.stdout.isatty():
+    if not os.environ.get("KANBUS_FORCE_INTERACTIVE") and (not sys.stdin.isatty() or not sys.stdout.isatty()):
+        print("NOT INTERACTIVE", file=sys.stderr)
         return
     missing = []
     if plan.missing_project_dir:
@@ -684,7 +688,10 @@ def update(
         root = _resolve_beads_root(root)
         if parent is not None:
             raise click.ClickException("parent update not supported in beads mode")
-        before_issue = load_beads_issue(root, identifier)
+        try:
+            before_issue = load_beads_issue(root, identifier)
+        except MigrationError as error:
+            raise click.ClickException(str(error)) from error
         proposed_issue = before_issue.model_copy(deep=True)
         if status is not None:
             proposed_issue.status = status
