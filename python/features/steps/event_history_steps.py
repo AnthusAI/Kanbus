@@ -179,7 +179,9 @@ def then_event_log_includes_type(context: object, event_type: str) -> None:
     assert any(event.get("event_type") == event_type for _, event in events)
 
 
-@then("the event log filenames for the last issue should be filesystem-safe UTC timestamps")
+@then(
+    "the event log filenames for the last issue should be filesystem-safe UTC timestamps"
+)
 def then_event_filenames_filesystem_safe(context: object) -> None:
     identifier = _last_issue_id(context)
     events = _load_issue_events(context, identifier)

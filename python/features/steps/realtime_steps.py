@@ -222,7 +222,9 @@ def then_overlay_version(context: object) -> None:
 def given_overlay_snapshot(context: object, identifier: str, timestamp: str) -> None:
     updated_at = _parse_ts(timestamp)
     overlay_issue = _issue(identifier, updated_at)
-    project_dir = getattr(context, "overlay_project_dir", None) or (context.working_directory / "project")
+    project_dir = getattr(context, "overlay_project_dir", None) or (
+        context.working_directory / "project"
+    )
     write_overlay_issue(
         project_dir,
         overlay_issue,
@@ -355,6 +357,7 @@ def _mosquitto_on_path() -> bool:
             return True
     return False
 
+
 @when("a subscriber connects and sends a blank line")
 def when_subscriber_sends_blank_line(context: object) -> None:
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -379,10 +382,10 @@ def then_broker_remains_running(context: object) -> None:
     time.sleep(0.1)
     assert context.uds_thread.is_alive()
 
+
 @given("a configuration with realtime broker disabled")
 def given_config_broker_disabled(context: object) -> None:
-    from pathlib import Path
-    
+
     root = context.working_directory
     config_path = root / "project" / "config.yaml"
     if not config_path.exists():

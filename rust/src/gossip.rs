@@ -1147,18 +1147,11 @@ fn print_mosquitto_missing() {
     );
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::io::{Read, Write};
-
-
-
-
+    use tempfile::TempDir;
 
     #[test]
     fn test_gossip_server_and_broadcast() {
@@ -1178,30 +1171,20 @@ mod tests {
             "dependencies": [],
             "custom": {},
             "comments": []
-        })).unwrap();
+        }))
+        .unwrap();
 
         // Start broker in a background thread
         let root_clone = root.to_path_buf();
         std::thread::spawn(move || {
             let _ = run_gossip_broker(&root_clone, None);
         });
-        
-        std::thread::sleep(std::time::Duration::from_millis(150));
-        
-        let _ = publish_issue_mutation(
-            root,
-            root,
-            &dummy_issue,
-            None,
-            "ui.reload",
-        );
 
-        let _ = publish_issue_deleted(
-            root,
-            root,
-            "id",
-            None,
-        );
+        std::thread::sleep(std::time::Duration::from_millis(150));
+
+        let _ = publish_issue_mutation(root, root, &dummy_issue, None, "ui.reload");
+
+        let _ = publish_issue_deleted(root, root, "id", None);
 
         // Try Unix stream directly if on Unix
         #[cfg(unix)]
@@ -1213,7 +1196,7 @@ mod tests {
                 let _ = stream.flush();
             }
         }
-        
+
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }

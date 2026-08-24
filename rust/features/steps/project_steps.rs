@@ -537,26 +537,48 @@ fn then_issues_from_referenced_project(world: &mut KanbusWorld) {
 
 #[then(expr = "the directory {string} should exist")]
 fn then_directory_exists(world: &mut KanbusWorld, path: String) {
-    let full_path = world.working_directory.as_ref().expect("working directory").join(path);
-    assert!(full_path.is_dir(), "Expected directory {:?} to exist", full_path);
+    let full_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory")
+        .join(path);
+    assert!(
+        full_path.is_dir(),
+        "Expected directory {:?} to exist",
+        full_path
+    );
 }
 
 #[then(expr = "the directory {string} should not exist")]
 fn then_directory_not_exists(world: &mut KanbusWorld, path: String) {
-    let full_path = world.working_directory.as_ref().expect("working directory").join(path);
-    assert!(!full_path.is_dir(), "Expected directory {:?} to not exist", full_path);
+    let full_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory")
+        .join(path);
+    assert!(
+        !full_path.is_dir(),
+        "Expected directory {:?} to not exist",
+        full_path
+    );
 }
 
 #[given(expr = "the directory {string} exists")]
 fn given_directory_exists(world: &mut KanbusWorld, path: String) {
-    let working_dir = world.working_directory.as_ref().expect("working_directory must be set");
+    let working_dir = world
+        .working_directory
+        .as_ref()
+        .expect("working_directory must be set");
     let full_path = std::path::Path::new(working_dir).join(path);
     std::fs::create_dir_all(&full_path).expect("failed to create directory");
 }
 
 #[given(expr = "I remove the directory {string}")]
 fn given_remove_directory(world: &mut KanbusWorld, path: String) {
-    let working_dir = world.working_directory.as_ref().expect("working_directory must be set");
+    let working_dir = world
+        .working_directory
+        .as_ref()
+        .expect("working_directory must be set");
     let full_path = std::path::Path::new(working_dir).join(path);
     if full_path.exists() {
         std::fs::remove_dir_all(full_path).unwrap();

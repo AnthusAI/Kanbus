@@ -1,0 +1,25 @@
+{
+  "id": "kbs-50866563-4b49-40a2-a8a8-b02d09828151",
+  "title": "Query commands use issue compaction",
+  "description": "When a CLI feature queries for issue information, return the most-recent summary comment if one exists instead of raw data.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-74dfa99a-aa84-407f-bc33-983c3ae10390",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "fed0fc86-dacd-48f6-891b-8dfdaf349c12",
+      "author": "ryan",
+      "text": "Feature: Issue querying uses compaction\n  Scenario: Querying an issue with a summary\n    Given an issue with a comment of type \"summary\"\n    When I query the issue via CLI commands (e.g. kbs show or kbs list)\n    Then the system returns the data from the most-recent summary comment\n    And it does not try to return the original raw data",
+      "created_at": "2026-08-23T19:31:29.193483Z"
+    }
+  ],
+  "created_at": "2026-08-23T19:31:18.188556Z",
+  "updated_at": "2026-08-23T20:11:10.139169Z",
+  "closed_at": "2026-08-23T20:11:10.139169Z",
+  "custom": {}
+}
