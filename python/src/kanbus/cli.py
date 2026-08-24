@@ -193,7 +193,6 @@ def cli(
 
 
 def _should_check_project_structure(context: click.Context) -> bool:
-    print("INVOKED:", context.invoked_subcommand, file=sys.stderr)
     if context.invoked_subcommand is None:
         return False
     return context.invoked_subcommand not in {"init", "setup", "repair", "edit"}

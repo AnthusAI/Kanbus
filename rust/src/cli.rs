@@ -1601,7 +1601,7 @@ fn execute_command(
                 &[],
                 hook_options,
             )?;
-            let after_issue_for_hooks: Option<IssueData>;
+            let mut after_issue_for_hooks: Option<IssueData> = None;
             if beads_mode {
                 if parent.is_some() {
                     return Err(KanbusError::IssueOperation(
@@ -2656,7 +2656,7 @@ fn execute_command(
                 &[],
                 hook_options,
             )?;
-            let after_issue_for_hooks: Option<IssueData>;
+            let mut after_issue_for_hooks: Option<IssueData> = None;
             if beads_mode {
                 if is_remove {
                     remove_beads_dependency(
