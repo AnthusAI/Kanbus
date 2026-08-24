@@ -96,6 +96,45 @@ fn given_issue_has_summary_comment(world: &mut KanbusWorld, issue_id: String, te
     .unwrap();
 }
 
+#[given(expr = "the issue {string} has a summary comment containing:")]
+fn given_issue_has_multiline_summary_comment(
+    world: &mut KanbusWorld,
+    issue_id: String,
+    text: String,
+) {
+    let root = world.working_directory.as_ref().unwrap().clone();
+    let project_dir = root.join("project");
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", issue_id));
+
+    let mut issue_json: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&issue_path).unwrap()).unwrap();
+    let created_at = (chrono::Utc::now() - chrono::Duration::days(5)).to_rfc3339();
+    let comment = serde_json::json!({
+        "id": uuid::Uuid::new_v4().to_string(),
+        "author": "system:summary",
+        "text": text.trim(),
+        "created_at": created_at,
+        "comment_type": "summary"
+    });
+
+    if let Some(comments) = issue_json
+        .get_mut("comments")
+        .and_then(|c| c.as_array_mut())
+    {
+        comments.push(comment);
+    } else {
+        issue_json["comments"] = serde_json::json!([comment]);
+    }
+
+    fs::write(
+        &issue_path,
+        serde_json::to_string_pretty(&issue_json).unwrap(),
+    )
+    .unwrap();
+}
+
 #[then(expr = "the issue {string} should have a summary comment")]
 fn then_issue_should_have_summary_comment(world: &mut KanbusWorld, issue_id: String) {
     let root = world.working_directory.as_ref().unwrap().clone();
