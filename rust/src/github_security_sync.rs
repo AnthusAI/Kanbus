@@ -131,9 +131,9 @@ pub fn pull_dependabot_from_github(
                     title: dependabot_alert_title(alert),
                     existing_ids: all_existing.clone(),
                     prefix: project_key.to_string(),
-                
-            requested_id: None,
-        };
+
+                    requested_id: None,
+                };
                 let result = generate_issue_identifier(&request)?;
                 let new_id = result.identifier.clone();
                 all_existing.insert(new_id.clone());
@@ -373,9 +373,9 @@ fn resolve_dependabot_epic(
         title: GITHUB_DEPENDABOT_EPIC_TITLE.to_string(),
         existing_ids: all_existing.clone(),
         prefix: project_key.to_string(),
-    
-            requested_id: None,
-        };
+
+        requested_id: None,
+    };
     let result = generate_issue_identifier(&request)?;
     let epic_id = result.identifier.clone();
     all_existing.insert(epic_id.clone());
@@ -428,9 +428,9 @@ fn resolve_security_initiative(
         title: GITHUB_SECURITY_INITIATIVE_TITLE.to_string(),
         existing_ids: all_existing.clone(),
         prefix: project_key.to_string(),
-    
-            requested_id: None,
-        };
+
+        requested_id: None,
+    };
     let result = generate_issue_identifier(&request)?;
     let initiative_id = result.identifier.clone();
     all_existing.insert(initiative_id.clone());
@@ -575,9 +575,9 @@ fn resolve_manifest_task(
         title: title.clone(),
         existing_ids: all_existing.clone(),
         prefix: ctx.project_key.to_string(),
-    
-            requested_id: None,
-        };
+
+        requested_id: None,
+    };
     let result = generate_issue_identifier(&request)?;
     let task_id = result.identifier.clone();
     all_existing.insert(task_id.clone());

@@ -211,9 +211,6 @@ def _delete_terminal_is_interactive() -> bool:
 
 
 def _maybe_prompt_project_repair(context: click.Context) -> None:
-    print(f"DEBUG REPAIR CWD: {Path.cwd()}")
-
-    print("SHOULD CHECK:", _should_check_project_structure(context))
     if not _should_check_project_structure(context):
         return
     root = Path.cwd()
@@ -222,12 +219,10 @@ def _maybe_prompt_project_repair(context: click.Context) -> None:
     except PermissionError:
         return
     if plan is None:
-        print("PLAN IS NONE", file=sys.stderr)
         return
     if not os.environ.get("KANBUS_FORCE_INTERACTIVE") and (
         not sys.stdin.isatty() or not sys.stdout.isatty()
     ):
-        print("NOT INTERACTIVE", file=sys.stderr)
         return
     missing = []
     if plan.missing_project_dir:
