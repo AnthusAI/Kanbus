@@ -122,8 +122,7 @@ fn render_description_and_comments(
         .iter()
         .map(|comment| {
             let display_text = get_comment_display_text(comment);
-            wiki::render_template_string(&display_text, all_issues)
-                .unwrap_or(display_text)
+            wiki::render_template_string(&display_text, all_issues).unwrap_or(display_text)
         })
         .collect();
     (description, comments)

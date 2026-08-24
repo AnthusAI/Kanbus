@@ -130,14 +130,11 @@ fn then_issue_has_comment_without_id(
 ) {
     let project_dir = load_project_dir(world);
     let issue = load_issue(&project_dir, &identifier);
-    let found = issue
-        .comments
-        .iter()
-        .any(|comment| {
-            comment.author == author
-                && comment.text.as_deref() == Some(text.as_str())
-                && comment.id.is_none()
-        });
+    let found = issue.comments.iter().any(|comment| {
+        comment.author == author
+            && comment.text.as_deref() == Some(text.as_str())
+            && comment.id.is_none()
+    });
     assert!(found, "expected comment not found");
 }
 
@@ -485,7 +482,10 @@ fn then_issue_has_comment_text(world: &mut KanbusWorld, identifier: String, expe
     let project_dir = load_project_dir(world);
     let issue = load_issue(&project_dir, &identifier);
     assert_eq!(issue.comments.len(), 1);
-    assert_eq!(issue.comments[0].text.as_deref(), Some(expected_text.as_str()));
+    assert_eq!(
+        issue.comments[0].text.as_deref(),
+        Some(expected_text.as_str())
+    );
 }
 
 #[then(expr = "issue {string} should have {int} comments")]
