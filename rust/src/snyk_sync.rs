@@ -2116,6 +2116,7 @@ mod tests {
 #[cfg(test)]
 mod snyk_sync_err_tests {
     use super::*;
+    use serial_test::serial;
     use std::net::TcpListener;
     use tempfile::TempDir;
 
@@ -2127,6 +2128,7 @@ mod snyk_sync_err_tests {
     }
 
     #[test]
+    #[serial]
     fn test_fetch_projects_conn_error() {
         std::env::set_var("KANBUS_SNYK_API_BASE", closed_local_api_base());
         let err = fetch_snyk_projects("org", "token", None).unwrap_err();
@@ -2134,6 +2136,7 @@ mod snyk_sync_err_tests {
     }
 
     #[test]
+    #[serial]
     fn test_fetch_issues_conn_error() {
         std::env::set_var("KANBUS_SNYK_API_BASE", closed_local_api_base());
         let res = fetch_all_snyk_issues("org", "token", 0, &["code"]).unwrap();
@@ -2141,6 +2144,7 @@ mod snyk_sync_err_tests {
     }
 
     #[test]
+    #[serial]
     fn test_fetch_v1_conn_error() {
         std::env::set_var("KANBUS_SNYK_API_BASE", closed_local_api_base());
         let err = fetch_v1_enrichment("org", "token", vec!["proj-1".to_string()]).unwrap_err();
@@ -2148,6 +2152,7 @@ mod snyk_sync_err_tests {
     }
 
     #[test]
+    #[serial]
     fn test_pull_from_snyk_missing_issues_dir() {
         std::env::set_var("SNYK_TOKEN", "fake");
         let temp = TempDir::new().unwrap();
@@ -2166,6 +2171,7 @@ mod snyk_sync_err_tests {
     }
 
     #[test]
+    #[serial]
     fn test_pull_snyk_success() {
         use std::io::{Read, Write};
         use std::net::TcpListener;
