@@ -238,9 +238,9 @@ pub fn pull_from_snyk(
                     title: vuln_title(vuln),
                     existing_ids: all_existing.clone(),
                     prefix: project_key.to_string(),
-                
-            requested_id: None,
-        };
+
+                    requested_id: None,
+                };
                 let result = generate_issue_identifier(&request)?;
                 let new_id = result.identifier.clone();
                 all_existing.insert(new_id.clone());
@@ -303,9 +303,9 @@ fn resolve_parent_epic(
         title: "Snyk Vulnerabilities".to_string(),
         existing_ids: all_existing.clone(),
         prefix: project_key.to_string(),
-    
-            requested_id: None,
-        };
+
+        requested_id: None,
+    };
     let result = generate_issue_identifier(&request)?;
     let epic_id = result.identifier.clone();
     all_existing.insert(epic_id.clone());
@@ -410,9 +410,9 @@ fn resolve_snyk_initiative(
         title: SNYK_INITIATIVE_TITLE.to_string(),
         existing_ids: all_existing.clone(),
         prefix: project_key.to_string(),
-    
-            requested_id: None,
-        };
+
+        requested_id: None,
+    };
     let result = generate_issue_identifier(&request)?;
     let initiative_id = result.identifier.clone();
     all_existing.insert(initiative_id.clone());
@@ -474,9 +474,9 @@ fn resolve_snyk_epic(
         title: title.to_string(),
         existing_ids: ctx.all_existing.clone(),
         prefix: ctx.project_key.to_string(),
-    
-            requested_id: None,
-        };
+
+        requested_id: None,
+    };
     let result = generate_issue_identifier(&request)?;
     let epic_id = result.identifier.clone();
     ctx.all_existing.insert(epic_id.clone());
@@ -649,9 +649,9 @@ fn resolve_file_task(
         title: target_file.to_string(),
         existing_ids: all_existing.clone(),
         prefix: project_key.to_string(),
-    
-            requested_id: None,
-        };
+
+        requested_id: None,
+    };
     let result = generate_issue_identifier(&request)?;
     let task_id = result.identifier.clone();
     all_existing.insert(task_id.clone());

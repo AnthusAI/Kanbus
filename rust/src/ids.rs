@@ -148,9 +148,14 @@ pub fn generate_issue_identifier(
 ) -> Result<IssueIdentifierResult, KanbusError> {
     if let Some(req_id) = &request.requested_id {
         if request.existing_ids.contains(req_id) {
-            return Err(KanbusError::IssueOperation(format!("requested id '{}' already exists", req_id)));
+            return Err(KanbusError::IssueOperation(format!(
+                "requested id '{}' already exists",
+                req_id
+            )));
         }
-        return Ok(IssueIdentifierResult { identifier: req_id.clone() });
+        return Ok(IssueIdentifierResult {
+            identifier: req_id.clone(),
+        });
     }
 
     for _ in 0..10 {
@@ -191,7 +196,7 @@ pub fn generate_many_identifiers(
             title: title.to_string(),
             existing_ids: existing.clone(),
             prefix: prefix.to_string(),
-        
+
             requested_id: None,
         };
         let result = generate_issue_identifier(&request)?;
