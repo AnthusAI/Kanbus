@@ -3404,74 +3404,35 @@ fn execute_command(
             command: lifecycle_cmd,
         } => match lifecycle_cmd {
             LifecycleCommands::Compact {
-                all,
-                query,
+                all: _all,
+                query: _query,
                 dry_run,
                 archived_only,
                 max_items,
             } => {
-                let mut command = std::process::Command::new("kanbus");
-                command.arg("lifecycle").arg("compact");
-                if all {
-                    command.arg("--all");
-                }
-                if let Some(q) = query {
-                    command.arg("--query").arg(q);
-                }
-                if dry_run {
-                    command.arg("--dry-run");
-                }
-                if archived_only {
-                    command.arg("--archived-only");
-                }
-                if let Some(m) = max_items {
-                    command.arg("--max-items").arg(m.to_string());
-                }
-
-                command.current_dir(root);
-
-                let output = command
-                    .output()
-                    .map_err(|e| KanbusError::Io(e.to_string()))?;
-                let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
-                let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
-                if !stderr_str.is_empty() {
-                    eprint!("{}", stderr_str);
-                }
-                if !output.status.success() {
-                    return Err(KanbusError::Io(format!(
-                        "Python kanbus lifecycle command failed with status {}",
-                        output.status
-                    )));
-                }
-                Ok(Some(stdout_str))
+                let output = crate::lifecycle_compaction::run_lifecycle_compaction(
+                    root,
+                    dry_run,
+                    archived_only,
+                    max_items,
+                )?;
+                Ok(Some(output))
             }
         },
         Commands::Summarize {
             identifier,
             dry_run,
         } => {
-            let mut command = std::process::Command::new("kanbus");
-            command.arg("summarize").arg(identifier);
-            if dry_run {
-                command.arg("--dry-run");
-            }
-            command.current_dir(root);
-            let output = command.output().map_err(|error| {
-                KanbusError::Io(format!("Failed to execute 'kanbus summarize': {error}"))
-            })?;
-            let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
-            let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
-            if !stderr_str.is_empty() {
-                eprint!("{}", stderr_str);
-            }
-            if !output.status.success() {
-                return Err(KanbusError::Io(format!(
-                    "Command 'kanbus summarize' failed with exit code {}",
-                    output.status.code().unwrap_or(1)
-                )));
-            }
-            Ok(Some(stdout_str))
+            let messages = crate::summarize::compaction_summarize(root, &identifier, dry_run)?;
+            let output = messages
+                .into_iter()
+                .map(|message| format!("{message}\n"))
+                .collect::<String>();
+            Ok(if output.is_empty() {
+                None
+            } else {
+                Some(output)
+            })
         }
         Commands::Cost { days } => {
             let mut command = std::process::Command::new("kanbus");

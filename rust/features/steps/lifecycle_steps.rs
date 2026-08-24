@@ -52,6 +52,10 @@ fn an_issue_of_type_in_status(
         "type": issue_type,
         "status": status,
         "priority": 1,
+        "labels": [],
+        "dependencies": [],
+        "comments": [],
+        "custom": {},
         "created_at": now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
         "updated_at": now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
     });
@@ -103,7 +107,8 @@ fn issue_has_comments(world: &mut KanbusWorld, issue_id: String, count: i64) {
             "id": format!("comment-{}", i),
             "author": "user",
             "text": format!("Comment {}", i),
-            "created_at": issue_json["updated_at"].clone()
+            "created_at": issue_json["updated_at"].clone(),
+            "comment_type": "default"
         }));
     }
     issue_json["comments"] = json!(comments);
