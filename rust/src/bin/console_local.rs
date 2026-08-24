@@ -997,8 +997,13 @@ fn start_gossip_bridge(state: AppState) {
             }
         });
 
-        if let Err(error) = run_gossip_bridge(&root, callback) {
-            eprintln!("warning: realtime bridge stopped: {}", error);
+        loop {
+            if let Err(error) = run_gossip_bridge(&root, callback.clone()) {
+                eprintln!("warning: realtime bridge stopped: {}", error);
+                std::thread::sleep(std::time::Duration::from_secs(2));
+            } else {
+                break;
+            }
         }
     });
 }
