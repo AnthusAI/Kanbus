@@ -75,6 +75,7 @@ type IssueComment = {
   author: string;
   text: string;
   created_at: string;
+  comment_type?: string;
 };
 
 type IssueDependency = {
@@ -273,6 +274,12 @@ export function TaskDetailPanel({
   const [pageDirection, setPageDirection] = useState<"push" | "pop">("push");
   const [panelOpenActive, setPanelOpenActive] = useState(false);
   const [activeTab, setActiveTab] = useState<"comments" | "events">("comments");
+  const [rawMode, setRawMode] = useState(false);
+
+  useEffect(() => {
+    setRawMode(false);
+  }, [task?.id]);
+
   const [eventHistory, setEventHistory] = useState<IssueEvent[]>([]);
   const [eventCursor, setEventCursor] = useState<string | null>(null);
   const [eventLoading, setEventLoading] = useState(false);
@@ -678,7 +685,12 @@ skinparam SequenceDividerFontColor white`
 
   const renderDetailContent = (taskToRender: TaskDetailIssue, withRef: boolean) => {
     const priorityName = priorityLookup[taskToRender.priority] ?? "medium";
-    const comments = taskToRender.comments ?? [];
+    
+    // Determine summary comment and apply rawMode rules
+    const allComments = taskToRender.comments ?? [];
+    const summaryComment = allComments.slice().reverse().find(c => c.comment_type === "summary");
+    const comments = (summaryComment && !rawMode) ? [] : allComments;
+    
     const createdAt = taskToRender.created_at;
     const updatedAt = taskToRender.updated_at;
     const closedAt = taskToRender.closed_at;
@@ -688,9 +700,9 @@ skinparam SequenceDividerFontColor white`
     const DetailTypeIcon = getTypeIcon(taskToRender.type, taskToRender.status);
     const issueStyle =
       config ? buildIssueColorStyle(config, taskToRender) : undefined;
-    const rawHtml = taskToRender.description
-      ? (marked.parse(taskToRender.description, { async: false }) as string)
-      : "";
+    const rawHtml = (summaryComment && !rawMode)
+      ? (marked.parse(summaryComment.text, { async: false }) as string)
+      : (taskToRender.description ? (marked.parse(taskToRender.description, { async: false }) as string) : "");
     const descriptionHtml = rawHtml
       ? DOMPurify.sanitize(rawHtml, {
           USE_PROFILES: { html: true },
@@ -824,6 +836,17 @@ skinparam SequenceDividerFontColor white`
                     aria-pressed={isMaximized}
                     className={isMaximized ? "bg-[var(--card-muted)]" : ""}
                   />
+                  {taskToRender.comments?.some(c => c.comment_type === "summary") && (
+                    <button
+                      className="rounded-full bg-[var(--card-muted)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-selected hover:text-foreground transition-colors h-8"
+                      onClick={() => setRawMode(!rawMode)}
+                      type="button"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="hidden sm:inline">{rawMode ? "Summary" : "Raw"}</span>
+                      </span>
+                    </button>
+                  )}
                   <IconButton icon={X} label="Close" onClick={onClose} />
                 </div>
               </div>

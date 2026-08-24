@@ -98,7 +98,6 @@ pub struct Cli {
     command: Commands,
 }
 
-
 #[derive(Debug, Subcommand)]
 pub enum LifecycleCommands {
     /// Batch compact (summarize) issues based on lifecycle policies
@@ -1433,7 +1432,7 @@ fn execute_command(
                     let mut new_issue = issue.clone();
                     let summary = issue.comments[idx].clone();
                     let text = &summary.text;
-                    
+
                     let mut rewritten_desc = text.as_str();
                     let mut activity_summary = text.as_str();
 
@@ -1456,16 +1455,16 @@ fn execute_command(
                     }
 
                     new_issue.description = rewritten_desc.to_string();
-                    
+
                     let mut new_comments = Vec::new();
                     let mut summary_event = summary.clone();
                     summary_event.text = activity_summary.to_string();
                     summary_event.author = "system:summary".to_string();
                     new_comments.push(summary_event);
 
-                    for c in &issue.comments {
-                        if c.created_at > summary.created_at {
-                            new_comments.push(c.clone());
+                    for comment in &issue.comments {
+                        if comment.created_at > summary.created_at {
+                            new_comments.push(comment.clone());
                         }
                     }
                     new_issue.comments = new_comments;
@@ -3427,7 +3426,9 @@ fn execute_command(
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             Ok(Some(payload))
         }
-        Commands::Lifecycle { command: lifecycle_cmd } => match lifecycle_cmd {
+        Commands::Lifecycle {
+            command: lifecycle_cmd,
+        } => match lifecycle_cmd {
             LifecycleCommands::Compact {
                 all,
                 query,
@@ -3452,14 +3453,16 @@ fn execute_command(
                 if let Some(m) = max_items {
                     command.arg("--max-items").arg(m.to_string());
                 }
-                
+
                 command.current_dir(root);
-                
-                let output = command.output().map_err(|e| KanbusError::Io(e.to_string()))?;
+
+                let output = command
+                    .output()
+                    .map_err(|e| KanbusError::Io(e.to_string()))?;
                 let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
                 let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
                 if !stderr_str.is_empty() {
-                    eprint!("{}", stderr_str); // Fallback for real terminal
+                    eprint!("{}", stderr_str);
                 }
                 if !output.status.success() {
                     return Err(KanbusError::Io(format!(
@@ -4007,9 +4010,9 @@ mod additional_cli_tests {
                 author: "alice".to_string(),
                 text: "c1".to_string(),
                 created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
-            
-            comment_type: "comment".to_string(),
-        }],
+
+                comment_type: "comment".to_string(),
+            }],
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
@@ -4043,17 +4046,15 @@ mod additional_cli_tests {
                     author: "alice".to_string(),
                     text: "c1".to_string(),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
-                
-            comment_type: "comment".to_string(),
-        },
+                    comment_type: "comment".to_string(),
+                },
                 IssueComment {
                     id: None,
                     author: "bob".to_string(),
                     text: "c2".to_string(),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap(),
-                
-            comment_type: "comment".to_string(),
-        },
+                    comment_type: "comment".to_string(),
+                },
             ],
             created_at: Utc::now(),
             updated_at: Utc::now(),

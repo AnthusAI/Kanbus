@@ -598,43 +598,41 @@ def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> N
         None,
     )
     if summary_comment and not raw:
-        # Parse the summary comment for Rewritten Description and Activity Summary
         text = summary_comment.text
-        # Default if not perfectly formatted
         rewritten_desc = text
         activity_summary = text
 
-        desc_match = re.search(r'### Rewritten Description\s+(.*?)(?=\n### |$)', text, re.DOTALL)
+        desc_match = re.search(
+            r"### Rewritten Description\s+(.*?)(?=\n### |$)", text, re.DOTALL
+        )
         if desc_match:
             rewritten_desc = desc_match.group(1).strip()
-        
-        act_match = re.search(r'### Activity Summary\s+(.*?)(?=\n### |$)', text, re.DOTALL)
+
+        act_match = re.search(
+            r"### Activity Summary\s+(.*?)(?=\n### |$)", text, re.DOTALL
+        )
         if act_match:
             activity_summary = act_match.group(1).strip()
 
-        # Virtualize the issue
         issue.description = rewritten_desc
-        
-        # Filter comments
-        new_comments = []
-        # Inject the activity summary as the first comment, authored by system:summary
+
         from kanbus.models import IssueComment
-        new_comments.append(IssueComment(
-            id=summary_comment.id,
-            author="system:summary",
-            text=activity_summary,
-            created_at=summary_comment.created_at,
-            comment_type="summary"
-        ))
-        
-        # Append comments created AFTER the summary
-        for c in issue.comments:
-            if c.created_at > summary_comment.created_at:
-                new_comments.append(c)
-                
+
+        new_comments = [
+            IssueComment(
+                id=summary_comment.id,
+                author="system:summary",
+                text=activity_summary,
+                created_at=summary_comment.created_at,
+                comment_type="summary",
+            )
+        ]
+        for comment in issue.comments:
+            if comment.created_at > summary_comment.created_at:
+                new_comments.append(comment)
+
         issue.comments = new_comments
 
-    # Print the issue using the standard formatter
     click.echo(
         format_issue_for_display(
             issue,
@@ -3226,7 +3224,6 @@ def cost(context: click.Context, days: int | None) -> None:
     from kanbus.config_loader import load_project_configuration
     from kanbus.project import get_configuration_path
     import json
-    import re
     from datetime import datetime, timezone, timedelta
     from pathlib import Path
 

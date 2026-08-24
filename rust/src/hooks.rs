@@ -576,19 +576,15 @@ mod tests {
         let mut hook: HookDefinition = serde_json::from_value(serde_json::json!({
             "id": "test",
             "command": ["does-not-exist-123456789"]
-        })).unwrap();
+        }))
+        .unwrap();
 
         let payload = serde_json::json!({
             "kanbus_version": "1.0",
         });
 
         // Spawn error
-        let result = run_external_hook(
-            &hook,
-            root,
-            &payload,
-            1000,
-        );
+        let result = run_external_hook(&hook, root, &payload, 1000);
         assert!(!result.succeeded);
         assert!(result.message.contains("No such file") || result.message.contains("not found"));
 
@@ -598,7 +594,11 @@ mod tests {
         let _ = run_external_hook(&hook, root, &payload, 1000);
 
         // Stdin write error & stderr capture
-        hook.command = vec!["sh".to_string(), "-c".to_string(), "echo err >&2; exit 1".to_string()];
+        hook.command = vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            "echo err >&2; exit 1".to_string(),
+        ];
         let result = run_external_hook(&hook, root, &payload, 1000);
         assert!(!result.succeeded);
 
@@ -609,13 +609,11 @@ mod tests {
         assert!(result.message.contains("timed out"));
     }
 
-
-
     #[test]
     fn test_command_on_path() {
         assert!(command_on_path("sh") || command_on_path("bash"));
         assert!(!command_on_path("does-not-exist-123456789"));
-        
+
         // Remove PATH temporarily to test the var_os("PATH") == None branch
         let old_path = std::env::var_os("PATH");
         std::env::remove_var("PATH");

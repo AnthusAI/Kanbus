@@ -28,6 +28,12 @@ pub struct IssueComment {
     pub author: String,
     pub text: String,
     pub created_at: DateTime<Utc>,
+    #[serde(default = "default_comment_type")]
+    pub comment_type: String,
+}
+
+fn default_comment_type() -> String {
+    "default".to_string()
 }
 
 /// Issue data representation.

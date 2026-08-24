@@ -115,6 +115,7 @@ fn given_issue_has_comment_with_id(
         author,
         text,
         created_at: Utc::now(),
+        comment_type: "default".to_string(),
     });
     save_issue(&project_dir, &issue);
 }
@@ -149,6 +150,7 @@ fn given_issue_has_comment_without_id(
         author,
         text,
         created_at: Utc::now(),
+        comment_type: "default".to_string(),
     });
     save_issue(&project_dir, &issue);
 }
@@ -176,6 +178,7 @@ fn given_issue_with_comment_missing_id(world: &mut KanbusWorld, identifier: Stri
             author: "user@example.com".to_string(),
             text: "Legacy comment".to_string(),
             created_at: timestamp,
+            comment_type: "default".to_string(),
         }],
         created_at: timestamp,
         updated_at: timestamp,
@@ -211,6 +214,7 @@ fn given_issue_with_comment_id_and_text(
             author: "user@example.com".to_string(),
             text,
             created_at: timestamp,
+            comment_type: "default".to_string(),
         }],
         created_at: timestamp,
         updated_at: timestamp,
@@ -247,12 +251,14 @@ fn given_issue_with_two_comment_ids(
                 author: "user@example.com".to_string(),
                 text: "First".to_string(),
                 created_at: timestamp,
+                comment_type: "default".to_string(),
             },
             IssueComment {
                 id: Some(id2),
                 author: "user@example.com".to_string(),
                 text: "Second".to_string(),
                 created_at: timestamp,
+                comment_type: "default".to_string(),
             },
         ],
         created_at: timestamp,

@@ -45,6 +45,7 @@ fn when_build_sample_issue(world: &mut KanbusWorld, target: String, author: Stri
             author,
             text: "hi".to_string(),
             created_at: now,
+            comment_type: "default".to_string(),
         }],
         created_at: now,
         updated_at: now,

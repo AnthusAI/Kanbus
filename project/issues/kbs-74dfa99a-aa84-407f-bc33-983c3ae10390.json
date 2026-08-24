@@ -1,0 +1,18 @@
+{
+  "id": "kbs-74dfa99a-aa84-407f-bc33-983c3ae10390",
+  "title": "Issue Compaction",
+  "description": "Add issue compaction feature: summarize issue descriptions, comments, and state using a configurable LLM, and store as a summary comment for faster loading and reduced context window noise.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-23T19:30:47.234467Z",
+  "updated_at": "2026-08-23T19:30:47.234467Z",
+  "closed_at": null,
+  "custom": {}
+}

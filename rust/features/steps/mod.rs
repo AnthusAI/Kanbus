@@ -21,6 +21,7 @@ pub mod id_generation_steps;
 pub mod index_steps;
 pub mod initialization_steps;
 pub mod issue_close_delete_steps;
+pub mod issue_compaction_steps;
 pub mod issue_creation_steps;
 pub mod issue_key_steps;
 pub mod issue_show_steps;

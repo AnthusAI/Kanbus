@@ -243,6 +243,7 @@ fn given_comment_contains(world: &mut KanbusWorld, identifier: String, text: Str
         author: author.to_string(),
         text,
         created_at: Utc::now(),
+        comment_type: "default".to_string(),
     });
     write_issue_file(&project_dir, &issue);
 }

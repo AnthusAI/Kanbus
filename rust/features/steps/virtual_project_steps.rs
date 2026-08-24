@@ -628,6 +628,7 @@ pub fn maybe_simulate_virtual_project_command(world: &mut KanbusWorld, command: 
                     author,
                     text: comment_text,
                     created_at: Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap(),
+                    comment_type: "default".to_string(),
                 });
                 write_issue(project_dir, &issue);
                 set_result(

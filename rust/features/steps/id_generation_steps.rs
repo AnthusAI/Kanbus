@@ -37,6 +37,7 @@ fn when_generate_issue_id(world: &mut KanbusWorld) {
         title: "Test title".to_string(),
         existing_ids: existing,
         prefix,
+        requested_id: None,
     };
     let result = generate_issue_identifier(&request).expect("generate identifier");
     world.generated_id = Some(result.identifier);
@@ -69,6 +70,7 @@ fn when_attempt_generate_issue_id(world: &mut KanbusWorld) {
         title: "Test title".to_string(),
         existing_ids: existing,
         prefix,
+        requested_id: None,
     };
     match generate_issue_identifier(&request) {
         Ok(result) => {
