@@ -1,0 +1,20 @@
+{
+  "id": "kbs-346b5f94-bb1d-4162-a5ae-6d0c1f9f0710",
+  "title": "Support explicitly specifying ID on creation",
+  "description": "",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "feature"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-24T16:51:12.568011Z",
+  "updated_at": "2026-08-24T16:51:12.568011Z",
+  "closed_at": null,
+  "custom": {}
+}

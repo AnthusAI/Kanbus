@@ -98,8 +98,31 @@ pub struct Cli {
     command: Commands,
 }
 
+
+#[derive(Debug, Subcommand)]
+pub enum LifecycleCommands {
+    /// Batch compact (summarize) issues based on lifecycle policies
+    Compact {
+        #[arg(long, help = "Process all eligible issues")]
+        all: bool,
+        #[arg(long, help = "Filter issues by query")]
+        query: Option<String>,
+        #[arg(long, help = "Show which issues would be compacted without mutating")]
+        dry_run: bool,
+        #[arg(long, help = "Only compact archived issues (closed > 30 days)")]
+        archived_only: bool,
+        #[arg(long, help = "Limit number of issues to compact")]
+        max_items: Option<usize>,
+    },
+}
+
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// Issue lifecycle management commands
+    Lifecycle {
+        #[command(subcommand)]
+        command: LifecycleCommands,
+    },
     /// Initialize a Kanbus project in the current repository.
     Init {
         /// Create project-local alongside project.
@@ -137,6 +160,9 @@ enum Commands {
         /// Parent issue identifier.
         #[arg(long)]
         parent: Option<String>,
+        /// Explicitly specify the issue ID.
+        #[arg(long, value_name = "ID")]
+        id: Option<String>,
         /// Issue labels.
         #[arg(long)]
         label: Vec<String>,
@@ -160,6 +186,9 @@ enum Commands {
         /// Emit JSON output.
         #[arg(long)]
         json: bool,
+        /// Bypass summary interception and show full raw data.
+        #[arg(long)]
+        raw: bool,
         /// Project root to scope lookup (directory containing .kanbus.yml).
         #[arg(long = "project-root")]
         project_root: Option<std::path::PathBuf>,
@@ -412,6 +441,17 @@ enum Commands {
     /// Stop the daemon process.
     #[command(name = "daemon-stop")]
     DaemonStop,
+    /// Summarize an issue
+    Summarize {
+        identifier: String,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Show LLM cost
+    Cost {
+        #[arg(long)]
+        days: Option<u32>,
+    },
 }
 
 fn is_help_request(kind: ErrorKind) -> bool {
@@ -1054,7 +1094,9 @@ fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), Ka
         None => return Ok(()),
     };
 
-    if std::env::var("KANBUS_FORCE_INTERACTIVE").is_err() && (!std::io::stdin().is_terminal() || !std::io::stdout().is_terminal()) {
+    if std::env::var("KANBUS_FORCE_INTERACTIVE").is_err()
+        && (!std::io::stdin().is_terminal() || !std::io::stdout().is_terminal())
+    {
         return Ok(());
     }
 
@@ -1193,6 +1235,7 @@ fn execute_command(
             local,
             no_validate,
             focus,
+            id,
         } => {
             let title_text = title.join(" ");
             if title_text.trim().is_empty() {
@@ -1285,6 +1328,7 @@ fn execute_command(
                 },
                 local,
                 validate: !no_validate,
+                requested_id: id,
             };
             let result = create_issue(&request)?;
             let configuration = result.configuration;
@@ -1312,6 +1356,7 @@ fn execute_command(
         Commands::Show {
             identifier,
             json,
+            raw,
             project_root,
         } => {
             let lookup_root = project_root.as_deref().unwrap_or(root);
@@ -1379,24 +1424,90 @@ fn execute_command(
             let output = if json {
                 serde_json::to_string_pretty(&issue).expect("failed to serialize issue")
             } else {
-                let use_color = should_use_color();
-                let all_issues = if beads_mode {
-                    None
-                } else {
-                    let store = crate::console_backend::FileStore::new(lookup_root);
-                    if let Ok(config) = store.load_config() {
-                        store.load_issues(&config).ok()
-                    } else {
-                        None
+                let summary_comment_idx = issue
+                    .comments
+                    .iter()
+                    .rposition(|c| c.comment_type.as_str() == "summary");
+
+                if let (Some(idx), false) = (summary_comment_idx, raw) {
+                    let mut new_issue = issue.clone();
+                    let summary = issue.comments[idx].clone();
+                    let text = &summary.text;
+                    
+                    let mut rewritten_desc = text.as_str();
+                    let mut activity_summary = text.as_str();
+
+                    if let Some(desc_start) = text.find("### Rewritten Description") {
+                        let desc_body = &text[desc_start + "### Rewritten Description".len()..];
+                        if let Some(next_heading) = desc_body.find("\n### ") {
+                            rewritten_desc = desc_body[..next_heading].trim();
+                        } else {
+                            rewritten_desc = desc_body.trim();
+                        }
                     }
-                };
-                format_issue_for_display(
-                    &issue,
-                    configuration.as_ref(),
-                    use_color,
-                    false,
-                    all_issues.as_deref(),
-                )
+
+                    if let Some(act_start) = text.find("### Activity Summary") {
+                        let act_body = &text[act_start + "### Activity Summary".len()..];
+                        if let Some(next_heading) = act_body.find("\n### ") {
+                            activity_summary = act_body[..next_heading].trim();
+                        } else {
+                            activity_summary = act_body.trim();
+                        }
+                    }
+
+                    new_issue.description = rewritten_desc.to_string();
+                    
+                    let mut new_comments = Vec::new();
+                    let mut summary_event = summary.clone();
+                    summary_event.text = activity_summary.to_string();
+                    summary_event.author = "system:summary".to_string();
+                    new_comments.push(summary_event);
+
+                    for c in &issue.comments {
+                        if c.created_at > summary.created_at {
+                            new_comments.push(c.clone());
+                        }
+                    }
+                    new_issue.comments = new_comments;
+
+                    let use_color = should_use_color();
+                    let all_issues = if beads_mode {
+                        None
+                    } else {
+                        let store = crate::console_backend::FileStore::new(lookup_root);
+                        if let Ok(config) = store.load_config() {
+                            store.load_issues(&config).ok()
+                        } else {
+                            None
+                        }
+                    };
+                    format_issue_for_display(
+                        &new_issue,
+                        configuration.as_ref(),
+                        use_color,
+                        false,
+                        all_issues.as_deref(),
+                    )
+                } else {
+                    let use_color = should_use_color();
+                    let all_issues = if beads_mode {
+                        None
+                    } else {
+                        let store = crate::console_backend::FileStore::new(lookup_root);
+                        if let Ok(config) = store.load_config() {
+                            store.load_issues(&config).ok()
+                        } else {
+                            None
+                        }
+                    };
+                    format_issue_for_display(
+                        &issue,
+                        configuration.as_ref(),
+                        use_color,
+                        false,
+                        all_issues.as_deref(),
+                    )
+                }
             };
             run_lifecycle_hooks_for_context(
                 root,
@@ -3309,11 +3420,104 @@ fn execute_command(
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             Ok(Some(payload))
         }
+
         Commands::DaemonStop => {
             let status = request_shutdown(root).map_err(format_daemon_project_error)?;
             let payload = serde_json::to_string_pretty(&status)
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             Ok(Some(payload))
+        }
+        Commands::Lifecycle { command: lifecycle_cmd } => match lifecycle_cmd {
+            LifecycleCommands::Compact {
+                all,
+                query,
+                dry_run,
+                archived_only,
+                max_items,
+            } => {
+                let mut command = std::process::Command::new("kanbus");
+                command.arg("lifecycle").arg("compact");
+                if all {
+                    command.arg("--all");
+                }
+                if let Some(q) = query {
+                    command.arg("--query").arg(q);
+                }
+                if dry_run {
+                    command.arg("--dry-run");
+                }
+                if archived_only {
+                    command.arg("--archived-only");
+                }
+                if let Some(m) = max_items {
+                    command.arg("--max-items").arg(m.to_string());
+                }
+                
+                command.current_dir(root);
+                
+                let output = command.output().map_err(|e| KanbusError::Io(e.to_string()))?;
+                let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
+                let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+                if !stderr_str.is_empty() {
+                    eprint!("{}", stderr_str); // Fallback for real terminal
+                }
+                if !output.status.success() {
+                    return Err(KanbusError::Io(format!(
+                        "Python kanbus lifecycle command failed with status {}",
+                        output.status
+                    )));
+                }
+                Ok(Some(stdout_str))
+            }
+        },
+        Commands::Summarize {
+            identifier,
+            dry_run,
+        } => {
+            let mut command = std::process::Command::new("kanbus");
+            command.arg("summarize").arg(identifier);
+            if dry_run {
+                command.arg("--dry-run");
+            }
+            command.current_dir(root);
+            let output = command.output().map_err(|error| {
+                KanbusError::Io(format!("Failed to execute 'kanbus summarize': {error}"))
+            })?;
+            let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+            if !stderr_str.is_empty() {
+                eprint!("{}", stderr_str);
+            }
+            if !output.status.success() {
+                return Err(KanbusError::Io(format!(
+                    "Command 'kanbus summarize' failed with exit code {}",
+                    output.status.code().unwrap_or(1)
+                )));
+            }
+            Ok(Some(stdout_str))
+        }
+        Commands::Cost { days } => {
+            let mut command = std::process::Command::new("kanbus");
+            command.arg("cost");
+            if let Some(d) = days {
+                command.arg("--days").arg(d.to_string());
+            }
+            command.current_dir(root);
+            let output = command.output().map_err(|error| {
+                KanbusError::Io(format!("Failed to execute 'kanbus cost': {error}"))
+            })?;
+            let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+            if !stderr_str.is_empty() {
+                eprint!("{}", stderr_str);
+            }
+            if !output.status.success() {
+                return Err(KanbusError::Io(format!(
+                    "Command 'kanbus cost' failed with exit code {}",
+                    output.status.code().unwrap_or(1)
+                )));
+            }
+            Ok(Some(stdout_str))
         }
     }
 }
@@ -3777,9 +3981,9 @@ mod tests {
 #[cfg(test)]
 mod additional_cli_tests {
     use super::*;
-    use crate::models::{IssueData, IssueComment, DependencyLink};
+    use crate::models::{DependencyLink, IssueComment, IssueData};
+    use chrono::{TimeZone, Utc};
     use std::collections::BTreeMap;
-    use chrono::{Utc, TimeZone};
 
     #[test]
     fn test_merge_issue_views_full_coverage() {
@@ -3794,13 +3998,18 @@ mod additional_cli_tests {
             creator: None,
             parent: None,
             labels: vec![],
-            dependencies: vec![DependencyLink { target: "test-2".to_string(), dependency_type: "blocks".to_string() }],
+            dependencies: vec![DependencyLink {
+                target: "test-2".to_string(),
+                dependency_type: "blocks".to_string(),
+            }],
             comments: vec![IssueComment {
                 id: None,
                 author: "alice".to_string(),
                 text: "c1".to_string(),
                 created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
-            }],
+            
+            comment_type: "comment".to_string(),
+        }],
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
@@ -3819,8 +4028,14 @@ mod additional_cli_tests {
             parent: Some("epic-1".to_string()),
             labels: vec!["bug".to_string()],
             dependencies: vec![
-                DependencyLink { target: "test-2".to_string(), dependency_type: "blocks".to_string() },
-                DependencyLink { target: "test-3".to_string(), dependency_type: "relates-to".to_string() }
+                DependencyLink {
+                    target: "test-2".to_string(),
+                    dependency_type: "blocks".to_string(),
+                },
+                DependencyLink {
+                    target: "test-3".to_string(),
+                    dependency_type: "relates-to".to_string(),
+                },
             ],
             comments: vec![
                 IssueComment {
@@ -3828,13 +4043,17 @@ mod additional_cli_tests {
                     author: "alice".to_string(),
                     text: "c1".to_string(),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
-                },
+                
+            comment_type: "comment".to_string(),
+        },
                 IssueComment {
                     id: None,
                     author: "bob".to_string(),
                     text: "c2".to_string(),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap(),
-                }
+                
+            comment_type: "comment".to_string(),
+        },
             ],
             created_at: Utc::now(),
             updated_at: Utc::now(),

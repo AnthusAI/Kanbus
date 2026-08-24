@@ -79,7 +79,9 @@ pub fn pull_from_jira(
                 title: jira_issue_summary(jira_issue),
                 existing_ids: all_existing.clone(),
                 prefix: project_key.to_string(),
-            };
+            
+            requested_id: None,
+        };
             let result = generate_issue_identifier(&request)?;
             all_existing.insert(result.identifier.clone());
             new_issues_ids.insert(jira_key, result.identifier.clone());
@@ -371,6 +373,7 @@ fn extract_comments(comment_field: &Value) -> Vec<IssueComment> {
                     text
                 },
                 created_at,
+                comment_type: "default".to_string(),
             }
         })
         .collect()
