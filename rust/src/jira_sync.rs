@@ -367,13 +367,11 @@ fn extract_comments(comment_field: &Value) -> Vec<IssueComment> {
             IssueComment {
                 id: c["id"].as_str().map(str::to_string),
                 author,
-                text: Some(
-                    if text.is_empty() {
-                        "(empty)".to_string()
-                    } else {
-                        text
-                    },
-                ),
+                text: Some(if text.is_empty() {
+                    "(empty)".to_string()
+                } else {
+                    text
+                }),
                 created_at,
                 comment_type: "default".to_string(),
                 data: std::collections::BTreeMap::new(),

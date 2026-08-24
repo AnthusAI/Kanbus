@@ -62,7 +62,9 @@ fn given_issue_has_comment(world: &mut KanbusWorld, issue_id: String, text: Stri
     .unwrap();
 }
 
-#[given(expr = "the issue {string} has a summary comment with rewritten description {string} and activity summary {string}")]
+#[given(
+    expr = "the issue {string} has a summary comment with rewritten description {string} and activity summary {string}"
+)]
 fn given_issue_has_structured_summary_comment(
     world: &mut KanbusWorld,
     issue_id: String,
@@ -249,7 +251,9 @@ fn given_issue_updated(world: &mut KanbusWorld, issue_id: String, days: u32) {
     .unwrap();
 }
 
-#[then(expr = "the summary rewritten description for issue {string} should be shorter than the original description")]
+#[then(
+    expr = "the summary rewritten description for issue {string} should be shorter than the original description"
+)]
 fn then_summary_rewritten_shorter_than_original(world: &mut KanbusWorld, issue_id: String) {
     let root = world.working_directory.as_ref().unwrap().clone();
     let issue_path = root

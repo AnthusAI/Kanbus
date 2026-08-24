@@ -76,9 +76,7 @@ pub fn get_comment_display_text(comment: &IssueComment) -> String {
 /// Rewritten description when compacted, otherwise the stored description.
 pub fn get_virtualized_description(issue: &IssueData) -> String {
     if let Some(summary_comment) = get_latest_summary_comment(issue) {
-        if let Some(rewritten_description) =
-            get_summary_rewritten_description(summary_comment)
-        {
+        if let Some(rewritten_description) = get_summary_rewritten_description(summary_comment) {
             return rewritten_description;
         }
     }

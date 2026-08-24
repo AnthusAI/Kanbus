@@ -89,14 +89,11 @@ pub fn search_issues(issues: Vec<IssueData>, term: Option<&str>) -> Vec<IssueDat
             continue;
         }
 
-        let found = issue
-            .comments
-            .iter()
-            .any(|comment| {
-                get_comment_display_text(comment)
-                    .to_lowercase()
-                    .contains(&lowered)
-            });
+        let found = issue.comments.iter().any(|comment| {
+            get_comment_display_text(comment)
+                .to_lowercase()
+                .contains(&lowered)
+        });
         if found && seen.insert(issue.identifier.clone()) {
             matches.push(issue);
         }
