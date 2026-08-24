@@ -110,3 +110,68 @@ pub fn run_lifecycle_compaction(
     output.push_str(&format!("Total cost: ${total_cost:.4}\n"));
     Ok(output)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{Duration, Utc};
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    use crate::issue_files::write_issue_to_file;
+    use crate::models::IssueData;
+
+    fn sample_issue(
+        identifier: &str,
+        status: &str,
+        updated_at: chrono::DateTime<Utc>,
+    ) -> IssueData {
+        IssueData {
+            identifier: identifier.to_string(),
+            title: format!("Issue {identifier}"),
+            description: "Test description".to_string(),
+            issue_type: "task".to_string(),
+            status: status.to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: updated_at,
+            updated_at,
+            closed_at: None,
+            custom: std::collections::BTreeMap::new(),
+        }
+    }
+
+    fn write_project_with_issue(temp: &TempDir, issue: &IssueData) -> PathBuf {
+        let root = temp.path().to_path_buf();
+        std::fs::write(
+            root.join(".kanbus.yml"),
+            "project_key: TST\nproject_directory: project\nai:\n  provider: litellm\n  model: gpt-5.6-luna\n",
+        )
+        .expect("write config");
+        let issues_dir = root.join("project/issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues");
+        write_issue_to_file(
+            issue,
+            &issues_dir.join(format!("{}.json", issue.identifier)),
+        )
+        .expect("write issue");
+        root
+    }
+
+    #[test]
+    fn run_lifecycle_compaction_dry_run_lists_candidates() {
+        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
+        let temp = TempDir::new().expect("tempdir");
+        let updated_at = Utc::now() - Duration::days(40);
+        let issue = sample_issue("TST-archived", "closed", updated_at);
+        let root = write_project_with_issue(&temp, &issue);
+        let output = run_lifecycle_compaction(&root, true, true, None).expect("dry-run compaction");
+        assert!(output.contains("Dry-run mode: no issues were modified."));
+        assert!(output.contains("Would summarize TST-archived"));
+    }
+}
