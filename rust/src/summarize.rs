@@ -315,3 +315,88 @@ pub fn compaction_summarize(
     messages.push(format!("Summary saved for {identifier}"));
     Ok(messages)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    fn sample_issue(identifier: &str) -> IssueData {
+        let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
+        IssueData {
+            identifier: identifier.to_string(),
+            title: format!("Issue {identifier}"),
+            description: "Original description".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: timestamp,
+            updated_at: timestamp,
+            closed_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    fn write_test_project(temp: &TempDir) -> PathBuf {
+        let root = temp.path().to_path_buf();
+        std::fs::write(
+            root.join(".kanbus.yml"),
+            "project_key: TST\nproject_directory: project\nai:\n  provider: litellm\n  model: gpt-5.6-luna\n",
+        )
+        .expect("write config");
+        let issues_dir = root.join("project/issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues");
+        let issue = sample_issue("TST-1");
+        write_issue_to_file(&issue, &issues_dir.join("TST-1.json")).expect("write issue");
+        root
+    }
+
+    #[test]
+    fn build_summary_comment_stores_structured_fields() {
+        let comment = build_summary_comment("Rewritten".to_string(), "Activity".to_string());
+        assert_eq!(comment.comment_type, "summary");
+        assert_eq!(
+            get_summary_rewritten_description(&comment).as_deref(),
+            Some("Rewritten")
+        );
+        assert_eq!(get_summary_activity_summary(&comment), "Activity");
+    }
+
+    #[test]
+    fn compaction_summarize_writes_summary_with_mock_ai() {
+        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
+        let temp = TempDir::new().expect("tempdir");
+        let root = write_test_project(&temp);
+        let messages = compaction_summarize(&root, "TST-1", false).expect("summarize");
+        assert_eq!(messages, vec!["Summary saved for TST-1".to_string()]);
+        let lookup = load_issue_from_project(&root, "TST-1").expect("load issue");
+        let summary = get_latest_summary_comment(&lookup.issue).expect("summary comment");
+        assert_eq!(
+            get_summary_rewritten_description(summary).as_deref(),
+            Some("Mock rewritten description for TST-1.")
+        );
+        assert_eq!(lookup.issue.description, "Original description".to_string());
+    }
+
+    #[test]
+    fn compaction_summarize_recursively_summarizes_children() {
+        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
+        let temp = TempDir::new().expect("tempdir");
+        let root = write_test_project(&temp);
+        let issues_dir = root.join("project/issues");
+        let mut child = sample_issue("TST-child");
+        child.parent = Some("TST-1".to_string());
+        write_issue_to_file(&child, &issues_dir.join("TST-child.json")).expect("write child");
+        let messages = compaction_summarize(&root, "TST-1", false).expect("summarize");
+        assert!(messages.contains(&"Summary saved for TST-child".to_string()));
+        assert!(messages.contains(&"Summary saved for TST-1".to_string()));
+    }
+}
