@@ -43,9 +43,10 @@ fn when_build_sample_issue(world: &mut KanbusWorld, target: String, author: Stri
         comments: vec![IssueComment {
             id: Some("c1".to_string()),
             author,
-            text: "hi".to_string(),
+            text: Some("hi".to_string()),
             created_at: now,
             comment_type: "default".to_string(),
+            data: std::collections::BTreeMap::new(),
         }],
         created_at: now,
         updated_at: now,

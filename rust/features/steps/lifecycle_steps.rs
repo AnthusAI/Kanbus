@@ -129,9 +129,12 @@ fn issue_has_a_summary_comment(world: &mut KanbusWorld, issue_id: String) {
     comments.push(json!({
         "id": "summary-123",
         "author": "system:summary",
-        "text": "Summary",
         "created_at": issue_json["updated_at"].clone(),
-        "comment_type": "summary"
+        "comment_type": "summary",
+        "data": {
+            "rewritten_description": "Summary",
+            "activity_summary": "Summary"
+        }
     }));
     issue_json["comments"] = json!(comments);
     fs::write(issue_path, issue_json.to_string()).unwrap();

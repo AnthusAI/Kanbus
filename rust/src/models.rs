@@ -26,10 +26,13 @@ pub struct IssueComment {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub author: String,
-    pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
     pub created_at: DateTime<Utc>,
     #[serde(default = "default_comment_type")]
     pub comment_type: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub data: BTreeMap<String, serde_json::Value>,
 }
 
 fn default_comment_type() -> String {

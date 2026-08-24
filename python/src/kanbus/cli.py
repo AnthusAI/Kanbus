@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import os
 import sys
 from pathlib import Path
@@ -591,41 +590,10 @@ def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> N
         ),
         None,
     )
-    if summary_comment and not raw:
-        text = summary_comment.text
-        rewritten_desc = text
-        activity_summary = text
+    if summary_comment is not None:
+        from kanbus.summarize import apply_virtualized_issue_view
 
-        desc_match = re.search(
-            r"### Rewritten Description\s+(.*?)(?=\n### |$)", text, re.DOTALL
-        )
-        if desc_match:
-            rewritten_desc = desc_match.group(1).strip()
-
-        act_match = re.search(
-            r"### Activity Summary\s+(.*?)(?=\n### |$)", text, re.DOTALL
-        )
-        if act_match:
-            activity_summary = act_match.group(1).strip()
-
-        issue.description = rewritten_desc
-
-        from kanbus.models import IssueComment
-
-        new_comments = [
-            IssueComment(
-                id=summary_comment.id,
-                author="system:summary",
-                text=activity_summary,
-                created_at=summary_comment.created_at,
-                comment_type="summary",
-            )
-        ]
-        for comment in issue.comments:
-            if comment.created_at > summary_comment.created_at:
-                new_comments.append(comment)
-
-        issue.comments = new_comments
+        apply_virtualized_issue_view(issue, raw=raw)
 
     click.echo(
         format_issue_for_display(

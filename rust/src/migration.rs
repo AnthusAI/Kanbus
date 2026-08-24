@@ -635,9 +635,10 @@ fn convert_comments(
             results.push(IssueComment {
                 id: Some(beads_comment_uuid(issue_id, &comment_id)),
                 author: author.to_string(),
-                text: text.to_string(),
+                text: Some(text.to_string()),
                 created_at,
                 comment_type: "default".to_string(),
+                data: std::collections::BTreeMap::new(),
             });
         }
     }
