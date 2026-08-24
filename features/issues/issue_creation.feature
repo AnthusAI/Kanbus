@@ -125,3 +125,16 @@ Feature: Issue creation
     And stderr should contain "duplicate title"
     And stderr should contain "kanbus-aaa"
     And the issues directory should contain 1 issue file
+
+  Scenario: Create an issue with an explicitly specified ID
+    Given a Kanbus project with default configuration
+    When I run "kanbus create Feature with explicit ID --id kanbus-custom-123"
+    Then the command should succeed
+    And the created issue should have id "kanbus-custom-123"
+
+  Scenario: Create fails when explicitly specified ID already exists
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-custom-123" exists
+    When I run "kanbus create Another feature --id kanbus-custom-123"
+    Then the command should fail with exit code 1
+    And stderr should contain "already exists"

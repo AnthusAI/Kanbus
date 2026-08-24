@@ -62,6 +62,7 @@ def create_issue(
     description: Optional[str],
     local: bool = False,
     validate: bool = True,
+    requested_id: Optional[str] = None,
 ) -> IssueCreationResult:
     """Create a new issue and write it to disk.
 
@@ -159,8 +160,12 @@ def create_issue(
         title=title,
         existing_ids=existing_ids,
         prefix=configuration.project_key,
+        requested_id=requested_id,
     )
-    identifier = generate_issue_identifier(identifier_request).identifier
+    try:
+        identifier = generate_issue_identifier(identifier_request).identifier
+    except ValueError as error:
+        raise IssueCreationError(str(error)) from error
     updated_at = created_at
 
     resolved_assignee = assignee if assignee is not None else configuration.assignee
