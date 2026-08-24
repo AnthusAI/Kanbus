@@ -208,6 +208,7 @@ def then_created_issue_no_parent(context: object) -> None:
     issue = read_issue_file(project_dir, identifier)
     assert issue.parent is None
 
+
 @then('the created issue should have id "{issue_id}"')
 def then_created_issue_id(context: object, issue_id: str) -> None:
     identifier = capture_issue_identifier(context)

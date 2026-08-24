@@ -54,6 +54,22 @@ def step_impl_summary_comment(context, issue_id, text):
     write_issue_to_file(issue, lookup.issue_path)
 
 
+@given('the issue "{issue_id}" has a summary comment containing:')
+def step_impl_summary_comment_multiline(context, issue_id):
+    root = Path(context.working_directory)
+    lookup = load_issue_from_project(root, issue_id)
+    issue = lookup.issue
+    comment = IssueComment(
+        id=str(uuid.uuid4()),
+        author="system:summary",
+        text=context.text.strip(),
+        created_at=datetime.now(timezone.utc) - timedelta(days=5),
+        comment_type="summary",
+    )
+    issue.comments.append(comment)
+    write_issue_to_file(issue, lookup.issue_path)
+
+
 @then('the issue "{issue_id}" should have a summary comment')
 def step_impl_check_summary(context, issue_id):
     root = Path(context.working_directory)

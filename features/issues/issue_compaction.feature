@@ -40,10 +40,17 @@ Feature: Issue Compaction
     And the system records a structured log entry for the LLM usage
 
   @console-server
-  Scenario: Querying an issue uses the most-recent summary
+  Scenario: Querying an issue uses the virtualized summary view
     Given an issue "kanbus-compaction04" exists with title "Issue to show"
-    And the issue "kanbus-compaction04" has a summary comment containing "Summary:"
+    And the issue "kanbus-compaction04" has a summary comment containing:
+      """
+      ### Rewritten Description
+      Virtualized summary text.
+
+      ### Activity Summary
+      Summary activity details.
+      """
     When I run "kanbus show kanbus-compaction04"
     Then the command should succeed
-    And stdout should contain "Summary:"
-    And stdout should not contain "Issue to show"
+    And stdout should contain "Virtualized summary text"
+    And stdout should contain "Summary activity details"
