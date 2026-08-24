@@ -1,0 +1,18 @@
+{
+  "id": "kbs-7dac6e08-a5ff-469d-a312-4c793bf6dfdd",
+  "title": "Virtualized View and Broader Context for Issue Summaries",
+  "description": "Refactor the summarization engine to gather broader context (parents and dependencies) and output a clean Rewritten Description and Activity Summary. Stop injecting stale metadata. Virtualize this view in the CLI and UI to hide stale comments.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-24T13:21:42.334597Z",
+  "updated_at": "2026-08-24T13:52:02.075849Z",
+  "closed_at": "2026-08-24T13:52:02.075849Z",
+  "custom": {}
+}
