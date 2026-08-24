@@ -1,0 +1,18 @@
+{
+  "id": "kbs-4c271689-9044-4827-826e-9ac2ce92061f",
+  "title": "Align React frontend to virtualized view",
+  "description": "Update TaskDetailPanel.tsx to properly render the separated ### Rewritten Description and ### Activity Summary, and explicitly preserve newer comments.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-7dac6e08-a5ff-469d-a312-4c793bf6dfdd",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-24T13:22:22.963659Z",
+  "updated_at": "2026-08-24T13:52:02.043359Z",
+  "closed_at": "2026-08-24T13:52:02.043359Z",
+  "custom": {}
+}
