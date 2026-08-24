@@ -241,9 +241,10 @@ fn given_comment_contains(world: &mut KanbusWorld, identifier: String, text: Str
     issue.comments.push(IssueComment {
         id: None,
         author: author.to_string(),
-        text,
+        text: Some(text),
         created_at: Utc::now(),
         comment_type: "default".to_string(),
+        data: std::collections::BTreeMap::new(),
     });
     write_issue_file(&project_dir, &issue);
 }

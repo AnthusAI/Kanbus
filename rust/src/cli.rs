@@ -59,6 +59,7 @@ use crate::rich_text_signals::{
     apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
 };
 use crate::snyk_sync::pull_from_snyk;
+use crate::summarize::get_comment_display_text;
 use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::users::get_current_user;
 use crate::wiki::{list_wiki_pages, render_wiki_page, WikiRenderRequest};
@@ -481,17 +482,26 @@ fn merge_issue_views(mut beads: IssueData, project: IssueData) -> IssueData {
         beads.parent = project.parent;
     }
 
-    // Comments: keep chronological order and de-duplicate by id (or author/text/timestamp fallback).
     let mut comment_keys: HashSet<String> = HashSet::new();
     for comment in &beads.comments {
         let key = comment.id.clone().unwrap_or_else(|| {
-            format!("{}|{}|{}", comment.author, comment.text, comment.created_at)
+            format!(
+                "{}|{}|{}",
+                comment.author,
+                get_comment_display_text(comment),
+                comment.created_at
+            )
         });
         comment_keys.insert(key);
     }
     for comment in project.comments {
         let key = comment.id.clone().unwrap_or_else(|| {
-            format!("{}|{}|{}", comment.author, comment.text, comment.created_at)
+            format!(
+                "{}|{}|{}",
+                comment.author,
+                get_comment_display_text(&comment),
+                comment.created_at
+            )
         });
         if comment_keys.insert(key.clone()) {
             beads.comments.push(comment);
@@ -1428,47 +1438,9 @@ fn execute_command(
                     .iter()
                     .rposition(|c| c.comment_type.as_str() == "summary");
 
-                if let (Some(idx), false) = (summary_comment_idx, raw) {
+                if summary_comment_idx.is_some() {
                     let mut new_issue = issue.clone();
-                    let summary = issue.comments[idx].clone();
-                    let text = &summary.text;
-
-                    let mut rewritten_desc = text.as_str();
-                    let mut activity_summary = text.as_str();
-
-                    if let Some(desc_start) = text.find("### Rewritten Description") {
-                        let desc_body = &text[desc_start + "### Rewritten Description".len()..];
-                        if let Some(next_heading) = desc_body.find("\n### ") {
-                            rewritten_desc = desc_body[..next_heading].trim();
-                        } else {
-                            rewritten_desc = desc_body.trim();
-                        }
-                    }
-
-                    if let Some(act_start) = text.find("### Activity Summary") {
-                        let act_body = &text[act_start + "### Activity Summary".len()..];
-                        if let Some(next_heading) = act_body.find("\n### ") {
-                            activity_summary = act_body[..next_heading].trim();
-                        } else {
-                            activity_summary = act_body.trim();
-                        }
-                    }
-
-                    new_issue.description = rewritten_desc.to_string();
-
-                    let mut new_comments = Vec::new();
-                    let mut summary_event = summary.clone();
-                    summary_event.text = activity_summary.to_string();
-                    summary_event.author = "system:summary".to_string();
-                    new_comments.push(summary_event);
-
-                    for comment in &issue.comments {
-                        if comment.created_at > summary.created_at {
-                            new_comments.push(comment.clone());
-                        }
-                    }
-                    new_issue.comments = new_comments;
-
+                    crate::summarize::apply_virtualized_issue_view(&mut new_issue, raw);
                     let use_color = should_use_color();
                     let all_issues = if beads_mode {
                         None
@@ -4010,10 +3982,11 @@ mod additional_cli_tests {
             comments: vec![IssueComment {
                 id: None,
                 author: "alice".to_string(),
-                text: "c1".to_string(),
+                text: Some("c1".to_string()),
                 created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
 
                 comment_type: "comment".to_string(),
+                data: BTreeMap::new(),
             }],
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -4046,16 +4019,18 @@ mod additional_cli_tests {
                 IssueComment {
                     id: None,
                     author: "alice".to_string(),
-                    text: "c1".to_string(),
+                    text: Some("c1".to_string()),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
                     comment_type: "comment".to_string(),
+                    data: BTreeMap::new(),
                 },
                 IssueComment {
                     id: None,
                     author: "bob".to_string(),
-                    text: "c2".to_string(),
+                    text: Some("c2".to_string()),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap(),
                     comment_type: "comment".to_string(),
+                    data: BTreeMap::new(),
                 },
             ],
             created_at: Utc::now(),

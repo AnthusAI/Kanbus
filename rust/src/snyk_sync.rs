@@ -2116,27 +2116,35 @@ mod tests {
 #[cfg(test)]
 mod snyk_sync_err_tests {
     use super::*;
+    use std::net::TcpListener;
     use tempfile::TempDir;
+
+    fn closed_local_api_base() -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        format!("http://127.0.0.1:{port}")
+    }
 
     #[test]
     fn test_fetch_projects_conn_error() {
-        std::env::set_var("KANBUS_SNYK_API_BASE", "http://127.0.0.1:9");
+        std::env::set_var("KANBUS_SNYK_API_BASE", closed_local_api_base());
         let err = fetch_snyk_projects("org", "token", None).unwrap_err();
-        assert!(err.to_string().contains("request failed"));
+        assert!(err.to_string().contains("Snyk request failed"));
     }
 
     #[test]
     fn test_fetch_issues_conn_error() {
-        std::env::set_var("KANBUS_SNYK_API_BASE", "http://127.0.0.1:9");
+        std::env::set_var("KANBUS_SNYK_API_BASE", closed_local_api_base());
         let res = fetch_all_snyk_issues("org", "token", 0, &["code"]).unwrap();
         assert!(res.is_empty());
     }
 
     #[test]
     fn test_fetch_v1_conn_error() {
-        std::env::set_var("KANBUS_SNYK_API_BASE", "http://127.0.0.1:9");
+        std::env::set_var("KANBUS_SNYK_API_BASE", closed_local_api_base());
         let err = fetch_v1_enrichment("org", "token", vec!["proj-1".to_string()]).unwrap_err();
-        assert!(err.to_string().contains("request failed"));
+        assert!(err.to_string().contains("Snyk v1 request failed"));
     }
 
     #[test]

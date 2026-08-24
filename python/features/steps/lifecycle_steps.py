@@ -83,9 +83,12 @@ def step_lifecycle_impl_6(context, issue_id):
         IssueComment(
             id=str(uuid.uuid4()),
             author="system:summary",
-            text="Summary",
             created_at=issue.updated_at,
             comment_type="summary",
+            data={
+                "rewritten_description": "Summary",
+                "activity_summary": "Summary",
+            },
         )
     )
     write_issue_to_file(issue, lookup.issue_path)

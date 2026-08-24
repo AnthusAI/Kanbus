@@ -39,6 +39,7 @@ pub fn ensure_comment_ids(issue: &IssueData) -> (IssueData, bool) {
                     text: comment.text.clone(),
                     created_at: comment.created_at,
                     comment_type: comment.comment_type.clone(),
+                    data: comment.data.clone(),
                 }
             } else {
                 comment.clone()
@@ -117,9 +118,10 @@ pub fn add_comment(
     let comment = IssueComment {
         id: Some(generate_comment_id()),
         author: author.to_string(),
-        text: text.to_string(),
+        text: Some(text.to_string()),
         created_at: timestamp,
         comment_type: "default".to_string(),
+        data: std::collections::BTreeMap::new(),
     };
     let (base_issue, _) = ensure_comment_ids(&lookup.issue);
     let mut comments = base_issue.comments.clone();
@@ -197,7 +199,7 @@ pub fn update_comment(
         .ok_or_else(|| KanbusError::IssueOperation("comment not found".to_string()))?;
     let timestamp = Utc::now();
     if let Some(comment) = issue.comments.get_mut(index) {
-        comment.text = text.to_string();
+        comment.text = Some(text.to_string());
     }
     issue.updated_at = timestamp;
     write_issue_to_file(&issue, &lookup.issue_path)?;
