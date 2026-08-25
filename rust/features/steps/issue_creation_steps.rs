@@ -60,6 +60,7 @@ fn when_create_issue_directly(world: &mut KanbusWorld) {
         description: None,
         local: false,
         validate: true,
+        requested_id: None,
     };
     match create_issue(&request) {
         Ok(_) => {

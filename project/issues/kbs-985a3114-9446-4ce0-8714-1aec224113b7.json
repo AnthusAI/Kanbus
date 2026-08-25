@@ -1,0 +1,25 @@
+{
+  "id": "kbs-985a3114-9446-4ce0-8714-1aec224113b7",
+  "title": "Summarize subcommand for issues",
+  "description": "Add a summarize subcommand to kbs that makes sequential LLM calls to summarize issue description, comment history, current state, and title, saving as a summary comment.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-74dfa99a-aa84-407f-bc33-983c3ae10390",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "00866466-1a46-4e16-9a5b-11fbe253ec0b",
+      "author": "ryan",
+      "text": "Feature: Issue summarization\n  Scenario: Running the summarize subcommand\n    Given an issue with multiple comments and descriptions\n    And a configured LLM provider\n    When I run the summarize subcommand for the issue\n    Then the system makes 4 sequential LLM calls in the same conversation session\n    And a new comment of type \"summary\" is appended to the issue with the results",
+      "created_at": "2026-08-23T19:31:07.634222Z"
+    }
+  ],
+  "created_at": "2026-08-23T19:30:56.300854Z",
+  "updated_at": "2026-08-23T20:11:09.347965Z",
+  "closed_at": "2026-08-23T20:11:09.347965Z",
+  "custom": {}
+}

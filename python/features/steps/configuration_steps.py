@@ -340,7 +340,7 @@ def given_project_with_kanbus_yml_containing(context: object) -> None:
     """Create kanbus.yml merging default config with the given YAML (context.text)."""
     initialize_default_project(context)
     repository = Path(context.working_directory)
-    config_path = repository / "kanbus.yml"
+    config_path = repository / ".kanbus.yml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     payload = copy.deepcopy(DEFAULT_CONFIGURATION)
     payload["project_key"] = "KAN"

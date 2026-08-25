@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set
 
 import requests
+from requests.exceptions import RequestException
 
 from kanbus.ids import IssueIdentifierRequest, generate_issue_identifier
 from kanbus.issue_files import (
@@ -31,7 +32,7 @@ from kanbus.models import (
     IssueData,
 )
 
-GITHUB_API_BASE = "https://api.github.com"
+GITHUB_API_BASE = os.environ.get("KANBUS_GITHUB_API_BASE", "https://api.github.com")
 GITHUB_API_VERSION = "2022-11-28"
 GITHUB_SECURITY_INITIATIVE_TITLE = "GitHub Security Remediation"
 GITHUB_DEPENDABOT_EPIC_TITLE = "GitHub Dependabot Alerts"
@@ -634,7 +635,10 @@ def _fetch_dependabot_alerts(repo: str, token: str, state: str) -> List[Dict[str
         f"?state={state}&per_page=100"
     )
     while url:
-        response = requests.get(url, headers=headers, timeout=30)
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+        except RequestException as exc:
+            raise GithubSecuritySyncError(f"GitHub request failed: {exc}")
         if not response.ok:
             raise GithubSecuritySyncError(
                 f"GitHub Dependabot API returned {response.status_code}: "

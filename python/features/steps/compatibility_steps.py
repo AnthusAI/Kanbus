@@ -43,6 +43,7 @@ def given_project_with_beads_compatibility(context: object) -> None:
     )
     project_dir = repository_path / payload["project_directory"]
     (project_dir / "issues").mkdir(parents=True, exist_ok=True)
+    (project_dir / "events").mkdir(parents=True, exist_ok=True)
     context.working_directory = repository_path
 
 

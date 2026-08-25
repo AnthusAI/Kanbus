@@ -10,6 +10,7 @@ __pycache__/
 
 # Rust
 rust/target/
+worktrees/
 
 # Taskulus
 project/.cache/

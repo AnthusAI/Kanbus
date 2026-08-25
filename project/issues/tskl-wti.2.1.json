@@ -3,7 +3,7 @@
   "title": "Rust coverage uplift: console_local bin module",
   "description": "Target rust/src/bin/console_local.rs (~37.46%, ~895 uncovered lines). Add focused tests for error branches, env/IO edge cases, and handler paths to materially raise line coverage.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "ryan.porter",
@@ -28,12 +28,20 @@
       "author": "ryan.porter",
       "text": "Coverage progress (new increment implemented):\n- Added targeted kbsc tests in rust/src/bin/console_local.rs for success-path wrappers and edge branches:\n  - root + tenant issue endpoints with seeded issue data\n  - full tenant wiki round-trip (create/list/get/update/rename/render/delete)\n  - d2 render endpoint fallback when d2 is unavailable (PATH forced empty)\n- Added helper seed/write logic for deterministic project fixtures in tests.\n- Validation: cargo test --locked --bin kbsc -> 39 passed, 0 failed.\n- Re-ran full rust llvm-cov (all-features, lib+bins+tests, steps excluded) and refreshed coverage-rust/cobertura.xml.\n- Module delta: console_local.rs improved to 66.22% line coverage (1498/2262).\n- Overall Rust line coverage is now 83.48%.",
       "created_at": "2026-03-12T02:57:48.694979Z"
+    },
+    {
+      "id": "f52b7484-21cb-4225-939b-e562501728c8",
+      "author": "ryan",
+      "text": "Added tests for endpoint errors and multi-tenant paths to materially raise console_local.rs coverage. Ratchet is updated.",
+      "created_at": "2026-08-22T16:27:40.637459Z"
     }
   ],
   "created_at": "2026-03-12T01:34:33.302274Z",
-  "updated_at": "2026-03-12T02:57:48.694979Z",
-  "closed_at": null,
+  "updated_at": "2026-08-22T16:27:40.664170Z",
+  "closed_at": "2026-08-22T16:27:40.664170Z",
   "custom": {
-    "beads_owner": "ryan.porter"
+    "beads_owner": "ryan.porter",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

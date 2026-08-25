@@ -79,6 +79,8 @@ pub fn pull_from_jira(
                 title: jira_issue_summary(jira_issue),
                 existing_ids: all_existing.clone(),
                 prefix: project_key.to_string(),
+
+                requested_id: None,
             };
             let result = generate_issue_identifier(&request)?;
             all_existing.insert(result.identifier.clone());
@@ -365,12 +367,14 @@ fn extract_comments(comment_field: &Value) -> Vec<IssueComment> {
             IssueComment {
                 id: c["id"].as_str().map(str::to_string),
                 author,
-                text: if text.is_empty() {
+                text: Some(if text.is_empty() {
                     "(empty)".to_string()
                 } else {
                     text
-                },
+                }),
                 created_at,
+                comment_type: "default".to_string(),
+                data: std::collections::BTreeMap::new(),
             }
         })
         .collect()
@@ -454,9 +458,9 @@ mod tests {
         assert_eq!(comments.len(), 2);
         assert_eq!(comments[0].id.as_deref(), Some("c1"));
         assert_eq!(comments[0].author, "Alice");
-        assert_eq!(comments[0].text, "Hello");
+        assert_eq!(comments[0].text.as_deref(), Some("Hello"));
         assert_eq!(comments[1].author, "Unknown");
-        assert_eq!(comments[1].text, "(empty)");
+        assert_eq!(comments[1].text.as_deref(), Some("(empty)"));
     }
 
     #[test]

@@ -218,7 +218,9 @@ def _maybe_prompt_project_repair(context: click.Context) -> None:
         return
     if plan is None:
         return
-    if not sys.stdin.isatty() or not sys.stdout.isatty():
+    if not os.environ.get("KANBUS_FORCE_INTERACTIVE") and (
+        not sys.stdin.isatty() or not sys.stdout.isatty()
+    ):
         return
     missing = []
     if plan.missing_project_dir:
@@ -325,6 +327,7 @@ def repair(yes: bool) -> None:
 @click.option("--label", "labels", multiple=True)
 @click.option("--description", default="")
 @click.option("--local", "local_issue", is_flag=True, default=False)
+@click.option("--id", "requested_id", help="Explicitly specify the issue ID")
 @click.option(
     "--focus",
     "focus_issue",
@@ -344,6 +347,7 @@ def create(
     labels: tuple[str, ...],
     description: str,
     local_issue: bool,
+    requested_id: str | None,
     focus_issue: bool,
     no_validate: bool,
 ) -> None:
@@ -474,6 +478,7 @@ def create(
             description=description_text,
             local=local_issue,
             validate=not no_validate,
+            requested_id=requested_id,
         )
     except IssueCreationError as error:
         raise click.ClickException(str(error)) from error
@@ -501,14 +506,19 @@ def create(
 @cli.command("show")
 @click.argument("identifier")
 @click.option("--json", "as_json", is_flag=True)
+@click.option(
+    "--raw", is_flag=True, help="Show raw issue data without summary interception"
+)
 @click.pass_context
-def show(context: click.Context, identifier: str, as_json: bool) -> None:
+def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> None:
     """Show details for an issue.
 
     :param identifier: Issue identifier.
     :type identifier: str
     :param as_json: Emit JSON output when set.
     :type as_json: bool
+    :param raw: Bypass summary interception when set.
+    :type raw: bool
     """
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
@@ -571,6 +581,19 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
             all_issues = list(get_issues_for_root(root))
         except Exception:
             pass
+
+    summary_comment = next(
+        (
+            c
+            for c in reversed(issue.comments)
+            if getattr(c, "comment_type", "default") == "summary"
+        ),
+        None,
+    )
+    if summary_comment is not None:
+        from kanbus.summarize import apply_virtualized_issue_view
+
+        apply_virtualized_issue_view(issue, raw=raw)
 
     click.echo(
         format_issue_for_display(
@@ -684,7 +707,10 @@ def update(
         root = _resolve_beads_root(root)
         if parent is not None:
             raise click.ClickException("parent update not supported in beads mode")
-        before_issue = load_beads_issue(root, identifier)
+        try:
+            before_issue = load_beads_issue(root, identifier)
+        except MigrationError as error:
+            raise click.ClickException(str(error)) from error
         proposed_issue = before_issue.model_copy(deep=True)
         if status is not None:
             proposed_issue.status = status
@@ -3130,5 +3156,115 @@ def bugs_alias(context: click.Context) -> None:
     context.invoke(list_command, issue_type="bug")
 
 
+@cli.command("summarize")
+@click.argument("identifier")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print the summary without saving to issue.",
+)
+@click.pass_context
+def summarize(context: click.Context, identifier: str, dry_run: bool) -> None:
+    """Summarize an issue using AI."""
+    root = Path.cwd()
+    from kanbus.summarize import compaction_summarize
+
+    try:
+        compaction_summarize(root, identifier, dry_run=dry_run)
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("cost")
+@click.option(
+    "--days", type=int, default=None, help="Number of days to aggregate over."
+)
+@click.pass_context
+def cost(context: click.Context, days: int | None) -> None:
+    """Report LLM usage costs."""
+    from kanbus.config_loader import load_project_configuration
+    from kanbus.project import get_configuration_path
+    import json
+    from datetime import datetime, timezone, timedelta
+    from pathlib import Path
+
+    root = Path.cwd()
+    config_path = get_configuration_path(root)
+    config = load_project_configuration(config_path)
+    log_path = root / config.project_directory / "events" / "llm_usage.jsonl"
+
+    if not log_path.exists():
+        click.echo("No LLM usage logs found.")
+        return
+
+    total_tokens = 0
+    total_cost = 0.0
+    cutoff = None
+    if days is not None:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    with open(log_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            data = json.loads(line)
+            ts = datetime.fromisoformat(data["timestamp"])
+            if cutoff and ts < cutoff:
+                continue
+            total_tokens += data.get("tokens", 0)
+            total_cost += data.get("cost", 0.0)
+
+    click.echo(f"Total Tokens: {total_tokens}")
+    click.echo(f"Total Cost:   ${total_cost:.4f}")
+
+
+@click.group()
+def lifecycle() -> None:
+    """Issue lifecycle management commands."""
+    pass
+
+
+@lifecycle.command("compact")
+@click.option("--all", "all_issues", is_flag=True, help="Process all eligible issues.")
+@click.option("--query", type=str, help="Filter issues by query.")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show which issues would be compacted without mutating.",
+)
+@click.option(
+    "--archived-only",
+    is_flag=True,
+    help="Only compact archived issues (closed > 30 days).",
+)
+@click.option("--max-items", type=int, help="Limit number of issues to compact.")
+@click.pass_context
+def compact_command(
+    context: click.Context,
+    all_issues: bool,
+    query: str | None,
+    dry_run: bool,
+    archived_only: bool,
+    max_items: int | None,
+) -> None:
+    """Batch compact (summarize) issues based on lifecycle policies."""
+    from kanbus.lifecycle import run_lifecycle_compaction
+
+    root = Path.cwd()
+    run_lifecycle_compaction(
+        root=root,
+        all=all_issues,
+        query=query,
+        dry_run=dry_run,
+        archived_only=archived_only,
+        max_items=max_items,
+    )
+
+
+cli.add_command(lifecycle)
+
+
 if __name__ == "__main__":
+
     cli()

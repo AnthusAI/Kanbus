@@ -3,7 +3,7 @@
   "title": "Add package-working-directory and push policy controls to reusable semantic-release workflow",
   "description": "Update platform-ci semantic-release-reusable workflow to support monorepo package config (python/pyproject.toml) via configurable working directory and to support protected-branch-safe push controls. Then update Kanbus workflow to use these inputs and remove root workaround.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": "derek.norrbom",
@@ -28,12 +28,20 @@
       "author": "derek.norrbom",
       "text": "Verified reusable semantic-release consumers. Only Kanbus currently uses build_command='python -m build' without self-installing build; Biblicus and Tactus self-install build in command, Virtuus does not use python -m build, Plexus has no build_command. Applying long-term fix in platform-ci reusable workflow to install build by default.",
       "created_at": "2026-03-25T16:24:44.702345Z"
+    },
+    {
+      "id": "0efc825a-141d-4ff1-9c7d-25631c9706b8",
+      "author": "ryan",
+      "text": "Closing as complete: Package working directory and push controls added to reusable workflow.",
+      "created_at": "2026-08-22T15:33:45.063550Z"
     }
   ],
   "created_at": "2026-03-24T23:23:36.240265Z",
-  "updated_at": "2026-03-25T16:24:44.702345Z",
-  "closed_at": null,
+  "updated_at": "2026-08-22T15:33:45.078820Z",
+  "closed_at": "2026-08-22T15:33:45.078820Z",
   "custom": {
-    "beads_owner": "derek.norrbom"
+    "beads_owner": "derek.norrbom",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

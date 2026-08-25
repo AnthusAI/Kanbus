@@ -3,18 +3,27 @@
   "title": "Implement reusable semantic-release workflow in Kanbus",
   "description": "Replace release-please workflow with call to AnthusAI/platform-ci semantic-release-reusable workflow, with guardrails for main branch and CI success.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": "derek.norrbom",
   "parent": "tskl-rbi",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "c4cf15d2-1d26-43a5-93c6-cb6607d993d9",
+      "author": "ryan",
+      "text": "Closing as complete: Reusable semantic-release workflow implemented.",
+      "created_at": "2026-08-22T15:33:44.902692Z"
+    }
+  ],
   "created_at": "2026-03-24T21:52:12.687396Z",
-  "updated_at": "2026-03-24T21:52:17.213927Z",
-  "closed_at": null,
+  "updated_at": "2026-08-22T15:33:44.913278Z",
+  "closed_at": "2026-08-22T15:33:44.913278Z",
   "custom": {
-    "beads_owner": "derek.norrbom"
+    "beads_owner": "derek.norrbom",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

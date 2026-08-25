@@ -565,6 +565,64 @@ fn now_utc_iso() -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn test_hooks_error_paths() {
+        use super::*;
+        use crate::models::HookDefinition;
+        let temp = tempfile::TempDir::new().unwrap();
+        let root = temp.path();
+
+        let mut hook: HookDefinition = serde_json::from_value(serde_json::json!({
+            "id": "test",
+            "command": ["does-not-exist-123456789"]
+        }))
+        .unwrap();
+
+        let payload = serde_json::json!({
+            "kanbus_version": "1.0",
+        });
+
+        // Spawn error
+        let result = run_external_hook(&hook, root, &payload, 1000);
+        assert!(!result.succeeded);
+        assert!(result.message.contains("No such file") || result.message.contains("not found"));
+
+        // Absolute cwd
+        hook.cwd = Some(root.to_path_buf().to_string_lossy().to_string());
+        hook.command = vec!["echo".to_string()];
+        let _ = run_external_hook(&hook, root, &payload, 1000);
+
+        // Stdin write error & stderr capture
+        hook.command = vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            "echo err >&2; exit 1".to_string(),
+        ];
+        let result = run_external_hook(&hook, root, &payload, 1000);
+        assert!(!result.succeeded);
+
+        // Timeout
+        hook.command = vec!["sleep".to_string(), "2".to_string()];
+        let result = run_external_hook(&hook, root, &payload, 50);
+        assert!(result.timed_out);
+        assert!(result.message.contains("timed out"));
+    }
+
+    #[test]
+    fn test_command_on_path() {
+        assert!(command_on_path("sh") || command_on_path("bash"));
+        assert!(!command_on_path("does-not-exist-123456789"));
+
+        // Remove PATH temporarily to test the var_os("PATH") == None branch
+        let old_path = std::env::var_os("PATH");
+        std::env::remove_var("PATH");
+        assert!(!command_on_path("sh"));
+        if let Some(p) = old_path {
+            std::env::set_var("PATH", p);
+        }
+    }
+
     use super::*;
     use crate::models::HookDefinition;
 

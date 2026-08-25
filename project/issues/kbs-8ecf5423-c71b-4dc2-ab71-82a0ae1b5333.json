@@ -1,0 +1,18 @@
+{
+  "id": "kbs-8ecf5423-c71b-4dc2-ab71-82a0ae1b5333",
+  "title": "Stop injecting stale programmatic metadata",
+  "description": "Remove the programmatic injection of ID, Type, Status, and Timestamps into the LLM context. These duplicate existing metadata and become stale.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-7dac6e08-a5ff-469d-a312-4c793bf6dfdd",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-24T13:21:55.430368Z",
+  "updated_at": "2026-08-24T13:52:01.972485Z",
+  "closed_at": "2026-08-24T13:52:01.972485Z",
+  "custom": {}
+}

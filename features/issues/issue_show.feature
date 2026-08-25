@@ -131,3 +131,16 @@ Feature: Issue display
       | 0        |
       | 3        |
       | 4        |
+
+  Scenario: Show issue virtualized view uses rewritten description and activity summary
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-raw" exists with title "Needs raw data"
+    And issue "kanbus-raw" has description "Detailed description"
+    And the issue "kanbus-raw" has a summary comment with rewritten description "Rewritten description text" and activity summary "Activity summary text"
+    When I run "kanbus show kanbus-raw"
+    Then the command should succeed
+    And stdout should contain "Rewritten description text"
+    And stdout should contain "Activity summary text"
+    When I run "kanbus show kanbus-raw --raw"
+    Then the command should succeed
+    And stdout should contain "Detailed description"

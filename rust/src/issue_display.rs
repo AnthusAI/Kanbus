@@ -4,6 +4,7 @@ use owo_colors::{AnsiColors, OwoColorize};
 
 use crate::ids::format_issue_key;
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::summarize::get_comment_display_text;
 use crate::wiki;
 
 fn dim(text: &str, use_color: bool) -> String {
@@ -119,8 +120,9 @@ fn render_description_and_comments(
     let comments: Vec<String> = issue
         .comments
         .iter()
-        .map(|c| {
-            wiki::render_template_string(&c.text, all_issues).unwrap_or_else(|_| c.text.clone())
+        .map(|comment| {
+            let display_text = get_comment_display_text(comment);
+            wiki::render_template_string(&display_text, all_issues).unwrap_or(display_text)
         })
         .collect();
     (description, comments)
@@ -188,7 +190,11 @@ pub fn format_issue_for_display(
     } else {
         (
             issue.description.clone(),
-            issue.comments.iter().map(|c| c.text.clone()).collect(),
+            issue
+                .comments
+                .iter()
+                .map(get_comment_display_text)
+                .collect(),
         )
     };
 
@@ -220,10 +226,11 @@ pub fn format_issue_for_display(
                 .chars()
                 .take(6)
                 .collect::<String>();
+            let fallback_text = get_comment_display_text(comment);
             let text = comments_texts
                 .get(i)
                 .map(|s| s.as_str())
-                .unwrap_or(&comment.text);
+                .unwrap_or(&fallback_text);
             if prefix.is_empty() {
                 lines.push(format!(
                     "  {} {}",

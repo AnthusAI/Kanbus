@@ -73,9 +73,42 @@ export type IssueEventsResponse = {
 type IssueComment = {
   id?: string;
   author: string;
-  text: string;
+  text?: string;
   created_at: string;
+  comment_type?: string;
+  data?: Record<string, unknown>;
 };
+
+function getSummaryRewrittenDescription(comment: IssueComment): string | null {
+  const value = comment.data?.rewritten_description;
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getCommentDisplayText(comment: IssueComment): string {
+  if (comment.comment_type === "summary") {
+    const activitySummary = comment.data?.activity_summary;
+    if (typeof activitySummary === "string" && activitySummary.trim().length > 0) {
+      return activitySummary;
+    }
+    return comment.text?.trim() ?? "";
+  }
+  return comment.text?.trim() ?? "";
+}
+
+function getVirtualizedDescription(
+  issue: TaskDetailIssue,
+  summaryComment: IssueComment | undefined,
+  rawMode: boolean
+): string {
+  if (rawMode || !summaryComment) {
+    return issue.description?.trim() ?? "";
+  }
+  return getSummaryRewrittenDescription(summaryComment) ?? issue.description?.trim() ?? "";
+}
 
 type IssueDependency = {
   issue_id: string;
@@ -273,6 +306,12 @@ export function TaskDetailPanel({
   const [pageDirection, setPageDirection] = useState<"push" | "pop">("push");
   const [panelOpenActive, setPanelOpenActive] = useState(false);
   const [activeTab, setActiveTab] = useState<"comments" | "events">("comments");
+  const [rawMode, setRawMode] = useState(false);
+
+  useEffect(() => {
+    setRawMode(false);
+  }, [task?.id]);
+
   const [eventHistory, setEventHistory] = useState<IssueEvent[]>([]);
   const [eventCursor, setEventCursor] = useState<string | null>(null);
   const [eventLoading, setEventLoading] = useState(false);
@@ -678,7 +717,23 @@ skinparam SequenceDividerFontColor white`
 
   const renderDetailContent = (taskToRender: TaskDetailIssue, withRef: boolean) => {
     const priorityName = priorityLookup[taskToRender.priority] ?? "medium";
-    const comments = taskToRender.comments ?? [];
+    
+    // Determine summary comment and apply rawMode rules
+    const allComments = taskToRender.comments ?? [];
+    const summaryComment = allComments.slice().reverse().find(c => c.comment_type === "summary");
+    const comments =
+      summaryComment && !rawMode
+        ? [
+            summaryComment,
+            ...allComments.filter(
+              (comment) =>
+                comment.created_at &&
+                summaryComment.created_at &&
+                comment.created_at > summaryComment.created_at
+            ),
+          ]
+        : allComments;
+    
     const createdAt = taskToRender.created_at;
     const updatedAt = taskToRender.updated_at;
     const closedAt = taskToRender.closed_at;
@@ -688,8 +743,13 @@ skinparam SequenceDividerFontColor white`
     const DetailTypeIcon = getTypeIcon(taskToRender.type, taskToRender.status);
     const issueStyle =
       config ? buildIssueColorStyle(config, taskToRender) : undefined;
-    const rawHtml = taskToRender.description
-      ? (marked.parse(taskToRender.description, { async: false }) as string)
+    const descriptionSource = getVirtualizedDescription(
+      taskToRender,
+      summaryComment,
+      rawMode
+    );
+    const rawHtml = descriptionSource
+      ? (marked.parse(descriptionSource, { async: false }) as string)
       : "";
     const descriptionHtml = rawHtml
       ? DOMPurify.sanitize(rawHtml, {
@@ -824,6 +884,17 @@ skinparam SequenceDividerFontColor white`
                     aria-pressed={isMaximized}
                     className={isMaximized ? "bg-[var(--card-muted)]" : ""}
                   />
+                  {taskToRender.comments?.some(c => c.comment_type === "summary") && (
+                    <button
+                      className="rounded-full bg-[var(--card-muted)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-selected hover:text-foreground transition-colors h-8"
+                      onClick={() => setRawMode(!rawMode)}
+                      type="button"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="hidden sm:inline">{rawMode ? "Summary" : "Raw"}</span>
+                      </span>
+                    </button>
+                  )}
                   <IconButton icon={X} label="Close" onClick={onClose} />
                 </div>
               </div>
@@ -833,7 +904,7 @@ skinparam SequenceDividerFontColor white`
               >
                 {taskToRender.title}
               </h2>
-              {taskToRender.description ? (
+              {descriptionHtml ? (
                 <div
                   ref={descriptionFlashRef}
                   className="issue-description-markdown text-sm text-selected mb-4 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
@@ -916,7 +987,10 @@ skinparam SequenceDividerFontColor white`
                   <div className="text-sm text-muted">No comments yet.</div>
                 ) : (
                   comments.map((comment, index) => {
-                    const commentHtml = marked.parse(comment.text, { async: false }) as string;
+                    const commentBody = getCommentDisplayText(comment);
+                    const commentHtml = commentBody
+                      ? (marked.parse(commentBody, { async: false }) as string)
+                      : "";
                     return (
                       <div
                         key={`${comment.created_at}-${index}`}

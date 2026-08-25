@@ -51,6 +51,8 @@ fn given_project_with_beads_compatibility(world: &mut KanbusWorld) {
     let project_dir = repo_path.join(&configuration.project_directory);
     let issues_dir = project_dir.join("issues");
     fs::create_dir_all(&issues_dir).expect("create issues dir");
+    let events_dir = project_dir.join("events");
+    fs::create_dir_all(&events_dir).expect("create events dir");
     let contents = serde_yaml::to_string(&configuration).expect("serialize config");
     fs::write(repo_path.join(".kanbus.yml"), contents).expect("write config");
 
