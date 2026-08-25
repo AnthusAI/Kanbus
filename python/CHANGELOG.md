@@ -2,6 +2,147 @@
 
 <!-- version list -->
 
+## v0.19.0 (2026-08-25)
+
+### Bug Fixes
+
+- Align compaction specs with virtualized show and embedded assets
+  ([`26f0295`](https://github.com/AnthusAI/Kanbus/commit/26f0295928e212af77dc711615d8a0dddec0831f))
+
+- Allow late-init hook placeholders in Rust CLI update paths
+  ([`46826bf`](https://github.com/AnthusAI/Kanbus/commit/46826bf97a771870134cc28ed69adafe98c593d9))
+
+- Bundle updated console assets for embedded kbsc build
+  ([`c764489`](https://github.com/AnthusAI/Kanbus/commit/c764489e280a1a202116f1db22153aefb8fda556))
+
+- Ensure beads error scenarios raise gracefully in python CLI
+  ([`eedf3a2`](https://github.com/AnthusAI/Kanbus/commit/eedf3a2ccafcd5bb7590fe46efcb316bfc467944))
+
+- Implement summarize and lifecycle compact natively in Rust
+  ([`9e94246`](https://github.com/AnthusAI/Kanbus/commit/9e942462958fd0c65adcd5f0ccb074cec306acd8))
+
+- Make realtime bridge resilient to connection failures
+  ([`5f2662e`](https://github.com/AnthusAI/Kanbus/commit/5f2662ec11a6051f61c8ec1fb64319b237a99ea2))
+
+- Remove debug CLI output and apply rustfmt formatting
+  ([`48a88a9`](https://github.com/AnthusAI/Kanbus/commit/48a88a9cd7e7c38e788fad42109c2ccec0af2ad3))
+
+- Remove remaining CLI debug output and satisfy clippy
+  ([`2b3c019`](https://github.com/AnthusAI/Kanbus/commit/2b3c019e3f5b31df4b2638fb2cade998dcb373ea))
+
+- Resolve CLI BDD spec execution and stdin interactive prompt failures
+  ([`3d02e7c`](https://github.com/AnthusAI/Kanbus/commit/3d02e7c2361e89c7a56a44bae502e8e5061fe576))
+
+- Satisfy clippy while-let lint in gossip bridge retry loop
+  ([`5e73903`](https://github.com/AnthusAI/Kanbus/commit/5e7390330b6858421211523b6c3cf42c843670dc))
+
+- Serialize snyk sync tests that mutate API base env
+  ([`b8611b3`](https://github.com/AnthusAI/Kanbus/commit/b8611b3f522151037a65b6fa92cabc01179c79a6))
+
+- Specify Windows-safe event filenames in behavior specs
+  ([`2fe7048`](https://github.com/AnthusAI/Kanbus/commit/2fe704834b916f355472c692758e55268a6028bc))
+
+- Use Windows-safe event filenames
+  ([`56f0215`](https://github.com/AnthusAI/Kanbus/commit/56f0215bfbdcab00a8fe3b964006d560f0392719))
+
+- **rust**: Add Windows stubs for unix gossip helpers
+  ([`36a5204`](https://github.com/AnthusAI/Kanbus/commit/36a520425ac8515ea49d4decc186e31ba4825709))
+
+- **rust**: Gate unix socket gossip for Windows builds
+  ([`d33b730`](https://github.com/AnthusAI/Kanbus/commit/d33b730309e8a49870dd8d5b0b76e08f7d3a2abd))
+
+### Chores
+
+- Add rust coverage tests for cli, snyk, github sync
+  ([`5c26e8b`](https://github.com/AnthusAI/Kanbus/commit/5c26e8b56ea73fde1e258fc2323bf7b150b0c2d8))
+
+- Close acp.7 as already implemented
+  ([`cd4f622`](https://github.com/AnthusAI/Kanbus/commit/cd4f622e94c26733a1e932fc2f508e60d537de12))
+
+- Close completed WIP issues
+  ([`93ff6fc`](https://github.com/AnthusAI/Kanbus/commit/93ff6fc90ae5d399113164bc8c729a1e527202b2))
+
+- Close tskl-wti.2.2
+  ([`b27d354`](https://github.com/AnthusAI/Kanbus/commit/b27d35489e47005ebf9ef3176a7287e0c4aa6636))
+
+- Close tskl-wti.4
+  ([`87c512a`](https://github.com/AnthusAI/Kanbus/commit/87c512af6d39e1907d5130434e9ba0a5670d690b))
+
+- Ignore worktrees directory
+  ([`823a502`](https://github.com/AnthusAI/Kanbus/commit/823a50266bc072fc5e876627fa2b7bc71c48b2d5))
+
+- Update coverage ratchet baseline for compaction feature
+  ([`873520a`](https://github.com/AnthusAI/Kanbus/commit/873520a2d3857ce0c32520860f8ef221ffad01db))
+
+- Update coverage ratchet baseline for latest spec parity improvements
+  ([`c8a1e6e`](https://github.com/AnthusAI/Kanbus/commit/c8a1e6e4aecb9366aafd108735ceb7129ca27d00))
+
+### Code Style
+
+- Apply rustfmt after compaction model changes
+  ([`68125ff`](https://github.com/AnthusAI/Kanbus/commit/68125ff60756c7d9e7f9e241e4de704cd221a2ae))
+
+- **rust**: Apply rustfmt to event history step attribute
+  ([`5cbe251`](https://github.com/AnthusAI/Kanbus/commit/5cbe251a2d96daba18947d2734634251079b8103))
+
+### Documentation
+
+- Add single-source-of-spec religion to readme
+  ([`1511170`](https://github.com/AnthusAI/Kanbus/commit/1511170eefa1ff3bf9eb414a884608a45b68563b))
+
+- Clarify event history storage and Windows filenames
+  ([`2beacf3`](https://github.com/AnthusAI/Kanbus/commit/2beacf36ccff1220d54284c99bae9aa0c30e3916))
+
+### Features
+
+- Add lifecycle compact subcommand for batch issue compaction
+  ([`a484a76`](https://github.com/AnthusAI/Kanbus/commit/a484a768b36a8629665b56906219ebb55a69f2f8))
+
+- Implement progressive issue summarization via LLM
+  ([`fdca3f9`](https://github.com/AnthusAI/Kanbus/commit/fdca3f9398443d7689d43ca41583872c32f3a4cd))
+
+- Store compaction summaries in structured comment data
+  ([`e12748f`](https://github.com/AnthusAI/Kanbus/commit/e12748f878d18bcc791420fff9152127bd218ff6))
+
+- Support explicitly specifying ID on creation
+  ([`c2dff5e`](https://github.com/AnthusAI/Kanbus/commit/c2dff5e398bba996cd507bef9e9cfa26e3571371))
+
+- Support global .kanbus.env configuration
+  ([`5d61dde`](https://github.com/AnthusAI/Kanbus/commit/5d61dde511b30341b1e52a7845cc68827a49b524))
+
+### Testing
+
+- Achieve 100% coverage measurement for Rust and Python
+  ([`b63c4cd`](https://github.com/AnthusAI/Kanbus/commit/b63c4cd17c2d1d0d8676fc4050fb5ddf4bb63e91))
+
+- Achieve 100% coverage on python github_security_sync
+  ([`eced6e0`](https://github.com/AnthusAI/Kanbus/commit/eced6e0a97e2975bc3ff7df085c4b21995e65ca1))
+
+- Add coverage for beads and early exit paths in github_security_sync
+  ([`9635544`](https://github.com/AnthusAI/Kanbus/commit/96355440a106c8e148a14b8e35df65da4fff345a))
+
+- Add internal tests for hooks, snyk, and gossip network paths
+  ([`b24037d`](https://github.com/AnthusAI/Kanbus/commit/b24037db3d0bfeb762bb881907af9f560d85db70))
+
+- Add unit coverage for Rust compaction summarize paths
+  ([`ab19b36`](https://github.com/AnthusAI/Kanbus/commit/ab19b360c81da31ba612d3bee25b6838e7af15b5))
+
+- Boost coverage for console_local module
+  ([`7661b88`](https://github.com/AnthusAI/Kanbus/commit/7661b887825d126154bb6b0aa48bf381552b633e))
+
+- Boost coverage for gossip module
+  ([`d6b862e`](https://github.com/AnthusAI/Kanbus/commit/d6b862e27377de7eaecae978abc0113107e21b92))
+
+- Instrument child processes in bdd tests
+  ([`c23f4ef`](https://github.com/AnthusAI/Kanbus/commit/c23f4ef043324ab105beb1c87e1701ae88adb02c))
+
+- Migrate policy guidance edge cases to bdd specs
+  ([`6741b61`](https://github.com/AnthusAI/Kanbus/commit/6741b61681f41338d48649d69de9c1da460945bf))
+
+- Migrate uds gossip edge cases to bdd specs
+  ([`9b3caca`](https://github.com/AnthusAI/Kanbus/commit/9b3caca04993cbfa5f619553af183be5c9fcbe47))
+
+
 ## v0.18.4 (2026-08-17)
 
 ### Bug Fixes
