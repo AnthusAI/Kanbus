@@ -85,11 +85,7 @@ fn wait_for_server(port: u16) -> Option<u16> {
 }
 
 fn kbsc_binary_path() -> PathBuf {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let target_dir = std::env::var("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| manifest_dir.join("target"));
-    target_dir.join("debug").join("kbsc")
+    PathBuf::from(env!("CARGO_BIN_EXE_kbsc"))
 }
 
 fn start_kbsc(world: &KanbusWorld, port: u16) -> Child {

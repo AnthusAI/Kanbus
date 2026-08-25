@@ -1,0 +1,18 @@
+{
+  "id": "kbs-5e95bc87-f317-46df-b0b4-b547f37d726c",
+  "title": "Add kanbus lifecycle compact subcommand",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-79f6788d-61e6-4b5f-8330-8e7b0fef33f9",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-23T23:32:36.265450Z",
+  "updated_at": "2026-08-24T11:28:31.011124Z",
+  "closed_at": "2026-08-24T11:28:31.011124Z",
+  "custom": {}
+}

@@ -10,6 +10,7 @@ import click
 
 from kanbus.ids import format_issue_key
 from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.comment_summary import get_comment_display_text
 
 STATUS_GLYPHS = {
     "backlog": "○",
@@ -116,11 +117,13 @@ def _render_description_and_comments(
             description = ""
         comments_text: List[str] = []
         for comment in issue.comments:
-            text = render_template_string(comment.text, all_issues)
+            text = render_template_string(get_comment_display_text(comment), all_issues)
             comments_text.append(text)
         return description, comments_text
     except WikiError:
-        return issue.description or "", [c.text for c in issue.comments]
+        return issue.description or "", [
+            get_comment_display_text(comment) for comment in issue.comments
+        ]
 
 
 def format_issue_for_display(
@@ -201,7 +204,9 @@ def format_issue_for_display(
             issue, all_issues
         )
     else:
-        comments_texts = [c.text for c in issue.comments]
+        comments_texts = [
+            get_comment_display_text(comment) for comment in issue.comments
+        ]
 
     if description:
         lines.append(f"{_dim('Description:', color_output)}")
@@ -217,7 +222,11 @@ def format_issue_for_display(
         for idx, comment in enumerate(issue.comments):
             author = comment.author or "unknown"
             prefix = (comment.id or "")[:6]
-            text = comments_texts[idx] if idx < len(comments_texts) else comment.text
+            text = (
+                comments_texts[idx]
+                if idx < len(comments_texts)
+                else get_comment_display_text(comment)
+            )
             if prefix:
                 lines.append(f"  [{prefix}] {_dim(f'{author}:', color_output)} {text}")
             else:

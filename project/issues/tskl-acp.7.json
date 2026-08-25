@@ -3,18 +3,27 @@
   "title": "Publish extension to VSCode Marketplace",
   "description": "Given the Kanbus VSCode extension .vsix is built by CI\nWhen a release is tagged\nThen the extension is published to the VSCode Marketplace automatically\n\nAcceptance criteria:\n- A 'kanbus' publisher account exists at marketplace.visualstudio.com\n- An Azure DevOps Personal Access Token (PAT) is created with Marketplace → Manage scope and All accessible organizations\n- The PAT is stored as the VSCE_PAT secret in the AnthusAI/Kanbus GitHub repository settings\n- The release.yml vscode-extension job successfully publishes all platform .vsix files on tag push\n- The extension appears publicly on the VSCode Marketplace at https://marketplace.visualstudio.com/items?itemName=kanbus.kanbus-board",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "ryan.porter",
   "parent": "tskl-acp",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "0363ef31-c0d1-4a65-9cee-a63742d17a1c",
+      "author": "ryan",
+      "text": "Closing as complete: The vscode-extension publishing job is already fully implemented in .github/workflows/release.yml.",
+      "created_at": "2026-08-22T15:37:43.101013Z"
+    }
+  ],
   "created_at": "2026-02-21T18:45:44.910784Z",
-  "updated_at": "2026-02-21T18:45:44.910784Z",
-  "closed_at": null,
+  "updated_at": "2026-08-22T15:37:43.112460Z",
+  "closed_at": "2026-08-22T15:37:43.112460Z",
   "custom": {
-    "beads_owner": "ryan.porter"
+    "beads_owner": "ryan.porter",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

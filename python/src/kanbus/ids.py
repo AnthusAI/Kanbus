@@ -26,6 +26,7 @@ class IssueIdentifierRequest(BaseModel):
     title: str = Field(min_length=1)
     existing_ids: Set[str] = Field(default_factory=set)
     prefix: str = Field(default="kanbus", min_length=1)
+    requested_id: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -131,6 +132,11 @@ def generate_issue_identifier(request: IssueIdentifierRequest) -> IssueIdentifie
     :rtype: IssueIdentifierResult
     :raises RuntimeError: If unable to generate unique ID after 10 attempts.
     """
+    if request.requested_id:
+        if request.requested_id in request.existing_ids:
+            raise ValueError(f"requested id '{request.requested_id}' already exists")
+        return IssueIdentifierResult(identifier=request.requested_id)
+
     for _ in range(10):
         identifier = f"{request.prefix}-{_next_uuid_value()}"
         if identifier not in request.existing_ids:

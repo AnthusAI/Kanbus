@@ -1,0 +1,21 @@
+{
+  "id": "kbs-16ff6850-728f-4603-af4e-373b48d0688c",
+  "title": "Implement virtualized view in Python and Rust CLI",
+  "description": "Update kanbus show to parse the summary comment, replace the description, and truncate older comments on the fly. Must match byte-for-byte in Python and Rust.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-7dac6e08-a5ff-469d-a312-4c793bf6dfdd",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-24T13:22:10.078902Z",
+  "updated_at": "2026-08-24T13:52:01.920788Z",
+  "closed_at": "2026-08-24T13:52:01.920788Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

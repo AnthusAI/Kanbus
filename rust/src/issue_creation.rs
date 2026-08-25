@@ -38,6 +38,7 @@ pub struct IssueCreationRequest {
     pub description: Option<String>,
     pub local: bool,
     pub validate: bool,
+    pub requested_id: Option<String>,
 }
 
 /// Result payload for issue creation.
@@ -115,6 +116,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         title: request.title.clone(),
         existing_ids,
         prefix: configuration.project_key.clone(),
+        requested_id: request.requested_id.clone(),
     };
     let identifier = generate_issue_identifier(&identifier_request)?.identifier;
     let updated_at = created_at;
@@ -326,6 +328,7 @@ mod tests {
             description: None,
             local: false,
             validate: true,
+            requested_id: None,
         }
     }
 

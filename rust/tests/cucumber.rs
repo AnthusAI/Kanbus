@@ -170,6 +170,8 @@ fn cover_additional_paths() {
         description: Some("First description".to_string()),
         local: false,
         validate: true,
+
+        requested_id: None,
     })
     .expect("create issue one");
     let issue_two = create_issue(&IssueCreationRequest {
@@ -183,6 +185,8 @@ fn cover_additional_paths() {
         description: None,
         local: false,
         validate: true,
+
+        requested_id: None,
     })
     .expect("create issue two");
     let issue_three = create_issue(&IssueCreationRequest {
@@ -196,6 +200,8 @@ fn cover_additional_paths() {
         description: None,
         local: false,
         validate: true,
+
+        requested_id: None,
     })
     .expect("create issue three");
 
@@ -397,6 +403,8 @@ fn cover_additional_paths() {
         description: None,
         local: false,
         validate: true,
+
+        requested_id: None,
     });
     fs::remove_file(&config_path).expect("remove config");
     let _ = run_from_args_with_output(["kanbus", "list"], root_no_config);
@@ -478,6 +486,8 @@ fn cover_additional_paths() {
         description: None,
         local: false,
         validate: true,
+
+        requested_id: None,
     })
     .expect("create update issue");
     let _ = update_issue(

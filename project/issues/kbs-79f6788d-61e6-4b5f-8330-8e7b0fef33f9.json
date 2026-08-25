@@ -1,0 +1,18 @@
+{
+  "id": "kbs-79f6788d-61e6-4b5f-8330-8e7b0fef33f9",
+  "title": "Issue Lifecycle Management System",
+  "description": "Implement a set of subcommands (e.g. `kanbus lifecycle`) to periodically and continuously manage issue lifecycles. This should include batch processing for continuous history compaction (summarization) of issues that meet age or comment-count thresholds.",
+  "type": "epic",
+  "status": "done",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-23T23:32:18.241361Z",
+  "updated_at": "2026-08-24T11:28:32.052042Z",
+  "closed_at": null,
+  "custom": {}
+}

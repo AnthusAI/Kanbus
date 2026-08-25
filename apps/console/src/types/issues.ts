@@ -67,8 +67,10 @@ export interface ProjectConfig {
 export interface IssueComment {
   id?: string;
   author: string;
-  text: string;
+  text?: string;
   created_at: string;
+  comment_type?: string;
+  data?: Record<string, unknown>;
 }
 
 export interface IssueDependency {

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 
 class CategoryDefinition(BaseModel):
@@ -37,12 +37,51 @@ class IssueComment(BaseModel):
     :type text: str
     :param created_at: Timestamp when the comment was created.
     :type created_at: datetime
+    :param comment_type: Type of comment (e.g. default, summary).
+    :type comment_type: str
+    :param data: Structured comment payload (e.g. compaction summary fields).
+    :type data: Dict[str, Any]
     """
 
     id: Optional[str] = None
     author: str = Field(min_length=1)
-    text: str = Field(min_length=1)
+    text: Optional[str] = None
     created_at: datetime
+    comment_type: str = "default"
+    data: Dict[str, Any] = Field(default_factory=dict)
+
+    @model_serializer(mode="wrap")
+    def serialize_model(self, serializer: object) -> Dict[str, Any]:
+        """Serialize comment data for issue JSON files.
+
+        :param serializer: Pydantic serializer callable.
+        :type serializer: object
+        :return: Serialized comment payload.
+        :rtype: Dict[str, Any]
+        """
+        data: Dict[str, Any] = serializer(self)
+        if self.comment_type == "summary" and not self.text:
+            data.pop("text", None)
+        return data
+
+    @model_validator(mode="after")
+    def validate_comment_shape(self) -> "IssueComment":
+        """Validate comment text and summary payload shape.
+
+        :return: Validated comment instance.
+        :rtype: IssueComment
+        """
+        if self.comment_type == "summary":
+            rewritten_description = self.data.get("rewritten_description")
+            activity_summary = self.data.get("activity_summary")
+            if not isinstance(rewritten_description, str) or not rewritten_description:
+                raise ValueError("summary comment requires data.rewritten_description")
+            if not isinstance(activity_summary, str) or not activity_summary:
+                raise ValueError("summary comment requires data.activity_summary")
+            return self
+        if not self.text or not self.text.strip():
+            raise ValueError("comment text is required")
+        return self
 
 
 class IssueData(BaseModel):

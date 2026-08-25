@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set
 
 import requests
+from requests.exceptions import RequestException
 
 from kanbus.ids import IssueIdentifierRequest, generate_issue_identifier
 from kanbus.issue_files import (
@@ -31,7 +32,7 @@ from kanbus.issue_files import (
 )
 from kanbus.models import IssueData, SnykConfiguration
 
-SNYK_API_BASE = "https://api.snyk.io"
+SNYK_API_BASE = os.environ.get("KANBUS_SNYK_API_BASE", "https://api.snyk.io")
 SNYK_API_VERSION = "2025-11-05"
 SNYK_INITIATIVE_TITLE = "Snyk Vulnerability Remediation"
 SNYK_DEP_EPIC_TITLE = "Snyk Dependency Vulnerabilities"
@@ -657,7 +658,10 @@ def _fetch_snyk_projects(
     )
 
     while url:
-        response = requests.get(url, headers=headers, timeout=30)
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+        except RequestException as exc:
+            raise SnykSyncError(f"request failed: {exc}")
         if not response.ok:
             raise SnykSyncError(
                 f"Snyk projects API returned {response.status_code}: {response.text[:200]}"
@@ -727,7 +731,10 @@ def _fetch_snyk_issues_for_type(
     )
 
     while url:
-        response = requests.get(url, headers=headers, timeout=30)
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+        except RequestException as exc:
+            raise SnykSyncError(f"request failed: {exc}")
         if not response.ok:
             raise SnykSyncError(
                 f"Snyk API returned {response.status_code}: {response.text[:200]}"
