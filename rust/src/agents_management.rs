@@ -23,9 +23,9 @@ const KANBUS_SECTION_LINES: [&str; 9] = [
     "Use Kanbus for task management.",
     "Why: Kanbus task management is MANDATORY here; every task must live in Kanbus.",
     "When: Create/update the Kanbus task before coding; close it only after the change lands.",
-    "How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.",
+    "How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the mistakes to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.",
     "Performance: Prefer kbs (Rust) when available; kanbus (Python) is equivalent but slower.",
-    "Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Kanbus.",
+    "Warning: Editing project/ directly violates The Way. Do not read or write anything in project/; work only through Kanbus.",
     "",
 ];
 const AGENTS_HEADER_LINES: [&str; 2] = ["# Agent Instructions", ""];
@@ -449,7 +449,7 @@ fn ensure_project_guard_files(root: &Path) -> Result<(), KanbusError> {
             let do_not_edit = subdir.join("DO_NOT_EDIT");
             let do_not_edit_content = [
                 &format!("DO NOT EDIT THIS FOLDER ({}/)", folder_name),
-                "This folder is guarded by The Way.",
+                "This folder is managed by Kanbus.",
                 "All changes must go through Kanbus (see ../../AGENTS.md and ../../CONTRIBUTING_AGENT.md).",
             ]
             .join("\n")

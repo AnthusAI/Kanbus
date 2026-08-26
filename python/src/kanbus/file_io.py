@@ -139,7 +139,7 @@ def _write_guard_files_in_subdir(subdir: Path, folder_name: str) -> None:
         "\n".join(
             [
                 f"DO NOT EDIT THIS FOLDER ({folder_name}/)",
-                "This folder is guarded by The Way.",
+                "This folder is managed by Kanbus.",
                 "All changes must go through Kanbus (see ../../AGENTS.md and ../../CONTRIBUTING_AGENT.md).",
             ]
         )

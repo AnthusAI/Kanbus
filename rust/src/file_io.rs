@@ -195,7 +195,7 @@ fn write_guard_files_in_subdir(subdir: &Path, folder_name: &str) -> Result<(), K
     let do_not_edit = subdir.join("DO_NOT_EDIT");
     let do_not_edit_content = [
         &format!("DO NOT EDIT THIS FOLDER ({}/)", folder_name),
-        "This folder is guarded by The Way.",
+        "This folder is managed by Kanbus.",
         "All changes must go through Kanbus (see ../../AGENTS.md and ../../CONTRIBUTING_AGENT.md).",
     ]
     .join("\n")
