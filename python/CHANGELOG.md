@@ -2,6 +2,13 @@
 
 <!-- version list -->
 
+## v0.19.1 (2026-08-26)
+
+### Documentation
+
+- Secularize agent doctrine templates and guard file wording without weakening requirements
+  ([`051d1a8`](https://github.com/AnthusAI/Kanbus/commit/051d1a8f2448815d87b1121dba1bccdf494a52ae))
+
 ## v0.19.0 (2026-08-25)
 
 ### Bug Fixes
