@@ -392,6 +392,6 @@ fn then_project_do_not_edit_created(world: &mut KanbusWorld) {
         assert!(path.is_file(), "expected {}", path.display());
         let content = fs::read_to_string(&path).expect("read DO_NOT_EDIT");
         assert!(content.contains("DO NOT EDIT"));
-        assert!(content.contains("The Way"));
+        assert!(content.contains("Kanbus"));
     }
 }
