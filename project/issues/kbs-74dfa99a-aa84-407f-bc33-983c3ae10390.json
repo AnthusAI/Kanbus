@@ -40,7 +40,8 @@
       "author": "ryan",
       "text": "I have completely reworked PR #168 to strictly adhere to the immutable and append-only virtualization spec. \n\n- The original `issue.description` is now left completely untouched on disk.\n- `show --raw` recovery is fully restored and asserted in the BDD specs.\n- Re-compacting now properly appends a newer summary comment without deleting the old ones.\n- The Python and Rust readers now correctly accept both legacy `text`-only summaries (like `tskl-qi1`) and structured `data.rewritten_description` summaries without crashing. (This might make the reader-compat portion of PR #167 redundant).\n- Rust `kbs summarize` properly delegates to Python `kanbus summarize` as a production shim instead of dying when `KANBUS_TEST_AI_MOCK` is unset.\n\nThe BDD specs have been reverted to enforce these invariants and everything passes cleanly.",
       "created_at": "2026-08-27T19:09:13.146788Z",
-      "comment_type": "default"
+      "comment_type": "default",
+      "data": {}
     },
     {
       "id": "d770b028-58a8-47dc-949a-151b77f817b0",
@@ -55,7 +56,8 @@
       "author": "ryan",
       "text": "Here is the proof that `kanbus show tskl-qi1` and `kbs show tskl-qi1` now succeed and gracefully handle the legacy text-only summaries without crashing, exactly matching behavior across both implementations.\n\n**Rust output (kbs show tskl-qi1):**\n```\nID: tskl-qi1\nTitle: Bulk change command for issue updates\nType: epic\nStatus: in_progress\nPriority: 2\nAssignee: -\nParent: -\nLabels: -\nDescription:\nAs a system utility\nI want a bulk change command for issues\nSo that I can apply the same update to many issues in one operation.\n\nDefinition of done:\n- CLI supports bulk update by query and/or explicit IDs\n- Python and Rust behavior parity\n- BDD scenarios cover selection and update semantics\n- Documentation updated\nComments:\n  [53fa74] system:summary: ### Issue Metadata\n- **ID**: `tskl-qi1`\n...\n### Key Artifacts\n...\n- CLI and user documentation\n```\n\n**Python output (kanbus show tskl-qi1):**\n```\nID: tskl-qi1\nTitle: Bulk change command for issue updates\nType: epic\nStatus: in_progress\n...\nComments:\n  [53fa74] system:summary: ### Issue Metadata\n- **ID**: `tskl-qi1`\n...\n### Key Artifacts\n...\n- CLI and user documentation\n```\n\nBoth now successfully avoid the Pydantic `ValidationError` from before. \n\nI fully acknowledge (2) as later work; the current Rust implementation is just a shim calling Python via `Command::new(\"kanbus\")` on PATH, not a native Rust LiteLLM implementation.",
       "created_at": "2026-08-27T19:16:11.831846Z",
-      "comment_type": "default"
+      "comment_type": "default",
+      "data": {}
     },
     {
       "id": "569181be-936c-4491-843c-3d3c9e4389de",
@@ -72,10 +74,18 @@
       "created_at": "2026-08-27T19:23:25.436920Z",
       "comment_type": "default",
       "data": {}
+    },
+    {
+      "id": "a80759eb-9257-4c1e-b734-88214a779630",
+      "author": "box",
+      "text": "## QA: do not close #168. CI is red.\n\nThe leftover is not \u201cclose the PR.\u201d Latest #168 checks failed.\n\nFailing job: `coverage-ratchet` / \u201cEnforce coverage ratchet\u201d (exit 1).\n- PR CI: https://github.com/AnthusAI/Kanbus/actions/runs/33108456940\n- Branch push CI: https://github.com/AnthusAI/Kanbus/actions/runs/33108452866\n\nPython, Rust, console, parity, and smoke completed. Node 20 deprecation notes are warnings, not failures.\n\n### Do now\n1. Read the coverage-ratchet log. See which metric dropped below `config/coverage-baselines.json` (Python 98.57, Rust 87.6714, max gap 10.8986).\n2. Add tests until the ratchet passes. Only move the baseline if the drop is real and accepted.\n3. Push the fix. Do not close #168 while that job is red.\n4. `main` already has these commits (`f11b569`). Land the fix on `main` so main CI is green. Treat main CI #1292 (8m 35s) as not-green until proven.\n5. #168 still targets `dev`. Retarget to `main` or close only after CI is green. A force-merge to `main` is not \u201cchecks passed.\u201d\n",
+      "created_at": "2026-08-27T20:17:17.007742Z",
+      "comment_type": "default",
+      "data": {}
     }
   ],
   "created_at": "2026-08-23T19:30:47.234467Z",
-  "updated_at": "2026-08-27T19:23:25.436920Z",
+  "updated_at": "2026-08-27T20:17:17.007742Z",
   "closed_at": "2026-08-27T19:19:35.209873Z",
   "custom": {}
 }
