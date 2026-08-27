@@ -17,42 +17,6 @@ fn test_config_loads_with_all_optional_fields() {
     let config_yaml = r#"
 project_directory: project
 project_key: test
-hierarchy:
-  - epic
-  - task
-types:
-  - bug
-  - story
-workflows:
-  default:
-    open: [in_progress, closed]
-    in_progress: [open, closed]
-    closed: [open]
-initial_status: open
-priorities:
-  0:
-    name: critical
-    color: red
-default_priority: 0
-statuses:
-  - key: open
-    name: Open
-    category: To do
-  - key: in_progress
-    name: In Progress
-    category: In progress
-  - key: closed
-    name: Closed
-    category: Done
-categories:
-  - name: To do
-    color: grey
-  - name: In progress
-    color: blue
-  - name: Done
-    color: green
-type_colors:
-  bug: red
 beads_compatibility: false
 ai:
   provider: litellm
@@ -72,11 +36,6 @@ github_security:
   dependabot:
     min_severity: high
     state: open
-transition_labels:
-  default:
-    open:
-      closed: Complete
-      in_progress: Start
 "#;
 
     fs::write(&config_path, config_yaml).unwrap();
@@ -104,27 +63,6 @@ fn test_config_loads_with_minimal_required_fields() {
     let config_yaml = r#"
 project_directory: project
 project_key: test
-hierarchy:
-  - epic
-types:
-  - bug
-workflows:
-  default:
-    open: [closed]
-    closed: [open]
-initial_status: open
-priorities:
-  0:
-    name: critical
-    color: red
-default_priority: 0
-statuses:
-  - key: open
-    name: Open
-    category: To do
-  - key: closed
-    name: Closed
-    category: Done
 "#;
 
     fs::write(&config_path, config_yaml).unwrap();
