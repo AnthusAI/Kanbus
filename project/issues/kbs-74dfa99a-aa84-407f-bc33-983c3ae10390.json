@@ -10,9 +10,18 @@
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "d07abec9-61b3-439b-923f-ecd965d6931e",
+      "author": "box",
+      "text": "## QA acceptance (2026-08-27)\n\nCompaction is **not done**. The child stories are closed, but acceptance failed.\n\n### Repro that breaks `show` / `list`\n`kanbus show tskl-qi1` on current `main` (Python 0.19.1) dies:\n\n```\nValidationError: summary comment requires data.rewritten_description\n```\n\n`tskl-qi1` was compacted **three times** on 2026-08-23 (`21:40`, `21:42`, `21:46` UTC). Those comments are `comment_type: summary` with only `text` (author `system:summary`). No `data.rewritten_description` / `data.activity_summary`.\n\nThat violates the closed story **kbs-50866563** (\"Query commands use issue compaction\"): a query must return the latest summary, not crash the CLI. One compacted issue bricks `show`.\n\nCurrent writers already emit the structured `data` shape. Readers on 0.19.1 do not accept the legacy `text`-only summaries that are already on this board. PR #167 teaches the Python reader to accept either shape; that is not on `main` yet.\n\n### Rust is not a real implementation\n`kbs summarize` (Rust) errors unless `KANBUS_TEST_AI_MOCK=1`:\n\n> Issue compaction requires mock AI in tests or LiteLLM integration in Rust\n\nPython `kanbus summarize` is the only production path.\n\n### Git (not a bug)\nAcceptance in a throwaway git repo (hooks on and off): compaction does **not** `git add` / `git commit` / move HEAD. It only dirties the working tree (issue JSON + `project/events/llm_usage.jsonl`). Do not spend time \"fixing\" git isolation.\n\n### Done when\n1. `kanbus show tskl-qi1` and `kbs show tskl-qi1` succeed on `main` and render the latest summary.\n2. Rust `kbs summarize` can call the configured LiteLLM provider (not mock-only).\n3. Re-compacting an issue replaces the old summary comments instead of appending more broken ones.\n\nDo not close this epic until (1) and (2) pass.\n",
+      "created_at": "2026-08-27T17:17:14.857525Z",
+      "comment_type": "default",
+      "data": {}
+    }
+  ],
   "created_at": "2026-08-23T19:30:47.234467Z",
-  "updated_at": "2026-08-23T19:30:47.234467Z",
+  "updated_at": "2026-08-27T17:17:14.857525Z",
   "closed_at": null,
   "custom": {}
 }
