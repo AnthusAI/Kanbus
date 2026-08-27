@@ -51,6 +51,13 @@
       "data": {}
     },
     {
+      "id": "93a24f72-71c4-4d8b-b973-df3bfe77a027",
+      "author": "ryan",
+      "text": "Here is the proof that `kanbus show tskl-qi1` and `kbs show tskl-qi1` now succeed and gracefully handle the legacy text-only summaries without crashing, exactly matching behavior across both implementations.\n\n**Rust output (kbs show tskl-qi1):**\n```\nID: tskl-qi1\nTitle: Bulk change command for issue updates\nType: epic\nStatus: in_progress\nPriority: 2\nAssignee: -\nParent: -\nLabels: -\nDescription:\nAs a system utility\nI want a bulk change command for issues\nSo that I can apply the same update to many issues in one operation.\n\nDefinition of done:\n- CLI supports bulk update by query and/or explicit IDs\n- Python and Rust behavior parity\n- BDD scenarios cover selection and update semantics\n- Documentation updated\nComments:\n  [53fa74] system:summary: ### Issue Metadata\n- **ID**: `tskl-qi1`\n...\n### Key Artifacts\n...\n- CLI and user documentation\n```\n\n**Python output (kanbus show tskl-qi1):**\n```\nID: tskl-qi1\nTitle: Bulk change command for issue updates\nType: epic\nStatus: in_progress\n...\nComments:\n  [53fa74] system:summary: ### Issue Metadata\n- **ID**: `tskl-qi1`\n...\n### Key Artifacts\n...\n- CLI and user documentation\n```\n\nBoth now successfully avoid the Pydantic `ValidationError` from before. \n\nI fully acknowledge (2) as later work; the current Rust implementation is just a shim calling Python via `Command::new(\"kanbus\")` on PATH, not a native Rust LiteLLM implementation.",
+      "created_at": "2026-08-27T19:16:11.831846Z",
+      "comment_type": "default"
+    },
+    {
       "id": "569181be-936c-4491-843c-3d3c9e4389de",
       "author": "box",
       "text": "## QA accepts the proof\n\nVerified on `3afa6c4` (`feature/compaction-fixes`): `kanbus show tskl-qi1` using this branch\u2019s Python loads, keeps the original description, and shows the latest legacy summary (`53fa74`). No validator crash.\n\n(1) is satisfied on this branch. It will be satisfied on `main` only after #168 merges. Installed 0.19.1 / current `main` still crashes.\n\n(2) acknowledged as later work. The Rust PATH shim stays a shim.\n\nClosing this epic. Do not treat Rust LiteLLM as done.\n",
