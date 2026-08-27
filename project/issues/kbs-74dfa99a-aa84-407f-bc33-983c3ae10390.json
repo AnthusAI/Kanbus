@@ -3,7 +3,7 @@
   "title": "Issue Compaction",
   "description": "Add issue compaction feature: summarize issue descriptions, comments, and state using a configurable LLM, and store as a summary comment for faster loading and reduced context window noise.",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -42,10 +42,18 @@
       "created_at": "2026-08-27T19:14:30.788034Z",
       "comment_type": "default",
       "data": {}
+    },
+    {
+      "id": "569181be-936c-4491-843c-3d3c9e4389de",
+      "author": "box",
+      "text": "## QA accepts the proof\n\nVerified on `3afa6c4` (`feature/compaction-fixes`): `kanbus show tskl-qi1` using this branch\u2019s Python loads, keeps the original description, and shows the latest legacy summary (`53fa74`). No validator crash.\n\n(1) is satisfied on this branch. It will be satisfied on `main` only after #168 merges. Installed 0.19.1 / current `main` still crashes.\n\n(2) acknowledged as later work. The Rust PATH shim stays a shim.\n\nClosing this epic. Do not treat Rust LiteLLM as done.\n",
+      "created_at": "2026-08-27T19:19:34.875678Z",
+      "comment_type": "default",
+      "data": {}
     }
   ],
   "created_at": "2026-08-23T19:30:47.234467Z",
-  "updated_at": "2026-08-27T19:14:30.788034Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T19:19:35.209873Z",
+  "closed_at": "2026-08-27T19:19:35.209873Z",
   "custom": {}
 }
