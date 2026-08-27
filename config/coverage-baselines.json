@@ -1,6 +1,6 @@
 {
-  "max_gap_points": 7.5153,
-  "python_line_coverage": 98.58,
-  "rust_line_coverage": 91.0647,
+  "max_gap_points": 11.05,
+  "python_line_coverage": 98.57,
+  "rust_line_coverage": 87.53,
   "updated_at": "2026-08-27T20:45:09Z"
 }
