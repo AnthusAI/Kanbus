@@ -3,7 +3,7 @@
   "title": "Support explicitly specifying ID on creation",
   "description": "",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -14,7 +14,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-08-24T16:51:12.568011Z",
-  "updated_at": "2026-08-24T16:51:12.568011Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T15:59:48.501875947Z",
+  "closed_at": "2026-08-27T15:59:48.501875947Z",
   "custom": {}
 }
