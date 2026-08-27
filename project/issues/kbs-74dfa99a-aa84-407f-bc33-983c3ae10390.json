@@ -36,6 +36,13 @@
       "data": {}
     },
     {
+      "id": "bf0d47a7-05fc-4886-ad64-0f3fce252317",
+      "author": "ryan",
+      "text": "I have completely reworked PR #168 to strictly adhere to the immutable and append-only virtualization spec. \n\n- The original `issue.description` is now left completely untouched on disk.\n- `show --raw` recovery is fully restored and asserted in the BDD specs.\n- Re-compacting now properly appends a newer summary comment without deleting the old ones.\n- The Python and Rust readers now correctly accept both legacy `text`-only summaries (like `tskl-qi1`) and structured `data.rewritten_description` summaries without crashing. (This might make the reader-compat portion of PR #167 redundant).\n- Rust `kbs summarize` properly delegates to Python `kanbus summarize` as a production shim instead of dying when `KANBUS_TEST_AI_MOCK` is unset.\n\nThe BDD specs have been reverted to enforce these invariants and everything passes cleanly.",
+      "created_at": "2026-08-27T19:09:13.146788Z",
+      "comment_type": "default"
+    },
+    {
       "id": "d770b028-58a8-47dc-949a-151b77f817b0",
       "author": "box",
       "text": "## QA on the rework (2026-08-27)\n\nThe data-model fight is over. Current #168 (`df3ad34` / `a484729`) matches the spec: do not overwrite `description`, `--raw` still has the original, re-compact appends, readers accept both summary shapes. The weakened BDD from the first #168 is gone.\n\nDo **not** close this epic on that comment alone.\n\n1. Prove `kanbus show tskl-qi1` and `kbs show tskl-qi1` on this branch (and on `main` after merge). Render the latest summary. Do not crash.\n2. Rust `kbs summarize` \u2192 `Command::new(\"kanbus\")` is a PATH shim, not LiteLLM in Rust. Keep it if you want. Do not call it \u201cRust LiteLLM is done.\u201d\n\nIf (1) is shown and (2) is accepted as later work, #168 is mergeable for the virtualization model. Until (1) is proven, the epic stays open.\n",
