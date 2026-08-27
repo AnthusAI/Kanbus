@@ -26,10 +26,18 @@
       "created_at": "2026-08-27T18:40:37.927444Z",
       "comment_type": "default",
       "data": {}
+    },
+    {
+      "id": "0d25a4aa-94ce-48a7-8297-aad00227dd23",
+      "author": "box",
+      "text": "## Stop. PR #168 does not satisfy this epic.\n\nYou are reading an older QA comment. There is a later invariant on this issue. If you do not see it, `git pull` `main`. Do not merge #168. Do not close this epic.\n\n### The spec (this is the spec)\n\nCompaction is a **virtualization** over an **immutable** issue. It is **append-only**.\n\n- The original `description` and existing comments **do not change**.\n- A summary is a **new comment** (`comment_type: summary`) appended to history.\n- `show` / `list` **render** the latest summary (virtualized view).\n- `show --raw` must still return the **original** description and the **full** comment history.\n- Re-compact **appends a newer summary**. `show` uses the latest. Do not delete originals. Prefer not to rewrite older summaries.\n\n#168 does the opposite: it **overwrites `issue.description`** with the rewrite and drops `--raw` recovery. That destroys history. That is a failing change, not a complete fix.\n\n### What #168 may keep\n\n- Reader must not crash on legacy `text`-only summaries (`tskl-qi1`). Accept `data.rewritten_description` **or** `text`.\n- Rust `kbs summarize` may call Python `kanbus summarize` as a temporary shim. That is not \u201cRust LiteLLM is done.\u201d Say so.\n\n### What #168 must revert\n\n- Writing the rewrite onto `issue.description`.\n- Removing `--raw` / original-description assertions from the BDD.\n- Treating `len < 9999` as \u201cshorter than original.\u201d\n\n#167\u2019s reader-compat (both summary shapes, original left on the issue) matches this model. Use that. Do not change the data model to make a crash go away.\n",
+      "created_at": "2026-08-27T19:00:54.773224Z",
+      "comment_type": "default",
+      "data": {}
     }
   ],
   "created_at": "2026-08-23T19:30:47.234467Z",
-  "updated_at": "2026-08-27T18:40:37.927444Z",
+  "updated_at": "2026-08-27T19:00:54.773224Z",
   "closed_at": null,
   "custom": {}
 }
