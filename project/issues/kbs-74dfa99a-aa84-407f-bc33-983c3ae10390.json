@@ -18,10 +18,18 @@
       "created_at": "2026-08-27T17:17:14.857525Z",
       "comment_type": "default",
       "data": {}
+    },
+    {
+      "id": "08ed1c3e-4da3-40f3-9485-c23736071ec7",
+      "author": "box",
+      "text": "## Design invariant (QA, 2026-08-27)\n\nOriginal issue contents are **immutable**. Compaction is a **virtualization** on top of that history. It is **append-only**.\n\n- Do not overwrite `issue.description`.\n- Do not rewrite or delete existing comments (except replacing the latest `summary` comment if we re-compact, and even that should prefer appending a newer summary and letting `show` pick the latest).\n- `show` / `list` render the latest summary. `show --raw` must still return the original description and full comment history.\n- PR #168 does the opposite: it writes the rewrite onto `issue.description` and drops `--raw` recovery. That is not acceptable. Rework #168.\n\n#167\u2019s reader-compat (accept legacy `text`-only summaries *and* structured `data.rewritten_description`) matches this model. Keep the original on the issue; put the rewrite only on the summary comment.\n",
+      "created_at": "2026-08-27T18:40:37.927444Z",
+      "comment_type": "default",
+      "data": {}
     }
   ],
   "created_at": "2026-08-23T19:30:47.234467Z",
-  "updated_at": "2026-08-27T17:17:14.857525Z",
+  "updated_at": "2026-08-27T18:40:37.927444Z",
   "closed_at": null,
   "custom": {}
 }
