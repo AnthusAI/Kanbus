@@ -3,7 +3,7 @@
   "title": "VSCode Extension for Kanbus Board",
   "description": "Package kbsc as a VSCode extension so that developers can view the Kanbus kanban board for the current project directly inside VSCode, without leaving the editor. The extension spawns kbsc as a child process for the API backend, and loads the existing compiled React console app in a VSCode Webview panel. No changes to the existing React app are required — API calls are redirected via fetch/EventSource patching injected into the Webview.",
   "type": "epic",
-  "status": "backlog",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "ryan.porter",
@@ -12,9 +12,11 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-02-21T17:23:52.300925Z",
-  "updated_at": "2026-02-25T06:24:18.111003Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T16:00:44.640532856Z",
+  "closed_at": "2026-08-27T16:00:44.640532856Z",
   "custom": {
-    "beads_owner": "ryan.porter"
+    "beads_owner": "ryan.porter",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

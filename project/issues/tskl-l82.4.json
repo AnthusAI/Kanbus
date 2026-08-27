@@ -3,7 +3,7 @@
   "title": "kbs console get focus prints currently focused issue ID or none",
   "description": "Given the console server is running\nAnd an issue is currently focused (e.g., after kbs console focus tskl-abc)\n\nWhen I run kbs console get focus\n\nThen the command prints the focused issue ID (e.g., 'tskl-abc')\n\nGiven no issue is focused\n\nWhen I run kbs console get focus\n\nThen the command prints 'none'\n\nGiven the console server is not running\n\nWhen I run kbs console get focus\n\nThen the command prints 'Console server is not running.' and exits 0\n\nAcceptance criteria:\n- Output is a single line -- just the issue ID or 'none'\n- Suitable for use in shell scripts: $(kbs console get focus)\n- No error exit code when server is offline",
   "type": "story",
-  "status": "done",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "ryan.porter",
@@ -12,9 +12,11 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-02-20T03:15:33.906328Z",
-  "updated_at": "2026-02-20T04:21:10.914102Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T15:58:51.381408225Z",
+  "closed_at": "2026-08-27T15:58:51.381408225Z",
   "custom": {
-    "beads_owner": "ryan.porter"
+    "beads_owner": "ryan.porter",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }
