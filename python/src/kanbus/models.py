@@ -72,12 +72,6 @@ class IssueComment(BaseModel):
         :rtype: IssueComment
         """
         if self.comment_type == "summary":
-            rewritten_description = self.data.get("rewritten_description")
-            activity_summary = self.data.get("activity_summary")
-            if not isinstance(rewritten_description, str) or not rewritten_description:
-                raise ValueError("summary comment requires data.rewritten_description")
-            if not isinstance(activity_summary, str) or not activity_summary:
-                raise ValueError("summary comment requires data.activity_summary")
             return self
         if not self.text or not self.text.strip():
             raise ValueError("comment text is required")

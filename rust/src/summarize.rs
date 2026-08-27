@@ -67,7 +67,7 @@ pub fn get_summary_activity_summary(comment: &IssueComment) -> String {
         .and_then(|value| value.as_str())
         .filter(|value| !value.is_empty())
         .map(str::to_string)
-        .unwrap_or_default()
+        .unwrap_or_else(|| comment.text.clone().unwrap_or_default())
 }
 
 /// Return the text to display for a comment.
@@ -278,9 +278,27 @@ pub fn compaction_summarize(
     }
 
     if std::env::var("KANBUS_TEST_AI_MOCK").ok().as_deref() != Some("1") {
-        return Err(KanbusError::IssueOperation(
-            "Issue compaction requires mock AI in tests or LiteLLM integration in Rust".to_string(),
-        ));
+        let mut command = std::process::Command::new("kanbus");
+        command.arg("summarize").arg(identifier);
+        if dry_run {
+            command.arg("--dry-run");
+        }
+        command.current_dir(root);
+        let output = command.output().map_err(|error| {
+            KanbusError::Io(format!("Failed to execute 'kanbus summarize': {error}"))
+        })?;
+        let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+        if !stderr_str.is_empty() {
+            eprint!("{}", stderr_str);
+        }
+        if !output.status.success() {
+            return Err(KanbusError::Io(format!(
+                "Command 'kanbus summarize' failed with exit code {}",
+                output.status.code().unwrap_or(1)
+            )));
+        }
+        return Ok(vec![stdout_str.trim().to_string()]);
     }
 
     let mut messages = summarize_children_first(root, identifier)?;
@@ -302,9 +320,6 @@ pub fn compaction_summarize(
 
     let lookup = load_issue_from_project(root, identifier)?;
     let mut updated_issue = lookup.issue;
-    updated_issue
-        .comments
-        .retain(|comment| comment.comment_type != "summary");
     updated_issue.comments.push(build_summary_comment(
         rewritten_description.clone(),
         activity_summary,

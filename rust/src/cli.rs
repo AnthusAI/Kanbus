@@ -3423,16 +3423,47 @@ fn execute_command(
             identifier,
             dry_run,
         } => {
-            let messages = crate::summarize::compaction_summarize(root, &identifier, dry_run)?;
-            let output = messages
-                .into_iter()
-                .map(|message| format!("{message}\n"))
-                .collect::<String>();
-            Ok(if output.is_empty() {
-                None
+            if std::env::var("KANBUS_TEST_AI_MOCK").ok().as_deref() == Some("1") {
+                let messages = crate::summarize::compaction_summarize(root, &identifier, dry_run)?;
+                let output = messages
+                    .into_iter()
+                    .map(|message| {
+                        format!(
+                            "{message}
+"
+                        )
+                    })
+                    .collect::<String>();
+                Ok(if output.is_empty() {
+                    None
+                } else {
+                    Some(output)
+                })
             } else {
-                Some(output)
-            })
+                let mut command = std::process::Command::new("kanbus");
+                command.arg("summarize").arg(&identifier);
+                if dry_run {
+                    command.arg("--dry-run");
+                }
+                command.current_dir(root);
+                let output = command.output().map_err(|error| {
+                    crate::error::KanbusError::Io(format!(
+                        "Failed to execute 'kanbus summarize': {error}"
+                    ))
+                })?;
+                let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
+                let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+                if !stderr_str.is_empty() {
+                    eprint!("{}", stderr_str);
+                }
+                if !output.status.success() {
+                    return Err(crate::error::KanbusError::Io(format!(
+                        "Command 'kanbus summarize' failed with exit code {}",
+                        output.status.code().unwrap_or(1)
+                    )));
+                }
+                Ok(Some(stdout_str))
+            }
         }
         Commands::Cost { days } => {
             let mut command = std::process::Command::new("kanbus");

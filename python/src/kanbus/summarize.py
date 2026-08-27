@@ -601,11 +601,6 @@ def compaction_summarize(
         config.project_directory,
     )
 
-    issue.comments = [
-        comment
-        for comment in issue.comments
-        if getattr(comment, "comment_type", "default") != "summary"
-    ]
     issue.comments.append(
         build_summary_comment(rewritten_description, activity_summary)
     )
