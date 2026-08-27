@@ -420,12 +420,12 @@ mod tests {
         std::env::remove_var("KANBUS_TEST_AI_MOCK");
         let temp = TempDir::new().expect("tempdir");
         let root = write_test_project(&temp);
-        
+
         let result = compaction_summarize(&root, "TST-1", false);
         // It covers the code block for the shim!
         match result {
-            Ok(_) => {},
-            Err(_) => {},
+            Ok(_) => {}
+            Err(_) => {}
         }
     }
 }
