@@ -48,7 +48,7 @@ def get_summary_activity_summary(comment: IssueComment) -> str:
     value = comment.data.get(SUMMARY_ACTIVITY_SUMMARY_KEY)
     if isinstance(value, str) and value:
         return value
-    return ""
+    return comment.text or ""
 
 
 def get_comment_display_text(comment: IssueComment) -> str:
