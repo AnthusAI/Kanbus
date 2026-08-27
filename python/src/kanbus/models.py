@@ -72,6 +72,17 @@ class IssueComment(BaseModel):
         :rtype: IssueComment
         """
         if self.comment_type == "summary":
+            rewritten_description = self.data.get("rewritten_description")
+            activity_summary = self.data.get("activity_summary")
+            has_structured_data = (
+                isinstance(rewritten_description, str) and rewritten_description
+            ) and (isinstance(activity_summary, str) and activity_summary)
+            has_text = self.text and self.text.strip()
+            if not has_structured_data and not has_text:
+                raise ValueError(
+                    "summary comment requires either data.rewritten_description + "
+                    "data.activity_summary OR non-empty text (legacy format)"
+                )
             return self
         if not self.text or not self.text.strip():
             raise ValueError("comment text is required")
