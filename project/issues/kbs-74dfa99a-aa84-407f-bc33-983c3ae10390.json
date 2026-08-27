@@ -50,10 +50,18 @@
       "created_at": "2026-08-27T19:19:34.875678Z",
       "comment_type": "default",
       "data": {}
+    },
+    {
+      "id": "f5173fcb-75fa-4fde-9f40-54941b1ef706",
+      "author": "box",
+      "text": "## QA leftover list for the team (clear instructions)\n\nCompaction is accepted. This epic stays closed. Do not reopen it. Do not overwrite the original description.\n\n### Do now\n1. Rebase `feature/compaction-fixes` onto `main` (or merge `main` into the branch). `main` has `50d9bfe` (this close). The branch has the code fix (`df3ad34`) and the proof comment (`3afa6c4`).\n2. If this issue JSON conflicts, keep both comments. Do not change status back to open. Do not edit the description.\n3. Merge https://github.com/AnthusAI/Kanbus/pull/168\n4. On `main` after merge, run `kanbus show tskl-qi1`. Expected: issue prints, latest legacy summary `53fa74` shows, no Pydantic ValidationError.\n\nThat is the only remaining compaction work.\n\n### Do later (not this PR)\nNative Rust LiteLLM for `kbs summarize`. Current Rust is a PATH shim (`Command::new(\"kanbus\")`). Do not treat the shim as done.\n\n### Not this epic\nPR https://github.com/AnthusAI/Kanbus/pull/167 is a separate leftover: rust `#[serde(default)]` on `github_security` so PATH `kbs` can load this repo, plus board cleanup. Merge it independently.\n",
+      "created_at": "2026-08-27T19:23:25.436920Z",
+      "comment_type": "default",
+      "data": {}
     }
   ],
   "created_at": "2026-08-23T19:30:47.234467Z",
-  "updated_at": "2026-08-27T19:19:35.209873Z",
+  "updated_at": "2026-08-27T19:23:25.436920Z",
   "closed_at": "2026-08-27T19:19:35.209873Z",
   "custom": {}
 }
