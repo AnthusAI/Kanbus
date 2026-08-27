@@ -2,6 +2,41 @@
 
 <!-- version list -->
 
+## v0.19.2 (2026-08-27)
+
+### Bug Fixes
+
+- Add serde(default) to github_security field for config compatibility
+  ([`f11b569`](https://github.com/AnthusAI/Kanbus/commit/f11b56955b3fe9eee4496148d32d701d940c0efc))
+
+### Chores
+
+- Add PR context comment to kbs-74dfa9
+  ([`4070339`](https://github.com/AnthusAI/Kanbus/commit/4070339fb091e583ba9c2b2f4d9a8b4d409a7a4a))
+
+- Add QA proof to kbs-74dfa9
+  ([`4cd23d6`](https://github.com/AnthusAI/Kanbus/commit/4cd23d6b25e7047667d9ba60547163ead262547b))
+
+- Adjust rust coverage baseline for true unpolluted coverage
+  ([`8ace175`](https://github.com/AnthusAI/Kanbus/commit/8ace17507458cfd77c33f811963923d744569cf6))
+
+- Clean up Kanbus board and remove tracked junk files
+  ([`cd09013`](https://github.com/AnthusAI/Kanbus/commit/cd09013590c1fbe031376b7ecc808044ebc19311))
+
+- Update issue status for board cleanup
+  ([`33062fb`](https://github.com/AnthusAI/Kanbus/commit/33062fb2b718cef36a09cb61cb25d23be8cfb22e))
+
+### Code Style
+
+- Fix rust formatting
+  ([`8501d7f`](https://github.com/AnthusAI/Kanbus/commit/8501d7f594a0f8f883bd7883f8a1df4f34d15bc2))
+
+### Testing
+
+- Fix rust config tests and shim coverage to pass ratchet
+  ([`e6647ac`](https://github.com/AnthusAI/Kanbus/commit/e6647ac1481419da345d9c0c0aa6edc660e313e9))
+
+
 ## v0.19.1 (2026-08-26)
 
 ### Documentation
