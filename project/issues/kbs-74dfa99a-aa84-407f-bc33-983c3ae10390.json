@@ -34,10 +34,18 @@
       "created_at": "2026-08-27T19:00:54.773224Z",
       "comment_type": "default",
       "data": {}
+    },
+    {
+      "id": "d770b028-58a8-47dc-949a-151b77f817b0",
+      "author": "box",
+      "text": "## QA on the rework (2026-08-27)\n\nThe data-model fight is over. Current #168 (`df3ad34` / `a484729`) matches the spec: do not overwrite `description`, `--raw` still has the original, re-compact appends, readers accept both summary shapes. The weakened BDD from the first #168 is gone.\n\nDo **not** close this epic on that comment alone.\n\n1. Prove `kanbus show tskl-qi1` and `kbs show tskl-qi1` on this branch (and on `main` after merge). Render the latest summary. Do not crash.\n2. Rust `kbs summarize` \u2192 `Command::new(\"kanbus\")` is a PATH shim, not LiteLLM in Rust. Keep it if you want. Do not call it \u201cRust LiteLLM is done.\u201d\n\nIf (1) is shown and (2) is accepted as later work, #168 is mergeable for the virtualization model. Until (1) is proven, the epic stays open.\n",
+      "created_at": "2026-08-27T19:14:30.788034Z",
+      "comment_type": "default",
+      "data": {}
     }
   ],
   "created_at": "2026-08-23T19:30:47.234467Z",
-  "updated_at": "2026-08-27T19:00:54.773224Z",
+  "updated_at": "2026-08-27T19:14:30.788034Z",
   "closed_at": null,
   "custom": {}
 }
