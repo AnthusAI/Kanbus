@@ -52,3 +52,44 @@ fn then_screenshot_appearance_mode(world: &mut KanbusWorld, mode: String) {
     let recorded = std::env::var("KANBUS_TEST_SCREENSHOT_LAST_MODE").unwrap_or_default();
     assert_eq!(recorded, mode, "expected appearance mode {}", mode);
 }
+
+#[then(expr = "the screenshot capture view should be {string}")]
+fn then_screenshot_capture_view(world: &mut KanbusWorld, view: String) {
+    let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
+    let parsed: serde_json::Value =
+        serde_json::from_str(&raw).expect("screenshot capture options json");
+    let recorded = parsed
+        .get("view")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default();
+    assert_eq!(recorded, view.as_str(), "expected view {}", view);
+}
+
+#[then("screenshot capture expand-all should be enabled")]
+fn then_screenshot_capture_expand_all(world: &mut KanbusWorld) {
+    let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
+    let parsed: serde_json::Value =
+        serde_json::from_str(&raw).expect("screenshot capture options json");
+    assert_eq!(
+        parsed.get("expandAll").and_then(|value| value.as_bool()),
+        Some(true)
+    );
+}
+
+#[then(expr = "the screenshot capture expanded columns should include {string}")]
+fn then_screenshot_capture_expanded_columns_include(
+    world: &mut KanbusWorld,
+    column: String,
+) {
+    let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
+    let parsed: serde_json::Value =
+        serde_json::from_str(&raw).expect("screenshot capture options json");
+    let expanded = parsed
+        .get("expand")
+        .and_then(|value| value.as_array())
+        .expect("expand array");
+    let includes = expanded
+        .iter()
+        .any(|value| value.as_str() == Some(column.as_str()));
+    assert!(includes, "expected expand to include {}", column);
+}

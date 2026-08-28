@@ -3,6 +3,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use serde::Serialize;
+
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
@@ -10,7 +12,38 @@ use crate::file_io::get_configuration_path;
 const DEFAULT_SCREENSHOT_FILENAME: &str = "kanbus-board.png";
 const DEFAULT_APPEARANCE_MODE: &str = "light";
 const TEST_LAST_MODE_ENV: &str = "KANBUS_TEST_SCREENSHOT_LAST_MODE";
+const TEST_CAPTURE_OPTIONS_ENV: &str = "KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS";
 const MOCK_PNG_BYTES: &[u8] = include_bytes!("../testdata/mock_board_screenshot.png");
+
+/// Layout and appearance options for a single board screenshot.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScreenshotCaptureOptions {
+    /// Console light or dark appearance mode.
+    pub appearance_mode: String,
+    /// Board view filter (`initiatives`, `epics`, `issues`, or `all`).
+    pub view: Option<String>,
+    /// Expand every collapsed status column before capture.
+    pub expand_all: bool,
+    /// Status column keys to expand before capture.
+    pub expand: Vec<String>,
+    /// Status column keys to collapse before capture.
+    pub collapse: Vec<String>,
+}
+
+impl ScreenshotCaptureOptions {
+    /// Record capture options for behavior-spec assertions.
+    pub fn record_for_tests(&self) {
+        std::env::set_var(TEST_LAST_MODE_ENV, &self.appearance_mode);
+        if let Ok(payload) = serde_json::to_string(self) {
+            std::env::set_var(TEST_CAPTURE_OPTIONS_ENV, payload);
+        }
+    }
+
+    fn to_capture_json(&self) -> Result<String, KanbusError> {
+        serde_json::to_string(self).map_err(|error| KanbusError::Io(error.to_string()))
+    }
+}
 
 /// Resolve the console HTTP port from project configuration.
 ///
@@ -133,15 +166,38 @@ fn normalize_appearance_mode(mode: Option<String>) -> Result<String, KanbusError
     }
 }
 
+fn normalize_view(view: Option<String>) -> Result<Option<String>, KanbusError> {
+    if view.is_none() {
+        return Ok(None);
+    }
+    let resolved = view.unwrap().trim().to_ascii_lowercase();
+    if matches!(resolved.as_str(), "initiatives" | "epics" | "issues" | "all") {
+        Ok(Some(resolved))
+    } else {
+        Err(KanbusError::IssueOperation(
+            "view must be one of: initiatives, epics, issues, all".to_string(),
+        ))
+    }
+}
+
+/// Build validated screenshot capture options.
+pub fn build_capture_options(
+    appearance_mode: Option<String>,
+    view: Option<String>,
+    expand_all: bool,
+    expand_columns: Vec<String>,
+    collapse_columns: Vec<String>,
+) -> Result<ScreenshotCaptureOptions, KanbusError> {
+    Ok(ScreenshotCaptureOptions {
+        appearance_mode: normalize_appearance_mode(appearance_mode)?,
+        view: normalize_view(view)?,
+        expand_all,
+        expand: expand_columns,
+        collapse: collapse_columns,
+    })
+}
+
 /// Capture a PNG screenshot of the console board to the requested path.
-///
-/// # Arguments
-/// * `root` - Repository root path
-/// * `output` - Optional output file path relative to root unless absolute
-/// * `appearance_mode` - Console appearance mode (`light` or `dark`; defaults to light)
-///
-/// # Returns
-/// Path to the written PNG file
 ///
 /// # Errors
 /// Returns `KanbusError::IssueOperation` when capture fails or prerequisites are missing
@@ -149,8 +205,18 @@ pub fn capture_console_screenshot(
     root: &Path,
     output: Option<String>,
     appearance_mode: Option<String>,
+    view: Option<String>,
+    expand_all: bool,
+    expand_columns: Vec<String>,
+    collapse_columns: Vec<String>,
 ) -> Result<PathBuf, KanbusError> {
-    let resolved_mode = normalize_appearance_mode(appearance_mode)?;
+    let options = build_capture_options(
+        appearance_mode,
+        view,
+        expand_all,
+        expand_columns,
+        collapse_columns,
+    )?;
     let output_path = resolve_output_path(root, output)?;
     if !server_ready_for_screenshot(root) {
         return Err(KanbusError::IssueOperation(
@@ -167,7 +233,7 @@ pub fn capture_console_screenshot(
         ));
     }
     if mock_mode.as_deref() == Some("success") {
-        std::env::set_var(TEST_LAST_MODE_ENV, &resolved_mode);
+        options.record_for_tests();
         std::fs::write(&output_path, MOCK_PNG_BYTES)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
         return Ok(output_path);
@@ -177,11 +243,12 @@ pub fn capture_console_screenshot(
     let console_url = format!("http://127.0.0.1:{port}/");
     let node_executable = which_node_executable()?;
     let script_path = locate_capture_script(root)?;
+    let options_json = options.to_capture_json()?;
     let output = Command::new(&node_executable)
         .arg(script_path)
         .arg(console_url)
         .arg(&output_path)
-        .arg(&resolved_mode)
+        .arg(options_json)
         .output()
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
 
@@ -251,11 +318,21 @@ mod tests {
         let temp = TempDir::new().expect("tempdir");
         env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "success");
         env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
-        let path = capture_console_screenshot(temp.path(), None, None).expect("capture");
+        let path = capture_console_screenshot(
+            temp.path(),
+            None,
+            None,
+            None,
+            false,
+            vec![],
+            vec![],
+        )
+        .expect("capture");
         assert!(path.is_file());
         env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
         env::remove_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER");
         env::remove_var(TEST_LAST_MODE_ENV);
+        env::remove_var(TEST_CAPTURE_OPTIONS_ENV);
     }
 
     #[test]
@@ -264,7 +341,16 @@ mod tests {
         let temp = TempDir::new().expect("tempdir");
         env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "unavailable");
         env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
-        let error = capture_console_screenshot(temp.path(), None, None).unwrap_err();
+        let error = capture_console_screenshot(
+            temp.path(),
+            None,
+            None,
+            None,
+            false,
+            vec![],
+            vec![],
+        )
+        .unwrap_err();
         let message = error.to_string().to_ascii_lowercase();
         assert!(message.contains("headless browser"));
         assert!(message.contains("playwright"));

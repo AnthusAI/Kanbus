@@ -48,7 +48,45 @@ VIDEOS_BUCKET=<bucket-name> VIDEOS_PREFIX=videos node scripts/upload-videos.js
 ```
 The upload script requires `VIDEOS_BUCKET` and `VIDEOS_PREFIX` and syncs MP4/JPG assets to S3. There is no fallback logic.
 
-## Console UI Control
+## Console board screenshots (agents)
+
+When the user or Quality asks to **see the board**, capture it with `kbs console screenshot` (not a text `kbs list`). Set layout flags on the command so the PNG matches the ask; do not describe the board in prose when a screenshot can show it.
+
+```bash
+# Default: light mode, console default type filter, config-collapsed columns stay collapsed
+kbs console screenshot
+
+# Newsroom / pod board: every issue type, every column expanded (backlog, blocked, closed, etc.)
+kbs console screenshot --view all --expand-all --output board.png
+
+# Single-type views match the console tabs (initiatives, epics, issues)
+kbs console screenshot --view epics --expand-all
+
+# Expand or collapse specific status columns (status keys from .kanbus.yml)
+kbs console screenshot --expand backlog --expand closed
+kbs console screenshot --collapse in_progress
+```
+
+`--view all` uses the console `?type=all` filter (the "All" type selector). `--view initiatives|epics|issues` navigates to that tab path. Column expand/collapse is applied in the headless capture session (Playwright), not via deprecated `kbs console view` / `collapse-column` live-control commands.
+
+If screenshot cannot express the requested layout, extend `kbs console screenshot` in Kanbus rather than substituting a textual board summary.
+
+### Console ports (Ryan's machine)
+
+Each project checkout must have a unique `console_port` in `.kanbus.yml`. Do not leave it unset (defaults to 5174 and collides across repos).
+
+| Project | `console_port` |
+| --- | --- |
+| Kanbus | 4242 (collides with Plexus 4242 — only one kbsc on 4242 at a time) |
+| Tactus | 4244 |
+| Biblicus | 4245 |
+| Papyrus | 4246 |
+| Anth.us newsroom pod (`Papyrus/pods/anthus-blog`) | 4247 |
+| Virtuus | 4451 |
+
+Start kbsc for the repo you are dogfooding, then capture with `kbs console screenshot` from that repo root (or set `CONSOLE_PORT` to match).
+
+## Console UI Control (deprecated live-control commands)
 
 When the user is actively watching the Kanbus console UI (typically at http://localhost:4242), you can programmatically control the interface to guide their attention. These commands use real-time socket+SSE notifications with sub-100ms latency.
 

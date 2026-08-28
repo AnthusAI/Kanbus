@@ -151,6 +151,12 @@ kbs console screenshot --output reports/board.png
 
 # Dark appearance mode (light is the default for reproducible captures)
 kbs console screenshot --mode dark --output reports/board-dark.png
+
+# All issue types (?type=all) with every column expanded
+kbs console screenshot --view all --expand-all
+
+# Epics tab only, expand backlog and closed columns
+kbs console screenshot --view epics --expand backlog --expand closed
 ```
 
 Headless capture uses Playwright against the live console page (not a separate renderer). Install Chromium once:

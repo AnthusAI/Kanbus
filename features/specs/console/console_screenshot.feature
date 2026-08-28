@@ -44,6 +44,49 @@ Feature: Console board screenshot
     Then the command should fail with exit code 1
     And stderr should contain "appearance mode must be light or dark"
 
+  Scenario: Screenshot command accepts all issue types view
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --view all"
+    Then the command should succeed
+    And the screenshot capture view should be "all"
+
+  Scenario: Screenshot command accepts epics view
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --view epics"
+    Then the command should succeed
+    And the screenshot capture view should be "epics"
+
+  Scenario: Screenshot command expands all columns when requested
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --expand-all"
+    Then the command should succeed
+    And screenshot capture expand-all should be enabled
+
+  Scenario: Screenshot command expands a specific column when requested
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --expand backlog"
+    Then the command should succeed
+    And the screenshot capture expanded columns should include "backlog"
+
+  Scenario: Screenshot command supports newsroom board layout flags
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --view all --expand-all"
+    Then the command should succeed
+    And the screenshot capture view should be "all"
+    And screenshot capture expand-all should be enabled
+
+  Scenario: Screenshot command rejects invalid view
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --view pods"
+    Then the command should fail with exit code 1
+    And stderr should contain "view must be one of"
+
   Scenario: Screenshot command fails with a clear error when headless browser is unavailable
     Given the console server is running
     And screenshot capture is mocked as unavailable

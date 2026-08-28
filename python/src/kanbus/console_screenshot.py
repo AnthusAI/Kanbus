@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 import shutil
 import subprocess
 import urllib.error
 import urllib.request
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from kanbus.config_loader import load_project_configuration
 from kanbus.project import get_configuration_path
@@ -16,6 +19,8 @@ from kanbus.project import get_configuration_path
 DEFAULT_SCREENSHOT_FILENAME = "kanbus-board.png"
 DEFAULT_APPEARANCE_MODE = "light"
 TEST_LAST_MODE_ENV = "KANBUS_TEST_SCREENSHOT_LAST_MODE"
+TEST_CAPTURE_OPTIONS_ENV = "KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS"
+VALID_VIEWS = frozenset({"initiatives", "epics", "issues", "all"})
 
 _MOCK_PNG_BYTES = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
@@ -24,6 +29,38 @@ _MOCK_PNG_BYTES = base64.b64decode(
 
 class ConsoleScreenshotError(RuntimeError):
     """Raised when board screenshot capture fails."""
+
+
+@dataclass
+class ScreenshotCaptureOptions:
+    """Layout and appearance options for a single board screenshot."""
+
+    appearance_mode: str = DEFAULT_APPEARANCE_MODE
+    view: str | None = None
+    expand_all: bool = False
+    expand_columns: list[str] = field(default_factory=list)
+    collapse_columns: list[str] = field(default_factory=list)
+
+    def to_capture_json(self) -> str:
+        """
+        Serialize options for the Playwright capture script.
+
+        :return: JSON string for capture_console_screenshot.mjs.
+        :rtype: str
+        """
+        payload: dict[str, Any] = {
+            "appearanceMode": self.appearance_mode,
+            "view": self.view,
+            "expandAll": self.expand_all,
+            "expand": list(self.expand_columns),
+            "collapse": list(self.collapse_columns),
+        }
+        return json.dumps(payload)
+
+    def record_for_tests(self) -> None:
+        """Record capture options for behavior-spec assertions."""
+        os.environ[TEST_LAST_MODE_ENV] = self.appearance_mode
+        os.environ[TEST_CAPTURE_OPTIONS_ENV] = self.to_capture_json()
 
 
 def resolve_console_port(root: Path) -> int:
@@ -137,10 +174,57 @@ def _normalize_appearance_mode(mode: str | None) -> str:
     raise ConsoleScreenshotError("appearance mode must be light or dark")
 
 
+def _normalize_view(view: str | None) -> str | None:
+    if view is None:
+        return None
+    resolved = view.strip().lower()
+    if resolved in VALID_VIEWS:
+        return resolved
+    raise ConsoleScreenshotError(
+        "view must be one of: initiatives, epics, issues, all"
+    )
+
+
+def build_capture_options(
+    appearance_mode: str | None = None,
+    view: str | None = None,
+    expand_all: bool = False,
+    expand_columns: list[str] | None = None,
+    collapse_columns: list[str] | None = None,
+) -> ScreenshotCaptureOptions:
+    """
+    Build validated screenshot capture options.
+
+    :param appearance_mode: Console light/dark mode.
+    :type appearance_mode: str | None
+    :param view: Board type filter view.
+    :type view: str | None
+    :param expand_all: Expand every collapsed column before capture.
+    :type expand_all: bool
+    :param expand_columns: Status column keys to expand.
+    :type expand_columns: list[str] | None
+    :param collapse_columns: Status column keys to collapse.
+    :type collapse_columns: list[str] | None
+    :return: Validated capture options.
+    :rtype: ScreenshotCaptureOptions
+    """
+    return ScreenshotCaptureOptions(
+        appearance_mode=_normalize_appearance_mode(appearance_mode),
+        view=_normalize_view(view),
+        expand_all=expand_all,
+        expand_columns=list(expand_columns or []),
+        collapse_columns=list(collapse_columns or []),
+    )
+
+
 def capture_console_screenshot(
     root: Path,
     output: str | None = None,
     appearance_mode: str | None = None,
+    view: str | None = None,
+    expand_all: bool = False,
+    expand_columns: list[str] | None = None,
+    collapse_columns: list[str] | None = None,
 ) -> Path:
     """
     Capture a PNG screenshot of the console board to the requested path.
@@ -151,11 +235,25 @@ def capture_console_screenshot(
     :type output: str | None
     :param appearance_mode: Console appearance mode (``light`` or ``dark``).
     :type appearance_mode: str | None
+    :param view: Board view filter (``initiatives``, ``epics``, ``issues``, or ``all``).
+    :type view: str | None
+    :param expand_all: Expand every collapsed status column before capture.
+    :type expand_all: bool
+    :param expand_columns: Status column keys to expand before capture.
+    :type expand_columns: list[str] | None
+    :param collapse_columns: Status column keys to collapse before capture.
+    :type collapse_columns: list[str] | None
     :return: Path to the written PNG file.
     :rtype: Path
     :raises ConsoleScreenshotError: When capture fails or prerequisites are missing.
     """
-    resolved_mode = _normalize_appearance_mode(appearance_mode)
+    options = build_capture_options(
+        appearance_mode=appearance_mode,
+        view=view,
+        expand_all=expand_all,
+        expand_columns=expand_columns,
+        collapse_columns=collapse_columns,
+    )
     output_path = _resolve_output_path(root, output)
     if not is_console_server_running(root):
         raise ConsoleScreenshotError("Console server is not running.")
@@ -167,7 +265,7 @@ def capture_console_screenshot(
             "(npx playwright install chromium)."
         )
     if mock_mode == "success":
-        os.environ[TEST_LAST_MODE_ENV] = resolved_mode
+        options.record_for_tests()
         output_path.write_bytes(_MOCK_PNG_BYTES)
         return output_path
 
@@ -186,7 +284,7 @@ def capture_console_screenshot(
             str(script_path),
             console_url,
             str(output_path),
-            resolved_mode,
+            options.to_capture_json(),
         ],
         capture_output=True,
         text=True,
