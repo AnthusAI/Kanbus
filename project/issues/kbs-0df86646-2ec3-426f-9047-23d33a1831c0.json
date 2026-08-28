@@ -3,7 +3,7 @@
   "title": "Tighten wiki_research_kb Gherkin for coverage parity",
   "description": "",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-08-28T22:46:37.850434021Z",
-  "updated_at": "2026-08-28T22:46:37.850434021Z",
+  "updated_at": "2026-08-28T23:14:29.036219617Z",
   "closed_at": null,
   "custom": {}
 }

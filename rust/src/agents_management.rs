@@ -12,7 +12,7 @@ use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
-    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
+    default_project_management_template, default_project_management_template_filename,
 };
 use serde::Serialize;
 
@@ -108,7 +108,7 @@ fn build_project_management_text(root: &Path) -> Result<String, KanbusError> {
         Some(path) => {
             std::fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?
         }
-        None => DEFAULT_PROJECT_MANAGEMENT_TEMPLATE.to_string(),
+        None => default_project_management_template().to_string(),
     };
     let context = build_project_management_context(&configuration);
     let env = minijinja::Environment::new();
@@ -187,7 +187,7 @@ fn resolve_project_management_template_path(
         }
         return Ok(Some(resolved));
     }
-    let conventional = root.join(DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME);
+    let conventional = root.join(default_project_management_template_filename());
     if conventional.exists() {
         return Ok(Some(conventional));
     }
@@ -566,7 +566,7 @@ pub fn cover_agents_management_paths(root: &Path) {
     let _ = resolve_project_management_template_path(root, &configuration);
     configuration.project_management_template = None;
     let _ = resolve_project_management_template_path(root, &configuration);
-    let conventional = root.join(DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME);
+    let conventional = root.join(default_project_management_template_filename());
     let _ = fs::write(&conventional, "template");
     let _ = resolve_project_management_template_path(root, &configuration);
 

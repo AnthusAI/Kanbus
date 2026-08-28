@@ -376,3 +376,89 @@ def given_config_wiki_directory(context: object, value: str) -> None:
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",
     )
+
+
+def _wiki_dir_for_context(context: object) -> Path:
+    project_dir = load_project_directory(context)
+    wiki_subdir = getattr(context, "wiki_directory", "wiki")
+    if wiki_subdir.startswith("../"):
+        repo_root = Path(context.working_directory)
+        return repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+    return project_dir / wiki_subdir
+
+
+@given("the stories directory does not exist")
+def given_stories_directory_missing(context: object) -> None:
+    import shutil
+
+    stories_dir = Path(context.working_directory) / "stories"
+    if stories_dir.exists():
+        shutil.rmtree(stories_dir)
+
+
+@given('a stories directory file "{name}" exists')
+def given_stories_directory_file(context: object, name: str) -> None:
+    stories_dir = Path(context.working_directory) / "stories"
+    stories_dir.mkdir(parents=True, exist_ok=True)
+    (stories_dir / name).write_text("not a story directory\n", encoding="utf-8")
+
+
+@given('a story directory "{story_id}" exists without references')
+def given_story_directory_without_references(context: object, story_id: str) -> None:
+    target = Path(context.working_directory) / "stories" / story_id
+    target.mkdir(parents=True, exist_ok=True)
+
+
+@given('an unreadable story reference "{story_id}" file "{filename}" exists')
+def given_unreadable_story_reference(
+    context: object, story_id: str, filename: str
+) -> None:
+    target = (
+        Path(context.working_directory) / "stories" / story_id / "references" / filename
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        '{"id":"locked","title":"Locked","status":"accepted"}',
+        encoding="utf-8",
+    )
+    original_mode = target.stat().st_mode
+    target.chmod(0)
+    context.unreadable_path = target
+    context.unreadable_mode = original_mode
+
+
+@given('a dangling story reference symlink "{story_id}" file "{filename}" exists')
+def given_dangling_story_reference_symlink(
+    context: object, story_id: str, filename: str
+) -> None:
+    target = (
+        Path(context.working_directory) / "stories" / story_id / "references" / filename
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists() or target.is_symlink():
+        target.unlink()
+    target.symlink_to("/nonexistent/story-reference.json")
+
+
+@given('a wiki markdown symlink "{name}" points to a directory')
+def given_wiki_markdown_symlink_to_directory(context: object, name: str) -> None:
+    wiki_dir = _wiki_dir_for_context(context)
+    wiki_dir.mkdir(parents=True, exist_ok=True)
+    target_dir = wiki_dir / f"{name}-target-dir"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    link_path = wiki_dir / name
+    if link_path.exists() or link_path.is_symlink():
+        link_path.unlink()
+    link_path.symlink_to(target_dir, target_is_directory=True)
+
+
+@given('a wiki symlink "{name}" points outside the wiki directory')
+def given_wiki_symlink_outside_directory(context: object, name: str) -> None:
+    wiki_dir = _wiki_dir_for_context(context)
+    wiki_dir.mkdir(parents=True, exist_ok=True)
+    outside_target = Path(context.working_directory) / "outside-wiki-target.md"
+    outside_target.write_text("outside wiki target\n", encoding="utf-8")
+    link_path = wiki_dir / name
+    if link_path.exists() or link_path.is_symlink():
+        link_path.unlink()
+    link_path.symlink_to(outside_target)
