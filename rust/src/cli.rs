@@ -63,7 +63,8 @@ use crate::summarize::get_comment_display_text;
 use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::users::get_current_user;
 use crate::wiki::{
-    init_wiki, list_wiki_pages, render_wiki_page, search_wiki_pages, WikiRenderRequest,
+    check_wiki_page_links, format_wiki_link_problem, init_wiki, lint_wiki, list_wiki_pages,
+    render_wiki_page, search_wiki_pages, show_wiki_page, WikiRenderRequest,
 };
 
 /// Kanbus CLI arguments.
@@ -677,6 +678,15 @@ enum WikiCommands {
     },
     /// Create the wiki directory and a stub index page.
     Init,
+    /// Show raw wiki page source without rendering templates.
+    Show {
+        /// Wiki page path.
+        page: String,
+    },
+    /// Validate wiki-internal markdown links across the wiki tree.
+    Lint,
+    /// Validate the wiki tree (alias for wiki lint).
+    Check,
 }
 
 #[derive(Debug, Subcommand)]
@@ -2862,6 +2872,12 @@ fn execute_command(
         }
         Commands::Wiki { command } => match command {
             WikiCommands::Render { page } => {
+                let link_problems = check_wiki_page_links(root, &page)?;
+                for problem in &link_problems {
+                    crate::rich_text_signals::emit_stderr_line(&format_wiki_link_problem(
+                        problem, true,
+                    ));
+                }
                 let request = WikiRenderRequest {
                     root: root.to_path_buf(),
                     page_path: Path::new(&page).to_path_buf(),
@@ -2882,6 +2898,22 @@ fn execute_command(
             WikiCommands::Init => {
                 let index_path = init_wiki(root)?;
                 Ok(Some(index_path))
+            }
+            WikiCommands::Show { page } => {
+                let output = show_wiki_page(root, &page)?;
+                Ok(Some(output))
+            }
+            WikiCommands::Lint | WikiCommands::Check => {
+                let problems = lint_wiki(root)?;
+                if problems.is_empty() {
+                    Ok(Some("wiki lint: ok".to_string()))
+                } else {
+                    let messages: Vec<String> = problems
+                        .iter()
+                        .map(|problem| format_wiki_link_problem(problem, false))
+                        .collect();
+                    Err(KanbusError::IssueOperation(messages.join("\n")))
+                }
             }
         },
         Commands::Edit { command } => match command {

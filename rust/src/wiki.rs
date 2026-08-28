@@ -4,10 +4,11 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use minijinja::value::{Kwargs, Value};
 use minijinja::{context, Environment, Error, ErrorKind};
+use regex::Regex;
 use serde_json::Value as JsonValue;
 
 use crate::console_backend::FileStore;
@@ -25,6 +26,17 @@ pub struct WikiLocation {
     pub wiki_root: PathBuf,
     /// Path prefix used in list/search output (for example project/wiki).
     pub list_prefix: String,
+}
+
+/// Broken wiki-internal markdown link reported by lint or render warnings.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WikiLinkProblem {
+    /// Repository-relative wiki page path.
+    pub source_page: String,
+    /// Link target as written in markdown.
+    pub link_target: String,
+    /// Wiki-relative resolved target path.
+    pub resolved_path: String,
 }
 
 /// Request for rendering a wiki page.
@@ -169,6 +181,109 @@ pub fn init_wiki(root: &Path) -> Result<String, KanbusError> {
     Ok(format!("{}/index.md", location.list_prefix))
 }
 
+/// Return raw wiki page source without template rendering.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `page_argument` - User-provided page path.
+///
+/// # Returns
+/// Raw markdown source.
+///
+/// # Errors
+/// Returns `KanbusError` if the page cannot be resolved or read.
+pub fn show_wiki_page(root: &Path, page_argument: &str) -> Result<String, KanbusError> {
+    let resolved_page = resolve_wiki_page_path(root, page_argument)?;
+    let full_page = root.join(resolved_page);
+    fs::read_to_string(&full_page).map_err(|error| KanbusError::Io(error.to_string()))
+}
+
+/// Validate wiki-internal markdown links across the wiki tree.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+///
+/// # Returns
+/// Broken link problems, empty when the wiki is valid.
+///
+/// # Errors
+/// Returns `KanbusError` if configuration cannot be loaded.
+pub fn lint_wiki(root: &Path) -> Result<Vec<WikiLinkProblem>, KanbusError> {
+    let location = load_wiki_location(root)?;
+    if !location.wiki_root.exists() {
+        return Err(KanbusError::IssueOperation(wiki_directory_missing_message(
+            &location,
+        )));
+    }
+
+    let mut problems = Vec::new();
+    collect_wiki_markdown_files(
+        &location.wiki_root,
+        &location.wiki_root,
+        &location,
+        &mut problems,
+    )?;
+    problems.sort_by(|left, right| {
+        left.source_page
+            .cmp(&right.source_page)
+            .then_with(|| left.resolved_path.cmp(&right.resolved_path))
+    });
+    Ok(problems)
+}
+
+/// Validate wiki-internal markdown links in a single page.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `page_argument` - User-provided page path.
+///
+/// # Returns
+/// Broken link problems for the page.
+///
+/// # Errors
+/// Returns `KanbusError` if the page cannot be resolved or read.
+pub fn check_wiki_page_links(
+    root: &Path,
+    page_argument: &str,
+) -> Result<Vec<WikiLinkProblem>, KanbusError> {
+    let resolved_page = resolve_wiki_page_path(root, page_argument)?;
+    let location = load_wiki_location(root)?;
+    let full_page = root.join(&resolved_page);
+    let wiki_relative = full_page
+        .strip_prefix(&location.wiki_root)
+        .map_err(|error| KanbusError::Io(error.to_string()))?
+        .to_string_lossy()
+        .replace('\\', "/");
+    let content =
+        fs::read_to_string(&full_page).map_err(|error| KanbusError::Io(error.to_string()))?;
+    Ok(find_broken_wiki_links(
+        &location,
+        &wiki_relative,
+        &resolved_page.to_string_lossy().replace('\\', "/"),
+        &content,
+    ))
+}
+
+/// Format a broken wiki link for operator output.
+///
+/// # Arguments
+/// * `problem` - Broken link details.
+/// * `warning` - Whether to prefix the line as a warning.
+///
+/// # Returns
+/// Formatted message.
+pub fn format_wiki_link_problem(problem: &WikiLinkProblem, warning: bool) -> String {
+    let message = format!(
+        "{}: broken wiki link \"{}\" ({} not found)",
+        problem.source_page, problem.link_target, problem.resolved_path
+    );
+    if warning {
+        format!("warning: {message}")
+    } else {
+        message
+    }
+}
+
 /// Search wiki pages by path, title, and body content.
 ///
 /// # Arguments
@@ -195,6 +310,122 @@ pub fn search_wiki_pages(root: &Path, query: &str) -> Result<Vec<String>, Kanbus
     collect_search_matches(&location, &location.wiki_root, &needle, &mut matches)?;
     matches.sort();
     Ok(matches)
+}
+
+fn markdown_link_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"\[[^\]]*\]\(([^)]+)\)").expect("markdown link regex"))
+}
+
+fn collect_wiki_markdown_files(
+    wiki_root: &Path,
+    current: &Path,
+    location: &WikiLocation,
+    problems: &mut Vec<WikiLinkProblem>,
+) -> Result<(), KanbusError> {
+    for entry in fs::read_dir(current).map_err(|error| KanbusError::Io(error.to_string()))? {
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_wiki_markdown_files(wiki_root, &path, location, problems)?;
+            continue;
+        }
+        if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+            continue;
+        }
+        let wiki_relative = path
+            .strip_prefix(wiki_root)
+            .map_err(|error| KanbusError::Io(error.to_string()))?
+            .to_string_lossy()
+            .replace('\\', "/");
+        let listed_path = format!("{}/{}", location.list_prefix, wiki_relative);
+        let content =
+            fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
+        problems.extend(find_broken_wiki_links(
+            location,
+            &wiki_relative,
+            &listed_path,
+            &content,
+        ));
+    }
+    Ok(())
+}
+
+fn find_broken_wiki_links(
+    location: &WikiLocation,
+    wiki_relative: &str,
+    listed_path: &str,
+    content: &str,
+) -> Vec<WikiLinkProblem> {
+    let mut problems = Vec::new();
+    for captures in markdown_link_regex().captures_iter(content) {
+        let Some(link_target) = captures.get(1) else {
+            continue;
+        };
+        let link_target = link_target.as_str().trim();
+        if !is_wiki_internal_md_link(link_target) {
+            continue;
+        }
+        let resolved_path = resolve_wiki_internal_link(wiki_relative, link_target);
+        let resolved_absolute = location.wiki_root.join(&resolved_path);
+        let escaped_wiki_root = match location.wiki_root.canonicalize() {
+            Ok(path) => path,
+            Err(_) => location.wiki_root.clone(),
+        };
+        let escaped = resolved_absolute
+            .canonicalize()
+            .unwrap_or(resolved_absolute.clone());
+        if escaped.strip_prefix(&escaped_wiki_root).is_err() || !resolved_absolute.exists() {
+            problems.push(WikiLinkProblem {
+                source_page: listed_path.to_string(),
+                link_target: link_target.to_string(),
+                resolved_path,
+            });
+        }
+    }
+    problems
+}
+
+fn is_wiki_internal_md_link(link_target: &str) -> bool {
+    let path_part = link_target.split('#').next().unwrap_or("").trim();
+    if path_part.is_empty() || path_part.starts_with('#') {
+        return false;
+    }
+    let lowered = path_part.to_ascii_lowercase();
+    if lowered.starts_with("http://")
+        || lowered.starts_with("https://")
+        || lowered.starts_with("mailto:")
+        || lowered.starts_with("//")
+    {
+        return false;
+    }
+    if path_part.contains("{{") || path_part.contains("}}") {
+        return false;
+    }
+    path_part.ends_with(".md")
+}
+
+fn resolve_wiki_internal_link(source_wiki_relative: &str, link_target: &str) -> String {
+    let path_part = link_target.split('#').next().unwrap_or("").trim();
+    let source_path = Path::new(source_wiki_relative);
+    let resolved = source_path
+        .parent()
+        .unwrap_or(Path::new(""))
+        .join(path_part);
+    let mut normalized_parts = Vec::new();
+    for part in resolved.components() {
+        match part {
+            std::path::Component::ParentDir => {
+                normalized_parts.pop();
+            }
+            std::path::Component::CurDir => {}
+            std::path::Component::Normal(value) => {
+                normalized_parts.push(value.to_string_lossy().to_string());
+            }
+            _ => {}
+        }
+    }
+    normalized_parts.join("/")
 }
 
 fn collect_search_matches(
