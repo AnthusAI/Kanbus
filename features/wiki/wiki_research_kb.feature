@@ -21,6 +21,13 @@ Feature: Wiki research knowledge base
     Then the command should succeed
     And stdout should contain "Index body"
 
+  Scenario: Render wiki page by dot-slash relative path
+    Given a Kanbus project with default configuration
+    And a wiki page "dot.md" with content "Dot slash path works"
+    When I run "kanbus wiki render ./dot.md"
+    Then the command should succeed
+    And stdout should contain "Dot slash path works"
+
   Scenario: Render nested wiki page by relative path
     Given a Kanbus project with default configuration
     And a wiki page "concepts/foo.md" with content "Concept page"
@@ -76,6 +83,13 @@ Feature: Wiki research knowledge base
     Then the command should succeed
     And stdout should contain "project/wiki/concepts/alpha.md"
     And stdout should not contain "project/wiki/notes/beta.md"
+
+  Scenario: Wiki search with empty query lists all pages
+    Given a Kanbus project with default configuration
+    And a wiki page "listed.md" with content "Listed in empty search"
+    When I run "kanbus wiki search \"\""
+    Then the command should succeed
+    And stdout should contain "project/wiki/listed.md"
 
   Scenario: Wiki list still works after search is added
     Given a Kanbus project with default configuration
@@ -155,6 +169,14 @@ Feature: Wiki research knowledge base
       """
     When I run "kanbus wiki lint"
     Then the command should succeed
+
+  Scenario: Wiki lint reports missing wiki directory
+    Given a Kanbus project with default configuration
+    And the wiki directory does not exist
+    When I run "kanbus wiki lint"
+    Then the command should fail with exit code 1
+    And stderr should contain "wiki directory not found"
+    And stderr should contain "kbs wiki init"
 
   Scenario: Wiki lint fails on broken relative md link
     Given a Kanbus project with default configuration
