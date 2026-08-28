@@ -1,0 +1,26 @@
+{
+  "id": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
+  "title": "Wiki as a live research KB",
+  "description": "Researcher is using project/wiki/ on /workspace/research-pod as the real research KB (not the compiled /workspace/research-wiki layer). First-pass gaps from writing index.md and concepts/something-intelligence.md.\n\nParent for list/search, render path, empty-wiki hint, Papyrus references() in templates, short issue ids, and the project/AGENTS.md wiki exception.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2d9eb877-ceb0-4dea-812a-fc2eeca438c2",
+      "author": "ryan",
+      "text": "Researcher first-pass on research-pod wiki (kbs 4151343 / 0.14.0). Filed: kbs-3d8ff3 search; kbs-532a69 render path (reproduced on 0.19.1); kbs-918867 empty-wiki hint; kbs-c5d5ca references() for accepted Papyrus JSON; kbs-4d29ec short issue id; kbs-1975f0 project/AGENTS.md wiki exception. They will port pages from /workspace/research-wiki; do not move that tree.",
+      "created_at": "2026-08-28T20:41:10.436794Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-08-28T20:40:53.136952Z",
+  "updated_at": "2026-08-28T20:41:10.436794Z",
+  "closed_at": null,
+  "custom": {}
+}
