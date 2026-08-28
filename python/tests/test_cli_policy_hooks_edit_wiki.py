@@ -98,6 +98,36 @@ def test_wiki_render_and_list_commands(
     assert "list fail" in result_list_fail.output
 
 
+def test_wiki_render_emits_link_and_reference_warnings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+
+    link_problem = WikiLinkProblem(
+        source_page="project/wiki/page.md",
+        link_target="missing.md",
+        resolved_path="missing.md",
+    )
+    monkeypatch.setattr(
+        cli, "check_wiki_page_links", lambda _root, _page: [link_problem]
+    )
+
+    def _render(_req: object, reference_warnings: list[str] | None = None) -> str:
+        if reference_warnings is not None:
+            reference_warnings.append(
+                "warning: skipping empty story reference bad.json"
+            )
+        return "rendered"
+
+    monkeypatch.setattr(cli, "render_wiki_page", _render)
+
+    result = _run(["wiki", "render", "project/wiki/page.md"])
+    assert result.exit_code == 0
+    assert "rendered" in result.output
+    assert "broken wiki link" in result.stderr
+    assert "skipping empty story reference" in result.stderr
+
+
 def test_wiki_show_search_init_lint_and_check_commands(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -142,6 +172,15 @@ def test_wiki_show_search_init_lint_and_check_commands(
     result_lint = _run(["wiki", "lint"])
     assert result_lint.exit_code == 0
     assert "wiki lint: ok" in result_lint.output
+
+    monkeypatch.setattr(
+        cli,
+        "lint_wiki",
+        lambda _root: (_ for _ in ()).throw(cli.WikiError("lint config fail")),
+    )
+    result_lint_config_fail = _run(["wiki", "lint"])
+    assert result_lint_config_fail.exit_code != 0
+    assert "lint config fail" in result_lint_config_fail.output
 
     monkeypatch.setattr(
         cli,

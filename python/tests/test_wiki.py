@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 import pytest
 
@@ -345,6 +346,187 @@ def test_wiki_render_cache_key_includes_reference_mtimes(tmp_path: Path) -> None
     assert key_before != key_after
 
 
+def test_resolve_wiki_page_path_dot_prefix_and_extensionless(tmp_path: Path) -> None:
+    _write_default_kanbus_config(tmp_path)
+    wiki_root = tmp_path / "project" / "wiki"
+    wiki_root.mkdir(parents=True)
+    (wiki_root / "dot.md").write_text("dot", encoding="utf-8")
+    (wiki_root / "bare.md").write_text("bare", encoding="utf-8")
+
+    resolved_dot = wiki.resolve_wiki_page_path(tmp_path, "./dot.md")
+    assert resolved_dot.as_posix() == "project/wiki/dot.md"
+
+    resolved_bare = wiki.resolve_wiki_page_path(tmp_path, "bare")
+    assert resolved_bare.as_posix() == "project/wiki/bare.md"
+
+
+def test_resolve_wiki_page_path_missing_wiki_directory(tmp_path: Path) -> None:
+    _write_default_kanbus_config(tmp_path)
+    missing_wiki = tmp_path / "project" / "wiki-missing"
+    missing_wiki.parent.mkdir(parents=True)
+    import copy
+    import yaml
+
+    from kanbus.config import DEFAULT_CONFIGURATION
+
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["project_directory"] = "project"
+    payload["wiki_directory"] = "wiki-missing"
+    (tmp_path / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(wiki.WikiError, match="wiki directory not found"):
+        wiki.resolve_wiki_page_path(tmp_path, "index.md")
+
+
+def test_format_wiki_link_problem_warning_prefix() -> None:
+    problem = wiki.WikiLinkProblem(
+        source_page="project/wiki/index.md",
+        link_target="missing.md",
+        resolved_path="missing.md",
+    )
+    assert wiki.format_wiki_link_problem(problem, warning=False).startswith(
+        "project/wiki/index.md"
+    )
+    assert wiki.format_wiki_link_problem(problem, warning=True).startswith("warning:")
+
+
+def test_extract_wiki_title_returns_none_without_heading() -> None:
+    assert wiki._extract_wiki_title("plain text without a markdown heading") is None
+
+
+def test_find_broken_wiki_links_escape_outside_wiki_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    location = wiki.WikiLocation(
+        wiki_root=Path("/tmp/wiki"),
+        list_prefix="project/wiki",
+    )
+
+    def _raise_value_error(_self: Path, _other: Path) -> Path:
+        raise ValueError("outside wiki root")
+
+    monkeypatch.setattr(Path, "relative_to", _raise_value_error)
+    problems = wiki._find_broken_wiki_links(
+        location,
+        "concepts/a.md",
+        "project/wiki/concepts/a.md",
+        "[escape](../../../outside.md)",
+    )
+    assert len(problems) == 1
+    assert problems[0].link_target == "../../../outside.md"
+
+
+def test_find_broken_wiki_links_ignores_external_targets() -> None:
+    location = wiki.WikiLocation(
+        wiki_root=Path("/tmp/wiki"),
+        list_prefix="project/wiki",
+    )
+    problems = wiki._find_broken_wiki_links(
+        location,
+        "index.md",
+        "project/wiki/index.md",
+        "[external](https://example.com/page.md)",
+    )
+    assert problems == []
+
+
+def test_resolve_wiki_internal_link_strips_dot_segments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_path = wiki.Path
+
+    class DotPath:
+        parts = ("dir", ".", "target.md")
+
+    def path_factory(value: object) -> object:
+        if value == "dir/./target.md":
+            return DotPath()
+        return original_path(value)  # type: ignore[call-arg]
+
+    monkeypatch.setattr(wiki, "Path", path_factory)
+    assert (
+        wiki._resolve_wiki_internal_link("dir/page.md", "./target.md")
+        == "dir/target.md"
+    )
+
+
+def test_story_references_cache_part_skips_missing_references_dir(
+    tmp_path: Path,
+) -> None:
+    stories_root = tmp_path / "stories"
+    (stories_root / "STORY-1").mkdir(parents=True)
+    (stories_root / "STORY-2" / "references").mkdir(parents=True)
+    (stories_root / "STORY-2" / "references" / "ref.json").write_text(
+        '{"id": "ref"}', encoding="utf-8"
+    )
+    (stories_root / "not-a-story-dir").write_text("skip", encoding="utf-8")
+
+    part = wiki._story_references_cache_part(tmp_path)
+    assert "STORY-2/references/ref.json" in part
+    assert "not-a-story-dir" not in part
+
+
+def test_story_references_cache_part_handles_stat_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    references_dir = tmp_path / "stories" / "STORY-1" / "references"
+    references_dir.mkdir(parents=True)
+    reference_path = references_dir / "ref.json"
+    reference_path.write_text('{"id": "ref"}', encoding="utf-8")
+
+    original_stat = Path.stat
+
+    def _failing_stat(self: Path, *args: object, **kwargs: object) -> object:
+        if self == reference_path:
+            raise OSError("stat failed")
+        return original_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", _failing_stat)
+    part = wiki._story_references_cache_part(tmp_path)
+    assert part.endswith(":")
+
+
+def test_lint_wiki_skips_non_file_markdown_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_default_kanbus_config(tmp_path)
+    wiki_root = tmp_path / "project" / "wiki"
+    wiki_root.mkdir(parents=True)
+    (wiki_root / "valid.md").write_text("# Valid", encoding="utf-8")
+
+    original_is_file = Path.is_file
+
+    def _selective_is_file(self: Path) -> bool:
+        if self.name == "valid.md":
+            return False
+        return original_is_file(self)
+
+    monkeypatch.setattr(Path, "is_file", _selective_is_file)
+    assert wiki.lint_wiki(tmp_path) == []
+
+
+def test_search_wiki_pages_skips_non_file_markdown_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_default_kanbus_config(tmp_path)
+    wiki_root = tmp_path / "project" / "wiki"
+    wiki_root.mkdir(parents=True)
+    (wiki_root / "valid.md").write_text("# Beta title", encoding="utf-8")
+
+    original_is_file = Path.is_file
+
+    def _selective_is_file(self: Path) -> bool:
+        if self.name == "valid.md":
+            return False
+        return original_is_file(self)
+
+    monkeypatch.setattr(Path, "is_file", _selective_is_file)
+    assert wiki.search_wiki_pages(tmp_path, "beta") == []
+
+
 def test_resolve_wiki_page_path_absolute_and_empty(tmp_path: Path) -> None:
     _write_default_kanbus_config(tmp_path)
     wiki_root = tmp_path / "project" / "wiki"
@@ -492,10 +674,14 @@ def test_wiki_context_references_filters_status(tmp_path: Path) -> None:
 
 def test_wiki_internal_link_helpers() -> None:
     assert wiki._is_wiki_internal_md_link("https://example.com/x.md") is False
+    assert wiki._is_wiki_internal_md_link("mailto:team@example.com") is False
+    assert wiki._is_wiki_internal_md_link("#section-only") is False
+    assert wiki._is_wiki_internal_md_link("{{ dynamic }}.md") is False
     assert wiki._is_wiki_internal_md_link("notes.md#section") is True
     assert (
         wiki._resolve_wiki_internal_link("concepts/a.md", "../notes.md") == "notes.md"
     )
+    assert wiki._resolve_wiki_internal_link("index.md", "./same.md") == "same.md"
 
     location = wiki.WikiLocation(
         wiki_root=Path("/tmp/wiki"),
@@ -503,11 +689,80 @@ def test_wiki_internal_link_helpers() -> None:
     )
     problems = wiki._find_broken_wiki_links(
         location,
-        "index.md",
-        "project/wiki/index.md",
-        "[outside](/etc/passwd.md)",
+        "concepts/a.md",
+        "project/wiki/concepts/a.md",
+        "[escape](../../outside.md)",
     )
     assert len(problems) == 1
+
+
+def test_load_story_references_skips_non_directory_entries(tmp_path: Path) -> None:
+    stories_root = tmp_path / "stories"
+    stories_root.mkdir(parents=True)
+    (stories_root / "not-a-directory").write_text("skip", encoding="utf-8")
+    (stories_root / "STORY-1" / "references").mkdir(parents=True)
+    (stories_root / "STORY-1" / "references" / "ok.json").write_text(
+        '{"id": "ok"}', encoding="utf-8"
+    )
+
+    records = wiki.load_story_references(tmp_path)
+    assert len(records) == 1
+    assert records[0]["id"] == "ok"
+
+
+def test_load_story_references_skips_story_without_references_dir(
+    tmp_path: Path,
+) -> None:
+    stories_root = tmp_path / "stories"
+    (stories_root / "STORY-1").mkdir(parents=True)
+    (stories_root / "STORY-1" / "references").mkdir()
+    (stories_root / "STORY-1" / "references" / "ok.json").write_text(
+        '{"id": "ok"}', encoding="utf-8"
+    )
+    (stories_root / "STORY-2").mkdir()
+
+    records = wiki.load_story_references(tmp_path)
+    assert len(records) == 1
+    assert records[0]["id"] == "ok"
+
+
+def test_search_wiki_pages_finds_title_and_body(tmp_path: Path) -> None:
+    _write_default_kanbus_config(tmp_path)
+    wiki_root = tmp_path / "project" / "wiki"
+    wiki_root.mkdir(parents=True)
+    (wiki_root / "notes.md").write_text("# Beta title\nbody mention", encoding="utf-8")
+
+    matches = wiki.search_wiki_pages(tmp_path, "beta")
+    assert matches == ["project/wiki/notes.md"]
+
+
+def test_render_template_string_with_references(tmp_path: Path) -> None:
+    references_dir = tmp_path / "stories" / "STORY-1" / "references"
+    references_dir.mkdir(parents=True)
+    (references_dir / "accepted.json").write_text(
+        '{"id": "ref-a", "title": "Paper", "status": "accepted"}',
+        encoding="utf-8",
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.chdir(tmp_path)
+    try:
+        rendered = wiki.render_template_string(
+            '{% for ref in references(status="accepted") %}{{ ref.id }}{% endfor %}',
+            [],
+        )
+    finally:
+        monkeypatch.undo()
+    assert "ref-a" in rendered
+
+
+def test_lint_wiki_success_on_valid_links(tmp_path: Path) -> None:
+    _write_default_kanbus_config(tmp_path)
+    wiki_root = tmp_path / "project" / "wiki"
+    wiki_root.mkdir(parents=True)
+    (wiki_root / "target.md").write_text("# Target", encoding="utf-8")
+    (wiki_root / "index.md").write_text("[ok](target.md)", encoding="utf-8")
+
+    assert wiki.lint_wiki(tmp_path) == []
 
 
 def test_wiki_cache_key_ignores_references_without_template_call(
@@ -516,7 +771,7 @@ def test_wiki_cache_key_ignores_references_without_template_call(
     page = tmp_path / "page.md"
     page.write_text("plain page", encoding="utf-8")
     issues = [build_issue("kanbus-1")]
-    key = wiki._wiki_render_cache_key(
+    wiki._wiki_render_cache_key(
         page, issues, tmp_path, page.read_text(encoding="utf-8")
     )
     assert wiki._story_references_cache_part(tmp_path) == ""
