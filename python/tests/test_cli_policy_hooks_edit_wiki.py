@@ -7,6 +7,7 @@ from click.testing import CliRunner
 import pytest
 
 from kanbus import cli
+from kanbus.wiki import WikiLinkProblem
 from test_helpers import build_project_configuration
 
 
@@ -95,6 +96,80 @@ def test_wiki_render_and_list_commands(
     result_list_fail = _run(["wiki", "list"])
     assert result_list_fail.exit_code != 0
     assert "list fail" in result_list_fail.output
+
+
+def test_wiki_show_search_init_lint_and_check_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+
+    monkeypatch.setattr(cli, "show_wiki_page", lambda _root, _page: "raw-source")
+    result_show = _run(["wiki", "show", "raw.md"])
+    assert result_show.exit_code == 0
+    assert result_show.output == "raw-source"
+
+    monkeypatch.setattr(
+        cli, "search_wiki_pages", lambda _root, _query: ["project/wiki/a.md"]
+    )
+    result_search = _run(["wiki", "search", "alpha"])
+    assert result_search.exit_code == 0
+    assert "project/wiki/a.md" in result_search.output
+
+    monkeypatch.setattr(
+        cli,
+        "search_wiki_pages",
+        lambda _root, _query: (_ for _ in ()).throw(cli.WikiError("search fail")),
+    )
+    result_search_fail = _run(["wiki", "search", "alpha"])
+    assert result_search_fail.exit_code != 0
+    assert "search fail" in result_search_fail.output
+
+    monkeypatch.setattr(cli, "init_wiki", lambda _root: "project/wiki/index.md")
+    result_init = _run(["wiki", "init"])
+    assert result_init.exit_code == 0
+    assert "project/wiki/index.md" in result_init.output
+
+    monkeypatch.setattr(
+        cli,
+        "init_wiki",
+        lambda _root: (_ for _ in ()).throw(cli.WikiError("init fail")),
+    )
+    result_init_fail = _run(["wiki", "init"])
+    assert result_init_fail.exit_code != 0
+    assert "init fail" in result_init_fail.output
+
+    monkeypatch.setattr(cli, "lint_wiki", lambda _root: [])
+    result_lint = _run(["wiki", "lint"])
+    assert result_lint.exit_code == 0
+    assert "wiki lint: ok" in result_lint.output
+
+    monkeypatch.setattr(
+        cli,
+        "lint_wiki",
+        lambda _root: [
+            WikiLinkProblem(
+                source_page="project/wiki/index.md",
+                link_target="missing.md",
+                resolved_path="missing.md",
+            )
+        ],
+    )
+    result_lint_fail = _run(["wiki", "lint"])
+    assert result_lint_fail.exit_code != 0
+    assert "broken wiki link" in result_lint_fail.output
+
+    result_check = _run(["wiki", "check"])
+    assert result_check.exit_code != 0
+    assert "broken wiki link" in result_check.output
+
+    monkeypatch.setattr(
+        cli,
+        "show_wiki_page",
+        lambda _root, _page: (_ for _ in ()).throw(cli.WikiError("show fail")),
+    )
+    result_show_fail = _run(["wiki", "show", "raw.md"])
+    assert result_show_fail.exit_code != 0
+    assert "show fail" in result_show_fail.output
 
 
 def test_edit_commands(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
