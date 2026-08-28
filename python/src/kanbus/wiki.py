@@ -18,6 +18,24 @@ from kanbus.models import IssueData
 from kanbus.queries import filter_issues
 
 WIKI_STUB_INDEX = "# Wiki\n\nEdit pages under project/wiki/.\n"
+MARKDOWN_LINK_PATTERN = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+
+
+@dataclass(frozen=True)
+class WikiLinkProblem:
+    """Broken wiki-internal markdown link reported by lint or render warnings.
+
+    :param source_page: Repository-relative wiki page path.
+    :type source_page: str
+    :param link_target: Link target as written in markdown.
+    :type link_target: str
+    :param resolved_path: Wiki-relative resolved target path.
+    :type resolved_path: str
+    """
+
+    source_page: str
+    link_target: str
+    resolved_path: str
 
 
 class WikiError(RuntimeError):
@@ -227,6 +245,87 @@ def resolve_wiki_page_path(root: Path, page_argument: str) -> Path:
     return relative
 
 
+def show_wiki_page(root: Path, page_argument: str) -> str:
+    """Return raw wiki page source without template rendering.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param page_argument: User-provided page path.
+    :type page_argument: str
+    :return: Raw markdown source.
+    :rtype: str
+    :raises WikiError: If the page cannot be resolved or read.
+    """
+    resolved_page = resolve_wiki_page_path(root, page_argument)
+    full_page = root / resolved_page
+    return full_page.read_text(encoding="utf-8")
+
+
+def lint_wiki(root: Path) -> List[WikiLinkProblem]:
+    """Validate wiki-internal markdown links across the wiki tree.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Broken link problems, empty when the wiki is valid.
+    :rtype: List[WikiLinkProblem]
+    :raises WikiError: If configuration cannot be loaded.
+    """
+    location = load_wiki_location(root)
+    if not location.wiki_root.exists():
+        raise WikiError(wiki_directory_missing_message(location))
+
+    problems: List[WikiLinkProblem] = []
+    for page_path in sorted(location.wiki_root.rglob("*.md")):
+        if not page_path.is_file():
+            continue
+        wiki_relative = page_path.relative_to(location.wiki_root).as_posix()
+        listed_path = f"{location.list_prefix}/{wiki_relative}"
+        content = page_path.read_text(encoding="utf-8")
+        problems.extend(
+            _find_broken_wiki_links(location, wiki_relative, listed_path, content)
+        )
+    problems.sort(key=lambda problem: (problem.source_page, problem.resolved_path))
+    return problems
+
+
+def check_wiki_page_links(root: Path, page_argument: str) -> List[WikiLinkProblem]:
+    """Validate wiki-internal markdown links in a single page.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param page_argument: User-provided page path.
+    :type page_argument: str
+    :return: Broken link problems for the page.
+    :rtype: List[WikiLinkProblem]
+    :raises WikiError: If the page cannot be resolved or read.
+    """
+    resolved_page = resolve_wiki_page_path(root, page_argument)
+    location = load_wiki_location(root)
+    wiki_relative = (root / resolved_page).relative_to(location.wiki_root).as_posix()
+    listed_path = resolved_page.as_posix()
+    content = (root / resolved_page).read_text(encoding="utf-8")
+    return _find_broken_wiki_links(location, wiki_relative, listed_path, content)
+
+
+def format_wiki_link_problem(problem: WikiLinkProblem, *, warning: bool) -> str:
+    """Format a broken wiki link for operator output.
+
+    :param problem: Broken link details.
+    :type problem: WikiLinkProblem
+    :param warning: Whether to prefix the line as a warning.
+    :type warning: bool
+    :return: Formatted message.
+    :rtype: str
+    """
+    message = (
+        f"{problem.source_page}: broken wiki link "
+        f'"{problem.link_target}" ({problem.resolved_path} not found)'
+    )
+    if warning:
+        return f"warning: {message}"
+    return message
+
+
 def init_wiki(root: Path) -> str:
     """Create the wiki directory and a stub index page.
 
@@ -376,6 +475,69 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
     if wiki_render_cache_dir is not None:
         _wiki_render_write_cache(wiki_render_cache_dir, cache_key, rendered)
     return rendered
+
+
+def _find_broken_wiki_links(
+    location: WikiLocation,
+    wiki_relative: str,
+    listed_path: str,
+    content: str,
+) -> List[WikiLinkProblem]:
+    problems: List[WikiLinkProblem] = []
+    for match in MARKDOWN_LINK_PATTERN.finditer(content):
+        link_target = match.group(1).strip()
+        if not _is_wiki_internal_md_link(link_target):
+            continue
+        resolved_path = _resolve_wiki_internal_link(wiki_relative, link_target)
+        resolved_absolute = location.wiki_root / resolved_path
+        try:
+            resolved_absolute.resolve().relative_to(location.wiki_root.resolve())
+        except ValueError:
+            problems.append(
+                WikiLinkProblem(
+                    source_page=listed_path,
+                    link_target=link_target,
+                    resolved_path=resolved_path,
+                )
+            )
+            continue
+        if not resolved_absolute.exists():
+            problems.append(
+                WikiLinkProblem(
+                    source_page=listed_path,
+                    link_target=link_target,
+                    resolved_path=resolved_path,
+                )
+            )
+    return problems
+
+
+def _is_wiki_internal_md_link(link_target: str) -> bool:
+    path_part = link_target.split("#", 1)[0].strip()
+    if not path_part or path_part.startswith("#"):
+        return False
+    lowered = path_part.lower()
+    if lowered.startswith(("http://", "https://", "mailto:", "//")):
+        return False
+    if "{{" in path_part or "}}" in path_part:
+        return False
+    return path_part.endswith(".md")
+
+
+def _resolve_wiki_internal_link(source_wiki_relative: str, link_target: str) -> str:
+    path_part = link_target.split("#", 1)[0].strip()
+    source_path = Path(source_wiki_relative)
+    resolved = (source_path.parent / path_part).as_posix()
+    normalized_parts: List[str] = []
+    for part in Path(resolved).parts:
+        if part == "..":
+            if normalized_parts:
+                normalized_parts.pop()
+            continue
+        if part == ".":
+            continue
+        normalized_parts.append(part)
+    return "/".join(normalized_parts)
 
 
 def _wiki_render_cache_key(page_path: Path, issues: List[IssueData]) -> str:

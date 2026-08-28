@@ -134,3 +134,60 @@ Feature: Wiki research knowledge base
     Then the command should succeed
     And stdout should contain "- ref-a: Accepted paper (papers)"
     And stdout should not contain "Pending paper"
+
+  Scenario: Show wiki page prints raw markdown source
+    Given a Kanbus project with default configuration
+    And a wiki page "raw.md" with content:
+      """
+      # Raw page
+      Template marker: {{ count(status="open") }}
+      """
+    When I run "kanbus wiki show raw.md"
+    Then the command should succeed
+    And stdout should contain "Template marker: {{ count(status=\"open\") }}"
+
+  Scenario: Wiki lint passes when internal md links resolve
+    Given a Kanbus project with default configuration
+    And a wiki page "concepts/alpha.md" with content "# Alpha"
+    And a wiki page "index.md" with content:
+      """
+      See [alpha](concepts/alpha.md).
+      """
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+
+  Scenario: Wiki lint fails on broken relative md link
+    Given a Kanbus project with default configuration
+    And a wiki page "index.md" with content:
+      """
+      See [missing](concepts/missing.md).
+      """
+    When I run "kanbus wiki lint"
+    Then the command should fail with exit code 1
+    And stderr should contain "broken wiki link"
+    And stderr should contain "concepts/missing.md"
+
+  Scenario: Wiki check validates the wiki tree like lint
+    Given a Kanbus project with default configuration
+    And a wiki page "index.md" with content:
+      """
+      See [missing](sources/missing.md).
+      """
+    When I run "kanbus wiki check"
+    Then the command should fail with exit code 1
+    And stderr should contain "broken wiki link"
+    And stderr should contain "sources/missing.md"
+
+  Scenario: Wiki render warns on broken md link but still succeeds
+    Given a Kanbus project with default configuration
+    And a wiki page "warn.md" with content:
+      """
+      # Warn page
+      Link: [missing](concepts/missing.md)
+      Open: {{ count(status="open") }}
+      """
+    When I run "kanbus wiki render warn.md"
+    Then the command should succeed
+    And stdout should contain "Open:"
+    And stderr should contain "broken wiki link"
+    And stderr should contain "concepts/missing.md"
