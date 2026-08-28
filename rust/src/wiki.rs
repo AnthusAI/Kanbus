@@ -474,10 +474,11 @@ fn collect_search_matches(
 /// * `status` - Optional status filter (for example accepted or pending).
 ///
 /// # Returns
-/// Story reference records.
+/// Story reference records. Unreadable, empty, invalid, or non-object JSON files are
+/// skipped with a warning on stderr.
 ///
 /// # Errors
-/// Returns `KanbusError` if reference files cannot be read.
+/// Returns `KanbusError` if the stories directory cannot be listed.
 pub fn load_story_references(
     root: &Path,
     status: Option<&str>,
@@ -518,11 +519,40 @@ pub fn load_story_references(
             .collect();
         reference_paths.sort();
         for reference_path in reference_paths {
-            let contents = fs::read_to_string(&reference_path)
-                .map_err(|error| KanbusError::Io(error.to_string()))?;
-            let payload: JsonValue = serde_json::from_str(&contents)
-                .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
+            let contents = match fs::read_to_string(&reference_path) {
+                Ok(contents) => contents,
+                Err(error) => {
+                    emit_story_reference_warning(&format!(
+                        "warning: skipping unreadable story reference {}: {}",
+                        reference_path.display(),
+                        error
+                    ));
+                    continue;
+                }
+            };
+            if contents.trim().is_empty() {
+                emit_story_reference_warning(&format!(
+                    "warning: skipping empty story reference {}",
+                    reference_path.display()
+                ));
+                continue;
+            }
+            let payload: JsonValue = match serde_json::from_str(&contents) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    emit_story_reference_warning(&format!(
+                        "warning: skipping invalid story reference JSON in {}: {}",
+                        reference_path.display(),
+                        error
+                    ));
+                    continue;
+                }
+            };
             let JsonValue::Object(mut record) = payload else {
+                emit_story_reference_warning(&format!(
+                    "warning: skipping non-object story reference in {}",
+                    reference_path.display()
+                ));
                 continue;
             };
             record
@@ -579,6 +609,8 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
     let resolved_page =
         resolve_wiki_page_path(&request.root, &request.page_path.to_string_lossy())?;
     let page_path = request.root.join(&resolved_page);
+    let template =
+        fs::read_to_string(&page_path).map_err(|error| KanbusError::Io(error.to_string()))?;
 
     let store = FileStore::new(&request.root);
     let configuration = store.load_config()?;
@@ -589,7 +621,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
         .join(&configuration.project_directory)
         .join(".cache")
         .join("wiki_render");
-    let cache_key = wiki_render_cache_key(&page_path, &issues);
+    let cache_key = wiki_render_cache_key(&page_path, &issues, &request.root, &template);
     if let Some(cached) = wiki_render_read_cache(&wiki_render_cache_dir, &cache_key) {
         wiki_render_log_cache_hit(&wiki_render_cache_dir);
         return Ok(cached);
@@ -713,8 +745,6 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
         apply_issue_type_filter(&mut dummy_list, "task");
     }
 
-    let template =
-        fs::read_to_string(&page_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     let rendered = env
         .render_str(&template, context! {})
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
@@ -823,7 +853,12 @@ fn ai_summarize_log_call(cache_dir: &Path) {
     }
 }
 
-fn wiki_render_cache_key(page_path: &Path, issues: &[IssueData]) -> String {
+fn wiki_render_cache_key(
+    page_path: &Path,
+    issues: &[IssueData],
+    root: &Path,
+    page_template: &str,
+) -> String {
     use sha2::{Digest, Sha256};
     let page_mtime = fs::metadata(page_path)
         .ok()
@@ -836,10 +871,80 @@ fn wiki_render_cache_key(page_path: &Path, issues: &[IssueData]) -> String {
         .collect();
     issue_ids.sort();
     let issue_part = issue_ids.join("|");
-    let raw = format!("{}|{}|{}", page_path.display(), page_mtime, issue_part);
+    let reference_part = if page_uses_references(page_template) {
+        story_references_cache_part(root)
+    } else {
+        String::new()
+    };
+    let raw = format!(
+        "{}|{}|{}|{}",
+        page_path.display(),
+        page_mtime,
+        issue_part,
+        reference_part
+    );
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
     format!("{:x}", hasher.finalize())
+}
+
+fn page_uses_references(page_template: &str) -> bool {
+    page_template.contains("references(")
+}
+
+fn story_references_cache_part(root: &Path) -> String {
+    let stories_root = root.join("stories");
+    if !stories_root.exists() {
+        return String::new();
+    }
+
+    let mut parts: Vec<String> = Vec::new();
+    let Ok(story_dirs) = fs::read_dir(&stories_root) else {
+        return String::new();
+    };
+    let mut story_dirs: Vec<_> = story_dirs
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect();
+    story_dirs.sort();
+    for story_dir in story_dirs {
+        let references_dir = story_dir.join("references");
+        if !references_dir.exists() {
+            continue;
+        }
+        let Ok(reference_entries) = fs::read_dir(&references_dir) else {
+            continue;
+        };
+        let mut reference_paths: Vec<_> = reference_entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| ext == "json")
+            })
+            .collect();
+        reference_paths.sort();
+        for reference_path in reference_paths {
+            let mtime = fs::metadata(&reference_path)
+                .ok()
+                .and_then(|metadata| metadata.modified().ok())
+                .map(|time| format!("{:?}", time))
+                .unwrap_or_default();
+            let relative = reference_path
+                .strip_prefix(root)
+                .unwrap_or(&reference_path)
+                .display()
+                .to_string();
+            parts.push(format!("{}:{}", relative, mtime));
+        }
+    }
+    parts.join("|")
+}
+
+fn emit_story_reference_warning(message: &str) {
+    crate::rich_text_signals::emit_stderr_line(message);
 }
 
 fn wiki_render_read_cache(cache_dir: &Path, key: &str) -> Option<String> {

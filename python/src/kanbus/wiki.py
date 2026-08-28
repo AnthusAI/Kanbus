@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List
 
@@ -64,10 +64,13 @@ class WikiContext:
     :type issues: List[IssueData]
     :param root: Repository root path.
     :type root: Path
+    :param reference_warnings: Warnings collected while loading story references.
+    :type reference_warnings: List[str]
     """
 
     issues: List[IssueData]
     root: Path
+    reference_warnings: List[str] = field(default_factory=list)
 
     def query(self, **filters: object) -> List[Dict[str, object]]:
         """Query issues for wiki templates.
@@ -131,7 +134,9 @@ class WikiContext:
         :raises WikiError: If the filter parameters are invalid.
         """
         status = _get_string(filters.get("status"))
-        return load_story_references(self.root, status=status)
+        return load_story_references(
+            self.root, status=status, warnings_out=self.reference_warnings
+        )
 
 
 @dataclass(frozen=True)
@@ -378,7 +383,9 @@ def search_wiki_pages(root: Path, query: str) -> List[str]:
 
 
 def load_story_references(
-    root: Path, status: str | None = None
+    root: Path,
+    status: str | None = None,
+    warnings_out: List[str] | None = None,
 ) -> List[Dict[str, object]]:
     """Load Papyrus story references from stories/*/references/*.json.
 
@@ -386,6 +393,8 @@ def load_story_references(
     :type root: Path
     :param status: Optional status filter (for example accepted or pending).
     :type status: str | None
+    :param warnings_out: Optional list to append skip warnings to.
+    :type warnings_out: List[str] | None
     :return: Story reference records.
     :rtype: List[Dict[str, object]]
     """
@@ -402,8 +411,34 @@ def load_story_references(
             continue
         story_id = story_dir.name
         for reference_path in sorted(references_dir.glob("*.json")):
-            payload = json.loads(reference_path.read_text(encoding="utf-8"))
+            try:
+                raw = reference_path.read_text(encoding="utf-8")
+            except OSError as error:
+                _append_story_reference_warning(
+                    warnings_out,
+                    f"warning: skipping unreadable story reference {reference_path}: {error}",
+                )
+                continue
+            if not raw.strip():
+                _append_story_reference_warning(
+                    warnings_out,
+                    f"warning: skipping empty story reference {reference_path}",
+                )
+                continue
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError as error:
+                _append_story_reference_warning(
+                    warnings_out,
+                    "warning: skipping invalid story reference JSON in "
+                    f"{reference_path}: {error}",
+                )
+                continue
             if not isinstance(payload, dict):
+                _append_story_reference_warning(
+                    warnings_out,
+                    f"warning: skipping non-object story reference in {reference_path}",
+                )
                 continue
             record = dict(payload)
             record.setdefault("story_id", story_id)
@@ -416,17 +451,23 @@ def load_story_references(
     return references
 
 
-def render_wiki_page(request: WikiRenderRequest) -> str:
+def render_wiki_page(
+    request: WikiRenderRequest,
+    reference_warnings: List[str] | None = None,
+) -> str:
     """Render a wiki page using the live issue index.
 
     :param request: Render request with root and page path.
     :type request: WikiRenderRequest
+    :param reference_warnings: Optional list to append story-reference skip warnings to.
+    :type reference_warnings: List[str] | None
     :return: Rendered wiki content.
     :rtype: str
     :raises WikiError: If rendering fails.
     """
     resolved_page = resolve_wiki_page_path(request.root, str(request.page_path))
     full_page = request.root / resolved_page
+    page_template = full_page.read_text(encoding="utf-8")
 
     try:
         issues = get_issues_for_root(request.root)
@@ -437,8 +478,11 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
     wiki_render_cache_dir = (
         request.root / project_dir / ".cache" / "wiki_render" if project_dir else None
     )
+    cache_key: str | None = None
     if wiki_render_cache_dir is not None:
-        cache_key = _wiki_render_cache_key(full_page, list(issues))
+        cache_key = _wiki_render_cache_key(
+            full_page, list(issues), request.root, page_template
+        )
         cached = _wiki_render_read_cache(wiki_render_cache_dir, cache_key)
         if cached is not None:
             _wiki_render_log_cache_hit(wiki_render_cache_dir)
@@ -472,7 +516,10 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
     except Exception as error:
         raise WikiError(str(error)) from error
 
-    if wiki_render_cache_dir is not None:
+    if reference_warnings is not None:
+        reference_warnings.extend(context.reference_warnings)
+
+    if wiki_render_cache_dir is not None and cache_key is not None:
         _wiki_render_write_cache(wiki_render_cache_dir, cache_key, rendered)
     return rendered
 
@@ -540,14 +587,55 @@ def _resolve_wiki_internal_link(source_wiki_relative: str, link_target: str) -> 
     return "/".join(normalized_parts)
 
 
-def _wiki_render_cache_key(page_path: Path, issues: List[IssueData]) -> str:
+def _wiki_render_cache_key(
+    page_path: Path,
+    issues: List[IssueData],
+    root: Path,
+    page_template: str,
+) -> str:
     page_mtime = str(page_path.stat().st_mtime) if page_path.exists() else ""
     issue_part = "|".join(
         f"{issue.identifier}:{issue.updated_at.isoformat()}"
         for issue in sorted(issues, key=lambda item: item.identifier)
     )
-    raw = f"{page_path}|{page_mtime}|{issue_part}"
+    reference_part = ""
+    if _page_uses_references(page_template):
+        reference_part = _story_references_cache_part(root)
+    raw = f"{page_path}|{page_mtime}|{issue_part}|{reference_part}"
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _page_uses_references(page_template: str) -> bool:
+    return "references(" in page_template
+
+
+def _story_references_cache_part(root: Path) -> str:
+    stories_root = root / "stories"
+    if not stories_root.exists():
+        return ""
+
+    parts: List[str] = []
+    for story_dir in sorted(stories_root.iterdir()):
+        if not story_dir.is_dir():
+            continue
+        references_dir = story_dir / "references"
+        if not references_dir.exists():
+            continue
+        for reference_path in sorted(references_dir.glob("*.json")):
+            try:
+                mtime = str(reference_path.stat().st_mtime)
+            except OSError:
+                mtime = ""
+            relative = reference_path.relative_to(root).as_posix()
+            parts.append(f"{relative}:{mtime}")
+    return "|".join(parts)
+
+
+def _append_story_reference_warning(
+    warnings_out: List[str] | None, message: str
+) -> None:
+    if warnings_out is not None:
+        warnings_out.append(message)
 
 
 def _wiki_render_read_cache(cache_dir: Path, key: str) -> str | None:
