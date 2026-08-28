@@ -191,3 +191,68 @@ Feature: Wiki research knowledge base
     And stdout should contain "Open:"
     And stderr should contain "broken wiki link"
     And stderr should contain "concepts/missing.md"
+
+  Scenario: Wiki render picks up new accepted references after cache warm
+    Given a Kanbus project with default configuration
+    And a story reference "WIKI-650fd9" file "ref-a.json" with content:
+      """
+      {
+        "id": "ref-a",
+        "title": "First accepted paper",
+        "url": "https://example.com/a",
+        "why": "Primary source",
+        "status": "accepted",
+        "corpus": "papers"
+      }
+      """
+    And a wiki page "live-refs.md" with content:
+      """
+      {% for ref in references(status="accepted") %}
+      - {{ ref.id }}: {{ ref.title }}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render live-refs.md"
+    Then the command should succeed
+    And stdout should contain "- ref-a: First accepted paper"
+    Given a story reference "WIKI-650fd9" file "ref-c.json" with content:
+      """
+      {
+        "id": "ref-c",
+        "title": "Newly accepted paper",
+        "url": "https://example.com/c",
+        "why": "Added after first render",
+        "status": "accepted",
+        "corpus": "papers"
+      }
+      """
+    When I run "kanbus wiki render live-refs.md"
+    Then the command should succeed
+    And stdout should contain "- ref-c: Newly accepted paper"
+
+  Scenario: Wiki render skips invalid story reference JSON with warning
+    Given a Kanbus project with default configuration
+    And a story reference "WIKI-650fd9" file "bad.json" with content:
+      """
+      """
+    And a story reference "WIKI-650fd9" file "good.json" with content:
+      """
+      {
+        "id": "ref-good",
+        "title": "Valid accepted paper",
+        "url": "https://example.com/good",
+        "why": "Keeps rendering",
+        "status": "accepted",
+        "corpus": "papers"
+      }
+      """
+    And a wiki page "refs-tolerant.md" with content:
+      """
+      {% for ref in references(status="accepted") %}
+      - {{ ref.id }}: {{ ref.title }}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render refs-tolerant.md"
+    Then the command should succeed
+    And stdout should contain "- ref-good: Valid accepted paper"
+    And stderr should contain "skipping"
+    And stderr should contain "bad.json"

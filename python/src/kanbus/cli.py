@@ -1849,11 +1849,14 @@ def render_wiki(page: str) -> None:
     request = WikiRenderRequest(root=root, page_path=Path(page))
     try:
         link_problems = check_wiki_page_links(root, page)
-        output = render_wiki_page(request)
+        reference_warnings: list[str] = []
+        output = render_wiki_page(request, reference_warnings=reference_warnings)
     except WikiError as error:
         raise click.ClickException(str(error)) from error
     for problem in link_problems:
         click.echo(format_wiki_link_problem(problem, warning=True), err=True)
+    for warning in reference_warnings:
+        click.echo(warning, err=True)
     click.echo(output)
 
 
