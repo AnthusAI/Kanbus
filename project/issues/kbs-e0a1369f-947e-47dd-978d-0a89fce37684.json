@@ -3,7 +3,7 @@
   "title": "Screenshot tests, CI gating, and docs",
   "description": "KANBUS_TEST_SCREENSHOT_MOCK for mocked capture in default CI; gate @slow live-browser scenario. Document browser install path in README or CLI help. Parity across Python and Rust.",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-08-28T16:52:48.999557Z",
-  "updated_at": "2026-08-28T16:52:48.999557Z",
+  "updated_at": "2026-08-28T17:06:39.060304Z",
   "closed_at": null,
   "custom": {}
 }

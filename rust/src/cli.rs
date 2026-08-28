@@ -19,6 +19,7 @@ use crate::beads_write::{
 use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_token};
 use crate::config_loader::load_project_configuration;
 use crate::console_snapshot::build_console_snapshot;
+use crate::console_screenshot::capture_console_screenshot;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::content_validation::validate_code_blocks;
 use crate::daemon_client::{request_shutdown, request_status};
@@ -831,6 +832,12 @@ enum ConsoleCommands {
     Get {
         /// State field to query: focus, view, or search.
         field: String,
+    },
+    /// Capture a PNG screenshot of the console board.
+    Screenshot {
+        /// Output file path (default: kanbus-board.png in the current directory).
+        #[arg(long, short = 'o', value_name = "PATH")]
+        output: Option<String>,
     },
 }
 
@@ -3385,6 +3392,10 @@ fn execute_command(
                     }
                     Err(_) => Ok(Some("Console server is not running.".to_string())),
                 }
+            }
+            ConsoleCommands::Screenshot { output } => {
+                let path = capture_console_screenshot(root, output)?;
+                Ok(Some(path.to_string_lossy().to_string()))
             }
         },
         Commands::DaemonStatus => {

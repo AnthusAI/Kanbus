@@ -1,4 +1,3 @@
-@wip
 @cli
 Feature: Console board screenshot
   As a Kanbus user or agent

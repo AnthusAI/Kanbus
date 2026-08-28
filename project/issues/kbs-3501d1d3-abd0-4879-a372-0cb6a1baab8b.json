@@ -3,7 +3,7 @@
   "title": "Headless capture for board screenshot",
   "description": "Capture PNG via headless Chromium/Playwright against the running console board page (reuse apps/console UI, no second renderer). Degrade clearly when browser binaries are missing (actionable message referencing playwright install, not a crash).",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-08-28T16:52:48.962746Z",
-  "updated_at": "2026-08-28T16:52:48.962746Z",
+  "updated_at": "2026-08-28T17:06:39.013236Z",
   "closed_at": null,
   "custom": {}
 }

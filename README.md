@@ -139,6 +139,25 @@ Or for multi-tenant mode (set `CONSOLE_TENANT_MODE=multi`):
 http://127.0.0.1:5174/<account>/<project>/
 ```
 
+### Board screenshot (CLI)
+
+With the console server running, capture a PNG of the board UI:
+
+```bash
+kbs console screenshot
+# writes kanbus-board.png in the current directory
+
+kbs console screenshot --output reports/board.png
+```
+
+Headless capture uses Playwright against the live console page (not a separate renderer). Install Chromium once:
+
+```bash
+cd apps/console && npx playwright install chromium
+```
+
+If Chromium is missing, the command fails with an actionable error instead of crashing.
+
 ### Environment Variables
 
 - `CONSOLE_PORT` (default `5174`)

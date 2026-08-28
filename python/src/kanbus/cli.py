@@ -86,6 +86,7 @@ from kanbus.text_editor import (
     edit_insert,
 )
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from kanbus.console_screenshot import ConsoleScreenshotError, capture_console_screenshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.config_loader import ConfigurationError, load_project_configuration
@@ -2209,6 +2210,23 @@ def console_snapshot() -> None:
         raise click.ClickException(str(error)) from error
     payload = json.dumps(snapshot, indent=2, sort_keys=False)
     click.echo(payload)
+
+
+@console.command("screenshot")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Output PNG path (default: kanbus-board.png in the current directory).",
+)
+def console_screenshot(output: Optional[str]) -> None:
+    """Capture a PNG screenshot of the console board."""
+    root = Path.cwd()
+    try:
+        path = capture_console_screenshot(root, output)
+    except ConsoleScreenshotError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(str(path))
 
 
 @console.command("focus")
