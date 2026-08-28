@@ -61,7 +61,9 @@ def test_wiki_render_and_list_commands(
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
 
     monkeypatch.setattr(cli, "check_wiki_page_links", lambda _root, _page: [])
-    monkeypatch.setattr(cli, "render_wiki_page", lambda _req, reference_warnings=None: "rendered")
+    monkeypatch.setattr(
+        cli, "render_wiki_page", lambda _req, reference_warnings=None: "rendered"
+    )
     result_render = _run(["wiki", "render", "project/wiki/page.md"])
     assert result_render.exit_code == 0
     assert "rendered" in result_render.output
