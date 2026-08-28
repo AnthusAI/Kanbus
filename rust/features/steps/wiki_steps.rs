@@ -530,3 +530,108 @@ fn then_wiki_page_exists_with_content(world: &mut KanbusWorld, filename: String,
     let content = fs::read_to_string(&target).expect("read wiki page");
     assert!(content.contains(&text), "expected {text:?} in {content:?}");
 }
+
+#[given("the stories directory does not exist")]
+fn given_stories_directory_missing(world: &mut KanbusWorld) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let stories_dir = cwd.join("stories");
+    if stories_dir.exists() {
+        fs::remove_dir_all(&stories_dir).expect("remove stories dir");
+    }
+}
+
+#[given(expr = "a stories directory file {string} exists")]
+fn given_stories_directory_file(world: &mut KanbusWorld, name: String) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let stories_dir = cwd.join("stories");
+    fs::create_dir_all(&stories_dir).expect("create stories dir");
+    fs::write(stories_dir.join(name), "not a story directory\n").expect("write stories file");
+}
+
+#[given(expr = "a story directory {string} exists without references")]
+fn given_story_directory_without_references(world: &mut KanbusWorld, story_id: String) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let target = cwd.join("stories").join(story_id);
+    fs::create_dir_all(&target).expect("create story dir");
+}
+
+#[given(expr = "an unreadable story reference {string} file {string} exists")]
+fn given_unreadable_story_reference(world: &mut KanbusWorld, story_id: String, filename: String) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let target = cwd
+        .join("stories")
+        .join(story_id)
+        .join("references")
+        .join(filename);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).expect("create references dir");
+    }
+    fs::write(
+        &target,
+        r#"{"id":"locked","title":"Locked","status":"accepted"}"#,
+    )
+    .expect("write reference file");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(&target).expect("metadata").permissions();
+        let original = permissions.mode();
+        permissions.set_mode(0);
+        fs::set_permissions(&target, permissions).expect("chmod reference file");
+        world.unreadable_path = Some(target);
+        world.unreadable_mode = Some(original);
+    }
+}
+
+#[given(expr = "a dangling story reference symlink {string} file {string} exists")]
+fn given_dangling_story_reference_symlink(
+    world: &mut KanbusWorld,
+    story_id: String,
+    filename: String,
+) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let target = cwd
+        .join("stories")
+        .join(story_id)
+        .join("references")
+        .join(filename);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).expect("create references dir");
+    }
+    if target.exists() {
+        fs::remove_file(&target).expect("remove reference file");
+    }
+    std::os::unix::fs::symlink("/nonexistent/story-reference.json", &target)
+        .expect("create dangling symlink");
+}
+
+#[given(expr = "a wiki markdown symlink {string} points to a directory")]
+fn given_wiki_markdown_symlink_to_directory(world: &mut KanbusWorld, name: String) {
+    let wiki_dir = wiki_dir_for_world(world);
+    fs::create_dir_all(&wiki_dir).expect("create wiki dir");
+    let target_dir = wiki_dir.join(format!("{name}-target-dir"));
+    fs::create_dir_all(&target_dir).expect("create symlink target dir");
+    let link_path = wiki_dir.join(&name);
+    if link_path.exists() {
+        fs::remove_file(&link_path).expect("remove existing link");
+    } else if link_path.symlink_metadata().is_ok() {
+        fs::remove_file(&link_path).expect("remove existing symlink");
+    }
+    std::os::unix::fs::symlink(&target_dir, &link_path).expect("create wiki symlink");
+}
+
+#[given(expr = "a wiki symlink {string} points outside the wiki directory")]
+fn given_wiki_symlink_outside_directory(world: &mut KanbusWorld, name: String) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let wiki_dir = wiki_dir_for_world(world);
+    fs::create_dir_all(&wiki_dir).expect("create wiki dir");
+    let outside_target = cwd.join("outside-wiki-target.md");
+    fs::write(&outside_target, "outside wiki target\n").expect("write outside target");
+    let link_path = wiki_dir.join(&name);
+    if link_path.exists() {
+        fs::remove_file(&link_path).expect("remove existing link");
+    } else if link_path.symlink_metadata().is_ok() {
+        fs::remove_file(&link_path).expect("remove existing symlink");
+    }
+    std::os::unix::fs::symlink(&outside_target, &link_path).expect("create outside wiki symlink");
+}

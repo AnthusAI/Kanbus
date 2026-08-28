@@ -2,6 +2,11 @@
 
 pub const DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME: &str = "CONTRIBUTING_AGENT.template.md";
 
+/// Return the conventional default project management template filename.
+pub fn default_project_management_template_filename() -> &'static str {
+    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME
+}
+
 pub const DEFAULT_PROJECT_MANAGEMENT_TEMPLATE: &str = r#"# THE WAY
 
 This repository is governed by The Way.
@@ -259,3 +264,8 @@ Run the behavior tests in the repo and confirm the new scenario fails for the ri
 Write the smallest change that makes the Gherkin scenario pass.
 Refactor only while all specs remain green.
 "#;
+
+/// Return the default project management template body.
+pub fn default_project_management_template() -> &'static str {
+    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE
+}

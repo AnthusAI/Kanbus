@@ -400,3 +400,156 @@ Feature: Wiki research knowledge base
     And stdout should contain "- ref-good: Valid accepted paper"
     And stderr should contain "skipping"
     And stderr should contain "array.json"
+
+  Scenario: Wiki render rejects empty page path
+    Given a Kanbus project with default configuration
+    And a wiki page "index.md" with content "Home"
+    When I run "kanbus wiki render \"\""
+    Then the command should fail with exit code 1
+    And stderr should contain "wiki page not found"
+
+  Scenario: Wiki render rejects absolute path outside repository
+    Given a Kanbus project with default configuration
+    And a wiki page "index.md" with content "Home"
+    When I run "kanbus wiki render /tmp/outside-wiki-page.md"
+    Then the command should fail with exit code 1
+    And stderr should contain "wiki page not found"
+
+  Scenario: Wiki render rejects missing page by absolute repository path
+    Given a Kanbus project with default configuration
+    And an empty wiki directory exists
+    When I render the wiki page "absent.md" by absolute path
+    Then the command should fail with exit code 1
+    And stderr should contain "wiki page not found"
+    And stderr should contain "absent.md"
+
+  Scenario: Wiki search returns no matches when wiki directory is missing
+    Given a Kanbus project with default configuration
+    And the wiki directory does not exist
+    When I run "kanbus wiki search anything"
+    Then the command should succeed
+    And stdout should not contain "project/wiki"
+
+  Scenario: Wiki lint ignores markdown symlinks that are not files
+    Given a Kanbus project with default configuration
+    And a wiki page "index.md" with content "# Home"
+    And a wiki markdown symlink "trap.md" points to a directory
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"
+
+  Scenario: Wiki search ignores markdown symlinks that are not files
+    Given a Kanbus project with default configuration
+    And a wiki page "real.md" with content "Searchable real page"
+    And a wiki markdown symlink "trap.md" points to a directory
+    When I run "kanbus wiki search trap"
+    Then the command should succeed
+    And stdout should not contain "trap.md"
+
+  Scenario: Wiki references render with no stories directory
+    Given a Kanbus project with default configuration
+    And the stories directory does not exist
+    And a wiki page "empty-refs.md" with content:
+      """
+      Count: {{ references(status="accepted") | length }}
+      """
+    When I run "kanbus wiki render empty-refs.md"
+    Then the command should succeed
+    And stdout should contain "Count: 0"
+
+  Scenario: Wiki references ignore non-directory entries under stories
+    Given a Kanbus project with default configuration
+    And a stories directory file "not-a-story" exists
+    And a wiki page "refs-filter.md" with content:
+      """
+      Count: {{ references(status="accepted") | length }}
+      """
+    When I run "kanbus wiki render refs-filter.md"
+    Then the command should succeed
+    And stdout should contain "Count: 0"
+
+  Scenario: Wiki references ignore story directories without references folders
+    Given a Kanbus project with default configuration
+    And a story directory "STORY-EMPTY" exists without references
+    And a wiki page "refs-empty-story.md" with content:
+      """
+      Count: {{ references(status="accepted") | length }}
+      """
+    When I run "kanbus wiki render refs-empty-story.md"
+    Then the command should succeed
+    And stdout should contain "Count: 0"
+
+  Scenario: Wiki render warns on unreadable story reference JSON
+    Given a Kanbus project with default configuration
+    And an unreadable story reference "WIKI-650fd9" file "locked.json" exists
+    And a story reference "WIKI-650fd9" file "good.json" with content:
+      """
+      {
+        "id": "ref-good",
+        "title": "Valid accepted paper",
+        "url": "https://example.com/good",
+        "why": "Keeps rendering",
+        "status": "accepted",
+        "corpus": "papers"
+      }
+      """
+    And a wiki page "refs-unreadable.md" with content:
+      """
+      {% for ref in references(status="accepted") %}
+      - {{ ref.id }}: {{ ref.title }}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render refs-unreadable.md"
+    Then the command should succeed
+    And stdout should contain "- ref-good: Valid accepted paper"
+    And stderr should contain "skipping"
+    And stderr should contain "locked.json"
+
+  Scenario: Wiki render tolerates dangling story reference symlinks
+    Given a Kanbus project with default configuration
+    And a dangling story reference symlink "WIKI-650fd9" file "broken.json" exists
+    And a story reference "WIKI-650fd9" file "good.json" with content:
+      """
+      {
+        "id": "ref-good",
+        "title": "Valid accepted paper",
+        "url": "https://example.com/good",
+        "why": "Keeps rendering",
+        "status": "accepted",
+        "corpus": "papers"
+      }
+      """
+    And a wiki page "refs-dangling.md" with content:
+      """
+      {% for ref in references(status="accepted") %}
+      - {{ ref.id }}: {{ ref.title }}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render refs-dangling.md"
+    Then the command should succeed
+    And stdout should contain "- ref-good: Valid accepted paper"
+
+  Scenario: Wiki lint flags links that escape the wiki directory
+    Given a Kanbus project with default configuration
+    And a wiki page "index.md" with content:
+      """
+      [escape](escape.md)
+      """
+    And a wiki symlink "escape.md" points outside the wiki directory
+    When I run "kanbus wiki lint"
+    Then the command should fail with exit code 1
+    And stderr should contain "broken wiki link"
+    And stderr should contain "escape.md"
+
+  Scenario: Wiki lint resolves parent and same-directory md links
+    Given a Kanbus project with default configuration
+    And a wiki page "concepts/index.md" with content "# Concepts index"
+    And a wiki page "concepts/nested/peer.md" with content "# Peer page"
+    And a wiki page "concepts/nested/page.md" with content:
+      """
+      [peer](./peer.md)
+      [index](../index.md)
+      """
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"

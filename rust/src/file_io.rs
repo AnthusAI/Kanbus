@@ -8,7 +8,7 @@ use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
-    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
+    default_project_management_template, default_project_management_template_filename,
 };
 use crate::wiki_templates::{
     DEFAULT_WIKI_INDEX, DEFAULT_WIKI_INDEX_FILENAME, DEFAULT_WIKI_WHATS_NEXT,
@@ -134,9 +134,9 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), KanbusE
         std::fs::write(&config_path, contents)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
-    let template_path = root.join(DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME);
+    let template_path = root.join(default_project_management_template_filename());
     if !template_path.exists() {
-        std::fs::write(&template_path, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE)
+        std::fs::write(&template_path, default_project_management_template())
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     let wiki_dir = project_dir.join("wiki");
