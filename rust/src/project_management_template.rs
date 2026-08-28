@@ -174,7 +174,12 @@ The wiki lives under project/wiki/. You may edit Markdown files there directly.
 When to use the wiki:
 - Add and edit project/wiki/*.md for reports, status pages, and documentation.
 - Use `kbs wiki list` to discover wiki pages.
-- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, ai_summarize).
+- Use `kbs wiki search <query>` to find pages by path, title, or body.
+- Use `kbs wiki init` to create project/wiki/ with a stub index page.
+- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, references, ai_summarize).
+- Canonical render path: `project/wiki/<relative-path>.md`. Short wiki-relative paths such as `index`, `index.md`, and `concepts/foo.md` are also accepted.
+- In templates, `issue.key` (alias `issue.short_id`) matches the short identifier shown by `kbs list`; `issue.id` remains the full identifier.
+- In templates, use `references(status="accepted")` or `references(status="pending")` to list Papyrus story references from `stories/*/references/*.json`.
 - In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
 
 Cache behavior:

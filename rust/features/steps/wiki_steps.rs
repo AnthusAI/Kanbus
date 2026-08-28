@@ -469,3 +469,64 @@ fn then_wiki_root_is(world: &mut KanbusWorld, expected: String) {
         "expected wiki root {expected} at {wiki_path:?}"
     );
 }
+
+fn wiki_dir_for_world(world: &KanbusWorld) -> PathBuf {
+    let project_dir = load_project_dir(world);
+    let wiki_subdir = world.wiki_directory.as_deref().unwrap_or("wiki");
+    if wiki_subdir.starts_with("../") {
+        let repo_root = world.working_directory.as_ref().expect("working dir");
+        let normalized = wiki_subdir
+            .trim_start_matches("../")
+            .trim_start_matches("..\\");
+        repo_root.join(normalized)
+    } else {
+        project_dir.join(wiki_subdir)
+    }
+}
+
+#[given("the wiki directory does not exist")]
+fn given_wiki_directory_missing(world: &mut KanbusWorld) {
+    let wiki_dir = wiki_dir_for_world(world);
+    if wiki_dir.exists() {
+        fs::remove_dir_all(&wiki_dir).expect("remove wiki dir");
+    }
+}
+
+#[given("an empty wiki directory exists")]
+fn given_empty_wiki_directory(world: &mut KanbusWorld) {
+    let wiki_dir = wiki_dir_for_world(world);
+    fs::create_dir_all(&wiki_dir).expect("create wiki dir");
+}
+
+#[given(expr = "a story reference {string} file {string} with content:")]
+fn given_story_reference_file(
+    world: &mut KanbusWorld,
+    story_id: String,
+    filename: String,
+    step: &Step,
+) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let target = cwd
+        .join("stories")
+        .join(story_id)
+        .join("references")
+        .join(filename);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).expect("create references dir");
+    }
+    let content = step.docstring().map(|s| s.as_str()).unwrap_or("");
+    fs::write(target, content).expect("write reference file");
+}
+
+#[then(expr = "a wiki page {string} should exist with content containing {string}")]
+fn then_wiki_page_exists_with_content(world: &mut KanbusWorld, filename: String, text: String) {
+    let wiki_dir = wiki_dir_for_world(world);
+    let target = wiki_dir.join(filename);
+    assert!(
+        target.exists(),
+        "expected wiki page at {}",
+        target.display()
+    );
+    let content = fs::read_to_string(&target).expect("read wiki page");
+    assert!(content.contains(&text), "expected {text:?} in {content:?}");
+}

@@ -62,7 +62,9 @@ use crate::snyk_sync::pull_from_snyk;
 use crate::summarize::get_comment_display_text;
 use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::users::get_current_user;
-use crate::wiki::{list_wiki_pages, render_wiki_page, WikiRenderRequest};
+use crate::wiki::{
+    init_wiki, list_wiki_pages, render_wiki_page, search_wiki_pages, WikiRenderRequest,
+};
 
 /// Kanbus CLI arguments.
 #[derive(Debug, Parser)]
@@ -668,6 +670,13 @@ enum WikiCommands {
     },
     /// List wiki pages.
     List,
+    /// Search wiki pages by path, title, and body.
+    Search {
+        /// Case-insensitive search string.
+        query: String,
+    },
+    /// Create the wiki directory and a stub index page.
+    Init,
 }
 
 #[derive(Debug, Subcommand)]
@@ -2864,6 +2873,15 @@ fn execute_command(
                 let pages = list_wiki_pages(root)?;
                 let output = pages.join("\n");
                 Ok(Some(output))
+            }
+            WikiCommands::Search { query } => {
+                let pages = search_wiki_pages(root, &query)?;
+                let output = pages.join("\n");
+                Ok(Some(output))
+            }
+            WikiCommands::Init => {
+                let index_path = init_wiki(root)?;
+                Ok(Some(index_path))
             }
         },
         Commands::Edit { command } => match command {

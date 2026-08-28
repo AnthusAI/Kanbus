@@ -13,6 +13,20 @@ from kanbus.project import ProjectMarkerError
 from test_helpers import build_issue, build_project_configuration
 
 
+def _write_default_kanbus_config(root: Path) -> None:
+    import copy
+    import yaml
+
+    from kanbus.config import DEFAULT_CONFIGURATION
+
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload["project_directory"] = "project"
+    (root / ".kanbus.yml").write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 def test_get_string_and_serialize_issue() -> None:
     assert wiki._get_string(None) is None
     assert wiki._get_string("x") == "x"
@@ -22,6 +36,8 @@ def test_get_string_and_serialize_issue() -> None:
     issue = build_issue("kanbus-1")
     payload = wiki._serialize_issue(issue)
     assert payload["id"] == "kanbus-1"
+    assert payload["key"] == "1"
+    assert payload["short_id"] == "1"
     assert payload["type"] == issue.issue_type
 
 
@@ -29,7 +45,7 @@ def test_wiki_context_query_count_issue_and_invalid_sort() -> None:
     a = build_issue("kanbus-a", title="B title", priority=3, status="open")
     b = build_issue("kanbus-b", title="A title", priority=1, status="open")
     c = build_issue("kanbus-c", title="C title", priority=2, status="closed")
-    context = wiki.WikiContext([a, b, c])
+    context = wiki.WikiContext([a, b, c], root=Path.cwd())
 
     base = context.query(status="open")
     assert {row["id"] for row in base} == {"kanbus-a", "kanbus-b"}
@@ -125,16 +141,22 @@ def test_render_template_string_success_and_errors() -> None:
 
 
 def test_render_wiki_page_raises_for_missing_page(tmp_path: Path) -> None:
+    _write_default_kanbus_config(tmp_path)
+    wiki_root = tmp_path / "project" / "wiki"
+    wiki_root.mkdir(parents=True)
     request = wiki.WikiRenderRequest(
         root=tmp_path, page_path=Path("project/wiki/missing.md")
     )
-    with pytest.raises(wiki.WikiError, match="wiki page not found"):
+    with pytest.raises(
+        wiki.WikiError, match="wiki page not found: project/wiki/missing.md"
+    ):
         wiki.render_wiki_page(request)
 
 
 def test_render_wiki_page_wraps_console_snapshot_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _write_default_kanbus_config(tmp_path)
     page = tmp_path / "project" / "wiki" / "p.md"
     page.parent.mkdir(parents=True)
     page.write_text("x", encoding="utf-8")
@@ -154,6 +176,7 @@ def test_render_wiki_page_wraps_console_snapshot_errors(
 def test_render_wiki_page_cache_hit_returns_cached_content(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _write_default_kanbus_config(tmp_path)
     page = tmp_path / "project" / "wiki" / "p.md"
     page.parent.mkdir(parents=True)
     page.write_text("{{ 1 }}", encoding="utf-8")
@@ -182,6 +205,7 @@ def test_render_wiki_page_cache_hit_returns_cached_content(
 def test_render_wiki_page_renders_and_writes_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _write_default_kanbus_config(tmp_path)
     page = tmp_path / "project" / "wiki" / "p.md"
     page.parent.mkdir(parents=True)
     page.write_text("Count={{ count(status='open') }}", encoding="utf-8")
@@ -220,6 +244,7 @@ def test_render_wiki_page_renders_and_writes_cache(
 def test_render_wiki_page_wraps_template_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _write_default_kanbus_config(tmp_path)
     page = tmp_path / "project" / "wiki" / "p.md"
     page.parent.mkdir(parents=True)
     page.write_text("{% for x in %}", encoding="utf-8")
@@ -248,6 +273,7 @@ def test_render_wiki_page_wraps_template_errors(
 def test_render_wiki_page_re_raises_wiki_error_from_template_context(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _write_default_kanbus_config(tmp_path)
     page = tmp_path / "project" / "wiki" / "p.md"
     page.parent.mkdir(parents=True)
     page.write_text("{{ count(status=1) }}", encoding="utf-8")

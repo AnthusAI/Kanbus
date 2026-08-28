@@ -3,24 +3,335 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use minijinja::value::{Kwargs, Value};
 use minijinja::{context, Environment, Error, ErrorKind};
+use serde_json::Value as JsonValue;
 
 use crate::console_backend::FileStore;
 use crate::console_wiki;
 use crate::error::KanbusError;
+use crate::ids::format_issue_key;
 use crate::models::IssueData;
+
+const WIKI_STUB_INDEX: &str = "# Wiki\n\nEdit pages under project/wiki/.\n";
+
+/// Resolved wiki directory location for a repository.
+#[derive(Debug, Clone)]
+pub struct WikiLocation {
+    /// Absolute path to the wiki directory.
+    pub wiki_root: PathBuf,
+    /// Path prefix used in list/search output (for example project/wiki).
+    pub list_prefix: String,
+}
 
 /// Request for rendering a wiki page.
 #[derive(Debug, Clone)]
 pub struct WikiRenderRequest {
     /// Repository root path.
-    pub root: std::path::PathBuf,
+    pub root: PathBuf,
     /// Page path to render.
-    pub page_path: std::path::PathBuf,
+    pub page_path: PathBuf,
+}
+
+/// Load wiki directory location from project configuration.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+///
+/// # Returns
+/// Wiki location metadata.
+///
+/// # Errors
+/// Returns `KanbusError` if configuration cannot be loaded.
+pub fn load_wiki_location(root: &Path) -> Result<WikiLocation, KanbusError> {
+    let store = FileStore::new(root);
+    let config = store.load_config()?;
+    let wiki_subdir = config.wiki_directory.as_deref().unwrap_or("wiki");
+    if wiki_subdir.starts_with("../") {
+        let normalized = wiki_subdir
+            .replace('\\', "/")
+            .trim_start_matches("../")
+            .trim_start_matches("..\\")
+            .to_string();
+        Ok(WikiLocation {
+            wiki_root: root.join(&normalized),
+            list_prefix: normalized,
+        })
+    } else {
+        Ok(WikiLocation {
+            wiki_root: root.join(&config.project_directory).join(wiki_subdir),
+            list_prefix: format!("{}/{}", config.project_directory, wiki_subdir),
+        })
+    }
+}
+
+fn wiki_directory_missing_message(location: &WikiLocation) -> String {
+    format!(
+        "wiki directory not found at {}. Create it with: mkdir -p {} && echo '# Wiki' > {}/index.md Or run: kbs wiki init",
+        location.list_prefix, location.list_prefix, location.list_prefix
+    )
+}
+
+/// Resolve a wiki page argument to a repository-relative path.
+///
+/// Canonical form: `project/wiki/<relative-path>.md`. Also accepts wiki-relative
+/// paths such as `index`, `index.md`, and `concepts/foo.md`.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `page_argument` - User-provided page path.
+///
+/// # Returns
+/// Repository-relative path to the wiki page.
+///
+/// # Errors
+/// Returns `KanbusError` if the wiki directory or page does not exist.
+pub fn resolve_wiki_page_path(root: &Path, page_argument: &str) -> Result<PathBuf, KanbusError> {
+    let location = load_wiki_location(root)?;
+    if !location.wiki_root.exists() {
+        return Err(KanbusError::IssueOperation(wiki_directory_missing_message(
+            &location,
+        )));
+    }
+
+    let normalized_argument = page_argument.replace('\\', "/").trim().to_string();
+    if normalized_argument.is_empty() {
+        return Err(KanbusError::IssueOperation(
+            "wiki page not found".to_string(),
+        ));
+    }
+
+    let candidate = Path::new(&normalized_argument);
+    if candidate.is_absolute() {
+        let absolute_page = PathBuf::from(&normalized_argument);
+        let relative = absolute_page
+            .strip_prefix(root)
+            .map_err(|_| {
+                KanbusError::IssueOperation(format!("wiki page not found: {}", normalized_argument))
+            })?
+            .to_path_buf();
+        if !root.join(&relative).exists() {
+            return Err(KanbusError::IssueOperation(format!(
+                "wiki page not found: {}",
+                relative.to_string_lossy()
+            )));
+        }
+        return Ok(relative);
+    }
+
+    let mut prefixed = normalized_argument.clone();
+    if prefixed.starts_with("./") {
+        prefixed = prefixed[2..].to_string();
+    }
+    let list_prefix = location.list_prefix.replace('\\', "/");
+    let relative = if prefixed == list_prefix || prefixed.starts_with(&format!("{}/", list_prefix))
+    {
+        PathBuf::from(prefixed)
+    } else {
+        let mut wiki_relative = prefixed;
+        if !wiki_relative.ends_with(".md") {
+            wiki_relative.push_str(".md");
+        }
+        PathBuf::from(&list_prefix).join(wiki_relative)
+    };
+
+    let absolute_page = root.join(&relative);
+    if !absolute_page.exists() {
+        return Err(KanbusError::IssueOperation(format!(
+            "wiki page not found: {}",
+            relative.to_string_lossy()
+        )));
+    }
+    Ok(relative)
+}
+
+/// Create the wiki directory and a stub index page.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+///
+/// # Returns
+/// Repository-relative path to the created index page.
+///
+/// # Errors
+/// Returns `KanbusError` if configuration cannot be loaded.
+pub fn init_wiki(root: &Path) -> Result<String, KanbusError> {
+    let location = load_wiki_location(root)?;
+    fs::create_dir_all(&location.wiki_root).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let index_path = location.wiki_root.join("index.md");
+    if !index_path.exists() {
+        fs::write(&index_path, WIKI_STUB_INDEX)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    Ok(format!("{}/index.md", location.list_prefix))
+}
+
+/// Search wiki pages by path, title, and body content.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `query` - Case-insensitive search string.
+///
+/// # Returns
+/// Matching wiki page paths relative to repository root.
+///
+/// # Errors
+/// Returns `KanbusError` if configuration cannot be loaded.
+pub fn search_wiki_pages(root: &Path, query: &str) -> Result<Vec<String>, KanbusError> {
+    let location = load_wiki_location(root)?;
+    if !location.wiki_root.exists() {
+        return Ok(Vec::new());
+    }
+
+    let needle = query.to_ascii_lowercase();
+    if needle.is_empty() {
+        return list_wiki_pages(root);
+    }
+
+    let mut matches = Vec::new();
+    collect_search_matches(&location, &location.wiki_root, &needle, &mut matches)?;
+    matches.sort();
+    Ok(matches)
+}
+
+fn collect_search_matches(
+    location: &WikiLocation,
+    current: &Path,
+    needle: &str,
+    matches: &mut Vec<String>,
+) -> Result<(), KanbusError> {
+    for entry in fs::read_dir(current).map_err(|error| KanbusError::Io(error.to_string()))? {
+        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_search_matches(location, &path, needle, matches)?;
+            continue;
+        }
+        if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+            continue;
+        }
+        let relative = path
+            .strip_prefix(&location.wiki_root)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        let listed_path = format!(
+            "{}/{}",
+            location.list_prefix,
+            relative.to_string_lossy().replace('\\', "/")
+        );
+        let body = fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
+        let title = extract_wiki_title(&body).unwrap_or_else(|| {
+            path.file_stem()
+                .and_then(|value| value.to_str())
+                .unwrap_or_default()
+                .to_string()
+        });
+        let haystack = format!("{}\n{}\n{}", listed_path, title, body).to_ascii_lowercase();
+        if haystack.contains(needle) {
+            matches.push(listed_path);
+        }
+    }
+    Ok(())
+}
+
+/// Load Papyrus story references from stories/*/references/*.json.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `status` - Optional status filter (for example accepted or pending).
+///
+/// # Returns
+/// Story reference records.
+///
+/// # Errors
+/// Returns `KanbusError` if reference files cannot be read.
+pub fn load_story_references(
+    root: &Path,
+    status: Option<&str>,
+) -> Result<Vec<BTreeMap<String, JsonValue>>, KanbusError> {
+    let stories_root = root.join("stories");
+    if !stories_root.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut references: Vec<BTreeMap<String, JsonValue>> = Vec::new();
+    let mut story_dirs: Vec<_> = fs::read_dir(&stories_root)
+        .map_err(|error| KanbusError::Io(error.to_string()))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect();
+    story_dirs.sort();
+
+    for story_dir in story_dirs {
+        let references_dir = story_dir.join("references");
+        if !references_dir.exists() {
+            continue;
+        }
+        let story_id = story_dir
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_string();
+        let mut reference_paths: Vec<_> = fs::read_dir(&references_dir)
+            .map_err(|error| KanbusError::Io(error.to_string()))?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| ext == "json")
+            })
+            .collect();
+        reference_paths.sort();
+        for reference_path in reference_paths {
+            let contents = fs::read_to_string(&reference_path)
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
+            let payload: JsonValue = serde_json::from_str(&contents)
+                .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
+            let JsonValue::Object(mut record) = payload else {
+                continue;
+            };
+            record
+                .entry("story_id".to_string())
+                .or_insert_with(|| JsonValue::String(story_id.clone()));
+            if let Some(status_filter) = status {
+                let record_status = record
+                    .get("status")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or_default();
+                if record_status != status_filter {
+                    continue;
+                }
+            }
+            references.push(record.into_iter().collect());
+        }
+    }
+
+    references.sort_by(|left, right| {
+        let left_story = left
+            .get("story_id")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default();
+        let right_story = right
+            .get("story_id")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default();
+        let left_id = left
+            .get("id")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default();
+        let right_id = right
+            .get("id")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default();
+        left_story
+            .cmp(right_story)
+            .then_with(|| left_id.cmp(right_id))
+    });
+    Ok(references)
 }
 
 /// Render a wiki page using the live issue index.
@@ -34,8 +345,9 @@ pub struct WikiRenderRequest {
 /// # Errors
 /// Returns `KanbusError` if rendering fails.
 pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusError> {
-    let page_path = request.root.join(&request.page_path);
-    validate_page_exists(&page_path)?;
+    let resolved_page =
+        resolve_wiki_page_path(&request.root, &request.page_path.to_string_lossy())?;
+    let page_path = request.root.join(&resolved_page);
 
     let store = FileStore::new(&request.root);
     let configuration = store.load_config()?;
@@ -53,6 +365,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
     }
 
     let issues = Arc::new(issues);
+    let references_root = request.root.clone();
 
     let mut env = Environment::new();
     let query_issues = Arc::clone(&issues);
@@ -68,7 +381,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
         kwargs
             .assert_all_used()
             .map_err(|_| Error::new(ErrorKind::InvalidOperation, "invalid query parameter"))?;
-        Ok(Value::from_serialize(filtered))
+        Ok(Value::from_serialize(serialize_issues_for_wiki(&filtered)))
     });
 
     let count_issues = Arc::clone(&issues);
@@ -82,8 +395,22 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
 
     let issue_issues = Arc::clone(&issues);
     env.add_function("issue", move |id: String| {
-        let found = issue_issues.iter().find(|i| i.identifier == id).cloned();
+        let found = issue_issues
+            .iter()
+            .find(|issue| issue.identifier == id)
+            .map(serialize_issue_for_wiki);
         Ok(Value::from_serialize(found))
+    });
+
+    let references_root_for_fn = references_root.clone();
+    env.add_function("references", move |kwargs: Kwargs| {
+        let status = read_string_kwarg(&kwargs, "status")?;
+        kwargs
+            .assert_all_used()
+            .map_err(|_| Error::new(ErrorKind::InvalidOperation, "invalid query parameter"))?;
+        let references = load_story_references(&references_root_for_fn, status.as_deref())
+            .map_err(|error| Error::new(ErrorKind::InvalidOperation, error.to_string()))?;
+        Ok(Value::from_serialize(references))
     });
 
     let ai_config = configuration.ai.clone();
@@ -120,7 +447,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
 
     #[cfg(tarpaulin)]
     {
-        let _ = validate_page_exists(&request.root.join("project/wiki/coverage-missing.md"));
+        let _ = resolve_wiki_page_path(&request.root, "project/wiki/coverage-missing.md");
         let _ = env.render_str(
             "{% for issue in query(sort=\"title\") %}{% endfor %}",
             context! {},
@@ -165,6 +492,25 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
     }
     wiki_render_write_cache(&wiki_render_cache_dir, &cache_key, &rendered);
     Ok(rendered)
+}
+
+fn serialize_issue_for_wiki(issue: &IssueData) -> BTreeMap<String, JsonValue> {
+    let mut value = serde_json::to_value(issue).unwrap_or(JsonValue::Null);
+    let short_key = format_issue_key(&issue.identifier, true);
+    if let JsonValue::Object(ref mut map) = value {
+        map.insert("key".to_string(), JsonValue::String(short_key.clone()));
+        map.insert("short_id".to_string(), JsonValue::String(short_key));
+    }
+    value
+        .as_object()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .collect()
+}
+
+fn serialize_issues_for_wiki(issues: &[IssueData]) -> Vec<BTreeMap<String, JsonValue>> {
+    issues.iter().map(serialize_issue_for_wiki).collect()
 }
 
 fn filter_issues_from_kwargs(
@@ -255,7 +601,7 @@ fn wiki_render_cache_key(page_path: &Path, issues: &[IssueData]) -> String {
         .unwrap_or_default();
     let mut issue_ids: Vec<_> = issues
         .iter()
-        .map(|i| format!("{}:{}", i.identifier, i.updated_at))
+        .map(|issue| format!("{}:{}", issue.identifier, issue.updated_at))
         .collect();
     issue_ids.sort();
     let issue_part = issue_ids.join("|");
@@ -298,6 +644,15 @@ fn extract_issue_identifier(value: &Value) -> Option<String> {
         .and_then(|v| v.as_str().map(String::from))
 }
 
+fn extract_wiki_title(content: &str) -> Option<String> {
+    for line in content.lines() {
+        if let Some(title) = line.strip_prefix("# ") {
+            return Some(title.trim().to_string());
+        }
+    }
+    None
+}
+
 fn read_string_kwarg(kwargs: &Kwargs, key: &str) -> Result<Option<String>, Error> {
     if !kwargs.has(key) {
         return Ok(None);
@@ -321,15 +676,6 @@ fn apply_issue_type_filter(issues: &mut Vec<IssueData>, issue_type_filter: &str)
     }
 }
 
-fn validate_page_exists(page_path: &std::path::Path) -> Result<(), KanbusError> {
-    if !page_path.exists() {
-        return Err(KanbusError::IssueOperation(
-            "wiki page not found".to_string(),
-        ));
-    }
-    Ok(())
-}
-
 /// Render a template string with wiki context (query, count, issue).
 ///
 /// # Arguments
@@ -343,6 +689,7 @@ fn validate_page_exists(page_path: &std::path::Path) -> Result<(), KanbusError> 
 /// Returns error if template rendering fails.
 pub fn render_template_string(text: &str, issues: &[IssueData]) -> Result<String, KanbusError> {
     let issues = Arc::new(issues.to_vec());
+    let references_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let mut env = Environment::new();
     let query_issues = Arc::clone(&issues);
     env.add_function("query", move |kwargs: Kwargs| {
@@ -357,7 +704,7 @@ pub fn render_template_string(text: &str, issues: &[IssueData]) -> Result<String
         kwargs
             .assert_all_used()
             .map_err(|_| Error::new(ErrorKind::InvalidOperation, "invalid query parameter"))?;
-        Ok(Value::from_serialize(filtered))
+        Ok(Value::from_serialize(serialize_issues_for_wiki(&filtered)))
     });
     let count_issues = Arc::clone(&issues);
     env.add_function("count", move |kwargs: Kwargs| {
@@ -369,8 +716,21 @@ pub fn render_template_string(text: &str, issues: &[IssueData]) -> Result<String
     });
     let issue_issues = Arc::clone(&issues);
     env.add_function("issue", move |id: String| {
-        let found = issue_issues.iter().find(|i| i.identifier == id).cloned();
+        let found = issue_issues
+            .iter()
+            .find(|issue| issue.identifier == id)
+            .map(serialize_issue_for_wiki);
         Ok(Value::from_serialize(found))
+    });
+    let references_root_for_fn = references_root.clone();
+    env.add_function("references", move |kwargs: Kwargs| {
+        let status = read_string_kwarg(&kwargs, "status")?;
+        kwargs
+            .assert_all_used()
+            .map_err(|_| Error::new(ErrorKind::InvalidOperation, "invalid query parameter"))?;
+        let references = load_story_references(&references_root_for_fn, status.as_deref())
+            .map_err(|error| Error::new(ErrorKind::InvalidOperation, error.to_string()))?;
+        Ok(Value::from_serialize(references))
     });
     env.render_str(text, context! {})
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))
@@ -394,7 +754,7 @@ pub fn list_wiki_pages(root: &Path) -> Result<Vec<String>, KanbusError> {
     let pages: Vec<String> = response
         .pages
         .into_iter()
-        .map(|p| format!("{}/{}", prefix, p))
+        .map(|page| format!("{}/{}", prefix, page))
         .collect();
     Ok(pages)
 }
