@@ -46,3 +46,9 @@ fn then_png_file_larger_than(world: &mut KanbusWorld, path: String, size: u64) {
     let bytes = std::fs::metadata(&file_path).expect("png metadata").len();
     assert!(bytes > size, "expected {} > {} bytes", bytes, size);
 }
+
+#[then(expr = "the screenshot appearance mode should be {string}")]
+fn then_screenshot_appearance_mode(world: &mut KanbusWorld, mode: String) {
+    let recorded = std::env::var("KANBUS_TEST_SCREENSHOT_LAST_MODE").unwrap_or_default();
+    assert_eq!(recorded, mode, "expected appearance mode {}", mode);
+}

@@ -8,6 +8,8 @@ use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 
 const DEFAULT_SCREENSHOT_FILENAME: &str = "kanbus-board.png";
+const DEFAULT_APPEARANCE_MODE: &str = "light";
+const TEST_LAST_MODE_ENV: &str = "KANBUS_TEST_SCREENSHOT_LAST_MODE";
 const MOCK_PNG_BYTES: &[u8] = include_bytes!("../testdata/mock_board_screenshot.png");
 
 /// Resolve the console HTTP port from project configuration.
@@ -117,11 +119,26 @@ fn mock_mode() -> Option<String> {
     })
 }
 
+fn normalize_appearance_mode(mode: Option<String>) -> Result<String, KanbusError> {
+    let resolved = mode
+        .unwrap_or_else(|| DEFAULT_APPEARANCE_MODE.to_string())
+        .trim()
+        .to_ascii_lowercase();
+    if matches!(resolved.as_str(), "light" | "dark") {
+        Ok(resolved)
+    } else {
+        Err(KanbusError::IssueOperation(
+            "appearance mode must be light or dark".to_string(),
+        ))
+    }
+}
+
 /// Capture a PNG screenshot of the console board to the requested path.
 ///
 /// # Arguments
 /// * `root` - Repository root path
 /// * `output` - Optional output file path relative to root unless absolute
+/// * `appearance_mode` - Console appearance mode (`light` or `dark`; defaults to light)
 ///
 /// # Returns
 /// Path to the written PNG file
@@ -131,7 +148,9 @@ fn mock_mode() -> Option<String> {
 pub fn capture_console_screenshot(
     root: &Path,
     output: Option<String>,
+    appearance_mode: Option<String>,
 ) -> Result<PathBuf, KanbusError> {
+    let resolved_mode = normalize_appearance_mode(appearance_mode)?;
     let output_path = resolve_output_path(root, output)?;
     if !server_ready_for_screenshot(root) {
         return Err(KanbusError::IssueOperation(
@@ -148,6 +167,7 @@ pub fn capture_console_screenshot(
         ));
     }
     if mock_mode.as_deref() == Some("success") {
+        std::env::set_var(TEST_LAST_MODE_ENV, &resolved_mode);
         std::fs::write(&output_path, MOCK_PNG_BYTES)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
         return Ok(output_path);
@@ -161,6 +181,7 @@ pub fn capture_console_screenshot(
         .arg(script_path)
         .arg(console_url)
         .arg(&output_path)
+        .arg(&resolved_mode)
         .output()
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
 
@@ -214,25 +235,36 @@ fn which_node_executable() -> Result<String, KanbusError> {
 mod tests {
     use super::*;
     use std::env;
+    use std::sync::{Mutex, OnceLock};
     use tempfile::TempDir;
+
+    fn test_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("screenshot test lock")
+    }
 
     #[test]
     fn mock_success_writes_png() {
+        let _guard = test_lock();
         let temp = TempDir::new().expect("tempdir");
         env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "success");
         env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
-        let path = capture_console_screenshot(temp.path(), None).expect("capture");
+        let path = capture_console_screenshot(temp.path(), None, None).expect("capture");
         assert!(path.is_file());
         env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
         env::remove_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER");
+        env::remove_var(TEST_LAST_MODE_ENV);
     }
 
     #[test]
     fn mock_unavailable_returns_actionable_error() {
+        let _guard = test_lock();
         let temp = TempDir::new().expect("tempdir");
         env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "unavailable");
         env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
-        let error = capture_console_screenshot(temp.path(), None).unwrap_err();
+        let error = capture_console_screenshot(temp.path(), None, None).unwrap_err();
         let message = error.to_string().to_ascii_lowercase();
         assert!(message.contains("headless browser"));
         assert!(message.contains("playwright"));

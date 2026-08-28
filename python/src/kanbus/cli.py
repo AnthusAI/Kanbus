@@ -2219,11 +2219,17 @@ def console_snapshot() -> None:
     default=None,
     help="Output PNG path (default: kanbus-board.png in the current directory).",
 )
-def console_screenshot(output: Optional[str]) -> None:
+@click.option(
+    "--mode",
+    default="light",
+    show_default=True,
+    help="Appearance mode for the board (light or dark). Defaults to light for reproducible captures.",
+)
+def console_screenshot(output: Optional[str], mode: str) -> None:
     """Capture a PNG screenshot of the console board."""
     root = Path.cwd()
     try:
-        path = capture_console_screenshot(root, output)
+        path = capture_console_screenshot(root, output, mode)
     except ConsoleScreenshotError as error:
         raise click.ClickException(str(error)) from error
     click.echo(str(path))

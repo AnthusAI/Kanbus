@@ -148,6 +148,9 @@ kbs console screenshot
 # writes kanbus-board.png in the current directory
 
 kbs console screenshot --output reports/board.png
+
+# Dark appearance mode (light is the default for reproducible captures)
+kbs console screenshot --mode dark --output reports/board-dark.png
 ```
 
 Headless capture uses Playwright against the live console page (not a separate renderer). Install Chromium once:

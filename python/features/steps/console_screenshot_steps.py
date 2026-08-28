@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from behave import given, then
 
+from kanbus.console_screenshot import TEST_LAST_MODE_ENV
+
 
 @given("screenshot capture is mocked to succeed")
 def given_screenshot_capture_mocked_success(context: object) -> None:
+    os.environ.pop(TEST_LAST_MODE_ENV, None)
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
     overrides["KANBUS_TEST_SCREENSHOT_MOCK"] = "success"
+    overrides.pop(TEST_LAST_MODE_ENV, None)
     context.environment_overrides = overrides
 
 
@@ -42,3 +47,9 @@ def then_png_file_larger_than(context: object, path: str, size: int) -> None:
     file_path = _resolve_working_path(context, path)
     assert file_path.is_file(), f"expected PNG at {file_path}"
     assert file_path.stat().st_size > size
+
+
+@then('the screenshot appearance mode should be "{mode}"')
+def then_screenshot_appearance_mode(context: object, mode: str) -> None:
+    recorded = os.environ.get(TEST_LAST_MODE_ENV)
+    assert recorded == mode, f"expected appearance mode {mode}, got {recorded}"

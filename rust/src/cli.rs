@@ -838,6 +838,9 @@ enum ConsoleCommands {
         /// Output file path (default: kanbus-board.png in the current directory).
         #[arg(long, short = 'o', value_name = "PATH")]
         output: Option<String>,
+        /// Appearance mode for the board (light or dark; default light for reproducible captures).
+        #[arg(long, value_name = "MODE", default_value = "light")]
+        mode: String,
     },
 }
 
@@ -3393,8 +3396,8 @@ fn execute_command(
                     Err(_) => Ok(Some("Console server is not running.".to_string())),
                 }
             }
-            ConsoleCommands::Screenshot { output } => {
-                let path = capture_console_screenshot(root, output)?;
+            ConsoleCommands::Screenshot { output, mode } => {
+                let path = capture_console_screenshot(root, output, Some(mode))?;
                 Ok(Some(path.to_string_lossy().to_string()))
             }
         },

@@ -23,6 +23,27 @@ Feature: Console board screenshot
     And stdout should contain "exports/board.png"
     And a PNG file should exist at "exports/board.png"
 
+  Scenario: Screenshot command defaults to light appearance mode
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot"
+    Then the command should succeed
+    And the screenshot appearance mode should be "light"
+
+  Scenario: Screenshot command accepts dark appearance mode
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --mode dark"
+    Then the command should succeed
+    And the screenshot appearance mode should be "dark"
+
+  Scenario: Screenshot command rejects invalid appearance mode
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --mode sepia"
+    Then the command should fail with exit code 1
+    And stderr should contain "appearance mode must be light or dark"
+
   Scenario: Screenshot command fails with a clear error when headless browser is unavailable
     Given the console server is running
     And screenshot capture is mocked as unavailable

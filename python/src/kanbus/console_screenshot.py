@@ -14,6 +14,8 @@ from kanbus.config_loader import load_project_configuration
 from kanbus.project import get_configuration_path
 
 DEFAULT_SCREENSHOT_FILENAME = "kanbus-board.png"
+DEFAULT_APPEARANCE_MODE = "light"
+TEST_LAST_MODE_ENV = "KANBUS_TEST_SCREENSHOT_LAST_MODE"
 
 _MOCK_PNG_BYTES = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
@@ -119,7 +121,27 @@ def _mock_mode() -> str | None:
     return normalized
 
 
-def capture_console_screenshot(root: Path, output: str | None = None) -> Path:
+def _normalize_appearance_mode(mode: str | None) -> str:
+    """
+    Normalize and validate screenshot appearance mode.
+
+    :param mode: Requested mode or None for the default.
+    :type mode: str | None
+    :return: ``light`` or ``dark``.
+    :rtype: str
+    :raises ConsoleScreenshotError: When the mode is not light or dark.
+    """
+    resolved = (mode or DEFAULT_APPEARANCE_MODE).strip().lower()
+    if resolved in {"light", "dark"}:
+        return resolved
+    raise ConsoleScreenshotError("appearance mode must be light or dark")
+
+
+def capture_console_screenshot(
+    root: Path,
+    output: str | None = None,
+    appearance_mode: str | None = None,
+) -> Path:
     """
     Capture a PNG screenshot of the console board to the requested path.
 
@@ -127,10 +149,13 @@ def capture_console_screenshot(root: Path, output: str | None = None) -> Path:
     :type root: Path
     :param output: Optional output file path relative to root unless absolute.
     :type output: str | None
+    :param appearance_mode: Console appearance mode (``light`` or ``dark``).
+    :type appearance_mode: str | None
     :return: Path to the written PNG file.
     :rtype: Path
     :raises ConsoleScreenshotError: When capture fails or prerequisites are missing.
     """
+    resolved_mode = _normalize_appearance_mode(appearance_mode)
     output_path = _resolve_output_path(root, output)
     if not is_console_server_running(root):
         raise ConsoleScreenshotError("Console server is not running.")
@@ -142,6 +167,7 @@ def capture_console_screenshot(root: Path, output: str | None = None) -> Path:
             "(npx playwright install chromium)."
         )
     if mock_mode == "success":
+        os.environ[TEST_LAST_MODE_ENV] = resolved_mode
         output_path.write_bytes(_MOCK_PNG_BYTES)
         return output_path
 
@@ -155,7 +181,13 @@ def capture_console_screenshot(root: Path, output: str | None = None) -> Path:
 
     script_path = locate_capture_script(root)
     result = subprocess.run(
-        [node_executable, str(script_path), console_url, str(output_path)],
+        [
+            node_executable,
+            str(script_path),
+            console_url,
+            str(output_path),
+            resolved_mode,
+        ],
         capture_output=True,
         text=True,
         check=False,
