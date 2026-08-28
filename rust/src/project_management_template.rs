@@ -186,7 +186,7 @@ When to use the wiki:
 
 Cache behavior:
 - AI summaries are cached in project/.cache/ai_summaries.json (invalidated by issue updated_at and prompt type).
-- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues or templates change).
+- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues, templates, or story reference JSON change on pages that call references()).
 
 ## Command examples
 
