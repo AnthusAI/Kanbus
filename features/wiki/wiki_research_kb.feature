@@ -160,6 +160,21 @@ Feature: Wiki research knowledge base
     Then the command should succeed
     And stdout should contain "Template marker: {{ count(status=\"open\") }}"
 
+  Scenario: Show wiki page fails when the page does not exist
+    Given a Kanbus project with default configuration
+    And an empty wiki directory exists
+    When I run "kanbus wiki show missing.md"
+    Then the command should fail with exit code 1
+    And stderr should contain "wiki page not found"
+    And stderr should contain "missing.md"
+
+  Scenario: Wiki init is idempotent when the index page already exists
+    Given a Kanbus project with default configuration
+    And a wiki page "index.md" with content "# Custom index"
+    When I run "kanbus wiki init"
+    Then the command should succeed
+    And a wiki page "index.md" should exist with content containing "Custom index"
+
   Scenario: Wiki lint passes when internal md links resolve
     Given a Kanbus project with default configuration
     And a wiki page "concepts/alpha.md" with content "# Alpha"
@@ -169,6 +184,18 @@ Feature: Wiki research knowledge base
       """
     When I run "kanbus wiki lint"
     Then the command should succeed
+    And stdout should contain "wiki lint: ok"
+
+  Scenario: Wiki lint ignores external URLs and anchor-only links
+    Given a Kanbus project with default configuration
+    And a wiki page "index.md" with content:
+      """
+      [external](https://example.com/doc.md)
+      [section](#local-section)
+      """
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"
 
   Scenario: Wiki lint reports missing wiki directory
     Given a Kanbus project with default configuration
@@ -211,8 +238,45 @@ Feature: Wiki research knowledge base
     When I run "kanbus wiki render warn.md"
     Then the command should succeed
     And stdout should contain "Open:"
+    And stderr should contain "warning:"
     And stderr should contain "broken wiki link"
     And stderr should contain "concepts/missing.md"
+
+  Scenario: Wiki render cache ignores story references when the template does not call references
+    Given a Kanbus project with default configuration
+    And a story reference "WIKI-650fd9" file "ref-a.json" with content:
+      """
+      {
+        "id": "ref-a",
+        "title": "First accepted paper",
+        "url": "https://example.com/a",
+        "why": "Primary source",
+        "status": "accepted",
+        "corpus": "papers"
+      }
+      """
+    And a wiki page "static.md" with content:
+      """
+      Static: {{ count(status="open") }}
+      """
+    When I run "kanbus wiki render static.md"
+    Then the command should succeed
+    And stdout should contain "Static:"
+    And stdout should not contain "ref-a"
+    Given a story reference "WIKI-650fd9" file "ref-c.json" with content:
+      """
+      {
+        "id": "ref-c",
+        "title": "Newly accepted paper",
+        "url": "https://example.com/c",
+        "why": "Added after first render",
+        "status": "accepted",
+        "corpus": "papers"
+      }
+      """
+    When I run "kanbus wiki render static.md"
+    Then the command should succeed
+    And stdout should not contain "ref-c"
 
   Scenario: Wiki render picks up new accepted references after cache warm
     Given a Kanbus project with default configuration
@@ -278,3 +342,61 @@ Feature: Wiki research knowledge base
     And stdout should contain "- ref-good: Valid accepted paper"
     And stderr should contain "skipping"
     And stderr should contain "bad.json"
+
+  Scenario: Wiki render skips malformed story reference JSON with warning
+    Given a Kanbus project with default configuration
+    And a story reference "WIKI-650fd9" file "broken-syntax.json" with content:
+      """
+      {
+      """
+    And a story reference "WIKI-650fd9" file "good.json" with content:
+      """
+      {
+        "id": "ref-good",
+        "title": "Valid accepted paper",
+        "url": "https://example.com/good",
+        "why": "Keeps rendering",
+        "status": "accepted",
+        "corpus": "papers"
+      }
+      """
+    And a wiki page "refs-syntax.md" with content:
+      """
+      {% for ref in references(status="accepted") %}
+      - {{ ref.id }}: {{ ref.title }}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render refs-syntax.md"
+    Then the command should succeed
+    And stdout should contain "- ref-good: Valid accepted paper"
+    And stderr should contain "skipping"
+    And stderr should contain "broken-syntax.json"
+
+  Scenario: Wiki render skips non-object story reference JSON with warning
+    Given a Kanbus project with default configuration
+    And a story reference "WIKI-650fd9" file "array.json" with content:
+      """
+      []
+      """
+    And a story reference "WIKI-650fd9" file "good.json" with content:
+      """
+      {
+        "id": "ref-good",
+        "title": "Valid accepted paper",
+        "url": "https://example.com/good",
+        "why": "Keeps rendering",
+        "status": "accepted",
+        "corpus": "papers"
+      }
+      """
+    And a wiki page "refs-array.md" with content:
+      """
+      {% for ref in references(status="accepted") %}
+      - {{ ref.id }}: {{ ref.title }}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render refs-array.md"
+    Then the command should succeed
+    And stdout should contain "- ref-good: Valid accepted paper"
+    And stderr should contain "skipping"
+    And stderr should contain "array.json"
