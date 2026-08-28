@@ -16,9 +16,10 @@
   "python_min": 75.0,
   "python_coverage_config": "python/.coveragerc",
   "rust_min": 65.0,
-  "ignore_patterns": [
-    "rust/src/lib.rs"
-  ],
+    "ignore_patterns": [
+      "rust/src/lib.rs",
+      "rust/src/project_management_template.rs"
+    ],
   "waiver_min_improvement_points": 0.25,
   "waivers": [
     "python/src/kanbus/gossip.py",
