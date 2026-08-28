@@ -1,0 +1,18 @@
+{
+  "id": "kbs-8de39f09-9709-48f6-a7ed-ca5e5af94fce",
+  "title": "CLI board screenshot",
+  "description": "Humans and agents can list Kanbus issues, but there is no CLI way to capture or share what the board UI looks like. Add kbs console screenshot to write a PNG of the live console board (headless browser against the existing console, not a second renderer). Authoritative behavior spec: features/specs/console/console_screenshot.feature",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-28T16:52:39.826062Z",
+  "updated_at": "2026-08-28T16:52:39.826062Z",
+  "closed_at": null,
+  "custom": {}
+}

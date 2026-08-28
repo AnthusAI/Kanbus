@@ -1,0 +1,26 @@
+{
+  "id": "kbs-d275e7c8-97b3-4262-a204-93e56a22a176",
+  "title": "Behavior spec: console board screenshot",
+  "description": "Authoritative Gherkin in features/specs/console/console_screenshot.feature. Covers default and custom output paths, missing browser error, server offline, and live capture (@slow). Tagged @wip until step definitions and implementations land; remove @wip when green.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-8de39f09-9709-48f6-a7ed-ca5e5af94fce",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "cb8f6ea8-2d5d-4435-9bca-496927c1d8ee",
+      "author": "ryan",
+      "text": "Planning commit adds features/specs/console/console_screenshot.feature (@wip). Implementation PR removes @wip when step defs and code are green.",
+      "created_at": "2026-08-28T16:52:54.889951Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-08-28T16:52:48.887380Z",
+  "updated_at": "2026-08-28T16:52:54.889951Z",
+  "closed_at": null,
+  "custom": {}
+}

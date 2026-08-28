@@ -336,6 +336,19 @@ python tools/coverage_parity_report.py \
 - Use serde-based structs for data at boundaries
 - Validation should produce clear, user-facing error messages
 
+## Behavior specs are authoritative (read this before coding)
+
+Kanbus is a **behavior-spec-first** project. Gherkin scenarios in `features/` are the source of truth — the specification. Python (`python/`) and Rust (`rust/`) are **derived implementations** that must stay in parity with those specs.
+
+**Do not invent CLI behavior in Python or Rust and add a feature file later.** When adding or changing behavior:
+
+1. Write or extend the Gherkin scenario in `features/` first (see `CONTRIBUTING_AGENT.md`, "The Rite of Gherkin").
+2. Run the specs and confirm new scenarios fail for the right reason.
+3. Implement Python and Rust so both pass the same scenarios with identical observable behavior.
+4. Run `tools/check_spec_parity.py` and all quality gates.
+
+Production code exists only to make failing specifications pass. Tasks and sub-tasks implement what the spec already describes; they do not define new behavior.
+
 ## Spec Parity Requirements
 
 **Critical:** Python and Rust implementations must produce identical behavior for the same inputs.
@@ -431,11 +444,13 @@ python -m coverage xml -o ../coverage-python/coverage.xml
 
 ## Workflow for Implementing Features
 
-1. **Write Gherkin scenarios first** in `features/`
-2. **Verify both test runners can parse them** (scenarios will be pending/skipped)
+This list is the operational detail for the behavior-spec-first rule above. Do not skip step 1.
+
+1. **Write Gherkin scenarios first** in `features/` — specs are authoritative; code is derived
+2. **Verify both test runners can parse them** (new scenarios should fail until implementation lands)
 3. **Implement Python step definitions** in `python/features/steps/`
 4. **Implement Python production code** to make scenarios pass
-5. **Implement Rust step definitions** in `rust/tests/step_definitions/`
+5. **Implement Rust step definitions** in `rust/features/steps/` (and related test harness)
 6. **Implement Rust production code** to make scenarios pass
 7. **Run parity checker** to verify both implementations are in sync
 8. **Run all quality gates**
