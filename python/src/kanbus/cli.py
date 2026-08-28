@@ -75,8 +75,10 @@ from kanbus.dependency_tree import (
 from kanbus.wiki import (
     WikiError,
     WikiRenderRequest,
+    init_wiki,
     list_wiki_pages,
     render_wiki_page,
+    search_wiki_pages,
 )
 from kanbus.text_editor import (
     TextEditorError,
@@ -1858,6 +1860,34 @@ def wiki_list() -> None:
         raise click.ClickException(str(error)) from error
     for path in pages:
         click.echo(path)
+
+
+@wiki.command("search")
+@click.argument("query")
+def wiki_search(query: str) -> None:
+    """Search wiki pages by path, title, and body.
+
+    :param query: Case-insensitive search string.
+    :type query: str
+    """
+    root = Path.cwd()
+    try:
+        pages = search_wiki_pages(root, query)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    for path in pages:
+        click.echo(path)
+
+
+@wiki.command("init")
+def wiki_init() -> None:
+    """Create the wiki directory and a stub index page."""
+    root = Path.cwd()
+    try:
+        index_path = init_wiki(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(index_path)
 
 
 @cli.group("edit")

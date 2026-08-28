@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
@@ -11,12 +13,29 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from kanbus.ai_summarize import make_ai_summarize
 from kanbus.console_snapshot import ConsoleSnapshotError, get_issues_for_root
+from kanbus.ids import format_issue_key
 from kanbus.models import IssueData
 from kanbus.queries import filter_issues
+
+WIKI_STUB_INDEX = "# Wiki\n\nEdit pages under project/wiki/.\n"
 
 
 class WikiError(RuntimeError):
     """Raised when wiki rendering fails."""
+
+
+@dataclass(frozen=True)
+class WikiLocation:
+    """Resolved wiki directory location for a repository.
+
+    :param wiki_root: Absolute path to the wiki directory.
+    :type wiki_root: Path
+    :param list_prefix: Path prefix used in list/search output (e.g. project/wiki).
+    :type list_prefix: str
+    """
+
+    wiki_root: Path
+    list_prefix: str
 
 
 @dataclass(frozen=True)
@@ -25,9 +44,12 @@ class WikiContext:
 
     :param issues: Issues loaded for rendering.
     :type issues: List[IssueData]
+    :param root: Repository root path.
+    :type root: Path
     """
 
     issues: List[IssueData]
+    root: Path
 
     def query(self, **filters: object) -> List[Dict[str, object]]:
         """Query issues for wiki templates.
@@ -78,10 +100,20 @@ class WikiContext:
         :return: Serialized issue or None if not found.
         :rtype: Dict[str, object] | None
         """
-        for i in self.issues:
-            if i.identifier == identifier:
-                return _serialize_issue(i)
+        for issue in self.issues:
+            if issue.identifier == identifier:
+                return _serialize_issue(issue)
         return None
+
+    def references(self, **filters: object) -> List[Dict[str, object]]:
+        """List Papyrus story references for wiki templates.
+
+        :return: Matching story references.
+        :rtype: List[Dict[str, object]]
+        :raises WikiError: If the filter parameters are invalid.
+        """
+        status = _get_string(filters.get("status"))
+        return load_story_references(self.root, status=status)
 
 
 @dataclass(frozen=True)
@@ -98,6 +130,193 @@ class WikiRenderRequest:
     page_path: Path
 
 
+def load_wiki_location(root: Path) -> WikiLocation:
+    """Load wiki directory location from project configuration.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Wiki location metadata.
+    :rtype: WikiLocation
+    :raises WikiError: If configuration cannot be loaded.
+    """
+    from kanbus.config_loader import ConfigurationError, load_project_configuration
+    from kanbus.project import ProjectMarkerError, get_configuration_path
+
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except (ProjectMarkerError, ConfigurationError) as error:
+        raise WikiError(str(error)) from error
+
+    project_dir = configuration.project_directory
+    wiki_subdir = configuration.wiki_directory or "wiki"
+    if wiki_subdir.startswith("../"):
+        normalized = wiki_subdir.replace("\\", "/").lstrip("../").lstrip("..\\")
+        wiki_root = root / normalized
+        list_prefix = normalized
+    else:
+        wiki_root = root / project_dir / wiki_subdir
+        list_prefix = f"{project_dir}/{wiki_subdir}"
+    return WikiLocation(wiki_root=wiki_root, list_prefix=list_prefix)
+
+
+def wiki_directory_missing_message(location: WikiLocation) -> str:
+    """Build an operator-facing message when the wiki directory is absent.
+
+    :param location: Wiki location metadata.
+    :type location: WikiLocation
+    :return: Error message with setup instructions.
+    :rtype: str
+    """
+    return (
+        f"wiki directory not found at {location.list_prefix}. "
+        f"Create it with: mkdir -p {location.list_prefix} "
+        f"&& echo '# Wiki' > {location.list_prefix}/index.md "
+        "Or run: kbs wiki init"
+    )
+
+
+def resolve_wiki_page_path(root: Path, page_argument: str) -> Path:
+    """Resolve a wiki page argument to a repository-relative path.
+
+    Canonical form: ``project/wiki/<relative-path>.md``. Also accepts wiki-relative
+    paths such as ``index``, ``index.md``, and ``concepts/foo.md``.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param page_argument: User-provided page path.
+    :type page_argument: str
+    :return: Repository-relative path to the wiki page.
+    :rtype: Path
+    :raises WikiError: If the wiki directory or page does not exist.
+    """
+    location = load_wiki_location(root)
+    if not location.wiki_root.exists():
+        raise WikiError(wiki_directory_missing_message(location))
+
+    normalized_argument = page_argument.replace("\\", "/").strip()
+    if not normalized_argument:
+        raise WikiError("wiki page not found")
+
+    candidate = Path(normalized_argument)
+    if candidate.is_absolute():
+        try:
+            relative = candidate.resolve().relative_to(root.resolve())
+        except ValueError as error:
+            raise WikiError(f"wiki page not found: {normalized_argument}") from error
+        absolute_page = root / relative
+        if not absolute_page.exists():
+            raise WikiError(f"wiki page not found: {relative.as_posix()}")
+        return relative
+
+    prefixed = normalized_argument
+    if prefixed.startswith("./"):
+        prefixed = prefixed[2:]
+    list_prefix = location.list_prefix.replace("\\", "/")
+    if prefixed == list_prefix or prefixed.startswith(f"{list_prefix}/"):
+        relative = Path(prefixed)
+    else:
+        wiki_relative = prefixed
+        if not wiki_relative.endswith(".md"):
+            wiki_relative = f"{wiki_relative}.md"
+        relative = Path(list_prefix) / wiki_relative
+
+    absolute_page = root / relative
+    if not absolute_page.exists():
+        raise WikiError(f"wiki page not found: {relative.as_posix()}")
+    return relative
+
+
+def init_wiki(root: Path) -> str:
+    """Create the wiki directory and a stub index page.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Repository-relative path to the created index page.
+    :rtype: str
+    :raises WikiError: If configuration cannot be loaded.
+    """
+    location = load_wiki_location(root)
+    location.wiki_root.mkdir(parents=True, exist_ok=True)
+    index_path = location.wiki_root / "index.md"
+    if not index_path.exists():
+        index_path.write_text(WIKI_STUB_INDEX, encoding="utf-8")
+    return f"{location.list_prefix}/index.md"
+
+
+def search_wiki_pages(root: Path, query: str) -> List[str]:
+    """Search wiki pages by path, title, and body content.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param query: Case-insensitive search string.
+    :type query: str
+    :return: Matching wiki page paths relative to repository root.
+    :rtype: List[str]
+    :raises WikiError: If configuration cannot be loaded.
+    """
+    location = load_wiki_location(root)
+    if not location.wiki_root.exists():
+        return []
+
+    needle = query.casefold()
+    if not needle:
+        return list_wiki_pages(root)
+
+    matches: List[str] = []
+    for path in location.wiki_root.rglob("*.md"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(location.wiki_root)
+        listed_path = f"{location.list_prefix}/{relative.as_posix()}"
+        body = path.read_text(encoding="utf-8")
+        title = _extract_wiki_title(body) or path.stem
+        haystack = f"{listed_path}\n{title}\n{body}".casefold()
+        if needle in haystack:
+            matches.append(listed_path)
+    matches.sort()
+    return matches
+
+
+def load_story_references(
+    root: Path, status: str | None = None
+) -> List[Dict[str, object]]:
+    """Load Papyrus story references from stories/*/references/*.json.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param status: Optional status filter (for example accepted or pending).
+    :type status: str | None
+    :return: Story reference records.
+    :rtype: List[Dict[str, object]]
+    """
+    stories_root = root / "stories"
+    if not stories_root.exists():
+        return []
+
+    references: List[Dict[str, object]] = []
+    for story_dir in sorted(stories_root.iterdir()):
+        if not story_dir.is_dir():
+            continue
+        references_dir = story_dir / "references"
+        if not references_dir.exists():
+            continue
+        story_id = story_dir.name
+        for reference_path in sorted(references_dir.glob("*.json")):
+            payload = json.loads(reference_path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                continue
+            record = dict(payload)
+            record.setdefault("story_id", story_id)
+            if status is not None and record.get("status") != status:
+                continue
+            references.append(record)
+    references.sort(
+        key=lambda item: (str(item.get("story_id", "")), str(item.get("id", "")))
+    )
+    return references
+
+
 def render_wiki_page(request: WikiRenderRequest) -> str:
     """Render a wiki page using the live issue index.
 
@@ -107,9 +326,8 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
     :rtype: str
     :raises WikiError: If rendering fails.
     """
-    full_page = request.root / request.page_path
-    if not full_page.exists():
-        raise WikiError("wiki page not found")
+    resolved_page = resolve_wiki_page_path(request.root, str(request.page_path))
+    full_page = request.root / resolved_page
 
     try:
         issues = get_issues_for_root(request.root)
@@ -126,13 +344,13 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
         if cached is not None:
             _wiki_render_log_cache_hit(wiki_render_cache_dir)
             return cached
-    issues_by_id = {i.identifier: _serialize_issue(i) for i in issues}
+    issues_by_id = {issue.identifier: _serialize_issue(issue) for issue in issues}
     ai_cache_dir = request.root / project_dir / ".cache" if project_dir else None
     ai_summarize_fn = make_ai_summarize(issues_by_id, ai_config, ai_cache_dir)
 
-    context = WikiContext(issues=list(issues))
+    context = WikiContext(issues=list(issues), root=request.root)
     environment = Environment(
-        loader=FileSystemLoader(str(request.page_path.parent)),
+        loader=FileSystemLoader(str(full_page.parent)),
         autoescape=select_autoescape(
             enabled_extensions=("html", "htm", "xml"),
             default_for_string=False,
@@ -144,11 +362,12 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
             "query": context.query,
             "count": context.count,
             "issue": context.issue,
+            "references": context.references,
             "ai_summarize": ai_summarize_fn,
         }
     )
     try:
-        rendered = environment.get_template(request.page_path.name).render()
+        rendered = environment.get_template(full_page.name).render()
     except WikiError:
         raise
     except Exception as error:
@@ -162,8 +381,8 @@ def render_wiki_page(request: WikiRenderRequest) -> str:
 def _wiki_render_cache_key(page_path: Path, issues: List[IssueData]) -> str:
     page_mtime = str(page_path.stat().st_mtime) if page_path.exists() else ""
     issue_part = "|".join(
-        f"{i.identifier}:{i.updated_at.isoformat()}"
-        for i in sorted(issues, key=lambda x: x.identifier)
+        f"{issue.identifier}:{issue.updated_at.isoformat()}"
+        for issue in sorted(issues, key=lambda item: item.identifier)
     )
     raw = f"{page_path}|{page_mtime}|{issue_part}"
     return hashlib.sha256(raw.encode()).hexdigest()
@@ -212,7 +431,19 @@ def _get_string(value: object) -> str | None:
 
 
 def _serialize_issue(issue: IssueData) -> Dict[str, object]:
-    return issue.model_dump(by_alias=True, mode="json")
+    payload = issue.model_dump(by_alias=True, mode="json")
+    short_key = format_issue_key(issue.identifier, project_context=True)
+    payload["key"] = short_key
+    payload["short_id"] = short_key
+    return payload
+
+
+def _extract_wiki_title(content: str) -> str | None:
+    for line in content.splitlines():
+        match = re.match(r"^#\s+(.+?)\s*$", line)
+        if match:
+            return match.group(1)
+    return None
 
 
 def render_template_string(text: str, issues: List[IssueData]) -> str:
@@ -226,7 +457,7 @@ def render_template_string(text: str, issues: List[IssueData]) -> str:
     :rtype: str
     :raises WikiError: If template rendering fails.
     """
-    context = WikiContext(issues=issues)
+    context = WikiContext(issues=issues, root=Path.cwd())
     environment = Environment(
         autoescape=select_autoescape(
             enabled_extensions=("html", "htm", "xml"),
@@ -239,6 +470,7 @@ def render_template_string(text: str, issues: List[IssueData]) -> str:
             "query": context.query,
             "count": context.count,
             "issue": context.issue,
+            "references": context.references,
         }
     )
     try:
@@ -259,32 +491,14 @@ def list_wiki_pages(root: Path) -> List[str]:
     :rtype: List[str]
     :raises WikiError: If configuration or project structure is invalid.
     """
-    from kanbus.config_loader import ConfigurationError, load_project_configuration
-    from kanbus.project import ProjectMarkerError, get_configuration_path
-
-    try:
-        config_path = get_configuration_path(root)
-        configuration = load_project_configuration(config_path)
-    except (ProjectMarkerError, ConfigurationError) as error:
-        raise WikiError(str(error)) from error
-
-    project_dir = configuration.project_directory
-    wiki_subdir = configuration.wiki_directory or "wiki"
-    if wiki_subdir.startswith("../"):
-        normalized = wiki_subdir.replace("\\", "/").lstrip("../").lstrip("..\\")
-        wiki_root = root / normalized
-        prefix = Path(normalized)
-    else:
-        wiki_root = root / project_dir / wiki_subdir
-        prefix = Path(project_dir) / wiki_subdir
-
-    if not wiki_root.exists():
+    location = load_wiki_location(root)
+    if not location.wiki_root.exists():
         return []
 
     paths: List[str] = []
-    for path in wiki_root.rglob("*.md"):
+    for path in location.wiki_root.rglob("*.md"):
         if path.is_file():
-            rel = path.relative_to(wiki_root)
-            paths.append(str(prefix / rel).replace("\\", "/"))
+            rel = path.relative_to(location.wiki_root)
+            paths.append(f"{location.list_prefix}/{rel.as_posix()}")
     paths.sort()
     return paths

@@ -311,6 +311,59 @@ def then_wiki_root_is(context: object, expected: str) -> None:
     assert wiki_path.exists(), f"expected wiki root {expected} to exist at {wiki_path}"
 
 
+@given("the wiki directory does not exist")
+def given_wiki_directory_missing(context: object) -> None:
+    project_dir = load_project_directory(context)
+    wiki_subdir = getattr(context, "wiki_directory", "wiki")
+    if wiki_subdir.startswith("../"):
+        repo_root = Path(context.working_directory)
+        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+    else:
+        wiki_dir = project_dir / wiki_subdir
+    if wiki_dir.exists():
+        import shutil
+
+        shutil.rmtree(wiki_dir)
+
+
+@given("an empty wiki directory exists")
+def given_empty_wiki_directory(context: object) -> None:
+    project_dir = load_project_directory(context)
+    wiki_subdir = getattr(context, "wiki_directory", "wiki")
+    if wiki_subdir.startswith("../"):
+        repo_root = Path(context.working_directory)
+        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+    else:
+        wiki_dir = project_dir / wiki_subdir
+    wiki_dir.mkdir(parents=True, exist_ok=True)
+
+
+@given('a story reference "{story_id}" file "{filename}" with content')
+@given('a story reference "{story_id}" file "{filename}" with content:')
+def given_story_reference_file(context: object, story_id: str, filename: str) -> None:
+    repo_root = Path(context.working_directory)
+    target = repo_root / "stories" / story_id / "references" / filename
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(context.text or "", encoding="utf-8")
+
+
+@then('a wiki page "{filename}" should exist with content containing "{text}"')
+def then_wiki_page_exists_with_content(
+    context: object, filename: str, text: str
+) -> None:
+    project_dir = load_project_directory(context)
+    wiki_subdir = getattr(context, "wiki_directory", "wiki")
+    if wiki_subdir.startswith("../"):
+        repo_root = Path(context.working_directory)
+        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+    else:
+        wiki_dir = project_dir / wiki_subdir
+    target = wiki_dir / filename
+    assert target.exists(), f"expected wiki page at {target}"
+    content = target.read_text(encoding="utf-8")
+    assert text in content, f"expected {text!r} in {content!r}"
+
+
 @given('the Kanbus configuration has wiki_directory set to "{value}"')
 def given_config_wiki_directory(context: object, value: str) -> None:
     import yaml
