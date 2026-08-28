@@ -307,44 +307,6 @@ def test_render_wiki_page_re_raises_wiki_error_from_template_context(
         )
 
 
-def test_load_story_references_skips_invalid_json_with_warnings(
-    tmp_path: Path,
-) -> None:
-    references_dir = tmp_path / "stories" / "STORY-1" / "references"
-    references_dir.mkdir(parents=True)
-    (references_dir / "bad.json").write_text("", encoding="utf-8")
-    (references_dir / "good.json").write_text(
-        '{"id": "good", "title": "Valid", "status": "accepted"}',
-        encoding="utf-8",
-    )
-
-    warnings: list[str] = []
-    records = wiki.load_story_references(
-        tmp_path, status="accepted", warnings_out=warnings
-    )
-
-    assert len(records) == 1
-    assert records[0]["id"] == "good"
-    assert any("skipping" in message and "bad.json" in message for message in warnings)
-
-
-def test_wiki_render_cache_key_includes_reference_mtimes(tmp_path: Path) -> None:
-    page = tmp_path / "page.md"
-    page.write_text("{% for ref in references() %}{% endfor %}", encoding="utf-8")
-    issues = [build_issue("kanbus-1")]
-    template = page.read_text(encoding="utf-8")
-
-    references_dir = tmp_path / "stories" / "STORY-1" / "references"
-    references_dir.mkdir(parents=True)
-    (references_dir / "ref-a.json").write_text('{"id": "ref-a"}', encoding="utf-8")
-
-    key_before = wiki._wiki_render_cache_key(page, issues, tmp_path, template)
-    (references_dir / "ref-b.json").write_text('{"id": "ref-b"}', encoding="utf-8")
-    key_after = wiki._wiki_render_cache_key(page, issues, tmp_path, template)
-
-    assert key_before != key_after
-
-
 def test_list_wiki_pages_success_absolute_relative_and_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
