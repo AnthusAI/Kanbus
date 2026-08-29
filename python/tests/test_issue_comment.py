@@ -82,7 +82,7 @@ def test_add_comment_success_and_failures(monkeypatch: pytest.MonkeyPatch) -> No
     )
     monkeypatch.setattr(issue_comment, "get_current_user", lambda: "dev")
     monkeypatch.setattr(
-        issue_comment, "comment_payload", lambda _id, _author: {"ok": True}
+        issue_comment, "comment_payload", lambda *_a: {"ok": True}
     )
     monkeypatch.setattr(
         issue_comment,
