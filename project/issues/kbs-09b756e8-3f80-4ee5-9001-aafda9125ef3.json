@@ -1,0 +1,18 @@
+{
+  "id": "kbs-09b756e8-3f80-4ee5-9001-aafda9125ef3",
+  "title": "Extend agent metadata with name and speed settings",
+  "description": "Follow-up to agent provenance (0.21.0): add optional agent.name for session/bot identity, and settings.speed (normal|fast) for UI fast-mode toggles alongside existing thinking_level.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T16:00:11.337591167Z",
+  "updated_at": "2026-08-29T16:00:14.679082096Z",
+  "closed_at": null,
+  "custom": {}
+}

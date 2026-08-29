@@ -6,6 +6,7 @@ from kanbus.agent_metadata import (
     AgentMetadataRequest,
     AgentMetadataResolutionError,
     build_agent_metadata,
+    format_agent_display_line,
     reject_agent_metadata_in_beads_mode,
     resolve_agent_metadata,
 )
@@ -38,6 +39,17 @@ def test_resolve_agent_metadata_from_environment(
     assert metadata.model == "composer-2.5"
 
 
+def test_resolve_agent_name_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("KANBUS_AGENT_PLATFORM", "cursor")
+    monkeypatch.setenv("KANBUS_AGENT_MODEL", "composer-2.5")
+    monkeypatch.setenv("KANBUS_AGENT_NAME", "cloud-agent")
+    metadata = resolve_agent_metadata(AgentMetadataRequest())
+    assert metadata is not None
+    assert metadata.name == "cloud-agent"
+
+
 def test_reject_agent_metadata_in_beads_mode() -> None:
     with pytest.raises(AgentMetadataResolutionError) as error:
         reject_agent_metadata_in_beads_mode(True)
@@ -50,10 +62,44 @@ def test_invalid_agent_platform() -> None:
     assert str(error.value) == "invalid agent platform"
 
 
+def test_invalid_agent_name() -> None:
+    with pytest.raises(AgentMetadataResolutionError) as error:
+        build_agent_metadata(
+            "cursor",
+            "composer-2.5",
+            {},
+            name="x" * 129,
+        )
+    assert str(error.value) == "invalid agent name"
+
+
 def test_unknown_agent_settings_key() -> None:
     with pytest.raises(AgentMetadataResolutionError) as error:
         build_agent_metadata("cursor", "composer-2.5", {"fast": True})
     assert str(error.value) == "unknown agent settings key"
+
+
+def test_agent_settings_speed_values() -> None:
+    from kanbus.models import AgentSettings
+
+    metadata = build_agent_metadata(
+        "cursor",
+        "composer-2.5",
+        {"speed": "fast"},
+    )
+    assert metadata is not None
+    assert metadata.settings == AgentSettings(speed="fast")
+
+
+def test_format_agent_display_line_includes_name() -> None:
+    from kanbus.models import AgentMetadata
+
+    metadata = AgentMetadata(
+        platform="cursor",
+        model="composer-2.5",
+        name="cloud-agent",
+    )
+    assert format_agent_display_line(metadata) == "cloud-agent / cursor / composer-2.5"
 
 
 def test_invalid_agent_settings_json_not_object(
@@ -97,9 +143,14 @@ def test_format_agent_settings_display() -> None:
     with_settings = AgentMetadata(
         platform="cursor",
         model="composer-2.5",
-        settings=AgentSettings(thinking_level="high", temperature=0.5),
+        settings=AgentSettings(
+            thinking_level="high",
+            temperature=0.5,
+            speed="fast",
+        ),
     )
     display = format_agent_settings_display(with_settings)
     assert display is not None
     assert "thinking_level=high" in display
     assert "temperature=0.5" in display
+    assert "speed=fast" in display
