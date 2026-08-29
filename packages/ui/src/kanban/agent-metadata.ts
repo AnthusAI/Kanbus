@@ -1,9 +1,4 @@
-export interface AgentSettings {
-  temperature?: number;
-  thinking_level?: "off" | "low" | "medium" | "high";
-  max_output_tokens?: number;
-  speed?: "normal" | "fast";
-}
+export type AgentSettings = Record<string, unknown>;
 
 export interface AgentMetadata {
   platform: string;
@@ -29,25 +24,25 @@ export function formatAgentDisplayLine(metadata: AgentMetadata): string {
   return platformModel;
 }
 
+function formatSettingValue(value: unknown): string {
+  if (value === null) {
+    return "null";
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
 export function formatAgentSettingsDisplay(
   metadata: AgentMetadata
 ): string | null {
   const settings = metadata.settings;
-  if (!settings) {
+  if (!settings || Object.keys(settings).length === 0) {
     return null;
   }
-  const parts: string[] = [];
-  if (settings.temperature !== undefined) {
-    parts.push(`temperature=${settings.temperature}`);
-  }
-  if (settings.thinking_level) {
-    parts.push(`thinking_level=${settings.thinking_level}`);
-  }
-  if (settings.max_output_tokens !== undefined) {
-    parts.push(`max_output_tokens=${settings.max_output_tokens}`);
-  }
-  if (settings.speed) {
-    parts.push(`speed=${settings.speed}`);
-  }
-  return parts.length > 0 ? parts.join(", ") : null;
+  const parts = Object.entries(settings)
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+    .map(([key, value]) => `${key}=${formatSettingValue(value)}`);
+  return parts.join(", ");
 }
