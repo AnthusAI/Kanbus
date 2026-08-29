@@ -136,9 +136,7 @@ def then_latest_comment_has_agent_settings_speed(context: object, speed: str) ->
     assert latest.agent.settings.get("speed") == speed
 
 
-@then(
-    'the latest comment should have agent setting "{key}" with value "{value}"'
-)
+@then('the latest comment should have agent setting "{key}" with value "{value}"')
 def then_latest_comment_has_agent_setting(
     context: object, key: str, value: str
 ) -> None:
