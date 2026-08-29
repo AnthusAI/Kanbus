@@ -20,6 +20,7 @@ import { getTypeIcon } from "./issue-icons";
 import type { KanbanConfig } from "./types";
 import { formatTimestamp } from "./format-timestamp";
 import { IconButton } from "./IconButton";
+import { useFlashEffect } from "./useFlashEffect";
 import { AgentMetadataBlock } from "./AgentMetadataBlock";
 import { hasAgentMetadata } from "./agent-metadata";
 
