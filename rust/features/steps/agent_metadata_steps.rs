@@ -80,7 +80,10 @@ fn given_kanbus_agent_settings(world: &mut KanbusWorld, value: String) {
 
 #[given("agent settings JSON is:")]
 fn given_agent_settings_json(world: &mut KanbusWorld, step: &Step) {
-    let content = step.docstring().expect("agent settings JSON required").trim();
+    let content = step
+        .docstring()
+        .expect("agent settings JSON required")
+        .trim();
     world
         .environment_overrides
         .insert("KANBUS_AGENT_SETTINGS".to_string(), content.to_string());
@@ -146,11 +149,7 @@ fn then_latest_comment_has_agent_settings_speed(world: &mut KanbusWorld, speed: 
 }
 
 #[then(expr = "the latest comment should have agent setting {string} with value {string}")]
-fn then_latest_comment_has_agent_setting(
-    world: &mut KanbusWorld,
-    key: String,
-    value: String,
-) {
+fn then_latest_comment_has_agent_setting(world: &mut KanbusWorld, key: String, value: String) {
     let project_dir = load_project_dir(world);
     let issue = load_issue(&project_dir, "kanbus-aaa");
     let latest = issue.comments.last().expect("comment");
