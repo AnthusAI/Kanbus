@@ -10,9 +10,10 @@ use crate::config::default_project_configuration;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
+use crate::file_io::refresh_project_wiki_agents_file;
 use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
-    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE, DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME,
+    default_project_management_template, default_project_management_template_filename,
 };
 use serde::Serialize;
 
@@ -108,7 +109,7 @@ fn build_project_management_text(root: &Path) -> Result<String, KanbusError> {
         Some(path) => {
             std::fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?
         }
-        None => DEFAULT_PROJECT_MANAGEMENT_TEMPLATE.to_string(),
+        None => default_project_management_template().to_string(),
     };
     let context = build_project_management_context(&configuration);
     let env = minijinja::Environment::new();
@@ -187,7 +188,7 @@ fn resolve_project_management_template_path(
         }
         return Ok(Some(resolved));
     }
-    let conventional = root.join(DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME);
+    let conventional = root.join(default_project_management_template_filename());
     if conventional.exists() {
         return Ok(Some(conventional));
     }
@@ -458,19 +459,7 @@ fn ensure_project_guard_files(root: &Path) -> Result<(), KanbusError> {
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
         }
     }
-    let project_agents = project_dir.join("AGENTS.md");
-    let project_agents_content = [
-        "# Project directory",
-        "",
-        "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
-        "You may edit wiki/ (e.g. Markdown) directly.",
-        "",
-        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
-    ]
-    .join("\n")
-        + "\n";
-    fs::write(&project_agents, project_agents_content)
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    refresh_project_wiki_agents_file(&project_dir)?;
     Ok(())
 }
 
@@ -566,7 +555,7 @@ pub fn cover_agents_management_paths(root: &Path) {
     let _ = resolve_project_management_template_path(root, &configuration);
     configuration.project_management_template = None;
     let _ = resolve_project_management_template_path(root, &configuration);
-    let conventional = root.join(DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME);
+    let conventional = root.join(default_project_management_template_filename());
     let _ = fs::write(&conventional, "template");
     let _ = resolve_project_management_template_path(root, &configuration);
 

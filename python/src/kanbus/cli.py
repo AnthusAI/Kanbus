@@ -75,8 +75,14 @@ from kanbus.dependency_tree import (
 from kanbus.wiki import (
     WikiError,
     WikiRenderRequest,
+    check_wiki_page_links,
+    format_wiki_link_problem,
+    init_wiki,
+    lint_wiki,
     list_wiki_pages,
     render_wiki_page,
+    search_wiki_pages,
+    show_wiki_page,
 )
 from kanbus.text_editor import (
     TextEditorError,
@@ -1842,10 +1848,32 @@ def render_wiki(page: str) -> None:
     root = Path.cwd()
     request = WikiRenderRequest(root=root, page_path=Path(page))
     try:
-        output = render_wiki_page(request)
+        link_problems = check_wiki_page_links(root, page)
+        reference_warnings: list[str] = []
+        output = render_wiki_page(request, reference_warnings=reference_warnings)
     except WikiError as error:
         raise click.ClickException(str(error)) from error
+    for problem in link_problems:
+        click.echo(format_wiki_link_problem(problem, warning=True), err=True)
+    for warning in reference_warnings:
+        click.echo(warning, err=True)
     click.echo(output)
+
+
+@wiki.command("show")
+@click.argument("page")
+def show_wiki(page: str) -> None:
+    """Show raw wiki page source without rendering templates.
+
+    :param page: Wiki page path.
+    :type page: str
+    """
+    root = Path.cwd()
+    try:
+        output = show_wiki_page(root, page)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output, nl=False)
 
 
 @wiki.command("list")
@@ -1858,6 +1886,68 @@ def wiki_list() -> None:
         raise click.ClickException(str(error)) from error
     for path in pages:
         click.echo(path)
+
+
+@wiki.command("search")
+@click.argument("query")
+def wiki_search(query: str) -> None:
+    """Search wiki pages by path, title, and body.
+
+    :param query: Case-insensitive search string.
+    :type query: str
+    """
+    root = Path.cwd()
+    try:
+        pages = search_wiki_pages(root, query)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    if not pages:
+        click.echo("0 results")
+        return
+    for path in pages:
+        click.echo(path)
+
+
+@wiki.command("init")
+def wiki_init() -> None:
+    """Create the wiki directory and a stub index page."""
+    root = Path.cwd()
+    try:
+        index_path = init_wiki(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(index_path)
+
+
+def _run_wiki_lint(root: Path) -> None:
+    """Validate wiki-internal markdown links and report failures.
+
+    :param root: Repository root directory.
+    :type root: Path
+    :raises click.ClickException: When lint finds broken links or wiki errors occur.
+    """
+    try:
+        problems = lint_wiki(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    if problems:
+        lines = [
+            format_wiki_link_problem(problem, warning=False) for problem in problems
+        ]
+        raise click.ClickException("\n".join(lines))
+    click.echo("wiki lint: ok")
+
+
+@wiki.command("lint")
+def wiki_lint() -> None:
+    """Validate wiki-internal markdown links across the wiki tree."""
+    _run_wiki_lint(Path.cwd())
+
+
+@wiki.command("check")
+def wiki_check() -> None:
+    """Validate the wiki tree (alias for wiki lint)."""
+    _run_wiki_lint(Path.cwd())
 
 
 @cli.group("edit")

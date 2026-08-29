@@ -1,0 +1,18 @@
+{
+  "id": "kbs-4d29eceb-b451-4d6f-8b01-82481797613c",
+  "title": "wiki issue.id is the full UUID; links need the short key",
+  "description": "Researcher first-pass.\n\nIn templates, issue.id renders as WIKI-650fd91d-7f3b-427e-aa7f-253b228b48d9. `kbs list` shows 650fd9. Wiki-to-story links need the short key.\n\nProduct rule: expose the same short identifier list/show use (issue.key or issue.short_id). Keep the full id available. Do not make agents substring UUIDs in templates.",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-28T20:41:05.083557Z",
+  "updated_at": "2026-08-28T20:41:05.083557Z",
+  "closed_at": null,
+  "custom": {}
+}
