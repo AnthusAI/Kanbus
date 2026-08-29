@@ -1,0 +1,18 @@
+{
+  "id": "kbs-90091147-b081-4cf5-8cc8-e13011a006f9",
+  "title": "Wiki render does not validate internal .md links",
+  "description": "Researcher second-pass on research-pod wiki (11 concepts, 51 sources).\n\n**Gap:** `kbs wiki render` does not validate wiki-internal `.md` links. A page can render while pointing at missing concept/source files, so a port can ship dead links silently.\n\n**Need:**\n- `kbs wiki lint` / `kbs wiki check` must fail on broken relative `.md` links\n- `kbs wiki render` should warn on broken links (non-blocking) so operators see problems during preview\n\n**Delivered in:** PR #172 (cursor/wiki-research-kb-d8c6)",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-28T21:14:53.311479865Z",
+  "updated_at": "2026-08-28T21:14:53.311479865Z",
+  "closed_at": null,
+  "custom": {}
+}

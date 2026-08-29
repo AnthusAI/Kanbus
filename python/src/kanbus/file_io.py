@@ -33,6 +33,18 @@ class InitializationError(RuntimeError):
     """Raised when project initialization fails."""
 
 
+PROJECT_WIKI_AGENTS_TEXT = "\n".join(
+    [
+        "# DO NOT EDIT HERE",
+        "",
+        "Editing anything under project/ directly is hacking the data and is a sin against The Way, except for project/wiki/*.md wiki pages which agents may create and edit directly.",
+        "Do not read or write other files in this folder. Use Kanbus commands instead.",
+        "",
+        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+    ]
+)
+
+
 @dataclass
 class RepairPlan:
     project_dir: Path
@@ -156,20 +168,17 @@ def _write_project_guard_files(project_dir: Path) -> None:
     if events_dir.exists():
         _write_guard_files_in_subdir(events_dir, "events")
     root_agents_path = project_dir / "AGENTS.md"
-    root_agents_path.write_text(
-        "\n".join(
-            [
-                "# Project directory",
-                "",
-                "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
-                "You may edit wiki/ (e.g. Markdown) directly.",
-                "",
-                "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    root_agents_path.write_text(PROJECT_WIKI_AGENTS_TEXT + "\n", encoding="utf-8")
+
+
+def refresh_project_wiki_agents_file(project_dir: Path) -> None:
+    """Write project/AGENTS.md with the wiki edit exception.
+
+    :param project_dir: Absolute path to the project directory.
+    :type project_dir: Path
+    """
+    root_agents_path = project_dir / "AGENTS.md"
+    root_agents_path.write_text(PROJECT_WIKI_AGENTS_TEXT + "\n", encoding="utf-8")
 
 
 def _write_project_guard_files_if_missing(project_dir: Path) -> None:
@@ -184,20 +193,7 @@ def _write_project_guard_files_if_missing(project_dir: Path) -> None:
             _write_guard_files_in_subdir(subdir, folder_name)
     root_agents_path = project_dir / "AGENTS.md"
     if not root_agents_path.exists():
-        root_agents_path.write_text(
-            "\n".join(
-                [
-                    "# Project directory",
-                    "",
-                    "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
-                    "You may edit wiki/ (e.g. Markdown) directly.",
-                    "",
-                    "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
-                ]
-            )
-            + "\n",
-            encoding="utf-8",
-        )
+        root_agents_path.write_text(PROJECT_WIKI_AGENTS_TEXT + "\n", encoding="utf-8")
 
 
 def _write_tool_block_files(root: Path) -> None:

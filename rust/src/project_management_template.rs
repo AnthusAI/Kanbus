@@ -2,6 +2,11 @@
 
 pub const DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME: &str = "CONTRIBUTING_AGENT.template.md";
 
+/// Return the conventional default project management template filename.
+pub fn default_project_management_template_filename() -> &'static str {
+    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME
+}
+
 pub const DEFAULT_PROJECT_MANAGEMENT_TEMPLATE: &str = r#"# THE WAY
 
 This repository is governed by The Way.
@@ -174,12 +179,19 @@ The wiki lives under project/wiki/. You may edit Markdown files there directly.
 When to use the wiki:
 - Add and edit project/wiki/*.md for reports, status pages, and documentation.
 - Use `kbs wiki list` to discover wiki pages.
-- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, ai_summarize).
+- Use `kbs wiki show <path>` to print raw page source without rendering templates.
+- Use `kbs wiki search <query>` to find pages by path, title, or body.
+- Use `kbs wiki lint` or `kbs wiki check` to validate wiki-internal markdown links.
+- Use `kbs wiki init` to create project/wiki/ with a stub index page.
+- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, references, ai_summarize). Render warns on broken wiki links but still outputs content.
+- Canonical render path: `project/wiki/<relative-path>.md`. Short wiki-relative paths such as `index`, `index.md`, and `concepts/foo.md` are also accepted.
+- In templates, `issue.key` (alias `issue.short_id`) matches the short identifier shown by `kbs list`; `issue.id` remains the full identifier.
+- In templates, use `references(status="accepted")` or `references(status="pending")` to list Papyrus story references from `stories/*/references/*.json`.
 - In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
 
 Cache behavior:
 - AI summaries are cached in project/.cache/ai_summaries.json (invalidated by issue updated_at and prompt type).
-- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues or templates change).
+- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues, templates, or story reference JSON change on pages that call references()).
 
 ## Command examples
 
@@ -252,3 +264,8 @@ Run the behavior tests in the repo and confirm the new scenario fails for the ri
 Write the smallest change that makes the Gherkin scenario pass.
 Refactor only while all specs remain green.
 "#;
+
+/// Return the default project management template body.
+pub fn default_project_management_template() -> &'static str {
+    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE
+}
