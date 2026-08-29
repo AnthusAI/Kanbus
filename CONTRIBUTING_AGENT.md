@@ -235,7 +235,14 @@ The wiki lives under project/wiki/. You may edit Markdown files there directly.
 When to use the wiki:
 - Add and edit project/wiki/*.md for reports, status pages, and documentation.
 - Use `kbs wiki list` to discover wiki pages.
-- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, ai_summarize).
+- Use `kbs wiki show <path>` to print raw page source without rendering templates.
+- Use `kbs wiki search <query>` to find pages by path, title, or body (prints `0 results` when nothing matches).
+- Use `kbs wiki lint` or `kbs wiki check` to validate wiki-internal markdown links (ignores links inside inline code and fenced code blocks).
+- Use `kbs wiki init` to create project/wiki/ with a stub index page and refresh `project/AGENTS.md` with the wiki edit exception.
+- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, references, ai_summarize). Render warns on broken wiki links but still outputs content.
+- Canonical render path: `project/wiki/<relative-path>.md`. Short wiki-relative paths such as `index`, `index.md`, and `concepts/foo.md` are also accepted.
+- In templates, `issue.key` (alias `issue.short_id`) matches the short identifier shown by `kbs list`; `issue.id` remains the full identifier. Link wiki pages to Papyrus story directories with `issue.key`, not `issue.id` (for example `stories/{{ issue.key }}/references/`).
+- In templates, use `references(status="accepted")` or `references(status="pending")` to list Papyrus story references from `stories/*/references/*.json`.
 - In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
 
 Cache behavior:

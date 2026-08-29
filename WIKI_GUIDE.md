@@ -39,6 +39,7 @@ The following functions are available in all wiki templates:
 - `query(**filters)` -> list of issues
 - `count(**filters)` -> integer
 - `issue(id)` -> issue or None
+- `references(status="accepted")` -> list of Papyrus story references
 - `children(id)` -> list of issues
 - `blocked_by(id)` -> list of issues
 - `blocks(id)` -> list of issues
@@ -54,6 +55,18 @@ Common filters for `query` and `count`:
 - `parent`
 - `sort` (prefix with `-` for descending)
 - `limit`
+
+### Issue identifiers in templates
+
+- `issue.key` and `issue.short_id` are the short identifiers shown by `kbs list` (for example `650fd9`).
+- `issue.id` remains the full identifier (for example `WIKI-650fd91d-7f3b-427e-aa7f-253b228b48d9`).
+- Link wiki pages to Papyrus story directories with the short key, not the full id:
+
+```markdown
+{% for issue in query(status="open", sort="title") %}
+- [{{ issue.title }}](../../stories/{{ issue.key }}/references/)
+{% endfor %}
+```
 
 ## Examples
 
@@ -159,6 +172,18 @@ Render a wiki page from the project root:
 
 ```bash
 kanbus wiki render project/wiki/index.md
+```
+
+Search wiki pages (prints `0 results` when nothing matches):
+
+```bash
+kanbus wiki search <query>
+```
+
+Initialize or refresh the wiki workspace (creates `project/wiki/index.md` when missing and refreshes `project/AGENTS.md` with the wiki edit exception):
+
+```bash
+kanbus wiki init
 ```
 
 For more CLI details, see [CLI_REFERENCE.md](CLI_REFERENCE.md).

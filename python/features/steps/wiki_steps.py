@@ -311,6 +311,59 @@ def then_wiki_root_is(context: object, expected: str) -> None:
     assert wiki_path.exists(), f"expected wiki root {expected} to exist at {wiki_path}"
 
 
+@given("the wiki directory does not exist")
+def given_wiki_directory_missing(context: object) -> None:
+    project_dir = load_project_directory(context)
+    wiki_subdir = getattr(context, "wiki_directory", "wiki")
+    if wiki_subdir.startswith("../"):
+        repo_root = Path(context.working_directory)
+        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+    else:
+        wiki_dir = project_dir / wiki_subdir
+    if wiki_dir.exists():
+        import shutil
+
+        shutil.rmtree(wiki_dir)
+
+
+@given("an empty wiki directory exists")
+def given_empty_wiki_directory(context: object) -> None:
+    project_dir = load_project_directory(context)
+    wiki_subdir = getattr(context, "wiki_directory", "wiki")
+    if wiki_subdir.startswith("../"):
+        repo_root = Path(context.working_directory)
+        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+    else:
+        wiki_dir = project_dir / wiki_subdir
+    wiki_dir.mkdir(parents=True, exist_ok=True)
+
+
+@given('a story reference "{story_id}" file "{filename}" with content')
+@given('a story reference "{story_id}" file "{filename}" with content:')
+def given_story_reference_file(context: object, story_id: str, filename: str) -> None:
+    repo_root = Path(context.working_directory)
+    target = repo_root / "stories" / story_id / "references" / filename
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(context.text or "", encoding="utf-8")
+
+
+@then('a wiki page "{filename}" should exist with content containing "{text}"')
+def then_wiki_page_exists_with_content(
+    context: object, filename: str, text: str
+) -> None:
+    project_dir = load_project_directory(context)
+    wiki_subdir = getattr(context, "wiki_directory", "wiki")
+    if wiki_subdir.startswith("../"):
+        repo_root = Path(context.working_directory)
+        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+    else:
+        wiki_dir = project_dir / wiki_subdir
+    target = wiki_dir / filename
+    assert target.exists(), f"expected wiki page at {target}"
+    content = target.read_text(encoding="utf-8")
+    assert text in content, f"expected {text!r} in {content!r}"
+
+
 @given('the Kanbus configuration has wiki_directory set to "{value}"')
 def given_config_wiki_directory(context: object, value: str) -> None:
     import yaml
@@ -323,3 +376,134 @@ def given_config_wiki_directory(context: object, value: str) -> None:
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",
     )
+
+
+def _wiki_dir_for_context(context: object) -> Path:
+    project_dir = load_project_directory(context)
+    wiki_subdir = getattr(context, "wiki_directory", "wiki")
+    if wiki_subdir.startswith("../"):
+        repo_root = Path(context.working_directory)
+        return repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+    return project_dir / wiki_subdir
+
+
+@given("the stories directory does not exist")
+def given_stories_directory_missing(context: object) -> None:
+    import shutil
+
+    stories_dir = Path(context.working_directory) / "stories"
+    if stories_dir.exists():
+        shutil.rmtree(stories_dir)
+
+
+@given('a stories directory file "{name}" exists')
+def given_stories_directory_file(context: object, name: str) -> None:
+    stories_dir = Path(context.working_directory) / "stories"
+    stories_dir.mkdir(parents=True, exist_ok=True)
+    (stories_dir / name).write_text("not a story directory\n", encoding="utf-8")
+
+
+@given('a story directory "{story_id}" exists without references')
+def given_story_directory_without_references(context: object, story_id: str) -> None:
+    target = Path(context.working_directory) / "stories" / story_id
+    target.mkdir(parents=True, exist_ok=True)
+
+
+@given('an unreadable story reference "{story_id}" file "{filename}" exists')
+def given_unreadable_story_reference(
+    context: object, story_id: str, filename: str
+) -> None:
+    target = (
+        Path(context.working_directory) / "stories" / story_id / "references" / filename
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        '{"id":"locked","title":"Locked","status":"accepted"}',
+        encoding="utf-8",
+    )
+    original_mode = target.stat().st_mode
+    target.chmod(0)
+    context.unreadable_path = target
+    context.unreadable_mode = original_mode
+
+
+@given('a dangling story reference symlink "{story_id}" file "{filename}" exists')
+def given_dangling_story_reference_symlink(
+    context: object, story_id: str, filename: str
+) -> None:
+    target = (
+        Path(context.working_directory) / "stories" / story_id / "references" / filename
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists() or target.is_symlink():
+        target.unlink()
+    target.symlink_to("/nonexistent/story-reference.json")
+
+
+@given('a wiki markdown symlink "{name}" points to a directory')
+def given_wiki_markdown_symlink_to_directory(context: object, name: str) -> None:
+    wiki_dir = _wiki_dir_for_context(context)
+    wiki_dir.mkdir(parents=True, exist_ok=True)
+    target_dir = wiki_dir / f"{name}-target-dir"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    link_path = wiki_dir / name
+    if link_path.exists() or link_path.is_symlink():
+        link_path.unlink()
+    link_path.symlink_to(target_dir, target_is_directory=True)
+
+
+@given('a wiki symlink "{name}" points outside the wiki directory')
+def given_wiki_symlink_outside_directory(context: object, name: str) -> None:
+    wiki_dir = _wiki_dir_for_context(context)
+    wiki_dir.mkdir(parents=True, exist_ok=True)
+    outside_target = Path(context.working_directory) / "outside-wiki-target.md"
+    outside_target.write_text("outside wiki target\n", encoding="utf-8")
+    link_path = wiki_dir / name
+    if link_path.exists() or link_path.is_symlink():
+        link_path.unlink()
+    link_path.symlink_to(outside_target)
+
+
+LEGACY_PROJECT_AGENTS_TEXT = "\n".join(
+    [
+        "# DO NOT EDIT HERE",
+        "",
+        "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
+        "Do not read or write other files in this folder. Use Kanbus commands instead.",
+        "",
+        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+    ]
+)
+
+
+@given("project/AGENTS.md has legacy guard content without wiki exception")
+def given_legacy_project_agents_without_wiki_exception(context: object) -> None:
+    project_dir = load_project_directory(context)
+    agents_path = project_dir / "AGENTS.md"
+    agents_path.write_text(LEGACY_PROJECT_AGENTS_TEXT + "\n", encoding="utf-8")
+
+
+@given("the project issues AGENTS.md content is saved as baseline")
+def given_project_issues_agents_baseline_saved(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issues_agents_path = project_dir / "issues" / "AGENTS.md"
+    context.project_issues_agents_baseline = issues_agents_path.read_text(
+        encoding="utf-8"
+    )
+
+
+@then('project/AGENTS.md should contain "{text}"')
+def then_project_agents_contains(context: object, text: str) -> None:
+    project_dir = load_project_directory(context)
+    content = (project_dir / "AGENTS.md").read_text(encoding="utf-8")
+    assert text in content, f"expected {text!r} in project/AGENTS.md: {content!r}"
+
+
+@then("the project issues AGENTS.md content should match baseline")
+def then_project_issues_agents_matches_baseline(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issues_agents_path = project_dir / "issues" / "AGENTS.md"
+    current = issues_agents_path.read_text(encoding="utf-8")
+    baseline = getattr(context, "project_issues_agents_baseline", None)
+    assert baseline is not None, "baseline not saved"
+    assert current == baseline, "project/issues/AGENTS.md changed after wiki init"
