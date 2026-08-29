@@ -79,6 +79,7 @@ fn write_issue_with_overrides(
         created_at: timestamp,
         updated_at: timestamp,
         closed_at,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     };
     write_issue_file(project_dir, &issue);
@@ -267,6 +268,7 @@ fn given_issue_exists(world: &mut KanbusWorld, identifier: String) {
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     };
     write_issue_file(&project_dir, &issue);
@@ -297,6 +299,7 @@ fn given_issue_exists_with_status(world: &mut KanbusWorld, identifier: String, s
         created_at: timestamp,
         updated_at: timestamp,
         closed_at,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     };
     write_issue_file(&project_dir, &issue);
@@ -339,6 +342,7 @@ fn given_typed_issue_exists(world: &mut KanbusWorld, issue_type: String, identif
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     };
     write_issue_file(&project_dir, &issue);

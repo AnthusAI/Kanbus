@@ -41,6 +41,7 @@ fn issue(identifier: &str, updated_at: DateTime<Utc>) -> IssueData {
         created_at: updated_at,
         updated_at,
         closed_at: None,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     }
 }

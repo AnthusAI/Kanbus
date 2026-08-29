@@ -1,0 +1,18 @@
+{
+  "id": "kbs-3717862f-747b-4866-b30d-66004c4a7bf1",
+  "title": "Spec: CLI agent flags, env defaults, and display",
+  "description": "As an AI agent using Kanbus CLI, I want to tag creates and comments with platform, model, and settings, so that provenance appears in human-readable output when present.\n\n## Gherkin\n\nSee also proposed `features/agent/agent_metadata.feature` and additions to `features/issues/issue_show.feature`.\n\n```gherkin\nFeature: Agent metadata CLI\n  As an AI agent using Kanbus\n  I want CLI flags and environment defaults for agent metadata\n  So that I can record provenance without cluttering default output\n\n  Scenario: Create issue with agent metadata via flags\n    Given a Kanbus project with default configuration\n    And the current user is \"agent\"\n    When I run \"kanbus create \\\"Agent task\\\" --type task --agent-platform cursor --agent-model composer-2.5\"\n    Then the command should succeed\n    And stdout should contain \"Agent: cursor / composer-2.5\"\n\n  Scenario: Create without agent metadata omits Agent row\n    Given a Kanbus project with default configuration\n    When I run \"kanbus create \\\"Plain task\\\" --type task\"\n    Then stdout should not contain \"Agent:\"\n\n  Scenario: Comment inherits agent metadata from environment\n    Given a Kanbus project with default configuration\n    And an issue \"kanbus-aaa\" exists\n    And KANBUS_AGENT_PLATFORM is set to \"cursor\"\n    And KANBUS_AGENT_MODEL is set to \"composer-2.5\"\n    When I run \"kanbus comment kanbus-aaa \\\"Progress note\\\"\"\n    Then the latest comment should have agent platform \"cursor\" and model \"composer-2.5\"\n\n  Scenario: CLI flags override agent environment variables\n    Given KANBUS_AGENT_PLATFORM is set to \"cursor\"\n    When I run \"kanbus comment kanbus-aaa \\\"Override\\\" --agent-platform codex --agent-model gpt-5\"\n    Then the latest comment should have agent platform \"codex\"\n\n  Scenario: Invalid agent settings JSON fails\n    When I run \"kanbus comment kanbus-aaa \\\"Bad\\\" --agent-settings not-json\"\n    Then stderr should contain \"invalid agent settings\"\n\n  Scenario: Show JSON includes agent metadata when present\n    Given issue \"kanbus-agent\" exists with agent platform \"cursor\" and model \"composer-2.5\"\n    When I run \"kanbus show kanbus-agent --json\"\n    Then stdout should contain \"\\\"agent\\\"\"\n    And stdout should contain \"\\\"platform\\\": \\\"cursor\\\"\"\n\n  Scenario: Comment display includes agent suffix when present\n    Given issue \"kanbus-c\" has a comment from \"agent\" with text \"Done\" and agent platform \"cursor\" and model \"composer-2.5\"\n    When I format issue \"kanbus-c\" for display\n    Then the formatted output should contain text \"agent (cursor / composer-2.5):\"\n```\n\n## Display format\n\nIssue header (when present):\n\n```\nAgent: cursor / composer-2.5\n  settings: temperature=0.2, thinking_level=high\n```\n\nComment line (when present):\n\n```\n  [abc123] agent (cursor / composer-2.5): Implemented token refresh\n```",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T13:41:08.213483Z",
+  "updated_at": "2026-08-29T13:41:08.213483Z",
+  "closed_at": null,
+  "custom": {}
+}

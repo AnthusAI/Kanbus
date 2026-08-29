@@ -64,6 +64,18 @@ export interface ProjectConfig {
   beads_compatibility: boolean;
 }
 
+export interface AgentSettings {
+  temperature?: number;
+  thinking_level?: "off" | "low" | "medium" | "high";
+  max_output_tokens?: number;
+}
+
+export interface AgentMetadata {
+  platform: string;
+  model: string;
+  settings?: AgentSettings;
+}
+
 export interface IssueComment {
   id?: string;
   author: string;
@@ -71,6 +83,7 @@ export interface IssueComment {
   created_at: string;
   comment_type?: string;
   data?: Record<string, unknown>;
+  agent?: AgentMetadata;
 }
 
 export interface IssueDependency {
@@ -98,6 +111,7 @@ export interface Issue {
   updated_at?: string;
   closed_at?: string;
   custom?: Record<string, unknown>;
+  agent?: AgentMetadata;
 }
 
 export type IssueEventType =

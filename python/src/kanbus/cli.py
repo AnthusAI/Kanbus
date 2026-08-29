@@ -96,6 +96,12 @@ from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
+from kanbus.agent_metadata import (
+    AgentMetadataRequest,
+    AgentMetadataResolutionError,
+    reject_agent_metadata_in_beads_mode,
+    resolve_agent_metadata,
+)
 from kanbus.gossip import GossipError, run_gossip_broker, run_gossip_watch
 from kanbus.overlay import (
     gc_overlay_for_projects,
@@ -123,6 +129,35 @@ def _deprecated_create_focus() -> click.ClickException:
     return click.ClickException(
         "`kanbus create --focus` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
     )
+
+
+def _resolve_cli_agent_metadata(
+    agent_platform: Optional[str],
+    agent_model: Optional[str],
+    agent_settings: Optional[str],
+):
+    """Resolve optional agent metadata from CLI flags and environment.
+
+    :param agent_platform: Platform flag value.
+    :type agent_platform: Optional[str]
+    :param agent_model: Model flag value.
+    :type agent_model: Optional[str]
+    :param agent_settings: Settings JSON flag value.
+    :type agent_settings: Optional[str]
+    :return: Validated agent metadata or None.
+    :rtype: Optional[kanbus.models.AgentMetadata]
+    :raises click.ClickException: If validation fails.
+    """
+    try:
+        return resolve_agent_metadata(
+            AgentMetadataRequest(
+                platform=agent_platform,
+                model=agent_model,
+                settings_json=agent_settings,
+            )
+        )
+    except AgentMetadataResolutionError as error:
+        raise click.ClickException(str(error)) from error
 
 
 def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool, bool]:
@@ -342,6 +377,9 @@ def repair(yes: bool) -> None:
     help="Deprecated. UI control commands are temporarily unavailable.",
 )
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.option("--agent-platform")
+@click.option("--agent-model")
+@click.option("--agent-settings")
 @click.pass_context
 def create(
     context: click.Context,
@@ -356,6 +394,9 @@ def create(
     requested_id: str | None,
     focus_issue: bool,
     no_validate: bool,
+    agent_platform: str | None,
+    agent_model: str | None,
+    agent_settings: str | None,
 ) -> None:
     """Create a new issue in the current project.
 
@@ -403,7 +444,11 @@ def create(
 
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings
+    )
     if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
         root = _resolve_beads_root(root)
         if local_issue:
             raise click.ClickException("beads mode does not support local issues")
@@ -485,6 +530,7 @@ def create(
             local=local_issue,
             validate=not no_validate,
             requested_id=requested_id,
+            agent=agent_metadata,
         )
     except IssueCreationError as error:
         raise click.ClickException(str(error)) from error
@@ -1470,6 +1516,9 @@ def localize(context: click.Context, identifier: str) -> None:
 @click.argument("text", required=False)
 @click.option("--body-file", type=click.File("r"), default=None)
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.option("--agent-platform")
+@click.option("--agent-model")
+@click.option("--agent-settings")
 @click.pass_context
 def comment(
     context: click.Context,
@@ -1477,6 +1526,9 @@ def comment(
     text: Optional[str],
     body_file: Optional[click.File],
     no_validate: bool = False,
+    agent_platform: str | None = None,
+    agent_model: str | None = None,
+    agent_settings: str | None = None,
 ) -> None:
     """Add a comment to an issue.
 
@@ -1493,6 +1545,9 @@ def comment(
     """
     root = Path.cwd()
     beads_mode = context.obj.get("beads_mode", False)
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings
+    )
 
     # Check if beads_compatibility is enabled in config
     if not beads_mode:
@@ -1503,6 +1558,9 @@ def comment(
         except (ConfigurationError, ProjectMarkerError):
             # Treat unreadable/missing project config as standard Kanbus mode.
             pass
+
+    if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
 
     # Handle body-file input
     comment_text = text or ""
@@ -1555,6 +1613,7 @@ def comment(
                 identifier=identifier,
                 author=get_current_user(),
                 text=comment_text,
+                agent=agent_metadata,
             )
             emit_signals(
                 comment_quality_result,

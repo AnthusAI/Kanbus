@@ -1,0 +1,18 @@
+{
+  "id": "kbs-dbf8b6ad-a420-4c43-b541-259273d0d5ab",
+  "title": "Wire agent metadata into comment create path",
+  "description": "Story: kbs-371786. issue_comment.py/rs + CLI comment. --agent-* flags; KANBUS_AGENT_* env with flag precedence.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T13:41:32.860548Z",
+  "updated_at": "2026-08-29T13:41:32.860548Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -222,6 +222,7 @@ pub fn build_summary_comment(
         created_at: Utc::now(),
         comment_type: "summary".to_string(),
         data,
+        agent: None,
     }
 }
 
@@ -356,6 +357,7 @@ mod tests {
             created_at: timestamp,
             updated_at: timestamp,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         }
     }

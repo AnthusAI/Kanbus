@@ -1,0 +1,18 @@
+{
+  "id": "kbs-17b4a491-e1f8-47a2-b42c-c6cd3fc29a80",
+  "title": "Document agent metadata for agents and CLI reference",
+  "description": "Update CONTRIBUTING_AGENT.md, docs/CLI_REFERENCE.md: env vars, flags, canonical platforms, settings allowlist, no secrets policy, Beads limitation.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T13:41:20.337751Z",
+  "updated_at": "2026-08-29T13:41:20.337751Z",
+  "closed_at": null,
+  "custom": {}
+}

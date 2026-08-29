@@ -77,6 +77,7 @@ pub struct KanbusWorld {
     pub last_beads_issue_id: Option<String>,
     pub existing_kanbus_ids: Option<HashSet<String>>,
     pub last_kanbus_issue_id: Option<String>,
+    pub resolved_agent_metadata: Option<kanbus::models::AgentMetadata>,
     pub unreadable_path: Option<PathBuf>,
     pub unreadable_mode: Option<u32>,
     pub console_state: Option<ConsoleState>,
