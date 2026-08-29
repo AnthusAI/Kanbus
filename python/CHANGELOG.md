@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.20.1 (2026-08-29)
+
+### Bug Fixes
+
+- Apply Dependabot patch and minor updates
+  ([`0a981c9`](https://github.com/AnthusAI/Kanbus/commit/0a981c92268985067f466411e861605d733cf893))
+
+### Chores
+
+- **console**: Refresh embedded asset index after console dep bumps
+  ([`8596491`](https://github.com/AnthusAI/Kanbus/commit/859649132d685d2568ad2a50e26f10121db369b1))
+
+- **deps**: Consolidate safe Dependabot bumps against develop
+  ([`426a264`](https://github.com/AnthusAI/Kanbus/commit/426a264462e6b6835e25cd97a96412d56e4b0cbe))
+
+
 ## v0.20.0 (2026-08-29)
 
 ### Bug Fixes
