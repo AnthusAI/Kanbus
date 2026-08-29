@@ -1,0 +1,18 @@
+{
+  "id": "kbs-6b4ff6d2-4457-400f-9493-2dadd2547442",
+  "title": "Render agent metadata in CLI issue display",
+  "description": "Story: kbs-371786. issue_display.py/rs: Agent row, comment suffix, settings sub-line. Only when present.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T13:41:33.534972Z",
+  "updated_at": "2026-08-29T13:41:33.534972Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -3,9 +3,45 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+
+
+class AgentSettings(BaseModel):
+    """Allowlisted model settings for agent provenance metadata.
+
+    :param temperature: Sampling temperature between 0.0 and 2.0.
+    :type temperature: Optional[float]
+    :param thinking_level: Reasoning depth level when supported by the model.
+    :type thinking_level: Optional[str]
+    :param max_output_tokens: Maximum output token budget when supported.
+    :type max_output_tokens: Optional[int]
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
+    thinking_level: Optional[Literal["off", "low", "medium", "high"]] = None
+    max_output_tokens: Optional[int] = Field(default=None, gt=0)
+
+
+class AgentMetadata(BaseModel):
+    """Structured AI agent provenance metadata.
+
+    :param platform: Agent platform identifier (for example cursor).
+    :type platform: str
+    :param model: Model identifier used for the action.
+    :type model: str
+    :param settings: Optional allowlisted model settings.
+    :type settings: AgentSettings
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    platform: str = Field(min_length=1, max_length=64)
+    model: str = Field(min_length=1, max_length=128)
+    settings: AgentSettings = Field(default_factory=AgentSettings)
 
 
 class CategoryDefinition(BaseModel):
@@ -41,6 +77,8 @@ class IssueComment(BaseModel):
     :type comment_type: str
     :param data: Structured comment payload (e.g. compaction summary fields).
     :type data: Dict[str, Any]
+    :param agent: Optional agent provenance metadata for this comment.
+    :type agent: Optional[AgentMetadata]
     """
 
     id: Optional[str] = None
@@ -49,6 +87,7 @@ class IssueComment(BaseModel):
     created_at: datetime
     comment_type: str = "default"
     data: Dict[str, Any] = Field(default_factory=dict)
+    agent: Optional[AgentMetadata] = None
 
     @model_serializer(mode="wrap")
     def serialize_model(self, serializer: object) -> Dict[str, Any]:
@@ -124,6 +163,8 @@ class IssueData(BaseModel):
     :type closed_at: Optional[datetime]
     :param custom: Custom fields.
     :type custom: Dict[str, object]
+    :param agent: Optional agent provenance metadata captured at issue create.
+    :type agent: Optional[AgentMetadata]
     """
 
     identifier: str = Field(alias="id", min_length=1)
@@ -142,6 +183,7 @@ class IssueData(BaseModel):
     updated_at: datetime
     closed_at: Optional[datetime] = None
     custom: Dict[str, object] = Field(default_factory=dict)
+    agent: Optional[AgentMetadata] = None
 
 
 class StatusDefinition(BaseModel):

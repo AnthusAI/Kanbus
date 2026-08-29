@@ -47,10 +47,12 @@ fn when_build_sample_issue(world: &mut KanbusWorld, target: String, author: Stri
             created_at: now,
             comment_type: "default".to_string(),
             data: std::collections::BTreeMap::new(),
+            agent: None,
         }],
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     };
     world.sample_issue = Some(issue);

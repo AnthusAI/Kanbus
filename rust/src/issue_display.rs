@@ -2,6 +2,9 @@
 
 use owo_colors::{AnsiColors, OwoColorize};
 
+use crate::agent_metadata::{
+    format_agent_display_line, format_agent_settings_display, format_comment_author_label,
+};
 use crate::ids::format_issue_key;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::summarize::get_comment_display_text;
@@ -185,6 +188,20 @@ pub fn format_issue_for_display(
             paint(&value, final_color, use_color)
         ));
     }
+    if let Some(agent) = issue.agent.as_ref() {
+        lines.push(format!(
+            "{} {}",
+            dim("Agent:", use_color),
+            format_agent_display_line(agent)
+        ));
+        if let Some(settings_line) = format_agent_settings_display(agent) {
+            lines.push(format!(
+                "  {} {}",
+                dim("settings:", use_color),
+                settings_line
+            ));
+        }
+    }
     let (description, comments_texts) = if let Some(issues) = all_issues {
         render_description_and_comments(issue, issues)
     } else {
@@ -234,14 +251,31 @@ pub fn format_issue_for_display(
             if prefix.is_empty() {
                 lines.push(format!(
                     "  {} {}",
-                    dim(&format!("{author}:"), use_color),
+                    dim(
+                        &format_comment_author_label(author, comment.agent.as_ref()),
+                        use_color
+                    ),
                     text
                 ));
             } else {
                 lines.push(format!(
                     "  [{prefix}] {} {}",
-                    dim(&format!("{author}:"), use_color),
+                    dim(
+                        &format_comment_author_label(author, comment.agent.as_ref()),
+                        use_color
+                    ),
                     text
+                ));
+            }
+            if let Some(settings_line) = comment
+                .agent
+                .as_ref()
+                .and_then(format_agent_settings_display)
+            {
+                lines.push(format!(
+                    "    {} {}",
+                    dim("settings:", use_color),
+                    settings_line
                 ));
             }
         }

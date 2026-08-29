@@ -77,6 +77,7 @@ pub struct KanbusWorld {
     pub last_beads_issue_id: Option<String>,
     pub existing_kanbus_ids: Option<HashSet<String>>,
     pub last_kanbus_issue_id: Option<String>,
+    pub resolved_agent_metadata: Option<kanbus::models::AgentMetadata>,
     pub unreadable_path: Option<PathBuf>,
     pub unreadable_mode: Option<u32>,
     pub console_state: Option<ConsoleState>,
@@ -130,6 +131,46 @@ pub struct KanbusWorld {
     pub uds_published_id: Option<String>,
     pub mosquitto_startup: Option<kanbus::gossip::BrokerStartup>,
     pub ai_call_count_after_first_render: Option<usize>,
+    pub environment_overrides: BTreeMap<String, String>,
+}
+
+const AGENT_ENVIRONMENT_KEYS: [&str; 3] = [
+    "KANBUS_AGENT_PLATFORM",
+    "KANBUS_AGENT_MODEL",
+    "KANBUS_AGENT_SETTINGS",
+];
+
+/// Apply scenario environment overrides and return saved values for restoration.
+pub fn apply_environment_overrides(
+    overrides: &BTreeMap<String, String>,
+) -> BTreeMap<String, Option<String>> {
+    let mut saved = BTreeMap::new();
+    for key in AGENT_ENVIRONMENT_KEYS {
+        saved.insert(key.to_string(), std::env::var(key).ok());
+        if overrides.contains_key(key) {
+            std::env::set_var(key, overrides.get(key).expect("override value"));
+        } else {
+            std::env::remove_var(key);
+        }
+    }
+    for (key, value) in overrides {
+        if AGENT_ENVIRONMENT_KEYS.contains(&key.as_str()) {
+            continue;
+        }
+        saved.insert(key.clone(), std::env::var(key).ok());
+        std::env::set_var(key, value);
+    }
+    saved
+}
+
+/// Restore process environment values saved by ``apply_environment_overrides``.
+pub fn restore_environment(saved: BTreeMap<String, Option<String>>) {
+    for (key, value) in saved {
+        match value {
+            Some(existing) => std::env::set_var(key, existing),
+            None => std::env::remove_var(key),
+        }
+    }
 }
 
 impl Drop for KanbusWorld {

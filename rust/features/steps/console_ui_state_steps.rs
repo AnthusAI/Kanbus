@@ -152,6 +152,7 @@ fn given_issue_exists_with_title(world: &mut KanbusWorld, identifier: String, ti
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         custom: BTreeMap::new(),
     };
     write_issue_file(&project_dir, &issue);
