@@ -17,6 +17,8 @@ class AgentSettings(BaseModel):
     :type thinking_level: Optional[str]
     :param max_output_tokens: Maximum output token budget when supported.
     :type max_output_tokens: Optional[int]
+    :param speed: Response speed profile when supported by the platform.
+    :type speed: Optional[str]
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -24,6 +26,7 @@ class AgentSettings(BaseModel):
     temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
     thinking_level: Optional[Literal["off", "low", "medium", "high"]] = None
     max_output_tokens: Optional[int] = Field(default=None, gt=0)
+    speed: Optional[Literal["normal", "fast"]] = None
 
 
 class AgentMetadata(BaseModel):
@@ -33,6 +36,8 @@ class AgentMetadata(BaseModel):
     :type platform: str
     :param model: Model identifier used for the action.
     :type model: str
+    :param name: Optional session or bot name for the agent runtime.
+    :type name: Optional[str]
     :param settings: Optional allowlisted model settings.
     :type settings: AgentSettings
     """
@@ -41,6 +46,7 @@ class AgentMetadata(BaseModel):
 
     platform: str = Field(min_length=1, max_length=64)
     model: str = Field(min_length=1, max_length=128)
+    name: Optional[str] = Field(default=None, min_length=1, max_length=128)
     settings: AgentSettings = Field(default_factory=AgentSettings)
 
 

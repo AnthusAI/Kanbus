@@ -14,9 +14,10 @@ from kanbus.models import AgentMetadata, AgentSettings
 PLATFORM_PATTERN = re.compile(r"^[a-z0-9_-]{1,64}$")
 SECRET_KEY_PATTERN = re.compile(r"(?i)(api[_-]?key|token|secret|password|credential)")
 ALLOWED_SETTINGS_KEYS = frozenset(
-    {"temperature", "thinking_level", "max_output_tokens"}
+    {"temperature", "thinking_level", "max_output_tokens", "speed"}
 )
 MAX_AGENT_METADATA_BYTES = 2048
+MAX_AGENT_NAME_LENGTH = 128
 
 
 class AgentMetadataResolutionError(ValueError):
@@ -30,6 +31,7 @@ class AgentMetadataRequest(BaseModel):
 
     platform: Optional[str] = None
     model: Optional[str] = None
+    name: Optional[str] = None
     settings_json: Optional[str] = None
 
 
@@ -44,6 +46,15 @@ def _normalize_platform(platform: str) -> str:
     normalized = platform.strip().lower()
     if not PLATFORM_PATTERN.fullmatch(normalized):
         raise AgentMetadataResolutionError("invalid agent platform")
+    return normalized
+
+
+def _normalize_agent_name(name: Optional[str]) -> Optional[str]:
+    normalized = _normalize_optional_text(name)
+    if normalized is None:
+        return None
+    if len(normalized) > MAX_AGENT_NAME_LENGTH:
+        raise AgentMetadataResolutionError("invalid agent name")
     return normalized
 
 
@@ -78,6 +89,7 @@ def build_agent_metadata(
     platform: Optional[str],
     model: Optional[str],
     settings: Optional[Dict[str, Any]] = None,
+    name: Optional[str] = None,
 ) -> Optional[AgentMetadata]:
     """Build validated agent metadata or return None when all inputs are absent.
 
@@ -87,17 +99,21 @@ def build_agent_metadata(
     :type model: Optional[str]
     :param settings: Parsed settings object.
     :type settings: Optional[Dict[str, Any]]
+    :param name: Optional session or bot name.
+    :type name: Optional[str]
     :return: Validated metadata or None.
     :rtype: Optional[AgentMetadata]
     :raises AgentMetadataResolutionError: If partial or invalid metadata is provided.
     """
     normalized_platform = _normalize_optional_text(platform)
     normalized_model = _normalize_optional_text(model)
+    normalized_name = _normalize_agent_name(name)
     settings_payload = settings if settings is not None else {}
     if (
         normalized_platform is None
         and normalized_model is None
         and not settings_payload
+        and normalized_name is None
     ):
         return None
     if normalized_platform is None or normalized_model is None:
@@ -108,6 +124,7 @@ def build_agent_metadata(
     agent = AgentMetadata(
         platform=_normalize_platform(normalized_platform),
         model=normalized_model,
+        name=normalized_name,
         settings=AgentSettings.model_validate(settings_payload),
     )
     serialized = json.dumps(
@@ -131,15 +148,18 @@ def resolve_agent_metadata(request: AgentMetadataRequest) -> Optional[AgentMetad
     """
     platform = _normalize_optional_text(request.platform)
     model = _normalize_optional_text(request.model)
+    name = _normalize_agent_name(request.name)
     settings_json = _normalize_optional_text(request.settings_json)
     if platform is None:
         platform = _normalize_optional_text(os.getenv("KANBUS_AGENT_PLATFORM"))
     if model is None:
         model = _normalize_optional_text(os.getenv("KANBUS_AGENT_MODEL"))
+    if name is None:
+        name = _normalize_agent_name(os.getenv("KANBUS_AGENT_NAME"))
     if settings_json is None:
         settings_json = _normalize_optional_text(os.getenv("KANBUS_AGENT_SETTINGS"))
     settings = _parse_settings_json(settings_json)
-    return build_agent_metadata(platform, model, settings)
+    return build_agent_metadata(platform, model, settings, name)
 
 
 def format_agent_display_line(agent: AgentMetadata) -> str:
@@ -147,10 +167,13 @@ def format_agent_display_line(agent: AgentMetadata) -> str:
 
     :param agent: Agent metadata to format.
     :type agent: AgentMetadata
-    :return: Display string such as ``cursor / composer-2.5``.
+    :return: Display string such as ``cloud-agent / cursor / composer-2.5``.
     :rtype: str
     """
-    return f"{agent.platform} / {agent.model}"
+    platform_model = f"{agent.platform} / {agent.model}"
+    if agent.name:
+        return f"{agent.name} / {platform_model}"
+    return platform_model
 
 
 def format_agent_settings_display(agent: AgentMetadata) -> Optional[str]:

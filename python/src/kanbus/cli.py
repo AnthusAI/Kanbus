@@ -135,6 +135,7 @@ def _resolve_cli_agent_metadata(
     agent_platform: Optional[str],
     agent_model: Optional[str],
     agent_settings: Optional[str],
+    agent_name: Optional[str] = None,
 ):
     """Resolve optional agent metadata from CLI flags and environment.
 
@@ -144,6 +145,8 @@ def _resolve_cli_agent_metadata(
     :type agent_model: Optional[str]
     :param agent_settings: Settings JSON flag value.
     :type agent_settings: Optional[str]
+    :param agent_name: Session or bot name flag value.
+    :type agent_name: Optional[str]
     :return: Validated agent metadata or None.
     :rtype: Optional[kanbus.models.AgentMetadata]
     :raises click.ClickException: If validation fails.
@@ -153,6 +156,7 @@ def _resolve_cli_agent_metadata(
             AgentMetadataRequest(
                 platform=agent_platform,
                 model=agent_model,
+                name=agent_name,
                 settings_json=agent_settings,
             )
         )
@@ -379,6 +383,7 @@ def repair(yes: bool) -> None:
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
 @click.option("--agent-platform")
 @click.option("--agent-model")
+@click.option("--agent-name")
 @click.option("--agent-settings")
 @click.pass_context
 def create(
@@ -396,6 +401,7 @@ def create(
     no_validate: bool,
     agent_platform: str | None,
     agent_model: str | None,
+    agent_name: str | None,
     agent_settings: str | None,
 ) -> None:
     """Create a new issue in the current project.
@@ -445,7 +451,7 @@ def create(
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     agent_metadata = _resolve_cli_agent_metadata(
-        agent_platform, agent_model, agent_settings
+        agent_platform, agent_model, agent_settings, agent_name
     )
     if beads_mode:
         reject_agent_metadata_in_beads_mode(agent_metadata is not None)
@@ -1518,6 +1524,7 @@ def localize(context: click.Context, identifier: str) -> None:
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
 @click.option("--agent-platform")
 @click.option("--agent-model")
+@click.option("--agent-name")
 @click.option("--agent-settings")
 @click.pass_context
 def comment(
@@ -1528,6 +1535,7 @@ def comment(
     no_validate: bool = False,
     agent_platform: str | None = None,
     agent_model: str | None = None,
+    agent_name: str | None = None,
     agent_settings: str | None = None,
 ) -> None:
     """Add a comment to an issue.
@@ -1546,7 +1554,7 @@ def comment(
     root = Path.cwd()
     beads_mode = context.obj.get("beads_mode", False)
     agent_metadata = _resolve_cli_agent_metadata(
-        agent_platform, agent_model, agent_settings
+        agent_platform, agent_model, agent_settings, agent_name
     )
 
     # Check if beads_compatibility is enabled in config

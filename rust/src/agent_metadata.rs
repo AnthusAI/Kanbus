@@ -14,14 +14,21 @@ static SECRET_KEY_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(api[_-]?key|token|secret|password|credential)").expect("secret key regex")
 });
 
-const ALLOWED_SETTINGS_KEYS: [&str; 3] = ["temperature", "thinking_level", "max_output_tokens"];
+const ALLOWED_SETTINGS_KEYS: [&str; 4] = [
+    "temperature",
+    "thinking_level",
+    "max_output_tokens",
+    "speed",
+];
 const MAX_AGENT_METADATA_BYTES: usize = 2048;
+const MAX_AGENT_NAME_LENGTH: usize = 128;
 
 /// Optional agent metadata inputs from CLI flags and environment.
 #[derive(Debug, Clone, Default)]
 pub struct AgentMetadataRequest {
     pub platform: Option<String>,
     pub model: Option<String>,
+    pub name: Option<String>,
     pub settings_json: Option<String>,
 }
 
@@ -44,6 +51,18 @@ fn normalize_platform(platform: &str) -> Result<String, KanbusError> {
         ));
     }
     Ok(normalized)
+}
+
+fn normalize_agent_name(name: Option<&str>) -> Result<Option<String>, KanbusError> {
+    let Some(normalized) = normalize_optional_text(name) else {
+        return Ok(None);
+    };
+    if normalized.len() > MAX_AGENT_NAME_LENGTH {
+        return Err(KanbusError::IssueOperation(
+            "invalid agent name".to_string(),
+        ));
+    }
+    Ok(Some(normalized))
 }
 
 fn validate_settings_keys(settings: &BTreeMap<String, Value>) -> Result<(), KanbusError> {
@@ -93,10 +112,12 @@ fn parse_agent_settings(settings: &BTreeMap<String, Value>) -> Result<AgentSetti
         .get("max_output_tokens")
         .map(parse_max_output_tokens)
         .transpose()?;
+    let speed = settings.get("speed").map(parse_speed).transpose()?;
     Ok(AgentSettings {
         temperature,
         thinking_level,
         max_output_tokens,
+        speed,
     })
 }
 
@@ -136,15 +157,33 @@ fn parse_max_output_tokens(value: &Value) -> Result<u64, KanbusError> {
     Ok(number)
 }
 
+fn parse_speed(value: &Value) -> Result<String, KanbusError> {
+    let text = value
+        .as_str()
+        .ok_or_else(|| KanbusError::IssueOperation("invalid agent settings key".to_string()))?;
+    match text {
+        "normal" | "fast" => Ok(text.to_string()),
+        _ => Err(KanbusError::IssueOperation(
+            "invalid agent settings key".to_string(),
+        )),
+    }
+}
+
 /// Build validated agent metadata or return None when all inputs are absent.
 pub fn build_agent_metadata(
     platform: Option<&str>,
     model: Option<&str>,
     settings: &BTreeMap<String, Value>,
+    name: Option<&str>,
 ) -> Result<Option<AgentMetadata>, KanbusError> {
     let normalized_platform = normalize_optional_text(platform);
     let normalized_model = normalize_optional_text(model);
-    if normalized_platform.is_none() && normalized_model.is_none() && settings.is_empty() {
+    let normalized_name = normalize_agent_name(name)?;
+    if normalized_platform.is_none()
+        && normalized_model.is_none()
+        && settings.is_empty()
+        && normalized_name.is_none()
+    {
         return Ok(None);
     }
     let platform_value = normalized_platform.ok_or_else(|| {
@@ -157,6 +196,7 @@ pub fn build_agent_metadata(
     let agent = AgentMetadata {
         platform: normalize_platform(&platform_value)?,
         model: model_value,
+        name: normalized_name,
         settings: parsed_settings,
     };
     let serialized = serde_json::to_string(&agent)
@@ -175,6 +215,7 @@ pub fn resolve_agent_metadata(
 ) -> Result<Option<AgentMetadata>, KanbusError> {
     let mut platform = normalize_optional_text(request.platform.as_deref());
     let mut model = normalize_optional_text(request.model.as_deref());
+    let mut name = normalize_agent_name(request.name.as_deref())?;
     let mut settings_json = normalize_optional_text(request.settings_json.as_deref());
     if platform.is_none() {
         platform = normalize_optional_text(std::env::var("KANBUS_AGENT_PLATFORM").ok().as_deref());
@@ -182,17 +223,30 @@ pub fn resolve_agent_metadata(
     if model.is_none() {
         model = normalize_optional_text(std::env::var("KANBUS_AGENT_MODEL").ok().as_deref());
     }
+    if name.is_none() {
+        name = normalize_agent_name(std::env::var("KANBUS_AGENT_NAME").ok().as_deref())?;
+    }
     if settings_json.is_none() {
         settings_json =
             normalize_optional_text(std::env::var("KANBUS_AGENT_SETTINGS").ok().as_deref());
     }
     let settings = parse_settings_json(settings_json.as_deref())?;
-    build_agent_metadata(platform.as_deref(), model.as_deref(), &settings)
+    build_agent_metadata(
+        platform.as_deref(),
+        model.as_deref(),
+        &settings,
+        name.as_deref(),
+    )
 }
 
 /// Format agent metadata for compact CLI display.
 pub fn format_agent_display_line(agent: &AgentMetadata) -> String {
-    format!("{} / {}", agent.platform, agent.model)
+    let platform_model = format!("{} / {}", agent.platform, agent.model);
+    if let Some(name) = agent.name.as_deref() {
+        format!("{name} / {platform_model}")
+    } else {
+        platform_model
+    }
 }
 
 /// Format allowlisted agent settings for CLI display.
@@ -206,6 +260,9 @@ pub fn format_agent_settings_display(agent: &AgentMetadata) -> Option<String> {
     }
     if let Some(max_output_tokens) = agent.settings.max_output_tokens {
         parts.push(format!("max_output_tokens={max_output_tokens}"));
+    }
+    if let Some(speed) = agent.settings.speed.as_deref() {
+        parts.push(format!("speed={speed}"));
     }
     if parts.is_empty() {
         None
@@ -243,7 +300,7 @@ mod tests {
 
     #[test]
     fn build_agent_metadata_requires_platform_and_model_together() {
-        let error = build_agent_metadata(Some("cursor"), None, &BTreeMap::new())
+        let error = build_agent_metadata(Some("cursor"), None, &BTreeMap::new(), None)
             .expect_err("expected error");
         assert_eq!(
             error.to_string(),
@@ -258,7 +315,7 @@ mod tests {
             "openai_api_key".to_string(),
             Value::String("secret".to_string()),
         );
-        let error = build_agent_metadata(Some("cursor"), Some("model"), &settings)
+        let error = build_agent_metadata(Some("cursor"), Some("model"), &settings, None)
             .expect_err("expected error");
         assert_eq!(
             error.to_string(),

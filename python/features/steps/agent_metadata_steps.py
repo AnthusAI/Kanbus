@@ -64,6 +64,20 @@ def given_kanbus_agent_model(context: object, value: str) -> None:
     context.environment_overrides = overrides
 
 
+@given('KANBUS_AGENT_SETTINGS is set to "{value}"')
+def given_kanbus_agent_settings(context: object, value: str) -> None:
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["KANBUS_AGENT_SETTINGS"] = value
+    context.environment_overrides = overrides
+
+
+@given("agent settings JSON is:")
+def given_agent_settings_json(context: object) -> None:
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["KANBUS_AGENT_SETTINGS"] = context.text.strip()
+    context.environment_overrides = overrides
+
+
 @given("KANBUS_AGENT_MODEL is unset")
 def given_kanbus_agent_model_unset(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
@@ -111,6 +125,15 @@ def then_latest_comment_has_agent_metadata(
     assert latest.agent is not None
     assert latest.agent.platform == platform
     assert latest.agent.model == model
+
+
+@then('the latest comment should have agent settings speed "{speed}"')
+def then_latest_comment_has_agent_settings_speed(context: object, speed: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, "kanbus-aaa")
+    latest = issue.comments[-1]
+    assert latest.agent is not None
+    assert latest.agent.settings.speed == speed
 
 
 @given(

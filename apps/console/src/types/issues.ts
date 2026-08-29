@@ -68,11 +68,13 @@ export interface AgentSettings {
   temperature?: number;
   thinking_level?: "off" | "low" | "medium" | "high";
   max_output_tokens?: number;
+  speed?: "normal" | "fast";
 }
 
 export interface AgentMetadata {
   platform: string;
   model: string;
+  name?: string;
   settings?: AgentSettings;
 }
 
