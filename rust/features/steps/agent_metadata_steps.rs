@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{TimeZone, Utc};
+use cucumber::gherkin::Step;
 use cucumber::{given, then, when};
 
 use kanbus::agent_metadata::{resolve_agent_metadata, AgentMetadataRequest};
@@ -78,11 +79,11 @@ fn given_kanbus_agent_settings(world: &mut KanbusWorld, value: String) {
 }
 
 #[given("agent settings JSON is:")]
-fn given_agent_settings_json(world: &mut KanbusWorld) {
-    world.environment_overrides.insert(
-        "KANBUS_AGENT_SETTINGS".to_string(),
-        r#"{"speed":"fast"}"#.to_string(),
-    );
+fn given_agent_settings_json(world: &mut KanbusWorld, step: &Step) {
+    let content = step.docstring().expect("agent settings JSON required").trim();
+    world
+        .environment_overrides
+        .insert("KANBUS_AGENT_SETTINGS".to_string(), content.to_string());
 }
 
 #[given("KANBUS_AGENT_MODEL is unset")]
@@ -138,7 +139,24 @@ fn then_latest_comment_has_agent_settings_speed(world: &mut KanbusWorld, speed: 
     let issue = load_issue(&project_dir, "kanbus-aaa");
     let latest = issue.comments.last().expect("comment");
     let agent = latest.agent.as_ref().expect("agent metadata");
-    assert_eq!(agent.settings.speed.as_deref(), Some(speed.as_str()));
+    assert_eq!(
+        agent.settings.get("speed").and_then(|value| value.as_str()),
+        Some(speed.as_str())
+    );
+}
+
+#[then(expr = "the latest comment should have agent setting {string} with value {string}")]
+fn then_latest_comment_has_agent_setting(
+    world: &mut KanbusWorld,
+    key: String,
+    value: String,
+) {
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, "kanbus-aaa");
+    let latest = issue.comments.last().expect("comment");
+    let agent = latest.agent.as_ref().expect("agent metadata");
+    let setting_value = agent.settings.get(&key).expect("setting key");
+    assert_eq!(setting_value.as_str(), Some(value.as_str()));
 }
 
 #[given(

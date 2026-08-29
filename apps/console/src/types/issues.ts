@@ -64,12 +64,7 @@ export interface ProjectConfig {
   beads_compatibility: boolean;
 }
 
-export interface AgentSettings {
-  temperature?: number;
-  thinking_level?: "off" | "low" | "medium" | "high";
-  max_output_tokens?: number;
-  speed?: "normal" | "fast";
-}
+export type AgentSettings = Record<string, unknown>;
 
 export interface AgentMetadata {
   platform: string;

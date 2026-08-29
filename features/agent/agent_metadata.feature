@@ -94,3 +94,14 @@ Feature: Agent metadata on issues and comments
     When I run "kanbus comment kanbus-aaa \"Fast note\" --agent-platform cursor --agent-model composer-2.5"
     Then the command should succeed
     And the latest comment should have agent settings speed "fast"
+
+  Scenario: Custom agent settings keys are accepted
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists
+    And agent settings JSON is:
+      """
+      {"reasoning_effort":"turbo","vendor_mode":"fastest"}
+      """
+    When I run "kanbus comment kanbus-aaa \"Custom settings\" --agent-platform cursor --agent-model composer-2.5"
+    Then the command should succeed
+    And the latest comment should have agent setting "reasoning_effort" with value "turbo"
