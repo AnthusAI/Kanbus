@@ -1,0 +1,18 @@
+{
+  "id": "kbs-8f2559f0-a4fb-4656-affe-32a814b9364e",
+  "title": "wiki init hint is run-on (index.md Or run: kbs wiki init)",
+  "description": "Papyrus 0.20.1 AT on /workspace/research-pod. show/lint/check/render on a project with no project/wiki/ print a create hint, but the text is run-on: index.md Or run: kbs wiki init. Product rule: put the missing-page line and the init hint on separate lines (or a clear sentence break). Do not change the hint content.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T13:29:05.814361Z",
+  "updated_at": "2026-08-29T13:29:05.814361Z",
+  "closed_at": null,
+  "custom": {}
+}
