@@ -40,6 +40,7 @@ pub fn ensure_comment_ids(issue: &IssueData) -> (IssueData, bool) {
                     created_at: comment.created_at,
                     comment_type: comment.comment_type.clone(),
                     data: comment.data.clone(),
+                    agent: comment.agent.clone(),
                 }
             } else {
                 comment.clone()
@@ -112,6 +113,7 @@ pub fn add_comment(
     identifier: &str,
     author: &str,
     text: &str,
+    agent: Option<crate::models::AgentMetadata>,
 ) -> Result<IssueCommentResult, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let timestamp = Utc::now();
@@ -122,6 +124,7 @@ pub fn add_comment(
         created_at: timestamp,
         comment_type: "default".to_string(),
         data: std::collections::BTreeMap::new(),
+        agent,
     };
     let (base_issue, _) = ensure_comment_ids(&lookup.issue);
     let mut comments = base_issue.comments.clone();
@@ -143,7 +146,7 @@ pub fn add_comment(
         updated.identifier.clone(),
         EventType::CommentAdded,
         actor_id,
-        comment_payload(&comment_id, &comment.author),
+        comment_payload(&comment_id, &comment.author, comment.agent.as_ref()),
         occurred_at,
     );
     let event_id = event.event_id.clone();
@@ -266,7 +269,7 @@ pub fn delete_comment(
         issue.identifier.clone(),
         EventType::CommentDeleted,
         actor_id,
-        comment_payload(&comment_id, &removed.author),
+        comment_payload(&comment_id, &removed.author, removed.agent.as_ref()),
         occurred_at,
     );
     let event_id = event.event_id.clone();

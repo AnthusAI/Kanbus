@@ -21,4 +21,6 @@ export type {
   KanbanSortOrder
 } from "./types";
 export type { TaskDetailIssue, IssueEvent, IssueEventsResponse } from "./TaskDetailPanel";
+export type { AgentMetadata, AgentSettings } from "./agent-metadata";
+export { AgentMetadataBlock } from "./AgentMetadataBlock";
 export type { KanbanMotionConfig, KanbanMotionMode } from "./motion";

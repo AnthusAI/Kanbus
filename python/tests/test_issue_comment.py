@@ -81,9 +81,7 @@ def test_add_comment_success_and_failures(monkeypatch: pytest.MonkeyPatch) -> No
         issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
     )
     monkeypatch.setattr(issue_comment, "get_current_user", lambda: "dev")
-    monkeypatch.setattr(
-        issue_comment, "comment_payload", lambda _id, _author: {"ok": True}
-    )
+    monkeypatch.setattr(issue_comment, "comment_payload", lambda *_a: {"ok": True})
     monkeypatch.setattr(
         issue_comment,
         "create_event",

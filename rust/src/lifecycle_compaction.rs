@@ -142,6 +142,7 @@ mod tests {
             created_at: updated_at,
             updated_at,
             closed_at: None,
+            agent: None,
             custom: std::collections::BTreeMap::new(),
         }
     }

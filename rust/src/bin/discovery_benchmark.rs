@@ -53,6 +53,7 @@ fn build_issue(identifier: &str, title: &str) -> IssueData {
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         custom: BTreeMap::new(),
     }
 }

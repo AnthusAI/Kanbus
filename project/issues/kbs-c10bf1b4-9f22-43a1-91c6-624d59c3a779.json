@@ -1,0 +1,18 @@
+{
+  "id": "kbs-c10bf1b4-9f22-43a1-91c6-624d59c3a779",
+  "title": "Extend event payloads with agent snapshots",
+  "description": "Story: kbs-1d5214. event_history.py/rs issue_created and comment_added payloads.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T13:41:36.237784Z",
+  "updated_at": "2026-08-29T13:41:36.237784Z",
+  "closed_at": null,
+  "custom": {}
+}

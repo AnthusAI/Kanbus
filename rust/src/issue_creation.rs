@@ -39,6 +39,7 @@ pub struct IssueCreationRequest {
     pub local: bool,
     pub validate: bool,
     pub requested_id: Option<String>,
+    pub agent: Option<crate::models::AgentMetadata>,
 }
 
 /// Result payload for issue creation.
@@ -142,6 +143,7 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         created_at,
         updated_at,
         closed_at: None,
+        agent: request.agent.clone(),
         custom: std::collections::BTreeMap::new(),
     };
 
@@ -304,6 +306,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         }
     }
@@ -329,6 +332,7 @@ mod tests {
             local: false,
             validate: true,
             requested_id: None,
+            agent: None,
         }
     }
 

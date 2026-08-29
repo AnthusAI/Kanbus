@@ -20,6 +20,36 @@ pub struct DependencyLink {
     pub dependency_type: String,
 }
 
+/// Allowlisted model settings for agent provenance metadata.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(deny_unknown_fields)]
+pub struct AgentSettings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking_level: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u64>,
+}
+
+/// Structured AI agent provenance metadata.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct AgentMetadata {
+    pub platform: String,
+    pub model: String,
+    #[serde(default, skip_serializing_if = "AgentSettings::is_empty")]
+    pub settings: AgentSettings,
+}
+
+impl AgentSettings {
+    fn is_empty(&self) -> bool {
+        self.temperature.is_none()
+            && self.thinking_level.is_none()
+            && self.max_output_tokens.is_none()
+    }
+}
+
 /// Comment on an issue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueComment {
@@ -33,6 +63,8 @@ pub struct IssueComment {
     pub comment_type: String,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub data: BTreeMap<String, serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<AgentMetadata>,
 }
 
 fn default_comment_type() -> String {
@@ -59,6 +91,8 @@ pub struct IssueData {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub closed_at: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<AgentMetadata>,
     pub custom: BTreeMap<String, serde_json::Value>,
 }
 
