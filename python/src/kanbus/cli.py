@@ -93,6 +93,7 @@ from kanbus.text_editor import (
     edit_insert,
 )
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from kanbus.console_screenshot import ConsoleScreenshotError, capture_console_screenshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.config_loader import ConfigurationError, load_project_configuration
@@ -2378,6 +2379,66 @@ def console_snapshot() -> None:
         raise click.ClickException(str(error)) from error
     payload = json.dumps(snapshot, indent=2, sort_keys=False)
     click.echo(payload)
+
+
+@console.command("screenshot")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Output PNG path (default: kanbus-board.png in the current directory).",
+)
+@click.option(
+    "--mode",
+    default="light",
+    show_default=True,
+    help="Appearance mode for the board (light or dark). Defaults to light for reproducible captures.",
+)
+@click.option(
+    "--view",
+    default=None,
+    help="Board type filter. Use all for every issue type (console ?type=all).",
+)
+@click.option(
+    "--expand-all",
+    is_flag=True,
+    help="Expand every collapsed status column before capture.",
+)
+@click.option(
+    "--expand",
+    "expand_columns",
+    multiple=True,
+    help="Expand a status column before capture (repeatable).",
+)
+@click.option(
+    "--collapse",
+    "collapse_columns",
+    multiple=True,
+    help="Collapse a status column before capture (repeatable).",
+)
+def console_screenshot(
+    output: Optional[str],
+    mode: str,
+    view: Optional[str],
+    expand_all: bool,
+    expand_columns: tuple[str, ...],
+    collapse_columns: tuple[str, ...],
+) -> None:
+    """Capture a PNG screenshot of the console board."""
+    root = Path.cwd()
+    try:
+        path = capture_console_screenshot(
+            root,
+            output,
+            mode,
+            view,
+            expand_all,
+            list(expand_columns),
+            list(collapse_columns),
+        )
+    except ConsoleScreenshotError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(str(path))
 
 
 @console.command("focus")
