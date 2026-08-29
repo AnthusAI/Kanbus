@@ -39,6 +39,12 @@ export function AgentMetadataBlock({
       ) : (
         <dl className="grid gap-1">
           <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            {metadata.name ? (
+              <>
+                <dt className="font-semibold uppercase tracking-[0.2em]">Name</dt>
+                <dd data-testid={`${prefix}-name`}>{metadata.name}</dd>
+              </>
+            ) : null}
             <dt className="font-semibold uppercase tracking-[0.2em]">Platform</dt>
             <dd data-testid={`${prefix}-platform`}>{metadata.platform}</dd>
             <dt className="font-semibold uppercase tracking-[0.2em]">Model</dt>

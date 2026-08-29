@@ -30,6 +30,8 @@ pub struct AgentSettings {
     pub thinking_level: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_output_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speed: Option<String>,
 }
 
 /// Structured AI agent provenance metadata.
@@ -38,6 +40,8 @@ pub struct AgentSettings {
 pub struct AgentMetadata {
     pub platform: String,
     pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     #[serde(default, skip_serializing_if = "AgentSettings::is_empty")]
     pub settings: AgentSettings,
 }
@@ -47,6 +51,7 @@ impl AgentSettings {
         self.temperature.is_none()
             && self.thinking_level.is_none()
             && self.max_output_tokens.is_none()
+            && self.speed.is_none()
     }
 }
 
