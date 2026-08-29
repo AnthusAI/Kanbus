@@ -1,0 +1,40 @@
+{
+  "id": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
+  "title": "Wiki as a live research KB",
+  "description": "Researcher is using project/wiki/ on /workspace/research-pod as the real research KB (not the compiled /workspace/research-wiki layer). First-pass gaps from writing index.md and concepts/something-intelligence.md.\n\nParent for list/search, render path, empty-wiki hint, Papyrus references() in templates, short issue ids, and the project/AGENTS.md wiki exception.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2d9eb877-ceb0-4dea-812a-fc2eeca438c2",
+      "author": "ryan",
+      "text": "Researcher first-pass on research-pod wiki (kbs 4151343 / 0.14.0). Filed: kbs-3d8ff3 search; kbs-532a69 render path (reproduced on 0.19.1); kbs-918867 empty-wiki hint; kbs-c5d5ca references() for accepted Papyrus JSON; kbs-4d29ec short issue id; kbs-1975f0 project/AGENTS.md wiki exception. They will port pages from /workspace/research-wiki; do not move that tree.",
+      "created_at": "2026-08-28T20:41:10.436794Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "7d354e2f-01bf-4ae6-95a1-f34873c473a1",
+      "author": "ubuntu",
+      "text": "Researcher second-pass asks from the research-pod port (11 concepts, 51 sources):\n\n- kbs-c85b7b — task P1: `kbs wiki show`, `lint`, and `check` missing (search remains kbs-3d8ff3)\n- kbs-900911 — bug P1: wiki render does not validate internal `.md` links\n\nBoth are implemented in PR #172 (cursor/wiki-research-kb-d8c6): show prints raw source; lint/check fail on broken relative `.md` links; render warns without blocking.",
+      "created_at": "2026-08-28T21:14:55.924444964Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "5269bba6-8607-429c-96d8-8ff935ff6f2e",
+      "author": "ryan",
+      "text": "Slice 1 shipped in 0.20.0 / PR #172. Closed children that landed. Leftover: kbs-c445a6 (wiki --json/--limit).",
+      "created_at": "2026-08-29T12:15:30.281222Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-08-28T20:40:53.136952Z",
+  "updated_at": "2026-08-29T12:15:30.281222Z",
+  "closed_at": null,
+  "custom": {}
+}

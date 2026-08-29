@@ -120,6 +120,7 @@ mod tests {
 
     use crate::issue_files::write_issue_to_file;
     use crate::models::IssueData;
+    use serial_test::serial;
 
     fn sample_issue(
         identifier: &str,
@@ -164,6 +165,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn run_lifecycle_compaction_dry_run_lists_candidates() {
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
         let temp = TempDir::new().expect("tempdir");
