@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.22.0 (2026-08-29)
+
+### Bug Fixes
+
+- Sync embedded console assets after AgentMetadataBlock update
+  ([`e2f528c`](https://github.com/AnthusAI/Kanbus/commit/e2f528c284f180766296374a1f5d5701eeba2e5b))
+
+### Continuous Integration
+
+- Retrigger workflow after transient coverage-ratchet XML parse failure
+  ([`207507e`](https://github.com/AnthusAI/Kanbus/commit/207507ed57b729c11ca5b4828ea8467e9bcaf616))
+
+### Features
+
+- Add agent.name and settings.speed to agent metadata
+  ([`0e7a414`](https://github.com/AnthusAI/Kanbus/commit/0e7a414e2a59409f65e80fc1e90624a47f9db4d2))
+
+
 ## v0.21.0 (2026-08-29)
 
 ### Bug Fixes
