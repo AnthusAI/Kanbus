@@ -104,7 +104,12 @@ async fn main() {
             let feature_has_wip = feature.tags.iter().any(|tag| tag == "wip");
             let scenario_has_console = scenario.tags.iter().any(|tag| tag == "console");
             let feature_has_console = feature.tags.iter().any(|tag| tag == "console");
+            let scenario_has_slow = scenario.tags.iter().any(|tag| tag == "slow");
+            let feature_has_slow = feature.tags.iter().any(|tag| tag == "slow");
             if scenario_has_wip || feature_has_wip {
+                return false;
+            }
+            if scenario_has_slow || feature_has_slow {
                 return false;
             }
             let has_console = scenario_has_console || feature_has_console;
