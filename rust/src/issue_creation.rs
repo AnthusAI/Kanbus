@@ -332,6 +332,7 @@ mod tests {
             local: false,
             validate: true,
             requested_id: None,
+            agent: None,
         }
     }
 
