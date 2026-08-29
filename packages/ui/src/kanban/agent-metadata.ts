@@ -2,11 +2,13 @@ export interface AgentSettings {
   temperature?: number;
   thinking_level?: "off" | "low" | "medium" | "high";
   max_output_tokens?: number;
+  speed?: "normal" | "fast";
 }
 
 export interface AgentMetadata {
   platform: string;
   model: string;
+  name?: string;
   settings?: AgentSettings;
 }
 
@@ -20,7 +22,11 @@ export function hasAgentMetadata(
 }
 
 export function formatAgentDisplayLine(metadata: AgentMetadata): string {
-  return `${metadata.platform} / ${metadata.model}`;
+  const platformModel = `${metadata.platform} / ${metadata.model}`;
+  if (metadata.name?.trim()) {
+    return `${metadata.name} / ${platformModel}`;
+  }
+  return platformModel;
 }
 
 export function formatAgentSettingsDisplay(
@@ -39,6 +45,9 @@ export function formatAgentSettingsDisplay(
   }
   if (settings.max_output_tokens !== undefined) {
     parts.push(`max_output_tokens=${settings.max_output_tokens}`);
+  }
+  if (settings.speed) {
+    parts.push(`speed=${settings.speed}`);
   }
   return parts.length > 0 ? parts.join(", ") : null;
 }

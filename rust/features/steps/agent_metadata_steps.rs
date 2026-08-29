@@ -70,6 +70,21 @@ fn given_kanbus_agent_model(world: &mut KanbusWorld, value: String) {
         .insert("KANBUS_AGENT_MODEL".to_string(), value);
 }
 
+#[given(expr = "KANBUS_AGENT_SETTINGS is set to {string}")]
+fn given_kanbus_agent_settings(world: &mut KanbusWorld, value: String) {
+    world
+        .environment_overrides
+        .insert("KANBUS_AGENT_SETTINGS".to_string(), value);
+}
+
+#[given("agent settings JSON is:")]
+fn given_agent_settings_json(world: &mut KanbusWorld) {
+    world.environment_overrides.insert(
+        "KANBUS_AGENT_SETTINGS".to_string(),
+        r#"{"speed":"fast"}"#.to_string(),
+    );
+}
+
 #[given("KANBUS_AGENT_MODEL is unset")]
 fn given_kanbus_agent_model_unset(world: &mut KanbusWorld) {
     world.environment_overrides.remove("KANBUS_AGENT_MODEL");
@@ -87,6 +102,7 @@ fn given_issue_with_agent_metadata(
     issue.agent = Some(AgentMetadata {
         platform,
         model,
+        name: None,
         settings: Default::default(),
     });
     save_issue(&project_dir, &issue);
@@ -116,6 +132,15 @@ fn then_latest_comment_has_agent_metadata(
     assert_eq!(agent.model, model);
 }
 
+#[then(expr = "the latest comment should have agent settings speed {string}")]
+fn then_latest_comment_has_agent_settings_speed(world: &mut KanbusWorld, speed: String) {
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, "kanbus-aaa");
+    let latest = issue.comments.last().expect("comment");
+    let agent = latest.agent.as_ref().expect("agent metadata");
+    assert_eq!(agent.settings.speed.as_deref(), Some(speed.as_str()));
+}
+
 #[given(
     expr = "issue {string} has a comment from {string} with text {string} and agent metadata platform {string} and model {string}"
 )]
@@ -139,6 +164,7 @@ fn given_issue_comment_with_agent_metadata(
         agent: Some(AgentMetadata {
             platform,
             model,
+            name: None,
             settings: Default::default(),
         }),
     });

@@ -190,6 +190,9 @@ enum Commands {
         /// Agent model identifier for provenance metadata.
         #[arg(long = "agent-model")]
         agent_model: Option<String>,
+        /// Agent session or bot name for provenance metadata.
+        #[arg(long = "agent-name")]
+        agent_name: Option<String>,
         /// Agent settings JSON object for provenance metadata.
         #[arg(long = "agent-settings")]
         agent_settings: Option<String>,
@@ -301,6 +304,9 @@ enum Commands {
         /// Agent model identifier for provenance metadata.
         #[arg(long = "agent-model")]
         agent_model: Option<String>,
+        /// Agent session or bot name for provenance metadata.
+        #[arg(long = "agent-name")]
+        agent_name: Option<String>,
         /// Agent settings JSON object for provenance metadata.
         #[arg(long = "agent-settings")]
         agent_settings: Option<String>,
@@ -1287,6 +1293,7 @@ fn execute_command(
             id,
             agent_platform,
             agent_model,
+            agent_name,
             agent_settings,
         } => {
             let title_text = title.join(" ");
@@ -1313,6 +1320,7 @@ fn execute_command(
             let agent_metadata = resolve_agent_metadata(&AgentMetadataRequest {
                 platform: agent_platform,
                 model: agent_model,
+                name: agent_name,
                 settings_json: agent_settings,
             })?;
             if beads_mode {
@@ -2228,6 +2236,7 @@ fn execute_command(
             body_file,
             agent_platform,
             agent_model,
+            agent_name,
             agent_settings,
         } => match command {
             Some(CommentCommands::Update {
@@ -2320,6 +2329,7 @@ fn execute_command(
                 let agent_metadata = resolve_agent_metadata(&AgentMetadataRequest {
                     platform: agent_platform.clone(),
                     model: agent_model.clone(),
+                    name: agent_name.clone(),
                     settings_json: agent_settings.clone(),
                 })?;
                 if beads_mode {

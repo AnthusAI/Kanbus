@@ -77,3 +77,20 @@ Feature: Agent metadata on issues and comments
     When I run "kanbus comment kanbus-aaa \"Note\" --agent-platform cursor --agent-model x"
     Then the command should fail with exit code 1
     And stderr should contain "agent metadata requires native Kanbus issue storage"
+
+  Scenario: Create issue with agent name in display line
+    Given a Kanbus project with default configuration
+    When I run "kanbus create \"Named agent task\" --type task --agent-platform cursor --agent-model composer-2.5 --agent-name cloud-agent"
+    Then the command should succeed
+    And stdout should contain "Agent: cloud-agent / cursor / composer-2.5"
+
+  Scenario: Agent settings speed is stored on comment
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists
+    And agent settings JSON is:
+      """
+      {"speed":"fast"}
+      """
+    When I run "kanbus comment kanbus-aaa \"Fast note\" --agent-platform cursor --agent-model composer-2.5"
+    Then the command should succeed
+    And the latest comment should have agent settings speed "fast"
