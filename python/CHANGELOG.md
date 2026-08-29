@@ -2,6 +2,61 @@
 
 <!-- version list -->
 
+## v0.20.0 (2026-08-29)
+
+### Bug Fixes
+
+- Invalidate wiki render cache for references and tolerate bad JSON
+  ([`9b30094`](https://github.com/AnthusAI/Kanbus/commit/9b300946e1a9c44d717ae1c24780c8cd83ef4494))
+
+- Repair wiki CLI unit test and document reference cache invalidation
+  ([`8385dcb`](https://github.com/AnthusAI/Kanbus/commit/8385dcb80deccf0092fe7d083ecca85a34e2e43e))
+
+- Serialize github token env tests to prevent CI flakes
+  ([`5bafa24`](https://github.com/AnthusAI/Kanbus/commit/5bafa24714f56e54213c35d96cbfaf9bf869ad76))
+
+### Chores
+
+- File P2 task for wiki --json and --limit flags (kbs-c445a6)
+  ([`0a2e9d6`](https://github.com/AnthusAI/Kanbus/commit/0a2e9d64a4718efecf197ddef96ab536911cdb35))
+
+- File second-pass wiki asks under epic kbs-fbaf62
+  ([`e537ef3`](https://github.com/AnthusAI/Kanbus/commit/e537ef33abe39a64e678afcad1334f37f630b6fb))
+
+- Record Kanbus task for wiki spec tightening
+  ([`e80538e`](https://github.com/AnthusAI/Kanbus/commit/e80538e4adb5ca961c12ef58d23b1381f004f61a))
+
+- Remove Gherkin-duplicated wiki unit tests and coverage waiver
+  ([`f3bc38a`](https://github.com/AnthusAI/Kanbus/commit/f3bc38a25af48c1d1d6a6cd24e936176dbdf3d5c))
+
+- **kanbus**: File wiki-as-research-KB epic and Researcher first-pass asks
+  ([`ea52235`](https://github.com/AnthusAI/Kanbus/commit/ea52235db25a7ae91bc06eca4ab93c2472b31644))
+
+### Code Style
+
+- Format wiki CLI unit test with black
+  ([`b44c180`](https://github.com/AnthusAI/Kanbus/commit/b44c180bf9cf3b3f0202d5c6f05643996d9a3f34))
+
+### Features
+
+- Add wiki show, lint, check, and link validation
+  ([`84af19f`](https://github.com/AnthusAI/Kanbus/commit/84af19fe578ab2183a5a5d65129f1ac1a1267471))
+
+- Make wiki a live research knowledge base
+  ([`635ea61`](https://github.com/AnthusAI/Kanbus/commit/635ea619c6d6313f05c44460f3cdd887a1e44645))
+
+### Testing
+
+- Close coverage gap via Gherkin parity, not Python-only tests
+  ([`da4e844`](https://github.com/AnthusAI/Kanbus/commit/da4e844a0f8ec66d0541771cdd5742a6213229f0))
+
+- Cover wiki cache, references, lint, and CLI branches for ratchet
+  ([`9de4e23`](https://github.com/AnthusAI/Kanbus/commit/9de4e2383f4952fa64e2e1cd4f1ae00fe51a0ffb))
+
+- Raise wiki coverage for ratchet and changed-files gate
+  ([`89e940e`](https://github.com/AnthusAI/Kanbus/commit/89e940e05e45ccc44eeedef0c1daafd3484c9200))
+
+
 ## v0.19.2 (2026-08-27)
 
 ### Bug Fixes
