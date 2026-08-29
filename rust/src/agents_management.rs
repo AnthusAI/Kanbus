@@ -10,6 +10,7 @@ use crate::config::default_project_configuration;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
+use crate::file_io::refresh_project_wiki_agents_file;
 use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
     default_project_management_template, default_project_management_template_filename,
@@ -458,19 +459,7 @@ fn ensure_project_guard_files(root: &Path) -> Result<(), KanbusError> {
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
         }
     }
-    let project_agents = project_dir.join("AGENTS.md");
-    let project_agents_content = [
-        "# Project directory",
-        "",
-        "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
-        "You may edit wiki/ (e.g. Markdown) directly.",
-        "",
-        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
-    ]
-    .join("\n")
-        + "\n";
-    fs::write(&project_agents, project_agents_content)
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    refresh_project_wiki_agents_file(&project_dir)?;
     Ok(())
 }
 

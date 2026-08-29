@@ -462,3 +462,48 @@ def given_wiki_symlink_outside_directory(context: object, name: str) -> None:
     if link_path.exists() or link_path.is_symlink():
         link_path.unlink()
     link_path.symlink_to(outside_target)
+
+
+LEGACY_PROJECT_AGENTS_TEXT = "\n".join(
+    [
+        "# DO NOT EDIT HERE",
+        "",
+        "Editing anything under project/ directly is hacking the data and is a sin against The Way.",
+        "Do not read or write other files in this folder. Use Kanbus commands instead.",
+        "",
+        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
+    ]
+)
+
+
+@given("project/AGENTS.md has legacy guard content without wiki exception")
+def given_legacy_project_agents_without_wiki_exception(context: object) -> None:
+    project_dir = load_project_directory(context)
+    agents_path = project_dir / "AGENTS.md"
+    agents_path.write_text(LEGACY_PROJECT_AGENTS_TEXT + "\n", encoding="utf-8")
+
+
+@given("the project issues AGENTS.md content is saved as baseline")
+def given_project_issues_agents_baseline_saved(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issues_agents_path = project_dir / "issues" / "AGENTS.md"
+    context.project_issues_agents_baseline = issues_agents_path.read_text(
+        encoding="utf-8"
+    )
+
+
+@then('project/AGENTS.md should contain "{text}"')
+def then_project_agents_contains(context: object, text: str) -> None:
+    project_dir = load_project_directory(context)
+    content = (project_dir / "AGENTS.md").read_text(encoding="utf-8")
+    assert text in content, f"expected {text!r} in project/AGENTS.md: {content!r}"
+
+
+@then("the project issues AGENTS.md content should match baseline")
+def then_project_issues_agents_matches_baseline(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issues_agents_path = project_dir / "issues" / "AGENTS.md"
+    current = issues_agents_path.read_text(encoding="utf-8")
+    baseline = getattr(context, "project_issues_agents_baseline", None)
+    assert baseline is not None, "baseline not saved"
+    assert current == baseline, "project/issues/AGENTS.md changed after wiki init"

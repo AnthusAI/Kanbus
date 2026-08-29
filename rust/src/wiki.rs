@@ -171,6 +171,10 @@ pub fn resolve_wiki_page_path(root: &Path, page_argument: &str) -> Result<PathBu
 /// # Errors
 /// Returns `KanbusError` if configuration cannot be loaded.
 pub fn init_wiki(root: &Path) -> Result<String, KanbusError> {
+    use crate::config_loader::load_project_configuration;
+    use crate::file_io::get_configuration_path;
+    use crate::file_io::refresh_project_wiki_agents_file;
+
     let location = load_wiki_location(root)?;
     fs::create_dir_all(&location.wiki_root).map_err(|error| KanbusError::Io(error.to_string()))?;
     let index_path = location.wiki_root.join("index.md");
@@ -178,6 +182,10 @@ pub fn init_wiki(root: &Path) -> Result<String, KanbusError> {
         fs::write(&index_path, WIKI_STUB_INDEX)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
+    let configuration_path = get_configuration_path(root)?;
+    let configuration = load_project_configuration(&configuration_path)?;
+    let project_dir = root.join(&configuration.project_directory);
+    refresh_project_wiki_agents_file(&project_dir)?;
     Ok(format!("{}/index.md", location.list_prefix))
 }
 
@@ -358,7 +366,14 @@ fn find_broken_wiki_links(
     content: &str,
 ) -> Vec<WikiLinkProblem> {
     let mut problems = Vec::new();
+    let code_excluded_ranges = markdown_code_excluded_ranges(content);
     for captures in markdown_link_regex().captures_iter(content) {
+        let Some(link_match) = captures.get(0) else {
+            continue;
+        };
+        if position_in_excluded_ranges(link_match.start(), &code_excluded_ranges) {
+            continue;
+        }
         let Some(link_target) = captures.get(1) else {
             continue;
         };
@@ -384,6 +399,101 @@ fn find_broken_wiki_links(
         }
     }
     problems
+}
+
+fn markdown_code_excluded_ranges(content: &str) -> Vec<(usize, usize)> {
+    let mut excluded_ranges = Vec::new();
+    let mut index = 0;
+    let content_bytes = content.as_bytes();
+    while index < content_bytes.len() {
+        if content[index..].starts_with("```") {
+            let range_start = index;
+            index += 3;
+            while index < content_bytes.len() && content_bytes[index] != b'\n' {
+                index += 1;
+            }
+            if index < content_bytes.len() {
+                index += 1;
+            }
+            while index < content_bytes.len() {
+                if content[index..].starts_with("```") {
+                    index += 3;
+                    if index < content_bytes.len() && content_bytes[index] == b'\n' {
+                        index += 1;
+                    }
+                    excluded_ranges.push((range_start, index));
+                    break;
+                }
+                index += 1;
+            }
+            if index >= content_bytes.len() {
+                excluded_ranges.push((range_start, content_bytes.len()));
+            }
+            continue;
+        }
+        if content[index..].starts_with("``") && !content[index..].starts_with("```") {
+            let range_start = index;
+            index += 2;
+            while index < content_bytes.len() {
+                if content[index..].starts_with("``") {
+                    index += 2;
+                    excluded_ranges.push((range_start, index));
+                    break;
+                }
+                index += 1;
+            }
+            if index >= content_bytes.len() {
+                excluded_ranges.push((range_start, content_bytes.len()));
+            }
+            continue;
+        }
+        if content_bytes[index] == b'`' {
+            let range_start = index;
+            index += 1;
+            while index < content_bytes.len()
+                && content_bytes[index] != b'`'
+                && content_bytes[index] != b'\n'
+            {
+                index += 1;
+            }
+            if index < content_bytes.len() && content_bytes[index] == b'`' {
+                index += 1;
+                excluded_ranges.push((range_start, index));
+            }
+            continue;
+        }
+        index += 1;
+    }
+    merge_excluded_ranges(excluded_ranges)
+}
+
+fn merge_excluded_ranges(mut ranges: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
+    if ranges.is_empty() {
+        return ranges;
+    }
+    ranges.sort_unstable();
+    let mut merged = vec![ranges[0]];
+    for (range_start, range_end) in ranges.into_iter().skip(1) {
+        let (_last_start, last_end) = merged.last_mut().expect("merged range");
+        if range_start <= *last_end {
+            *last_end = (*last_end).max(range_end);
+        } else {
+            merged.push((range_start, range_end));
+        }
+    }
+    merged
+}
+
+fn position_in_excluded_ranges(position: usize, excluded_ranges: &[(usize, usize)]) -> bool {
+    for (range_start, range_end) in excluded_ranges {
+        if position >= *range_start && position < *range_end {
+            return true;
+        }
+        if position < *range_start {
+            return false;
+        }
+    }
+    false
 }
 
 fn is_wiki_internal_md_link(link_target: &str) -> bool {

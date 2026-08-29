@@ -205,6 +205,27 @@ fn write_guard_files_in_subdir(subdir: &Path, folder_name: &str) -> Result<(), K
     Ok(())
 }
 
+const PROJECT_WIKI_AGENTS_TEXT: &str = "\
+# DO NOT EDIT HERE\n\
+\n\
+Editing anything under project/ directly is hacking the data and is a sin against The Way, except for project/wiki/*.md wiki pages which agents may create and edit directly.\n\
+Do not read or write other files in this folder. Use Kanbus commands instead.\n\
+\n\
+See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.\n";
+
+/// Write `project/AGENTS.md` with the wiki edit exception.
+///
+/// # Arguments
+/// * `project_dir` - Absolute path to the project directory.
+///
+/// # Errors
+/// Returns `KanbusError::Io` when the file cannot be written.
+pub fn refresh_project_wiki_agents_file(project_dir: &Path) -> Result<(), KanbusError> {
+    let root_agents_path = project_dir.join("AGENTS.md");
+    std::fs::write(&root_agents_path, PROJECT_WIKI_AGENTS_TEXT)
+        .map_err(|error| KanbusError::Io(error.to_string()))
+}
+
 fn write_project_guard_files(project_dir: &Path) -> Result<(), KanbusError> {
     let issues_dir = project_dir.join("issues");
     let events_dir = project_dir.join("events");
@@ -215,17 +236,7 @@ fn write_project_guard_files(project_dir: &Path) -> Result<(), KanbusError> {
         write_guard_files_in_subdir(&events_dir, "events")?;
     }
     let root_agents_path = project_dir.join("AGENTS.md");
-    let root_content = [
-        "# Project directory",
-        "",
-        "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
-        "You may edit wiki/ (e.g. Markdown) directly.",
-        "",
-        "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
-    ]
-    .join("\n")
-        + "\n";
-    std::fs::write(&root_agents_path, root_content)
+    std::fs::write(&root_agents_path, PROJECT_WIKI_AGENTS_TEXT)
         .map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(())
 }
@@ -245,17 +256,7 @@ fn write_project_guard_files_if_missing(project_dir: &Path) -> Result<(), Kanbus
     }
     let root_agents_path = project_dir.join("AGENTS.md");
     if !root_agents_path.exists() {
-        let root_content = [
-            "# Project directory",
-            "",
-            "Do not edit issues/ or events/ directly; use Kanbus for issues and events.",
-            "You may edit wiki/ (e.g. Markdown) directly.",
-            "",
-            "See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.",
-        ]
-        .join("\n")
-            + "\n";
-        std::fs::write(&root_agents_path, root_content)
+        std::fs::write(&root_agents_path, PROJECT_WIKI_AGENTS_TEXT)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     Ok(())

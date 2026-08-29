@@ -1901,6 +1901,9 @@ def wiki_search(query: str) -> None:
         pages = search_wiki_pages(root, query)
     except WikiError as error:
         raise click.ClickException(str(error)) from error
+    if not pages:
+        click.echo("0 results")
+        return
     for path in pages:
         click.echo(path)
 
