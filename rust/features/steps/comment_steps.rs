@@ -36,6 +36,11 @@ fn given_current_user(_world: &mut KanbusWorld) {
     std::env::set_var("KANBUS_USER", "dev@example.com");
 }
 
+#[given("the current user is \"agent\"")]
+fn given_current_user_agent(_world: &mut KanbusWorld) {
+    std::env::set_var("KANBUS_USER", "agent");
+}
+
 #[then("issue \"kanbus-aaa\" should have 1 comment")]
 fn then_issue_has_one_comment(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
@@ -117,6 +122,7 @@ fn given_issue_has_comment_with_id(
         created_at: Utc::now(),
         comment_type: "default".to_string(),
         data: std::collections::BTreeMap::new(),
+        agent: None,
     });
     save_issue(&project_dir, &issue);
 }
@@ -154,6 +160,7 @@ fn given_issue_has_comment_without_id(
         created_at: Utc::now(),
         comment_type: "default".to_string(),
         data: std::collections::BTreeMap::new(),
+        agent: None,
     });
     save_issue(&project_dir, &issue);
 }
@@ -183,10 +190,12 @@ fn given_issue_with_comment_missing_id(world: &mut KanbusWorld, identifier: Stri
             created_at: timestamp,
             comment_type: "default".to_string(),
             data: std::collections::BTreeMap::new(),
+            agent: None,
         }],
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     };
     save_issue(&project_dir, &issue);
@@ -220,10 +229,12 @@ fn given_issue_with_comment_id_and_text(
             created_at: timestamp,
             comment_type: "default".to_string(),
             data: std::collections::BTreeMap::new(),
+            agent: None,
         }],
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     };
     save_issue(&project_dir, &issue);
@@ -258,6 +269,7 @@ fn given_issue_with_two_comment_ids(
                 created_at: timestamp,
                 comment_type: "default".to_string(),
                 data: std::collections::BTreeMap::new(),
+                agent: None,
             },
             IssueComment {
                 id: Some(id2),
@@ -266,11 +278,13 @@ fn given_issue_with_two_comment_ids(
                 created_at: timestamp,
                 comment_type: "default".to_string(),
                 data: std::collections::BTreeMap::new(),
+                agent: None,
             },
         ],
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     };
     save_issue(&project_dir, &issue);

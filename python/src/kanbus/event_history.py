@@ -10,7 +10,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from kanbus.models import IssueData
+from kanbus.agent_metadata import agent_metadata_to_event_value
+from kanbus.models import AgentMetadata, IssueData
 
 EVENT_SCHEMA_VERSION = 1
 
@@ -136,7 +137,7 @@ def delete_events_for_issues(events_dir: Path, issue_ids: Set[str]) -> None:
 
 
 def issue_created_payload(issue: IssueData) -> Dict[str, Any]:
-    return {
+    payload: Dict[str, Any] = {
         "title": issue.title,
         "description": issue.description,
         "issue_type": issue.issue_type,
@@ -146,6 +147,9 @@ def issue_created_payload(issue: IssueData) -> Dict[str, Any]:
         "parent": issue.parent,
         "labels": issue.labels,
     }
+    if issue.agent is not None:
+        payload["agent"] = agent_metadata_to_event_value(issue.agent)
+    return payload
 
 
 def issue_deleted_payload(issue: IssueData) -> Dict[str, Any]:
@@ -160,8 +164,18 @@ def state_transition_payload(from_status: str, to_status: str) -> Dict[str, Any]
     return {"from_status": from_status, "to_status": to_status}
 
 
-def comment_payload(comment_id: str, comment_author: str) -> Dict[str, Any]:
-    return {"comment_id": comment_id, "comment_author": comment_author}
+def comment_payload(
+    comment_id: str,
+    comment_author: str,
+    agent: Optional[AgentMetadata] = None,
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
+        "comment_id": comment_id,
+        "comment_author": comment_author,
+    }
+    if agent is not None:
+        payload["agent"] = agent_metadata_to_event_value(agent)
+    return payload
 
 
 def comment_updated_payload(comment_id: str, comment_author: str) -> Dict[str, Any]:

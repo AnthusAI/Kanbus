@@ -18,7 +18,7 @@ from kanbus.issue_files import (
     write_issue_to_file,
 )
 from kanbus.issue_lookup import IssueLookupError, resolve_issue_identifier
-from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.models import AgentMetadata, IssueData, ProjectConfiguration
 from kanbus.event_history import (
     create_event,
     events_dir_for_local,
@@ -63,6 +63,7 @@ def create_issue(
     local: bool = False,
     validate: bool = True,
     requested_id: Optional[str] = None,
+    agent: Optional[AgentMetadata] = None,
 ) -> IssueCreationResult:
     """Create a new issue and write it to disk.
 
@@ -82,8 +83,10 @@ def create_issue(
     :type labels: Iterable[str]
     :param description: Issue description.
     :type description: Optional[str]
-    :param local: Whether to create the issue in project-local.
-    :type local: bool
+    :param requested_id: Explicit issue identifier override.
+    :type requested_id: Optional[str]
+    :param agent: Optional agent provenance metadata captured at create.
+    :type agent: Optional[AgentMetadata]
     :return: Created issue data and configuration.
     :rtype: IssueCreationResult
     :raises IssueCreationError: If validation or file operations fail.
@@ -187,6 +190,7 @@ def create_issue(
         updated_at=updated_at,
         closed_at=None,
         custom={},
+        agent=agent,
     )
 
     policies_dir = project_dir / "policies"

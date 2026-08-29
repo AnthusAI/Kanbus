@@ -65,6 +65,7 @@ fn build_issue(identifier: &str, title: &str, status: &str) -> IssueData {
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     }
 }
@@ -245,6 +246,7 @@ fn given_comment_contains(world: &mut KanbusWorld, identifier: String, text: Str
         created_at: Utc::now(),
         comment_type: "default".to_string(),
         data: std::collections::BTreeMap::new(),
+        agent: None,
     });
     write_issue_file(&project_dir, &issue);
 }

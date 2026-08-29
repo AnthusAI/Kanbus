@@ -11,6 +11,9 @@ use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 use std::collections::HashSet;
 
+use crate::agent_metadata::{
+    reject_agent_metadata_in_beads_mode, resolve_agent_metadata, AgentMetadataRequest,
+};
 use crate::agents_management::ensure_agents_file;
 use crate::beads_write::{
     add_beads_comment, add_beads_dependency, create_beads_issue, delete_beads_comment,
@@ -181,6 +184,15 @@ enum Commands {
         /// Deprecated: UI control commands are being migrated to pub/sub.
         #[arg(long)]
         focus: bool,
+        /// Agent platform identifier for provenance metadata.
+        #[arg(long = "agent-platform")]
+        agent_platform: Option<String>,
+        /// Agent model identifier for provenance metadata.
+        #[arg(long = "agent-model")]
+        agent_model: Option<String>,
+        /// Agent settings JSON object for provenance metadata.
+        #[arg(long = "agent-settings")]
+        agent_settings: Option<String>,
     },
     /// Show an issue.
     Show {
@@ -283,6 +295,15 @@ enum Commands {
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
+        /// Agent platform identifier for provenance metadata.
+        #[arg(long = "agent-platform")]
+        agent_platform: Option<String>,
+        /// Agent model identifier for provenance metadata.
+        #[arg(long = "agent-model")]
+        agent_model: Option<String>,
+        /// Agent settings JSON object for provenance metadata.
+        #[arg(long = "agent-settings")]
+        agent_settings: Option<String>,
     },
     /// List issues.
     ///
@@ -1264,6 +1285,9 @@ fn execute_command(
             no_validate,
             focus,
             id,
+            agent_platform,
+            agent_model,
+            agent_settings,
         } => {
             let title_text = title.join(" ");
             if title_text.trim().is_empty() {
@@ -1285,6 +1309,14 @@ fn execute_command(
             }
             if focus {
                 return Err(deprecated_create_focus_error());
+            }
+            let agent_metadata = resolve_agent_metadata(&AgentMetadataRequest {
+                platform: agent_platform,
+                model: agent_model,
+                settings_json: agent_settings,
+            })?;
+            if beads_mode {
+                reject_agent_metadata_in_beads_mode(agent_metadata.is_some())?;
             }
             if beads_mode && local {
                 return Err(KanbusError::IssueOperation(
@@ -1357,6 +1389,7 @@ fn execute_command(
                 local,
                 validate: !no_validate,
                 requested_id: id,
+                agent: agent_metadata,
             };
             let result = create_issue(&request)?;
             let configuration = result.configuration;
@@ -2193,6 +2226,9 @@ fn execute_command(
             text,
             no_validate,
             body_file,
+            agent_platform,
+            agent_model,
+            agent_settings,
         } => match command {
             Some(CommentCommands::Update {
                 identifier,
@@ -2281,6 +2317,14 @@ fn execute_command(
                 if !no_validate {
                     validate_code_blocks(&repaired_comment_text)?;
                 }
+                let agent_metadata = resolve_agent_metadata(&AgentMetadataRequest {
+                    platform: agent_platform.clone(),
+                    model: agent_model.clone(),
+                    settings_json: agent_settings.clone(),
+                })?;
+                if beads_mode {
+                    reject_agent_metadata_in_beads_mode(agent_metadata.is_some())?;
+                }
                 let before_issue_for_hooks = if beads_mode {
                     load_beads_issue_by_id(&root_for_beads, &identifier).ok()
                 } else {
@@ -2321,6 +2365,7 @@ fn execute_command(
                         &identifier,
                         &get_current_user(),
                         &repaired_comment_text,
+                        agent_metadata,
                     )?;
                     emit_signals(
                         &add_comment_quality_result,
@@ -3265,6 +3310,7 @@ fn execute_command(
                     created_at: now,
                     updated_at: now,
                     closed_at: None,
+                    agent: None,
                     custom: std::collections::BTreeMap::new(),
                 };
                 let validation_context = PolicyContext {
@@ -3738,6 +3784,7 @@ mod tests {
             created_at: timestamp,
             updated_at: timestamp,
             closed_at: None,
+            agent: None,
             custom: std::collections::BTreeMap::new(),
         }
     }
@@ -4032,10 +4079,12 @@ mod additional_cli_tests {
 
                 comment_type: "comment".to_string(),
                 data: BTreeMap::new(),
+                agent: None,
             }],
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         };
 
@@ -4068,6 +4117,7 @@ mod additional_cli_tests {
                     created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
                     comment_type: "comment".to_string(),
                     data: BTreeMap::new(),
+                    agent: None,
                 },
                 IssueComment {
                     id: None,
@@ -4076,11 +4126,13 @@ mod additional_cli_tests {
                     created_at: Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap(),
                     comment_type: "comment".to_string(),
                     data: BTreeMap::new(),
+                    agent: None,
                 },
             ],
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            agent: None,
             custom: BTreeMap::from([("k1".to_string(), serde_json::json!("v1"))]),
         };
 

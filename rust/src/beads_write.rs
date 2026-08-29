@@ -118,6 +118,7 @@ pub fn create_beads_issue(
         created_at,
         updated_at: created_at,
         closed_at: None,
+        agent: None,
         custom: std::collections::BTreeMap::new(),
     };
 
@@ -291,6 +292,7 @@ pub fn add_beads_comment(
         comment_payload(
             &beads_comment_uuid(identifier, &comment_id),
             &comment_author,
+            None,
         ),
         occurred_at,
     );
@@ -502,6 +504,7 @@ pub fn delete_beads_comment(
         comment_payload(
             &beads_comment_uuid(identifier, &comment_id),
             &comment_author,
+            None,
         ),
         occurred_at,
     );

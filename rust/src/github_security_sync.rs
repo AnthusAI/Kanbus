@@ -401,6 +401,7 @@ fn resolve_dependabot_epic(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom: BTreeMap::new(),
     };
 
@@ -452,6 +453,7 @@ fn resolve_security_initiative(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom: BTreeMap::new(),
     };
 
@@ -617,6 +619,7 @@ fn resolve_manifest_task(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom,
     };
 
@@ -740,6 +743,7 @@ fn map_dependabot_to_kanbus(alert: &Value, repo: &str, task_id: &str) -> IssueDa
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom,
     }
 }
@@ -1396,6 +1400,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::from([
                 (
                     "github_provider".to_string(),
@@ -1475,6 +1480,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::from([(
                 "github_provider".to_string(),
                 Value::String("dependabot".to_string()),
@@ -1541,6 +1547,7 @@ mod tests {
                 created_at: now,
                 updated_at: now,
                 closed_at: None,
+                agent: None,
                 custom: BTreeMap::new(),
             },
             IssueData {
@@ -1559,6 +1566,7 @@ mod tests {
                 created_at: now,
                 updated_at: now,
                 closed_at: None,
+                agent: None,
                 custom: BTreeMap::new(),
             },
         ];
@@ -1629,6 +1637,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         };
         let mut newer = older.clone();
@@ -1687,6 +1696,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         };
         let mut wrong_parent = matching.clone();
@@ -1760,6 +1770,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         }];
 
@@ -1793,6 +1804,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         };
         let epic = IssueData {
@@ -1811,6 +1823,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         };
         write_issue_to_file(
@@ -1880,6 +1893,7 @@ mod tests {
             closed_at: None,
             dependencies: vec![],
             comments: vec![],
+            agent: None,
             custom: Default::default(),
         }];
         let result = resolve_beads_initiative(temp.path(), &issues, false)?;
@@ -1907,6 +1921,7 @@ mod tests {
             closed_at: None,
             dependencies: vec![],
             comments: vec![],
+            agent: None,
             custom: Default::default(),
         }];
         let result = resolve_beads_epic(temp.path(), &issues, None, "kanbus-1", false)?;
@@ -1934,6 +1949,7 @@ mod tests {
             closed_at: None,
             dependencies: vec![],
             comments: vec![],
+            agent: None,
             custom: Default::default(),
         }];
         let result = resolve_beads_initiative(temp.path(), &issues, false)?;
@@ -1961,6 +1977,7 @@ mod tests {
             closed_at: None,
             dependencies: vec![],
             comments: vec![],
+            agent: None,
             custom: Default::default(),
         }];
         let result = resolve_beads_epic(temp.path(), &issues, None, "kanbus-3", false)?;
@@ -1987,6 +2004,7 @@ mod tests {
             closed_at: None,
             dependencies: vec![],
             comments: vec![],
+            agent: None,
             custom: Default::default(),
         }];
 
@@ -2024,6 +2042,7 @@ mod tests {
             closed_at: None,
             dependencies: vec![],
             comments: vec![],
+            agent: None,
             custom: Default::default(),
         }];
 

@@ -8,9 +8,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
+use crate::agent_metadata::agent_metadata_to_event_value;
 use crate::error::KanbusError;
 use crate::file_io::find_project_local_directory;
-use crate::models::IssueData;
+use crate::models::{AgentMetadata, IssueData};
 
 pub const EVENT_SCHEMA_VERSION: u32 = 1;
 
@@ -186,7 +187,7 @@ pub fn delete_events_for_issues(
 }
 
 pub fn issue_created_payload(issue: &IssueData) -> Value {
-    json!({
+    let mut payload = json!({
         "title": issue.title,
         "description": issue.description,
         "issue_type": issue.issue_type,
@@ -195,7 +196,13 @@ pub fn issue_created_payload(issue: &IssueData) -> Value {
         "assignee": issue.assignee,
         "parent": issue.parent,
         "labels": issue.labels,
-    })
+    });
+    if let Some(agent) = issue.agent.as_ref() {
+        if let Some(object) = payload.as_object_mut() {
+            object.insert("agent".to_string(), agent_metadata_to_event_value(agent));
+        }
+    }
+    payload
 }
 
 pub fn issue_deleted_payload(issue: &IssueData) -> Value {
@@ -213,11 +220,21 @@ pub fn state_transition_payload(from_status: &str, to_status: &str) -> Value {
     })
 }
 
-pub fn comment_payload(comment_id: &str, comment_author: &str) -> Value {
-    json!({
+pub fn comment_payload(
+    comment_id: &str,
+    comment_author: &str,
+    agent: Option<&AgentMetadata>,
+) -> Value {
+    let mut payload = json!({
         "comment_id": comment_id,
         "comment_author": comment_author,
-    })
+    });
+    if let Some(agent) = agent {
+        if let Some(object) = payload.as_object_mut() {
+            object.insert("agent".to_string(), agent_metadata_to_event_value(agent));
+        }
+    }
+    payload
 }
 
 pub fn comment_updated_payload(comment_id: &str, comment_author: &str) -> Value {
@@ -396,6 +413,7 @@ mod tests {
             created_at: timestamp,
             updated_at: timestamp,
             closed_at: None,
+            agent: None,
             custom: std::collections::BTreeMap::new(),
         }
     }
