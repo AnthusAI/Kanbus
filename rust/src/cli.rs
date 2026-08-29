@@ -2892,8 +2892,11 @@ fn execute_command(
             }
             WikiCommands::Search { query } => {
                 let pages = search_wiki_pages(root, &query)?;
-                let output = pages.join("\n");
-                Ok(Some(output))
+                if pages.is_empty() {
+                    Ok(Some("0 results".to_string()))
+                } else {
+                    Ok(Some(pages.join("\n")))
+                }
             }
             WikiCommands::Init => {
                 let index_path = init_wiki(root)?;

@@ -553,3 +553,67 @@ Feature: Wiki research knowledge base
     When I run "kanbus wiki lint"
     Then the command should succeed
     And stdout should contain "wiki lint: ok"
+
+  Scenario: Wiki lint ignores markdown links in inline code
+    Given a Kanbus project with default configuration
+    And a wiki page "schema.md" with content:
+      """
+      Example syntax: `[Title](concepts/missing.md)`
+      """
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"
+
+  Scenario: Wiki lint ignores markdown links in fenced code blocks
+    Given a Kanbus project with default configuration
+    And a wiki page "schema.md" with content:
+      """
+      ```markdown
+      [Title](concepts/missing.md)
+      ```
+      """
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"
+
+  Scenario: Wiki check ignores markdown links in code spans like lint
+    Given a Kanbus project with default configuration
+    And a wiki page "schema.md" with content:
+      """
+      Use ``[Title](concepts/missing.md)`` in docs.
+      """
+    When I run "kanbus wiki check"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"
+
+  Scenario: Wiki templates use issue key for story directory links
+    Given a Kanbus project with default configuration
+    And an issue "WIKI-650fd91d-7f3b-427e-aa7f-253b228b48d9" exists with title "Standing story"
+    And a wiki page "story-link.md" with content:
+      """
+      {% for issue in query(status="open", sort="title") %}
+      Story path: stories/{{ issue.key }}/references/
+      Full id: {{ issue.id }}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render story-link.md"
+    Then the command should succeed
+    And stdout should contain "Story path: stories/650fd9/references/"
+    And stdout should contain "Full id: WIKI-650fd91d-7f3b-427e-aa7f-253b228b48d9"
+    And stdout should not contain "stories/WIKI-650fd9/references/"
+
+  Scenario: Wiki init refreshes legacy project AGENTS.md with wiki exception
+    Given a Kanbus project with default configuration
+    And project/AGENTS.md has legacy guard content without wiki exception
+    And the project issues AGENTS.md content is saved as baseline
+    When I run "kanbus wiki init"
+    Then the command should succeed
+    And project/AGENTS.md should contain "project/wiki/*.md"
+    And the project issues AGENTS.md content should match baseline
+
+  Scenario: Wiki search prints zero results when nothing matches
+    Given a Kanbus project with default configuration
+    And a wiki page "indexed.md" with content "Indexed page"
+    When I run "kanbus wiki search nomatch-unique-xyz"
+    Then the command should succeed
+    And stdout should contain "0 results"

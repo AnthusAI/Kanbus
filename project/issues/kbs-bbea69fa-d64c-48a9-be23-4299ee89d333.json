@@ -1,0 +1,18 @@
+{
+  "id": "kbs-bbea69fa-d64c-48a9-be23-4299ee89d333",
+  "title": "Wiki search prints 0 results when no matches",
+  "description": "kbs wiki search with no matches exits 0 and prints a single 0 results line on stdout.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T00:14:26.133785976Z",
+  "updated_at": "2026-08-29T00:14:26.133785976Z",
+  "closed_at": null,
+  "custom": {}
+}

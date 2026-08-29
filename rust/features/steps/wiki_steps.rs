@@ -635,3 +635,51 @@ fn given_wiki_symlink_outside_directory(world: &mut KanbusWorld, name: String) {
     }
     std::os::unix::fs::symlink(&outside_target, &link_path).expect("create outside wiki symlink");
 }
+
+const LEGACY_PROJECT_AGENTS_TEXT: &str = "\
+# DO NOT EDIT HERE\n\
+\n\
+Editing anything under project/ directly is hacking the data and is a sin against The Way.\n\
+Do not read or write other files in this folder. Use Kanbus commands instead.\n\
+\n\
+See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.\n";
+
+#[given("project/AGENTS.md has legacy guard content without wiki exception")]
+fn given_legacy_project_agents_without_wiki_exception(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let agents_path = project_dir.join("AGENTS.md");
+    fs::write(agents_path, format!("{LEGACY_PROJECT_AGENTS_TEXT}\n")).expect("write agents");
+}
+
+#[given("the project issues AGENTS.md content is saved as baseline")]
+fn given_project_issues_agents_baseline_saved(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let issues_agents_path = project_dir.join("issues").join("AGENTS.md");
+    let baseline = fs::read_to_string(&issues_agents_path).expect("read issues agents");
+    world.project_issues_agents_baseline = Some(baseline);
+}
+
+#[then(expr = "project/AGENTS.md should contain {string}")]
+fn then_project_agents_contains(world: &mut KanbusWorld, text: String) {
+    let project_dir = load_project_dir(world);
+    let content = fs::read_to_string(project_dir.join("AGENTS.md")).expect("read agents");
+    assert!(
+        content.contains(&text),
+        "expected {text:?} in project/AGENTS.md: {content:?}"
+    );
+}
+
+#[then("the project issues AGENTS.md content should match baseline")]
+fn then_project_issues_agents_matches_baseline(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let issues_agents_path = project_dir.join("issues").join("AGENTS.md");
+    let current = fs::read_to_string(&issues_agents_path).expect("read issues agents");
+    let baseline = world
+        .project_issues_agents_baseline
+        .as_ref()
+        .expect("baseline not saved");
+    assert_eq!(
+        &current, baseline,
+        "project/issues/AGENTS.md changed after wiki init"
+    );
+}
