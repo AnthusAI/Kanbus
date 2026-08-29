@@ -2,6 +2,39 @@
 
 <!-- version list -->
 
+## v0.21.0 (2026-08-29)
+
+### Bug Fixes
+
+- Apply rustfmt and black formatting for CI gates
+  ([`100199c`](https://github.com/AnthusAI/Kanbus/commit/100199ca2cb594b1fdbdf5a702e63dee9c965427))
+
+- CI blockers for agent metadata release
+  ([`309b2b0`](https://github.com/AnthusAI/Kanbus/commit/309b2b00ad44ba857cd5fba3d28a157eb6321187))
+
+- Raise Python coverage and stabilize console-server CI wait
+  ([`5b0a395`](https://github.com/AnthusAI/Kanbus/commit/5b0a395d1e8a7668cfeaae7ba7d78b2d5a45ac43))
+
+- Restore useFlashEffect import in TaskDetailPanel
+  ([`5bdb09d`](https://github.com/AnthusAI/Kanbus/commit/5bdb09d7bbcd9cc3d09c574eacae9cf73ff7515e))
+
+- Track rebuilt console embedded assets for cargo package CI gate
+  ([`cf0ce46`](https://github.com/AnthusAI/Kanbus/commit/cf0ce461564ca82194365db036a4976101b0afb8))
+
+- Use Value::String in agent_metadata unit test for clippy
+  ([`da73da5`](https://github.com/AnthusAI/Kanbus/commit/da73da5a89823dcf2569f9ce10c1d03ed01358ea))
+
+### Documentation
+
+- Add Anthus README closer
+  ([`780c8af`](https://github.com/AnthusAI/Kanbus/commit/780c8aff7ff0ed603a997537ee2e12e11b1a86b8))
+
+### Features
+
+- Add optional agent provenance metadata for issues and comments
+  ([`aeab764`](https://github.com/AnthusAI/Kanbus/commit/aeab76442f16fcd29b761248365fe99db628c2f7))
+
+
 ## v0.20.1 (2026-08-29)
 
 ### Bug Fixes
