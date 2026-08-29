@@ -1,0 +1,18 @@
+{
+  "id": "kbs-c445a697-bfce-4476-85a3-0706470fc88a",
+  "title": "Wiki list/search/render --json and --limit flags",
+  "description": "P2 follow-up (not in PR #172): add --json and --limit to kbs wiki list, search, and render for agent/script consumption. Researcher and Papyrus AT agreed; defer until after current wiki KB epic lands. Spec-first, dual runtime when implemented.",
+  "type": "task",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T00:19:48.746149925Z",
+  "updated_at": "2026-08-29T00:19:48.746149925Z",
+  "closed_at": null,
+  "custom": {}
+}
