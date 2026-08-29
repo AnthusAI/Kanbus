@@ -116,7 +116,9 @@ fn then_latest_comment_has_agent_metadata(
     assert_eq!(agent.model, model);
 }
 
-#[given(expr = "issue {string} has a comment from {string} with text {string} and agent metadata platform {string} and model {string}")]
+#[given(
+    expr = "issue {string} has a comment from {string} with text {string} and agent metadata platform {string} and model {string}"
+)]
 fn given_issue_comment_with_agent_metadata(
     world: &mut KanbusWorld,
     identifier: String,
@@ -146,7 +148,9 @@ fn given_issue_comment_with_agent_metadata(
 #[when("I resolve agent metadata with no CLI overrides")]
 fn when_resolve_agent_metadata(world: &mut KanbusWorld) {
     let saved = apply_environment_overrides(&world.environment_overrides);
-    world.resolved_agent_metadata = resolve_agent_metadata(&AgentMetadataRequest::default()).ok().flatten();
+    world.resolved_agent_metadata = resolve_agent_metadata(&AgentMetadataRequest::default())
+        .ok()
+        .flatten();
     restore_environment(saved);
 }
 

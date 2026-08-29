@@ -140,10 +140,7 @@ fn record_kanbus_issue_id_if_created(world: &mut KanbusWorld, command: &str) {
         return;
     }
 
-    let before = world
-        .existing_kanbus_ids
-        .clone()
-        .unwrap_or_default();
+    let before = world.existing_kanbus_ids.clone().unwrap_or_default();
     let current = current_issue_ids(world);
     let new_ids: HashSet<String> = current.difference(&before).cloned().collect();
     if let Some(identifier) = new_ids.iter().next() {
