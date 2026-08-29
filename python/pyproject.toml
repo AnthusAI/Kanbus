@@ -62,6 +62,7 @@ line-length = 88
 target-version = "py311"
 
 [tool.semantic_release]
+# 2026-08-29 Dependabot paydown (#173): patch release. chore(deps) does not bump.
 version_toml = [
     "pyproject.toml:project.version",
     "../rust/Cargo.toml:package.version",
