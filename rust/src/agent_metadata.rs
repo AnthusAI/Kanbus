@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
 use crate::error::KanbusError;
-use crate::models::{AgentMetadata, AgentSettings};
+use crate::models::AgentMetadata;
 
 static PLATFORM_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[a-z0-9_-]{1,64}$").expect("platform regex"));
@@ -14,12 +14,6 @@ static SECRET_KEY_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(api[_-]?key|token|secret|password|credential)").expect("secret key regex")
 });
 
-const ALLOWED_SETTINGS_KEYS: [&str; 4] = [
-    "temperature",
-    "thinking_level",
-    "max_output_tokens",
-    "speed",
-];
 const MAX_AGENT_METADATA_BYTES: usize = 2048;
 const MAX_AGENT_NAME_LENGTH: usize = 128;
 
@@ -72,11 +66,6 @@ fn validate_settings_keys(settings: &BTreeMap<String, Value>) -> Result<(), Kanb
                 "agent settings must not contain secret-like keys".to_string(),
             ));
         }
-        if !ALLOWED_SETTINGS_KEYS.contains(&key.as_str()) {
-            return Err(KanbusError::IssueOperation(
-                "unknown agent settings key".to_string(),
-            ));
-        }
     }
     Ok(())
 }
@@ -96,77 +85,6 @@ fn parse_settings_json(
         ));
     };
     Ok(object.into_iter().collect())
-}
-
-fn parse_agent_settings(settings: &BTreeMap<String, Value>) -> Result<AgentSettings, KanbusError> {
-    validate_settings_keys(settings)?;
-    let temperature = settings
-        .get("temperature")
-        .map(parse_temperature)
-        .transpose()?;
-    let thinking_level = settings
-        .get("thinking_level")
-        .map(parse_thinking_level)
-        .transpose()?;
-    let max_output_tokens = settings
-        .get("max_output_tokens")
-        .map(parse_max_output_tokens)
-        .transpose()?;
-    let speed = settings.get("speed").map(parse_speed).transpose()?;
-    Ok(AgentSettings {
-        temperature,
-        thinking_level,
-        max_output_tokens,
-        speed,
-    })
-}
-
-fn parse_temperature(value: &Value) -> Result<f64, KanbusError> {
-    let number = value
-        .as_f64()
-        .ok_or_else(|| KanbusError::IssueOperation("invalid agent settings key".to_string()))?;
-    if !(0.0..=2.0).contains(&number) {
-        return Err(KanbusError::IssueOperation(
-            "invalid agent settings key".to_string(),
-        ));
-    }
-    Ok(number)
-}
-
-fn parse_thinking_level(value: &Value) -> Result<String, KanbusError> {
-    let text = value
-        .as_str()
-        .ok_or_else(|| KanbusError::IssueOperation("invalid agent settings key".to_string()))?;
-    match text {
-        "off" | "low" | "medium" | "high" => Ok(text.to_string()),
-        _ => Err(KanbusError::IssueOperation(
-            "invalid agent settings key".to_string(),
-        )),
-    }
-}
-
-fn parse_max_output_tokens(value: &Value) -> Result<u64, KanbusError> {
-    let number = value
-        .as_u64()
-        .ok_or_else(|| KanbusError::IssueOperation("invalid agent settings key".to_string()))?;
-    if number == 0 {
-        return Err(KanbusError::IssueOperation(
-            "invalid agent settings key".to_string(),
-        ));
-    }
-    Ok(number)
-}
-
-fn parse_speed(value: &Value) -> Result<String, KanbusError> {
-    let text = value
-        .as_str()
-        .ok_or_else(|| KanbusError::IssueOperation("invalid agent settings key".to_string()))?;
-    match text {
-        "normal" | "fast" => Ok(text.to_string()),
-        _ => Err(KanbusError::IssueOperation(
-            "invalid agent settings key".to_string(),
-        )),
-    }
 }
 
 /// Build validated agent metadata or return None when all inputs are absent.
@@ -192,12 +110,12 @@ pub fn build_agent_metadata(
     let model_value = normalized_model.ok_or_else(|| {
         KanbusError::IssueOperation("agent metadata requires both platform and model".to_string())
     })?;
-    let parsed_settings = parse_agent_settings(settings)?;
+    validate_settings_keys(settings)?;
     let agent = AgentMetadata {
         platform: normalize_platform(&platform_value)?,
         model: model_value,
         name: normalized_name,
-        settings: parsed_settings,
+        settings: settings.clone(),
     };
     let serialized = serde_json::to_string(&agent)
         .map_err(|error| KanbusError::IssueOperation(format!("invalid agent metadata: {error}")))?;
@@ -239,6 +157,15 @@ pub fn resolve_agent_metadata(
     )
 }
 
+fn format_setting_value(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        Value::Bool(flag) => flag.to_string(),
+        Value::Null => "null".to_string(),
+        other => other.to_string(),
+    }
+}
+
 /// Format agent metadata for compact CLI display.
 pub fn format_agent_display_line(agent: &AgentMetadata) -> String {
     let platform_model = format!("{} / {}", agent.platform, agent.model);
@@ -249,26 +176,17 @@ pub fn format_agent_display_line(agent: &AgentMetadata) -> String {
     }
 }
 
-/// Format allowlisted agent settings for CLI display.
+/// Format agent settings for CLI display.
 pub fn format_agent_settings_display(agent: &AgentMetadata) -> Option<String> {
-    let mut parts = Vec::new();
-    if let Some(temperature) = agent.settings.temperature {
-        parts.push(format!("temperature={temperature}"));
+    if agent.settings.is_empty() {
+        return None;
     }
-    if let Some(thinking_level) = agent.settings.thinking_level.as_deref() {
-        parts.push(format!("thinking_level={thinking_level}"));
-    }
-    if let Some(max_output_tokens) = agent.settings.max_output_tokens {
-        parts.push(format!("max_output_tokens={max_output_tokens}"));
-    }
-    if let Some(speed) = agent.settings.speed.as_deref() {
-        parts.push(format!("speed={speed}"));
-    }
-    if parts.is_empty() {
-        None
-    } else {
-        Some(parts.join(", "))
-    }
+    let parts = agent
+        .settings
+        .iter()
+        .map(|(key, value)| format!("{key}={}", format_setting_value(value)))
+        .collect::<Vec<_>>();
+    Some(parts.join(", "))
 }
 
 /// Serialize agent metadata for event payloads.
@@ -320,6 +238,25 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "agent settings must not contain secret-like keys"
+        );
+    }
+
+    #[test]
+    fn accept_unknown_settings_keys_and_values() {
+        let mut settings = BTreeMap::new();
+        settings.insert(
+            "reasoning_effort".to_string(),
+            Value::String("turbo".to_string()),
+        );
+        let agent = build_agent_metadata(Some("cursor"), Some("model"), &settings, None)
+            .expect("expected metadata");
+        assert_eq!(
+            agent
+                .expect("metadata present")
+                .settings
+                .get("reasoning_effort")
+                .and_then(|value| value.as_str()),
+            Some("turbo")
         );
     }
 }

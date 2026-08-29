@@ -20,20 +20,6 @@ pub struct DependencyLink {
     pub dependency_type: String,
 }
 
-/// Allowlisted model settings for agent provenance metadata.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[serde(deny_unknown_fields)]
-pub struct AgentSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub thinking_level: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_output_tokens: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub speed: Option<String>,
-}
-
 /// Structured AI agent provenance metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -42,17 +28,8 @@ pub struct AgentMetadata {
     pub model: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    #[serde(default, skip_serializing_if = "AgentSettings::is_empty")]
-    pub settings: AgentSettings,
-}
-
-impl AgentSettings {
-    fn is_empty(&self) -> bool {
-        self.temperature.is_none()
-            && self.thinking_level.is_none()
-            && self.max_output_tokens.is_none()
-            && self.speed.is_none()
-    }
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub settings: BTreeMap<String, serde_json::Value>,
 }
 
 /// Comment on an issue.

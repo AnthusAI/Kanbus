@@ -9,15 +9,20 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from kanbus.models import AgentMetadata, AgentSettings
+from kanbus.models import AgentMetadata
 
 PLATFORM_PATTERN = re.compile(r"^[a-z0-9_-]{1,64}$")
 SECRET_KEY_PATTERN = re.compile(r"(?i)(api[_-]?key|token|secret|password|credential)")
-ALLOWED_SETTINGS_KEYS = frozenset(
-    {"temperature", "thinking_level", "max_output_tokens", "speed"}
-)
 MAX_AGENT_METADATA_BYTES = 2048
 MAX_AGENT_NAME_LENGTH = 128
+
+SUGGESTED_AGENT_SETTINGS_KEYS = (
+    "temperature",
+    "thinking_level",
+    "max_output_tokens",
+    "speed",
+    "reasoning_effort",
+)
 
 
 class AgentMetadataResolutionError(ValueError):
@@ -64,8 +69,6 @@ def _validate_settings_keys(settings: Dict[str, Any]) -> None:
             raise AgentMetadataResolutionError(
                 "agent settings must not contain secret-like keys"
             )
-        if key not in ALLOWED_SETTINGS_KEYS:
-            raise AgentMetadataResolutionError("unknown agent settings key")
 
 
 def _parse_settings_json(settings_json: Optional[str]) -> Dict[str, Any]:
@@ -83,6 +86,14 @@ def _parse_settings_json(settings_json: Optional[str]) -> Dict[str, Any]:
             "invalid agent settings JSON: expected object"
         )
     return parsed
+
+
+def _serialize_agent_metadata(agent: AgentMetadata) -> Dict[str, Any]:
+    payload = agent.model_dump(exclude_none=True)
+    settings = payload.get("settings")
+    if isinstance(settings, dict) and not settings:
+        payload.pop("settings", None)
+    return payload
 
 
 def build_agent_metadata(
@@ -125,10 +136,10 @@ def build_agent_metadata(
         platform=_normalize_platform(normalized_platform),
         model=normalized_model,
         name=normalized_name,
-        settings=AgentSettings.model_validate(settings_payload),
+        settings=settings_payload,
     )
     serialized = json.dumps(
-        agent.model_dump(exclude_none=True),
+        _serialize_agent_metadata(agent),
         separators=(",", ":"),
         sort_keys=True,
     )
@@ -176,18 +187,30 @@ def format_agent_display_line(agent: AgentMetadata) -> str:
     return platform_model
 
 
+def _format_setting_value(value: Any) -> str:
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"), sort_keys=True)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "null"
+    return str(value)
+
+
 def format_agent_settings_display(agent: AgentMetadata) -> Optional[str]:
-    """Format allowlisted agent settings for CLI display.
+    """Format agent settings for CLI display.
 
     :param agent: Agent metadata to format.
     :type agent: AgentMetadata
     :return: Comma-separated key=value pairs or None when empty.
     :rtype: Optional[str]
     """
-    settings = agent.settings.model_dump(exclude_none=True)
-    if not settings:
+    if not agent.settings:
         return None
-    parts = [f"{key}={value}" for key, value in settings.items()]
+    parts = [
+        f"{key}={_format_setting_value(value)}"
+        for key, value in sorted(agent.settings.items())
+    ]
     return ", ".join(parts)
 
 
@@ -199,7 +222,7 @@ def agent_metadata_to_event_value(agent: AgentMetadata) -> Dict[str, Any]:
     :return: JSON-compatible payload fragment.
     :rtype: Dict[str, Any]
     """
-    return agent.model_dump(exclude_none=True)
+    return _serialize_agent_metadata(agent)
 
 
 def reject_agent_metadata_in_beads_mode(agent_present: bool) -> None:

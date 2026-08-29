@@ -28,6 +28,17 @@ def test_reject_secret_like_settings_keys() -> None:
     assert str(error.value) == "agent settings must not contain secret-like keys"
 
 
+def test_accept_unknown_settings_keys_and_values() -> None:
+    metadata = build_agent_metadata(
+        "cursor",
+        "composer-2.5",
+        {"reasoning_effort": "turbo", "speed": "fastest"},
+    )
+    assert metadata is not None
+    assert metadata.settings["reasoning_effort"] == "turbo"
+    assert metadata.settings["speed"] == "fastest"
+
+
 def test_resolve_agent_metadata_from_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -73,22 +84,14 @@ def test_invalid_agent_name() -> None:
     assert str(error.value) == "invalid agent name"
 
 
-def test_unknown_agent_settings_key() -> None:
-    with pytest.raises(AgentMetadataResolutionError) as error:
-        build_agent_metadata("cursor", "composer-2.5", {"fast": True})
-    assert str(error.value) == "unknown agent settings key"
-
-
 def test_agent_settings_speed_values() -> None:
-    from kanbus.models import AgentSettings
-
     metadata = build_agent_metadata(
         "cursor",
         "composer-2.5",
         {"speed": "fast"},
     )
     assert metadata is not None
-    assert metadata.settings == AgentSettings(speed="fast")
+    assert metadata.settings["speed"] == "fast"
 
 
 def test_format_agent_display_line_includes_name() -> None:
@@ -135,7 +138,7 @@ def test_agent_metadata_exceeds_maximum_size(
 
 def test_format_agent_settings_display() -> None:
     from kanbus.agent_metadata import format_agent_settings_display
-    from kanbus.models import AgentMetadata, AgentSettings
+    from kanbus.models import AgentMetadata
 
     empty = AgentMetadata(platform="cursor", model="composer-2.5")
     assert format_agent_settings_display(empty) is None
@@ -143,14 +146,16 @@ def test_format_agent_settings_display() -> None:
     with_settings = AgentMetadata(
         platform="cursor",
         model="composer-2.5",
-        settings=AgentSettings(
-            thinking_level="high",
-            temperature=0.5,
-            speed="fast",
-        ),
+        settings={
+            "thinking_level": "high",
+            "temperature": 0.5,
+            "speed": "fast",
+            "reasoning_effort": "turbo",
+        },
     )
     display = format_agent_settings_display(with_settings)
     assert display is not None
     assert "thinking_level=high" in display
     assert "temperature=0.5" in display
     assert "speed=fast" in display
+    assert "reasoning_effort=turbo" in display
