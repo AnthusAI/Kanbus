@@ -254,7 +254,10 @@ mod tests {
     #[test]
     fn reject_secret_like_settings_keys() {
         let mut settings = BTreeMap::new();
-        settings.insert("openai_api_key".to_string(), json!("secret"));
+        settings.insert(
+            "openai_api_key".to_string(),
+            Value::String("secret".to_string()),
+        );
         let error = build_agent_metadata(Some("cursor"), Some("model"), &settings)
             .expect_err("expected error");
         assert_eq!(
