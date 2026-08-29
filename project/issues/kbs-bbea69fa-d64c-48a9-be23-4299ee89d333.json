@@ -3,7 +3,7 @@
   "title": "Wiki search prints 0 results when no matches",
   "description": "kbs wiki search with no matches exits 0 and prints a single 0 results line on stdout.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-08-29T00:14:26.133785976Z",
-  "updated_at": "2026-08-29T00:14:26.133785976Z",
-  "closed_at": null,
+  "updated_at": "2026-08-29T00:19:19.119264570Z",
+  "closed_at": "2026-08-29T00:19:19.119264570Z",
   "custom": {}
 }
