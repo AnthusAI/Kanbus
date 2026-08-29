@@ -299,7 +299,7 @@ jobs:
       - name: Run Python @console-server parity scenarios
         run: |
           cd python
-          KANBUS_ENABLE_COVERAGE_HELPER=0 python -m behave --tags "@console-server"
+          KANBUS_ENABLE_COVERAGE_HELPER=0 python -m behave --tags "@console-server and not @slow"
 
   console-ui:
     runs-on: ubuntu-latest

@@ -18,8 +18,8 @@ use crate::beads_write::{
 };
 use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_token};
 use crate::config_loader::load_project_configuration;
-use crate::console_snapshot::build_console_snapshot;
 use crate::console_screenshot::capture_console_screenshot;
+use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::content_validation::validate_code_blocks;
 use crate::daemon_client::{request_shutdown, request_status};

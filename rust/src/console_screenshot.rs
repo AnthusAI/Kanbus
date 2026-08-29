@@ -119,8 +119,7 @@ fn resolve_output_path(root: &Path, output: Option<String>) -> Result<PathBuf, K
     };
     if let Some(parent) = path.parent() {
         if parent != Path::new("") {
-            std::fs::create_dir_all(parent)
-                .map_err(|error| KanbusError::Io(error.to_string()))?;
+            std::fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
         }
     }
     Ok(path)
@@ -171,7 +170,10 @@ fn normalize_view(view: Option<String>) -> Result<Option<String>, KanbusError> {
         return Ok(None);
     }
     let resolved = view.unwrap().trim().to_ascii_lowercase();
-    if matches!(resolved.as_str(), "initiatives" | "epics" | "issues" | "all") {
+    if matches!(
+        resolved.as_str(),
+        "initiatives" | "epics" | "issues" | "all"
+    ) {
         Ok(Some(resolved))
     } else {
         Err(KanbusError::IssueOperation(
@@ -318,16 +320,8 @@ mod tests {
         let temp = TempDir::new().expect("tempdir");
         env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "success");
         env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
-        let path = capture_console_screenshot(
-            temp.path(),
-            None,
-            None,
-            None,
-            false,
-            vec![],
-            vec![],
-        )
-        .expect("capture");
+        let path = capture_console_screenshot(temp.path(), None, None, None, false, vec![], vec![])
+            .expect("capture");
         assert!(path.is_file());
         env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
         env::remove_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER");
@@ -341,16 +335,9 @@ mod tests {
         let temp = TempDir::new().expect("tempdir");
         env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "unavailable");
         env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
-        let error = capture_console_screenshot(
-            temp.path(),
-            None,
-            None,
-            None,
-            false,
-            vec![],
-            vec![],
-        )
-        .unwrap_err();
+        let error =
+            capture_console_screenshot(temp.path(), None, None, None, false, vec![], vec![])
+                .unwrap_err();
         let message = error.to_string().to_ascii_lowercase();
         assert!(message.contains("headless browser"));
         assert!(message.contains("playwright"));

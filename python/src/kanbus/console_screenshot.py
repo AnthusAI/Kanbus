@@ -180,9 +180,7 @@ def _normalize_view(view: str | None) -> str | None:
     resolved = view.strip().lower()
     if resolved in VALID_VIEWS:
         return resolved
-    raise ConsoleScreenshotError(
-        "view must be one of: initiatives, epics, issues, all"
-    )
+    raise ConsoleScreenshotError("view must be one of: initiatives, epics, issues, all")
 
 
 def build_capture_options(
@@ -299,5 +297,7 @@ def capture_console_screenshot(
             f"(npx playwright install chromium). {details}".strip()
         )
     if not output_path.is_file():
-        raise ConsoleScreenshotError("headless browser capture did not produce an output file.")
+        raise ConsoleScreenshotError(
+            "headless browser capture did not produce an output file."
+        )
     return output_path

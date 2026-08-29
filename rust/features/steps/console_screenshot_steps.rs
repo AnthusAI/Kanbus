@@ -30,7 +30,11 @@ fn resolve_working_path(world: &KanbusWorld, path: &str) -> PathBuf {
 #[then(expr = "a PNG file should exist at {string}")]
 fn then_png_file_should_exist(world: &mut KanbusWorld, path: String) {
     let file_path = resolve_working_path(world, &path);
-    assert!(file_path.is_file(), "expected PNG at {}", file_path.display());
+    assert!(
+        file_path.is_file(),
+        "expected PNG at {}",
+        file_path.display()
+    );
     let header = std::fs::read(&file_path).expect("read png");
     assert!(
         header.starts_with(&[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
@@ -42,7 +46,11 @@ fn then_png_file_should_exist(world: &mut KanbusWorld, path: String) {
 #[then(expr = "the PNG file at {string} should be larger than {int} bytes")]
 fn then_png_file_larger_than(world: &mut KanbusWorld, path: String, size: u64) {
     let file_path = resolve_working_path(world, &path);
-    assert!(file_path.is_file(), "expected PNG at {}", file_path.display());
+    assert!(
+        file_path.is_file(),
+        "expected PNG at {}",
+        file_path.display()
+    );
     let bytes = std::fs::metadata(&file_path).expect("png metadata").len();
     assert!(bytes > size, "expected {} > {} bytes", bytes, size);
 }
@@ -77,10 +85,7 @@ fn then_screenshot_capture_expand_all(world: &mut KanbusWorld) {
 }
 
 #[then(expr = "the screenshot capture expanded columns should include {string}")]
-fn then_screenshot_capture_expanded_columns_include(
-    world: &mut KanbusWorld,
-    column: String,
-) {
+fn then_screenshot_capture_expanded_columns_include(world: &mut KanbusWorld, column: String) {
     let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
     let parsed: serde_json::Value =
         serde_json::from_str(&raw).expect("screenshot capture options json");

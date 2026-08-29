@@ -68,7 +68,9 @@ def then_screenshot_appearance_mode(context: object, mode: str) -> None:
 @then('the screenshot capture view should be "{view}"')
 def then_screenshot_capture_view(context: object, view: str) -> None:
     options = _load_capture_options()
-    assert options.get("view") == view, f"expected view {view}, got {options.get('view')}"
+    assert (
+        options.get("view") == view
+    ), f"expected view {view}, got {options.get('view')}"
 
 
 @then("screenshot capture expand-all should be enabled")
