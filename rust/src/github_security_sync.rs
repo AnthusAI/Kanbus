@@ -1253,6 +1253,7 @@ mod tests {
     use super::*;
     use chrono::Utc;
     use serde_json::json;
+    use serial_test::serial;
     use std::collections::HashSet;
     use std::fs;
     use std::process::Command;
@@ -2040,6 +2041,7 @@ mod tests {
         Ok(())
     }
     #[test]
+    #[serial]
     fn pull_dependabot_from_github_missing_token_returns_error() {
         let temp = TempDir::new().expect("tempdir");
         let config = crate::models::GithubSecurityConfiguration {
@@ -2055,6 +2057,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn pull_dependabot_from_github_missing_repo_returns_error() {
         let temp = TempDir::new().expect("tempdir");
         let config = crate::models::GithubSecurityConfiguration {
@@ -2071,6 +2074,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn pull_dependabot_from_github_beads_missing_token_returns_error() {
         let temp = TempDir::new().expect("tempdir");
         let config = crate::models::GithubSecurityConfiguration {
@@ -2086,6 +2090,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn pull_dependabot_from_github_beads_missing_repo_returns_error() {
         let temp = TempDir::new().expect("tempdir");
         let config = crate::models::GithubSecurityConfiguration {
@@ -2104,8 +2109,10 @@ mod tests {
 
 #[cfg(test)]
 mod github_sync_err_tests {
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_pull_dependabot_success() {
         use super::*;
         use std::io::{Read, Write};
