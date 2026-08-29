@@ -26,6 +26,8 @@ pub struct WikiLocation {
     pub wiki_root: PathBuf,
     /// Path prefix used in list/search output (for example project/wiki).
     pub list_prefix: String,
+    /// Configured project directory name.
+    pub project_directory: String,
 }
 
 /// Broken wiki-internal markdown link reported by lint or render warnings.
@@ -71,11 +73,13 @@ pub fn load_wiki_location(root: &Path) -> Result<WikiLocation, KanbusError> {
         Ok(WikiLocation {
             wiki_root: root.join(&normalized),
             list_prefix: normalized,
+            project_directory: config.project_directory.clone(),
         })
     } else {
         Ok(WikiLocation {
             wiki_root: root.join(&config.project_directory).join(wiki_subdir),
             list_prefix: format!("{}/{}", config.project_directory, wiki_subdir),
+            project_directory: config.project_directory.clone(),
         })
     }
 }
@@ -171,8 +175,6 @@ pub fn resolve_wiki_page_path(root: &Path, page_argument: &str) -> Result<PathBu
 /// # Errors
 /// Returns `KanbusError` if configuration cannot be loaded.
 pub fn init_wiki(root: &Path) -> Result<String, KanbusError> {
-    use crate::config_loader::load_project_configuration;
-    use crate::file_io::get_configuration_path;
     use crate::file_io::refresh_project_wiki_agents_file;
 
     let location = load_wiki_location(root)?;
@@ -182,10 +184,7 @@ pub fn init_wiki(root: &Path) -> Result<String, KanbusError> {
         fs::write(&index_path, WIKI_STUB_INDEX)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
-    let configuration_path = get_configuration_path(root)?;
-    let configuration = load_project_configuration(&configuration_path)?;
-    let project_dir = root.join(&configuration.project_directory);
-    refresh_project_wiki_agents_file(&project_dir)?;
+    refresh_project_wiki_agents_file(&root.join(&location.project_directory))?;
     Ok(format!("{}/index.md", location.list_prefix))
 }
 
@@ -464,36 +463,13 @@ fn markdown_code_excluded_ranges(content: &str) -> Vec<(usize, usize)> {
         }
         index += 1;
     }
-    merge_excluded_ranges(excluded_ranges)
-}
-
-fn merge_excluded_ranges(mut ranges: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
-    if ranges.is_empty() {
-        return ranges;
-    }
-    ranges.sort_unstable();
-    let mut merged = vec![ranges[0]];
-    for (range_start, range_end) in ranges.into_iter().skip(1) {
-        let (_last_start, last_end) = merged.last_mut().expect("merged range");
-        if range_start <= *last_end {
-            *last_end = (*last_end).max(range_end);
-        } else {
-            merged.push((range_start, range_end));
-        }
-    }
-    merged
+    excluded_ranges
 }
 
 fn position_in_excluded_ranges(position: usize, excluded_ranges: &[(usize, usize)]) -> bool {
-    for (range_start, range_end) in excluded_ranges {
-        if position >= *range_start && position < *range_end {
-            return true;
-        }
-        if position < *range_start {
-            return false;
-        }
-    }
-    false
+    excluded_ranges
+        .iter()
+        .any(|(range_start, range_end)| position >= *range_start && position < *range_end)
 }
 
 fn is_wiki_internal_md_link(link_target: &str) -> bool {

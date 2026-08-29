@@ -617,3 +617,59 @@ Feature: Wiki research knowledge base
     When I run "kanbus wiki search nomatch-unique-xyz"
     Then the command should succeed
     And stdout should contain "0 results"
+
+  Scenario: Wiki search fails when kanbus configuration is missing
+    Given a Kanbus repository without a .kanbus.yml file
+    When I run "kanbus wiki search test"
+    Then the command should fail with exit code 1
+
+  Scenario: Wiki lint still validates links outside code spans on the same page
+    Given a Kanbus project with default configuration
+    And a wiki page "index.md" with content "# Home"
+    And a wiki page "mixed.md" with content:
+      """
+      See [home](index.md).
+
+      `[inline](concepts/missing-inline.md)`
+
+      ```markdown
+      [fenced](concepts/missing-fenced.md)
+      ```
+
+      Tail text after the fence.
+      """
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"
+
+  Scenario: Wiki lint ignores links in unclosed fenced code blocks
+    Given a Kanbus project with default configuration
+    And a wiki page "unclosed-fence.md" with content:
+      """
+      ```markdown
+      [Title](concepts/missing.md)
+      """
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"
+
+  Scenario: Wiki lint resolves dot-segment paths in markdown links
+    Given a Kanbus project with default configuration
+    And a wiki page "concepts/nested/peer/peer.md" with content "# Peer page"
+    And a wiki page "concepts/nested/page.md" with content:
+      """
+      [peer](peer/./peer.md)
+      """
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"
+
+  Scenario: Wiki lint ignores links in unclosed double-backtick spans
+    Given a Kanbus project with default configuration
+    And a wiki page "unclosed-span.md" with content:
+      """
+      Use ``[Title](concepts/missing.md) in docs.
+      """
+    When I run "kanbus wiki lint"
+    Then the command should succeed
+    And stdout should contain "wiki lint: ok"

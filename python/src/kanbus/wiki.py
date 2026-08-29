@@ -50,10 +50,13 @@ class WikiLocation:
     :type wiki_root: Path
     :param list_prefix: Path prefix used in list/search output (e.g. project/wiki).
     :type list_prefix: str
+    :param project_directory: Configured project directory name.
+    :type project_directory: str
     """
 
     wiki_root: Path
     list_prefix: str
+    project_directory: str
 
 
 @dataclass(frozen=True)
@@ -180,7 +183,11 @@ def load_wiki_location(root: Path) -> WikiLocation:
     else:
         wiki_root = root / project_dir / wiki_subdir
         list_prefix = f"{project_dir}/{wiki_subdir}"
-    return WikiLocation(wiki_root=wiki_root, list_prefix=list_prefix)
+    return WikiLocation(
+        wiki_root=wiki_root,
+        list_prefix=list_prefix,
+        project_directory=project_dir,
+    )
 
 
 def wiki_directory_missing_message(location: WikiLocation) -> str:
@@ -340,22 +347,14 @@ def init_wiki(root: Path) -> str:
     :rtype: str
     :raises WikiError: If configuration cannot be loaded.
     """
-    from kanbus.config_loader import ConfigurationError, load_project_configuration
     from kanbus.file_io import refresh_project_wiki_agents_file
-    from kanbus.project import ProjectMarkerError, get_configuration_path
 
     location = load_wiki_location(root)
     location.wiki_root.mkdir(parents=True, exist_ok=True)
     index_path = location.wiki_root / "index.md"
     if not index_path.exists():
         index_path.write_text(WIKI_STUB_INDEX, encoding="utf-8")
-    try:
-        configuration_path = get_configuration_path(root)
-        configuration = load_project_configuration(configuration_path)
-        project_dir = root / configuration.project_directory
-        refresh_project_wiki_agents_file(project_dir)
-    except (ProjectMarkerError, ConfigurationError) as error:
-        raise WikiError(str(error)) from error
+    refresh_project_wiki_agents_file(root / location.project_directory)
     return f"{location.list_prefix}/index.md"
 
 
@@ -618,32 +617,16 @@ def _markdown_code_excluded_ranges(content: str) -> List[tuple[int, int]]:
                 excluded_ranges.append((range_start, index))
             continue
         index += 1
-    return _merge_excluded_ranges(excluded_ranges)
-
-
-def _merge_excluded_ranges(ranges: List[tuple[int, int]]) -> List[tuple[int, int]]:
-    if not ranges:
-        return []
-    sorted_ranges = sorted(ranges)
-    merged_ranges: List[tuple[int, int]] = [sorted_ranges[0]]
-    for range_start, range_end in sorted_ranges[1:]:
-        last_start, last_end = merged_ranges[-1]
-        if range_start <= last_end:
-            merged_ranges[-1] = (last_start, max(last_end, range_end))
-        else:
-            merged_ranges.append((range_start, range_end))
-    return merged_ranges
+    return excluded_ranges
 
 
 def _position_in_excluded_ranges(
     position: int, excluded_ranges: List[tuple[int, int]]
 ) -> bool:
-    for range_start, range_end in excluded_ranges:
-        if range_start <= position < range_end:
-            return True
-        if position < range_start:
-            return False
-    return False
+    return any(
+        range_start <= position < range_end
+        for range_start, range_end in excluded_ranges
+    )
 
 
 def _is_wiki_internal_md_link(link_target: str) -> bool:
