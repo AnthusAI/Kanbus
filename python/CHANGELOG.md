@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.23.0 (2026-08-29)
+
+### Bug Fixes
+
+- Format agent metadata steps and sync embedded console assets
+  ([`35d6620`](https://github.com/AnthusAI/Kanbus/commit/35d66207935d2e01287fe207eb03bcd2986b1942))
+
+- Rustfmt agent metadata cucumber steps
+  ([`db3d3da`](https://github.com/AnthusAI/Kanbus/commit/db3d3da51f6770aabf82c843eed54556fb4a4d55))
+
+### Features
+
+- Accept open-ended agent settings without key validation
+  ([`87216d5`](https://github.com/AnthusAI/Kanbus/commit/87216d5916ceb22ea90d4f8f5e5eb7c16f630191))
+
+
 ## v0.22.0 (2026-08-29)
 
 ### Bug Fixes
