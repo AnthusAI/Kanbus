@@ -133,7 +133,18 @@ def then_latest_comment_has_agent_settings_speed(context: object, speed: str) ->
     issue = read_issue_file(project_dir, "kanbus-aaa")
     latest = issue.comments[-1]
     assert latest.agent is not None
-    assert latest.agent.settings.speed == speed
+    assert latest.agent.settings.get("speed") == speed
+
+
+@then('the latest comment should have agent setting "{key}" with value "{value}"')
+def then_latest_comment_has_agent_setting(
+    context: object, key: str, value: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, "kanbus-aaa")
+    latest = issue.comments[-1]
+    assert latest.agent is not None
+    assert str(latest.agent.settings.get(key)) == value
 
 
 @given(
