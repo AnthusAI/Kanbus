@@ -111,6 +111,7 @@ pub struct KanbusWorld {
     pub sample_issue: Option<kanbus::models::IssueData>,
     pub dependency_error: Option<String>,
     pub original_invalid_status_env: Option<Option<String>>,
+    pub original_screenshot_mock_env: Option<Option<String>>,
     pub virtual_project_state: Option<VirtualProjectState>,
     pub simulated_configuration_error: Option<String>,
     pub realtime_doc: Option<String>,
@@ -235,6 +236,12 @@ impl Drop for KanbusWorld {
             match original {
                 Some(value) => std::env::set_var("KANBUS_TEST_INVALID_STATUS", value),
                 None => std::env::remove_var("KANBUS_TEST_INVALID_STATUS"),
+            }
+        }
+        if let Some(original) = self.original_screenshot_mock_env.take() {
+            match original {
+                Some(value) => std::env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", value),
+                None => std::env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK"),
             }
         }
         if let Some(mut startup) = self.mosquitto_startup.take() {
