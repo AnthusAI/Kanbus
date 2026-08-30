@@ -49,6 +49,16 @@ Feature: Wiki research knowledge base
     Then the command should fail with exit code 1
     And stderr should contain "wiki directory not found"
     And stderr should contain "kbs wiki init"
+    And stderr should contain "Or run: kbs wiki init"
+    And stderr should not contain "index.md Or run"
+
+  Scenario: Wiki list on a missing wiki directory shows create hint
+    Given a Kanbus project with default configuration
+    And the wiki directory does not exist
+    When I run "kanbus wiki list"
+    Then the command should fail with exit code 1
+    And stderr should contain "wiki directory not found"
+    And stderr should contain "kbs wiki init"
 
   Scenario: Missing wiki page shows not found with path
     Given a Kanbus project with default configuration
@@ -204,6 +214,8 @@ Feature: Wiki research knowledge base
     Then the command should fail with exit code 1
     And stderr should contain "wiki directory not found"
     And stderr should contain "kbs wiki init"
+    And stderr should contain "Or run: kbs wiki init"
+    And stderr should not contain "index.md Or run"
 
   Scenario: Wiki lint fails on broken relative md link
     Given a Kanbus project with default configuration
