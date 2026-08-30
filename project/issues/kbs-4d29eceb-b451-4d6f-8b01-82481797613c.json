@@ -3,16 +3,24 @@
   "title": "wiki issue.id is the full UUID; links need the short key",
   "description": "Researcher first-pass.\n\nIn templates, issue.id renders as WIKI-650fd91d-7f3b-427e-aa7f-253b228b48d9. `kbs list` shows 650fd9. Wiki-to-story links need the short key.\n\nProduct rule: expose the same short identifier list/show use (issue.key or issue.short_id). Keep the full id available. Do not make agents substring UUIDs in templates.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "6d3de8b8-9e7d-4357-95d3-f4f6d3bd32d9",
+      "author": "ryan",
+      "text": "Shipped in Kanbus 0.20.0 via PR #172 (list/search/show/lint/check/init, render path, short issue.key, references()). Closing.",
+      "created_at": "2026-08-29T12:15:29.967158Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-28T20:41:05.083557Z",
-  "updated_at": "2026-08-28T20:41:05.083557Z",
-  "closed_at": null,
+  "updated_at": "2026-08-29T12:15:29.979194Z",
+  "closed_at": "2026-08-29T12:15:29.979194Z",
   "custom": {}
 }

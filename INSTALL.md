@@ -6,7 +6,7 @@ This repository contains two implementations of Kanbus: Python and Rust. Both us
 
 - Git
 - Python 3.11+
-- Rust toolchain (stable)
+- Rust 1.88+ (the repo root `rust-toolchain.toml` pins the compiler for rustup and CI)
 
 ## Python (developer install)
 
