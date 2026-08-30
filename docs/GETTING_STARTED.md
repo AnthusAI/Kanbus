@@ -107,6 +107,18 @@ This updates `AGENTS.md`, refreshes `CONTRIBUTING_AGENT.md`, and re-writes the g
 
 If you have an existing repo with a `.cursorignore` that lists `project/`, change it to `project/issues/` and `project/events/` so the agent can edit the wiki.
 
+## Optional: Require a minimum CLI version
+
+Teams can pin a minimum Kanbus CLI release by adding a root file named `kanbus-version` with a single semantic version line:
+
+```
+0.19.1
+```
+
+When this file is present, commands such as `kbs list` and `kbs doctor` fail fast if the running CLI is older than the required version. The check is skipped when the file is absent. Use `0.0.0` to accept any installed CLI version.
+
+See [CLI_REFERENCE.md](CLI_REFERENCE.md) for full behavior, including git-describe handling and exempt commands.
+
 ## Beads compatibility mode
 
 If you are transitioning from Beads and keeping `.beads/issues.jsonl` for a while, enable compatibility mode in both configuration files:
