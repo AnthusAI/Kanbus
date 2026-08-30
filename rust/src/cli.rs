@@ -48,6 +48,7 @@ use crate::issue_lookup::load_issue_from_project;
 use crate::issue_transfer::{localize_issue, promote_issue};
 use crate::issue_update::update_issue;
 use crate::jira_sync::pull_from_jira;
+use crate::kanbus_version::enforce_kanbus_version;
 use crate::maintenance::{collect_project_stats, validate_project};
 use crate::migration::{
     load_beads_issue_by_id, load_beads_issue_from_workspace, load_beads_issues, migrate_from_beads,
@@ -1060,6 +1061,11 @@ where
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
     let no_guidance = cli.no_guidance;
     let no_hooks = cli.no_hooks;
+    if should_enforce_kanbus_version(&cli.command) {
+        enforce_kanbus_version(&root, env!("GIT_VERSION")).map_err(|error| {
+            KanbusError::IssueOperation(error.message().to_string())
+        })?;
+    }
     maybe_prompt_project_repair(&cli.command, &root)?;
     let stdout = execute_command(
         cli.command,
@@ -1104,6 +1110,10 @@ fn beads_root(root: &Path) -> std::path::PathBuf {
 }
 
 fn should_check_project_structure(command: &Commands) -> bool {
+    should_enforce_kanbus_version(command)
+}
+
+fn should_enforce_kanbus_version(command: &Commands) -> bool {
     !matches!(
         command,
         Commands::Init { .. }

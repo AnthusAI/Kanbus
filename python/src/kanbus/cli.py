@@ -17,7 +17,9 @@ from kanbus.file_io import (
     ensure_git_repository,
     initialize_project,
     repair_project_structure,
+    resolve_root,
 )
+from kanbus.kanbus_version import KanbusVersionError, enforce_kanbus_version
 from kanbus.content_validation import ContentValidationError, validate_code_blocks
 from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
 from kanbus.issue_creation import IssueCreationError, create_issue
@@ -194,6 +196,7 @@ def cli(
         "no_guidance": no_guidance,
         "no_hooks": no_hooks,
     }
+    _enforce_kanbus_version(context)
     _maybe_prompt_project_repair(context)
 
 
@@ -201,6 +204,16 @@ def _should_check_project_structure(context: click.Context) -> bool:
     if context.invoked_subcommand is None:
         return False
     return context.invoked_subcommand not in {"init", "setup", "repair", "edit"}
+
+
+def _enforce_kanbus_version(context: click.Context) -> None:
+    if not _should_check_project_structure(context):
+        return
+    root = resolve_root(Path.cwd())
+    try:
+        enforce_kanbus_version(root, __version__)
+    except KanbusVersionError as error:
+        raise click.ClickException(str(error)) from error
 
 
 def _delete_terminal_is_interactive() -> bool:
