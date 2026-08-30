@@ -41,7 +41,7 @@ jobs:
 
       - name: Set up Rust toolchain
         if: matrix.language == 'rust' && matrix.build-mode == 'manual'
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # rust-toolchain.toml
 
       - name: Build Rust project for CodeQL
         if: matrix.language == 'rust' && matrix.build-mode == 'manual'

@@ -2,6 +2,7 @@
 name = "kanbus"
 version = "0.18.4"
 edition = "2021"
+rust-version = "1.88"
 description = "High-performance CLI and web console for the Kanbus issue tracker. Includes kanbus (CLI) and kanbus-console (web UI server)."
 license = "MIT"
 readme = "README.md"
