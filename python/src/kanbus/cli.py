@@ -17,7 +17,6 @@ from kanbus.file_io import (
     ensure_git_repository,
     initialize_project,
     repair_project_structure,
-    resolve_root,
 )
 from kanbus.kanbus_version import KanbusVersionError, enforce_kanbus_version
 from kanbus.content_validation import ContentValidationError, validate_code_blocks
@@ -189,6 +188,7 @@ def cli(
     Statuses:     open  in_progress  blocked  done  closed
     Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial
     """
+    _enforce_kanbus_version(context)
     resolved, forced = _resolve_beads_mode(context, beads_mode)
     context.obj = {
         "beads_mode": resolved,
@@ -196,7 +196,6 @@ def cli(
         "no_guidance": no_guidance,
         "no_hooks": no_hooks,
     }
-    _enforce_kanbus_version(context)
     _maybe_prompt_project_repair(context)
 
 
@@ -209,7 +208,7 @@ def _should_check_project_structure(context: click.Context) -> bool:
 def _enforce_kanbus_version(context: click.Context) -> None:
     if not _should_check_project_structure(context):
         return
-    root = resolve_root(Path.cwd())
+    root = Path.cwd()
     try:
         enforce_kanbus_version(root, __version__)
     except KanbusVersionError as error:
