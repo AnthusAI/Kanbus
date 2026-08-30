@@ -5,7 +5,7 @@ This guide is a 10-minute walkthrough to initialize a Kanbus project, create and
 ## Prerequisites
 
 - Git
-- Python 3.11+ or Rust toolchain
+- Python 3.11+ or Rust 1.88+ (repo root `rust-toolchain.toml` pins the compiler for rustup and CI)
 
 ## Installation
 
