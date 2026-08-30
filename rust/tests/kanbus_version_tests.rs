@@ -1,9 +1,18 @@
 use kanbus::kanbus_version::{
     compare_semver_cores, enforce_kanbus_version, format_unparseable_running_version_error,
-    read_required_kanbus_version, INVALID_KANBUS_VERSION_MESSAGE,
+    parse_semver_core, read_required_kanbus_version, INVALID_KANBUS_VERSION_MESSAGE,
 };
 use std::fs;
 use tempfile::tempdir;
+
+#[test]
+fn baked_git_version_has_leading_semver_core() {
+    assert!(
+        parse_semver_core(env!("GIT_VERSION")).is_some(),
+        "GIT_VERSION must have a leading MAJOR.MINOR.PATCH, got {}",
+        env!("GIT_VERSION")
+    );
+}
 
 #[test]
 fn compare_semver_cores_table() {
