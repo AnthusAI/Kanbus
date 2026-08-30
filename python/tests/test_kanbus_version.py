@@ -25,9 +25,7 @@ from kanbus.kanbus_version import (
         ("0.19.1", "0.19.0", True),
     ],
 )
-def test_compare_semver_cores(
-    running: str, required: str, expected: bool
-) -> None:
+def test_compare_semver_cores(running: str, required: str, expected: bool) -> None:
     assert compare_semver_cores(running, required) is expected
 
 

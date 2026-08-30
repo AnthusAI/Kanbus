@@ -76,6 +76,9 @@ harness = false
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
 
+[lints.clippy]
+uninlined_format_args = "allow"
+
 [[bin]]
 name = "kbs"
 path = "src/main.rs"
