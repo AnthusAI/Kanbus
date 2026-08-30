@@ -342,14 +342,14 @@ def test_list_wiki_pages_success_absolute_relative_and_errors(
     paths2 = wiki.list_wiki_pages(tmp_path)
     assert paths2 == ["docs/wiki/c.md"]
 
-    # Missing directory returns empty list.
     cfg_missing = build_project_configuration().model_copy(
         update={"project_directory": "project", "wiki_directory": "wiki-missing"}
     )
     monkeypatch.setattr(
         config_loader, "load_project_configuration", lambda _path: cfg_missing
     )
-    assert wiki.list_wiki_pages(tmp_path) == []
+    with pytest.raises(wiki.WikiError, match="wiki directory not found"):
+        wiki.list_wiki_pages(tmp_path)
 
     monkeypatch.setattr(
         project,

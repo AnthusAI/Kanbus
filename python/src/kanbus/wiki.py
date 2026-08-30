@@ -809,11 +809,11 @@ def list_wiki_pages(root: Path) -> List[str]:
     :type root: Path
     :return: Sorted list of paths like project/docs/page.md.
     :rtype: List[str]
-    :raises WikiError: If configuration or project structure is invalid.
+    :raises WikiError: If configuration or project structure is invalid, or the wiki directory is missing.
     """
     location = load_wiki_location(root)
     if not location.wiki_root.exists():
-        return []
+        raise WikiError(wiki_directory_missing_message(location))
 
     paths: List[str] = []
     for path in location.wiki_root.rglob("*.md"):

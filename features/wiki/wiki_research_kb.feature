@@ -50,6 +50,14 @@ Feature: Wiki research knowledge base
     And stderr should contain "wiki directory not found"
     And stderr should contain "kbs wiki init"
 
+  Scenario: Wiki list on a missing wiki directory shows create hint
+    Given a Kanbus project with default configuration
+    And the wiki directory does not exist
+    When I run "kanbus wiki list"
+    Then the command should fail with exit code 1
+    And stderr should contain "wiki directory not found"
+    And stderr should contain "kbs wiki init"
+
   Scenario: Missing wiki page shows not found with path
     Given a Kanbus project with default configuration
     And an empty wiki directory exists
