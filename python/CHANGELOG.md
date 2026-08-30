@@ -2,6 +2,58 @@
 
 <!-- version list -->
 
+## v0.23.1 (2026-08-30)
+
+### Bug Fixes
+
+- Declare Rust MSRV 1.88 and pin toolchain
+  ([`5b97cb4`](https://github.com/AnthusAI/Kanbus/commit/5b97cb413429a9264515f025979f4aa75756f8a7))
+
+- Enforce kanbus-version before beads resolution
+  ([`b7a0561`](https://github.com/AnthusAI/Kanbus/commit/b7a05614d304efbcad5050a270a90d67de250331))
+
+- Enforce kanbus-version gate before project commands
+  ([`190e674`](https://github.com/AnthusAI/Kanbus/commit/190e674bf531e055051539707ac7989c1930a56d))
+
+- Fail wiki list when project/wiki is missing
+  ([`366f413`](https://github.com/AnthusAI/Kanbus/commit/366f413e76e17207ff4099e22667e3e2ae607a16))
+
+- Fall back to package version when git describe is a SHA
+  ([`0c2762e`](https://github.com/AnthusAI/Kanbus/commit/0c2762e828415762d4660656d51d8a00acf6f8d6))
+
+- Pin CI Rust toolchain to 1.88.0 explicitly
+  ([`7531b83`](https://github.com/AnthusAI/Kanbus/commit/7531b837809ab1e89bd0455241dc5e36b4c83f9d))
+
+- Put wiki init hint on its own line
+  ([`64392f8`](https://github.com/AnthusAI/Kanbus/commit/64392f880f62f3e46305cca56f64d46a2f5f9a36))
+
+- **rust**: Serialize KANBUS_TEST_AI_MOCK unit tests
+  ([`554adae`](https://github.com/AnthusAI/Kanbus/commit/554adae7c3d28a0eda242ad1bd9448062dda7553))
+
+### Chores
+
+- Rustfmt kanbus-version gate in CLI
+  ([`6a72251`](https://github.com/AnthusAI/Kanbus/commit/6a72251f6b634792b2ef32da47331dd29df99444))
+
+- Satisfy black and 1.88 clippy uninlined_format_args
+  ([`82f8c72`](https://github.com/AnthusAI/Kanbus/commit/82f8c72b68baa155beb277141720a7bd56bfcfb2))
+
+- **project**: Close integrated CLI and wiki bug issues with test proof
+  ([`e7197f5`](https://github.com/AnthusAI/Kanbus/commit/e7197f53db7f86a6bb51f16104d089f3597851dd))
+
+- **project**: Close wiki tickets shipped in 0.20.0
+  ([`6717267`](https://github.com/AnthusAI/Kanbus/commit/6717267769a84035bdf337e6779c5a2379485a54))
+
+- **project**: File wiki init hint run-on; note search on missing dir
+  ([`72c92be`](https://github.com/AnthusAI/Kanbus/commit/72c92be075fa0eae04ea404838aa4c9a011d96ba))
+
+- **project**: File wiki list missing-dir hint (kbs-16af35)
+  ([`aa2e9de`](https://github.com/AnthusAI/Kanbus/commit/aa2e9deac5efeac2f202e01b84f251f152ac86a0))
+
+- **project**: Record implementation plans on open CLI and wiki bugs
+  ([`badf2c5`](https://github.com/AnthusAI/Kanbus/commit/badf2c5de6774fe3a8cd8801a9f98a73afbdce56))
+
+
 ## v0.23.0 (2026-08-29)
 
 ### Bug Fixes
