@@ -201,7 +201,7 @@ def wiki_directory_missing_message(location: WikiLocation) -> str:
     return (
         f"wiki directory not found at {location.list_prefix}. "
         f"Create it with: mkdir -p {location.list_prefix} "
-        f"&& echo '# Wiki' > {location.list_prefix}/index.md "
+        f"&& echo '# Wiki' > {location.list_prefix}/index.md\n"
         "Or run: kbs wiki init"
     )
 
