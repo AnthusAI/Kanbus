@@ -8,6 +8,26 @@ All commands support:
 
 - `--json` Emit machine-readable JSON output
 - `--help` Show command help
+- `--version` Show CLI version (exempt from `kanbus-version` checks)
+
+## Project CLI version requirement
+
+Repositories may declare a minimum Kanbus CLI version in a root file named `kanbus-version`. The file contains a single line with a semantic version core (`MAJOR.MINOR.PATCH`), for example:
+
+```
+0.19.1
+```
+
+When present, every CLI command (except `--help`, `--version`, `init`, `setup`, and `repair`) compares the running CLI version against this requirement before loading project data. Git-describe suffixes on the running version (for example `0.18.3-29-g36a5204`) use only the leading `MAJOR.MINOR.PATCH` portion. If the running CLI is too old, the command exits with code 1 and prints an upgrade message. Missing or unreadable files are handled as follows:
+
+- Missing file: skip the check
+- Empty or invalid file: fail with a parse error before project commands run
+
+Upgrade an outdated Rust CLI with:
+
+```bash
+cargo install kanbus --locked --force
+```
 
 ## Setup
 
