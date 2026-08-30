@@ -1059,9 +1059,8 @@ where
     let root = resolve_root(cwd);
     let root = canonicalize_path(&root).unwrap_or(root);
     if should_enforce_kanbus_version(&cli.command) {
-        enforce_kanbus_version(&root, env!("GIT_VERSION")).map_err(|error| {
-            KanbusError::IssueOperation(error.message().to_string())
-        })?;
+        enforce_kanbus_version(&root, env!("GIT_VERSION"))
+            .map_err(|error| KanbusError::IssueOperation(error.message().to_string()))?;
     }
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
     let no_guidance = cli.no_guidance;
