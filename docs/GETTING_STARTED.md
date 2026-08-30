@@ -5,7 +5,7 @@ This guide is a 10-minute walkthrough to initialize a Kanbus project, create and
 ## Prerequisites
 
 - Git
-- Python 3.11+ or Rust toolchain
+- Python 3.11+ or Rust 1.88+ (repo root `rust-toolchain.toml` pins the compiler for rustup and CI)
 
 ## Installation
 
@@ -106,6 +106,18 @@ kbs setup agents
 This updates `AGENTS.md`, refreshes `CONTRIBUTING_AGENT.md`, and re-writes the guard files under `project/issues/` and `project/events/`. The agent may edit `project/wiki/` directly; it must not edit `project/issues/` or `project/events/` directly (use Kanbus commands instead).
 
 If you have an existing repo with a `.cursorignore` that lists `project/`, change it to `project/issues/` and `project/events/` so the agent can edit the wiki.
+
+## Optional: Require a minimum CLI version
+
+Teams can pin a minimum Kanbus CLI release by adding a root file named `kanbus-version` with a single semantic version line:
+
+```
+0.19.1
+```
+
+When this file is present, commands such as `kbs list` and `kbs doctor` fail fast if the running CLI is older than the required version. The check is skipped when the file is absent. Use `0.0.0` to accept any installed CLI version.
+
+See [CLI_REFERENCE.md](CLI_REFERENCE.md) for full behavior, including git-describe handling and exempt commands.
 
 ## Beads compatibility mode
 
