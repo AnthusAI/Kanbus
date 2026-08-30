@@ -86,7 +86,7 @@ pub fn load_wiki_location(root: &Path) -> Result<WikiLocation, KanbusError> {
 
 fn wiki_directory_missing_message(location: &WikiLocation) -> String {
     format!(
-        "wiki directory not found at {}. Create it with: mkdir -p {} && echo '# Wiki' > {}/index.md Or run: kbs wiki init",
+        "wiki directory not found at {}. Create it with: mkdir -p {} && echo '# Wiki' > {}/index.md\nOr run: kbs wiki init",
         location.list_prefix, location.list_prefix, location.list_prefix
     )
 }
