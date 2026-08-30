@@ -3,16 +3,24 @@
   "title": "Mute Mosquitto-missing on issue mutations",
   "description": "publish_issue_mutation / publish_envelope skip silently if Mosquitto is missing. Explicit gossip watch/broker still print the install hint. Gherkin: create does not contain Mosquitto not found.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "home",
   "creator": null,
   "parent": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "fa6c7f35-78db-4374-9275-00b7fdeb7939",
+      "author": "home",
+      "text": "Implemented on cursor/cli-install-polish-bf9f (da0304cc). Gherkin: version-gate pip+cargo upgrade lines; create does not print Mosquitto not found. python[dev] extra; kbs console script; verify_python_installation checks kbs.",
+      "created_at": "2026-08-30T18:09:13.067545Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-30T18:05:16.947787Z",
-  "updated_at": "2026-08-30T18:05:33.125064Z",
-  "closed_at": null,
+  "updated_at": "2026-08-30T18:09:13.083709Z",
+  "closed_at": "2026-08-30T18:09:13.083709Z",
   "custom": {}
 }

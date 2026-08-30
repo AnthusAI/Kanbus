@@ -3,16 +3,24 @@
   "title": "Install kbs console script from the Python package",
   "description": "Add project.scripts kbs = kanbus.cli:cli. Keep kanbus and kanbusr. verify_python_installation must assert kbs exists. INSTALL.md: pip install provides kbs.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "home",
   "creator": null,
   "parent": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "b3f04c71-9e90-44d4-a94c-a6b02147740f",
+      "author": "home",
+      "text": "Implemented on cursor/cli-install-polish-bf9f (da0304cc). Gherkin: version-gate pip+cargo upgrade lines; create does not print Mosquitto not found. python[dev] extra; kbs console script; verify_python_installation checks kbs.",
+      "created_at": "2026-08-30T18:09:12.830737Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-30T18:05:16.789208Z",
-  "updated_at": "2026-08-30T18:05:32.860402Z",
-  "closed_at": null,
+  "updated_at": "2026-08-30T18:09:12.846716Z",
+  "closed_at": "2026-08-30T18:09:12.846716Z",
   "custom": {}
 }

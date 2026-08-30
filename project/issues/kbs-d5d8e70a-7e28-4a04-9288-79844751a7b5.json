@@ -3,16 +3,24 @@
   "title": "Dual pip and cargo kanbus-version upgrade text",
   "description": "Identical Python and Rust mismatch message must include pip install --upgrade kanbus and cargo install kanbus --locked --force. Update Gherkin and CLI_REFERENCE.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "home",
   "creator": null,
   "parent": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "a8ecb78f-9ab1-4fb8-a779-50b7b5c03c29",
+      "author": "home",
+      "text": "Implemented on cursor/cli-install-polish-bf9f (da0304cc). Gherkin: version-gate pip+cargo upgrade lines; create does not print Mosquitto not found. python[dev] extra; kbs console script; verify_python_installation checks kbs.",
+      "created_at": "2026-08-30T18:09:12.947730Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-30T18:05:16.841584Z",
-  "updated_at": "2026-08-30T18:05:32.948392Z",
-  "closed_at": null,
+  "updated_at": "2026-08-30T18:09:12.962768Z",
+  "closed_at": "2026-08-30T18:09:12.962768Z",
   "custom": {}
 }
