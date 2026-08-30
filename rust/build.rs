@@ -1,15 +1,44 @@
-fn main() {
-    // Derive the version from git tags so `kbs --version` reports the semantic
-    // release version (e.g. "0.11.0" or "0.11.0-31-gd03e59b") instead of the
-    // often-stale Cargo.toml version.
-    let git_version = std::process::Command::new("git")
+fn has_semver_core_prefix(version: &str) -> bool {
+    let trimmed = version.trim();
+    let mut segments = trimmed.split('.');
+    let Some(major) = segments.next() else {
+        return false;
+    };
+    let Some(minor) = segments.next() else {
+        return false;
+    };
+    let Some(patch_with_suffix) = segments.next() else {
+        return false;
+    };
+    let patch = patch_with_suffix
+        .chars()
+        .take_while(|character| character.is_ascii_digit())
+        .collect::<String>();
+    !major.is_empty()
+        && major.chars().all(|character| character.is_ascii_digit())
+        && !minor.is_empty()
+        && minor.chars().all(|character| character.is_ascii_digit())
+        && !patch.is_empty()
+}
+
+fn resolve_git_version() -> String {
+    let described = std::process::Command::new("git")
         .args(["describe", "--tags", "--always", "--match", "kanbus-rust-*"])
         .output()
         .ok()
-        .filter(|o| o.status.success())
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().trim_start_matches("kanbus-rust-").to_string())
-        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
+        .filter(|output| output.status.success())
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .map(|output| output.trim().trim_start_matches("kanbus-rust-").to_string())
+        .filter(|version| has_semver_core_prefix(version));
+    described.unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string())
+}
+
+fn main() {
+    // Derive the version from git tags so `kbs --version` reports the semantic
+    // release version (e.g. "0.11.0" or "0.11.0-31-gd03e59b") instead of the
+    // often-stale Cargo.toml version. Shallow clones without tags only get a
+    // commit hash from git describe; fall back to Cargo.toml in that case.
+    let git_version = resolve_git_version();
 
     println!("cargo:rustc-env=GIT_VERSION={git_version}");
 
