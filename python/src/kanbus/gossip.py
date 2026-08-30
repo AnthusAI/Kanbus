@@ -474,7 +474,6 @@ def _publish_envelope(
             return
         startup = ensure_mosquitto(endpoint)
         if startup is None:
-            _print_mosquitto_missing()
             return
         endpoint = startup.endpoint
         broker_process = startup.process

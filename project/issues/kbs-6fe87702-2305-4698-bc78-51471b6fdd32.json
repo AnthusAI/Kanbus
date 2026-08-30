@@ -1,0 +1,18 @@
+{
+  "id": "kbs-6fe87702-2305-4698-bc78-51471b6fdd32",
+  "title": "Install kbs console script from the Python package",
+  "description": "Add project.scripts kbs = kanbus.cli:cli. Keep kanbus and kanbusr. verify_python_installation must assert kbs exists. INSTALL.md: pip install provides kbs.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "home",
+  "creator": null,
+  "parent": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-30T18:05:16.789208Z",
+  "updated_at": "2026-08-30T18:05:32.860402Z",
+  "closed_at": null,
+  "custom": {}
+}

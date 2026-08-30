@@ -23,7 +23,9 @@ class CommandResult:
     stderr: str
 
 
-def run_command(command: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> CommandResult:
+def run_command(
+    command: list[str], cwd: Path | None = None, env: dict[str, str] | None = None
+) -> CommandResult:
     """Run a subprocess command and capture output.
 
     :param command: Command and arguments to execute.
@@ -90,6 +92,25 @@ def locate_venv_tsk(venv_dir: Path) -> Path | None:
     return None
 
 
+def locate_venv_kbs(venv_dir: Path) -> Path | None:
+    """Locate the kbs CLI script inside a virtual environment.
+
+    :param venv_dir: Path to the virtual environment.
+    :type venv_dir: Path
+    :return: Path to the kbs script if found, otherwise None.
+    :rtype: Path | None
+    """
+    candidates = [
+        venv_dir / "bin" / "kbs",
+        venv_dir / "Scripts" / "kbs.exe",
+        venv_dir / "Scripts" / "kbs",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def ensure_success(result: CommandResult, label: str) -> None:
     """Ensure the command succeeded or raise an error.
 
@@ -138,6 +159,9 @@ def verify_installation(repo_root: Path, keep_venv: bool, base_python: str) -> N
         tsk_path = locate_venv_tsk(venv_dir)
         if tsk_path is None:
             raise RuntimeError("kanbus script not found in virtual environment")
+        kbs_path = locate_venv_kbs(venv_dir)
+        if kbs_path is None:
+            raise RuntimeError("kbs script not found in virtual environment")
 
         env = os.environ.copy()
         env["PATH"] = f"{tsk_path.parent}{os.pathsep}{env.get('PATH', '')}"
@@ -146,12 +170,18 @@ def verify_installation(repo_root: Path, keep_venv: bool, base_python: str) -> N
             run_command([str(tsk_path), "--version"], env=env),
             "kanbus --version",
         )
+        ensure_success(
+            run_command([str(kbs_path), "--version"], env=env),
+            "kbs --version",
+        )
 
         repo_dir = temp_path / "repo"
         repo_dir.mkdir()
         ensure_success(run_command(["git", "init"], cwd=repo_dir), "git init")
 
-        ensure_success(run_command([str(tsk_path), "init"], cwd=repo_dir, env=env), "kanbus init")
+        ensure_success(
+            run_command([str(tsk_path), "init"], cwd=repo_dir, env=env), "kanbus init"
+        )
         ensure_success(
             run_command([str(tsk_path), "doctor"], cwd=repo_dir, env=env),
             "kanbus doctor",
@@ -167,7 +197,11 @@ def verify_installation(repo_root: Path, keep_venv: bool, base_python: str) -> N
 
 def _python_meets_requirement(python_executable: str) -> bool:
     result = run_command(
-        [python_executable, "-c", "import sys; print(f\"{sys.version_info.major}.{sys.version_info.minor}\")"]
+        [
+            python_executable,
+            "-c",
+            'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")',
+        ]
     )
     if result.return_code != 0:
         return False

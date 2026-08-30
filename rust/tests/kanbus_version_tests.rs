@@ -1,9 +1,17 @@
 use kanbus::kanbus_version::{
     compare_semver_cores, enforce_kanbus_version, format_unparseable_running_version_error,
-    parse_semver_core, read_required_kanbus_version, INVALID_KANBUS_VERSION_MESSAGE,
+    format_version_mismatch_error, parse_semver_core, read_required_kanbus_version,
+    INVALID_KANBUS_VERSION_MESSAGE,
 };
 use std::fs;
 use tempfile::tempdir;
+
+#[test]
+fn version_mismatch_error_includes_pip_and_cargo() {
+    let message = format_version_mismatch_error("0.18.0", "0.23.1");
+    assert!(message.contains("pip install --upgrade kanbus"));
+    assert!(message.contains("cargo install kanbus --locked --force"));
+}
 
 #[test]
 fn baked_git_version_has_leading_semver_core() {

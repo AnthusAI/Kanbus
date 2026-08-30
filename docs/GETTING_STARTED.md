@@ -40,9 +40,10 @@ chmod +x kbsc
 
 ### Option 2: Install from Package Managers
 
-**Python** (pip) - Recommended for scripting and AI workflows (CLI: `kanbus`):
+**Python** (pip) - Recommended for scripting and AI workflows (installs `kbs` and `kanbus`):
 ```bash
 pip install kanbus
+kbs --version
 ```
 
 **Rust** (cargo) - Recommended for max performance and CI/CD (installs `kbs` and `kbsc`):

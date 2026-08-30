@@ -8,7 +8,7 @@ This repository contains two implementations of Kanbus: Python and Rust. Both us
 - Python 3.11+
 - Rust 1.88+ (the repo root `rust-toolchain.toml` pins the compiler for rustup and CI)
 
-## Python (developer install)
+## Python (CLI)
 
 ```bash
 python -m venv .venv
@@ -16,14 +16,20 @@ source .venv/bin/activate
 pip install -e python
 ```
 
-Run the CLI:
+This installs `kbs`, `kanbus`, and `kanbusr`. Run:
 
 ```bash
-kanbus --version
-kanbus doctor
+kbs --version
+kbs doctor
 ```
 
-Note: the `kanbus` console script is available when the virtual environment is active.
+## Python (development)
+
+Contributor installs that run black, ruff, pytest, or behave need the extra:
+
+```bash
+pip install -e "python[dev]"
+```
 
 ## Rust (developer install)
 

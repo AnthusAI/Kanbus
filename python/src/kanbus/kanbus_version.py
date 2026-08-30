@@ -66,7 +66,9 @@ def format_version_mismatch_error(running: str, required: str) -> str:
     """
     return (
         f"Kanbus CLI {running} does not satisfy this project's required version {required}.\n"
-        "Upgrade: cargo install kanbus --locked --force"
+        "Upgrade:\n"
+        "  pip install --upgrade kanbus\n"
+        "  cargo install kanbus --locked --force"
     )
 
 

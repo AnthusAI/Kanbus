@@ -138,3 +138,9 @@ Feature: Issue creation
     When I run "kanbus create Another feature --id kanbus-custom-123"
     Then the command should fail with exit code 1
     And stderr should contain "already exists"
+
+  Scenario: Creating an issue does not warn about a missing Mosquitto broker
+    Given a Kanbus project with default configuration
+    When I run "kanbus create Quiet create without mosquitto"
+    Then the command should succeed
+    And stderr should not contain "Mosquitto not found"

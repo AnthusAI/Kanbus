@@ -332,7 +332,7 @@ def test_publish_envelope_handles_missing_mosquitto(monkeypatch) -> None:
         producer_id="producer-miss",
     )
     gossip._publish_envelope(Path("."), configuration, "topic/miss", envelope)
-    assert printed["value"] is True
+    assert printed["value"] is False
 
 
 def test_publish_issue_mutation_skips_when_config_lookup_fails(

@@ -1,0 +1,18 @@
+{
+  "id": "kbs-f7e04f88-a52a-46bf-ab7b-f0113cb8fc4c",
+  "title": "Mute Mosquitto-missing on issue mutations",
+  "description": "publish_issue_mutation / publish_envelope skip silently if Mosquitto is missing. Explicit gossip watch/broker still print the install hint. Gherkin: create does not contain Mosquitto not found.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "home",
+  "creator": null,
+  "parent": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-30T18:05:16.947787Z",
+  "updated_at": "2026-08-30T18:05:33.125064Z",
+  "closed_at": null,
+  "custom": {}
+}

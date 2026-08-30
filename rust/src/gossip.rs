@@ -763,7 +763,6 @@ fn publish_with_transport(
         }
         let startup = ensure_mosquitto(&endpoint)?;
         let Some(startup) = startup else {
-            print_mosquitto_missing();
             return Ok(());
         };
         endpoint = parse_broker_url(&startup.endpoint)?;

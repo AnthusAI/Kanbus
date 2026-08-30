@@ -47,8 +47,7 @@ sudo dnf -y install \
   xorg-x11-fonts-misc
 
 python3.11 -m pip install --upgrade pip
-python3.11 -m pip install -e python
-python3.11 -m pip install black ruff coverage
+python3.11 -m pip install -e "python[dev]"
 export PATH="$HOME/.local/bin:$PATH"
 
 curl https://sh.rustup.rs -sSf | sh -s -- -y

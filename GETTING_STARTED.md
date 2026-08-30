@@ -15,7 +15,7 @@ Kanbus provides two **completely equivalent** implementations: Python and Rust. 
   <div style="flex: 1; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
     <strong>Python</strong> (pip)<br>
     <em>Recommended for easy installation and scripting.</em><br><br>
-    <code>pip install kanbus</code>
+    <code>pip install kanbus</code> (installs <code>kbs</code> and <code>kanbus</code>)
   </div>
   <div style="flex: 1; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
     <strong>Rust</strong> (cargo)<br>

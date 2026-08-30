@@ -1,0 +1,18 @@
+{
+  "id": "kbs-93a9cc93-476b-4bd7-9328-5a89739f873a",
+  "title": "Move Python test and lint tools to optional extras",
+  "description": "Runtime deps stay click/jinja2/pydantic/pyyaml/pydantic-settings/requests/paho-mqtt. extra [dev] for behave pytest gherkin-official coverage ruff black sphinx. CI jobs that run black/ruff/pytest/behave install python[dev]. python-install stays a slim pip install.",
+  "type": "chore",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "home",
+  "creator": null,
+  "parent": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-30T18:05:16.894393Z",
+  "updated_at": "2026-08-30T18:05:33.037236Z",
+  "closed_at": null,
+  "custom": {}
+}

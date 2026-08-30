@@ -10,7 +10,8 @@ Feature: Kanbus version gate
     Then the command should fail with exit code 1
     And stderr should contain "Kanbus CLI"
     And stderr should contain "99.0.0"
-    And stderr should contain "Upgrade: cargo install kanbus --locked --force"
+    And stderr should contain "pip install --upgrade kanbus"
+    And stderr should contain "cargo install kanbus --locked --force"
 
   Scenario: Doctor fails when the running CLI is too old
     Given a Kanbus project with default configuration
@@ -19,7 +20,8 @@ Feature: Kanbus version gate
     Then the command should fail with exit code 1
     And stderr should contain "Kanbus CLI"
     And stderr should contain "99.0.0"
-    And stderr should contain "Upgrade: cargo install kanbus --locked --force"
+    And stderr should contain "pip install --upgrade kanbus"
+    And stderr should contain "cargo install kanbus --locked --force"
     And stdout should not contain "ok"
 
   Scenario: Doctor succeeds when kanbus-version is permissive

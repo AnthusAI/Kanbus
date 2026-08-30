@@ -10,6 +10,7 @@ from kanbus.kanbus_version import (
     compare_semver_cores,
     enforce_kanbus_version,
     format_unparseable_running_version_error,
+    format_version_mismatch_error,
     read_required_kanbus_version,
 )
 
@@ -27,6 +28,12 @@ from kanbus.kanbus_version import (
 )
 def test_compare_semver_cores(running: str, required: str, expected: bool) -> None:
     assert compare_semver_cores(running, required) is expected
+
+
+def test_format_version_mismatch_error_includes_pip_and_cargo() -> None:
+    message = format_version_mismatch_error("0.18.0", "0.23.1")
+    assert "pip install --upgrade kanbus" in message
+    assert "cargo install kanbus --locked --force" in message
 
 
 def test_read_required_kanbus_version_missing_file(tmp_path: Path) -> None:

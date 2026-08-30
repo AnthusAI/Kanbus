@@ -1,0 +1,18 @@
+{
+  "id": "kbs-d5d8e70a-7e28-4a04-9288-79844751a7b5",
+  "title": "Dual pip and cargo kanbus-version upgrade text",
+  "description": "Identical Python and Rust mismatch message must include pip install --upgrade kanbus and cargo install kanbus --locked --force. Update Gherkin and CLI_REFERENCE.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "home",
+  "creator": null,
+  "parent": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-30T18:05:16.841584Z",
+  "updated_at": "2026-08-30T18:05:32.948392Z",
+  "closed_at": null,
+  "custom": {}
+}
