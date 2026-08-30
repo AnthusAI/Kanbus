@@ -18,7 +18,7 @@ Repositories may declare a minimum Kanbus CLI version in a root file named `kanb
 0.19.1
 ```
 
-When present, every CLI command (except `--help`, `--version`, `init`, `setup`, and `repair`) compares the running CLI version against this requirement before loading project data. Git-describe suffixes on the running version (for example `0.18.3-29-g36a5204`) use only the leading `MAJOR.MINOR.PATCH` portion. If the running CLI is too old, the command exits with code 1 and prints an upgrade message. Missing or unreadable files are handled as follows:
+When present, every CLI command (except `--help`, `--version`, `init`, `setup`, and `repair`) compares the running CLI version against this requirement before loading project data. Git-describe suffixes on the running version (for example `0.18.3-29-g36a5204`) use only the leading `MAJOR.MINOR.PATCH` portion. Rust builds that cannot see a `kanbus-rust-*` tag (shallow clones, crates.io) fall back to the Cargo package version so the running CLI remains comparable. If the running CLI is too old, the command exits with code 1 and prints an upgrade message. Missing or unreadable files are handled as follows:
 
 - Missing file: skip the check
 - Empty or invalid file: fail with a parse error before project commands run
