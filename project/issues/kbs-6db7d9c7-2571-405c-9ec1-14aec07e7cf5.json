@@ -1,0 +1,28 @@
+{
+  "id": "kbs-6db7d9c7-2571-405c-9ec1-14aec07e7cf5",
+  "title": "Warn when installed CLI does not satisfy kanbus-version",
+  "description": "## Problem\n\nA repository can declare a required Kanbus release in `kanbus-version`, but `kbs` does not compare that declaration with its own version before executing commands.\n\n## Observed reproduction\n\nIn the Anth.us newsroom repository:\n\n- `kanbus-version` declares `0.19.1`.\n- The installed CLI reports `kbs 0.18.3-29-g36a5204`.\n- `kbs doctor` reports success.\n- `kbs list` and `kbs daemon-status` fail only with `No such file or directory (os error 2)`.\n- Mutation commands can succeed while warning that Mosquitto is unavailable.\n\nThe operator receives no indication that the CLI is older than the project contract, making product defects and installation drift difficult to distinguish.\n\n## Expected behavior\n\nBefore project commands execute, Kanbus should compare the running CLI version with `kanbus-version`. An incompatible version should fail immediately with the required version, running version, and documented upgrade command. Development builds should be handled explicitly rather than silently accepted.\n\n## Acceptance criteria\n\n- A BDD scenario covers an older CLI opening a newer project.\n- The command exits nonzero before project or realtime initialization.\n- The error names both versions and gives one supported upgrade path.\n- A compatible CLI continues normally.\n- Python and Rust CLIs behave consistently.",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "62cd8093-0cea-4a06-9caf-c73e20b53c2b",
+      "author": "home",
+      "text": "Additional reproduction on current Kanbus main (3c5dec99): running the installed 0.18.3 CLI's kbs validate against the 0.23.0 repository emits hundreds of false schema errors, including missing closed_at fields, rejected dependency types, and rejected parent-child relationships. This strengthens the requirement to reject incompatible CLI/project versions before loading or validating project data.",
+      "created_at": "2026-08-30T14:39:06.706078Z"
+    }
+  ],
+  "created_at": "2026-08-30T14:37:38.311548Z",
+  "updated_at": "2026-08-30T14:39:06.706078Z",
+  "closed_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
