@@ -1058,14 +1058,14 @@ where
     };
     let root = resolve_root(cwd);
     let root = canonicalize_path(&root).unwrap_or(root);
-    let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
-    let no_guidance = cli.no_guidance;
-    let no_hooks = cli.no_hooks;
     if should_enforce_kanbus_version(&cli.command) {
         enforce_kanbus_version(&root, env!("GIT_VERSION")).map_err(|error| {
             KanbusError::IssueOperation(error.message().to_string())
         })?;
     }
+    let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
+    let no_guidance = cli.no_guidance;
+    let no_hooks = cli.no_hooks;
     maybe_prompt_project_repair(&cli.command, &root)?;
     let stdout = execute_command(
         cli.command,

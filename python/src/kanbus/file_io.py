@@ -45,18 +45,6 @@ PROJECT_WIKI_AGENTS_TEXT = "\n".join(
 )
 
 
-def resolve_root(cwd: Path) -> Path:
-    """
-    Resolve the repository root for CLI operations.
-
-    :param cwd: Current working directory.
-    :type cwd: Path
-    :return: Repository root path.
-    :rtype: Path
-    """
-    return cwd
-
-
 @dataclass
 class RepairPlan:
     project_dir: Path
