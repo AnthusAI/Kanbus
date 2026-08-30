@@ -3,7 +3,7 @@
   "title": "wiki list on a missing project/wiki/ is silent (no init hint)",
   "description": "Researcher 0.20.1 AT on /workspace/research-pod. kbs wiki render on a missing project/wiki/ prints a create hint (kbs wiki init). kbs wiki list on the same project prints nothing and exits 0. Product rule: list should name the missing wiki and say how to create it, same as render. Do not look like an empty wiki that exists. Empty-string search listing all pages is specified (Wiki search with empty query lists all pages). Do not change that to 0 results.",
   "type": "bug",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -15,12 +15,17 @@
       "id": "bd6c3fd1-7a1d-4cbe-a0a4-f7b70d21070c",
       "author": "ryan",
       "text": "Papyrus 0.20.1 AT: kbs wiki search foo with no project/wiki/ prints 0 results and exits 0, no init hint. Spec already says no matches when the wiki dir is missing; keep that, but add the same create hint as render. Do not change empty-string search (match-all).",
-      "created_at": "2026-08-29T13:29:05.718102Z",
-      "comment_type": "default"
+      "created_at": "2026-08-29T13:29:05.718102Z"
+    },
+    {
+      "id": "32c7b9e4-d292-4142-ac95-93c6abd313ec",
+      "author": "home",
+      "text": "# Implementation plan: `wiki list` must hint when `project/wiki/` is missing\n\nThis is the prescribed plan. Follow it.\n\n## Intent\n\nAs a Papyrus/Kanbus operator, I want `kbs wiki list` on a project with no wiki directory to fail the same way `wiki render` / `wiki lint` already fail, so I am told to run `kbs wiki init` instead of a successful empty listing.\n\n## Current violation\n\n- `python/src/kanbus/wiki.py` `list_wiki_pages`: if `wiki_root` is missing, returns `[]`.\n- CLI then prints nothing and exits 0.\n- Rust `list_wiki_pages` delegates to `console_wiki::list_pages`, which **documents** empty-when-missing for the console API.\n\n## Product rule\n\n- **CLI** `kanbus wiki list` / `kbs wiki list`: missing wiki directory is an **error** (exit 1).\n- Error text **must be the same** helper already used by render/lint: `wiki_directory_missing_message` (Python) / `wiki_directory_missing_message` (Rust). Do not invent a second string.\n- Do **not** change the existing Gherkin scenario `Wiki search returns no matches when wiki directory is missing` (search staying empty/success is a separate filed behavior). List is not search.\n- Console HTTP `list_pages` may remain empty-for-missing **only if** changing it would break console first-load. Prefer: CLI path `list_wiki_pages` in `wiki.rs` / `wiki.py` errors; leave `console_wiki::list_pages` as the console-only empty list **if** they are already separate functions. If `kbs wiki list` calls `console_wiki::list_pages`, add the existence check in `list_wiki_pages` **before** or after that call; do not silently map empty to success in the CLI match arm.\n\n## Gherkin (first)\n\nIn `features/wiki/wiki_research_kb.feature`, beside `Missing wiki directory shows create hint`, add:\n\n```\nScenario: Wiki list on a missing wiki directory shows create hint\n  Given a Kanbus project with default configuration\n  And the wiki directory does not exist\n  When I run \"kanbus wiki list\"\n  Then the command should fail with exit code 1\n  And stderr should contain \"wiki directory not found\"\n  And stderr should contain \"kbs wiki init\"\n```\n\nDo not weaken render/lint scenarios.\n\n## Implementation\n\n- Python `list_wiki_pages`: if not `location.wiki_root.exists()`, `raise WikiError(wiki_directory_missing_message(location))`.\n- Rust `list_wiki_pages`: same check using `load_wiki_location` / existing helper; then list as today.\n- Update **unit tests** that currently assert empty list when missing (`python/tests/test_wiki.py` `list_wiki_pages` missing case; `wiki_list_pages_empty_when_wiki_root_missing` if it tests `list_wiki_pages` rather than `console_wiki::list_pages`). If the test is on `console_wiki::list_pages`, leave it.\n- Dual runtime. Spec parity. Sphinx/rustdoc already on these functions: update the `:raises:` / `# Errors` lines.\n\n## Out of scope\n\n- Rewording the hint (see sibling bug kbs-8f2559f0). Use the helper as it exists.\n- Making search fail.\n- Wiki init implementation.\n\n## Quality\n\n- Smallest change. No debug. No emojis.\n- Branch `cursor/wiki-list-missing-dir-bf9f` from `develop`, push, no PR.\n\n## Proof\n\nRun the new scenario in Python behave and Rust cucumber; comment results on this issue.\n",
+      "created_at": "2026-08-30T16:09:16.446306Z"
     }
   ],
   "created_at": "2026-08-29T13:28:15.641755Z",
-  "updated_at": "2026-08-29T13:29:05.718102Z",
+  "updated_at": "2026-08-30T16:09:16.446306Z",
   "closed_at": null,
   "custom": {}
 }
