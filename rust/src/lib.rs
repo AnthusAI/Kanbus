@@ -42,6 +42,7 @@ pub mod issue_lookup;
 pub mod issue_transfer;
 pub mod issue_update;
 pub mod jira_sync;
+pub mod kanbus_version;
 pub mod lifecycle_compaction;
 pub mod maintenance;
 pub mod migration;

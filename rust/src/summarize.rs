@@ -336,6 +336,7 @@ pub fn compaction_summarize(
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
+    use serial_test::serial;
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -388,6 +389,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn compaction_summarize_writes_summary_with_mock_ai() {
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
         let temp = TempDir::new().expect("tempdir");
@@ -404,6 +406,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn compaction_summarize_recursively_summarizes_children() {
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
         let temp = TempDir::new().expect("tempdir");

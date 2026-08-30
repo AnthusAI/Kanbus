@@ -86,7 +86,7 @@ pub fn load_wiki_location(root: &Path) -> Result<WikiLocation, KanbusError> {
 
 fn wiki_directory_missing_message(location: &WikiLocation) -> String {
     format!(
-        "wiki directory not found at {}. Create it with: mkdir -p {} && echo '# Wiki' > {}/index.md Or run: kbs wiki init",
+        "wiki directory not found at {}. Create it with: mkdir -p {} && echo '# Wiki' > {}/index.md\nOr run: kbs wiki init",
         location.list_prefix, location.list_prefix, location.list_prefix
     )
 }
@@ -1168,8 +1168,15 @@ pub fn render_template_string(text: &str, issues: &[IssueData]) -> Result<String
 /// Sorted list of paths like `project/docs/page.md`.
 ///
 /// # Errors
-/// Returns `KanbusError` if configuration or project structure is invalid.
+/// Returns `KanbusError` if configuration or project structure is invalid, or the wiki directory is missing.
 pub fn list_wiki_pages(root: &Path) -> Result<Vec<String>, KanbusError> {
+    let location = load_wiki_location(root)?;
+    if !location.wiki_root.exists() {
+        return Err(KanbusError::IssueOperation(wiki_directory_missing_message(
+            &location,
+        )));
+    }
+
     let store = FileStore::new(root);
     let response = console_wiki::list_pages(&store)
         .map_err(|e| KanbusError::IssueOperation(format!("{:?}", e)))?;

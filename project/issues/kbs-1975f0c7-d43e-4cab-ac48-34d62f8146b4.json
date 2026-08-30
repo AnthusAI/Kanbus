@@ -3,16 +3,24 @@
   "title": "project/AGENTS.md forbids all project/ edits; wiki is the exception",
   "description": "Researcher first-pass.\n\nproject/AGENTS.md says DO NOT EDIT HERE and \\\"Editing anything under project/ directly is hacking the data.\\\" CONTRIBUTING_AGENT.md says wiki markdown under project/wiki/ is the exception.\n\nAgents read the nearer file and refuse to write pages.\n\nProduct rule: project/AGENTS.md must name project/wiki/*.md as the allowed exception (same sentence as the sin). CONTRIBUTING remains the long form.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "9c505e14-1b62-495c-a9c6-2ccd1d00e943",
+      "author": "ryan",
+      "text": "Shipped in Kanbus 0.20.0 via PR #172 (list/search/show/lint/check/init, render path, short issue.key, references()). Closing.",
+      "created_at": "2026-08-29T12:15:30.191885Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-28T20:41:05.148136Z",
-  "updated_at": "2026-08-28T20:41:05.148136Z",
-  "closed_at": null,
+  "updated_at": "2026-08-29T12:15:30.203395Z",
+  "closed_at": "2026-08-29T12:15:30.203395Z",
   "custom": {}
 }
