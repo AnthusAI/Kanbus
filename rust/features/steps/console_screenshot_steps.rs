@@ -17,6 +17,17 @@ fn given_screenshot_capture_mocked_unavailable(world: &mut KanbusWorld) {
     env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "unavailable");
 }
 
+#[given("the environment variable CONSOLE_PORT is set to the console server port")]
+fn given_console_port_matches_server(world: &mut KanbusWorld) {
+    let port = world
+        .console_port
+        .expect("console server must be running before setting CONSOLE_PORT");
+    world
+        .environment_overrides
+        .insert("CONSOLE_PORT".to_string(), port.to_string());
+    env::set_var("CONSOLE_PORT", port.to_string());
+}
+
 fn resolve_working_path(world: &KanbusWorld, path: &str) -> PathBuf {
     let working_directory = world.working_directory.as_ref().expect("working directory");
     let candidate = PathBuf::from(path);
@@ -84,6 +95,16 @@ fn then_screenshot_capture_expand_all(world: &mut KanbusWorld) {
     );
 }
 
+#[then("screenshot capture prerequisites should be verified")]
+fn then_screenshot_capture_prerequisites_verified(world: &mut KanbusWorld) {
+    let verified = std::env::var("KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED")
+        .unwrap_or_default();
+    assert_eq!(
+        verified, "1",
+        "expected mocked screenshot capture to verify prerequisites"
+    );
+}
+
 #[then(expr = "the screenshot capture expanded columns should include {string}")]
 fn then_screenshot_capture_expanded_columns_include(world: &mut KanbusWorld, column: String) {
     let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
@@ -97,4 +118,19 @@ fn then_screenshot_capture_expanded_columns_include(world: &mut KanbusWorld, col
         .iter()
         .any(|value| value.as_str() == Some(column.as_str()));
     assert!(includes, "expected expand to include {}", column);
+}
+
+#[then(expr = "the screenshot capture collapsed columns should include {string}")]
+fn then_screenshot_capture_collapsed_columns_include(world: &mut KanbusWorld, column: String) {
+    let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
+    let parsed: serde_json::Value =
+        serde_json::from_str(&raw).expect("screenshot capture options json");
+    let collapsed = parsed
+        .get("collapse")
+        .and_then(|value| value.as_array())
+        .expect("collapse array");
+    let includes = collapsed
+        .iter()
+        .any(|value| value.as_str() == Some(column.as_str()));
+    assert!(includes, "expected collapse to include {}", column);
 }
