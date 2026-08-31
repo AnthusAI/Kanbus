@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.24.1 (2026-08-31)
+
+### Bug Fixes
+
+- **ci**: Include screenshot testdata in crate and align beads-interop toolchain
+  ([`2a12b14`](https://github.com/AnthusAI/Kanbus/commit/2a12b14e3125262803a77d7479856b6a6fd3c3c4))
+
+
 ## v0.24.0 (2026-08-31)
 
 ### Bug Fixes
