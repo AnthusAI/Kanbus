@@ -74,7 +74,7 @@ name = "cucumber"
 harness = false
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)", "cfg(coverage)"] }
 
 [lints.clippy]
 uninlined_format_args = "allow"

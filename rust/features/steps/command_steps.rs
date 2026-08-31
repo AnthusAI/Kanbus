@@ -18,6 +18,23 @@ use crate::step_definitions::initialization_steps::{
 };
 use crate::step_definitions::virtual_project_steps::maybe_simulate_virtual_project_command;
 
+fn execute_cli_command(
+    args: Vec<String>,
+    cwd: &std::path::Path,
+) -> Result<kanbus::cli::CommandOutput, kanbus::error::KanbusError> {
+    #[cfg(coverage)]
+    {
+        return run_from_args_with_output(args, cwd);
+    }
+    #[cfg(not(coverage))]
+    {
+        let cwd_path = cwd.to_path_buf();
+        return thread::spawn(move || run_from_args_with_output(args, &cwd_path))
+            .join()
+            .expect("cli thread panicked");
+    }
+}
+
 fn run_cli_command(world: &mut KanbusWorld, command: &str) {
     let normalized = command.replace("\\\"", "\"");
     if maybe_simulate_virtual_project_command(world, &normalized) {
@@ -69,9 +86,7 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
 
     let cwd_path = cwd.to_path_buf();
     let saved_env = apply_environment_overrides(&world.environment_overrides);
-    let result = thread::spawn(move || run_from_args_with_output(args, &cwd_path))
-        .join()
-        .expect("cli thread panicked");
+    let result = execute_cli_command(args, &cwd_path);
     restore_environment(saved_env);
 
     match result {
