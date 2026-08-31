@@ -227,6 +227,23 @@ def given_console_server_is_running(context: object) -> None:
     context.console_server_port = ready_port
 
 
+@given("the console server is running on the default console port")
+def given_console_server_on_default_port(context: object) -> None:
+    """Start kbsc on port 5174 without writing console_port to configuration."""
+    if getattr(context, "console_server_process", None) is not None:
+        return
+    working_directory = Path(context.working_directory)
+    default_port = 5174
+    config_path = working_directory / ".kanbus.yml"
+    if config_path.exists():
+        config_path.unlink()
+    proc = _start_kbsc(working_directory, default_port)
+    context.console_server_process = proc
+    ready_port = _wait_for_server(default_port)
+    assert ready_port is not None, "kbsc did not become ready on default port 5174"
+    context.console_server_port = ready_port
+
+
 @given('the console focused issue is "{issue_id}"')
 def given_console_focused_issue(context: object, issue_id: str) -> None:
     _post_notification(

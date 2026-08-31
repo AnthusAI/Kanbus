@@ -8,7 +8,11 @@ from pathlib import Path
 
 from behave import given, then
 
-from kanbus.console_screenshot import TEST_CAPTURE_OPTIONS_ENV, TEST_LAST_MODE_ENV
+from kanbus.console_screenshot import (
+    TEST_CAPTURE_OPTIONS_ENV,
+    TEST_LAST_MODE_ENV,
+    TEST_PREREQUISITES_VERIFIED_ENV,
+)
 
 
 def _load_capture_options() -> dict:
@@ -34,6 +38,18 @@ def given_screenshot_capture_mocked_unavailable(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
     overrides["KANBUS_TEST_SCREENSHOT_MOCK"] = "unavailable"
     context.environment_overrides = overrides
+
+
+@given("the environment variable CONSOLE_PORT is set to the console server port")
+def given_console_port_matches_server(context: object) -> None:
+    port = getattr(context, "console_server_port", None)
+    assert (
+        port is not None
+    ), "console server must be running before setting CONSOLE_PORT"
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["CONSOLE_PORT"] = str(port)
+    context.environment_overrides = overrides
+    os.environ["CONSOLE_PORT"] = str(port)
 
 
 def _resolve_working_path(context: object, path: str) -> Path:
@@ -79,6 +95,13 @@ def then_screenshot_capture_expand_all(context: object) -> None:
     assert options.get("expandAll") is True
 
 
+@then("screenshot capture prerequisites should be verified")
+def then_screenshot_capture_prerequisites_verified(context: object) -> None:
+    assert (
+        os.environ.get(TEST_PREREQUISITES_VERIFIED_ENV) == "1"
+    ), "expected mocked screenshot capture to verify prerequisites"
+
+
 @then('the screenshot capture expanded columns should include "{column}"')
 def then_screenshot_capture_expanded_columns_include(
     context: object, column: str
@@ -86,3 +109,14 @@ def then_screenshot_capture_expanded_columns_include(
     options = _load_capture_options()
     expanded = options.get("expand") or []
     assert column in expanded, f"expected expand to include {column}, got {expanded}"
+
+
+@then('the screenshot capture collapsed columns should include "{column}"')
+def then_screenshot_capture_collapsed_columns_include(
+    context: object, column: str
+) -> None:
+    options = _load_capture_options()
+    collapsed = options.get("collapse") or []
+    assert (
+        column in collapsed
+    ), f"expected collapse to include {column}, got {collapsed}"
