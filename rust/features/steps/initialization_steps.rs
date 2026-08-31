@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Child, Command};
 use std::thread::JoinHandle;
 use std::time::SystemTime;
 
@@ -89,6 +89,7 @@ pub struct KanbusWorld {
     pub metrics_project_filter: Option<String>,
     pub metrics_local_filter: Option<String>,
     pub console_port: Option<u16>,
+    pub console_server_child: Option<Child>,
     pub fake_jira_port: Option<u16>,
     pub fake_jira_shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
     pub fake_jira_issues: Vec<serde_json::Value>,
@@ -176,6 +177,7 @@ pub fn restore_environment(saved: BTreeMap<String, Option<String>>) {
 
 impl Drop for KanbusWorld {
     fn drop(&mut self) {
+        crate::step_definitions::console_ui_state_steps::stop_console_server(self);
         kanbus::beads_write::set_test_beads_slug_sequence(None);
         kanbus::ids::set_test_uuid_sequence(None);
         if let Some(handle) = self.daemon_thread.take() {

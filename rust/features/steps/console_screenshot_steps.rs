@@ -1,20 +1,41 @@
-use std::env;
 use std::path::PathBuf;
 
 use cucumber::{given, then};
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
+const TEST_LAST_MODE_ENV: &str = "KANBUS_TEST_SCREENSHOT_LAST_MODE";
+const TEST_CAPTURE_OPTIONS_ENV: &str = "KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS";
+const TEST_PREREQUISITES_VERIFIED_ENV: &str = "KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED";
+
+fn clear_screenshot_test_overrides(world: &mut KanbusWorld) {
+    for key in [
+        TEST_LAST_MODE_ENV,
+        TEST_CAPTURE_OPTIONS_ENV,
+        TEST_PREREQUISITES_VERIFIED_ENV,
+        "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT",
+        "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT",
+        "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING",
+    ] {
+        world.environment_overrides.remove(key);
+    }
+}
+
 #[given("screenshot capture is mocked to succeed")]
 fn given_screenshot_capture_mocked_success(world: &mut KanbusWorld) {
-    world.original_screenshot_mock_env = Some(env::var("KANBUS_TEST_SCREENSHOT_MOCK").ok());
-    env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "success");
+    clear_screenshot_test_overrides(world);
+    world.environment_overrides.insert(
+        "KANBUS_TEST_SCREENSHOT_MOCK".to_string(),
+        "success".to_string(),
+    );
 }
 
 #[given("screenshot capture is mocked as unavailable")]
 fn given_screenshot_capture_mocked_unavailable(world: &mut KanbusWorld) {
-    world.original_screenshot_mock_env = Some(env::var("KANBUS_TEST_SCREENSHOT_MOCK").ok());
-    env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "unavailable");
+    world.environment_overrides.insert(
+        "KANBUS_TEST_SCREENSHOT_MOCK".to_string(),
+        "unavailable".to_string(),
+    );
 }
 
 #[given("the environment variable CONSOLE_PORT is set to the console server port")]
@@ -25,7 +46,6 @@ fn given_console_port_matches_server(world: &mut KanbusWorld) {
     world
         .environment_overrides
         .insert("CONSOLE_PORT".to_string(), port.to_string());
-    env::set_var("CONSOLE_PORT", port.to_string());
 }
 
 #[given("the capture script cannot be located")]
@@ -33,6 +53,7 @@ fn given_capture_script_cannot_be_located(world: &mut KanbusWorld) {
     let working_directory = world.working_directory.as_ref().expect("working directory");
     let empty_root = working_directory.join("empty-script-root");
     std::fs::create_dir_all(&empty_root).expect("create empty script root");
+    clear_screenshot_test_overrides(world);
     world
         .environment_overrides
         .remove("KANBUS_TEST_SCREENSHOT_MOCK");
@@ -44,16 +65,11 @@ fn given_capture_script_cannot_be_located(world: &mut KanbusWorld) {
         "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT".to_string(),
         "1".to_string(),
     );
-    env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
-    env::set_var(
-        "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT",
-        empty_root.to_string_lossy().to_string(),
-    );
-    env::set_var("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT", "1");
 }
 
 #[given("Node.js is unavailable for screenshot capture")]
 fn given_node_unavailable_for_screenshot(world: &mut KanbusWorld) {
+    clear_screenshot_test_overrides(world);
     world
         .environment_overrides
         .remove("KANBUS_TEST_SCREENSHOT_MOCK");
@@ -61,8 +77,6 @@ fn given_node_unavailable_for_screenshot(world: &mut KanbusWorld) {
         "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING".to_string(),
         "1".to_string(),
     );
-    env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
-    env::set_var("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING", "1");
 }
 
 fn resolve_working_path(world: &KanbusWorld, path: &str) -> PathBuf {
@@ -104,14 +118,14 @@ fn then_png_file_larger_than(world: &mut KanbusWorld, path: String, size: u64) {
 }
 
 #[then(expr = "the screenshot appearance mode should be {string}")]
-fn then_screenshot_appearance_mode(world: &mut KanbusWorld, mode: String) {
-    let recorded = std::env::var("KANBUS_TEST_SCREENSHOT_LAST_MODE").unwrap_or_default();
+fn then_screenshot_appearance_mode(_world: &mut KanbusWorld, mode: String) {
+    let recorded = std::env::var(TEST_LAST_MODE_ENV).unwrap_or_default();
     assert_eq!(recorded, mode, "expected appearance mode {}", mode);
 }
 
 #[then(expr = "the screenshot capture view should be {string}")]
-fn then_screenshot_capture_view(world: &mut KanbusWorld, view: String) {
-    let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
+fn then_screenshot_capture_view(_world: &mut KanbusWorld, view: String) {
+    let raw = std::env::var(TEST_CAPTURE_OPTIONS_ENV).unwrap_or_default();
     let parsed: serde_json::Value =
         serde_json::from_str(&raw).expect("screenshot capture options json");
     let recorded = parsed
@@ -122,8 +136,8 @@ fn then_screenshot_capture_view(world: &mut KanbusWorld, view: String) {
 }
 
 #[then("screenshot capture expand-all should be enabled")]
-fn then_screenshot_capture_expand_all(world: &mut KanbusWorld) {
-    let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
+fn then_screenshot_capture_expand_all(_world: &mut KanbusWorld) {
+    let raw = std::env::var(TEST_CAPTURE_OPTIONS_ENV).unwrap_or_default();
     let parsed: serde_json::Value =
         serde_json::from_str(&raw).expect("screenshot capture options json");
     assert_eq!(
@@ -133,9 +147,8 @@ fn then_screenshot_capture_expand_all(world: &mut KanbusWorld) {
 }
 
 #[then("screenshot capture prerequisites should be verified")]
-fn then_screenshot_capture_prerequisites_verified(world: &mut KanbusWorld) {
-    let verified =
-        std::env::var("KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED").unwrap_or_default();
+fn then_screenshot_capture_prerequisites_verified(_world: &mut KanbusWorld) {
+    let verified = std::env::var(TEST_PREREQUISITES_VERIFIED_ENV).unwrap_or_default();
     assert_eq!(
         verified, "1",
         "expected mocked screenshot capture to verify prerequisites"
@@ -143,8 +156,8 @@ fn then_screenshot_capture_prerequisites_verified(world: &mut KanbusWorld) {
 }
 
 #[then(expr = "the screenshot capture expanded columns should include {string}")]
-fn then_screenshot_capture_expanded_columns_include(world: &mut KanbusWorld, column: String) {
-    let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
+fn then_screenshot_capture_expanded_columns_include(_world: &mut KanbusWorld, column: String) {
+    let raw = std::env::var(TEST_CAPTURE_OPTIONS_ENV).unwrap_or_default();
     let parsed: serde_json::Value =
         serde_json::from_str(&raw).expect("screenshot capture options json");
     let expanded = parsed
@@ -158,8 +171,8 @@ fn then_screenshot_capture_expanded_columns_include(world: &mut KanbusWorld, col
 }
 
 #[then(expr = "the screenshot capture collapsed columns should include {string}")]
-fn then_screenshot_capture_collapsed_columns_include(world: &mut KanbusWorld, column: String) {
-    let raw = std::env::var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS").unwrap_or_default();
+fn then_screenshot_capture_collapsed_columns_include(_world: &mut KanbusWorld, column: String) {
+    let raw = std::env::var(TEST_CAPTURE_OPTIONS_ENV).unwrap_or_default();
     let parsed: serde_json::Value =
         serde_json::from_str(&raw).expect("screenshot capture options json");
     let collapsed = parsed
