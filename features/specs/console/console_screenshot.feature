@@ -14,6 +14,7 @@ Feature: Console board screenshot
     Then the command should succeed
     And stdout should contain "kanbus-board.png"
     And a PNG file should exist at "kanbus-board.png"
+    And screenshot capture prerequisites should be verified
 
   Scenario: Screenshot command writes a PNG to a custom output path
     Given the console server is running
@@ -58,6 +59,20 @@ Feature: Console board screenshot
     Then the command should succeed
     And the screenshot capture view should be "epics"
 
+  Scenario: Screenshot command accepts initiatives view
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --view initiatives"
+    Then the command should succeed
+    And the screenshot capture view should be "initiatives"
+
+  Scenario: Screenshot command accepts issues view
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --view issues"
+    Then the command should succeed
+    And the screenshot capture view should be "issues"
+
   Scenario: Screenshot command expands all columns when requested
     Given the console server is running
     And screenshot capture is mocked to succeed
@@ -71,6 +86,22 @@ Feature: Console board screenshot
     When I run "kanbus console screenshot --expand backlog"
     Then the command should succeed
     And the screenshot capture expanded columns should include "backlog"
+
+  Scenario: Screenshot command collapses a specific column when requested
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --collapse in_progress"
+    Then the command should succeed
+    And the screenshot capture collapsed columns should include "in_progress"
+
+  Scenario: Screenshot command supports multiple expand and collapse flags
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot --expand backlog --expand closed --collapse in_progress"
+    Then the command should succeed
+    And the screenshot capture expanded columns should include "backlog"
+    And the screenshot capture expanded columns should include "closed"
+    And the screenshot capture collapsed columns should include "in_progress"
 
   Scenario: Screenshot command supports newsroom board layout flags
     Given the console server is running
@@ -101,6 +132,31 @@ Feature: Console board screenshot
     When I run "kanbus console screenshot"
     Then the command should fail with exit code 1
     And stderr should contain "Console server is not running"
+
+  Scenario: Screenshot command honors CONSOLE_PORT when resolving the server
+    Given the console server is running
+    And the environment variable CONSOLE_PORT is set to the console server port
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot"
+    Then the command should succeed
+    And a PNG file should exist at "kanbus-board.png"
+
+  Scenario: Screenshot command ignores invalid CONSOLE_PORT and uses project configuration
+    Given the environment variable "CONSOLE_PORT" is set to "not-a-port"
+    And the console server is running
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot"
+    Then the command should succeed
+    And a PNG file should exist at "kanbus-board.png"
+
+  Scenario: Screenshot command uses the default console port when configuration is missing
+    Given a Kanbus repository without a .kanbus.yml file
+    And the environment variable "CONSOLE_PORT" is not set
+    And the console server is running on the default console port
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot"
+    Then the command should succeed
+    And a PNG file should exist at "kanbus-board.png"
 
   @console @console-server @slow
   Scenario: Screenshot command captures the live board UI

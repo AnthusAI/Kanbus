@@ -13,6 +13,7 @@ const DEFAULT_SCREENSHOT_FILENAME: &str = "kanbus-board.png";
 const DEFAULT_APPEARANCE_MODE: &str = "light";
 const TEST_LAST_MODE_ENV: &str = "KANBUS_TEST_SCREENSHOT_LAST_MODE";
 const TEST_CAPTURE_OPTIONS_ENV: &str = "KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS";
+const TEST_PREREQUISITES_VERIFIED_ENV: &str = "KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED";
 const MOCK_PNG_BYTES: &[u8] = include_bytes!("../testdata/mock_board_screenshot.png");
 
 /// Layout and appearance options for a single board screenshot.
@@ -235,7 +236,10 @@ pub fn capture_console_screenshot(
         ));
     }
     if mock_mode.as_deref() == Some("success") {
+        locate_capture_script(root)?;
+        which_node_executable()?;
         options.record_for_tests();
+        std::env::set_var(TEST_PREREQUISITES_VERIFIED_ENV, "1");
         std::fs::write(&output_path, MOCK_PNG_BYTES)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
         return Ok(output_path);
@@ -298,50 +302,4 @@ fn which_node_executable() -> Result<String, KanbusError> {
         ));
     }
     Ok(path)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::env;
-    use std::sync::{Mutex, OnceLock};
-    use tempfile::TempDir;
-
-    fn test_lock() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("screenshot test lock")
-    }
-
-    #[test]
-    fn mock_success_writes_png() {
-        let _guard = test_lock();
-        let temp = TempDir::new().expect("tempdir");
-        env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "success");
-        env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
-        let path = capture_console_screenshot(temp.path(), None, None, None, false, vec![], vec![])
-            .expect("capture");
-        assert!(path.is_file());
-        env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
-        env::remove_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER");
-        env::remove_var(TEST_LAST_MODE_ENV);
-        env::remove_var(TEST_CAPTURE_OPTIONS_ENV);
-    }
-
-    #[test]
-    fn mock_unavailable_returns_actionable_error() {
-        let _guard = test_lock();
-        let temp = TempDir::new().expect("tempdir");
-        env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "unavailable");
-        env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
-        let error =
-            capture_console_screenshot(temp.path(), None, None, None, false, vec![], vec![])
-                .unwrap_err();
-        let message = error.to_string().to_ascii_lowercase();
-        assert!(message.contains("headless browser"));
-        assert!(message.contains("playwright"));
-        env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
-        env::remove_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER");
-    }
 }

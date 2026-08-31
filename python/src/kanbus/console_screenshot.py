@@ -20,6 +20,7 @@ DEFAULT_SCREENSHOT_FILENAME = "kanbus-board.png"
 DEFAULT_APPEARANCE_MODE = "light"
 TEST_LAST_MODE_ENV = "KANBUS_TEST_SCREENSHOT_LAST_MODE"
 TEST_CAPTURE_OPTIONS_ENV = "KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS"
+TEST_PREREQUISITES_VERIFIED_ENV = "KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED"
 VALID_VIEWS = frozenset({"initiatives", "epics", "issues", "all"})
 
 _MOCK_PNG_BYTES = base64.b64decode(
@@ -263,7 +264,14 @@ def capture_console_screenshot(
             "(npx playwright install chromium)."
         )
     if mock_mode == "success":
+        locate_capture_script(root)
+        node_executable = shutil.which("node")
+        if node_executable is None:
+            raise ConsoleScreenshotError(
+                "headless browser capture requires Node.js on PATH to run Playwright."
+            )
         options.record_for_tests()
+        os.environ[TEST_PREREQUISITES_VERIFIED_ENV] = "1"
         output_path.write_bytes(_MOCK_PNG_BYTES)
         return output_path
 
