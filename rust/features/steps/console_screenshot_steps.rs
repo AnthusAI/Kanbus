@@ -28,6 +28,41 @@ fn given_console_port_matches_server(world: &mut KanbusWorld) {
     env::set_var("CONSOLE_PORT", port.to_string());
 }
 
+#[given("the capture script cannot be located")]
+fn given_capture_script_cannot_be_located(world: &mut KanbusWorld) {
+    let working_directory = world.working_directory.as_ref().expect("working directory");
+    let empty_root = working_directory.join("empty-script-root");
+    std::fs::create_dir_all(&empty_root).expect("create empty script root");
+    world
+        .environment_overrides
+        .remove("KANBUS_TEST_SCREENSHOT_MOCK");
+    world.environment_overrides.insert(
+        "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT".to_string(),
+        empty_root.to_string_lossy().to_string(),
+    );
+    world
+        .environment_overrides
+        .insert("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT".to_string(), "1".to_string());
+    env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
+    env::set_var(
+        "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT",
+        empty_root.to_string_lossy().to_string(),
+    );
+    env::set_var("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT", "1");
+}
+
+#[given("Node.js is unavailable for screenshot capture")]
+fn given_node_unavailable_for_screenshot(world: &mut KanbusWorld) {
+    world
+        .environment_overrides
+        .remove("KANBUS_TEST_SCREENSHOT_MOCK");
+    world
+        .environment_overrides
+        .insert("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING".to_string(), "1".to_string());
+    env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
+    env::set_var("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING", "1");
+}
+
 fn resolve_working_path(world: &KanbusWorld, path: &str) -> PathBuf {
     let working_directory = world.working_directory.as_ref().expect("working directory");
     let candidate = PathBuf::from(path);
