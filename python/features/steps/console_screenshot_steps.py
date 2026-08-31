@@ -98,7 +98,9 @@ def given_node_unavailable_for_screenshot(context: object) -> None:
     context.environment_overrides = overrides
 
 
-@given("screenshot capture uses a Node executable that reports Playwright is unavailable")
+@given(
+    "screenshot capture uses a Node executable that reports Playwright is unavailable"
+)
 def given_fake_node_reports_playwright_unavailable(context: object) -> None:
     working_directory = Path(context.working_directory)
     script_path = _write_fake_node_executable(
