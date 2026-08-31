@@ -7,9 +7,6 @@ use kanbus::console_screenshot::capture_console_screenshot;
 use kanbus::file_io::initialize_project;
 use tempfile::TempDir;
 
-#[path = "support/coverage_additional_paths.rs"]
-mod coverage_additional_paths;
-
 fn env_flag(name: &str) -> bool {
     std::env::var(name)
         .ok()
@@ -183,8 +180,6 @@ fn screenshot_coverage_helper() {
             "in_progress",
         ],
     );
-
-    coverage_additional_paths::cover_additional_paths();
 
     std::env::remove_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER");
     std::env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
