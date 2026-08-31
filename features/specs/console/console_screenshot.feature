@@ -157,6 +157,20 @@ Feature: Console board screenshot
     Then the command should fail with exit code 1
     And stderr should contain "Console server is not running"
 
+  Scenario: Screenshot command fails when the capture script cannot be located
+    Given the console server is running
+    And the capture script cannot be located
+    When I run "kanbus console screenshot"
+    Then the command should fail with exit code 1
+    And stderr should contain "capture script not found"
+
+  Scenario: Screenshot command fails when Node.js is not available for capture
+    Given the console server is running
+    And Node.js is unavailable for screenshot capture
+    When I run "kanbus console screenshot"
+    Then the command should fail with exit code 1
+    And stderr should contain "Node.js"
+
   @console @console-server @slow
   Scenario: Screenshot command captures the live board UI
     Given an issue "kanbus-shot" exists with title "Screenshot visible issue"
