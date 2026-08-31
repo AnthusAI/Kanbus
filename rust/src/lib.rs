@@ -1,5 +1,6 @@
 //! Kanbus Rust library.
 
+pub mod agent_metadata;
 pub mod agents_management;
 pub mod beads_write;
 pub mod cache;

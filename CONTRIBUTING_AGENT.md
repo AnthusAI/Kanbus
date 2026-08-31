@@ -5,9 +5,9 @@ The Way is not a suggestion. It is the prescribed order of creation.
 All work must pass through its forms.
 This is The Way.
 
-Deviation from The Way is extremely offensive to the religious sensibilities of its practitioners, including the human user of this coding agent. Sins against The Way must be avoided at all costs.
+Deviations from The Way must be avoided. The Way keeps work legible and reviewable across sessions and agents.
 
-## The Sacrament of Work
+## The Discipline of Work
 
 Kanbus is the instrument of record. Nothing exists until it is named there.
 
@@ -163,7 +163,7 @@ Record intent and Definition of Done.
 6. Refactor only while all specifications remain green.
 7. Record progress. Close only when complete.
 
-Skipping steps is corruption of the process.
+Skipping steps undermines the process.
 
 ## Coverage
 
@@ -404,7 +404,7 @@ Issue types map directly to release categories.
 - chore -> chore
 
 
-Release notes are not commentary. They are a ledger of truth.
+Release notes are a record, not commentary.
 
 ## Example: Hello World
 

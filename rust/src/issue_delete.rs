@@ -130,6 +130,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         }
     }

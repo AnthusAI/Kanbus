@@ -327,6 +327,7 @@ fn resolve_parent_epic(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom: BTreeMap::new(),
     };
 
@@ -434,6 +435,7 @@ fn resolve_snyk_initiative(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom: BTreeMap::new(),
     };
 
@@ -507,6 +509,7 @@ fn resolve_snyk_epic(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom,
     };
 
@@ -683,6 +686,7 @@ fn resolve_file_task(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom,
     };
 
@@ -1363,6 +1367,7 @@ fn map_snyk_to_kanbus(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         custom,
     })
 }
@@ -1403,6 +1408,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         }
     }

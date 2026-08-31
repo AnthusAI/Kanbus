@@ -144,6 +144,7 @@ fn build_issue(identifier: &str, title: &str, status: &str) -> IssueData {
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         custom: BTreeMap::new(),
     }
 }
@@ -630,6 +631,7 @@ pub fn maybe_simulate_virtual_project_command(world: &mut KanbusWorld, command: 
                     created_at: Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap(),
                     comment_type: "default".to_string(),
                     data: std::collections::BTreeMap::new(),
+                    agent: None,
                 });
                 write_issue(project_dir, &issue);
                 set_result(

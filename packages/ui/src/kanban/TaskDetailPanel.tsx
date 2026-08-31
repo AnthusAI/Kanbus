@@ -21,6 +21,8 @@ import type { KanbanConfig } from "./types";
 import { formatTimestamp } from "./format-timestamp";
 import { IconButton } from "./IconButton";
 import { useFlashEffect } from "./useFlashEffect";
+import { AgentMetadataBlock } from "./AgentMetadataBlock";
+import { hasAgentMetadata } from "./agent-metadata";
 
 export type TaskDetailIssue = {
   id: string;
@@ -39,6 +41,15 @@ export type TaskDetailIssue = {
   updated_at?: string;
   closed_at?: string;
   custom?: Record<string, unknown>;
+  agent?: {
+    platform: string;
+    model: string;
+    settings?: {
+      temperature?: number;
+      thinking_level?: "off" | "low" | "medium" | "high";
+      max_output_tokens?: number;
+    };
+  };
 };
 
 export type IssueEventType =
@@ -77,6 +88,7 @@ type IssueComment = {
   created_at: string;
   comment_type?: string;
   data?: Record<string, unknown>;
+  agent?: TaskDetailIssue["agent"];
 };
 
 function getSummaryRewrittenDescription(comment: IssueComment): string | null {
@@ -950,6 +962,13 @@ skinparam SequenceDividerFontColor white`
                 ) : null}
               </div>
             ) : null}
+            {hasAgentMetadata(taskToRender.agent) ? (
+              <AgentMetadataBlock
+                metadata={taskToRender.agent}
+                testIdPrefix="issue-agent"
+                variant="issue"
+              />
+            ) : null}
           </div>
           <div className="detail-section p-4 grid gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -1003,6 +1022,13 @@ skinparam SequenceDividerFontColor white`
                         <div className="text-xs text-muted">
                           {formatTimestamp(comment.created_at, config?.time_zone)}
                         </div>
+                        {hasAgentMetadata(comment.agent) ? (
+                          <AgentMetadataBlock
+                            metadata={comment.agent}
+                            testIdPrefix="comment-agent"
+                            variant="comment"
+                          />
+                        ) : null}
                         <div
                           className="issue-description-markdown text-sm text-foreground"
                           dangerouslySetInnerHTML={{

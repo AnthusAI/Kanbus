@@ -3,7 +3,7 @@
   "title": "Video support for Kanb.us (VideoML + CDN + embeds)",
   "description": "",
   "type": "epic",
-  "status": "backlog",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "unknown",
@@ -12,9 +12,11 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-02-22T05:36:12.761321Z",
-  "updated_at": "2026-02-25T06:24:18.111003Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T16:00:44.653890693Z",
+  "closed_at": "2026-08-27T16:00:44.653890693Z",
   "custom": {
-    "beads_owner": "unknown"
+    "beads_owner": "unknown",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

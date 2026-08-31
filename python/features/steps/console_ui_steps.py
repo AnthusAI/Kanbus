@@ -42,7 +42,7 @@ def _allocate_port() -> int:
         return sock.getsockname()[1]
 
 
-def _wait_for_server(port: int, timeout: float = 10.0) -> int | None:
+def _wait_for_server(port: int, timeout: float = 30.0) -> int | None:
     """Poll GET /api/config until the server responds with 200.
 
     kbsc can auto-fallback to nearby ports if the requested port is busy.

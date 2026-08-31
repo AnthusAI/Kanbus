@@ -301,6 +301,7 @@ fn map_jira_to_kanbus(
         updated_at,
         closed_at,
         custom,
+        agent: None,
     })
 }
 
@@ -375,6 +376,7 @@ fn extract_comments(comment_field: &Value) -> Vec<IssueComment> {
                 created_at,
                 comment_type: "default".to_string(),
                 data: std::collections::BTreeMap::new(),
+                agent: None,
             }
         })
         .collect()

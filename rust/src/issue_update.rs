@@ -366,6 +366,7 @@ mod tests {
             created_at: timestamp,
             updated_at: timestamp,
             closed_at: None,
+            agent: None,
             custom: std::collections::BTreeMap::new(),
         }
     }
