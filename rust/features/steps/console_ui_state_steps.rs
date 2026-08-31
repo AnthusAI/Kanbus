@@ -191,24 +191,6 @@ fn given_console_server_is_running(world: &mut KanbusWorld) {
     world.console_port = Some(ready_port);
 }
 
-#[given("the console server is running on the default console port")]
-fn given_console_server_on_default_port(world: &mut KanbusWorld) {
-    if world.console_port.is_some() {
-        return;
-    }
-    let default_port = 5174_u16;
-    let root = world.working_directory.as_ref().expect("working directory");
-    let config_path = root.join(".kanbus.yml");
-    if config_path.exists() {
-        std::fs::remove_file(&config_path).expect("remove config");
-    }
-    world.console_port = Some(default_port);
-    let _child = start_kbsc(world, default_port);
-    let ready_port =
-        wait_for_server(default_port).expect("console server did not become ready on default port");
-    world.console_port = Some(ready_port);
-}
-
 #[when("the console server is restarted")]
 fn when_console_server_is_restarted(world: &mut KanbusWorld) {
     let port = world.console_port.expect("console port not set");
