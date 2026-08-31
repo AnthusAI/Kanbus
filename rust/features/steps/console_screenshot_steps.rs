@@ -122,6 +122,43 @@ fn given_fake_node_fails_generically(world: &mut KanbusWorld) {
     );
 }
 
+#[given("screenshot capture uses a Node executable that writes a PNG file")]
+fn given_fake_node_writes_png(world: &mut KanbusWorld) {
+    set_fake_node_override(
+        world,
+        "#!/bin/sh\noutput=\"$3\"\nprintf '\\211PNG\\r\\n\\032\\n\\000\\000\\000\\rIHDR\\000\\000\\000\\001\\000\\000\\000\\001\\010\\006\\000\\000\\000\\037\\025\\306\\211\\000\\000\\000\\nIDATx\\234c\\360\\017\\000\\001\\001\\000\\005\\030\\326\\212\\000\\000\\000\\000IEND\\256B`\\202' > \"$output\"\nexit 0\n",
+    );
+}
+
+#[given("the capture script is available from a custom search root")]
+fn given_capture_script_from_custom_search_root(world: &mut KanbusWorld) {
+    let working_directory = world.working_directory.as_ref().expect("working directory");
+    let search_root = working_directory.join("custom-script-root");
+    let script_dir = search_root.join("scripts");
+    std::fs::create_dir_all(&script_dir).expect("create custom script dir");
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let package_script = manifest_dir
+        .parent()
+        .map(|parent| {
+            parent
+                .join("scripts")
+                .join("capture_console_screenshot.mjs")
+        })
+        .unwrap_or_else(|| {
+            manifest_dir
+                .join("scripts")
+                .join("capture_console_screenshot.mjs")
+        });
+    let contents = std::fs::read_to_string(&package_script).expect("read capture script");
+    std::fs::write(script_dir.join("capture_console_screenshot.mjs"), contents)
+        .expect("write capture script copy");
+    clear_live_capture_overrides(world);
+    world.environment_overrides.insert(
+        "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT".to_string(),
+        search_root.to_string_lossy().to_string(),
+    );
+}
+
 fn resolve_working_path(world: &KanbusWorld, path: &str) -> PathBuf {
     let working_directory = world.working_directory.as_ref().expect("working directory");
     let candidate = PathBuf::from(path);
