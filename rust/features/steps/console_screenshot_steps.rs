@@ -97,8 +97,8 @@ fn then_screenshot_capture_expand_all(world: &mut KanbusWorld) {
 
 #[then("screenshot capture prerequisites should be verified")]
 fn then_screenshot_capture_prerequisites_verified(world: &mut KanbusWorld) {
-    let verified = std::env::var("KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED")
-        .unwrap_or_default();
+    let verified =
+        std::env::var("KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED").unwrap_or_default();
     assert_eq!(
         verified, "1",
         "expected mocked screenshot capture to verify prerequisites"

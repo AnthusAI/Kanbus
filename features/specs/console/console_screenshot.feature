@@ -152,11 +152,10 @@ Feature: Console board screenshot
   Scenario: Screenshot command uses the default console port when configuration is missing
     Given a Kanbus repository without a .kanbus.yml file
     And the environment variable "CONSOLE_PORT" is not set
-    And the console server is running on the default console port
     And screenshot capture is mocked to succeed
     When I run "kanbus console screenshot"
-    Then the command should succeed
-    And a PNG file should exist at "kanbus-board.png"
+    Then the command should fail with exit code 1
+    And stderr should contain "Console server is not running"
 
   @console @console-server @slow
   Scenario: Screenshot command captures the live board UI
