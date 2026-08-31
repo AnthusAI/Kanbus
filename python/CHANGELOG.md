@@ -2,6 +2,379 @@
 
 <!-- version list -->
 
+## v0.23.1 (2026-08-30)
+
+### Bug Fixes
+
+- Declare Rust MSRV 1.88 and pin toolchain
+  ([`5b97cb4`](https://github.com/AnthusAI/Kanbus/commit/5b97cb413429a9264515f025979f4aa75756f8a7))
+
+- Enforce kanbus-version before beads resolution
+  ([`b7a0561`](https://github.com/AnthusAI/Kanbus/commit/b7a05614d304efbcad5050a270a90d67de250331))
+
+- Enforce kanbus-version gate before project commands
+  ([`190e674`](https://github.com/AnthusAI/Kanbus/commit/190e674bf531e055051539707ac7989c1930a56d))
+
+- Fail wiki list when project/wiki is missing
+  ([`366f413`](https://github.com/AnthusAI/Kanbus/commit/366f413e76e17207ff4099e22667e3e2ae607a16))
+
+- Fall back to package version when git describe is a SHA
+  ([`0c2762e`](https://github.com/AnthusAI/Kanbus/commit/0c2762e828415762d4660656d51d8a00acf6f8d6))
+
+- Pin CI Rust toolchain to 1.88.0 explicitly
+  ([`7531b83`](https://github.com/AnthusAI/Kanbus/commit/7531b837809ab1e89bd0455241dc5e36b4c83f9d))
+
+- Put wiki init hint on its own line
+  ([`64392f8`](https://github.com/AnthusAI/Kanbus/commit/64392f880f62f3e46305cca56f64d46a2f5f9a36))
+
+- **rust**: Serialize KANBUS_TEST_AI_MOCK unit tests
+  ([`554adae`](https://github.com/AnthusAI/Kanbus/commit/554adae7c3d28a0eda242ad1bd9448062dda7553))
+
+### Chores
+
+- Rustfmt kanbus-version gate in CLI
+  ([`6a72251`](https://github.com/AnthusAI/Kanbus/commit/6a72251f6b634792b2ef32da47331dd29df99444))
+
+- Satisfy black and 1.88 clippy uninlined_format_args
+  ([`82f8c72`](https://github.com/AnthusAI/Kanbus/commit/82f8c72b68baa155beb277141720a7bd56bfcfb2))
+
+- **project**: Close integrated CLI and wiki bug issues with test proof
+  ([`e7197f5`](https://github.com/AnthusAI/Kanbus/commit/e7197f53db7f86a6bb51f16104d089f3597851dd))
+
+- **project**: Close wiki tickets shipped in 0.20.0
+  ([`6717267`](https://github.com/AnthusAI/Kanbus/commit/6717267769a84035bdf337e6779c5a2379485a54))
+
+- **project**: File wiki init hint run-on; note search on missing dir
+  ([`72c92be`](https://github.com/AnthusAI/Kanbus/commit/72c92be075fa0eae04ea404838aa4c9a011d96ba))
+
+- **project**: File wiki list missing-dir hint (kbs-16af35)
+  ([`aa2e9de`](https://github.com/AnthusAI/Kanbus/commit/aa2e9deac5efeac2f202e01b84f251f152ac86a0))
+
+- **project**: Record implementation plans on open CLI and wiki bugs
+  ([`badf2c5`](https://github.com/AnthusAI/Kanbus/commit/badf2c5de6774fe3a8cd8801a9f98a73afbdce56))
+
+
+## v0.23.0 (2026-08-29)
+
+### Bug Fixes
+
+- Format agent metadata steps and sync embedded console assets
+  ([`35d6620`](https://github.com/AnthusAI/Kanbus/commit/35d66207935d2e01287fe207eb03bcd2986b1942))
+
+- Rustfmt agent metadata cucumber steps
+  ([`db3d3da`](https://github.com/AnthusAI/Kanbus/commit/db3d3da51f6770aabf82c843eed54556fb4a4d55))
+
+### Features
+
+- Accept open-ended agent settings without key validation
+  ([`87216d5`](https://github.com/AnthusAI/Kanbus/commit/87216d5916ceb22ea90d4f8f5e5eb7c16f630191))
+
+
+## v0.22.0 (2026-08-29)
+
+### Bug Fixes
+
+- Sync embedded console assets after AgentMetadataBlock update
+  ([`e2f528c`](https://github.com/AnthusAI/Kanbus/commit/e2f528c284f180766296374a1f5d5701eeba2e5b))
+
+### Continuous Integration
+
+- Retrigger workflow after transient coverage-ratchet XML parse failure
+  ([`207507e`](https://github.com/AnthusAI/Kanbus/commit/207507ed57b729c11ca5b4828ea8467e9bcaf616))
+
+### Features
+
+- Add agent.name and settings.speed to agent metadata
+  ([`0e7a414`](https://github.com/AnthusAI/Kanbus/commit/0e7a414e2a59409f65e80fc1e90624a47f9db4d2))
+
+
+## v0.21.0 (2026-08-29)
+
+### Bug Fixes
+
+- Apply rustfmt and black formatting for CI gates
+  ([`100199c`](https://github.com/AnthusAI/Kanbus/commit/100199ca2cb594b1fdbdf5a702e63dee9c965427))
+
+- CI blockers for agent metadata release
+  ([`309b2b0`](https://github.com/AnthusAI/Kanbus/commit/309b2b00ad44ba857cd5fba3d28a157eb6321187))
+
+- Raise Python coverage and stabilize console-server CI wait
+  ([`5b0a395`](https://github.com/AnthusAI/Kanbus/commit/5b0a395d1e8a7668cfeaae7ba7d78b2d5a45ac43))
+
+- Restore useFlashEffect import in TaskDetailPanel
+  ([`5bdb09d`](https://github.com/AnthusAI/Kanbus/commit/5bdb09d7bbcd9cc3d09c574eacae9cf73ff7515e))
+
+- Track rebuilt console embedded assets for cargo package CI gate
+  ([`cf0ce46`](https://github.com/AnthusAI/Kanbus/commit/cf0ce461564ca82194365db036a4976101b0afb8))
+
+- Use Value::String in agent_metadata unit test for clippy
+  ([`da73da5`](https://github.com/AnthusAI/Kanbus/commit/da73da5a89823dcf2569f9ce10c1d03ed01358ea))
+
+### Documentation
+
+- Add Anthus README closer
+  ([`780c8af`](https://github.com/AnthusAI/Kanbus/commit/780c8aff7ff0ed603a997537ee2e12e11b1a86b8))
+
+### Features
+
+- Add optional agent provenance metadata for issues and comments
+  ([`aeab764`](https://github.com/AnthusAI/Kanbus/commit/aeab76442f16fcd29b761248365fe99db628c2f7))
+
+
+## v0.20.1 (2026-08-29)
+
+### Bug Fixes
+
+- Apply Dependabot patch and minor updates
+  ([`0a981c9`](https://github.com/AnthusAI/Kanbus/commit/0a981c92268985067f466411e861605d733cf893))
+
+### Chores
+
+- **console**: Refresh embedded asset index after console dep bumps
+  ([`8596491`](https://github.com/AnthusAI/Kanbus/commit/859649132d685d2568ad2a50e26f10121db369b1))
+
+- **deps**: Consolidate safe Dependabot bumps against develop
+  ([`426a264`](https://github.com/AnthusAI/Kanbus/commit/426a264462e6b6835e25cd97a96412d56e4b0cbe))
+
+
+## v0.20.0 (2026-08-29)
+
+### Bug Fixes
+
+- Invalidate wiki render cache for references and tolerate bad JSON
+  ([`9b30094`](https://github.com/AnthusAI/Kanbus/commit/9b300946e1a9c44d717ae1c24780c8cd83ef4494))
+
+- Repair wiki CLI unit test and document reference cache invalidation
+  ([`8385dcb`](https://github.com/AnthusAI/Kanbus/commit/8385dcb80deccf0092fe7d083ecca85a34e2e43e))
+
+- Serialize github token env tests to prevent CI flakes
+  ([`5bafa24`](https://github.com/AnthusAI/Kanbus/commit/5bafa24714f56e54213c35d96cbfaf9bf869ad76))
+
+### Chores
+
+- File P2 task for wiki --json and --limit flags (kbs-c445a6)
+  ([`0a2e9d6`](https://github.com/AnthusAI/Kanbus/commit/0a2e9d64a4718efecf197ddef96ab536911cdb35))
+
+- File second-pass wiki asks under epic kbs-fbaf62
+  ([`e537ef3`](https://github.com/AnthusAI/Kanbus/commit/e537ef33abe39a64e678afcad1334f37f630b6fb))
+
+- Record Kanbus task for wiki spec tightening
+  ([`e80538e`](https://github.com/AnthusAI/Kanbus/commit/e80538e4adb5ca961c12ef58d23b1381f004f61a))
+
+- Remove Gherkin-duplicated wiki unit tests and coverage waiver
+  ([`f3bc38a`](https://github.com/AnthusAI/Kanbus/commit/f3bc38a25af48c1d1d6a6cd24e936176dbdf3d5c))
+
+- **kanbus**: File wiki-as-research-KB epic and Researcher first-pass asks
+  ([`ea52235`](https://github.com/AnthusAI/Kanbus/commit/ea52235db25a7ae91bc06eca4ab93c2472b31644))
+
+### Code Style
+
+- Format wiki CLI unit test with black
+  ([`b44c180`](https://github.com/AnthusAI/Kanbus/commit/b44c180bf9cf3b3f0202d5c6f05643996d9a3f34))
+
+### Features
+
+- Add wiki show, lint, check, and link validation
+  ([`84af19f`](https://github.com/AnthusAI/Kanbus/commit/84af19fe578ab2183a5a5d65129f1ac1a1267471))
+
+- Make wiki a live research knowledge base
+  ([`635ea61`](https://github.com/AnthusAI/Kanbus/commit/635ea619c6d6313f05c44460f3cdd887a1e44645))
+
+### Testing
+
+- Close coverage gap via Gherkin parity, not Python-only tests
+  ([`da4e844`](https://github.com/AnthusAI/Kanbus/commit/da4e844a0f8ec66d0541771cdd5742a6213229f0))
+
+- Cover wiki cache, references, lint, and CLI branches for ratchet
+  ([`9de4e23`](https://github.com/AnthusAI/Kanbus/commit/9de4e2383f4952fa64e2e1cd4f1ae00fe51a0ffb))
+
+- Raise wiki coverage for ratchet and changed-files gate
+  ([`89e940e`](https://github.com/AnthusAI/Kanbus/commit/89e940e05e45ccc44eeedef0c1daafd3484c9200))
+
+
+## v0.19.2 (2026-08-27)
+
+### Bug Fixes
+
+- Add serde(default) to github_security field for config compatibility
+  ([`f11b569`](https://github.com/AnthusAI/Kanbus/commit/f11b56955b3fe9eee4496148d32d701d940c0efc))
+
+### Chores
+
+- Add PR context comment to kbs-74dfa9
+  ([`4070339`](https://github.com/AnthusAI/Kanbus/commit/4070339fb091e583ba9c2b2f4d9a8b4d409a7a4a))
+
+- Add QA proof to kbs-74dfa9
+  ([`4cd23d6`](https://github.com/AnthusAI/Kanbus/commit/4cd23d6b25e7047667d9ba60547163ead262547b))
+
+- Adjust rust coverage baseline for true unpolluted coverage
+  ([`8ace175`](https://github.com/AnthusAI/Kanbus/commit/8ace17507458cfd77c33f811963923d744569cf6))
+
+- Clean up Kanbus board and remove tracked junk files
+  ([`cd09013`](https://github.com/AnthusAI/Kanbus/commit/cd09013590c1fbe031376b7ecc808044ebc19311))
+
+- Update issue status for board cleanup
+  ([`33062fb`](https://github.com/AnthusAI/Kanbus/commit/33062fb2b718cef36a09cb61cb25d23be8cfb22e))
+
+### Code Style
+
+- Fix rust formatting
+  ([`8501d7f`](https://github.com/AnthusAI/Kanbus/commit/8501d7f594a0f8f883bd7883f8a1df4f34d15bc2))
+
+### Testing
+
+- Fix rust config tests and shim coverage to pass ratchet
+  ([`e6647ac`](https://github.com/AnthusAI/Kanbus/commit/e6647ac1481419da345d9c0c0aa6edc660e313e9))
+
+
+## v0.19.1 (2026-08-26)
+
+### Documentation
+
+- Secularize agent doctrine templates and guard file wording without weakening requirements
+  ([`051d1a8`](https://github.com/AnthusAI/Kanbus/commit/051d1a8f2448815d87b1121dba1bccdf494a52ae))
+
+## v0.19.0 (2026-08-25)
+
+### Bug Fixes
+
+- Align compaction specs with virtualized show and embedded assets
+  ([`26f0295`](https://github.com/AnthusAI/Kanbus/commit/26f0295928e212af77dc711615d8a0dddec0831f))
+
+- Allow late-init hook placeholders in Rust CLI update paths
+  ([`46826bf`](https://github.com/AnthusAI/Kanbus/commit/46826bf97a771870134cc28ed69adafe98c593d9))
+
+- Bundle updated console assets for embedded kbsc build
+  ([`c764489`](https://github.com/AnthusAI/Kanbus/commit/c764489e280a1a202116f1db22153aefb8fda556))
+
+- Ensure beads error scenarios raise gracefully in python CLI
+  ([`eedf3a2`](https://github.com/AnthusAI/Kanbus/commit/eedf3a2ccafcd5bb7590fe46efcb316bfc467944))
+
+- Implement summarize and lifecycle compact natively in Rust
+  ([`9e94246`](https://github.com/AnthusAI/Kanbus/commit/9e942462958fd0c65adcd5f0ccb074cec306acd8))
+
+- Make realtime bridge resilient to connection failures
+  ([`5f2662e`](https://github.com/AnthusAI/Kanbus/commit/5f2662ec11a6051f61c8ec1fb64319b237a99ea2))
+
+- Remove debug CLI output and apply rustfmt formatting
+  ([`48a88a9`](https://github.com/AnthusAI/Kanbus/commit/48a88a9cd7e7c38e788fad42109c2ccec0af2ad3))
+
+- Remove remaining CLI debug output and satisfy clippy
+  ([`2b3c019`](https://github.com/AnthusAI/Kanbus/commit/2b3c019e3f5b31df4b2638fb2cade998dcb373ea))
+
+- Resolve CLI BDD spec execution and stdin interactive prompt failures
+  ([`3d02e7c`](https://github.com/AnthusAI/Kanbus/commit/3d02e7c2361e89c7a56a44bae502e8e5061fe576))
+
+- Satisfy clippy while-let lint in gossip bridge retry loop
+  ([`5e73903`](https://github.com/AnthusAI/Kanbus/commit/5e7390330b6858421211523b6c3cf42c843670dc))
+
+- Serialize snyk sync tests that mutate API base env
+  ([`b8611b3`](https://github.com/AnthusAI/Kanbus/commit/b8611b3f522151037a65b6fa92cabc01179c79a6))
+
+- Specify Windows-safe event filenames in behavior specs
+  ([`2fe7048`](https://github.com/AnthusAI/Kanbus/commit/2fe704834b916f355472c692758e55268a6028bc))
+
+- Use Windows-safe event filenames
+  ([`56f0215`](https://github.com/AnthusAI/Kanbus/commit/56f0215bfbdcab00a8fe3b964006d560f0392719))
+
+- **rust**: Add Windows stubs for unix gossip helpers
+  ([`36a5204`](https://github.com/AnthusAI/Kanbus/commit/36a520425ac8515ea49d4decc186e31ba4825709))
+
+- **rust**: Gate unix socket gossip for Windows builds
+  ([`d33b730`](https://github.com/AnthusAI/Kanbus/commit/d33b730309e8a49870dd8d5b0b76e08f7d3a2abd))
+
+### Chores
+
+- Add rust coverage tests for cli, snyk, github sync
+  ([`5c26e8b`](https://github.com/AnthusAI/Kanbus/commit/5c26e8b56ea73fde1e258fc2323bf7b150b0c2d8))
+
+- Close acp.7 as already implemented
+  ([`cd4f622`](https://github.com/AnthusAI/Kanbus/commit/cd4f622e94c26733a1e932fc2f508e60d537de12))
+
+- Close completed WIP issues
+  ([`93ff6fc`](https://github.com/AnthusAI/Kanbus/commit/93ff6fc90ae5d399113164bc8c729a1e527202b2))
+
+- Close tskl-wti.2.2
+  ([`b27d354`](https://github.com/AnthusAI/Kanbus/commit/b27d35489e47005ebf9ef3176a7287e0c4aa6636))
+
+- Close tskl-wti.4
+  ([`87c512a`](https://github.com/AnthusAI/Kanbus/commit/87c512af6d39e1907d5130434e9ba0a5670d690b))
+
+- Ignore worktrees directory
+  ([`823a502`](https://github.com/AnthusAI/Kanbus/commit/823a50266bc072fc5e876627fa2b7bc71c48b2d5))
+
+- Update coverage ratchet baseline for compaction feature
+  ([`873520a`](https://github.com/AnthusAI/Kanbus/commit/873520a2d3857ce0c32520860f8ef221ffad01db))
+
+- Update coverage ratchet baseline for latest spec parity improvements
+  ([`c8a1e6e`](https://github.com/AnthusAI/Kanbus/commit/c8a1e6e4aecb9366aafd108735ceb7129ca27d00))
+
+### Code Style
+
+- Apply rustfmt after compaction model changes
+  ([`68125ff`](https://github.com/AnthusAI/Kanbus/commit/68125ff60756c7d9e7f9e241e4de704cd221a2ae))
+
+- **rust**: Apply rustfmt to event history step attribute
+  ([`5cbe251`](https://github.com/AnthusAI/Kanbus/commit/5cbe251a2d96daba18947d2734634251079b8103))
+
+### Documentation
+
+- Add single-source-of-spec religion to readme
+  ([`1511170`](https://github.com/AnthusAI/Kanbus/commit/1511170eefa1ff3bf9eb414a884608a45b68563b))
+
+- Clarify event history storage and Windows filenames
+  ([`2beacf3`](https://github.com/AnthusAI/Kanbus/commit/2beacf36ccff1220d54284c99bae9aa0c30e3916))
+
+### Features
+
+- Add lifecycle compact subcommand for batch issue compaction
+  ([`a484a76`](https://github.com/AnthusAI/Kanbus/commit/a484a768b36a8629665b56906219ebb55a69f2f8))
+
+- Implement progressive issue summarization via LLM
+  ([`fdca3f9`](https://github.com/AnthusAI/Kanbus/commit/fdca3f9398443d7689d43ca41583872c32f3a4cd))
+
+- Store compaction summaries in structured comment data
+  ([`e12748f`](https://github.com/AnthusAI/Kanbus/commit/e12748f878d18bcc791420fff9152127bd218ff6))
+
+- Support explicitly specifying ID on creation
+  ([`c2dff5e`](https://github.com/AnthusAI/Kanbus/commit/c2dff5e398bba996cd507bef9e9cfa26e3571371))
+
+- Support global .kanbus.env configuration
+  ([`5d61dde`](https://github.com/AnthusAI/Kanbus/commit/5d61dde511b30341b1e52a7845cc68827a49b524))
+
+### Testing
+
+- Achieve 100% coverage measurement for Rust and Python
+  ([`b63c4cd`](https://github.com/AnthusAI/Kanbus/commit/b63c4cd17c2d1d0d8676fc4050fb5ddf4bb63e91))
+
+- Achieve 100% coverage on python github_security_sync
+  ([`eced6e0`](https://github.com/AnthusAI/Kanbus/commit/eced6e0a97e2975bc3ff7df085c4b21995e65ca1))
+
+- Add coverage for beads and early exit paths in github_security_sync
+  ([`9635544`](https://github.com/AnthusAI/Kanbus/commit/96355440a106c8e148a14b8e35df65da4fff345a))
+
+- Add internal tests for hooks, snyk, and gossip network paths
+  ([`b24037d`](https://github.com/AnthusAI/Kanbus/commit/b24037db3d0bfeb762bb881907af9f560d85db70))
+
+- Add unit coverage for Rust compaction summarize paths
+  ([`ab19b36`](https://github.com/AnthusAI/Kanbus/commit/ab19b360c81da31ba612d3bee25b6838e7af15b5))
+
+- Boost coverage for console_local module
+  ([`7661b88`](https://github.com/AnthusAI/Kanbus/commit/7661b887825d126154bb6b0aa48bf381552b633e))
+
+- Boost coverage for gossip module
+  ([`d6b862e`](https://github.com/AnthusAI/Kanbus/commit/d6b862e27377de7eaecae978abc0113107e21b92))
+
+- Instrument child processes in bdd tests
+  ([`c23f4ef`](https://github.com/AnthusAI/Kanbus/commit/c23f4ef043324ab105beb1c87e1701ae88adb02c))
+
+- Migrate policy guidance edge cases to bdd specs
+  ([`6741b61`](https://github.com/AnthusAI/Kanbus/commit/6741b61681f41338d48649d69de9c1da460945bf))
+
+- Migrate uds gossip edge cases to bdd specs
+  ([`9b3caca`](https://github.com/AnthusAI/Kanbus/commit/9b3caca04993cbfa5f619553af183be5c9fcbe47))
+
+
 ## v0.18.4 (2026-08-17)
 
 ### Bug Fixes

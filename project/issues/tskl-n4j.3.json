@@ -3,7 +3,7 @@
   "title": "Marketing homepage embeds videos from CDN",
   "description": "",
   "type": "story",
-  "status": "done",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "unknown",
@@ -15,13 +15,16 @@
       "id": "a7bc7b8a-35bc-5d3c-a050-800ce91a5565",
       "author": "unknown",
       "text": "Feature: Homepage video embeds\n  Scenario: Homepage embeds intro video\n    Given the marketing homepage is loaded\n    Then I see the intro video player\n    And its source resolves from GATSBY_VIDEOS_BASE_URL",
-      "created_at": "2026-02-22T05:36:25.471914Z"
+      "created_at": "2026-02-22T05:36:25.471914Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-02-22T05:36:22.952816Z",
-  "updated_at": "2026-02-22T16:51:00.125730Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T15:58:51.830149185Z",
+  "closed_at": "2026-08-27T15:58:51.830149185Z",
   "custom": {
-    "beads_owner": "unknown"
+    "beads_owner": "unknown",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

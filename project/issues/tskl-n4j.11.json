@@ -3,7 +3,7 @@
   "title": "Intro video demo can be rendered locally",
   "description": "Ensure there is a concrete local demo workflow for the Intro to Canvas video (render + preview) so we can validate the pipeline end-to-end.",
   "type": "story",
-  "status": "done",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "unknown",
@@ -15,13 +15,16 @@
       "id": "1c76fd67-2a63-5670-a4de-e74c1adecf42",
       "author": "unknown",
       "text": "Feature: Local intro demo render\n  Scenario: Render intro video locally\n    Given the VideoML project exists\n    When I run the render script\n    Then an intro MP4 is produced\n    And a poster JPG is produced\n\n  Scenario: Preview intro video on the homepage\n    Given I have rendered the intro video\n    And I have set GATSBY_VIDEOS_BASE_URL to the local preview path\n    When I run the Gatsby site locally\n    Then the homepage video player loads the intro MP4",
-      "created_at": "2026-02-22T16:40:29.205532Z"
+      "created_at": "2026-02-22T16:40:29.205532Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-02-22T16:40:26.103145Z",
-  "updated_at": "2026-02-22T16:51:14.002582Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T15:58:51.582110699Z",
+  "closed_at": "2026-08-27T15:58:51.582110699Z",
   "custom": {
-    "beads_owner": "unknown"
+    "beads_owner": "unknown",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

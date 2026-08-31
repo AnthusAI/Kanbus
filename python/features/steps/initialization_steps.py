@@ -130,4 +130,4 @@ def then_issues_events_do_not_edit_created(context: object) -> None:
         assert path.is_file(), f"expected {path}"
         content = path.read_text(encoding="utf-8")
         assert "DO NOT EDIT" in content
-        assert "The Way" in content
+        assert "Kanbus" in content

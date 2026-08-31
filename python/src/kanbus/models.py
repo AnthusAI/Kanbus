@@ -8,6 +8,27 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 
+class AgentMetadata(BaseModel):
+    """Structured AI agent provenance metadata.
+
+    :param platform: Agent platform identifier (for example cursor).
+    :type platform: str
+    :param model: Model identifier used for the action.
+    :type model: str
+    :param name: Optional session or bot name for the agent runtime.
+    :type name: Optional[str]
+    :param settings: Optional open-ended model or runtime settings object.
+    :type settings: Dict[str, Any]
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    platform: str = Field(min_length=1, max_length=64)
+    model: str = Field(min_length=1, max_length=128)
+    name: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    settings: Dict[str, Any] = Field(default_factory=dict)
+
+
 class CategoryDefinition(BaseModel):
     """Category definition for grouping statuses."""
 
@@ -41,6 +62,8 @@ class IssueComment(BaseModel):
     :type comment_type: str
     :param data: Structured comment payload (e.g. compaction summary fields).
     :type data: Dict[str, Any]
+    :param agent: Optional agent provenance metadata for this comment.
+    :type agent: Optional[AgentMetadata]
     """
 
     id: Optional[str] = None
@@ -49,6 +72,7 @@ class IssueComment(BaseModel):
     created_at: datetime
     comment_type: str = "default"
     data: Dict[str, Any] = Field(default_factory=dict)
+    agent: Optional[AgentMetadata] = None
 
     @model_serializer(mode="wrap")
     def serialize_model(self, serializer: object) -> Dict[str, Any]:
@@ -74,10 +98,15 @@ class IssueComment(BaseModel):
         if self.comment_type == "summary":
             rewritten_description = self.data.get("rewritten_description")
             activity_summary = self.data.get("activity_summary")
-            if not isinstance(rewritten_description, str) or not rewritten_description:
-                raise ValueError("summary comment requires data.rewritten_description")
-            if not isinstance(activity_summary, str) or not activity_summary:
-                raise ValueError("summary comment requires data.activity_summary")
+            has_structured_data = (
+                isinstance(rewritten_description, str) and rewritten_description
+            ) and (isinstance(activity_summary, str) and activity_summary)
+            has_text = self.text and self.text.strip()
+            if not has_structured_data and not has_text:
+                raise ValueError(
+                    "summary comment requires either data.rewritten_description + "
+                    "data.activity_summary OR non-empty text (legacy format)"
+                )
             return self
         if not self.text or not self.text.strip():
             raise ValueError("comment text is required")
@@ -119,6 +148,8 @@ class IssueData(BaseModel):
     :type closed_at: Optional[datetime]
     :param custom: Custom fields.
     :type custom: Dict[str, object]
+    :param agent: Optional agent provenance metadata captured at issue create.
+    :type agent: Optional[AgentMetadata]
     """
 
     identifier: str = Field(alias="id", min_length=1)
@@ -137,6 +168,7 @@ class IssueData(BaseModel):
     updated_at: datetime
     closed_at: Optional[datetime] = None
     custom: Dict[str, object] = Field(default_factory=dict)
+    agent: Optional[AgentMetadata] = None
 
 
 class StatusDefinition(BaseModel):

@@ -517,6 +517,7 @@ fn convert_record(
         updated_at,
         closed_at,
         custom,
+        agent: None,
     })
 }
 
@@ -639,6 +640,7 @@ fn convert_comments(
                 created_at,
                 comment_type: "default".to_string(),
                 data: std::collections::BTreeMap::new(),
+                agent: None,
             });
         }
     }

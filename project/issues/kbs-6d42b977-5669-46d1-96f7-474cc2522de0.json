@@ -1,0 +1,18 @@
+{
+  "id": "kbs-6d42b977-5669-46d1-96f7-474cc2522de0",
+  "title": "Build console AgentMetadataBlock component",
+  "description": "Story: kbs-dd1f4a. packages/ui helpers + AgentMetadataBlock; TaskDetailPanel integration; data-testid hooks.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T13:41:34.883181Z",
+  "updated_at": "2026-08-29T13:41:34.883181Z",
+  "closed_at": null,
+  "custom": {}
+}

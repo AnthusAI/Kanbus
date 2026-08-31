@@ -55,9 +55,9 @@ There are no per-seat licenses or hosted fees. If you have a git repository, you
 
 ---
 
-## Status: Planning Phase
+## Status
 
-This repository contains the complete vision, implementation plan, and task breakdown for building Kanbus. We are building it in public, using Kanbus to track itself.
+Kanbus is in production.
 
 ## Quick Start
 
@@ -276,3 +276,11 @@ MIT
 
 ## Single Source of Truth
 We firmly believe in the ideal single-source-of-spec religion: all system behavior should be codified into shared Gherkin `.feature` specifications that run against both Python and Rust implementations, minimizing language-specific unit tests.
+
+---
+
+Built by [Anthus AI Solutions](https://anth.us). We run this class of system in production.
+
+We use Kanbus so agents and humans share one board.
+
+If you need this operated, not just cloned, [talk to us](https://anth.us).

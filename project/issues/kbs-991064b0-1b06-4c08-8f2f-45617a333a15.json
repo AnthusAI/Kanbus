@@ -1,0 +1,18 @@
+{
+  "id": "kbs-991064b0-1b06-4c08-8f2f-45617a333a15",
+  "title": "Implement AgentMetadata models and validation (Python + Rust)",
+  "description": "Story: kbs-fd7bef. Add AgentMetadata with platform, model, settings allowlist. Optional agent on IssueData and IssueComment. agent_metadata.py/rs with identical validation errors.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T13:41:31.511063Z",
+  "updated_at": "2026-08-29T13:41:31.511063Z",
+  "closed_at": null,
+  "custom": {}
+}

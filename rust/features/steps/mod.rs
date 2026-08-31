@@ -1,3 +1,4 @@
+pub mod agent_metadata_steps;
 pub mod agents_steps;
 pub mod beads_interop_steps;
 pub mod cli_steps;

@@ -1,0 +1,18 @@
+{
+  "id": "kbs-b2e60b96-3e03-4731-8ad8-85b6ea0b2b1a",
+  "title": "Add agent.name and settings.speed to models validation CLI and display",
+  "description": "",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-09b756e8-3f80-4ee5-9001-aafda9125ef3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-08-29T16:00:14.657784143Z",
+  "updated_at": "2026-08-29T16:00:14.657784143Z",
+  "closed_at": null,
+  "custom": {}
+}

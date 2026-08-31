@@ -1725,6 +1725,7 @@ mod tests {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             closed_at: None,
+            agent: None,
             custom: std::collections::BTreeMap::new(),
         };
         let issue_path = root
@@ -2212,6 +2213,7 @@ mod tests {
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
                 closed_at: None,
+                agent: None,
                 custom: std::collections::BTreeMap::new(),
             },
         };

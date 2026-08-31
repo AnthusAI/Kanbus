@@ -134,6 +134,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             custom: BTreeMap::new(),
         }
     }
