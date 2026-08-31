@@ -141,6 +141,46 @@ def given_fake_node_fails_generically(context: object) -> None:
     context.environment_overrides = overrides
 
 
+@given("screenshot capture uses a Node executable that writes a PNG file")
+def given_fake_node_writes_png(context: object) -> None:
+    working_directory = Path(context.working_directory)
+    script_path = _write_fake_node_executable(
+        working_directory,
+        "#!/bin/sh\n"
+        'output="$3"\n'
+        "printf '\\211PNG\\r\\n\\032\\n\\000\\000\\000\\rIHDR\\000\\000\\000\\001"
+        "\\000\\000\\000\\001\\010\\006\\000\\000\\000\\037\\025\\306\\211\\000"
+        "\\000\\000\\nIDATx\\234c\\360\\017\\000\\001\\001\\000\\005\\030\\326"
+        '\\212\\000\\000\\000\\000IEND\\256B`\\202\' > "$output"\n'
+        "exit 0\n",
+    )
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    _clear_live_capture_overrides(overrides)
+    overrides[TEST_NODE_EXECUTABLE_ENV] = str(script_path)
+    context.environment_overrides = overrides
+
+
+@given("the capture script is available from a custom search root")
+def given_capture_script_from_custom_search_root(context: object) -> None:
+    working_directory = Path(context.working_directory)
+    search_root = working_directory / "custom-script-root"
+    script_dir = search_root / "scripts"
+    script_dir.mkdir(parents=True, exist_ok=True)
+    package_script = (
+        Path(__file__).resolve().parents[3]
+        / "scripts"
+        / "capture_console_screenshot.mjs"
+    )
+    (script_dir / "capture_console_screenshot.mjs").write_text(
+        package_script.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    _clear_live_capture_overrides(overrides)
+    overrides["KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT"] = str(search_root)
+    context.environment_overrides = overrides
+
+
 def _resolve_working_path(context: object, path: str) -> Path:
     working_directory = Path(context.working_directory)
     candidate = Path(path)
