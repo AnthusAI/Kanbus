@@ -44,6 +44,7 @@ def before_scenario(context: object, scenario: object) -> None:
         "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT",
         "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT",
         "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING",
+        "KANBUS_TEST_SCREENSHOT_NODE_EXECUTABLE",
     ):
         os.environ.pop(name, None)
     context.daemon_core = None

@@ -171,6 +171,35 @@ Feature: Console board screenshot
     Then the command should fail with exit code 1
     And stderr should contain "Node.js"
 
+  Scenario: Screenshot command requires Node.js before mocked capture can succeed
+    Given the console server is running
+    And screenshot capture is mocked to succeed
+    And Node.js is unavailable for screenshot capture
+    When I run "kanbus console screenshot"
+    Then the command should fail with exit code 1
+    And stderr should contain "Node.js"
+
+  Scenario: Screenshot command surfaces Playwright guidance when capture subprocess fails
+    Given the console server is running
+    And screenshot capture uses a Node executable that reports Playwright is unavailable
+    When I run "kanbus console screenshot"
+    Then the command should fail with exit code 1
+    And stderr should contain "playwright"
+
+  Scenario: Screenshot command fails when capture subprocess exits without creating output
+    Given the console server is running
+    And screenshot capture uses a Node executable that exits successfully without output
+    When I run "kanbus console screenshot"
+    Then the command should fail with exit code 1
+    And stderr should contain "did not produce an output file"
+
+  Scenario: Screenshot command wraps generic capture subprocess failures
+    Given the console server is running
+    And screenshot capture uses a Node executable that fails with a generic error
+    When I run "kanbus console screenshot"
+    Then the command should fail with exit code 1
+    And stderr should contain "headless browser capture failed"
+
   @console @console-server @slow
   Scenario: Screenshot command captures the live board UI
     Given an issue "kanbus-shot" exists with title "Screenshot visible issue"

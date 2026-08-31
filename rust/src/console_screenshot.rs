@@ -17,6 +17,7 @@ const TEST_PREREQUISITES_VERIFIED_ENV: &str = "KANBUS_TEST_SCREENSHOT_PREREQUISI
 const TEST_SCRIPT_SEARCH_ROOT_ENV: &str = "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT";
 const TEST_HIDE_PACKAGE_SCRIPT_ENV: &str = "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT";
 const TEST_FORCE_NODE_MISSING_ENV: &str = "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING";
+const TEST_NODE_EXECUTABLE_ENV: &str = "KANBUS_TEST_SCREENSHOT_NODE_EXECUTABLE";
 const MOCK_PNG_BYTES: &[u8] = include_bytes!("../testdata/mock_board_screenshot.png");
 
 /// Layout and appearance options for a single board screenshot.
@@ -257,7 +258,7 @@ pub fn capture_console_screenshot(
     }
     if mock_mode.as_deref() == Some("success") {
         locate_capture_script(root)?;
-        which_node_executable()?;
+        resolve_node_executable()?;
         options.record_for_tests();
         std::env::set_var(TEST_PREREQUISITES_VERIFIED_ENV, "1");
         std::fs::write(&output_path, MOCK_PNG_BYTES)
@@ -267,17 +268,7 @@ pub fn capture_console_screenshot(
 
     let port = resolve_console_port(root);
     let console_url = format!("http://127.0.0.1:{port}/");
-    let node_executable = if std::env::var(TEST_FORCE_NODE_MISSING_ENV)
-        .ok()
-        .map(|value| value == "1")
-        .unwrap_or(false)
-    {
-        Err(KanbusError::IssueOperation(
-            "headless browser capture requires Node.js on PATH to run Playwright.".to_string(),
-        ))
-    } else {
-        which_node_executable()
-    }?;
+    let node_executable = resolve_node_executable()?;
     let script_path = locate_capture_script(root)?;
     let options_json = options.to_capture_json()?;
     let output = Command::new(&node_executable)
@@ -313,6 +304,25 @@ pub fn capture_console_screenshot(
     }
 
     Ok(output_path)
+}
+
+fn resolve_node_executable() -> Result<String, KanbusError> {
+    if let Ok(override_path) = std::env::var(TEST_NODE_EXECUTABLE_ENV) {
+        let path = PathBuf::from(override_path);
+        if path.is_file() {
+            return Ok(path.to_string_lossy().to_string());
+        }
+    }
+    if std::env::var(TEST_FORCE_NODE_MISSING_ENV)
+        .ok()
+        .map(|value| value == "1")
+        .unwrap_or(false)
+    {
+        return Err(KanbusError::IssueOperation(
+            "headless browser capture requires Node.js on PATH to run Playwright.".to_string(),
+        ));
+    }
+    which_node_executable()
 }
 
 fn which_node_executable() -> Result<String, KanbusError> {
