@@ -11,8 +11,26 @@ from behave import given, then
 from kanbus.console_screenshot import (
     TEST_CAPTURE_OPTIONS_ENV,
     TEST_LAST_MODE_ENV,
+    TEST_NODE_EXECUTABLE_ENV,
     TEST_PREREQUISITES_VERIFIED_ENV,
 )
+
+
+def _clear_live_capture_overrides(overrides: dict) -> None:
+    overrides.pop("KANBUS_TEST_SCREENSHOT_MOCK", None)
+    overrides.pop(TEST_LAST_MODE_ENV, None)
+    overrides.pop(TEST_CAPTURE_OPTIONS_ENV, None)
+    overrides.pop("KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT", None)
+    overrides.pop("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT", None)
+    overrides.pop("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING", None)
+    overrides.pop(TEST_NODE_EXECUTABLE_ENV, None)
+
+
+def _write_fake_node_executable(working_directory: Path, script_body: str) -> Path:
+    script_path = working_directory / "fake-node-screenshot.sh"
+    script_path.write_text(script_body, encoding="utf-8")
+    script_path.chmod(0o755)
+    return script_path
 
 
 def _load_capture_options() -> dict:
@@ -75,12 +93,49 @@ def given_capture_script_cannot_be_located(context: object) -> None:
 @given("Node.js is unavailable for screenshot capture")
 def given_node_unavailable_for_screenshot(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides.pop("KANBUS_TEST_SCREENSHOT_MOCK", None)
-    overrides.pop(TEST_LAST_MODE_ENV, None)
-    overrides.pop(TEST_CAPTURE_OPTIONS_ENV, None)
-    overrides.pop("KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT", None)
-    overrides.pop("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT", None)
+    _clear_live_capture_overrides(overrides)
     overrides["KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING"] = "1"
+    context.environment_overrides = overrides
+
+
+@given("screenshot capture uses a Node executable that reports Playwright is unavailable")
+def given_fake_node_reports_playwright_unavailable(context: object) -> None:
+    working_directory = Path(context.working_directory)
+    script_path = _write_fake_node_executable(
+        working_directory,
+        "#!/bin/sh\nprintf 'playwright browser missing\\n' >&2\nexit 1\n",
+    )
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    _clear_live_capture_overrides(overrides)
+    overrides[TEST_NODE_EXECUTABLE_ENV] = str(script_path)
+    context.environment_overrides = overrides
+
+
+@given(
+    "screenshot capture uses a Node executable that exits successfully without output"
+)
+def given_fake_node_exits_without_output(context: object) -> None:
+    working_directory = Path(context.working_directory)
+    script_path = _write_fake_node_executable(
+        working_directory,
+        "#!/bin/sh\nexit 0\n",
+    )
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    _clear_live_capture_overrides(overrides)
+    overrides[TEST_NODE_EXECUTABLE_ENV] = str(script_path)
+    context.environment_overrides = overrides
+
+
+@given("screenshot capture uses a Node executable that fails with a generic error")
+def given_fake_node_fails_generically(context: object) -> None:
+    working_directory = Path(context.working_directory)
+    script_path = _write_fake_node_executable(
+        working_directory,
+        "#!/bin/sh\nprintf 'capture harness exploded\\n' >&2\nexit 1\n",
+    )
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    _clear_live_capture_overrides(overrides)
+    overrides[TEST_NODE_EXECUTABLE_ENV] = str(script_path)
     context.environment_overrides = overrides
 
 
