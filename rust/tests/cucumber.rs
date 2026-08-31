@@ -94,9 +94,6 @@ async fn main() {
     }
     let include_console = env_flag("KANBUS_CUCUMBER_INCLUDE_CONSOLE");
     let only_console = env_flag("KANBUS_CUCUMBER_ONLY_CONSOLE");
-    if env_flag("KANBUS_ENABLE_COVERAGE_HELPER") {
-        cover_console_screenshot_paths();
-    }
     #[cfg(tarpaulin)]
     cover_additional_paths();
     KanbusWorld::cucumber::<PathBuf>()
@@ -125,124 +122,6 @@ async fn main() {
             true
         })
         .await;
-}
-
-fn cover_console_screenshot_paths() {
-    use std::fs;
-    use std::path::PathBuf;
-    use std::process::Command;
-
-    use tempfile::TempDir;
-
-    use kanbus::console_screenshot::capture_console_screenshot;
-    use kanbus::file_io::initialize_project;
-
-    let temp_dir = TempDir::new().expect("tempdir");
-    let root = temp_dir.path().join("repo");
-    fs::create_dir_all(&root).expect("create repo");
-    Command::new("git")
-        .args(["init"])
-        .current_dir(&root)
-        .output()
-        .expect("git init");
-    initialize_project(&root, false).expect("initialize project");
-    fs::write(root.join(".kanbus.yml"), "console_port: 65520\n").expect("write console port");
-
-    std::env::set_var("KANBUS_NO_DAEMON", "1");
-    std::env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
-
-    std::env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "success");
-    let _ = capture_console_screenshot(&root, None, None, None, false, vec![], vec![]);
-
-    std::env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "unavailable");
-    let _ = capture_console_screenshot(&root, None, None, None, false, vec![], vec![]);
-
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
-    std::env::set_var("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING", "1");
-    let _ = capture_console_screenshot(&root, None, None, None, false, vec![], vec![]);
-
-    let fake_node = root.join("fake-node.sh");
-    fs::write(
-        &fake_node,
-        "#!/bin/sh\nprintf 'playwright browser missing\\n' >&2\nexit 1\n",
-    )
-    .expect("write fake node");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut permissions = fs::metadata(&fake_node).expect("metadata").permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(&fake_node, permissions).expect("chmod");
-    }
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING");
-    std::env::set_var("KANBUS_TEST_SCREENSHOT_NODE_EXECUTABLE", &fake_node);
-    let _ = capture_console_screenshot(&root, None, None, None, false, vec![], vec![]);
-
-    fs::write(
-        &fake_node,
-        "#!/bin/sh\nprintf 'capture harness exploded\\n' >&2\nexit 1\n",
-    )
-    .expect("write generic fake node");
-    let _ = capture_console_screenshot(&root, None, None, None, false, vec![], vec![]);
-
-    fs::write(
-        &fake_node,
-        "#!/bin/sh\nprintf '\\211PNG\\r\\n\\032\\n' > \"$3\"\nexit 0\n",
-    )
-    .expect("write success fake node");
-    let _ = capture_console_screenshot(
-        &root,
-        Some("coverage-board.png".to_string()),
-        None,
-        None,
-        false,
-        vec![],
-        vec![],
-    );
-
-    let search_root = root.join("custom-script-root");
-    let script_dir = search_root.join("scripts");
-    fs::create_dir_all(&script_dir).expect("create script dir");
-    let manifest_script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .map(|parent| {
-            parent
-                .join("scripts")
-                .join("capture_console_screenshot.mjs")
-        })
-        .expect("manifest parent");
-    fs::copy(
-        manifest_script,
-        script_dir.join("capture_console_screenshot.mjs"),
-    )
-    .expect("copy capture script");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_NODE_EXECUTABLE");
-    std::env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "success");
-    std::env::set_var(
-        "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT",
-        search_root.to_string_lossy().as_ref(),
-    );
-    let _ = capture_console_screenshot(&root, None, None, None, false, vec![], vec![]);
-
-    let empty_root = root.join("empty-script-root");
-    fs::create_dir_all(&empty_root).expect("create empty root");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
-    std::env::set_var(
-        "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT",
-        empty_root.to_string_lossy().as_ref(),
-    );
-    std::env::set_var("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT", "1");
-    let _ = capture_console_screenshot(&root, None, None, None, false, vec![], vec![]);
-
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_NODE_EXECUTABLE");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_LAST_MODE");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS");
-    std::env::remove_var("KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED");
 }
 
 #[cfg(tarpaulin)]
