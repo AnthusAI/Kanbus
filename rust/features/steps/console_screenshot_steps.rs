@@ -40,9 +40,10 @@ fn given_capture_script_cannot_be_located(world: &mut KanbusWorld) {
         "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT".to_string(),
         empty_root.to_string_lossy().to_string(),
     );
-    world
-        .environment_overrides
-        .insert("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT".to_string(), "1".to_string());
+    world.environment_overrides.insert(
+        "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT".to_string(),
+        "1".to_string(),
+    );
     env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
     env::set_var(
         "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT",
