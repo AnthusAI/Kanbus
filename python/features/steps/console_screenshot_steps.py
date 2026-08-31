@@ -26,10 +26,16 @@ def _load_capture_options() -> dict:
 def given_screenshot_capture_mocked_success(context: object) -> None:
     os.environ.pop(TEST_LAST_MODE_ENV, None)
     os.environ.pop(TEST_CAPTURE_OPTIONS_ENV, None)
+    os.environ.pop("KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT", None)
+    os.environ.pop("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT", None)
+    os.environ.pop("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING", None)
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
     overrides["KANBUS_TEST_SCREENSHOT_MOCK"] = "success"
     overrides.pop(TEST_LAST_MODE_ENV, None)
     overrides.pop(TEST_CAPTURE_OPTIONS_ENV, None)
+    overrides.pop("KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT", None)
+    overrides.pop("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT", None)
+    overrides.pop("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING", None)
     context.environment_overrides = overrides
 
 
@@ -49,7 +55,33 @@ def given_console_port_matches_server(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
     overrides["CONSOLE_PORT"] = str(port)
     context.environment_overrides = overrides
-    os.environ["CONSOLE_PORT"] = str(port)
+
+
+@given("the capture script cannot be located")
+def given_capture_script_cannot_be_located(context: object) -> None:
+    working_directory = Path(context.working_directory)
+    empty_root = working_directory / "empty-script-root"
+    empty_root.mkdir(parents=True, exist_ok=True)
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides.pop("KANBUS_TEST_SCREENSHOT_MOCK", None)
+    overrides.pop(TEST_LAST_MODE_ENV, None)
+    overrides.pop(TEST_CAPTURE_OPTIONS_ENV, None)
+    overrides.pop("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING", None)
+    overrides["KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT"] = str(empty_root)
+    overrides["KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT"] = "1"
+    context.environment_overrides = overrides
+
+
+@given("Node.js is unavailable for screenshot capture")
+def given_node_unavailable_for_screenshot(context: object) -> None:
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides.pop("KANBUS_TEST_SCREENSHOT_MOCK", None)
+    overrides.pop(TEST_LAST_MODE_ENV, None)
+    overrides.pop(TEST_CAPTURE_OPTIONS_ENV, None)
+    overrides.pop("KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT", None)
+    overrides.pop("KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT", None)
+    overrides["KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING"] = "1"
+    context.environment_overrides = overrides
 
 
 def _resolve_working_path(context: object, path: str) -> Path:

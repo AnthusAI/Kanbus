@@ -20,6 +20,8 @@ def before_scenario(context: object, scenario: object) -> None:
     :param scenario: Behave scenario object.
     :type scenario: object
     """
+    import os
+
     context._unset_env_vars = []
     context._tracked_env_vars = set()
     if "skip" in getattr(scenario, "tags", []):
@@ -31,6 +33,19 @@ def before_scenario(context: object, scenario: object) -> None:
     context.result = None
     context.last_issue_id = None
     context.environment_overrides = {"KANBUS_NO_DAEMON": "1"}
+    context.console_server_process = None
+    context.console_server_port = None
+    for name in (
+        "CONSOLE_PORT",
+        "KANBUS_TEST_SCREENSHOT_MOCK",
+        "KANBUS_TEST_SCREENSHOT_LAST_MODE",
+        "KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS",
+        "KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED",
+        "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT",
+        "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT",
+        "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING",
+    ):
+        os.environ.pop(name, None)
     context.daemon_core = None
     context.virtual_project_state = None
     context.virtual_project_missing_path = False

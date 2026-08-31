@@ -14,6 +14,9 @@ const DEFAULT_APPEARANCE_MODE: &str = "light";
 const TEST_LAST_MODE_ENV: &str = "KANBUS_TEST_SCREENSHOT_LAST_MODE";
 const TEST_CAPTURE_OPTIONS_ENV: &str = "KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS";
 const TEST_PREREQUISITES_VERIFIED_ENV: &str = "KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED";
+const TEST_SCRIPT_SEARCH_ROOT_ENV: &str = "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT";
+const TEST_HIDE_PACKAGE_SCRIPT_ENV: &str = "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT";
+const TEST_FORCE_NODE_MISSING_ENV: &str = "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING";
 const MOCK_PNG_BYTES: &[u8] = include_bytes!("../testdata/mock_board_screenshot.png");
 
 /// Layout and appearance options for a single board screenshot.
@@ -87,11 +90,28 @@ pub fn is_console_server_running(root: &Path, port: Option<u16>) -> bool {
 
 fn locate_capture_script(root: &Path) -> Result<PathBuf, KanbusError> {
     let script_rel = Path::new("scripts").join("capture_console_screenshot.mjs");
-    for directory in root.ancestors() {
-        let candidate = directory.join(&script_rel);
+    if let Ok(override_root) = std::env::var(TEST_SCRIPT_SEARCH_ROOT_ENV) {
+        let candidate = PathBuf::from(override_root).join(&script_rel);
         if candidate.is_file() {
             return Ok(candidate);
         }
+    } else {
+        for directory in root.ancestors() {
+            let candidate = directory.join(&script_rel);
+            if candidate.is_file() {
+                return Ok(candidate);
+            }
+        }
+    }
+    if std::env::var(TEST_HIDE_PACKAGE_SCRIPT_ENV)
+        .ok()
+        .map(|value| value == "1")
+        .unwrap_or(false)
+    {
+        return Err(KanbusError::IssueOperation(
+            "headless browser capture script not found (scripts/capture_console_screenshot.mjs)."
+                .to_string(),
+        ));
     }
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let candidate = manifest_dir
@@ -247,7 +267,17 @@ pub fn capture_console_screenshot(
 
     let port = resolve_console_port(root);
     let console_url = format!("http://127.0.0.1:{port}/");
-    let node_executable = which_node_executable()?;
+    let node_executable = if std::env::var(TEST_FORCE_NODE_MISSING_ENV)
+        .ok()
+        .map(|value| value == "1")
+        .unwrap_or(false)
+    {
+        Err(KanbusError::IssueOperation(
+            "headless browser capture requires Node.js on PATH to run Playwright.".to_string(),
+        ))
+    } else {
+        which_node_executable()
+    }?;
     let script_path = locate_capture_script(root)?;
     let options_json = options.to_capture_json()?;
     let output = Command::new(&node_executable)

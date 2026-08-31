@@ -21,6 +21,9 @@ DEFAULT_APPEARANCE_MODE = "light"
 TEST_LAST_MODE_ENV = "KANBUS_TEST_SCREENSHOT_LAST_MODE"
 TEST_CAPTURE_OPTIONS_ENV = "KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS"
 TEST_PREREQUISITES_VERIFIED_ENV = "KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED"
+TEST_SCRIPT_SEARCH_ROOT_ENV = "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT"
+TEST_HIDE_PACKAGE_SCRIPT_ENV = "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT"
+TEST_FORCE_NODE_MISSING_ENV = "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING"
 VALID_VIEWS = frozenset({"initiatives", "epics", "issues", "all"})
 
 _MOCK_PNG_BYTES = base64.b64decode(
@@ -121,10 +124,20 @@ def locate_capture_script(root: Path) -> Path:
     :raises ConsoleScreenshotError: When the script cannot be found.
     """
     script_name = Path("scripts") / "capture_console_screenshot.mjs"
-    for directory in [root, *root.parents]:
+    search_roots: list[Path]
+    override = os.environ.get(TEST_SCRIPT_SEARCH_ROOT_ENV)
+    if override:
+        search_roots = [Path(override)]
+    else:
+        search_roots = [root, *root.parents]
+    for directory in search_roots:
         candidate = directory / script_name
         if candidate.is_file():
             return candidate
+    if os.environ.get(TEST_HIDE_PACKAGE_SCRIPT_ENV) == "1":
+        raise ConsoleScreenshotError(
+            "headless browser capture script not found (scripts/capture_console_screenshot.mjs)."
+        )
     package_root = Path(__file__).resolve().parents[3]
     candidate = package_root / script_name
     if candidate.is_file():
@@ -277,7 +290,10 @@ def capture_console_screenshot(
 
     port = resolve_console_port(root)
     console_url = f"http://127.0.0.1:{port}/"
-    node_executable = shutil.which("node")
+    if os.environ.get(TEST_FORCE_NODE_MISSING_ENV) == "1":
+        node_executable = None
+    else:
+        node_executable = shutil.which("node")
     if node_executable is None:
         raise ConsoleScreenshotError(
             "headless browser capture requires Node.js on PATH to run Playwright."
