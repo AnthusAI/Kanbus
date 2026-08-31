@@ -200,6 +200,21 @@ Feature: Console board screenshot
     Then the command should fail with exit code 1
     And stderr should contain "headless browser capture failed"
 
+  Scenario: Screenshot command writes output when the capture subprocess succeeds
+    Given the console server is running
+    And screenshot capture uses a Node executable that writes a PNG file
+    When I run "kanbus console screenshot --output subprocess-board.png"
+    Then the command should succeed
+    And a PNG file should exist at "subprocess-board.png"
+
+  Scenario: Screenshot command resolves the capture script from a custom search root
+    Given the console server is running
+    And the capture script is available from a custom search root
+    And screenshot capture is mocked to succeed
+    When I run "kanbus console screenshot"
+    Then the command should succeed
+    And screenshot capture prerequisites should be verified
+
   @console @console-server @slow
   Scenario: Screenshot command captures the live board UI
     Given an issue "kanbus-shot" exists with title "Screenshot visible issue"
