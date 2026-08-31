@@ -57,9 +57,10 @@ fn given_node_unavailable_for_screenshot(world: &mut KanbusWorld) {
     world
         .environment_overrides
         .remove("KANBUS_TEST_SCREENSHOT_MOCK");
-    world
-        .environment_overrides
-        .insert("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING".to_string(), "1".to_string());
+    world.environment_overrides.insert(
+        "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING".to_string(),
+        "1".to_string(),
+    );
     env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
     env::set_var("KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING", "1");
 }
