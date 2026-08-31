@@ -24,6 +24,7 @@ TEST_PREREQUISITES_VERIFIED_ENV = "KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED
 TEST_SCRIPT_SEARCH_ROOT_ENV = "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT"
 TEST_HIDE_PACKAGE_SCRIPT_ENV = "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT"
 TEST_FORCE_NODE_MISSING_ENV = "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING"
+TEST_NODE_EXECUTABLE_ENV = "KANBUS_TEST_SCREENSHOT_NODE_EXECUTABLE"
 VALID_VIEWS = frozenset({"initiatives", "epics", "issues", "all"})
 
 _MOCK_PNG_BYTES = base64.b64decode(
@@ -160,6 +161,17 @@ def _resolve_output_path(root: Path, output: str | None) -> Path:
     return path
 
 
+def _resolve_node_executable() -> str | None:
+    override = os.environ.get(TEST_NODE_EXECUTABLE_ENV)
+    if override:
+        path = Path(override)
+        if path.is_file():
+            return str(path)
+    if os.environ.get(TEST_FORCE_NODE_MISSING_ENV) == "1":
+        return None
+    return shutil.which("node")
+
+
 def _mock_mode() -> str | None:
     value = os.environ.get("KANBUS_TEST_SCREENSHOT_MOCK")
     if value is None:
@@ -278,7 +290,7 @@ def capture_console_screenshot(
         )
     if mock_mode == "success":
         locate_capture_script(root)
-        node_executable = shutil.which("node")
+        node_executable = _resolve_node_executable()
         if node_executable is None:
             raise ConsoleScreenshotError(
                 "headless browser capture requires Node.js on PATH to run Playwright."
@@ -290,10 +302,7 @@ def capture_console_screenshot(
 
     port = resolve_console_port(root)
     console_url = f"http://127.0.0.1:{port}/"
-    if os.environ.get(TEST_FORCE_NODE_MISSING_ENV) == "1":
-        node_executable = None
-    else:
-        node_executable = shutil.which("node")
+    node_executable = _resolve_node_executable()
     if node_executable is None:
         raise ConsoleScreenshotError(
             "headless browser capture requires Node.js on PATH to run Playwright."

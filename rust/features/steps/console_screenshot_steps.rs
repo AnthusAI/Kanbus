@@ -7,23 +7,51 @@ use crate::step_definitions::initialization_steps::KanbusWorld;
 const TEST_LAST_MODE_ENV: &str = "KANBUS_TEST_SCREENSHOT_LAST_MODE";
 const TEST_CAPTURE_OPTIONS_ENV: &str = "KANBUS_TEST_SCREENSHOT_CAPTURE_OPTIONS";
 const TEST_PREREQUISITES_VERIFIED_ENV: &str = "KANBUS_TEST_SCREENSHOT_PREREQUISITES_VERIFIED";
+const TEST_NODE_EXECUTABLE_ENV: &str = "KANBUS_TEST_SCREENSHOT_NODE_EXECUTABLE";
 
-fn clear_screenshot_test_overrides(world: &mut KanbusWorld) {
+fn clear_live_capture_overrides(world: &mut KanbusWorld) {
     for key in [
+        "KANBUS_TEST_SCREENSHOT_MOCK",
         TEST_LAST_MODE_ENV,
         TEST_CAPTURE_OPTIONS_ENV,
         TEST_PREREQUISITES_VERIFIED_ENV,
         "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT",
         "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT",
         "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING",
+        TEST_NODE_EXECUTABLE_ENV,
     ] {
         world.environment_overrides.remove(key);
     }
 }
 
+fn write_fake_node_executable(world: &KanbusWorld, script_body: &str) -> PathBuf {
+    let working_directory = world.working_directory.as_ref().expect("working directory");
+    let script_path = working_directory.join("fake-node-screenshot.sh");
+    std::fs::write(&script_path, script_body).expect("write fake node script");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = std::fs::metadata(&script_path)
+            .expect("fake node metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&script_path, permissions).expect("chmod fake node");
+    }
+    script_path
+}
+
+fn set_fake_node_override(world: &mut KanbusWorld, script_body: &str) {
+    let script_path = write_fake_node_executable(world, script_body);
+    clear_live_capture_overrides(world);
+    world.environment_overrides.insert(
+        TEST_NODE_EXECUTABLE_ENV.to_string(),
+        script_path.to_string_lossy().to_string(),
+    );
+}
+
 #[given("screenshot capture is mocked to succeed")]
 fn given_screenshot_capture_mocked_success(world: &mut KanbusWorld) {
-    clear_screenshot_test_overrides(world);
+    clear_live_capture_overrides(world);
     world.environment_overrides.insert(
         "KANBUS_TEST_SCREENSHOT_MOCK".to_string(),
         "success".to_string(),
@@ -53,10 +81,7 @@ fn given_capture_script_cannot_be_located(world: &mut KanbusWorld) {
     let working_directory = world.working_directory.as_ref().expect("working directory");
     let empty_root = working_directory.join("empty-script-root");
     std::fs::create_dir_all(&empty_root).expect("create empty script root");
-    clear_screenshot_test_overrides(world);
-    world
-        .environment_overrides
-        .remove("KANBUS_TEST_SCREENSHOT_MOCK");
+    clear_live_capture_overrides(world);
     world.environment_overrides.insert(
         "KANBUS_TEST_SCREENSHOT_SCRIPT_SEARCH_ROOT".to_string(),
         empty_root.to_string_lossy().to_string(),
@@ -69,13 +94,31 @@ fn given_capture_script_cannot_be_located(world: &mut KanbusWorld) {
 
 #[given("Node.js is unavailable for screenshot capture")]
 fn given_node_unavailable_for_screenshot(world: &mut KanbusWorld) {
-    clear_screenshot_test_overrides(world);
-    world
-        .environment_overrides
-        .remove("KANBUS_TEST_SCREENSHOT_MOCK");
+    clear_live_capture_overrides(world);
     world.environment_overrides.insert(
         "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING".to_string(),
         "1".to_string(),
+    );
+}
+
+#[given("screenshot capture uses a Node executable that reports Playwright is unavailable")]
+fn given_fake_node_reports_playwright_unavailable(world: &mut KanbusWorld) {
+    set_fake_node_override(
+        world,
+        "#!/bin/sh\nprintf 'playwright browser missing\\n' >&2\nexit 1\n",
+    );
+}
+
+#[given("screenshot capture uses a Node executable that exits successfully without output")]
+fn given_fake_node_exits_without_output(world: &mut KanbusWorld) {
+    set_fake_node_override(world, "#!/bin/sh\nexit 0\n");
+}
+
+#[given("screenshot capture uses a Node executable that fails with a generic error")]
+fn given_fake_node_fails_generically(world: &mut KanbusWorld) {
+    set_fake_node_override(
+        world,
+        "#!/bin/sh\nprintf 'capture harness exploded\\n' >&2\nexit 1\n",
     );
 }
 
