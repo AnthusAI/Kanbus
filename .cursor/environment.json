@@ -1,0 +1,11 @@
+{
+  "name": "Kanbus",
+  "user": "ubuntu",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "console",
+      "command": "CONSOLE_DATA_ROOT=\"$PWD\" CONSOLE_PORT=5174 kbsc"
+    }
+  ]
+}
