@@ -110,6 +110,7 @@ from kanbus.right_now import (
     build_leaf_right_now_context,
     generate_right_now_summary,
 )
+from kanbus.right_now_command import RightNowCommandOptions, run_right_now_command
 
 
 def _deprecated_console_control(command: str) -> click.ClickException:
@@ -2596,6 +2597,49 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
     )
 
 
+@cli.command("now")
+@click.option("--limit", default=30, show_default=True, type=int)
+@click.option("--tree", is_flag=True, default=False)
+@click.option("--expanded", is_flag=True, default=False)
+@click.option("--collapsed", is_flag=True, default=False)
+@click.option("--raw", is_flag=True, default=False)
+@click.option("--json", "as_json", is_flag=True, default=False)
+def right_now_command(
+    limit: int,
+    tree: bool,
+    expanded: bool,
+    collapsed: bool,
+    raw: bool,
+    as_json: bool,
+) -> None:
+    """List recently-updated issues with right-now summaries.
+
+    \b
+
+    Examples:
+      kbs now                          list recently-updated issues with summaries
+      kbs now --limit 10               limit to 10 most recent
+      kbs now --tree                    show the hierarchy (initiative > epic > task)
+      kbs now --tree --expanded         expand all tree nodes by default
+      kbs now --json                    machine-readable JSON for agents
+      kbs now --raw                     titles only, no summaries
+    """
+    root = Path.cwd()
+    options = RightNowCommandOptions(
+        limit=limit,
+        tree=tree,
+        expanded=expanded,
+        collapsed=collapsed,
+        raw=raw,
+        as_json=as_json,
+    )
+    try:
+        output = run_right_now_command(root, options)
+    except IssueListingError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output, nl=not output.endswith("\n"))
+
+
 @cli.command("doctor")
 def doctor() -> None:
     """Run environment diagnostics for Kanbus."""
@@ -3136,12 +3180,7 @@ def bugs_alias(context: click.Context) -> None:
     context.invoke(list_command, issue_type="bug")
 
 
-@cli.group("right-now", hidden=True)
-def right_now_group() -> None:
-    """Hidden right-now summary commands for runtime delegation."""
-
-
-@right_now_group.command("generate-internal", hidden=True)
+@cli.command("now-generate-internal", hidden=True)
 @click.argument("issue_id")
 def right_now_generate_internal(issue_id: str) -> None:
     """Generate a right-now summary for internal runtime delegation."""

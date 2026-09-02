@@ -56,6 +56,30 @@ def filter_issues(
     return result
 
 
+def sort_issues_by_recently_updated(issues: Iterable[IssueData]) -> List[IssueData]:
+    """Sort issues by updated_at descending with identifier ascending tie-break.
+
+    :param issues: Issues to sort.
+    :type issues: Iterable[IssueData]
+    :return: Sorted issues.
+    :rtype: List[IssueData]
+    """
+    return sorted(
+        issues,
+        key=lambda issue: (
+            -_recently_updated_sort_timestamp(issue),
+            issue.identifier,
+        ),
+    )
+
+
+def _recently_updated_sort_timestamp(issue: IssueData) -> float:
+    updated_at = issue.updated_at
+    if updated_at.tzinfo is None:
+        return updated_at.timestamp()
+    return updated_at.timestamp()
+
+
 def sort_issues(issues: Iterable[IssueData], sort_key: str | None) -> List[IssueData]:
     """Sort issues by a supported key.
 
