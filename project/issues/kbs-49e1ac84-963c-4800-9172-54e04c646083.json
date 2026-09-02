@@ -3,7 +3,7 @@
   "title": "Right-now spec parity and coverage ratchet",
   "description": "Run tools/check_spec_parity.py, behave, cargo cucumber for right-now specs, format gates, and coverage ratchet. Close only when Python and Rust match on observable behavior.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -16,13 +16,19 @@
       "author": "ubuntu",
       "text": "Parity checker is green for the new steps. Coverage ratchet still open as Epic 10.",
       "created_at": "2026-09-02T16:36:39.237462Z"
+    },
+    {
+      "id": "180dd4a7-6f0c-4c2e-ac76-37dac8568e7e",
+      "author": "ubuntu",
+      "text": "Epic 10 complete. Spec parity, behave, cargo cucumber, format gates, and the coverage ratchet all pass on cursor/right-now-summary-ad17. Closing now that the child task kbs-29927b is done.",
+      "created_at": "2026-09-02T17:38:29.279145Z"
     }
   ],
   "created_at": "2026-09-02T16:26:06.077818Z",
-  "updated_at": "2026-09-02T16:40:15.924407Z",
-  "closed_at": null,
-  "right_now_summary": "The team is running parity, Cucumber, formatting, and coverage checks to align Python and Rust behavior.",
-  "right_now_updated_at": "2026-09-02T16:40:32.396977Z",
+  "updated_at": "2026-09-02T17:38:41.585593Z",
+  "closed_at": "2026-09-02T17:38:41.562657Z",
+  "right_now_summary": "All parity, Cucumber, formatting, and coverage checks pass for the right-now specs.",
+  "right_now_updated_at": "2026-09-02T17:38:47.478884Z",
   "custom": {
     "source": "shared",
     "project_label": "kbs"
