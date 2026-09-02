@@ -38,7 +38,8 @@ class PersistIssueMutationRequest:
     :type actor_id: str
     :param events: Event records to write alongside the mutation.
     :type events: List[EventRecord]
-    :param before_issue: Previous issue state for rollback on event write failure.
+    :param before_issue: Previous issue state restored on event write failure.
+        When omitted, a failed persist removes the newly written issue file.
     :type before_issue: Optional[IssueData]
     :param relocate_to: Optional destination path when the issue file should move.
     :type relocate_to: Optional[Path]
@@ -97,9 +98,6 @@ def persist_issue_mutation(
     """
     current_time = datetime.now(timezone.utc)
     persisted_issue = request.issue.model_copy(update={"updated_at": current_time})
-    rollback_issue = (
-        request.before_issue if request.before_issue is not None else request.issue
-    )
     write_issue_to_file(persisted_issue, request.issue_path)
     final_issue_path = request.issue_path
     if request.relocate_to is not None:
@@ -111,7 +109,10 @@ def persist_issue_mutation(
     except Exception as error:  # noqa: BLE001
         if request.relocate_to is not None and final_issue_path.exists():
             final_issue_path.replace(request.issue_path)
-        write_issue_to_file(rollback_issue, request.issue_path)
+        if request.before_issue is not None:
+            write_issue_to_file(request.before_issue, request.issue_path)
+        elif request.issue_path.exists():
+            request.issue_path.unlink()
         raise RuntimeError(str(error)) from error
     if request.regenerate_right_now:
         regenerate_right_now_for_issue_and_ancestors(

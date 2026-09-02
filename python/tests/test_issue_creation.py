@@ -10,7 +10,11 @@ from kanbus.hierarchy import InvalidHierarchyError
 from kanbus.issue_lookup import IssueLookupError
 from kanbus.workflows import InvalidTransitionError
 
-from test_helpers import build_issue, build_project_configuration
+from test_helpers import (
+    build_issue,
+    build_project_configuration,
+    stub_persist_issue_mutation,
+)
 
 
 def _setup_common(
@@ -58,16 +62,12 @@ def test_create_issue_success_non_local(
     root = tmp_path
     project_dir, _issues_dir, _cfg = _setup_common(monkeypatch, root)
 
-    written: dict[str, object] = {}
+    persist_calls: list[object] = []
     monkeypatch.setattr(
         issue_creation,
-        "write_issue_to_file",
-        lambda issue, path: written.update({"issue": issue, "path": path}),
+        "persist_issue_mutation",
+        stub_persist_issue_mutation(persist_calls),
     )
-    monkeypatch.setattr(
-        issue_creation, "events_dir_for_project", lambda _p: project_dir / "events"
-    )
-    monkeypatch.setattr(issue_creation, "write_events_batch", lambda *_a: None)
     published: list[str] = []
     monkeypatch.setattr(
         issue_creation, "publish_issue_mutation", lambda *_a: published.append("pub")
@@ -86,7 +86,7 @@ def test_create_issue_success_non_local(
         validate=False,
     )
     assert result.issue.identifier == "kanbus-new"
-    assert written["path"] == project_dir / "issues" / "kanbus-new.json"
+    assert persist_calls[0].issue_path == project_dir / "issues" / "kanbus-new.json"
     assert published == ["pub"]
 
 
@@ -104,18 +104,12 @@ def test_create_issue_success_local_uses_local_events(
     monkeypatch.setattr(
         issue_creation, "ensure_project_local_directory", lambda _p: local_dir
     )
-    target_paths: list[Path] = []
+    persist_calls: list[object] = []
     monkeypatch.setattr(
         issue_creation,
-        "write_issue_to_file",
-        lambda _issue, path: target_paths.append(path),
+        "persist_issue_mutation",
+        stub_persist_issue_mutation(persist_calls),
     )
-    monkeypatch.setattr(
-        issue_creation,
-        "events_dir_for_local",
-        lambda _p: project_dir / "project-local-events",
-    )
-    monkeypatch.setattr(issue_creation, "write_events_batch", lambda *_a: None)
     monkeypatch.setattr(
         issue_creation,
         "publish_issue_mutation",
@@ -135,7 +129,7 @@ def test_create_issue_success_local_uses_local_events(
         validate=False,
     )
     assert result.issue.identifier == "kanbus-new"
-    assert target_paths == [local_issues / "kanbus-new.json"]
+    assert persist_calls[0].issue_path == local_issues / "kanbus-new.json"
 
 
 def test_create_issue_wraps_project_or_config_errors(
@@ -172,11 +166,9 @@ def test_create_issue_validation_errors(
 ) -> None:
     root = tmp_path
     _project_dir, issues_dir, cfg = _setup_common(monkeypatch, root)
-    monkeypatch.setattr(issue_creation, "write_issue_to_file", lambda *_a: None)
     monkeypatch.setattr(
-        issue_creation, "events_dir_for_project", lambda _p: root / "events"
+        issue_creation, "persist_issue_mutation", stub_persist_issue_mutation()
     )
-    monkeypatch.setattr(issue_creation, "write_events_batch", lambda *_a: None)
     monkeypatch.setattr(issue_creation, "publish_issue_mutation", lambda *_a: None)
 
     with pytest.raises(issue_creation.IssueCreationError, match="unknown issue type"):
@@ -255,17 +247,7 @@ def test_create_issue_policy_violation_and_event_rollback(
     monkeypatch.setattr(issue_creation, "validate_status_value", lambda *_a: None)
     monkeypatch.setattr(issue_creation, "_find_duplicate_title", lambda *_a: None)
     monkeypatch.setattr(
-        issue_creation,
-        "write_issue_to_file",
-        lambda issue, path: path.write_text(issue.model_dump_json(), encoding="utf-8"),
-    )
-    monkeypatch.setattr(
-        issue_creation, "events_dir_for_project", lambda _p: project_dir / "events"
-    )
-    monkeypatch.setattr(
-        issue_creation,
-        "write_events_batch",
-        lambda *_a: (_ for _ in ()).throw(RuntimeError("event write fail")),
+        issue_creation, "persist_issue_mutation", stub_persist_issue_mutation()
     )
     monkeypatch.setattr(issue_creation, "publish_issue_mutation", lambda *_a: None)
 
@@ -301,6 +283,11 @@ def test_create_issue_policy_violation_and_event_rollback(
         )
 
     monkeypatch.setattr(policy_loader, "load_policies", lambda _p: [])
+    monkeypatch.setattr(
+        issue_creation,
+        "persist_issue_mutation",
+        lambda *_a: (_ for _ in ()).throw(RuntimeError("event write fail")),
+    )
 
     with pytest.raises(issue_creation.IssueCreationError, match="event write fail"):
         issue_creation.create_issue(

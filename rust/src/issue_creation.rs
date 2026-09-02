@@ -268,6 +268,7 @@ mod tests {
     use super::*;
     use crate::config::default_project_configuration;
     use crate::file_io::initialize_project;
+    use crate::issue_files::write_issue_to_file;
     use chrono::Utc;
     use std::collections::BTreeMap;
     use std::path::Path;

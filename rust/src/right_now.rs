@@ -614,6 +614,35 @@ pub fn project_events_directory(root: &Path) -> Result<PathBuf, KanbusError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::issue_files::{read_issue_from_file, write_issue_to_file};
+    use crate::models::IssueData;
+    use crate::overlay::{load_overlay_issue, write_overlay_issue};
+    use chrono::Utc;
+    use std::collections::BTreeMap;
+    use std::fs;
+
+    fn make_issue(id: &str, title: &str) -> IssueData {
+        IssueData {
+            identifier: id.to_string(),
+            title: title.to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
 
     #[test]
     fn mock_summary_matches_python_format() {
@@ -629,5 +658,43 @@ mod tests {
         let truncated = truncate_to_max_length(text, 20);
         assert!(truncated.len() <= 20);
         assert_eq!(truncated, "Mock right-now");
+    }
+
+    #[test]
+    fn persist_right_now_summary_updates_canonical_and_overlay() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let project_dir = temp.path().join("project");
+        let issue_path = project_dir.join("issues/kanbus-rn1.json");
+        fs::create_dir_all(issue_path.parent().expect("parent")).expect("mkdir");
+        let issue = make_issue("kanbus-rn1", "Canonical");
+        write_issue_to_file(&issue, &issue_path).expect("write canonical");
+        write_overlay_issue(
+            &project_dir,
+            &issue,
+            "2099-01-01T00:00:00.000Z",
+            Some("evt-overlay".to_string()),
+        )
+        .expect("write overlay");
+        persist_right_now_summary(
+            &project_dir,
+            &issue_path,
+            "kanbus-rn1",
+            "Canonical work continues.",
+            Utc::now(),
+        )
+        .expect("persist");
+        let stored = read_issue_from_file(&issue_path).expect("read canonical");
+        assert_eq!(
+            stored.right_now_summary.as_deref(),
+            Some("Canonical work continues.")
+        );
+        let overlay = load_overlay_issue(&project_dir, "kanbus-rn1")
+            .expect("load overlay")
+            .expect("overlay present");
+        assert_eq!(
+            overlay.issue.right_now_summary.as_deref(),
+            Some("Canonical work continues.")
+        );
+        assert_eq!(overlay.overlay_ts, "2099-01-01T00:00:00.000Z");
     }
 }

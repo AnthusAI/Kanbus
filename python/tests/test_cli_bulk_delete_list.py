@@ -163,7 +163,7 @@ def test_delete_paths_regular_mode(
     )
     deleted: list[str] = []
     monkeypatch.setattr(
-        cli, "delete_issue", lambda _root, issue_id: deleted.append(issue_id)
+        cli, "delete_issue", lambda _root, issue_id, **_k: deleted.append(issue_id)
     )
 
     result_recursive = _run(["delete", "kanbus-1", "--recursive"])
