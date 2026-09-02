@@ -19,6 +19,8 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / "lambda"))
 import sync_efs_writer  # type: ignore  # noqa: E402
 import sync_git  # type: ignore  # noqa: E402
 import sync_git_lib  # type: ignore  # noqa: E402
+import sync_iot_publish  # type: ignore  # noqa: E402
+import sync_notify  # type: ignore  # noqa: E402
 import webhook_handler  # type: ignore  # noqa: E402
 
 
@@ -166,21 +168,21 @@ class GitSyncHandlerTests(unittest.TestCase):
 
 
 class EfsWriterHandlerTests(unittest.TestCase):
-    """Validate EFS writer extraction and IoT publish flow."""
+    """Validate EFS writer extraction and completion marker flow."""
 
     def test_parses_s3_key_into_tenant_coordinates(self) -> None:
-        account, project, sha = sync_efs_writer.parse_tarball_object_key("acct/proj/abc123.tar.gz")
+        account, project, sha = sync_git_lib.parse_tarball_object_key("acct/proj/abc123.tar.gz")
         self.assertEqual(account, "acct")
         self.assertEqual(project, "proj")
         self.assertEqual(sha, "abc123")
 
     @patch.object(sync_efs_writer, "_s3_client")
-    @patch.object(sync_efs_writer, "publish_sync_event")
+    @patch.object(sync_efs_writer, "write_completion_marker")
     @patch.object(sync_efs_writer, "extract_tarball_to_tenant_root")
-    def test_processes_s3_record_extracts_and_publishes(
+    def test_processes_s3_record_extracts_and_writes_marker(
         self,
         extract_tarball: MagicMock,
-        publish_event: MagicMock,
+        write_marker: MagicMock,
         s3_client_factory: MagicMock,
     ) -> None:
         s3_client = MagicMock()
@@ -209,7 +211,147 @@ class EfsWriterHandlerTests(unittest.TestCase):
             result = sync_efs_writer.handler(event, None)
             self.assertEqual(result["status"], "ok")
             extract_tarball.assert_called_once()
-            publish_event.assert_called_once_with("acct", "proj", "abc123", "refs/heads/dev")
+            write_marker.assert_called_once_with(
+                "kanbus-sync-test",
+                "acct",
+                "proj",
+                "abc123",
+                "refs/heads/dev",
+            )
+
+    @patch.object(sync_efs_writer, "_s3_client")
+    def test_writes_completion_marker_with_expected_payload(self, s3_client_factory: MagicMock) -> None:
+        s3_client = MagicMock()
+        s3_client_factory.return_value = s3_client
+
+        sync_efs_writer.write_completion_marker(
+            "kanbus-sync-test",
+            "acct",
+            "proj",
+            "abc123",
+            "refs/heads/dev",
+        )
+
+        s3_client.put_object.assert_called_once()
+        call_kwargs = s3_client.put_object.call_args.kwargs
+        self.assertEqual(call_kwargs["Bucket"], "kanbus-sync-test")
+        self.assertEqual(call_kwargs["Key"], "acct/proj/abc123.synced.json")
+        self.assertEqual(
+            json.loads(call_kwargs["Body"].decode("utf-8")),
+            {
+                "type": "cloud_sync_completed",
+                "account": "acct",
+                "project": "proj",
+                "ref": "refs/heads/dev",
+                "sha": "abc123",
+            },
+        )
+
+
+class SyncNotifyHandlerTests(unittest.TestCase):
+    """Validate sync notify marker handling and IoT publish flow."""
+
+    def test_parses_completion_marker_key(self) -> None:
+        account, project, sha = sync_git_lib.parse_completion_marker_key(
+            "acct/proj/abc123.synced.json"
+        )
+        self.assertEqual(account, "acct")
+        self.assertEqual(project, "proj")
+        self.assertEqual(sha, "abc123")
+
+    @patch.object(sync_notify, "publish_sync_event")
+    @patch.object(sync_notify, "_tarball_exists")
+    @patch.object(sync_notify, "_load_marker_payload")
+    def test_processes_marker_and_publishes_iot(
+        self,
+        load_marker: MagicMock,
+        tarball_exists: MagicMock,
+        publish_event: MagicMock,
+    ) -> None:
+        load_marker.return_value = {
+            "type": "cloud_sync_completed",
+            "account": "acct",
+            "project": "proj",
+            "ref": "refs/heads/dev",
+            "sha": "abc123",
+        }
+        tarball_exists.return_value = True
+        event = {
+            "Records": [
+                {
+                    "s3": {
+                        "bucket": {"name": "kanbus-sync-test"},
+                        "object": {"key": "acct/proj/abc123.synced.json"},
+                    }
+                }
+            ]
+        }
+
+        result = sync_notify.handler(event, None)
+        self.assertEqual(result["status"], "ok")
+        publish_event.assert_called_once_with("acct", "proj", "abc123", "refs/heads/dev")
+
+    @patch.object(sync_notify, "publish_sync_event")
+    @patch.object(sync_notify, "_tarball_exists")
+    @patch.object(sync_notify, "_load_marker_payload")
+    def test_missing_tarball_blocks_iot_publish(
+        self,
+        load_marker: MagicMock,
+        tarball_exists: MagicMock,
+        publish_event: MagicMock,
+    ) -> None:
+        load_marker.return_value = {
+            "type": "cloud_sync_completed",
+            "account": "acct",
+            "project": "proj",
+            "ref": "refs/heads/dev",
+            "sha": "abc123",
+        }
+        tarball_exists.return_value = False
+        event = {
+            "Records": [
+                {
+                    "s3": {
+                        "bucket": {"name": "kanbus-sync-test"},
+                        "object": {"key": "acct/proj/abc123.synced.json"},
+                    }
+                }
+            ]
+        }
+
+        with self.assertRaises(ValueError):
+            sync_notify.handler(event, None)
+        publish_event.assert_not_called()
+
+
+class SyncIotPublishTests(unittest.TestCase):
+    """Validate IoT publish payload shape."""
+
+    @patch("sync_iot_publish.boto3.client")
+    def test_publish_sync_event_uses_expected_topic_and_payload(self, boto_client: MagicMock) -> None:
+        iot_data = MagicMock()
+        boto_client.return_value = iot_data
+        os.environ["KANBUS_IOT_DATA_ENDPOINT"] = "iot.example.amazonaws.com"
+
+        sync_iot_publish.publish_sync_event("acct", "proj", "abc123", "refs/heads/dev")
+
+        boto_client.assert_called_once_with(
+            "iot-data",
+            endpoint_url="https://iot.example.amazonaws.com",
+        )
+        iot_data.publish.assert_called_once()
+        call_kwargs = iot_data.publish.call_args.kwargs
+        self.assertEqual(call_kwargs["topic"], "projects/acct/proj/events")
+        self.assertEqual(
+            json.loads(call_kwargs["payload"].decode("utf-8")),
+            {
+                "type": "cloud_sync_completed",
+                "account": "acct",
+                "project": "proj",
+                "ref": "refs/heads/dev",
+                "sha": "abc123",
+            },
+        )
 
 
 if __name__ == "__main__":

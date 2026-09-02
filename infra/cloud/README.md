@@ -15,7 +15,8 @@ This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 - IoT Core custom authorizer for CLI MQTT API-token auth
 - GitHub webhook ingress Lambda (`/internal/webhooks/github`) + SQS + DLQ
 - Git sync Lambda (non-VPC, GitHub clone/fetch, uploads tarball to S3)
-- EFS writer Lambda (VPC-isolated, extracts S3 tarball to EFS, publishes IoT events)
+- EFS writer Lambda (VPC-isolated, extracts S3 tarball to EFS, writes S3 completion marker)
+- Sync notify Lambda (non-VPC, publishes IoT events from completion markers)
 - Token admin Lambda API (`/api/tokens`) for create/list/revoke
 - AWS IoT Data endpoint discovery output
 
@@ -150,7 +151,7 @@ The script enforces gates in order:
 3. Unauthenticated API/auth contracts.
 4. Authenticated tenant isolation + SSE endpoint.
 5. Token admin + authorizer + CLI parity.
-6. Webhook -> SQS -> git sync Lambda -> S3 -> EFS writer -> IoT event.
+6. Webhook -> SQS -> git sync Lambda -> S3 tarball -> EFS writer -> S3 marker -> sync notify -> IoT event.
 7. Browser realtime hard gate (MQTT primary, no SSE-only pass).
 
 ## Cross-Mac realtime operator flow

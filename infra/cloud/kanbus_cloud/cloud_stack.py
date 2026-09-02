@@ -412,10 +412,30 @@ class KanbusCloudFoundationStack(Stack):
                 "KANBUS_TENANT_MOUNT": "/mnt/data",
                 "KANBUS_SYNC_BUCKET": sync_bucket.bucket_name,
             },
-            description="Extract S3 sync tarballs to tenant EFS and publish IoT events",
+            description="Extract S3 sync tarballs to tenant EFS and write completion markers",
         )
-        sync_bucket.grant_read(efs_writer_lambda)
-        efs_writer_lambda.add_to_role_policy(
+        sync_bucket.grant_read_write(efs_writer_lambda)
+        sync_bucket.add_event_notification(
+            s3.EventType.OBJECT_CREATED,
+            s3n.LambdaDestination(efs_writer_lambda),
+            s3.NotificationKeyFilter(suffix=".tar.gz"),
+        )
+
+        sync_notify_lambda = lambda_.Function(
+            self,
+            "SyncNotifyLambda",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="sync_notify.handler",
+            code=lambda_.Code.from_asset(str(lambda_code_directory)),
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment={
+                "KANBUS_SYNC_BUCKET": sync_bucket.bucket_name,
+            },
+            description="Publish IoT sync completion events from S3 completion markers",
+        )
+        sync_bucket.grant_read(sync_notify_lambda)
+        sync_notify_lambda.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["iot:Publish"],
                 resources=[
@@ -425,8 +445,8 @@ class KanbusCloudFoundationStack(Stack):
         )
         sync_bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
-            s3n.LambdaDestination(efs_writer_lambda),
-            s3.NotificationKeyFilter(suffix=".tar.gz"),
+            s3n.LambdaDestination(sync_notify_lambda),
+            s3.NotificationKeyFilter(suffix=".synced.json"),
         )
 
         token_table = dynamodb.Table(
@@ -623,6 +643,17 @@ class KanbusCloudFoundationStack(Stack):
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
         )
 
+        sync_notify_errors_alarm = cloudwatch.Alarm(
+            self,
+            "SyncNotifyLambdaErrorsAlarm",
+            alarm_name=f"kanbus-sync-notify-errors-{env_name}",
+            alarm_description="Kanbus sync notify lambda is reporting errors",
+            metric=sync_notify_lambda.metric_errors(period=Duration.minutes(5)),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
         token_admin_errors_alarm = cloudwatch.Alarm(
             self,
             "TokenAdminLambdaErrorsAlarm",
@@ -697,7 +728,7 @@ class KanbusCloudFoundationStack(Stack):
         console_lambda.add_environment(
             "KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME", mqtt_token_authorizer.authorizer_name
         )
-        efs_writer_lambda.add_environment(
+        sync_notify_lambda.add_environment(
             "KANBUS_IOT_DATA_ENDPOINT", iot_endpoint.get_response_field("endpointAddress")
         )
 

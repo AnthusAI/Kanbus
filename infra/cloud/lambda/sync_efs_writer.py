@@ -1,4 +1,4 @@
-"""VPC-isolated EFS writer lambda: extract S3 tarballs and publish IoT sync events."""
+"""VPC-isolated EFS writer lambda: extract S3 tarballs and write completion markers."""
 
 import fcntl
 import json
@@ -11,35 +11,21 @@ from urllib.parse import unquote_plus
 
 import boto3
 
-IOT_TOPIC_TEMPLATE = "projects/{account}/{project}/events"
+from sync_git_lib import completion_marker_object_key, parse_tarball_object_key
 
 
 def _s3_client():
     return boto3.client("s3")
 
 
-def parse_tarball_object_key(object_key: str) -> tuple[str, str, str]:
+def completion_marker_payload(
+    account: str,
+    project: str,
+    sha: str,
+    ref: str | None,
+) -> dict[str, str | None]:
     """
-    Parse tenant coordinates and SHA from an S3 tarball object key.
-
-    :param object_key: S3 object key formatted as ``{account}/{project}/{sha}.tar.gz``.
-    :type object_key: str
-    :return: Tuple of account, project, and SHA.
-    :rtype: tuple[str, str, str]
-    :raises ValueError: When the key format is unexpected.
-    """
-    segments = object_key.split("/")
-    if len(segments) != 3 or not segments[2].endswith(".tar.gz"):
-        raise ValueError(f"unexpected s3 key: {object_key}")
-    account = segments[0]
-    project = segments[1]
-    sha = segments[2][: -len(".tar.gz")]
-    return account, project, sha
-
-
-def publish_sync_event(account: str, project: str, sha: str, ref: str | None) -> None:
-    """
-    Publish a cloud sync completion event to the tenant IoT topic.
+    Build the JSON payload stored in an S3 completion marker.
 
     :param account: Tenant account identifier.
     :type account: str
@@ -49,22 +35,42 @@ def publish_sync_event(account: str, project: str, sha: str, ref: str | None) ->
     :type sha: str
     :param ref: Git ref from sync metadata, if present.
     :type ref: str | None
+    :return: Completion marker body fields.
+    :rtype: dict[str, str | None]
     """
-    endpoint = os.environ.get("KANBUS_IOT_DATA_ENDPOINT", "")
-    iot_data = (
-        boto3.client("iot-data", endpoint_url=f"https://{endpoint}")
-        if endpoint
-        else boto3.client("iot-data")
-    )
-    topic = IOT_TOPIC_TEMPLATE.format(account=account, project=project)
-    payload = {
+    return {
         "type": "cloud_sync_completed",
         "account": account,
         "project": project,
         "ref": ref,
         "sha": sha,
     }
-    iot_data.publish(topic=topic, qos=0, payload=json.dumps(payload).encode("utf-8"))
+
+
+def write_completion_marker(
+    bucket_name: str,
+    account: str,
+    project: str,
+    sha: str,
+    ref: str | None,
+) -> None:
+    """
+    Write an S3 completion marker after a successful EFS extract.
+
+    :param bucket_name: Sync tarball bucket name.
+    :type bucket_name: str
+    :param account: Tenant account identifier.
+    :type account: str
+    :param project: Tenant project identifier.
+    :type project: str
+    :param sha: Synced commit SHA.
+    :type sha: str
+    :param ref: Git ref from sync metadata, if present.
+    :type ref: str | None
+    """
+    object_key = completion_marker_object_key(account, project, sha)
+    body = json.dumps(completion_marker_payload(account, project, sha, ref)).encode("utf-8")
+    _s3_client().put_object(Bucket=bucket_name, Key=object_key, Body=body)
 
 
 def extract_tarball_to_tenant_root(tarball_path: Path, tenant_root: Path) -> None:
@@ -112,6 +118,6 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             with lock_path.open("w") as lock_file:
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
                 extract_tarball_to_tenant_root(tarball_path, tenant_root)
-                publish_sync_event(account, project, sha, ref)
+                write_completion_marker(bucket_name, account, project, sha, ref)
 
     return {"status": "ok"}

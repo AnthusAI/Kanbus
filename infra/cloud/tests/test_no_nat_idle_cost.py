@@ -84,6 +84,66 @@ class NoNatIdleCostTemplateTests(unittest.TestCase):
         self.assertIn("VpcConfig", properties)
         self.assertIn("FileSystemConfigs", properties)
 
+    def test_efs_writer_has_no_iot_permissions(self) -> None:
+        template = self._template()
+        rendered = self._resources(template)
+        writer_policies = [
+            json.dumps(resource.get("Properties", {}))
+            for logical_id, resource in rendered.items()
+            if logical_id.startswith("EfsWriterLambda") and resource["Type"] == "AWS::IAM::Policy"
+        ]
+        self.assertTrue(writer_policies)
+        serialized = " ".join(writer_policies)
+        self.assertNotIn("iot:", serialized)
+
+    def test_efs_writer_has_no_iot_endpoint_env(self) -> None:
+        template = self._template()
+        rendered = self._resources(template)
+        writer_functions = [
+            resource
+            for logical_id, resource in rendered.items()
+            if logical_id.startswith("EfsWriterLambda")
+            and resource["Type"] == "AWS::Lambda::Function"
+        ]
+        environment = writer_functions[0]["Properties"].get("Environment", {}).get("Variables", {})
+        self.assertNotIn("KANBUS_IOT_DATA_ENDPOINT", environment)
+
+    def test_sync_notify_lambda_not_in_vpc(self) -> None:
+        template = self._template()
+        rendered = self._resources(template)
+        notify_functions = [
+            resource
+            for logical_id, resource in rendered.items()
+            if logical_id.startswith("SyncNotifyLambda")
+            and resource["Type"] == "AWS::Lambda::Function"
+        ]
+        self.assertEqual(len(notify_functions), 1)
+        self.assertNotIn("VpcConfig", notify_functions[0]["Properties"])
+
+    def test_sync_notify_lambda_has_iot_publish(self) -> None:
+        template = self._template()
+        rendered = self._resources(template)
+        notify_policies = [
+            json.dumps(resource.get("Properties", {}))
+            for logical_id, resource in rendered.items()
+            if logical_id.startswith("SyncNotifyLambda") and resource["Type"] == "AWS::IAM::Policy"
+        ]
+        self.assertTrue(notify_policies)
+        serialized = " ".join(notify_policies)
+        self.assertIn("iot:Publish", serialized)
+        self.assertIn("projects/*/*/events", serialized)
+
+    def test_zero_interface_vpc_endpoints(self) -> None:
+        template = self._template()
+        rendered = self._resources(template)
+        vpc_endpoints = [
+            resource
+            for resource in rendered.values()
+            if resource["Type"] == "AWS::EC2::VPCEndpoint"
+        ]
+        self.assertEqual(len(vpc_endpoints), 1)
+        self.assertEqual(vpc_endpoints[0]["Properties"]["VpcEndpointType"], "Gateway")
+
     def test_s3_gateway_endpoint_present(self) -> None:
         template = self._template()
         template.has_resource_properties(
@@ -130,25 +190,30 @@ class NoNatIdleCostTemplateTests(unittest.TestCase):
     def test_s3_object_created_triggers_efs_writer_lambda(self) -> None:
         template = self._template()
         rendered = self._resources(template)
-        bucket_notifications = [
+        lambda_permissions = [
             resource
-            for resource in rendered.values()
-            if resource["Type"] == "Custom::S3BucketNotifications"
-            or (
-                resource["Type"] == "AWS::S3::Bucket"
-                and "NotificationConfiguration" in resource.get("Properties", {})
-            )
+            for logical_id, resource in rendered.items()
+            if resource["Type"] == "AWS::Lambda::Permission"
+            and resource["Properties"].get("Principal") == "s3.amazonaws.com"
+            and "EfsWriterLambda" in json.dumps(resource["Properties"].get("FunctionName", ""))
         ]
-        self.assertTrue(bucket_notifications)
+        self.assertEqual(len(lambda_permissions), 1)
+
+    def test_s3_object_created_triggers_sync_notify_lambda(self) -> None:
+        template = self._template()
+        rendered = self._resources(template)
         lambda_permissions = [
             resource
             for logical_id, resource in rendered.items()
             if resource["Type"] == "AWS::Lambda::Permission"
             and resource["Properties"].get("Principal") == "s3.amazonaws.com"
         ]
-        self.assertEqual(len(lambda_permissions), 1)
-        function_name = json.dumps(lambda_permissions[0]["Properties"]["FunctionName"])
-        self.assertIn("EfsWriterLambda", function_name)
+        self.assertEqual(len(lambda_permissions), 2)
+        serialized = json.dumps(
+            [permission["Properties"].get("FunctionName", "") for permission in lambda_permissions]
+        )
+        self.assertIn("EfsWriterLambda", serialized)
+        self.assertIn("SyncNotifyLambda", serialized)
 
     def test_efs_security_group_restricts_nfs_to_console_and_writer(self) -> None:
         template = self._template()

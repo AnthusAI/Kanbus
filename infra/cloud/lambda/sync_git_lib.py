@@ -60,6 +60,60 @@ def tarball_object_key(account: str, project: str, sha: str) -> str:
     return f"{account}/{project}/{sha}.tar.gz"
 
 
+def completion_marker_object_key(account: str, project: str, sha: str) -> str:
+    """
+    Build the S3 object key for a tenant sync completion marker.
+
+    :param account: Tenant account identifier.
+    :type account: str
+    :param project: Tenant project identifier.
+    :type project: str
+    :param sha: Git commit SHA written to EFS.
+    :type sha: str
+    :return: S3 object key ending in ``.synced.json``.
+    :rtype: str
+    """
+    return f"{account}/{project}/{sha}.synced.json"
+
+
+def parse_tarball_object_key(object_key: str) -> tuple[str, str, str]:
+    """
+    Parse tenant coordinates and SHA from an S3 tarball object key.
+
+    :param object_key: S3 object key formatted as ``{account}/{project}/{sha}.tar.gz``.
+    :type object_key: str
+    :return: Tuple of account, project, and SHA.
+    :rtype: tuple[str, str, str]
+    :raises ValueError: When the key format is unexpected.
+    """
+    segments = object_key.split("/")
+    if len(segments) != 3 or not segments[2].endswith(".tar.gz"):
+        raise ValueError(f"unexpected s3 key: {object_key}")
+    account = segments[0]
+    project = segments[1]
+    sha = segments[2][: -len(".tar.gz")]
+    return account, project, sha
+
+
+def parse_completion_marker_key(object_key: str) -> tuple[str, str, str]:
+    """
+    Parse tenant coordinates and SHA from an S3 completion marker key.
+
+    :param object_key: S3 object key formatted as ``{account}/{project}/{sha}.synced.json``.
+    :type object_key: str
+    :return: Tuple of account, project, and SHA.
+    :rtype: tuple[str, str, str]
+    :raises ValueError: When the key format is unexpected.
+    """
+    segments = object_key.split("/")
+    if len(segments) != 3 or not segments[2].endswith(".synced.json"):
+        raise ValueError(f"unexpected s3 key: {object_key}")
+    account = segments[0]
+    project = segments[1]
+    sha = segments[2][: -len(".synced.json")]
+    return account, project, sha
+
+
 def _run(command: list[str], working_directory: Path | None = None) -> None:
     subprocess.run(
         command,
