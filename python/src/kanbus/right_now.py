@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
-from kanbus.issue_listing import list_issues
+from kanbus.issue_listing import IssueListingError, list_issues
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueComment, IssueData, ProjectConfiguration
 from kanbus.overlay import load_overlay_issue, overlay_issue_path, write_overlay_issue
@@ -343,20 +343,26 @@ def regenerate_right_now_for_issue(root: Path, issue_identifier: str) -> None:
     except IssueLookupError:
         return
     issue = lookup.issue
-    children = load_child_issues(root, issue_identifier)
+    try:
+        children = load_child_issues(root, issue_identifier)
+    except IssueListingError:
+        return
     context = build_right_now_context(issue, children)
     try:
         summary = generate_right_now_summary(root, issue, context)
     except RightNowError:
         return
     current_time = datetime.now(timezone.utc)
-    persist_right_now_summary(
-        lookup.project_dir,
-        lookup.issue_path,
-        issue.identifier,
-        summary,
-        current_time,
-    )
+    try:
+        persist_right_now_summary(
+            lookup.project_dir,
+            lookup.issue_path,
+            issue.identifier,
+            summary,
+            current_time,
+        )
+    except OSError:
+        return
 
 
 def regenerate_right_now_for_issue_and_ancestors(

@@ -3,10 +3,40 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 
-from behave import then
+from behave import given, then
 
 from features.steps.output_steps import _strip_ansi
+from features.steps.shared import build_issue, load_project_directory, write_issue_file
+
+
+@given('{count:d} issues exist with identifier prefix "{prefix}"')
+def given_issues_with_identifier_prefix(
+    context: object, count: int, prefix: str
+) -> None:
+    """Create sequentially timestamped issues for default-limit coverage.
+
+    Newer issues use lower sequence numbers so the highest suffix is oldest
+    and falls outside the default right-now cap of 30.
+
+    :param context: Behave context object.
+    :type context: object
+    :param count: Number of issues to create.
+    :type count: int
+    :param prefix: Identifier prefix before the numeric suffix.
+    :type prefix: str
+    """
+    project_dir = load_project_directory(context)
+    newest = datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc)
+    for index in range(1, count + 1):
+        identifier = f"{prefix}-{index}"
+        issue = build_issue(identifier, f"Many issue {index}", "task", "open", None, [])
+        updated_at = newest - timedelta(minutes=index)
+        issue = issue.model_copy(
+            update={"updated_at": updated_at, "created_at": updated_at}
+        )
+        write_issue_file(project_dir, issue)
 
 
 @then("stdout should be valid JSON")

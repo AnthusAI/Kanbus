@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Duration, TimeZone, Utc};
 use cucumber::{given, then, when};
 use serde_yaml::{Mapping, Value};
 
@@ -36,6 +36,37 @@ fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
         .join(format!("{}.json", issue.identifier));
     let contents = serde_json::to_string_pretty(issue).expect("serialize issue");
     fs::write(issue_path, contents).expect("write issue");
+}
+
+#[given(expr = "{int} issues exist with identifier prefix {string}")]
+fn given_issues_with_identifier_prefix(world: &mut KanbusWorld, count: i32, prefix: String) {
+    let project_dir = load_project_dir(world);
+    let newest = Utc.with_ymd_and_hms(2026, 3, 1, 12, 0, 0).unwrap();
+    for index in 1..=count {
+        let identifier = format!("{prefix}-{index}");
+        let updated_at = newest - Duration::minutes(i64::from(index));
+        let issue = IssueData {
+            identifier,
+            title: format!("Many issue {index}"),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: updated_at,
+            updated_at,
+            closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: std::collections::BTreeMap::new(),
+        };
+        write_issue_file(&project_dir, &issue);
+    }
 }
 
 #[given(expr = "issue {string} has right now summary {string}")]

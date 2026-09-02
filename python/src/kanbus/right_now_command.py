@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from kanbus.config_loader import load_project_configuration
 from kanbus.issue_listing import list_issues
+from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.queries import sort_issues_by_recently_updated
@@ -17,6 +18,17 @@ from kanbus.right_now import get_right_now_summary
 
 RIGHT_NOW_PLACEHOLDER = "(no right-now summary)"
 DEFAULT_RIGHT_NOW_LIMIT = 30
+CANNOT_COMBINE_ALL_WITH_LIMIT = "cannot combine --all with --limit"
+CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS = (
+    "cannot combine --all with issue identifiers"
+)
+NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS = (
+    "--no-recursive requires one or more issue identifiers"
+)
+
+
+class RightNowCommandError(RuntimeError):
+    """Raised when right-now CLI options or selection fail."""
 
 
 @dataclass(frozen=True)
@@ -24,7 +36,8 @@ class RightNowCommandOptions:
     """Options for the right-now CLI command.
 
     :param limit: Maximum number of issues to include after sorting.
-    :type limit: int
+        ``None`` uses the default board cap unless identifiers or ``show_all``.
+    :type limit: Optional[int]
     :param tree: Whether to render a hierarchical tree.
     :type tree: bool
     :param expanded: Whether tree nodes default to expanded markers.
@@ -35,14 +48,23 @@ class RightNowCommandOptions:
     :type raw: bool
     :param as_json: Whether to emit JSON output.
     :type as_json: bool
+    :param show_all: Whether to list every issue without the default cap.
+    :type show_all: bool
+    :param recursive: Whether to include descendants of selected issues.
+    :type recursive: bool
+    :param issue_ids: Optional issue identifiers to select.
+    :type issue_ids: tuple[str, ...]
     """
 
-    limit: int = DEFAULT_RIGHT_NOW_LIMIT
-    tree: bool = False
+    limit: Optional[int] = None
+    tree: bool = True
     expanded: bool = False
     collapsed: bool = False
     raw: bool = False
     as_json: bool = False
+    show_all: bool = False
+    recursive: bool = True
+    issue_ids: tuple[str, ...] = ()
 
 
 def run_right_now_command(
@@ -58,11 +80,14 @@ def run_right_now_command(
     :return: Formatted CLI output.
     :rtype: str
     :raises IssueListingError: When issue listing fails.
+    :raises RightNowCommandError: When options conflict or selection fails.
     """
-    issues = list_issues(root)
+    _validate_right_now_options(options)
+    issues = _select_right_now_issues(root, options)
     sorted_issues = sort_issues_by_recently_updated(issues)
-    if options.limit > 0:
-        sorted_issues = sorted_issues[: options.limit]
+    effective_limit = _effective_right_now_limit(options)
+    if effective_limit > 0:
+        sorted_issues = sorted_issues[:effective_limit]
     configuration = _load_configuration(root)
     tree_expanded = _resolve_tree_expanded(options, configuration)
     if options.as_json:
@@ -88,6 +113,65 @@ def run_right_now_command(
         for line in _render_flat_issue(issue, raw=options.raw)
     ]
     return "\n".join(lines) + ("\n" if lines else "")
+
+
+def _validate_right_now_options(options: RightNowCommandOptions) -> None:
+    if options.show_all and options.limit is not None:
+        raise RightNowCommandError(CANNOT_COMBINE_ALL_WITH_LIMIT)
+    if options.show_all and options.issue_ids:
+        raise RightNowCommandError(CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS)
+    if not options.recursive and not options.issue_ids:
+        raise RightNowCommandError(NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS)
+
+
+def _effective_right_now_limit(options: RightNowCommandOptions) -> int:
+    if options.show_all:
+        return 0
+    if options.issue_ids:
+        return options.limit if options.limit is not None else 0
+    if options.limit is None:
+        return DEFAULT_RIGHT_NOW_LIMIT
+    return options.limit
+
+
+def _select_right_now_issues(
+    root: Path,
+    options: RightNowCommandOptions,
+) -> List[IssueData]:
+    issues = list_issues(root)
+    if not options.issue_ids:
+        return issues
+    issues_by_identifier: Dict[str, IssueData] = {
+        issue.identifier: issue for issue in issues
+    }
+    selected_identifiers: List[str] = []
+    for raw_identifier in options.issue_ids:
+        try:
+            lookup = load_issue_from_project(root, raw_identifier)
+        except IssueLookupError as error:
+            raise RightNowCommandError(str(error)) from error
+        identifier = lookup.issue.identifier
+        issues_by_identifier.setdefault(identifier, lookup.issue)
+        selected_identifiers.append(identifier)
+    selected: set[str] = set(selected_identifiers)
+    if options.recursive:
+        children_by_parent: Dict[str, List[str]] = {}
+        for issue in issues_by_identifier.values():
+            if issue.parent is None:
+                continue
+            children_by_parent.setdefault(issue.parent, []).append(issue.identifier)
+        queue = list(selected)
+        while queue:
+            current = queue.pop()
+            for child_identifier in children_by_parent.get(current, []):
+                if child_identifier not in selected:
+                    selected.add(child_identifier)
+                    queue.append(child_identifier)
+    return [
+        issues_by_identifier[identifier]
+        for identifier in selected
+        if identifier in issues_by_identifier
+    ]
 
 
 def _load_configuration(root: Path) -> Optional[ProjectConfiguration]:

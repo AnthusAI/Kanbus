@@ -207,6 +207,7 @@ Given(
       default_tree_expanded: expected.toLowerCase() === "true"
     };
     await saveKanbusConfigFile(config);
+    await refreshIssuesSnapshot();
   }
 );
 
@@ -249,12 +250,13 @@ Given("35 status issues exist with sequential update times", async function () {
     const title = `Status issue ${index + 1}`;
     const id = nextStatusId(this);
     statusIndex(this)[title] = id;
-    const day = String(index + 1).padStart(2, "0");
+    const updatedAt = new Date(Date.UTC(2026, 0, 1, 10, 0, 0));
+    updatedAt.setUTCDate(updatedAt.getUTCDate() + index);
     await writeStatusIssue(
       buildStatusIssue({
         id,
         title,
-        updatedAt: `2026-01-${day}T10:00:00.000Z`
+        updatedAt: updatedAt.toISOString()
       })
     );
   }
@@ -288,6 +290,10 @@ When(
     issue.right_now_summary = summary;
     issue.right_now_updated_at = issue.updated_at ?? issue.created_at;
     await writeStatusIssue(issue);
+    await waitForIssueField(
+      issue.id,
+      (entry) => entry.right_now_summary === summary
+    );
     await expect
       .poll(async () => feedRow(this.page, title).getByTestId("status-feed-summary").textContent(), {
         timeout: 8000

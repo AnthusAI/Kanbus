@@ -319,6 +319,61 @@ def test_regenerate_skips_missing_issue_and_generation_errors(
     regenerate_right_now_for_issue(tmp_path, "kanbus-offline")
 
 
+def test_regenerate_skips_when_child_listing_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from kanbus.issue_listing import IssueListingError
+
+    enabled = build_project_configuration()
+    monkeypatch.setattr("kanbus.right_now._load_configuration", lambda _root: enabled)
+    issue = build_issue("kanbus-list")
+    issue.right_now_summary = "Previous summary."
+    issue_path = tmp_path / "project" / "issues" / "kanbus-list.json"
+    issue_path.parent.mkdir(parents=True)
+    write_issue_to_file(issue, issue_path)
+    lookup = SimpleNamespace(
+        issue=issue,
+        issue_path=issue_path,
+        project_dir=tmp_path / "project",
+    )
+    monkeypatch.setattr("kanbus.right_now.load_issue_from_project", lambda *_a: lookup)
+    monkeypatch.setattr(
+        "kanbus.right_now.load_child_issues",
+        lambda *_a: (_ for _ in ()).throw(
+            IssueListingError("daemon connection failed")
+        ),
+    )
+    regenerate_right_now_for_issue(tmp_path, "kanbus-list")
+    stored = read_issue_from_file(issue_path)
+    assert stored.right_now_summary == "Previous summary."
+
+
+def test_regenerate_skips_when_persist_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    enabled = build_project_configuration()
+    monkeypatch.setattr("kanbus.right_now._load_configuration", lambda _root: enabled)
+    issue = build_issue("kanbus-persist")
+    issue.right_now_summary = "Previous summary."
+    lookup = SimpleNamespace(
+        issue=issue,
+        issue_path=tmp_path / "project" / "issues" / "kanbus-persist.json",
+        project_dir=tmp_path / "project",
+    )
+    monkeypatch.setattr("kanbus.right_now.load_issue_from_project", lambda *_a: lookup)
+    monkeypatch.setattr("kanbus.right_now.load_child_issues", lambda *_a: [])
+    monkeypatch.setattr(
+        "kanbus.right_now.generate_right_now_summary",
+        lambda *_a: "Should not persist.",
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now.persist_right_now_summary",
+        lambda *_a: (_ for _ in ()).throw(OSError("disk full")),
+    )
+    regenerate_right_now_for_issue(tmp_path, "kanbus-persist")
+    assert issue.right_now_summary == "Previous summary."
+
+
 def test_completion_requires_litellm_and_handles_empty_and_usage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

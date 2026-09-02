@@ -110,7 +110,11 @@ from kanbus.right_now import (
     build_leaf_right_now_context,
     generate_right_now_summary,
 )
-from kanbus.right_now_command import RightNowCommandOptions, run_right_now_command
+from kanbus.right_now_command import (
+    RightNowCommandError,
+    RightNowCommandOptions,
+    run_right_now_command,
+)
 
 
 def _deprecated_console_control(command: str) -> click.ClickException:
@@ -2598,15 +2602,21 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
 
 
 @cli.command("now")
-@click.option("--limit", default=30, show_default=True, type=int)
-@click.option("--tree", is_flag=True, default=False)
+@click.argument("issue_ids", nargs=-1)
+@click.option("--limit", default=None, type=int)
+@click.option("--all", "show_all", is_flag=True, default=False)
+@click.option("--list", "as_list", is_flag=True, default=False)
+@click.option("--no-recursive", is_flag=True, default=False)
 @click.option("--expanded", is_flag=True, default=False)
 @click.option("--collapsed", is_flag=True, default=False)
 @click.option("--raw", is_flag=True, default=False)
 @click.option("--json", "as_json", is_flag=True, default=False)
 def right_now_command(
-    limit: int,
-    tree: bool,
+    issue_ids: tuple[str, ...],
+    limit: int | None,
+    show_all: bool,
+    as_list: bool,
+    no_recursive: bool,
     expanded: bool,
     collapsed: bool,
     raw: bool,
@@ -2617,25 +2627,31 @@ def right_now_command(
     \b
 
     Examples:
-      kbs now                          list recently-updated issues with summaries
-      kbs now --limit 10               limit to 10 most recent
-      kbs now --tree                    show the hierarchy (initiative > epic > task)
-      kbs now --tree --expanded         expand all tree nodes by default
-      kbs now --json                    machine-readable JSON for agents
-      kbs now --raw                     titles only, no summaries
+      kbs now                          tree of recently-updated issues (cap 30)
+      kbs now --list                   reverse-chronological list
+      kbs now --all                    every issue as a tree
+      kbs now --limit 10               10 most recently updated
+      kbs now kbs-abc                  issue and descendants as a tree
+      kbs now kbs-abc --no-recursive   that issue only
+      kbs now kbs-abc --list           descendants as a flat list
+      kbs now --json                   machine-readable JSON for agents
+      kbs now --raw                    titles only, no summaries
     """
     root = Path.cwd()
     options = RightNowCommandOptions(
         limit=limit,
-        tree=tree,
+        tree=not as_list,
         expanded=expanded,
         collapsed=collapsed,
         raw=raw,
         as_json=as_json,
+        show_all=show_all,
+        recursive=not no_recursive,
+        issue_ids=issue_ids,
     )
     try:
         output = run_right_now_command(root, options)
-    except IssueListingError as error:
+    except (IssueListingError, RightNowCommandError) as error:
         raise click.ClickException(str(error)) from error
     click.echo(output, nl=not output.endswith("\n"))
 
