@@ -3,7 +3,7 @@
   "title": "CI: console-ui steps, clippy, and embedded assets",
   "description": "GitHub CI failed python/rust/console-ui on the right-now PR. Implement Playwright steps for Current Status, keep cargo package from failing on rebuilt console assets, and keep format/clippy gates green.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -19,11 +19,20 @@
       "comment_type": "default",
       "data": {},
       "agent": null
+    },
+    {
+      "id": "490110c2-2413-4c2b-b909-9ccbc4890c80",
+      "author": "home",
+      "text": "Close without a product PR. Card gates (console-ui, python, rust, binary-smoke) are green on PR 207 CI run 33678530845 after 207/208. Remaining red jobs are performance flake and coverage-ratchet, out of this card. Playwright Current Status coverage already on develop.",
+      "created_at": "2026-09-02T20:38:28.134323Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
     }
   ],
   "created_at": "2026-09-02T17:46:55.262345Z",
-  "updated_at": "2026-09-02T20:25:06.598299Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T20:38:29.204036Z",
+  "closed_at": "2026-09-02T20:38:29.152971Z",
   "right_now_summary": "The team is adding Playwright coverage and fixing asset packaging, formatting, and Clippy checks.",
   "right_now_updated_at": "2026-09-02T17:47:14.343330Z",
   "custom": {},
