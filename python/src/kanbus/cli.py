@@ -105,6 +105,11 @@ from kanbus.hooks import (
     serialize_issue,
     validate_hooks,
 )
+from kanbus.right_now import (
+    RightNowError,
+    build_leaf_right_now_context,
+    generate_right_now_summary,
+)
 
 
 def _deprecated_console_control(command: str) -> click.ClickException:
@@ -3128,6 +3133,29 @@ def stories_alias(context: click.Context) -> None:
 def bugs_alias(context: click.Context) -> None:
     """Alias for: kbs list --type bug"""
     context.invoke(list_command, issue_type="bug")
+
+
+@cli.group("right-now", hidden=True)
+def right_now_group() -> None:
+    """Hidden right-now summary commands for runtime delegation."""
+
+
+@right_now_group.command("generate-internal", hidden=True)
+@click.argument("issue_id")
+def right_now_generate_internal(issue_id: str) -> None:
+    """Generate a right-now summary for internal runtime delegation."""
+    root = Path.cwd()
+    try:
+        lookup = load_issue_from_project(root, issue_id)
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+    issue = lookup.issue
+    context = build_leaf_right_now_context(issue)
+    try:
+        summary = generate_right_now_summary(root, issue, context)
+    except RightNowError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(summary)
 
 
 if __name__ == "__main__":

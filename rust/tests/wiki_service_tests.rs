@@ -93,6 +93,8 @@ beads_compatibility: false
         created_at: Utc::now(),
         updated_at: Utc::now(),
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     };
     write_issue_to_file(&issue, &issues_dir.join("kanbus-1.json")).expect("write issue");
