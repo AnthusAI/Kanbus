@@ -1,0 +1,23 @@
+{
+  "id": "kbs-ec5db23f-0ed4-40d4-918f-84d8bd5b1644",
+  "title": "Right-now summary writes do not sync to the project overlay, so new issues' summaries are shadowed in the feed",
+  "description": "Dogfooding kbs now against this board found that persist_right_now_summary (Epic 5) writes the right_now_summary to the canonical project/issues path resolved by load_issue_from_project, but kanbus create (Epic 4) also writes new issues to the project/.overlay/issues overlay. The overlay copy stays stale (no summary) and shadows the fresh canonical copy in list_issues, so kbs now shows '(no right-now summary)' for new issues even though the summary exists on disk. Fix: regen (persist_right_now_summary) must write to the same path the gate used (the overlay-aware path), or the gate must keep the overlay in sync with right_now_summary writes. Without this fix the feature appears broken for all new issues (their summaries never show in the feed).",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-02T15:44:26.337475Z",
+  "updated_at": "2026-09-02T15:44:26.362562Z",
+  "closed_at": null,
+  "right_now_summary": "New issues show no right-now summary because the overlay hides the updated summary.",
+  "right_now_updated_at": "2026-09-02T15:44:31.040484Z",
+  "custom": {
+    "source": "shared",
+    "project_label": "kbs"
+  }
+}
