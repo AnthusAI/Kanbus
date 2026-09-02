@@ -204,7 +204,7 @@ class ConsoleState:
     time_zone: str | None
     panel_mode: str = "board"
     metrics_project_filter: str | None = None
-    status_tree_mode: bool = False
+    status_tree_mode: bool = True
     status_tree_expanded_overrides: dict[str, bool] = field(default_factory=dict)
     default_tree_expanded: bool = False
 

@@ -1629,10 +1629,10 @@ export default function App() {
       )
     });
     return [
+      buildOption("now", "Now", Clock),
       buildOption("board", "Board", LayoutGrid),
       buildOption("wiki", "Wiki", FileText),
-      buildOption("metrics", "Metrics", BarChart3),
-      buildOption("now", "Current Status", Clock)
+      buildOption("metrics", "Metrics", BarChart3)
     ];
   }, [panelMode]);
 
@@ -1850,13 +1850,13 @@ export default function App() {
       : "transition-opacity duration-300";
 
   const viewTrackTransform = useMemo(() => {
-    if (panelMode === "wiki") {
+    if (panelMode === "board") {
       return "translateX(-25%)";
     }
-    if (panelMode === "metrics") {
+    if (panelMode === "wiki") {
       return "translateX(-50%)";
     }
-    if (panelMode === "now") {
+    if (panelMode === "metrics") {
       return "translateX(-75%)";
     }
     return "translateX(0)";
@@ -2049,6 +2049,24 @@ export default function App() {
           >
               <div
                 className={`view-panel ${
+                  panelMode === "now" ? "view-panel-active" : "view-panel-inactive"
+                }`}
+                data-testid="current-status-view"
+                aria-hidden={panelMode !== "now"}
+              >
+                <div
+                  className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
+                >
+                  <CurrentStatusPanel
+                    issues={issues}
+                    defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
+                    onSelectIssue={handleSelectIssue}
+                    selectedIssueId={selectedTask?.id ?? null}
+                  />
+                </div>
+              </div>
+              <div
+                className={`view-panel ${
                   panelMode === "board" ? "view-panel-active" : "view-panel-inactive"
                 }${isDetailVisible ? " view-panel-detail-visible" : ""}`}
                 data-testid="board-view"
@@ -2218,24 +2236,6 @@ export default function App() {
                       projectLabels={projectLabels}
                     />
                   ) : null}
-                </div>
-              </div>
-              <div
-                className={`view-panel ${
-                  panelMode === "now" ? "view-panel-active" : "view-panel-inactive"
-                }`}
-                data-testid="current-status-view"
-                aria-hidden={panelMode !== "now"}
-              >
-                <div
-                  className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
-                >
-                  <CurrentStatusPanel
-                    issues={issues}
-                    defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
-                    onSelectIssue={handleSelectIssue}
-                    selectedIssueId={selectedTask?.id ?? null}
-                  />
                 </div>
               </div>
             </div>

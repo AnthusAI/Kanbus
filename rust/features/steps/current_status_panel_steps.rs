@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
@@ -199,6 +201,52 @@ fn then_current_status_view_active(world: &mut KanbusWorld) {
     assert_eq!(state.panel_mode, "now");
 }
 
+#[then(expr = "the panel mode selector labels should be {string}")]
+fn then_panel_mode_selector_labels(_world: &mut KanbusWorld, labels: String) {
+    let expected: Vec<String> = labels
+        .split(',')
+        .map(|label| label.trim().to_string())
+        .collect();
+    let actual = panel_mode_selector_labels();
+    assert_eq!(actual, expected);
+}
+
+#[then("the status tree view should be enabled")]
+fn then_status_tree_view_enabled(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert!(
+        state.status_tree_mode,
+        "expected status tree view to be enabled"
+    );
+}
+
+fn panel_mode_selector_labels() -> Vec<String> {
+    let app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("apps")
+        .join("console")
+        .join("src")
+        .join("App.tsx");
+    let app_source = fs::read_to_string(app_path).expect("read App.tsx");
+    let start = app_source
+        .find("const panelModeOptions")
+        .expect("panelModeOptions not found in App.tsx");
+    let end = start.saturating_add(800).min(app_source.len());
+    let chunk = &app_source[start..end];
+    let mut labels = Vec::new();
+    for line in chunk.lines() {
+        let trimmed = line.trim();
+        let Some(rest) = trimmed.strip_prefix("buildOption(") else {
+            continue;
+        };
+        let parts: Vec<&str> = rest.split('"').collect();
+        if parts.len() >= 4 {
+            labels.push(parts[3].to_string());
+        }
+    }
+    labels
+}
+
 #[given(expr = "a status issue {string} updated at {string}")]
 fn given_status_issue(world: &mut KanbusWorld, title: String, timestamp: String) {
     let state = require_console_state(world);
@@ -330,6 +378,7 @@ fn when_enable_status_tree_view(world: &mut KanbusWorld) {
 }
 
 #[when("I disable the status tree view")]
+#[given("I disable the status tree view")]
 fn when_disable_status_tree_view(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     state.status_tree_mode = false;

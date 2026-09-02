@@ -887,7 +887,7 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
         }
         return;
     }
-    if normalized == "current status" {
+    if normalized == "now" || normalized == "current status" {
         state.panel_mode = "now".to_string();
         world.console_local_storage.panel_mode = Some("now".to_string());
         return;
@@ -1244,7 +1244,7 @@ fn open_console(world: &KanbusWorld) -> ConsoleState {
         local_filter_visible: false,
         selected_project_filter,
         selected_local_filter,
-        status_tree_mode: false,
+        status_tree_mode: true,
         status_tree_expanded_overrides: std::collections::HashMap::new(),
         default_tree_expanded: false,
     }
