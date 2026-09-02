@@ -95,6 +95,8 @@ export interface Issue {
   created_at?: string;
   updated_at?: string;
   closed_at?: string;
+  right_now_summary?: string | null;
+  right_now_updated_at?: string | null;
   custom?: Record<string, unknown>;
 }
 

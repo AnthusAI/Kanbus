@@ -9,6 +9,7 @@ pub mod console_snapshot_steps;
 pub mod console_ui_state_steps;
 pub mod console_ui_steps;
 pub mod content_validation_steps;
+pub mod current_status_panel_steps;
 pub mod daemon_steps;
 pub mod dependency_steps;
 pub mod discovery_steps;

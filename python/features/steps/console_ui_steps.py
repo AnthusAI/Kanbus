@@ -163,6 +163,7 @@ class ConsoleIssue:
     source: str = "shared"
     identifier: str | None = None
     priority: int = 2
+    right_now_summary: str | None = None
 
 
 @dataclass
