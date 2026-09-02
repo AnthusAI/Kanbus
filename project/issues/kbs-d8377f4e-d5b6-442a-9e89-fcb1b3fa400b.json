@@ -10,9 +10,17 @@
   "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "2bcd2700-0632-4949-ad57-03f7c5bb2285",
+      "author": "home",
+      "text": "Implemented in PR 200: dep --help and zero-arg dep print real examples. CLI_REFERENCE no longer documents dep add.",
+      "created_at": "2026-09-02T16:40:21.886566Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-02T14:59:33.130420Z",
-  "updated_at": "2026-09-02T14:59:44.086407Z",
+  "updated_at": "2026-09-02T16:40:21.886566Z",
   "closed_at": null,
   "custom": {}
 }

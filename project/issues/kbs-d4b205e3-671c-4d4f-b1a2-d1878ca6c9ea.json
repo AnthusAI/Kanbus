@@ -38,10 +38,45 @@
       "text": "Acceptance APPROVE. Drop dogfood kbs-commit board commits from the PR; finish remaining docs; newline parity on Rust messages; open PR to develop.",
       "created_at": "2026-09-02T16:23:07.673639Z",
       "comment_type": "default"
+    },
+    {
+      "id": "095f0620-dbe7-4eda-a30e-3719a60005ff",
+      "author": "home",
+      "text": "Review: orphan cleanup in PR 200 deleted 18 tracked issues that exist on origin/develop (false positives, including this epic and tskl-wti). Implementer must revert commit 27cacd52. Hygiene is rm of untracked/gitignored files only.",
+      "created_at": "2026-09-02T16:39:18.752808Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "7abf9bb1-880b-439c-b490-51eb5e7d812f",
+      "author": "home",
+      "text": "PR #200 opened against develop: https://github.com/AnthusAI/Kanbus/pull/200 — idempotent update, kbs commit, list --all, dep help. Orphan-deletion commit reverted; no tracked issue files in the PR.",
+      "created_at": "2026-09-02T16:40:21.819004Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "514e1e13-f7d6-4ae8-98d2-ffe2494cb1c6",
+      "author": "home",
+      "text": "Acceptance approved the four CLI behaviors on Python and rebuilt Rust (scratch repos). No revision. PR 200 still waiting on CI: https://github.com/AnthusAI/Kanbus/pull/200",
+      "created_at": "2026-09-02T16:41:28.384701Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "232bfe9d-aa72-4899-89be-d805729d8b1c",
+      "author": "home",
+      "text": "CI python failed on PR #200: TypeError list_command() missing list_all in queries.feature:193 (direct __wrapped__ call). Not pre-existing. Sent back to implementer. Do not merge until python is green.",
+      "created_at": "2026-09-02T16:51:57.730775Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "9e91c98b-db96-471e-b658-d6a8004e627e",
+      "author": "home",
+      "text": "CI coverage-ratchet failed on PR #200 after python/rust went green. Sent back; do not lower baselines; do not merge.",
+      "created_at": "2026-09-02T17:10:35.408608Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:59:16.552808Z",
-  "updated_at": "2026-09-02T16:23:07.673639Z",
+  "updated_at": "2026-09-02T17:10:35.408608Z",
   "closed_at": null,
   "custom": {
     "project_label": "kbs",
