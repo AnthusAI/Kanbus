@@ -3,7 +3,7 @@ use std::fs;
 use std::process::Command;
 
 use cucumber::{gherkin::Step, given, then, when};
-use serde_yaml::Value;
+use serde_yaml::{Mapping, Value};
 use tempfile::TempDir;
 
 use kanbus::cli::run_from_args_with_output;
@@ -857,6 +857,27 @@ fn when_load_configuration(world: &mut KanbusWorld) {
 
 // Note: "the project key should be {string}" - removed duplicate, existing hardcoded one at line 479
 // Note: "the hierarchy should be {string}" - removed duplicate, using existing one instead
+
+#[given(expr = "the Kanbus configuration uses AI provider {string} with model {string}")]
+fn given_kanbus_configuration_uses_ai_provider(
+    world: &mut KanbusWorld,
+    provider: String,
+    model: String,
+) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let config_path = root.join(".kanbus.yml");
+    let contents = fs::read_to_string(&config_path).expect("read config");
+    let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
+    let mut ai_block = Mapping::new();
+    ai_block.insert(
+        Value::String("provider".to_string()),
+        Value::String(provider),
+    );
+    ai_block.insert(Value::String("model".to_string()), Value::String(model));
+    mapping.insert(Value::String("ai".to_string()), Value::Mapping(ai_block));
+    let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
+    fs::write(config_path, yaml).expect("write config");
+}
 
 #[then(expr = "the AI provider should be {string}")]
 fn then_ai_provider_matches(world: &mut KanbusWorld, expected: String) {
