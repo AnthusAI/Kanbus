@@ -757,6 +757,11 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
         }
         return;
     }
+    if normalized == "current status" {
+        state.panel_mode = "now".to_string();
+        world.console_local_storage.panel_mode = Some("now".to_string());
+        return;
+    }
     state.panel_mode = "board".to_string();
     world.console_local_storage.panel_mode = Some("board".to_string());
 }

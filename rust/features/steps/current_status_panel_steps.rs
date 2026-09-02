@@ -193,18 +193,6 @@ fn post_notification(world: &KanbusWorld, body: serde_json::Value) {
     .expect("post notification thread");
 }
 
-#[when(expr = "I switch to the \"Current Status\" view")]
-fn when_switch_current_status_view(world: &mut KanbusWorld) {
-    let state = require_console_state(world);
-    state.panel_mode = "now".to_string();
-    world.console_local_storage.panel_mode = Some("now".to_string());
-}
-
-#[given(expr = "I switch to the \"Current Status\" view")]
-fn given_switch_current_status_view(world: &mut KanbusWorld) {
-    when_switch_current_status_view(world);
-}
-
 #[then("the current status view should be active")]
 fn then_current_status_view_active(world: &mut KanbusWorld) {
     let state = require_console_state(world);
