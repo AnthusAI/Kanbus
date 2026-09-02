@@ -17,10 +17,17 @@
       "text": "Planning: Composer 2.5. Docs last for 5dd18e. Worktree /tmp/kanbus-17b4a4-agent-docs from origin/develop, branch cursor/agent-docs-17b4a4-4a21. Plan only this turn.",
       "created_at": "2026-09-02T19:30:10.026771Z",
       "comment_type": "default"
+    },
+    {
+      "id": "4d74bfb3-1d5e-4a2a-abba-16a91148e352",
+      "author": "home",
+      "text": "Plan accepted. Docs match code: recommended settings keys plus secret rejection, not a closed allowlist. Worktree /tmp/kanbus-17b4a4-agent-docs not created yet — create it, then implement.",
+      "created_at": "2026-09-02T19:32:13.355090Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-08-29T13:41:20.337751Z",
-  "updated_at": "2026-09-02T19:30:10.026771Z",
+  "updated_at": "2026-09-02T19:32:13.355090Z",
   "closed_at": null,
   "custom": {}
 }
