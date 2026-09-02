@@ -2,6 +2,129 @@
 
 <!-- version list -->
 
+## v0.26.0 (2026-09-02)
+
+### Bug Fixes
+
+- **ci**: Deduplicate AI provider configuration cucumber steps
+  ([`094fdf0`](https://github.com/AnthusAI/Kanbus/commit/094fdf0682eddfece8020e3babfde84abafbc546))
+
+- **ci**: Repair main after develop merge
+  ([`0d17b67`](https://github.com/AnthusAI/Kanbus/commit/0d17b671c1a9f6b54e4a5c64abdb6643103f68fd))
+
+- **ci**: Resolve develop merge test collisions
+  ([`4d00d1a`](https://github.com/AnthusAI/Kanbus/commit/4d00d1aa224f24258bc44ecefe53235d2448d1ba))
+
+- **ci**: Restore issue_update test and dedupe behave mock AI step
+  ([#208](https://github.com/AnthusAI/Kanbus/pull/208),
+  [`b7eb2a3`](https://github.com/AnthusAI/Kanbus/commit/b7eb2a36b9d71f47f1d5d58d7ec2eb9d97ce3f87))
+
+- **cli**: Pass list_all in direct list_command step
+  ([#200](https://github.com/AnthusAI/Kanbus/pull/200),
+  [`9d76766`](https://github.com/AnthusAI/Kanbus/commit/9d7676672c867816e95af77259afdb35e6f6efb0))
+
+- **cloud**: Scope GitHub webhook tenant from URL path
+  ([#202](https://github.com/AnthusAI/Kanbus/pull/202),
+  [`0f52da4`](https://github.com/AnthusAI/Kanbus/commit/0f52da4496834dc465f8f0f484fafb57f23f938d))
+
+- **console**: Isolate agent metadata comment scenarios from timestamps
+  ([#203](https://github.com/AnthusAI/Kanbus/pull/203),
+  [`bae4ed6`](https://github.com/AnthusAI/Kanbus/commit/bae4ed6363bb272bf74a978cda9926fcfe2fda03))
+
+### Chores
+
+- Refresh coverage baselines after main merge
+  ([`cc1a5fb`](https://github.com/AnthusAI/Kanbus/commit/cc1a5fb630f91bda2b804b559628dd5f49dd7e47))
+
+- Update coverage baselines for CI fix branch metrics
+  ([`4fd539a`](https://github.com/AnthusAI/Kanbus/commit/4fd539a74d8336625b434d29f15cb698c369f7f1))
+
+- **kanbus**: Accept 17b4a4 agent-docs plan
+  ([`a4b32e4`](https://github.com/AnthusAI/Kanbus/commit/a4b32e4d2ea4d3cf76f63ad50af1f9371ce1cd1b))
+
+- **kanbus**: Close 17b4a4 and 5dd18e after #204
+  ([`6f9d77c`](https://github.com/AnthusAI/Kanbus/commit/6f9d77cb4bb6a78b88cd7cc6470075fb20640f79))
+
+- **kanbus**: Close 3b5cc3 NAT-free S3-bridge sync after #201
+  ([`218bfbe`](https://github.com/AnthusAI/Kanbus/commit/218bfbe82606fa7713b7e04c44db1bcab8affd08))
+
+- **kanbus**: Close 6d42b9 AgentMetadataBlock; authorize dd1f4a Gherkin
+  ([`468d5b8`](https://github.com/AnthusAI/Kanbus/commit/468d5b87f21f2d6cefaa30fccd2d05da6d0084ca))
+
+- **kanbus**: Close d4b205 CLI rough-edges after #200
+  ([`afa8deb`](https://github.com/AnthusAI/Kanbus/commit/afa8debdc7c3e890acd60643df59b69c8068ebcc))
+
+- **kanbus**: Close dd1f4a console agent Gherkin after #203
+  ([`67b6021`](https://github.com/AnthusAI/Kanbus/commit/67b60214d35d0a275241b990a9e509200e72adab))
+
+- **kanbus**: Close shipped agent-metadata CLI cards; start console spec
+  ([`b70c93a`](https://github.com/AnthusAI/Kanbus/commit/b70c93aafae1231760900b49f23b228d4cfff58a))
+
+- **kanbus**: Commit board state (issues)
+  ([`0930d59`](https://github.com/AnthusAI/Kanbus/commit/0930d59bec9388da0ee5741cb614edf65f37253a))
+
+- **kanbus**: Commit board state (issues)
+  ([`64bd24e`](https://github.com/AnthusAI/Kanbus/commit/64bd24e5728abd21853058cf3c8b257039e19a80))
+
+- **kanbus**: Commit board state for CLI rough-edges epic
+  ([`bad253e`](https://github.com/AnthusAI/Kanbus/commit/bad253e63408fdcb88396ba83939a3713d843c3d))
+
+- **kanbus**: Correct c445a6 wiki-flags plan
+  ([`8e654b4`](https://github.com/AnthusAI/Kanbus/commit/8e654b4871553b0566624970790dcfc5c547ccbe))
+
+- **kanbus**: File NAT idle-cost bug on the cloud foundation
+  ([#198](https://github.com/AnthusAI/Kanbus/pull/198),
+  [`34ebc3f`](https://github.com/AnthusAI/Kanbus/commit/34ebc3f5c3d72c9670437af25a4450d12069f74e))
+
+- **kanbus**: Hold 3b5cc3 on isolated IoT publish path
+  ([`eb8a73c`](https://github.com/AnthusAI/Kanbus/commit/eb8a73c913373bc39792606ecfc2b63b84c69b25))
+
+- **kanbus**: Note #203 CI reject on dd1f4a console Gherkin
+  ([`790fe45`](https://github.com/AnthusAI/Kanbus/commit/790fe4534073d1d5cc84934a28418ef948072f4b))
+
+- **kanbus**: Note d4b205 acceptance approve
+  ([`ead27fa`](https://github.com/AnthusAI/Kanbus/commit/ead27faefc879a500b16377a86534129e3d16eb0))
+
+- **kanbus**: Note d4b205 plan accepted
+  ([`5039848`](https://github.com/AnthusAI/Kanbus/commit/503984854dab44581fe1e3047790c5cc12d8a9e9))
+
+- **kanbus**: Note dd1f4a PR 203 awaiting CI and acceptance
+  ([`2601321`](https://github.com/AnthusAI/Kanbus/commit/260132188a1964fa783d00f9d197960f183d1c8d))
+
+- **kanbus**: Note PR 200 coverage-ratchet send-back
+  ([`caa0092`](https://github.com/AnthusAI/Kanbus/commit/caa009206fe14d57a69f51f4f5112c2b5dfd2b4b))
+
+- **kanbus**: Remove orphaned issue files ([#200](https://github.com/AnthusAI/Kanbus/pull/200),
+  [`9d76766`](https://github.com/AnthusAI/Kanbus/commit/9d7676672c867816e95af77259afdb35e6f6efb0))
+
+- **kanbus**: Start 17b4a4 and c445a6 planning
+  ([`a34bf2e`](https://github.com/AnthusAI/Kanbus/commit/a34bf2efcd3e19bcc5d69934d6e2131528db494a))
+
+### Documentation
+
+- Document agent metadata flags and env vars ([#204](https://github.com/AnthusAI/Kanbus/pull/204),
+  [`c132d14`](https://github.com/AnthusAI/Kanbus/commit/c132d1433f20886359969f16e3101fdcc3bd4565))
+
+### Features
+
+- **cli**: Add just-in-time right-now summaries and kbs now
+  ([`2ad9d97`](https://github.com/AnthusAI/Kanbus/commit/2ad9d97ce0a1416da35422a1b1cc3472bcd93654))
+
+- **cli**: Idempotent updates, kbs commit, list --all, dep help
+  ([#200](https://github.com/AnthusAI/Kanbus/pull/200),
+  [`9d76766`](https://github.com/AnthusAI/Kanbus/commit/9d7676672c867816e95af77259afdb35e6f6efb0))
+
+- **console**: Add agent metadata Gherkin and step coverage
+  ([#203](https://github.com/AnthusAI/Kanbus/pull/203),
+  [`bae4ed6`](https://github.com/AnthusAI/Kanbus/commit/bae4ed6363bb272bf74a978cda9926fcfe2fda03))
+
+### Testing
+
+- **cli**: Cover new CLI paths for coverage ratchet
+  ([#200](https://github.com/AnthusAI/Kanbus/pull/200),
+  [`9d76766`](https://github.com/AnthusAI/Kanbus/commit/9d7676672c867816e95af77259afdb35e6f6efb0))
+
+
 ## v0.25.0 (2026-09-02)
 
 ### Bug Fixes
