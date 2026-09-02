@@ -10,6 +10,14 @@ Feature: Issue dependencies
     Then the command should succeed
     And issue "kanbus-child" should depend on "kanbus-parent" with type "blocked-by"
 
+  Scenario: Adding a dependency advances updated_at
+    Given a Kanbus project with default configuration
+    And issues "kanbus-parent" and "kanbus-child" exist
+    And issue "kanbus-child" has updated_at "2020-01-01T00:00:00Z"
+    When I run "kanbus dep kanbus-child blocked-by kanbus-parent"
+    Then the command should succeed
+    And issue "kanbus-child" updated_at should be after "2020-01-01T00:00:00Z"
+
   Scenario: Add a relates-to dependency
     Given a Kanbus project with default configuration
     And issues "kanbus-left" and "kanbus-right" exist
@@ -24,6 +32,15 @@ Feature: Issue dependencies
     When I run "kanbus dep kanbus-left remove blocked-by kanbus-right"
     Then the command should succeed
     And issue "kanbus-left" should not depend on "kanbus-right" with type "blocked-by"
+
+  Scenario: Removing a dependency advances updated_at
+    Given a Kanbus project with default configuration
+    And issues "kanbus-left" and "kanbus-right" exist
+    And issue "kanbus-left" depends on "kanbus-right" with type "blocked-by"
+    And issue "kanbus-left" has updated_at "2020-01-01T00:00:00Z"
+    When I run "kanbus dep kanbus-left remove blocked-by kanbus-right"
+    Then the command should succeed
+    And issue "kanbus-left" updated_at should be after "2020-01-01T00:00:00Z"
 
   Scenario: Remove a relates-to dependency
     Given a Kanbus project with default configuration

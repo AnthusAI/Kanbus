@@ -1307,6 +1307,7 @@ def delete(
             descendants = []
 
     to_delete = descendants + [identifier]
+    retain_audit_event = not recursive
     _run_lifecycle_hooks_for_context(
         context,
         phase=HookPhase.BEFORE,
@@ -1322,7 +1323,7 @@ def delete(
     )
     for issue_id in to_delete:
         try:
-            delete_issue(root, issue_id)
+            delete_issue(root, issue_id, retain_audit_event=retain_audit_event)
         except IssueDeleteError as error:
             raise click.ClickException(str(error)) from error
         formatted_identifier = format_issue_key(issue_id, project_context=False)

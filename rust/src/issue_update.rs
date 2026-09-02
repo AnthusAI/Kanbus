@@ -6,13 +6,12 @@ use std::path::Path;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::event_history::{
-    build_update_events, events_dir_for_issue_path, now_timestamp, write_events_batch,
-};
+use crate::event_history::{build_update_events, now_timestamp};
 use crate::file_io::get_configuration_path;
 use crate::issue_creation::resolve_issue_identifier;
-use crate::issue_files::{read_issue_from_file, write_issue_to_file};
+use crate::issue_files::read_issue_from_file;
 use crate::issue_lookup::load_issue_from_project;
+use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
 use crate::models::IssueData;
 use crate::users::get_current_user;
 use crate::workflows::{
@@ -260,7 +259,6 @@ pub fn update_issue(
     if let Some(new_parent) = updated_parent {
         updated_issue.parent = Some(new_parent);
     }
-    updated_issue.updated_at = current_time;
 
     let policies_dir = lookup.project_dir.join("policies");
     if policies_dir.is_dir() {
@@ -283,22 +281,22 @@ pub fn update_issue(
         }
     }
 
-    write_issue_to_file(&updated_issue, &lookup.issue_path)?;
-
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let events = build_update_events(&before_issue, &updated_issue, &actor_id, &occurred_at);
-    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
-    match write_events_batch(&events_dir, &events) {
-        Ok(_paths) => {}
-        Err(error) => {
-            write_issue_to_file(&before_issue, &lookup.issue_path)?;
-            return Err(error);
-        }
-    }
+    let result = persist_issue_mutation(&PersistIssueMutationRequest {
+        project_dir: lookup.project_dir.clone(),
+        issue_path: lookup.issue_path.clone(),
+        issue: updated_issue.clone(),
+        actor_id,
+        events,
+        before_issue: Some(before_issue),
+        relocate_to: None,
+    })?;
+    let updated_issue = result.issue;
 
     if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
-        let event_id = events.first().map(|event| event.event_id.clone());
+        let event_id = result.events.first().map(|event| event.event_id.clone());
         crate::gossip::publish_issue_mutation(
             root,
             &lookup.project_dir,

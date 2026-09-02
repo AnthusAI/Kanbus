@@ -32,6 +32,12 @@ from kanbus.models import (
     IssueData,
 )
 
+"""
+TODO(Epic 4): Route GitHub security sync issue writes through persist_issue_mutation.
+Sync creates and updates many issues in one pull without per-issue events;
+routing requires sync-specific mutation handling without breaking sync specs.
+"""
+
 GITHUB_API_BASE = os.environ.get("KANBUS_GITHUB_API_BASE", "https://api.github.com")
 GITHUB_API_VERSION = "2022-11-28"
 GITHUB_SECURITY_INITIATIVE_TITLE = "GitHub Security Remediation"

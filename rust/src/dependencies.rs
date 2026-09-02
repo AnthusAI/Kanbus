@@ -4,16 +4,14 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::error::KanbusError;
-use crate::event_history::{
-    dependency_payload, events_dir_for_issue_path, now_timestamp, write_events_batch, EventRecord,
-    EventType,
-};
+use crate::event_history::{dependency_payload, now_timestamp, EventRecord, EventType};
 use crate::file_io::{
     discover_kanbus_projects, discover_project_directories, find_project_local_directory,
     load_project_directory,
 };
-use crate::issue_files::{read_issue_from_file, write_issue_to_file};
+use crate::issue_files::read_issue_from_file;
 use crate::issue_lookup::{load_issue_from_project, IssueLookupResult};
+use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
 use crate::models::{DependencyLink, IssueData};
 use crate::users::get_current_user;
 
@@ -69,27 +67,25 @@ pub fn add_dependency(
         target: target_id.to_string(),
         dependency_type: dependency_type.to_string(),
     });
-    write_issue_to_file(&updated_issue, &source_lookup.issue_path)?;
-
-    let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
         updated_issue.identifier.clone(),
         EventType::DependencyAdded,
-        actor_id,
+        actor_id.clone(),
         dependency_payload(dependency_type, target_id),
-        occurred_at,
+        now_timestamp(),
     );
     let event_id = event.event_id.clone();
-    let events_dir =
-        events_dir_for_issue_path(&source_lookup.project_dir, &source_lookup.issue_path)?;
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            write_issue_to_file(&source_lookup.issue, &source_lookup.issue_path)?;
-            return Err(error);
-        }
-    }
+    let result = persist_issue_mutation(&PersistIssueMutationRequest {
+        project_dir: source_lookup.project_dir.clone(),
+        issue_path: source_lookup.issue_path.clone(),
+        issue: updated_issue.clone(),
+        actor_id,
+        events: vec![event],
+        before_issue: Some(source_lookup.issue),
+        relocate_to: None,
+    })?;
+    let updated_issue = result.issue;
 
     if source_lookup.issue_path.parent() == Some(source_lookup.project_dir.join("issues").as_path())
     {
@@ -142,26 +138,25 @@ pub fn remove_dependency(
 
     let mut updated_issue = issue.clone();
     updated_issue.dependencies = filtered;
-    write_issue_to_file(&updated_issue, &issue_path)?;
-
-    let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
         updated_issue.identifier.clone(),
         EventType::DependencyRemoved,
-        actor_id,
+        actor_id.clone(),
         dependency_payload(dependency_type, target_id),
-        occurred_at,
+        now_timestamp(),
     );
     let event_id = event.event_id.clone();
-    let events_dir = events_dir_for_issue_path(&project_dir, &issue_path)?;
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            write_issue_to_file(&issue, &issue_path)?;
-            return Err(error);
-        }
-    }
+    let result = persist_issue_mutation(&PersistIssueMutationRequest {
+        project_dir: project_dir.clone(),
+        issue_path: issue_path.clone(),
+        issue: updated_issue.clone(),
+        actor_id,
+        events: vec![event],
+        before_issue: Some(issue),
+        relocate_to: None,
+    })?;
+    let updated_issue = result.issue;
 
     if issue_path.parent() == Some(project_dir.join("issues").as_path()) {
         crate::gossip::publish_issue_mutation(

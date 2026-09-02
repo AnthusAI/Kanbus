@@ -59,25 +59,3 @@ Feature: Right now summary roll-up and context assembly
     Then the right now context should have 1 child summary
     And the child summary for "kanbus-epic05" should be "Epic summary."
     And the right now context should not have child summary for "kanbus-task06"
-
-  @wip
-  Scenario: Parent right-now summary is regenerated when a child summary changes
-    Given an issue "kanbus-epic10" of type "epic" with status "open"
-    And an issue "kanbus-task10" of type "task" with status "open" and parent "kanbus-epic10"
-    And issue "kanbus-epic10" has right now summary "Parent reflects old child state."
-    And issue "kanbus-task10" has right now summary "Child was stable."
-    When issue "kanbus-task10" has right now summary "Child has changed."
-    And the parent right now summary is regenerated for issue "kanbus-epic10"
-    Then issue "kanbus-epic10" should have a right now summary that reflects the child change
-
-  @wip
-  Scenario: Parent invalidation propagates up the hierarchy when a descendant changes
-    Given an issue "kanbus-init10" of type "initiative" with status "open"
-    And an issue "kanbus-epic11" of type "epic" with status "open" and parent "kanbus-init10"
-    And an issue "kanbus-task11" of type "task" with status "open" and parent "kanbus-epic11"
-    And issue "kanbus-init10" has right now summary "Initiative summary."
-    And issue "kanbus-epic11" has right now summary "Epic summary."
-    And issue "kanbus-task11" has right now summary "Task summary."
-    When issue "kanbus-task11" has right now summary "Task changed."
-    Then issue "kanbus-epic11" right now summary should be invalidated
-    And issue "kanbus-init10" right now summary should be invalidated
