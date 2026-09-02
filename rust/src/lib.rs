@@ -55,6 +55,7 @@ pub mod project;
 pub mod project_management_template;
 pub mod queries;
 pub mod rich_text_signals;
+pub mod right_now;
 pub mod snyk_sync;
 pub mod text_editor;
 pub mod users;

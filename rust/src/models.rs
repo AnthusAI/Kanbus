@@ -50,6 +50,10 @@ pub struct IssueData {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub closed_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub right_now_summary: Option<String>,
+    #[serde(default)]
+    pub right_now_updated_at: Option<DateTime<Utc>>,
     pub custom: BTreeMap<String, serde_json::Value>,
 }
 
@@ -77,6 +81,35 @@ pub struct AiConfiguration {
     pub provider: String,
     /// Model identifier (e.g. gpt-4o).
     pub model: String,
+}
+
+fn default_right_now_max_length() -> usize {
+    120
+}
+
+/// Right-now summary configuration for the console.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RightNowConfiguration {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub default_tree_expanded: bool,
+    #[serde(default = "default_right_now_max_length")]
+    pub max_length: usize,
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+impl Default for RightNowConfiguration {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            default_tree_expanded: false,
+            max_length: default_right_now_max_length(),
+            model: None,
+        }
+    }
 }
 
 /// Snyk vulnerability synchronization configuration.
@@ -300,6 +333,8 @@ pub struct ProjectConfiguration {
     pub wiki_directory: Option<String>,
     #[serde(default)]
     pub ai: Option<AiConfiguration>,
+    #[serde(default)]
+    pub right_now: RightNowConfiguration,
     #[serde(default)]
     pub jira: Option<JiraConfiguration>,
     #[serde(default)]

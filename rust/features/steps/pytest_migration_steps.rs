@@ -49,6 +49,8 @@ fn when_build_sample_issue(world: &mut KanbusWorld, target: String, author: Stri
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
     world.sample_issue = Some(issue);

@@ -23,7 +23,9 @@ use crate::issue_files::{
 };
 use crate::models::{IssueData, SnykConfiguration};
 
-fn snyk_api_base() -> String { std::env::var("KANBUS_SNYK_API_BASE").unwrap_or_else(|_| "https://api.snyk.io".to_string()) }
+fn snyk_api_base() -> String {
+    std::env::var("KANBUS_SNYK_API_BASE").unwrap_or_else(|_| "https://api.snyk.io".to_string())
+}
 const SNYK_API_VERSION: &str = "2025-11-05";
 const SNYK_INITIATIVE_TITLE: &str = "Snyk Vulnerability Remediation";
 const SNYK_DEP_EPIC_TITLE: &str = "Snyk Dependency Vulnerabilities";
@@ -321,6 +323,8 @@ fn resolve_parent_epic(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     };
 
@@ -426,6 +430,8 @@ fn resolve_snyk_initiative(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     };
 
@@ -497,6 +503,8 @@ fn resolve_snyk_epic(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom,
     };
 
@@ -671,6 +679,8 @@ fn resolve_file_task(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom,
     };
 
@@ -716,7 +726,8 @@ fn fetch_snyk_projects(
     let prefix = repo_filter.map(|r| format!("{r}:"));
 
     let mut url = Some(format!(
-        "{}/rest/orgs/{org_id}/projects?version={SNYK_API_VERSION}&limit=100", snyk_api_base()
+        "{}/rest/orgs/{org_id}/projects?version={SNYK_API_VERSION}&limit=100",
+        snyk_api_base()
     ));
 
     while let Some(current_url) = url {
@@ -799,8 +810,10 @@ fn fetch_v1_enrichment(
     let mut enrichment: BTreeMap<String, Value> = BTreeMap::new();
 
     for proj_id in &project_ids {
-        let url =
-            format!("{}/api/v1/org/{org_id}/project/{proj_id}/aggregated-issues", snyk_api_base());
+        let url = format!(
+            "{}/api/v1/org/{org_id}/project/{proj_id}/aggregated-issues",
+            snyk_api_base()
+        );
         let response = client
             .post(&url)
             .bearer_auth(token)
@@ -867,7 +880,8 @@ fn fetch_snyk_issues_for_type(
     let mut all_issues: Vec<Value> = Vec::new();
 
     let mut url = Some(format!(
-        "{}/rest/orgs/{org_id}/issues?version={SNYK_API_VERSION}&limit=100&type={issue_type}", snyk_api_base()
+        "{}/rest/orgs/{org_id}/issues?version={SNYK_API_VERSION}&limit=100&type={issue_type}",
+        snyk_api_base()
     ));
 
     while let Some(current_url) = url {
@@ -1347,6 +1361,8 @@ fn map_snyk_to_kanbus(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom,
     })
 }
@@ -1387,6 +1403,8 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         }
     }
@@ -2097,7 +2115,6 @@ mod tests {
     }
 }
 
-
 #[cfg(test)]
 mod snyk_sync_err_tests {
     use super::*;
@@ -2131,7 +2148,7 @@ mod snyk_sync_err_tests {
         let root = temp.path();
         std::fs::create_dir_all(root.join("project")).unwrap(); // no issues dir
         std::fs::write(root.join("kanbus.yaml"), "project_key: TST").unwrap();
-        
+
         let config = crate::models::SnykConfiguration {
             org_id: "org".to_string(),
             min_severity: "low".to_string(),
@@ -2139,6 +2156,10 @@ mod snyk_sync_err_tests {
             parent_epic: None,
         };
         let err = pull_from_snyk(root, &config, "TST", false).unwrap_err();
-        assert!(err.to_string().contains("issues directory does not exist"), "Actual err: {}", err);
+        assert!(
+            err.to_string().contains("issues directory does not exist"),
+            "Actual err: {}",
+            err
+        );
     }
 }

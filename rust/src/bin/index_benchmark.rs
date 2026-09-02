@@ -45,6 +45,8 @@ fn create_issue(identifier: &str, now: DateTime<Utc>) -> IssueData {
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     }
 }

@@ -378,6 +378,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
 
     _validate_hooks(configuration, errors)
     _validate_sort_order(configuration, errors)
+    _validate_right_now(configuration, errors)
 
     return errors
 
@@ -407,6 +408,14 @@ def _validate_hooks(configuration: ProjectConfiguration, errors: List[str]) -> N
                     )
                 else:
                     seen_ids.add(hook.id)
+
+
+def _validate_right_now(
+    configuration: ProjectConfiguration,
+    errors: List[str],
+) -> None:
+    if configuration.right_now.max_length <= 0:
+        errors.append("right_now.max_length must be greater than 0")
 
 
 def _validate_sort_order(

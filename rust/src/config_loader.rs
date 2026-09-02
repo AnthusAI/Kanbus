@@ -300,8 +300,15 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
 
     validate_hooks(configuration, &mut errors);
     validate_sort_order(configuration, &mut errors);
+    validate_right_now(configuration, &mut errors);
 
     errors
+}
+
+fn validate_right_now(configuration: &ProjectConfiguration, errors: &mut Vec<String>) {
+    if configuration.right_now.max_length == 0 {
+        errors.push("right_now.max_length must be greater than 0".to_string());
+    }
 }
 
 const SORT_PRESETS: &[&str] = &["fifo", "priority-first", "recently-updated"];

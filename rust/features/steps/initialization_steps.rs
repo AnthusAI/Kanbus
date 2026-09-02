@@ -123,6 +123,8 @@ pub struct KanbusWorld {
     pub overlay_temp_dir: Option<TempDir>,
     pub overlay_resolved: Option<kanbus::models::IssueData>,
     pub overlay_snapshot_id: Option<String>,
+    pub reloaded_issue: Option<kanbus::models::IssueData>,
+    pub right_now_summary_result: Option<Option<String>>,
     pub uds_temp_dir: Option<TempDir>,
     pub uds_socket_path: Option<PathBuf>,
     pub uds_subscriber: Option<std::os::unix::net::UnixStream>,

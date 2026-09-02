@@ -149,6 +149,8 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: std::collections::BTreeMap::new(),
         };
         let mut dummy_list = vec![dummy_issue];

@@ -740,6 +740,8 @@ mod tests {
             created_at: updated_at,
             updated_at,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: std::collections::BTreeMap::new(),
         }
     }

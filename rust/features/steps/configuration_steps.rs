@@ -896,6 +896,44 @@ fn then_ai_provider_matches(world: &mut KanbusWorld, expected: String) {
     );
 }
 
+#[then(expr = "the right now configuration should have enabled {word}")]
+fn then_right_now_enabled(world: &mut KanbusWorld, expected: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    let expected_value = expected.eq_ignore_ascii_case("true");
+    assert_eq!(configuration.right_now.enabled, expected_value);
+}
+
+#[then(expr = "the right now configuration should have default_tree_expanded {word}")]
+fn then_right_now_default_tree_expanded(world: &mut KanbusWorld, expected: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    let expected_value = expected.eq_ignore_ascii_case("true");
+    assert_eq!(
+        configuration.right_now.default_tree_expanded,
+        expected_value
+    );
+}
+
+#[then(expr = "the right now configuration should have max_length {int}")]
+fn then_right_now_max_length(world: &mut KanbusWorld, expected: usize) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.right_now.max_length, expected);
+}
+
+#[then(expr = "the right now model override should be {string}")]
+fn then_right_now_model_override(world: &mut KanbusWorld, expected: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(
+        configuration.right_now.model.as_deref(),
+        Some(expected.as_str())
+    );
+}
+
+#[then("the right now model override should be unset")]
+fn then_right_now_model_override_unset(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(configuration.right_now.model.is_none());
+}
+
 #[then(expr = "the default priority should be {string}")]
 fn then_default_priority_matches_string(world: &mut KanbusWorld, expected: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
