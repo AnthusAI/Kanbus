@@ -13,7 +13,6 @@ import yaml
 from behave import given, then, when
 
 from kanbus.config import DEFAULT_CONFIGURATION
-from kanbus.issue_listing import list_issues
 from kanbus.overlay import write_overlay_issue
 from kanbus.right_now import (
     LLM_USAGE_LOG,
@@ -859,23 +858,3 @@ def given_newer_overlay_without_summary(context: object, identifier: str) -> Non
         "2099-01-01T00:00:00.000Z",
         None,
     )
-
-
-@then('listing issue "{identifier}" should show the mock right now summary')
-def then_listing_shows_mock_right_now_summary(context: object, identifier: str) -> None:
-    """Verify list_issues overlay merge returns the mock right-now summary.
-
-    :param context: Behave context object.
-    :type context: object
-    :param identifier: Issue identifier.
-    :type identifier: str
-    """
-    issues = list_issues(Path(context.working_directory))
-    match = next((issue for issue in issues if issue.identifier == identifier), None)
-    if match is None:
-        raise AssertionError(f"issue not listed: {identifier}")
-    expected = mock_right_now_summary_text(identifier)
-    if match.right_now_summary != expected:
-        raise AssertionError(
-            f"expected listed summary {expected}, got {match.right_now_summary}"
-        )
