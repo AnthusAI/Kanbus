@@ -1,9 +1,11 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
 
 use chrono::{TimeZone, Utc};
 use cucumber::{gherkin::Step, given, then, when};
+use regex::Regex;
 use serde_yaml::{Mapping, Value};
 use tempfile::TempDir;
 
@@ -670,6 +672,103 @@ fn then_project_agents_contains(world: &mut KanbusWorld, text: String) {
     assert!(
         content.contains(&text),
         "expected {text:?} in project/AGENTS.md: {content:?}"
+    );
+}
+
+fn strip_ansi(text: &str) -> String {
+    static ANSI_RE: OnceLock<Regex> = OnceLock::new();
+    let regex = ANSI_RE.get_or_init(|| Regex::new("\x1b\\[[0-9;]*m").expect("regex"));
+    regex.replace_all(text, "").to_string()
+}
+
+fn load_stdout_json(world: &KanbusWorld) -> serde_json::Map<String, serde_json::Value> {
+    let stdout = strip_ansi(world.stdout.as_ref().expect("stdout"));
+    let payload: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("stdout is not valid JSON");
+    payload.as_object().cloned().expect("expected JSON object")
+}
+
+#[then(expr = "JSON field {string} should equal {string}")]
+fn then_json_field_equals_string(world: &mut KanbusWorld, field: String, expected: String) {
+    let payload = load_stdout_json(world);
+    let actual = payload.get(&field).expect("missing JSON field");
+    assert_eq!(
+        actual.as_str(),
+        Some(expected.as_str()),
+        "expected {}={expected:?}, got {actual:?}",
+        field
+    );
+}
+
+#[then(expr = "JSON field {string} should contain {string}")]
+fn then_json_field_contains(world: &mut KanbusWorld, field: String, text: String) {
+    let payload = load_stdout_json(world);
+    let actual = payload.get(&field).expect("missing JSON field");
+    if let Some(items) = actual.as_array() {
+        assert!(
+            items
+                .iter()
+                .any(|item| item.as_str().is_some_and(|value| value.contains(&text))),
+            "expected {} to contain {text:?}, got {actual:?}",
+            field
+        );
+        return;
+    }
+    if let Some(value) = actual.as_str() {
+        assert!(
+            value.contains(&text),
+            "expected {} to contain {text:?}, got {value:?}",
+            field
+        );
+        return;
+    }
+    let rendered = actual.to_string();
+    assert!(
+        rendered.contains(&text),
+        "expected {} to contain {text:?}, got {rendered:?}",
+        field
+    );
+}
+
+#[then(expr = "JSON field {string} should not contain {string}")]
+fn then_json_field_not_contains(world: &mut KanbusWorld, field: String, text: String) {
+    let payload = load_stdout_json(world);
+    let actual = payload.get(&field).expect("missing JSON field");
+    if let Some(items) = actual.as_array() {
+        assert!(
+            !items
+                .iter()
+                .any(|item| item.as_str().is_some_and(|value| value.contains(&text))),
+            "expected {} not to contain {text:?}, got {actual:?}",
+            field
+        );
+        return;
+    }
+    if let Some(value) = actual.as_str() {
+        assert!(
+            !value.contains(&text),
+            "expected {} not to contain {text:?}, got {value:?}",
+            field
+        );
+        return;
+    }
+    let rendered = actual.to_string();
+    assert!(
+        !rendered.contains(&text),
+        "expected {} not to contain {text:?}, got {rendered:?}",
+        field
+    );
+}
+
+#[then(expr = "JSON field {string} should be empty")]
+fn then_json_field_is_empty(world: &mut KanbusWorld, field: String) {
+    let payload = load_stdout_json(world);
+    let actual = payload.get(&field).expect("missing JSON field");
+    let items = actual.as_array().expect("expected JSON array");
+    assert!(
+        items.is_empty(),
+        "expected {} to be empty, got {actual:?}",
+        field
     );
 }
 
