@@ -23,11 +23,17 @@ def step_lifecycle_impl_1(context):
 
 @given("mock AI is enabled")
 def step_lifecycle_impl_2(context):
-    os.environ["KANBUS_TEST_AI_MOCK"] = "1"
     context.env_to_restore = (
         context.env_to_restore if hasattr(context, "env_to_restore") else {}
     )
-    context.env_to_restore["KANBUS_TEST_AI_MOCK"] = "1"
+    context.env_to_restore["KANBUS_TEST_AI_MOCK"] = os.environ.get(
+        "KANBUS_TEST_AI_MOCK"
+    )
+    context.env_to_restore["KANBUS_RIGHT_NOW_LITELLM_CALLED"] = os.environ.get(
+        "KANBUS_RIGHT_NOW_LITELLM_CALLED"
+    )
+    os.environ["KANBUS_TEST_AI_MOCK"] = "1"
+    os.environ.pop("KANBUS_RIGHT_NOW_LITELLM_CALLED", None)
 
 
 @given('an issue "{issue_id}" of type "{issue_type}" in status "{status}"')

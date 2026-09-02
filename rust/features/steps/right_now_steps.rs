@@ -179,14 +179,6 @@ fn then_right_now_summary_result_unset(world: &mut KanbusWorld) {
     assert!(result.is_none());
 }
 
-#[given("mock AI is enabled")]
-fn given_mock_ai_enabled(world: &mut KanbusWorld) {
-    world.ai_mock_env = Some(std::env::var("KANBUS_TEST_AI_MOCK").ok());
-    world.litellm_called_env = Some(std::env::var("KANBUS_RIGHT_NOW_LITELLM_CALLED").ok());
-    std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
-    std::env::remove_var("KANBUS_RIGHT_NOW_LITELLM_CALLED");
-}
-
 #[given(expr = "the Kanbus configuration uses AI provider {string} with model {string}")]
 fn given_kanbus_configuration_uses_ai_provider(
     world: &mut KanbusWorld,

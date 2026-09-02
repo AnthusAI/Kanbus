@@ -35,6 +35,7 @@ fn the_ai_provider_is_configured_as_litellm(world: &mut KanbusWorld) {
 #[given(regex = r#"^mock AI is enabled$"#)]
 fn mock_ai_is_enabled(_world: &mut KanbusWorld) {
     std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
+    std::env::remove_var("KANBUS_RIGHT_NOW_LITELLM_CALLED");
 }
 
 #[given(regex = r#"^an issue "([^"]+)" of type "([^"]+)" in status "([^"]+)"$"#)]
