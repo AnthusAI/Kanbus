@@ -2,11 +2,26 @@
 
 from __future__ import annotations
 
+import copy
+import json
+import os
 from datetime import datetime, timezone
+from pathlib import Path
+from types import SimpleNamespace
 
+import yaml
 from behave import given, then, when
 
-from kanbus.right_now import get_right_now_summary
+from kanbus.config import DEFAULT_CONFIGURATION
+from kanbus.right_now import (
+    LLM_USAGE_LOG,
+    RIGHT_NOW_SUMMARY_OPERATION,
+    RightNowError,
+    build_leaf_right_now_context,
+    generate_right_now_summary,
+    get_right_now_summary,
+    summary_contains_status_keyword,
+)
 
 from features.steps.shared import (
     load_project_directory,
@@ -264,3 +279,206 @@ def then_right_now_summary_result_unset(context: object) -> None:
     :type context: object
     """
     assert context.right_now_summary_result is None
+
+
+@given("mock AI is enabled")
+def given_mock_ai_enabled(context: object) -> None:
+    """Enable deterministic AI mock mode for right-now generation.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    context._ai_mock_env = os.environ.get("KANBUS_TEST_AI_MOCK")
+    context._litellm_called_env = os.environ.get("KANBUS_RIGHT_NOW_LITELLM_CALLED")
+    os.environ["KANBUS_TEST_AI_MOCK"] = "1"
+    os.environ.pop("KANBUS_RIGHT_NOW_LITELLM_CALLED", None)
+
+
+@given('the Kanbus configuration uses AI provider "{provider}" with model "{model}"')
+def given_kanbus_configuration_uses_ai_provider(
+    context: object, provider: str, model: str
+) -> None:
+    """Configure AI provider settings in .kanbus.yml.
+
+    :param context: Behave context object.
+    :type context: object
+    :param provider: AI provider identifier.
+    :type provider: str
+    :param model: Model identifier.
+    :type model: str
+    """
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    if config_path.exists():
+        loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            payload.update(loaded)
+    payload["ai"] = {"provider": provider, "model": model}
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+@given("the Kanbus project has no AI configuration")
+def given_kanbus_project_has_no_ai_configuration(context: object) -> None:
+    """Remove AI configuration from the current project.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict):
+        payload.pop("ai", None)
+        config_path.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+
+@given("the right now max length is set to {max_length:d}")
+def given_right_now_max_length(context: object, max_length: int) -> None:
+    """Set right_now.max_length in project configuration.
+
+    :param context: Behave context object.
+    :type context: object
+    :param max_length: Maximum summary length.
+    :type max_length: int
+    """
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload.setdefault("right_now", {})
+    payload["right_now"]["max_length"] = max_length
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+@when('I generate the right now summary for issue "{identifier}"')
+def when_generate_right_now_summary(context: object, identifier: str) -> None:
+    """Generate a right-now summary for an issue.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    root = Path(context.working_directory)
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    right_now_context = build_leaf_right_now_context(issue)
+    context.right_now_generation_error = None
+    context.generated_right_now_summary = None
+    try:
+        context.generated_right_now_summary = generate_right_now_summary(
+            root,
+            issue,
+            right_now_context,
+        )
+        context.result = SimpleNamespace(exit_code=0, stdout="", stderr="", output="")
+    except RightNowError as error:
+        context.right_now_generation_error = str(error)
+        context.result = SimpleNamespace(
+            exit_code=1,
+            stdout="",
+            stderr=str(error),
+            output=str(error),
+        )
+
+
+@then("the generated right now summary should be non-empty")
+def then_generated_right_now_summary_non_empty(context: object) -> None:
+    """Verify generated right-now summary is non-empty.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    summary = getattr(context, "generated_right_now_summary", None)
+    assert summary
+    assert summary.strip()
+
+
+@then('the generated right now summary should equal "{expected}"')
+def then_generated_right_now_summary_equals(context: object, expected: str) -> None:
+    """Verify generated right-now summary matches expected text.
+
+    :param context: Behave context object.
+    :type context: object
+    :param expected: Expected summary text.
+    :type expected: str
+    """
+    assert context.generated_right_now_summary == expected
+
+
+@then("the generated right now summary length should be at most {max_length:d}")
+def then_generated_right_now_summary_length_at_most(
+    context: object, max_length: int
+) -> None:
+    """Verify generated right-now summary respects max length.
+
+    :param context: Behave context object.
+    :type context: object
+    :param max_length: Maximum allowed length.
+    :type max_length: int
+    """
+    summary = context.generated_right_now_summary
+    assert summary is not None
+    assert len(summary) <= max_length
+
+
+@then("the generated right now summary should not contain status keywords")
+def then_generated_right_now_summary_no_status_keywords(context: object) -> None:
+    """Verify generated right-now summary does not restate status labels.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    summary = context.generated_right_now_summary
+    assert summary is not None
+    assert not summary_contains_status_keyword(summary)
+
+
+@then("the LLM usage log should contain a right_now_summary entry")
+def then_llm_usage_log_contains_right_now_summary(context: object) -> None:
+    """Verify llm_usage.jsonl contains a right_now_summary operation entry.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    project_dir = load_project_directory(context)
+    log_path = project_dir / "events" / LLM_USAGE_LOG
+    assert log_path.exists(), f"expected {log_path} to exist"
+    entries = [
+        json.loads(line)
+        for line in log_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    matching = [
+        entry
+        for entry in entries
+        if entry.get("operation") == RIGHT_NOW_SUMMARY_OPERATION
+    ]
+    assert matching, "expected right_now_summary entry in llm usage log"
+
+
+@then("the LiteLLM API should not be called")
+def then_litellm_api_not_called(context: object) -> None:
+    """Verify LiteLLM completion was not invoked.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    assert os.environ.get("KANBUS_RIGHT_NOW_LITELLM_CALLED") != "1"
+
+
+@then('right now summary generation should fail with "{message}"')
+def then_right_now_summary_generation_fails(context: object, message: str) -> None:
+    """Verify right-now generation failed with the expected message.
+
+    :param context: Behave context object.
+    :type context: object
+    :param message: Expected error message.
+    :type message: str
+    """
+    assert context.right_now_generation_error == message
