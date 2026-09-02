@@ -78,6 +78,7 @@ use crate::wiki::{
     version = env!("GIT_VERSION"),
     after_help = "Examples:
   kbs list                                     list all issues
+  kbs list --limit 10                          cap output to 10 issues
   kbs issues                                   alias for: kbs list
   kbs epics / kbs tasks / kbs bugs             list by type
   kbs create \"Fix login bug\" --type bug        create an issue
@@ -320,6 +321,7 @@ enum Commands {
     ///   kbs list --status open                      only open issues
     ///   kbs list --type task --status in_progress
     ///   kbs list --parent <id>                      children of an issue
+    ///   kbs list --limit 10                         cap output to 10 issues
     ///   kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
     List {
         /// Status filter.
@@ -352,6 +354,9 @@ enum Commands {
         /// Show only local issues.
         #[arg(long = "local-only")]
         local_only: bool,
+        /// Maximum issues to display (0 for no limit).
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
         /// Plain, non-colorized output for machine parsing.
         #[arg(long)]
         porcelain: bool,
@@ -2482,6 +2487,7 @@ fn execute_command(
             project,
             no_local,
             local_only,
+            limit,
             porcelain,
             full_ids,
         } => {
@@ -2500,12 +2506,13 @@ fn execute_command(
                     "projects": project.clone(),
                     "no_local": no_local,
                     "local_only": local_only,
+                    "limit": limit,
                     "porcelain": porcelain,
                 }),
                 &[],
                 hook_options,
             )?;
-            let issues = if beads_mode {
+            let mut issues = if beads_mode {
                 if local_only || no_local {
                     return Err(KanbusError::IssueOperation(
                         "beads mode does not support local filtering".to_string(),
@@ -2548,6 +2555,9 @@ fn execute_command(
                     local_only,
                 )?
             };
+            if limit > 0 {
+                issues.truncate(limit);
+            }
             let configuration = if beads_mode {
                 None
             } else {
@@ -3976,6 +3986,7 @@ mod tests {
             project: Vec::new(),
             no_local: false,
             local_only: false,
+            limit: 0,
             porcelain: false,
             full_ids: false,
         }));
