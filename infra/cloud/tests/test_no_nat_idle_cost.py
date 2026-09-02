@@ -10,7 +10,7 @@ from kanbus_cloud.cloud_stack import KanbusCloudFoundationStack
 
 
 class NoNatIdleCostTemplateTests(unittest.TestCase):
-    """Validate NAT removal without Fargate in synthesized template."""
+    """Validate NAT removal without new compute types in synthesized template."""
 
     @staticmethod
     def _template() -> Template:

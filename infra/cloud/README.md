@@ -81,7 +81,7 @@ TenantSyncWorker run in isolated subnets with EFS access only.
 
 **Known limitation (accepted for this bug):** without NAT or VPC interface endpoints,
 TenantSyncWorker cannot reach GitHub for `git fetch` or AWS IoT Core for publish. Webhook
-ingress still enqueues jobs, but sync will fail until a later non-Fargate egress design lands.
+ingress still enqueues jobs, but sync will fail until a later egress design lands.
 Do not add NAT instances or VPC endpoints in this slice.
 
 ## Tenant isolation note
