@@ -664,6 +664,7 @@ When("a new task issue named {string} is added", async function (title) {
   };
   const filePath = path.join(projectRoot, "issues", `${issueId}.json`);
   await writeFile(filePath, JSON.stringify(issue, null, 2));
+  await waitForIssueUpdate(issueId, (entry) => entry.title === title);
 });
 
 Given(

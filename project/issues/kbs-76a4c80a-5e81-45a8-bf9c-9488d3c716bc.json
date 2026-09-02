@@ -21,8 +21,8 @@
   "created_at": "2026-09-02T13:03:25.798957Z",
   "updated_at": "2026-09-02T17:39:02.088284Z",
   "closed_at": "2026-09-02T17:39:02.065543Z",
-  "right_now_summary": "The CLI, web panel, caching, hierarchy, and parity checks now support one-sentence right-now summaries.",
-  "right_now_updated_at": "2026-09-02T17:39:08.132202Z",
+  "right_now_summary": "Right-now summaries, tree views, sync, and coverage are complete, and the initiative is wrapping up.",
+  "right_now_updated_at": "2026-09-02T17:47:17.311034Z",
   "custom": {
     "source": "shared",
     "project_label": "kbs"
