@@ -21,6 +21,8 @@ from aws_cdk import (
     aws_cloudwatch as cloudwatch,
     aws_dynamodb as dynamodb,
     aws_iot as iot,
+    aws_s3 as s3,
+    aws_s3_notifications as s3n,
     custom_resources as cr,
 )
 
@@ -39,7 +41,7 @@ class KanbusCloudFoundationStack(Stack):
             self,
             "CloudVpc",
             max_azs=2,
-            nat_gateways=1,
+            nat_gateways=0,
             subnet_configuration=[
                 ec2.SubnetConfiguration(
                     name="public",
@@ -48,11 +50,34 @@ class KanbusCloudFoundationStack(Stack):
                 ),
                 ec2.SubnetConfiguration(
                     name="app",
-                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                    subnet_type=ec2.SubnetType.PRIVATE_ISOLATED,
                     cidr_mask=24,
                 ),
             ],
         )
+        vpc.add_gateway_endpoint(
+            "S3Endpoint",
+            service=ec2.GatewayVpcEndpointAwsService.S3,
+        )
+
+        sync_bucket = s3.Bucket(
+            self,
+            "SyncTarballBucket",
+            bucket_name=f"kanbus-sync-{env_name}-{self.account}",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            enforce_ssl=True,
+            removal_policy=RemovalPolicy.RETAIN,
+            lifecycle_rules=[
+                s3.LifecycleRule(
+                    id="ExpireSyncTarballs",
+                    enabled=True,
+                    expiration=Duration.days(7),
+                )
+            ],
+        )
+
+        lambda_code_directory = project_root / "infra" / "cloud" / "lambda"
 
         lambda_sg = ec2.SecurityGroup(
             self,
@@ -62,17 +87,30 @@ class KanbusCloudFoundationStack(Stack):
             description="Security group for console lambda containers",
         )
 
+        efs_writer_sg = ec2.SecurityGroup(
+            self,
+            "EfsWriterSecurityGroup",
+            vpc=vpc,
+            allow_all_outbound=True,
+            description="Security group for EFS writer lambda",
+        )
+
         efs_sg = ec2.SecurityGroup(
             self,
             "EfsSecurityGroup",
             vpc=vpc,
-            allow_all_outbound=True,
+            allow_all_outbound=False,
             description="Security group for Kanbus EFS",
         )
         efs_sg.add_ingress_rule(
             peer=lambda_sg,
             connection=ec2.Port.tcp(2049),
             description="Allow NFS from console lambda",
+        )
+        efs_sg.add_ingress_rule(
+            peer=efs_writer_sg,
+            connection=ec2.Port.tcp(2049),
+            description="Allow NFS from EFS writer lambda",
         )
 
         filesystem = efs.FileSystem(
@@ -85,7 +123,7 @@ class KanbusCloudFoundationStack(Stack):
             throughput_mode=efs.ThroughputMode.BURSTING,
             performance_mode=efs.PerformanceMode.GENERAL_PURPOSE,
             removal_policy=RemovalPolicy.RETAIN,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
         )
 
         tenant_access_point = efs.AccessPoint(
@@ -115,7 +153,7 @@ class KanbusCloudFoundationStack(Stack):
             timeout=Duration.seconds(120),
             tracing=lambda_.Tracing.ACTIVE,
             vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
             security_groups=[lambda_sg],
             filesystem=lambda_.FileSystem.from_efs_access_point(tenant_access_point, "/mnt/data"),
             environment={
@@ -337,36 +375,78 @@ class KanbusCloudFoundationStack(Stack):
         sync_queue.grant_send_messages(webhook_handler)
         webhook_secret.grant_read(webhook_handler)
 
-        sync_worker = lambda_.DockerImageFunction(
+        git_sync_lambda = lambda_.DockerImageFunction(
             self,
-            "TenantSyncWorker",
+            "GitSyncLambda",
             code=lambda_.DockerImageCode.from_image_asset(
-                directory=str(project_root / "infra" / "cloud" / "lambda"),
-                file="sync_worker.Dockerfile",
+                directory=str(lambda_code_directory),
+                file="sync_git.Dockerfile",
             ),
             architecture=lambda_.Architecture.X86_64,
             timeout=Duration.minutes(3),
             memory_size=1024,
+            environment={
+                "KANBUS_SYNC_BUCKET": sync_bucket.bucket_name,
+            },
+            description="Sync tenant git repos from GitHub and upload tarballs to S3",
+        )
+        git_sync_lambda.add_event_source(
+            lambda_event_sources.SqsEventSource(sync_queue, batch_size=5)
+        )
+        sync_queue.grant_consume_messages(git_sync_lambda)
+        sync_bucket.grant_put(git_sync_lambda)
+
+        efs_writer_lambda = lambda_.Function(
+            self,
+            "EfsWriterLambda",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="sync_efs_writer.handler",
+            code=lambda_.Code.from_asset(str(lambda_code_directory)),
+            timeout=Duration.minutes(3),
+            memory_size=1024,
             vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
-            security_groups=[lambda_sg],
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            security_groups=[efs_writer_sg],
             filesystem=lambda_.FileSystem.from_efs_access_point(tenant_access_point, "/mnt/data"),
             environment={
                 "KANBUS_TENANT_MOUNT": "/mnt/data",
+                "KANBUS_SYNC_BUCKET": sync_bucket.bucket_name,
             },
-            description="Process tenant sync jobs and publish IoT cloud sync events",
+            description="Extract S3 sync tarballs to tenant EFS and write completion markers",
         )
-        sync_worker.add_event_source(
-            lambda_event_sources.SqsEventSource(sync_queue, batch_size=5)
+        sync_bucket.grant_read_write(efs_writer_lambda)
+        sync_bucket.add_event_notification(
+            s3.EventType.OBJECT_CREATED,
+            s3n.LambdaDestination(efs_writer_lambda),
+            s3.NotificationKeyFilter(suffix=".tar.gz"),
         )
-        sync_queue.grant_consume_messages(sync_worker)
-        sync_worker.add_to_role_policy(
+
+        sync_notify_lambda = lambda_.Function(
+            self,
+            "SyncNotifyLambda",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="sync_notify.handler",
+            code=lambda_.Code.from_asset(str(lambda_code_directory)),
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment={
+                "KANBUS_SYNC_BUCKET": sync_bucket.bucket_name,
+            },
+            description="Publish IoT sync completion events from S3 completion markers",
+        )
+        sync_bucket.grant_read(sync_notify_lambda)
+        sync_notify_lambda.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["iot:Publish"],
                 resources=[
                     f"arn:{self.partition}:iot:{self.region}:{self.account}:topic/projects/*/*/events"
                 ],
             )
+        )
+        sync_bucket.add_event_notification(
+            s3.EventType.OBJECT_CREATED,
+            s3n.LambdaDestination(sync_notify_lambda),
+            s3.NotificationKeyFilter(suffix=".synced.json"),
         )
 
         token_table = dynamodb.Table(
@@ -541,12 +621,34 @@ class KanbusCloudFoundationStack(Stack):
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
         )
 
-        sync_worker_errors_alarm = cloudwatch.Alarm(
+        git_sync_errors_alarm = cloudwatch.Alarm(
             self,
-            "SyncWorkerLambdaErrorsAlarm",
-            alarm_name=f"kanbus-sync-worker-errors-{env_name}",
-            alarm_description="Kanbus tenant sync worker lambda is reporting errors",
-            metric=sync_worker.metric_errors(period=Duration.minutes(5)),
+            "GitSyncLambdaErrorsAlarm",
+            alarm_name=f"kanbus-git-sync-errors-{env_name}",
+            alarm_description="Kanbus git sync lambda is reporting errors",
+            metric=git_sync_lambda.metric_errors(period=Duration.minutes(5)),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
+        efs_writer_errors_alarm = cloudwatch.Alarm(
+            self,
+            "EfsWriterLambdaErrorsAlarm",
+            alarm_name=f"kanbus-efs-writer-errors-{env_name}",
+            alarm_description="Kanbus EFS writer lambda is reporting errors",
+            metric=efs_writer_lambda.metric_errors(period=Duration.minutes(5)),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
+        sync_notify_errors_alarm = cloudwatch.Alarm(
+            self,
+            "SyncNotifyLambdaErrorsAlarm",
+            alarm_name=f"kanbus-sync-notify-errors-{env_name}",
+            alarm_description="Kanbus sync notify lambda is reporting errors",
+            metric=sync_notify_lambda.metric_errors(period=Duration.minutes(5)),
             threshold=0,
             evaluation_periods=1,
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
@@ -626,7 +728,7 @@ class KanbusCloudFoundationStack(Stack):
         console_lambda.add_environment(
             "KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME", mqtt_token_authorizer.authorizer_name
         )
-        sync_worker.add_environment(
+        sync_notify_lambda.add_environment(
             "KANBUS_IOT_DATA_ENDPOINT", iot_endpoint.get_response_field("endpointAddress")
         )
 
@@ -652,6 +754,8 @@ class KanbusCloudFoundationStack(Stack):
         CfnOutput(self, "SyncQueueUrl", value=sync_queue.queue_url)
         CfnOutput(self, "SyncQueueArn", value=sync_queue.queue_arn)
         CfnOutput(self, "SyncDlqArn", value=sync_dlq.queue_arn)
+        CfnOutput(self, "SyncBucketName", value=sync_bucket.bucket_name)
+        CfnOutput(self, "SyncBucketArn", value=sync_bucket.bucket_arn)
         CfnOutput(self, "GithubWebhookSecretArn", value=webhook_secret.secret_arn)
         CfnOutput(self, "TenantEfsFileSystemId", value=filesystem.file_system_id)
         CfnOutput(self, "TenantEfsAccessPointId", value=tenant_access_point.access_point_id)

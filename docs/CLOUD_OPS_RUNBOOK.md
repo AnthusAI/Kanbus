@@ -71,7 +71,8 @@ WAF or by rotating `GithubWebhookSecretArn`.
 - `kanbus-sync-queue-age-<env>`: sync queue backlog age high.
 - `kanbus-console-lambda-errors-<env>`: API Lambda errors > 0.
 - `kanbus-webhook-lambda-errors-<env>`: webhook ingress errors > 0.
-- `kanbus-sync-worker-errors-<env>`: sync worker errors > 0.
+- `kanbus-git-sync-errors-<env>`: git sync lambda errors > 0.
+- `kanbus-efs-writer-errors-<env>`: EFS writer lambda errors > 0.
 - `kanbus-console-api-4xx-<env>`: elevated client/auth failures and other 4xx responses.
 
 ## Incident Triage

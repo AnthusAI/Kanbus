@@ -2,8 +2,9 @@
 
 This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 
-- VPC with application subnets
+- VPC with public and isolated subnets (no NAT Gateway)
 - EFS for tenant data (`/mnt/data/{account}/{project}`)
+- S3 sync tarball bucket with 7-day lifecycle (S3 bridge between git sync and EFS)
 - Rust Lambda container runtime (`console_lambda`)
 - Regional REST API Gateway proxying to Lambda
 - Cognito User Pool + Identity Pool foundation
@@ -13,7 +14,9 @@ This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 - DynamoDB-backed MQTT API token registry
 - IoT Core custom authorizer for CLI MQTT API-token auth
 - GitHub webhook ingress Lambda (`/internal/webhooks/github`) + SQS + DLQ
-- Tenant sync worker Lambda (EFS-backed) with IoT publish scaffolding
+- Git sync Lambda (non-VPC, GitHub clone/fetch, uploads tarball to S3)
+- EFS writer Lambda (VPC-isolated, extracts S3 tarball to EFS, writes S3 completion marker)
+- Sync notify Lambda (non-VPC, publishes IoT events from completion markers)
 - Token admin Lambda API (`/api/tokens`) for create/list/revoke
 - AWS IoT Data endpoint discovery output
 
@@ -73,6 +76,8 @@ AWS_PROFILE=anthus npx cdk synth \
 - `SyncQueueUrl`
 - `SyncQueueArn`
 - `SyncDlqArn`
+- `SyncBucketName`
+- `SyncBucketArn`
 
 ## Tenant isolation note
 
@@ -110,7 +115,9 @@ tuple `<account>/<project>` is used and synced.
 
 - Tenant route/API usage is `/{account}/{project}/...`.
 - Webhook ingress carries tenant headers (`X-Kanbus-Account`, `X-Kanbus-Project`).
-- Sync worker clones/syncs the webhook repo URL into:
+- Sync git Lambda clones/syncs the webhook repo URL into a tarball and uploads to S3:
+  - `{account}/{project}/{sha}.tar.gz`
+- EFS writer Lambda extracts the tarball to:
   - `/mnt/data/{account}/{project}/repo`
 
 This means cloud project existence is currently operationally defined by EFS presence and sync history.
@@ -144,7 +151,7 @@ The script enforces gates in order:
 3. Unauthenticated API/auth contracts.
 4. Authenticated tenant isolation + SSE endpoint.
 5. Token admin + authorizer + CLI parity.
-6. Webhook -> SQS -> worker -> IoT event.
+6. Webhook -> SQS -> git sync Lambda -> S3 tarball -> EFS writer -> S3 marker -> sync notify -> IoT event.
 7. Browser realtime hard gate (MQTT primary, no SSE-only pass).
 
 ## Cross-Mac realtime operator flow

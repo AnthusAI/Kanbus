@@ -80,9 +80,11 @@ For Git-backed cloud projects:
 2. Webhook ingress receives tenant headers:
    - `X-Kanbus-Account`
    - `X-Kanbus-Project`
-3. Sync worker clones/syncs repo to EFS:
+3. Git sync Lambda clones/syncs repo to S3 tarball:
+   - `{account}/{project}/{sha}.tar.gz`
+4. EFS writer Lambda extracts tarball to EFS:
    - `/mnt/data/{account}/{project}/repo`
-4. Console APIs read project data from EFS and publish realtime events to:
+5. Console APIs read project data from EFS and publish realtime events to:
    - `projects/{account}/{project}/events`
 
 ## Multi-Tenant User Roadmap
@@ -107,7 +109,7 @@ into the tenant path on EFS and then serving it from the tenant route.
 2. Ensure webhook delivery includes:
    - `X-Kanbus-Account: <account>`
    - `X-Kanbus-Project: <project>`
-3. Trigger a sync (GitHub push webhook or manual sync path) so worker materializes:
+3. Trigger a sync (GitHub push webhook or manual sync path) so git sync and EFS writer materialize:
    - `/mnt/data/<account>/<project>/repo`
 4. Open the tenant URL:
    - `/dev/<account>/<project>/`
