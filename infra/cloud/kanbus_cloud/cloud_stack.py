@@ -14,13 +14,11 @@ from aws_cdk import (
     aws_cognito as cognito,
     aws_dynamodb as dynamodb,
     aws_ec2 as ec2,
-    aws_ecs as ecs,
     aws_efs as efs,
     aws_iam as iam,
     aws_iot as iot,
     aws_lambda as lambda_,
     aws_lambda_event_sources as lambda_event_sources,
-    aws_logs as logs,
     aws_secretsmanager as secretsmanager,
     aws_sqs as sqs,
     custom_resources as cr,
@@ -64,12 +62,12 @@ class KanbusCloudFoundationStack(Stack):
             description="Security group for console lambda containers",
         )
 
-        sync_task_sg = ec2.SecurityGroup(
+        sync_worker_sg = ec2.SecurityGroup(
             self,
-            "SyncTaskSecurityGroup",
+            "SyncWorkerSecurityGroup",
             vpc=vpc,
             allow_all_outbound=True,
-            description="Security group for tenant sync Fargate tasks",
+            description="Security group for tenant sync worker lambda",
         )
 
         efs_sg = ec2.SecurityGroup(
@@ -85,9 +83,9 @@ class KanbusCloudFoundationStack(Stack):
             description="Allow NFS from console lambda",
         )
         efs_sg.add_ingress_rule(
-            peer=sync_task_sg,
+            peer=sync_worker_sg,
             connection=ec2.Port.tcp(2049),
-            description="Allow NFS from tenant sync tasks",
+            description="Allow NFS from tenant sync worker lambda",
         )
 
         filesystem = efs.FileSystem(
@@ -318,7 +316,7 @@ class KanbusCloudFoundationStack(Stack):
             self,
             "SyncQueue",
             queue_name=f"kanbus-sync-{env_name}",
-            visibility_timeout=Duration.minutes(13),
+            visibility_timeout=Duration.minutes(5),
             retention_period=Duration.days(4),
             encryption=sqs.QueueEncryption.SQS_MANAGED,
             dead_letter_queue=sqs.DeadLetterQueue(queue=sync_dlq, max_receive_count=5),
@@ -351,6 +349,38 @@ class KanbusCloudFoundationStack(Stack):
         )
         sync_queue.grant_send_messages(webhook_handler)
         webhook_secret.grant_read(webhook_handler)
+
+        sync_worker = lambda_.DockerImageFunction(
+            self,
+            "TenantSyncWorker",
+            code=lambda_.DockerImageCode.from_image_asset(
+                directory=str(project_root / "infra" / "cloud" / "lambda"),
+                file="sync_worker.Dockerfile",
+            ),
+            architecture=lambda_.Architecture.X86_64,
+            timeout=Duration.minutes(3),
+            memory_size=1024,
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            security_groups=[sync_worker_sg],
+            filesystem=lambda_.FileSystem.from_efs_access_point(tenant_access_point, "/mnt/data"),
+            environment={
+                "KANBUS_TENANT_MOUNT": "/mnt/data",
+            },
+            description="Process tenant sync jobs and publish IoT cloud sync events",
+        )
+        sync_worker.add_event_source(
+            lambda_event_sources.SqsEventSource(sync_queue, batch_size=5)
+        )
+        sync_queue.grant_consume_messages(sync_worker)
+        sync_worker.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["iot:Publish"],
+                resources=[
+                    f"arn:{self.partition}:iot:{self.region}:{self.account}:topic/projects/*/*/events"
+                ],
+            )
+        )
 
         token_table = dynamodb.Table(
             self,
@@ -496,7 +526,7 @@ class KanbusCloudFoundationStack(Stack):
             metric=sync_queue.metric_approximate_age_of_oldest_message(
                 period=Duration.minutes(5)
             ),
-            threshold=720,
+            threshold=300,
             evaluation_periods=1,
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
         )
@@ -519,6 +549,17 @@ class KanbusCloudFoundationStack(Stack):
             alarm_name=f"kanbus-webhook-lambda-errors-{env_name}",
             alarm_description="Kanbus webhook ingress lambda is reporting errors",
             metric=webhook_handler.metric_errors(period=Duration.minutes(5)),
+            threshold=0,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        )
+
+        sync_worker_errors_alarm = cloudwatch.Alarm(
+            self,
+            "SyncWorkerLambdaErrorsAlarm",
+            alarm_name=f"kanbus-sync-worker-errors-{env_name}",
+            alarm_description="Kanbus tenant sync worker lambda is reporting errors",
+            metric=sync_worker.metric_errors(period=Duration.minutes(5)),
             threshold=0,
             evaluation_periods=1,
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
@@ -583,180 +624,6 @@ class KanbusCloudFoundationStack(Stack):
             ),
         )
         iot_endpoint.node.add_dependency(identity_pool_role_attachment)
-
-        public_subnets = vpc.select_subnets(subnet_type=ec2.SubnetType.PUBLIC)
-
-        sync_cluster = ecs.Cluster(
-            self,
-            "TenantSyncCluster",
-            vpc=vpc,
-            cluster_name=f"kanbus-tenant-sync-{env_name}",
-        )
-
-        sync_task_log_group = logs.LogGroup(
-            self,
-            "TenantSyncTaskLogGroup",
-            log_group_name=f"/ecs/kanbus-tenant-sync-{env_name}",
-            retention=logs.RetentionDays.TWO_WEEKS,
-        )
-
-        sync_task_role = iam.Role(
-            self,
-            "TenantSyncTaskRole",
-            assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
-            description="Task role for Kanbus tenant sync Fargate tasks",
-        )
-        sync_task_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["iot:Publish"],
-                resources=[
-                    f"arn:{self.partition}:iot:{self.region}:{self.account}:topic/projects/*/*/events"
-                ],
-            )
-        )
-
-        sync_execution_role = iam.Role(
-            self,
-            "TenantSyncTaskExecutionRole",
-            assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AmazonECSTaskExecutionRolePolicy"
-                ),
-            ],
-        )
-
-        sync_task_definition = ecs.FargateTaskDefinition(
-            self,
-            "TenantSyncTaskDefinition",
-            memory_limit_mib=1024,
-            cpu=512,
-            task_role=sync_task_role,
-            execution_role=sync_execution_role,
-        )
-
-        sync_task_definition.add_volume(
-            name="tenant-data",
-            efs_volume_configuration=ecs.EfsVolumeConfiguration(
-                file_system_id=filesystem.file_system_id,
-                transit_encryption="ENABLED",
-                authorization_config=ecs.AuthorizationConfig(
-                    access_point_id=tenant_access_point.access_point_id,
-                    iam="ENABLED",
-                ),
-            ),
-        )
-
-        sync_container = sync_task_definition.add_container(
-            "TenantSyncTask",
-            image=ecs.ContainerImage.from_asset(
-                str(project_root / "infra" / "cloud" / "lambda"),
-                file="sync_task.Dockerfile",
-            ),
-            logging=ecs.LogDrivers.aws_logs(
-                stream_prefix="tenant-sync",
-                log_group=sync_task_log_group,
-            ),
-            environment={
-                "KANBUS_TENANT_MOUNT": "/mnt/data",
-                "KANBUS_IOT_DATA_ENDPOINT": iot_endpoint.get_response_field("endpointAddress"),
-            },
-            essential=True,
-            stop_timeout=Duration.minutes(2),
-        )
-
-        sync_container.add_mount_points(
-            ecs.MountPoint(
-                container_path="/mnt/data",
-                source_volume="tenant-data",
-                read_only=False,
-            )
-        )
-
-        sync_task_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "elasticfilesystem:ClientMount",
-                    "elasticfilesystem:ClientWrite",
-                ],
-                resources=[filesystem.file_system_arn],
-                conditions={
-                    "StringEquals": {
-                        "elasticfilesystem:AccessPointArn": tenant_access_point.access_point_arn,
-                    }
-                },
-            )
-        )
-        sync_execution_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["elasticfilesystem:ClientMount"],
-                resources=[filesystem.file_system_arn],
-                conditions={
-                    "StringEquals": {
-                        "elasticfilesystem:AccessPointArn": tenant_access_point.access_point_arn,
-                    }
-                },
-            )
-        )
-
-        sync_dispatcher = lambda_.Function(
-            self,
-            "SyncTaskDispatcher",
-            runtime=lambda_.Runtime.PYTHON_3_11,
-            handler="sync_dispatcher.handler",
-            code=lambda_.Code.from_asset(str(project_root / "infra" / "cloud" / "lambda")),
-            timeout=Duration.minutes(12),
-            memory_size=256,
-            environment={
-                "ECS_CLUSTER_NAME": sync_cluster.cluster_name,
-                "ECS_TASK_DEFINITION": sync_task_definition.task_definition_arn,
-                "ECS_CONTAINER_NAME": sync_container.container_name,
-                "ECS_SUBNET_IDS": ",".join(public_subnets.subnet_ids),
-                "ECS_SECURITY_GROUP_IDS": sync_task_sg.security_group_id,
-                "ECS_ASSIGN_PUBLIC_IP": "ENABLED",
-                "SYNC_TASK_STOP_WAIT_SECONDS": str(int(Duration.minutes(12).to_seconds())),
-            },
-            description="Dispatch tenant sync jobs from SQS to on-demand Fargate tasks",
-        )
-        sync_dispatcher.add_event_source(
-            lambda_event_sources.SqsEventSource(sync_queue, batch_size=1)
-        )
-        sync_queue.grant_consume_messages(sync_dispatcher)
-        sync_dispatcher.add_to_role_policy(
-            iam.PolicyStatement(
-                actions=["ecs:RunTask"],
-                resources=[sync_task_definition.task_definition_arn],
-                conditions={
-                    "ArnEquals": {
-                        "ecs:cluster": sync_cluster.cluster_arn,
-                    }
-                },
-            )
-        )
-        sync_dispatcher.add_to_role_policy(
-            iam.PolicyStatement(
-                actions=["ecs:DescribeTasks"],
-                resources=["*"],
-            )
-        )
-        sync_dispatcher.add_to_role_policy(
-            iam.PolicyStatement(
-                actions=["iam:PassRole"],
-                resources=[sync_task_role.role_arn, sync_execution_role.role_arn],
-            )
-        )
-
-        sync_dispatcher_errors_alarm = cloudwatch.Alarm(
-            self,
-            "SyncDispatcherLambdaErrorsAlarm",
-            alarm_name=f"kanbus-sync-dispatcher-errors-{env_name}",
-            alarm_description="Kanbus tenant sync dispatcher lambda is reporting errors",
-            metric=sync_dispatcher.metric_errors(period=Duration.minutes(5)),
-            threshold=0,
-            evaluation_periods=1,
-            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-        )
-
         console_lambda.add_environment("KANBUS_AUTH_MODE", "cognito_pkce")
         console_lambda.add_environment("KANBUS_COGNITO_CLIENT_ID", user_pool_client.user_pool_client_id)
         console_lambda.add_environment("KANBUS_COGNITO_DOMAIN_URL", user_pool_domain.base_url())
@@ -771,6 +638,9 @@ class KanbusCloudFoundationStack(Stack):
         )
         console_lambda.add_environment(
             "KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME", mqtt_token_authorizer.authorizer_name
+        )
+        sync_worker.add_environment(
+            "KANBUS_IOT_DATA_ENDPOINT", iot_endpoint.get_response_field("endpointAddress")
         )
 
         CfnOutput(self, "ApiBaseUrl", value=api.url, description="Regional API base URL")
@@ -805,10 +675,3 @@ class KanbusCloudFoundationStack(Stack):
             value="/mnt/data/{account}/{project}",
             description="Tenant root path template expected by console_lambda",
         )
-        CfnOutput(self, "TenantSyncClusterName", value=sync_cluster.cluster_name)
-        CfnOutput(
-            self,
-            "TenantSyncTaskDefinitionArn",
-            value=sync_task_definition.task_definition_arn,
-        )
-        CfnOutput(self, "TenantSyncTaskLogGroupName", value=sync_task_log_group.log_group_name)

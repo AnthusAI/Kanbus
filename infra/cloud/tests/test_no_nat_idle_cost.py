@@ -10,7 +10,7 @@ from kanbus_cloud.cloud_stack import KanbusCloudFoundationStack
 
 
 class NoNatIdleCostTemplateTests(unittest.TestCase):
-    """Validate NAT removal and Fargate sync topology in synthesized template."""
+    """Validate NAT removal without Fargate in synthesized template."""
 
     @staticmethod
     def _template() -> Template:
@@ -23,6 +23,18 @@ class NoNatIdleCostTemplateTests(unittest.TestCase):
     @staticmethod
     def _rendered_resources(template: Template) -> dict:
         return template.to_json()["Resources"]
+
+    @staticmethod
+    def _isolated_subnet_ids(rendered: dict) -> set[str]:
+        return {
+            resource_id
+            for resource_id, resource in rendered.items()
+            if resource["Type"] == "AWS::EC2::Subnet"
+            and any(
+                tag.get("Key") == "aws-cdk:subnet-type" and tag.get("Value") == "Isolated"
+                for tag in resource["Properties"].get("Tags", [])
+            )
+        }
 
     def test_vpc_has_zero_nat_gateways(self) -> None:
         template = self._template()
@@ -39,18 +51,20 @@ class NoNatIdleCostTemplateTests(unittest.TestCase):
         ]
         self.assertEqual(classic_elbs, [])
 
+    def test_zero_ecs_resources(self) -> None:
+        template = self._template()
+        rendered = self._rendered_resources(template)
+        ecs_resources = [
+            resource_id
+            for resource_id, resource in rendered.items()
+            if resource["Type"].startswith("AWS::ECS::")
+        ]
+        self.assertEqual(ecs_resources, [])
+
     def test_console_lambda_uses_isolated_subnets(self) -> None:
         template = self._template()
         rendered = self._rendered_resources(template)
-        isolated_subnet_ids = {
-            resource_id
-            for resource_id, resource in rendered.items()
-            if resource["Type"] == "AWS::EC2::Subnet"
-            and any(
-                tag.get("Key") == "aws-cdk:subnet-type" and tag.get("Value") == "Isolated"
-                for tag in resource["Properties"].get("Tags", [])
-            )
-        }
+        isolated_subnet_ids = self._isolated_subnet_ids(rendered)
         self.assertGreater(len(isolated_subnet_ids), 0)
 
         console_lambdas = [
@@ -64,7 +78,34 @@ class NoNatIdleCostTemplateTests(unittest.TestCase):
         for subnet_id in isolated_subnet_ids:
             self.assertIn(subnet_id, serialized_subnets)
 
-    def test_efs_nfs_ingress_limited_to_console_and_sync_security_groups(self) -> None:
+    def test_tenant_sync_worker_lambda_uses_isolated_subnets(self) -> None:
+        template = self._template()
+        rendered = self._rendered_resources(template)
+        isolated_subnet_ids = self._isolated_subnet_ids(rendered)
+
+        worker_resources = [
+            resource
+            for resource_id, resource in rendered.items()
+            if "TenantSyncWorker" in resource_id
+            and resource["Type"] == "AWS::Lambda::Function"
+        ]
+        self.assertEqual(len(worker_resources), 1)
+        serialized_subnets = json.dumps(worker_resources[0]["Properties"]["VpcConfig"]["SubnetIds"])
+        for subnet_id in isolated_subnet_ids:
+            self.assertIn(subnet_id, serialized_subnets)
+
+    def test_tenant_sync_worker_lambda_is_present(self) -> None:
+        template = self._template()
+        rendered = self._rendered_resources(template)
+        worker_ids = [
+            resource_id
+            for resource_id, resource in rendered.items()
+            if "TenantSyncWorker" in resource_id
+            and resource["Type"] == "AWS::Lambda::Function"
+        ]
+        self.assertEqual(len(worker_ids), 1)
+
+    def test_efs_nfs_ingress_limited_to_console_and_sync_worker_security_groups(self) -> None:
         template = self._template()
         rendered = self._rendered_resources(template)
         ingress_rules = [
@@ -79,91 +120,7 @@ class NoNatIdleCostTemplateTests(unittest.TestCase):
             self.assertIn("SourceSecurityGroupId", rule["Properties"])
             self.assertNotIn("CidrIp", rule["Properties"])
 
-    def test_sync_fargate_task_definition_uses_efs_access_point(self) -> None:
-        template = self._template()
-        template.has_resource_properties(
-            "AWS::ECS::TaskDefinition",
-            {
-                "RequiresCompatibilities": ["FARGATE"],
-                "Volumes": Match.array_with(
-                    [
-                        Match.object_like(
-                            {
-                                "Name": "tenant-data",
-                                "EFSVolumeConfiguration": Match.object_like(
-                                    {
-                                        "TransitEncryption": "ENABLED",
-                                        "AuthorizationConfig": Match.object_like(
-                                            {
-                                                "IAM": "ENABLED",
-                                                "AccessPointId": Match.any_value(),
-                                            }
-                                        ),
-                                    }
-                                ),
-                            }
-                        )
-                    ]
-                ),
-            },
-        )
-
-    def test_sync_dispatcher_assigns_public_ip_enabled(self) -> None:
-        template = self._template()
-        template.has_resource_properties(
-            "AWS::Lambda::Function",
-            {
-                "Handler": "sync_dispatcher.handler",
-                "Environment": {
-                    "Variables": Match.object_like(
-                        {
-                            "ECS_ASSIGN_PUBLIC_IP": "ENABLED",
-                            "ECS_SUBNET_IDS": Match.any_value(),
-                            "ECS_SECURITY_GROUP_IDS": Match.any_value(),
-                        }
-                    )
-                },
-            },
-        )
-
-    def test_sync_dispatcher_uses_public_subnets(self) -> None:
-        template = self._template()
-        rendered = self._rendered_resources(template)
-        public_subnet_ids = {
-            resource_id
-            for resource_id, resource in rendered.items()
-            if resource["Type"] == "AWS::EC2::Subnet"
-            and any(
-                tag.get("Key") == "aws-cdk:subnet-type" and tag.get("Value") == "Public"
-                for tag in resource["Properties"].get("Tags", [])
-            )
-        }
-        self.assertGreater(len(public_subnet_ids), 0)
-
-        dispatchers = [
-            resource
-            for resource in rendered.values()
-            if resource["Type"] == "AWS::Lambda::Function"
-            and resource["Properties"].get("Handler") == "sync_dispatcher.handler"
-        ]
-        self.assertEqual(len(dispatchers), 1)
-        subnet_value = dispatchers[0]["Properties"]["Environment"]["Variables"]["ECS_SUBNET_IDS"]
-        serialized_subnets = json.dumps(subnet_value)
-        for subnet_id in public_subnet_ids:
-            self.assertIn(subnet_id, serialized_subnets)
-
-    def test_tenant_sync_worker_lambda_removed(self) -> None:
-        template = self._template()
-        rendered = self._rendered_resources(template)
-        worker_lambdas = [
-            resource_id
-            for resource_id, resource in rendered.items()
-            if resource["Type"] == "AWS::Lambda::Function"
-            and "TenantSyncWorker" in resource_id
-        ]
-        self.assertEqual(worker_lambdas, [])
-
-    def test_sqs_triggers_dispatcher_not_sync_lambda(self) -> None:
+    def test_sqs_triggers_sync_worker_not_dispatcher(self) -> None:
         template = self._template()
         rendered = self._rendered_resources(template)
         mappings = [
@@ -187,92 +144,16 @@ class NoNatIdleCostTemplateTests(unittest.TestCase):
         ]
         self.assertEqual(len(sync_mappings), 1)
         function_ref = sync_mappings[0]["Properties"]["FunctionName"]["Ref"]
-        dispatcher = rendered[function_ref]
-        self.assertEqual(
-            dispatcher["Properties"]["Handler"],
-            "sync_dispatcher.handler",
-        )
+        worker = rendered[function_ref]
+        self.assertIn("TenantSyncWorker", function_ref)
 
-    def test_sync_dispatcher_not_in_vpc(self) -> None:
-        template = self._template()
-        rendered = self._rendered_resources(template)
         dispatchers = [
-            resource
-            for resource in rendered.values()
-            if resource["Type"] == "AWS::Lambda::Function"
-            and resource["Properties"].get("Handler") == "sync_dispatcher.handler"
-        ]
-        self.assertEqual(len(dispatchers), 1)
-        self.assertNotIn("VpcConfig", dispatchers[0]["Properties"])
-
-    def test_sync_queue_visibility_timeout_exceeds_dispatcher_timeout(self) -> None:
-        template = self._template()
-        rendered = self._rendered_resources(template)
-        sync_queues = [
-            resource
-            for resource in rendered.values()
-            if resource["Type"] == "AWS::SQS::Queue"
-            and resource["Properties"].get("QueueName") == "kanbus-sync-test"
-        ]
-        dispatchers = [
-            resource
-            for resource in rendered.values()
-            if resource["Type"] == "AWS::Lambda::Function"
-            and resource["Properties"].get("Handler") == "sync_dispatcher.handler"
-        ]
-        self.assertEqual(len(sync_queues), 1)
-        self.assertEqual(len(dispatchers), 1)
-        queue_visibility = sync_queues[0]["Properties"]["VisibilityTimeout"]
-        dispatcher_timeout = dispatchers[0]["Properties"]["Timeout"]
-        self.assertGreater(queue_visibility, dispatcher_timeout)
-
-    def test_dispatcher_env_includes_task_stop_wait_seconds(self) -> None:
-        template = self._template()
-        template.has_resource_properties(
-            "AWS::Lambda::Function",
-            {
-                "Handler": "sync_dispatcher.handler",
-                "Environment": {
-                    "Variables": Match.object_like(
-                        {
-                            "SYNC_TASK_STOP_WAIT_SECONDS": "720",
-                        }
-                    )
-                },
-            },
-        )
-
-    def test_dispatcher_run_task_scoped_to_cluster(self) -> None:
-        template = self._template()
-        rendered = self._rendered_resources(template)
-        dispatcher_role_ids = {
             resource_id
             for resource_id, resource in rendered.items()
-            if resource["Type"] == "AWS::IAM::Role"
-            and "SyncTaskDispatcher" in resource_id
-        }
-        self.assertEqual(len(dispatcher_role_ids), 1)
-        dispatcher_role_id = next(iter(dispatcher_role_ids))
-
-        run_task_statements = []
-        for resource in rendered.values():
-            if resource["Type"] != "AWS::IAM::Policy":
-                continue
-            roles = resource["Properties"].get("Roles", [])
-            if not any(role.get("Ref") == dispatcher_role_id for role in roles):
-                continue
-            for statement in resource["Properties"]["PolicyDocument"]["Statement"]:
-                actions = statement.get("Action", [])
-                if isinstance(actions, str):
-                    actions = [actions]
-                if "ecs:RunTask" in actions:
-                    run_task_statements.append(statement)
-
-        self.assertEqual(len(run_task_statements), 1)
-        statement = run_task_statements[0]
-        self.assertIn("Condition", statement)
-        self.assertIn("ecs:cluster", statement["Condition"]["ArnEquals"])
-        self.assertNotEqual(statement.get("Resource"), "*")
+            if resource["Type"] == "AWS::Lambda::Function"
+            and resource["Properties"].get("Handler") == "sync_dispatcher.handler"
+        ]
+        self.assertEqual(dispatchers, [])
 
 
 if __name__ == "__main__":

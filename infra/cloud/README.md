@@ -2,7 +2,7 @@
 
 This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 
-- VPC with isolated private subnets (no NAT) and public subnets for sync tasks
+- VPC with `nat_gateways=0`: public subnets (unused by compute in v1) plus isolated private subnets
 - EFS for tenant data (`/mnt/data/{account}/{project}`)
 - Rust Lambda container runtime (`console_lambda`) in isolated subnets
 - Regional REST API Gateway proxying to Lambda
@@ -13,7 +13,7 @@ This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 - DynamoDB-backed MQTT API token registry
 - IoT Core custom authorizer for CLI MQTT API-token auth
 - GitHub webhook ingress Lambda (`/internal/webhooks/github`) + SQS + DLQ
-- Tenant sync dispatcher Lambda + on-demand Fargate tasks (EFS-backed) with IoT publish
+- Tenant sync worker Lambda (EFS-backed, isolated subnets) with IoT publish scaffolding
 - Token admin Lambda API (`/api/tokens`) for create/list/revoke
 - AWS IoT Data endpoint discovery output
 
@@ -73,9 +73,16 @@ AWS_PROFILE=anthus npx cdk synth \
 - `SyncQueueUrl`
 - `SyncQueueArn`
 - `SyncDlqArn`
-- `TenantSyncClusterName`
-- `TenantSyncTaskDefinitionArn`
-- `TenantSyncTaskLogGroupName`
+
+## NAT removal and sync limitation
+
+This stack sets `nat_gateways=0` to eliminate the idle NAT Gateway cost. ConsoleLambda and
+TenantSyncWorker run in isolated subnets with EFS access only.
+
+**Known limitation (accepted for this bug):** without NAT or VPC interface endpoints,
+TenantSyncWorker cannot reach GitHub for `git fetch` or AWS IoT Core for publish. Webhook
+ingress still enqueues jobs, but sync will fail until a later non-Fargate egress design lands.
+Do not add NAT instances or VPC endpoints in this slice.
 
 ## Tenant isolation note
 
@@ -113,7 +120,7 @@ tuple `<account>/<project>` is used and synced.
 
 - Tenant route/API usage is `/{account}/{project}/...`.
 - Webhook ingress carries tenant headers (`X-Kanbus-Account`, `X-Kanbus-Project`).
-- Sync dispatcher launches on-demand Fargate tasks that clone/sync the webhook repo URL into:
+- Sync worker clones/syncs the webhook repo URL into:
   - `/mnt/data/{account}/{project}/repo`
 
 This means cloud project existence is currently operationally defined by EFS presence and sync history.
@@ -147,7 +154,7 @@ The script enforces gates in order:
 3. Unauthenticated API/auth contracts.
 4. Authenticated tenant isolation + SSE endpoint.
 5. Token admin + authorizer + CLI parity.
-6. Webhook -> SQS -> Fargate sync task -> IoT event.
+6. Webhook -> SQS -> sync worker lambda (egress-limited until a later design).
 7. Browser realtime hard gate (MQTT primary, no SSE-only pass).
 
 ## Cross-Mac realtime operator flow

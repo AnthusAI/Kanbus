@@ -4,7 +4,6 @@ import fcntl
 import json
 import os
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -74,15 +73,8 @@ def process_job(body: dict[str, Any]) -> None:
         _publish_sync_event(account, project, sha, ref)
 
 
-def main() -> None:
-    job_json = os.environ.get("SYNC_JOB_JSON", "")
-    if not job_json:
-        raise ValueError("SYNC_JOB_JSON is required")
-    process_job(json.loads(job_json))
+def handler(event: dict[str, Any], _context: Any) -> dict[str, str]:
+    for record in event.get("Records", []):
+        process_job(json.loads(record["body"]))
 
-
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception:
-        sys.exit(1)
+    return {"status": "ok"}

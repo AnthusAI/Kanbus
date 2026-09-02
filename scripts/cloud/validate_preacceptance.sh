@@ -309,30 +309,22 @@ visible="$(jq -r '.Attributes.ApproximateNumberOfMessages' "$RESP_DIR/gate5-queu
 inflight="$(jq -r '.Attributes.ApproximateNumberOfMessagesNotVisible' "$RESP_DIR/gate5-queue-attrs-last.json")"
 [[ "${visible:-0}" == "0" && "${inflight:-0}" == "0" ]] || fail_gate "$GATE" "sync queue did not drain (visible=$visible inflight=$inflight)"
 
-SYNC_DISPATCHER_FN="$(resolve_lambda_by_prefix SyncTaskDispatcher)"
-[[ -n "$SYNC_DISPATCHER_FN" && "$SYNC_DISPATCHER_FN" != "None" ]] || fail_gate "$GATE" "unable to resolve sync dispatcher lambda name"
-SYNC_LOG_GROUP="$(get_output TenantSyncTaskLogGroupName)"
-[[ -n "$SYNC_LOG_GROUP" && "$SYNC_LOG_GROUP" != "null" ]] || fail_gate "$GATE" "missing TenantSyncTaskLogGroupName stack output"
-DISPATCHER_LOG_FILE="$CW_DIR/gate5-sync-dispatcher-tail.log"
-ECS_LOG_FILE="$CW_DIR/gate5-sync-task-tail.log"
-: >"$DISPATCHER_LOG_FILE"
-: >"$ECS_LOG_FILE"
-sync_completed=0
-for _ in {1..48}; do
-  AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws logs tail "/aws/lambda/$SYNC_DISPATCHER_FN" --since 20m >"$DISPATCHER_LOG_FILE" || true
-  AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws logs tail "$SYNC_LOG_GROUP" --since 20m >"$ECS_LOG_FILE" || true
-  if grep -q "END RequestId" "$DISPATCHER_LOG_FILE"; then
-    sync_completed=1
+SYNC_WORKER_FN="$(resolve_lambda_by_prefix TenantSyncWorker)"
+[[ -n "$SYNC_WORKER_FN" && "$SYNC_WORKER_FN" != "None" ]] || fail_gate "$GATE" "unable to resolve sync worker lambda name"
+SYNC_LOG_FILE="$CW_DIR/gate5-sync-worker-tail.log"
+: >"$SYNC_LOG_FILE"
+worker_completed=0
+for _ in {1..24}; do
+  AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws logs tail "/aws/lambda/$SYNC_WORKER_FN" --since 15m >"$SYNC_LOG_FILE" || true
+  if grep -q "END RequestId" "$SYNC_LOG_FILE"; then
+    worker_completed=1
     break
   fi
-  sleep 10
+  sleep 5
 done
-[[ "$sync_completed" == "1" ]] || fail_gate "$GATE" "sync dispatcher completion log not observed"
-if grep -qE "ERROR|Task timed out|Traceback|sync task exited" "$DISPATCHER_LOG_FILE"; then
-  fail_gate "$GATE" "sync dispatcher log contains error markers"
-fi
-if grep -qE "Traceback|ERROR" "$ECS_LOG_FILE"; then
-  fail_gate "$GATE" "sync task log contains error markers"
+[[ "$worker_completed" == "1" ]] || fail_gate "$GATE" "sync worker completion log not observed"
+if grep -qE "ERROR|Task timed out|Traceback" "$SYNC_LOG_FILE"; then
+  fail_gate "$GATE" "sync worker log contains error markers"
 fi
 pass_gate "$GATE"
 

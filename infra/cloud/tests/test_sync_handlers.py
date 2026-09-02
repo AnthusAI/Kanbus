@@ -1,4 +1,4 @@
-"""Unit tests for sync dispatcher and worker handlers."""
+"""Unit tests for cloud sync lambda handlers."""
 
 import hashlib
 import hmac
@@ -13,7 +13,6 @@ from unittest.mock import MagicMock, patch
 sys.path.append(str(Path(__file__).resolve().parents[1] / "lambda"))
 
 with patch("boto3.client", return_value=MagicMock()):
-    import sync_dispatcher  # type: ignore  # noqa: E402
     import sync_worker  # type: ignore  # noqa: E402
     import webhook_handler  # type: ignore  # noqa: E402
 
@@ -95,11 +94,30 @@ class SyncWorkerTests(unittest.TestCase):
             sync_repo.assert_called_once()
             publish_event.assert_called_once_with("acct", "proj", "abc123", "refs/heads/dev")
 
-    @patch.object(sync_worker, "process_job")
-    def test_main_reads_sync_job_json(self, process_job: MagicMock) -> None:
-        os.environ["SYNC_JOB_JSON"] = json.dumps({"tenant": {"account": "a", "project": "p"}})
-        sync_worker.main()
-        process_job.assert_called_once()
+    @patch.object(sync_worker, "_publish_sync_event")
+    @patch.object(sync_worker, "_sync_repo")
+    def test_handler_processes_sqs_records(self, sync_repo: MagicMock, publish_event: MagicMock) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["KANBUS_TENANT_MOUNT"] = tmp
+            event = {
+                "Records": [
+                    {
+                        "body": json.dumps(
+                            {
+                                "tenant": {"account": "acct", "project": "proj"},
+                                "repo_url": "https://github.com/org/repo.git",
+                                "after_sha": "abc123",
+                                "ref": "refs/heads/dev",
+                            }
+                        )
+                    }
+                ]
+            }
+
+            result = sync_worker.handler(event, None)
+            self.assertEqual(result["status"], "ok")
+            sync_repo.assert_called_once()
+            publish_event.assert_called_once()
 
     @patch.object(sync_worker, "_run")
     def test_sync_repo_uses_safe_directory_flag_for_repo_commands(self, run_cmd: MagicMock) -> None:
@@ -129,67 +147,6 @@ class SyncWorkerTests(unittest.TestCase):
                 ["git", "-c", f"safe.directory={repo_root}", "reset", "--hard", "abc123"],
                 calls,
             )
-
-
-class SyncDispatcherTests(unittest.TestCase):
-    """Validate sync dispatcher RunTask wiring."""
-
-    def setUp(self) -> None:
-        os.environ["ECS_CLUSTER_NAME"] = "kanbus-tenant-sync-test"
-        os.environ["ECS_TASK_DEFINITION"] = "arn:aws:ecs:us-east-1:123456789012:task-definition/test:1"
-        os.environ["ECS_CONTAINER_NAME"] = "TenantSyncTask"
-        os.environ["ECS_SUBNET_IDS"] = "subnet-public-1,subnet-public-2"
-        os.environ["ECS_SECURITY_GROUP_IDS"] = "sg-sync"
-        os.environ["ECS_ASSIGN_PUBLIC_IP"] = "ENABLED"
-
-    @patch("sync_dispatcher.boto3.client")
-    def test_dispatches_fargate_task_with_public_ip(self, boto_client: MagicMock) -> None:
-        ecs_client = MagicMock()
-        boto_client.return_value = ecs_client
-        ecs_client.run_task.return_value = {"tasks": [{"taskArn": "arn:aws:ecs:task/1"}]}
-        ecs_client.describe_tasks.return_value = {
-            "tasks": [{"containers": [{"exitCode": 0}]}]
-        }
-        waiter = MagicMock()
-        ecs_client.get_waiter.return_value = waiter
-
-        event = {
-            "Records": [
-                {
-                    "body": json.dumps(
-                        {
-                            "tenant": {"account": "acct", "project": "proj"},
-                            "repo_url": "https://github.com/org/repo.git",
-                            "after_sha": "abc123",
-                        }
-                    )
-                }
-            ]
-        }
-
-        result = sync_dispatcher.handler(event, None)
-        self.assertEqual(result["status"], "ok")
-        ecs_client.run_task.assert_called_once()
-        network = ecs_client.run_task.call_args.kwargs["networkConfiguration"]["awsvpcConfiguration"]
-        self.assertEqual(network["assignPublicIp"], "ENABLED")
-        self.assertEqual(network["subnets"], ["subnet-public-1", "subnet-public-2"])
-        overrides = ecs_client.run_task.call_args.kwargs["overrides"]["containerOverrides"][0]
-        self.assertEqual(overrides["environment"][0]["name"], "SYNC_JOB_JSON")
-        waiter.wait.assert_called_once()
-        waiter_config = waiter.wait.call_args.kwargs["WaiterConfig"]
-        self.assertEqual(waiter_config["Delay"], sync_dispatcher.TASK_STOP_WAITER_DELAY_SECONDS)
-        self.assertGreaterEqual(
-            waiter_config["Delay"] * waiter_config["MaxAttempts"],
-            sync_dispatcher.DISPATCHER_TIMEOUT_SECONDS,
-        )
-
-    def test_task_stop_waiter_config_matches_dispatcher_timeout(self) -> None:
-        os.environ["SYNC_TASK_STOP_WAIT_SECONDS"] = str(sync_dispatcher.DISPATCHER_TIMEOUT_SECONDS)
-        waiter_config = sync_dispatcher._task_stop_waiter_config()
-        self.assertGreaterEqual(
-            waiter_config["Delay"] * waiter_config["MaxAttempts"],
-            sync_dispatcher.DISPATCHER_TIMEOUT_SECONDS,
-        )
 
 
 if __name__ == "__main__":

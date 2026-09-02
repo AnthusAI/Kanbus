@@ -80,7 +80,7 @@ For Git-backed cloud projects:
 2. Webhook ingress receives tenant headers:
    - `X-Kanbus-Account`
    - `X-Kanbus-Project`
-3. Sync dispatcher launches on-demand Fargate tasks that clone/sync repo to EFS:
+3. Sync worker Lambda clones/syncs repo to EFS when egress is available:
    - `/mnt/data/{account}/{project}/repo`
 4. Console APIs read project data from EFS and publish realtime events to:
    - `projects/{account}/{project}/events`
