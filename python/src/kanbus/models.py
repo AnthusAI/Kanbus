@@ -78,6 +78,10 @@ class IssueData(BaseModel):
     :type updated_at: datetime
     :param closed_at: Close timestamp.
     :type closed_at: Optional[datetime]
+    :param right_now_summary: Right-now summary text for the issue.
+    :type right_now_summary: Optional[str]
+    :param right_now_updated_at: Timestamp when the right-now summary was last updated.
+    :type right_now_updated_at: Optional[datetime]
     :param custom: Custom fields.
     :type custom: Dict[str, object]
     """
@@ -97,6 +101,8 @@ class IssueData(BaseModel):
     created_at: datetime
     updated_at: datetime
     closed_at: Optional[datetime] = None
+    right_now_summary: Optional[str] = None
+    right_now_updated_at: Optional[datetime] = None
     custom: Dict[str, object] = Field(default_factory=dict)
 
 
@@ -128,6 +134,27 @@ class AiConfiguration(BaseModel):
 
     provider: str = Field(min_length=1)
     model: str = Field(min_length=1)
+
+
+class RightNowConfiguration(BaseModel):
+    """Right-now summary configuration for the console.
+
+    :param enabled: Whether right-now summaries are enabled.
+    :type enabled: bool
+    :param default_tree_expanded: Whether the right-now tree starts expanded.
+    :type default_tree_expanded: bool
+    :param max_length: Maximum summary length in characters.
+    :type max_length: int
+    :param model: Optional model override; when unset, reuse ai.model.
+    :type model: Optional[str]
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    default_tree_expanded: bool = False
+    max_length: int = 120
+    model: Optional[str] = None
 
 
 class JiraConfiguration(BaseModel):
@@ -274,6 +301,8 @@ class ProjectConfiguration(BaseModel):
     :type beads_compatibility: bool
     :param sort_order: Optional status/category sort rules for console columns.
     :type sort_order: Dict[str, object]
+    :param right_now: Right-now summary configuration.
+    :type right_now: RightNowConfiguration
     :param jira: Optional Jira synchronization configuration.
     :type jira: Optional[JiraConfiguration]
     :param snyk: Optional Snyk vulnerability synchronization configuration.
@@ -315,6 +344,7 @@ class ProjectConfiguration(BaseModel):
     beads_compatibility: bool = False
     wiki_directory: Optional[str] = None
     ai: Optional[AiConfiguration] = None
+    right_now: RightNowConfiguration = Field(default_factory=RightNowConfiguration)
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
     realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)

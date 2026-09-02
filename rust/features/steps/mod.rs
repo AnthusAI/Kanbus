@@ -37,6 +37,7 @@ pub mod pytest_migration_steps;
 pub mod query_steps;
 pub mod realtime_steps;
 pub mod rich_text_signal_steps;
+pub mod right_now_steps;
 pub mod text_editor_steps;
 pub mod users_steps;
 pub mod virtual_project_steps;

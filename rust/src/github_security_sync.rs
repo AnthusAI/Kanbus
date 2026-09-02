@@ -19,7 +19,9 @@ use crate::issue_files::{
 use crate::migration::load_beads_issues;
 use crate::models::{GithubSecurityConfiguration, IssueData};
 
-fn github_api_base() -> String { std::env::var("KANBUS_GITHUB_API_BASE").unwrap_or_else(|_| "https://api.github.com".to_string()) }
+fn github_api_base() -> String {
+    std::env::var("KANBUS_GITHUB_API_BASE").unwrap_or_else(|_| "https://api.github.com".to_string())
+}
 const GITHUB_API_VERSION: &str = "2022-11-28";
 const GITHUB_SECURITY_INITIATIVE_TITLE: &str = "GitHub Security Remediation";
 const GITHUB_DEPENDABOT_EPIC_TITLE: &str = "GitHub Dependabot Alerts";
@@ -395,6 +397,8 @@ fn resolve_dependabot_epic(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     };
 
@@ -444,6 +448,8 @@ fn resolve_security_initiative(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     };
 
@@ -607,6 +613,8 @@ fn resolve_manifest_task(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom,
     };
 
@@ -730,6 +738,8 @@ fn map_dependabot_to_kanbus(alert: &Value, repo: &str, task_id: &str) -> IssueDa
         created_at: now,
         updated_at: now,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom,
     }
 }
@@ -803,7 +813,8 @@ fn fetch_dependabot_alerts(
     let mut alerts = Vec::new();
 
     let mut next_url = Some(format!(
-        "{}/repos/{repository}/dependabot/alerts?state={state}&per_page=100", github_api_base()
+        "{}/repos/{repository}/dependabot/alerts?state={state}&per_page=100",
+        github_api_base()
     ));
 
     while let Some(url) = next_url {
@@ -1384,6 +1395,8 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::from([
                 (
                     "github_provider".to_string(),
@@ -1463,6 +1476,8 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::from([(
                 "github_provider".to_string(),
                 Value::String("dependabot".to_string()),
@@ -1617,6 +1632,8 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
         let mut newer = older.clone();
@@ -1675,6 +1692,8 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
         let mut wrong_parent = matching.clone();
@@ -1748,6 +1767,8 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         }];
 
@@ -1781,6 +1802,8 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
         let epic = IssueData {
@@ -1799,6 +1822,8 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
         write_issue_to_file(
@@ -1852,23 +1877,24 @@ mod tests {
     fn resolve_beads_initiative_finds_existing_with_label() -> Result<(), KanbusError> {
         let temp = TempDir::new().expect("tempdir");
         let now = Utc::now();
-        let issues = vec![
-            IssueData {
-                identifier: "kanbus-1".to_string(),
-                title: GITHUB_SECURITY_INITIATIVE_TITLE.to_string(),
-                description: "".to_string(),
-                issue_type: "initiative".to_string(),
-                status: "open".to_string(),
-                priority: 1,
-                assignee: None,
-                creator: None,
-                parent: None,
-                labels: vec!["github".to_string()],
-                updated_at: now,
-                created_at: now,
-                closed_at: None, dependencies: vec![], comments: vec![], custom: Default::default(),
-            }
-        ];
+        let issues = vec![IssueData {
+            identifier: "kanbus-1".to_string(),
+            title: GITHUB_SECURITY_INITIATIVE_TITLE.to_string(),
+            description: "".to_string(),
+            issue_type: "initiative".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["github".to_string()],
+            updated_at: now,
+            created_at: now,
+            closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            custom: Default::default(),
+        }];
         let result = resolve_beads_initiative(temp.path(), &issues, false)?;
         assert_eq!(result, "kanbus-1");
         Ok(())
@@ -1878,23 +1904,24 @@ mod tests {
     fn resolve_beads_epic_finds_existing_with_label() -> Result<(), KanbusError> {
         let temp = TempDir::new().expect("tempdir");
         let now = Utc::now();
-        let issues = vec![
-            IssueData {
-                identifier: "kanbus-2".to_string(),
-                title: GITHUB_DEPENDABOT_EPIC_TITLE.to_string(),
-                description: "".to_string(),
-                issue_type: "epic".to_string(),
-                status: "open".to_string(),
-                priority: 1,
-                assignee: None,
-                creator: None,
-                parent: None,
-                labels: vec!["dependabot".to_string()],
-                updated_at: now,
-                created_at: now,
-                closed_at: None, dependencies: vec![], comments: vec![], custom: Default::default(),
-            }
-        ];
+        let issues = vec![IssueData {
+            identifier: "kanbus-2".to_string(),
+            title: GITHUB_DEPENDABOT_EPIC_TITLE.to_string(),
+            description: "".to_string(),
+            issue_type: "epic".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["dependabot".to_string()],
+            updated_at: now,
+            created_at: now,
+            closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            custom: Default::default(),
+        }];
         let result = resolve_beads_epic(temp.path(), &issues, None, "kanbus-1", false)?;
         assert_eq!(result, "kanbus-2");
         Ok(())
@@ -1904,23 +1931,24 @@ mod tests {
     fn resolve_beads_initiative_finds_existing_without_label() -> Result<(), KanbusError> {
         let temp = TempDir::new().expect("tempdir");
         let now = Utc::now();
-        let issues = vec![
-            IssueData {
-                identifier: "kanbus-3".to_string(),
-                title: GITHUB_SECURITY_INITIATIVE_TITLE.to_string(),
-                description: "".to_string(),
-                issue_type: "initiative".to_string(),
-                status: "open".to_string(),
-                priority: 1,
-                assignee: None,
-                creator: None,
-                parent: None,
-                labels: vec![],
-                updated_at: now,
-                created_at: now,
-                closed_at: None, dependencies: vec![], comments: vec![], custom: Default::default(),
-            }
-        ];
+        let issues = vec![IssueData {
+            identifier: "kanbus-3".to_string(),
+            title: GITHUB_SECURITY_INITIATIVE_TITLE.to_string(),
+            description: "".to_string(),
+            issue_type: "initiative".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec![],
+            updated_at: now,
+            created_at: now,
+            closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            custom: Default::default(),
+        }];
         let result = resolve_beads_initiative(temp.path(), &issues, false)?;
         assert_eq!(result, "kanbus-3");
         Ok(())
@@ -1930,23 +1958,24 @@ mod tests {
     fn resolve_beads_epic_finds_existing_without_label() -> Result<(), KanbusError> {
         let temp = TempDir::new().expect("tempdir");
         let now = Utc::now();
-        let issues = vec![
-            IssueData {
-                identifier: "kanbus-4".to_string(),
-                title: GITHUB_DEPENDABOT_EPIC_TITLE.to_string(),
-                description: "".to_string(),
-                issue_type: "epic".to_string(),
-                status: "open".to_string(),
-                priority: 1,
-                assignee: None,
-                creator: None,
-                parent: None,
-                labels: vec![],
-                updated_at: now,
-                created_at: now,
-                closed_at: None, dependencies: vec![], comments: vec![], custom: Default::default(),
-            }
-        ];
+        let issues = vec![IssueData {
+            identifier: "kanbus-4".to_string(),
+            title: GITHUB_DEPENDABOT_EPIC_TITLE.to_string(),
+            description: "".to_string(),
+            issue_type: "epic".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec![],
+            updated_at: now,
+            created_at: now,
+            closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            custom: Default::default(),
+        }];
         let result = resolve_beads_epic(temp.path(), &issues, None, "kanbus-3", false)?;
         assert_eq!(result, "kanbus-4");
         Ok(())
@@ -1955,29 +1984,35 @@ mod tests {
     fn resolve_beads_task_finds_existing_with_label() -> Result<(), KanbusError> {
         let temp = TempDir::new().expect("tempdir");
         let now = Utc::now();
-        let issues = vec![
-            IssueData {
-                identifier: "kanbus-5".to_string(),
-                title: "Example Vulnerability".to_string(),
-                description: "<!-- kanbus-gh-target:dependabot|test-repo|123 -->".to_string(),
-                issue_type: "task".to_string(),
-                status: "open".to_string(),
-                priority: 1,
-                assignee: None,
-                creator: None,
-                parent: None,
-                labels: vec!["dependabot".to_string()],
-                updated_at: now,
-                created_at: now,
-                closed_at: None,
-                dependencies: vec![],
-                comments: vec![],
-                custom: Default::default(),
-            }
-        ];
-        
+        let issues = vec![IssueData {
+            identifier: "kanbus-5".to_string(),
+            title: "Example Vulnerability".to_string(),
+            description: "<!-- kanbus-gh-target:dependabot|test-repo|123 -->".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["dependabot".to_string()],
+            updated_at: now,
+            created_at: now,
+            closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            custom: Default::default(),
+        }];
+
         let mut index = build_beads_task_index(&issues);
-        let result = resolve_beads_task(temp.path(), "test-repo", "123", "kanbus-2", 2, true, &mut index)?;
+        let result = resolve_beads_task(
+            temp.path(),
+            "test-repo",
+            "123",
+            "kanbus-2",
+            2,
+            true,
+            &mut index,
+        )?;
         assert_eq!(result, "kanbus-5");
         Ok(())
     }
@@ -1986,40 +2021,49 @@ mod tests {
     fn resolve_beads_task_finds_existing_without_label() -> Result<(), KanbusError> {
         let temp = TempDir::new().expect("tempdir");
         let now = Utc::now();
-        let issues = vec![
-            IssueData {
-                identifier: "kanbus-6".to_string(),
-                title: "Example Vulnerability".to_string(),
-                description: "<!-- kanbus-gh-target:dependabot|test-repo|123 -->".to_string(),
-                issue_type: "task".to_string(),
-                status: "open".to_string(),
-                priority: 1,
-                assignee: None,
-                creator: None,
-                parent: None,
-                labels: vec![],
-                updated_at: now,
-                created_at: now,
-                closed_at: None,
-                dependencies: vec![],
-                comments: vec![],
-                custom: Default::default(),
-            }
-        ];
-        
+        let issues = vec![IssueData {
+            identifier: "kanbus-6".to_string(),
+            title: "Example Vulnerability".to_string(),
+            description: "<!-- kanbus-gh-target:dependabot|test-repo|123 -->".to_string(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 1,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec![],
+            updated_at: now,
+            created_at: now,
+            closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            custom: Default::default(),
+        }];
+
         let mut index = build_beads_task_index(&issues);
-        let result = resolve_beads_task(temp.path(), "test-repo", "123", "kanbus-2", 2, true, &mut index)?;
+        let result = resolve_beads_task(
+            temp.path(),
+            "test-repo",
+            "123",
+            "kanbus-2",
+            2,
+            true,
+            &mut index,
+        )?;
         assert_eq!(result, "kanbus-6");
         Ok(())
     }
     #[test]
     fn pull_dependabot_from_github_missing_token_returns_error() {
         let temp = TempDir::new().expect("tempdir");
-        let config = crate::models::GithubSecurityConfiguration { repo: None, dependabot: None };
-        
+        let config = crate::models::GithubSecurityConfiguration {
+            repo: None,
+            dependabot: None,
+        };
+
         std::env::remove_var("GITHUB_TOKEN");
         std::env::remove_var("GH_TOKEN");
-        
+
         let result = pull_dependabot_from_github(temp.path(), &config, "PRJ", false);
         assert!(matches!(result, Err(KanbusError::Configuration(msg)) if msg.contains("TOKEN")));
     }
@@ -2027,22 +2071,30 @@ mod tests {
     #[test]
     fn pull_dependabot_from_github_missing_repo_returns_error() {
         let temp = TempDir::new().expect("tempdir");
-        let config = crate::models::GithubSecurityConfiguration { repo: None, dependabot: None };
-        
+        let config = crate::models::GithubSecurityConfiguration {
+            repo: None,
+            dependabot: None,
+        };
+
         std::env::set_var("GITHUB_TOKEN", "fake_token");
-        
+
         let result = pull_dependabot_from_github(temp.path(), &config, "PRJ", false);
-        assert!(matches!(result, Err(KanbusError::Configuration(msg)) if msg.contains("repository slug")));
+        assert!(
+            matches!(result, Err(KanbusError::Configuration(msg)) if msg.contains("repository slug"))
+        );
     }
-    
+
     #[test]
     fn pull_dependabot_from_github_beads_missing_token_returns_error() {
         let temp = TempDir::new().expect("tempdir");
-        let config = crate::models::GithubSecurityConfiguration { repo: None, dependabot: None };
-        
+        let config = crate::models::GithubSecurityConfiguration {
+            repo: None,
+            dependabot: None,
+        };
+
         std::env::remove_var("GITHUB_TOKEN");
         std::env::remove_var("GH_TOKEN");
-        
+
         let result = pull_dependabot_from_github_beads(temp.path(), &config, false);
         assert!(matches!(result, Err(KanbusError::Configuration(msg)) if msg.contains("TOKEN")));
     }
@@ -2050,15 +2102,19 @@ mod tests {
     #[test]
     fn pull_dependabot_from_github_beads_missing_repo_returns_error() {
         let temp = TempDir::new().expect("tempdir");
-        let config = crate::models::GithubSecurityConfiguration { repo: None, dependabot: None };
-        
+        let config = crate::models::GithubSecurityConfiguration {
+            repo: None,
+            dependabot: None,
+        };
+
         std::env::set_var("GITHUB_TOKEN", "fake_token");
-        
+
         let result = pull_dependabot_from_github_beads(temp.path(), &config, false);
-        assert!(matches!(result, Err(KanbusError::Configuration(msg)) if msg.contains("repository slug")));
+        assert!(
+            matches!(result, Err(KanbusError::Configuration(msg)) if msg.contains("repository slug"))
+        );
     }
 }
-
 
 #[cfg(test)]
 mod github_sync_err_tests {
@@ -2069,14 +2125,22 @@ mod github_sync_err_tests {
     fn test_pull_dependabot_conn_error() {
         std::env::set_var("KANBUS_GITHUB_API_BASE", "http://127.0.0.1:9");
         std::env::set_var("GITHUB_TOKEN", "fake_token");
-        
+
         let temp = TempDir::new().unwrap();
         let root = temp.path();
         std::fs::create_dir_all(root.join("issues")).unwrap();
-        std::fs::write(root.join(".kanbus.yml"), "project_key: TST\nproject_directory: .").unwrap();
+        std::fs::write(
+            root.join(".kanbus.yml"),
+            "project_key: TST\nproject_directory: .",
+        )
+        .unwrap();
         std::fs::create_dir_all(root.join(".git")).unwrap();
-        std::fs::write(root.join(".git/config"), "[remote \"origin\"]\nurl = git@github.com:test-org/test-repo.git").unwrap();
-        
+        std::fs::write(
+            root.join(".git/config"),
+            "[remote \"origin\"]\nurl = git@github.com:test-org/test-repo.git",
+        )
+        .unwrap();
+
         let config = crate::models::GithubSecurityConfiguration {
             repo: Some("repo".to_string()),
             dependabot: Some(crate::models::DependabotConfiguration {
@@ -2086,7 +2150,12 @@ mod github_sync_err_tests {
             }),
         };
         let err = pull_dependabot_from_github(root, &config, "TST", false).unwrap_err();
-        assert!(err.to_string().contains("GitHub request failed") || err.to_string().contains("issues directory does not exist"), "Actual error: {}", err);
+        assert!(
+            err.to_string().contains("GitHub request failed")
+                || err.to_string().contains("issues directory does not exist"),
+            "Actual error: {}",
+            err
+        );
     }
 
     #[test]

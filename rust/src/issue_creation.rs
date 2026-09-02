@@ -140,6 +140,8 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         created_at,
         updated_at,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
 
@@ -302,6 +304,8 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         }
     }

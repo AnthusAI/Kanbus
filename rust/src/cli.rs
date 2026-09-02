@@ -3128,6 +3128,8 @@ fn execute_command(
                     created_at: now,
                     updated_at: now,
                     closed_at: None,
+                    right_now_summary: None,
+                    right_now_updated_at: None,
                     custom: std::collections::BTreeMap::new(),
                 };
                 let validation_context = PolicyContext {
@@ -3512,6 +3514,8 @@ mod tests {
             created_at: timestamp,
             updated_at: timestamp,
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: std::collections::BTreeMap::new(),
         }
     }
@@ -3777,9 +3781,9 @@ mod tests {
 #[cfg(test)]
 mod additional_cli_tests {
     use super::*;
-    use crate::models::{IssueData, IssueComment, DependencyLink};
+    use crate::models::{DependencyLink, IssueComment, IssueData};
+    use chrono::{TimeZone, Utc};
     use std::collections::BTreeMap;
-    use chrono::{Utc, TimeZone};
 
     #[test]
     fn test_merge_issue_views_full_coverage() {
@@ -3794,7 +3798,10 @@ mod additional_cli_tests {
             creator: None,
             parent: None,
             labels: vec![],
-            dependencies: vec![DependencyLink { target: "test-2".to_string(), dependency_type: "blocks".to_string() }],
+            dependencies: vec![DependencyLink {
+                target: "test-2".to_string(),
+                dependency_type: "blocks".to_string(),
+            }],
             comments: vec![IssueComment {
                 id: None,
                 author: "alice".to_string(),
@@ -3804,6 +3811,8 @@ mod additional_cli_tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
 
@@ -3819,8 +3828,14 @@ mod additional_cli_tests {
             parent: Some("epic-1".to_string()),
             labels: vec!["bug".to_string()],
             dependencies: vec![
-                DependencyLink { target: "test-2".to_string(), dependency_type: "blocks".to_string() },
-                DependencyLink { target: "test-3".to_string(), dependency_type: "relates-to".to_string() }
+                DependencyLink {
+                    target: "test-2".to_string(),
+                    dependency_type: "blocks".to_string(),
+                },
+                DependencyLink {
+                    target: "test-3".to_string(),
+                    dependency_type: "relates-to".to_string(),
+                },
             ],
             comments: vec![
                 IssueComment {
@@ -3834,11 +3849,13 @@ mod additional_cli_tests {
                     author: "bob".to_string(),
                     text: "c2".to_string(),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap(),
-                }
+                },
             ],
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::from([("k1".to_string(), serde_json::json!("v1"))]),
         };
 

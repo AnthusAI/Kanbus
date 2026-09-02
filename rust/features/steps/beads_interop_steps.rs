@@ -408,6 +408,8 @@ fn given_kanbus_issue_exists(world: &mut KanbusWorld, identifier: String) {
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
 
@@ -471,6 +473,8 @@ fn given_kanbus_issue_exists_with_labels(
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
 
@@ -529,6 +533,8 @@ fn given_kanbus_issue_exists_with_title(
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
 
@@ -586,6 +592,8 @@ fn given_kanbus_issue_exists_with_priority(
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
 
@@ -689,6 +697,8 @@ fn given_kanbus_only_issue(world: &mut KanbusWorld, identifier: String) {
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
 

@@ -144,6 +144,8 @@ fn build_issue(identifier: &str, title: &str, status: &str) -> IssueData {
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     }
 }

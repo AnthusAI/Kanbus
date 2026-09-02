@@ -1686,10 +1686,18 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: Default::default(),
         };
         // Should return early and not panic or error.
-        publish_issue_mutation(temp.path(), &temp.path().join("projects/test"), &issue, None, "issue.mutated");
+        publish_issue_mutation(
+            temp.path(),
+            &temp.path().join("projects/test"),
+            &issue,
+            None,
+            "issue.mutated",
+        );
     }
 
     #[test]
@@ -1697,7 +1705,12 @@ mod tests {
         let temp = TempDir::new().expect("temp dir");
         write_test_config(temp.path(), "off", "mqtt");
         // Should return early and not panic or error.
-        publish_issue_deleted(temp.path(), &temp.path().join("projects/test"), "test-1", None);
+        publish_issue_deleted(
+            temp.path(),
+            &temp.path().join("projects/test"),
+            "test-1",
+            None,
+        );
     }
 
     #[test]
@@ -1706,6 +1719,9 @@ mod tests {
         write_test_config(temp.path(), "off", "mqtt");
         let result = run_gossip_watch(temp.path(), None, None, None, None, None, false);
         assert!(result.is_err());
-        assert!(result.expect_err("error").to_string().contains("realtime broker is disabled"));
+        assert!(result
+            .expect_err("error")
+            .to_string()
+            .contains("realtime broker is disabled"));
     }
 }
