@@ -1,9 +1,9 @@
 {
   "id": "kbs-87b6cede-720a-401e-8ae6-772a1039c7e3",
   "title": "GitHub pushes cannot refresh the hosted board",
-  "description": "## Problem\nThe hosted board at `/dev/anthus/kanbus/` works after a **manually signed** POST to `/internal/webhooks/github` with `X-Kanbus-Account` and `X-Kanbus-Project`.\n\nGitHub cannot send those headers. `AnthusAI/Kanbus` also has no webhook to KanbusCloudFoundation (only Amplify and Snyk). Live `develop` pushes do not refresh EFS.\n\n## Why registering the current URL is not enough\n`webhook_handler.py` returns 400 without `X-Kanbus-Account` / `X-Kanbus-Project`. A GitHub repository webhook only sends `X-Hub-Signature-256`, `X-GitHub-Event`, and `X-GitHub-Delivery`.\n\n## Locked direction (unless planner finds a better one-way)\n1. Accept tenant from the path, e.g. `POST /internal/webhooks/github/{account}/{project}`, same HMAC secret. Keep one way; do not also require headers.\n2. Gherkin first; Python and Rust parity if any CLI/docs mention the contract.\n3. Register a GitHub `push` webhook on AnthusAI/Kanbus to that URL with the Secrets Manager HMAC secret.\n4. Prove with a real GitHub delivery (or GitHub redélivery of a push) that `anthus/kanbus` syncs without custom headers.\n\n## DoD\n- GitHub can POST without `X-Kanbus-*` headers and still enqueue the right tenant.\n- Hook exists on AnthusAI/Kanbus pointing at KanbusCloudFoundation ingress.\n- A real push (or GitHub redélivery of a push) creates S3 `anthus/kanbus/{sha}.tar.gz` and `.synced.json`.\n- No NAT, no interface endpoints, no Fargate.\n\n## Out of scope\nWiki 404 on the hosted console. Merge to main.\n\n## Worktree\nPlanner names a unique worktree and branch from origin/develop. PR to develop only.",
+  "description": "## Problem\nThe hosted board at `/dev/anthus/kanbus/` works after a **manually signed** POST to `/internal/webhooks/github` with `X-Kanbus-Account` and `X-Kanbus-Project`.\n\nGitHub cannot send those headers. `AnthusAI/Kanbus` also has no webhook to KanbusCloudFoundation (only Amplify and Snyk). Live `develop` pushes do not refresh EFS.\n\n## Why registering the current URL is not enough\n`webhook_handler.py` returns 400 without `X-Kanbus-Account` / `X-Kanbus-Project`. A GitHub repository webhook only sends `X-Hub-Signature-256`, `X-GitHub-Event`, and `X-GitHub-Delivery`.\n\n## Locked direction (unless planner finds a better one-way)\n1. Accept tenant from the path, e.g. `POST /internal/webhooks/github/{account}/{project}`, same HMAC secret. Keep one way; do not also require headers.\n2. Gherkin first; Python and Rust parity if any CLI/docs mention the contract.\n3. Register a GitHub `push` webhook on AnthusAI/Kanbus to that URL with the Secrets Manager HMAC secret.\n4. Prove with a real GitHub delivery (or GitHub red\u00e9livery of a push) that `anthus/kanbus` syncs without custom headers.\n\n## DoD\n- GitHub can POST without `X-Kanbus-*` headers and still enqueue the right tenant.\n- Hook exists on AnthusAI/Kanbus pointing at KanbusCloudFoundation ingress.\n- A real push (or GitHub red\u00e9livery of a push) creates S3 `anthus/kanbus/{sha}.tar.gz` and `.synced.json`.\n- No NAT, no interface endpoints, no Fargate.\n\n## Out of scope\nWiki 404 on the hosted console. Merge to main.\n\n## Worktree\nPlanner names a unique worktree and branch from origin/develop. PR to develop only.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "blocked",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -16,25 +16,43 @@
       "author": "home",
       "text": "Planner starting: GitHub cannot send X-Kanbus headers, so path-scoped ingress plus hook registration. Worktree to be named by planner from origin/develop.",
       "created_at": "2026-09-02T18:35:22.592521Z",
-      "comment_type": "default"
+      "comment_type": "default",
+      "data": {},
+      "agent": null
     },
     {
       "id": "82daf172-3945-482a-bcc9-58555531e09d",
       "author": "home",
       "text": "Plan accepted with one correction: Gherkin handler tests must run in default behave/CI (do not add ~cloud to default_tags). Tenant from path only; no X-Kanbus headers. Implementing in /tmp/kanbus-kbs-87b6ce-github-webhook on fix/kbs-87b6ce-github-webhook.",
       "created_at": "2026-09-02T18:37:42.985658Z",
-      "comment_type": "default"
+      "comment_type": "default",
+      "data": {},
+      "agent": null
     },
     {
       "id": "3e57206b-e982-44da-b4a9-8e7292e2559d",
       "author": "home",
-      "text": "PR opened: fix/kbs-87b6ce-github-webhook → develop (path-scoped GitHub webhook ingress).",
+      "text": "PR opened: fix/kbs-87b6ce-github-webhook \u2192 develop (path-scoped GitHub webhook ingress).",
       "created_at": "2026-09-02T18:39:10.680365Z",
-      "comment_type": "default"
+      "comment_type": "default",
+      "data": {},
+      "agent": null
+    },
+    {
+      "id": "def33145-3fdc-4bf1-983b-894c794dd9a1",
+      "author": "home",
+      "text": "Code landed in PR 202 (path-scoped webhook). Remaining DoD is operator: register GitHub push hook on AnthusAI/Kanbus and prove a real delivery syncs anthus/kanbus. Not closing until that live proof.",
+      "created_at": "2026-09-02T20:25:06.598086Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
     }
   ],
   "created_at": "2026-09-02T18:35:10.358594Z",
-  "updated_at": "2026-09-02T18:39:10.680365Z",
+  "updated_at": "2026-09-02T20:25:07.622952Z",
   "closed_at": null,
-  "custom": {}
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": null
 }
