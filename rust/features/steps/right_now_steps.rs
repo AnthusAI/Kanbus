@@ -179,6 +179,12 @@ fn then_right_now_summary_result_unset(world: &mut KanbusWorld) {
     assert!(result.is_none());
 }
 
+#[given("right now litellm call tracking is reset")]
+fn given_right_now_litellm_call_tracking_reset(world: &mut KanbusWorld) {
+    world.litellm_called_env = Some(std::env::var("KANBUS_RIGHT_NOW_LITELLM_CALLED").ok());
+    std::env::remove_var("KANBUS_RIGHT_NOW_LITELLM_CALLED");
+}
+
 #[given("the Kanbus project has no AI configuration")]
 fn given_kanbus_project_has_no_ai_configuration(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("cwd");

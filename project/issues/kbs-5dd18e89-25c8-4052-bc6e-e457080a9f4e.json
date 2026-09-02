@@ -3,7 +3,7 @@
   "title": "Agent provenance metadata for issues and comments",
   "description": "Add optional, validated `agent` metadata so AI coding agents can record which platform, model, and settings were used when creating an issue or posting a comment. Metadata is optional, stored in issue JSON, displayed in CLI and console only when present, and recorded in event payloads for auditability.\n\n## Problem\n\nWhen humans and multiple AI agents collaborate in Kanbus, `author: agent` and `KANBUS_USER=agent` do not distinguish Cursor from Claude Code, Codex, or Antigravity, nor which model or settings produced a change. Provenance matters for debugging, policy enforcement, and multi-agent coordination.\n\n## Design decisions (resolved)\n\n| Decision | Choice | Rationale |\n|----------|--------|-----------|\n| Storage location | Top-level optional `agent` on `IssueData` and `IssueComment` | Typed, validated, avoids `custom` collisions and overlay keys |\n| Not in | `custom.agent`, `comment.data.agent`, `agent_metadata` | One way only; `comment.data` reserved for summary compaction |\n| Issue semantics | Set at create only; immutable thereafter | Avoids conflating filing agent with human triage edits |\n| Comment semantics | Optional per comment | Matches mandatory running-log workflow in comments |\n| Platform | Validated string (max 64, lowercase `[a-z0-9_-]+`) | Document canonical values; avoid enum lock-in when new tools appear |\n| Canonical platforms | `claude_code`, `codex`, `antigravity`, `cursor` | CLI autocomplete and docs; unknown-but-valid strings accepted |\n| Settings | Allowlisted keys only | `temperature` (0.0-2.0), `thinking_level` (off/low/medium/high), `max_output_tokens` (>0) |\n| Secrets | Reject keys matching api_key/token/secret/password/credential | Prevent accidental git commits of credentials |\n| Size limit | Max 2 KB serialized `agent` block | Limit repo bloat on chatty agent sessions |\n| Env defaults | `KANBUS_AGENT_PLATFORM`, `KANBUS_AGENT_MODEL`, `KANBUS_AGENT_SETTINGS` | Mirrors `KANBUS_USER`; flags override env |\n| CLI flags | `--agent-platform`, `--agent-model`, `--agent-settings` | On `create` and `comment` only (not `update`) |\n| Beads mode | Reject `--agent-*` with clear error | Beads JSONL cannot round-trip comment metadata |\n| Display | CLI `format_issue_for_display` + console `AgentMetadataBlock` | Only when `agent` present; no empty placeholders |\n\n## Data model\n\n```json\n{\n  \"agent\": {\n    \"platform\": \"cursor\",\n    \"model\": \"composer-2.5\",\n    \"settings\": {\n      \"temperature\": 0.2,\n      \"thinking_level\": \"high\"\n    }\n  }\n}\n```\n\nOmit the `agent` key entirely when absent (not `null`). Omit `settings` when empty.\n\n## Architecture\n\n```mermaid\nflowchart TB\n  subgraph input [Agent runtime]\n    CLI[CLI flags]\n    ENV[KANBUS_AGENT_* env]\n  end\n\n  subgraph validate [Write boundary]\n    RESOLVE[resolve_agent_metadata]\n    VALID[Validate platform model settings]\n  end\n\n  subgraph persist [Native Kanbus storage]\n    ISSUE[IssueData.agent create-only]\n    COMMENT[IssueComment.agent per comment]\n    EVENTS[Event payloads snapshot]\n  end\n\n  subgraph display [Conditional display]\n    CLIOUT[CLI show / create output]\n    CONSOLE[Console detail + comments]\n  end\n\n  CLI --> RESOLVE\n  ENV --> RESOLVE\n  RESOLVE --> VALID\n  VALID --> ISSUE\n  VALID --> COMMENT\n  ISSUE --> EVENTS\n  COMMENT --> EVENTS\n  ISSUE --> CLIOUT\n  COMMENT --> CLIOUT\n  ISSUE --> CONSOLE\n  COMMENT --> CONSOLE\n```\n\n## Definition of done\n\n- Gherkin specs pass in Python and Rust\n- Python/Rust parity on validation, storage, CLI flags, display, and error messages\n- Console shows agent metadata only when present (issue header + per comment)\n- Event payloads include `agent` on `issue_created` and `comment_added` when present\n- Beads mode rejects agent flags with a clear error\n- Documentation updated in CLI reference and CONTRIBUTING_AGENT.md\n\n## Out of scope (follow-up epics)\n\n- `agent.session_id` deduplication across comments\n- `kbs list --agent-platform` filtering\n- Beads upstream schema proposal\n- `--json` on create/comment commands",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -31,10 +31,17 @@
       "text": "Console Gherkin on develop (#203). Remaining child: 17b4a4 documentation.",
       "created_at": "2026-09-02T19:18:40.580224Z",
       "comment_type": "default"
+    },
+    {
+      "id": "f6154228-3b4b-4578-b97c-d2e5cbf6e456",
+      "author": "home",
+      "text": "Last child 17b4a4 closed (#204). Epic DoD met on develop.",
+      "created_at": "2026-09-02T19:56:31.139921Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-08-29T13:40:55.039972Z",
-  "updated_at": "2026-09-02T19:18:40.580224Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T19:56:31.155507Z",
+  "closed_at": "2026-09-02T19:56:31.155507Z",
   "custom": {}
 }

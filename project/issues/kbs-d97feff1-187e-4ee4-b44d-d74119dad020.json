@@ -1,0 +1,20 @@
+{
+  "id": "kbs-d97feff1-187e-4ee4-b44d-d74119dad020",
+  "title": "Fix main CI after develop merge",
+  "description": "Duplicate ai key in .kanbus.yml breaks Rust YAML parsing. Remove duplicate mock AI step, fix issue_update test, exclude @slow from default Rust cucumber.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-02T19:58:14.947935199Z",
+  "updated_at": "2026-09-02T19:58:36.474138881Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

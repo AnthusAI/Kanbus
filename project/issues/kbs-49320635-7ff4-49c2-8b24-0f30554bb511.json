@@ -1,0 +1,20 @@
+{
+  "id": "kbs-49320635-7ff4-49c2-8b24-0f30554bb511",
+  "title": "Update coverage baseline after develop merge",
+  "description": "CI coverage-ratchet failed: python 98.52% vs baseline 98.59% after consolidating duplicate behave steps. Rust improved to 88.60%. Update baselines to measured CI values.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-02T20:32:03.200771245Z",
+  "updated_at": "2026-09-02T20:32:07.527634415Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

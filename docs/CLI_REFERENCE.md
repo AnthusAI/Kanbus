@@ -75,11 +75,23 @@ Options:
 - `--label <label>` Add a label (repeatable)
 - `--blocked-by <id>` Add a blocked-by dependency (repeatable)
 - `--description <text>` Set description body (use `-` to read from stdin)
+- `--agent-platform <id>` Agent platform (see Agent metadata)
+- `--agent-model <id>` Model identifier
+- `--agent-name <name>` Optional session or bot display name
+- `--agent-settings <json>` JSON object of runtime settings
 
 Example:
 
 ```bash
 kanbus create "Implement OAuth2 flow" --type task --priority 1 --label auth
+```
+
+Example with agent metadata:
+
+```bash
+kanbus create "Agent task" --type task \
+  --agent-platform cursor --agent-model composer-2.5 \
+  --agent-settings '{"thinking_level":"high"}'
 ```
 
 ### `kanbus show`
@@ -106,6 +118,8 @@ Options:
 - `--title <text>` Change title
 - `--add-label <label>` Add a label
 - `--remove-label <label>` Remove a label
+
+Note: Agent metadata is not supported on `update`. Issue `agent` is set at `create` only and cannot be changed afterward. Use `comment` with `--agent-*` for per-action provenance.
 
 Example:
 
@@ -223,6 +237,92 @@ kanbus dep <id> remove relates-to <target-id>
 kanbus dep tree <id> [--depth N] [--format FORMAT]
 ```
 
+## Agent metadata
+
+Optional provenance metadata records which AI platform, model, and runtime settings produced an issue or comment. Metadata is stored in native Kanbus issue JSON, included in event payloads when present, and displayed in CLI and console output only when present.
+
+### CLI flags
+
+| Flag | Field | Commands |
+| --- | --- | --- |
+| `--agent-platform <id>` | `platform` | `create`, `comment` |
+| `--agent-model <id>` | `model` | `create`, `comment` |
+| `--agent-name <name>` | `name` | `create`, `comment` |
+| `--agent-settings <json>` | `settings` | `create`, `comment` |
+
+`update` does not accept agent flags. Issue `agent` is create-only and immutable.
+
+### Environment variables
+
+When a flag is omitted, Kanbus reads these environment variables (flags override env):
+
+- `KANBUS_AGENT_PLATFORM`
+- `KANBUS_AGENT_MODEL`
+- `KANBUS_AGENT_SETTINGS` — JSON object string
+- `KANBUS_AGENT_NAME`
+
+Empty or whitespace-only environment values are ignored. Platform and model must both be present or both absent.
+
+### Platform validation
+
+Platform values are lowercased and must match `^[a-z0-9_-]{1,64}$`.
+
+Canonical platform identifiers (prefer these):
+
+| Platform | Typical use |
+| --- | --- |
+| `cursor` | Cursor agents |
+| `codex` | OpenAI Codex |
+| `claude_code` | Claude Code |
+| `antigravity` | Antigravity |
+
+Other valid lowercase identifiers are accepted; storage is not a closed enum.
+
+### Settings
+
+`--agent-settings` and `KANBUS_AGENT_SETTINGS` accept a JSON object string. Recommended keys:
+
+- `temperature` — model temperature
+- `thinking_level` — reasoning depth (for example `off`, `low`, `medium`, `high`)
+- `max_output_tokens` — positive integer output limit
+
+Other non-secret keys are accepted (for example `speed`, `reasoning_effort`). Kanbus rejects keys whose names match `api_key`, `token`, `secret`, `password`, or `credential` (case-insensitive). Never store credentials in agent metadata.
+
+The serialized `agent` block is limited to 2 KB.
+
+### JSON shape
+
+When present:
+
+```json
+{
+  "platform": "cursor",
+  "model": "composer-2.5",
+  "name": "cloud-agent",
+  "settings": {
+    "thinking_level": "high"
+  }
+}
+```
+
+Omit the `agent` key entirely when absent. Omit `settings` when empty.
+
+### Beads compatibility
+
+In Beads compatibility mode (`--beads` or `beads_compatibility: true`), agent flags and environment defaults that would produce metadata fail with:
+
+```
+agent metadata requires native Kanbus issue storage
+```
+
+### Common errors
+
+- `agent metadata requires both platform and model`
+- `invalid agent platform`
+- `invalid agent settings JSON: ...`
+- `agent settings must not contain secret-like keys`
+- `agent metadata requires native Kanbus issue storage`
+
 ## Comments
 
 ### `kanbus comment`
@@ -230,7 +330,21 @@ kanbus dep tree <id> [--depth N] [--format FORMAT]
 Add a comment to an issue.
 
 ```bash
-kanbus comment <id> <text>
+kanbus comment <id> <text> [options]
+```
+
+Options:
+- `--agent-platform <id>` Agent platform (see Agent metadata)
+- `--agent-model <id>` Model identifier
+- `--agent-name <name>` Optional session or bot display name
+- `--agent-settings <json>` JSON object of runtime settings
+
+When agent flags are omitted, `KANBUS_AGENT_*` environment variables apply.
+
+Example:
+
+```bash
+kanbus comment kanbus-abc "Shipped fix" --agent-platform codex --agent-model gpt-5
 ```
 
 ## Synchronization
