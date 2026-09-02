@@ -2,9 +2,11 @@
 
 import hashlib
 import hmac
+import io
 import json
 import os
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -247,6 +249,31 @@ class EfsWriterHandlerTests(unittest.TestCase):
             },
         )
 
+    def test_extract_tarball_keeps_members_inside_tenant_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            tenant_root = Path(temporary_directory) / "acct" / "proj"
+            tarball_path = Path(temporary_directory) / "abc123.tar.gz"
+            with tarfile.open(tarball_path, "w:gz") as archive:
+                repo_file = Path(temporary_directory) / "repo-file.txt"
+                repo_file.write_text("synced", encoding="utf-8")
+                archive.add(repo_file, arcname="repo/repo-file.txt")
+
+            sync_efs_writer.extract_tarball_to_tenant_root(tarball_path, tenant_root)
+
+            self.assertEqual((tenant_root / "repo" / "repo-file.txt").read_text(encoding="utf-8"), "synced")
+
+    def test_extract_tarball_rejects_path_traversal(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            tenant_root = Path(temporary_directory) / "acct" / "proj"
+            tarball_path = Path(temporary_directory) / "evil.tar.gz"
+            with tarfile.open(tarball_path, "w:gz") as archive:
+                member = tarfile.TarInfo(name="../escape.txt")
+                member.size = 4
+                archive.addfile(member, io.BytesIO(b"evil"))
+
+            with self.assertRaises(ValueError):
+                sync_efs_writer.extract_tarball_to_tenant_root(tarball_path, tenant_root)
+
 
 class SyncNotifyHandlerTests(unittest.TestCase):
     """Validate sync notify marker handling and IoT publish flow."""
@@ -322,6 +349,33 @@ class SyncNotifyHandlerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             sync_notify.handler(event, None)
         publish_event.assert_not_called()
+
+    @patch.object(sync_notify, "_s3_client")
+    def test_tarball_exists_treats_not_found_as_absent(self, s3_client_factory: MagicMock) -> None:
+        from botocore.exceptions import ClientError
+
+        s3_client = MagicMock()
+        s3_client_factory.return_value = s3_client
+        s3_client.head_object.side_effect = ClientError(
+            {"Error": {"Code": "404", "Message": "Not Found"}},
+            "HeadObject",
+        )
+
+        self.assertFalse(sync_notify._tarball_exists("kanbus-sync-test", "acct", "proj", "abc123"))
+
+    @patch.object(sync_notify, "_s3_client")
+    def test_tarball_exists_reraises_other_client_errors(self, s3_client_factory: MagicMock) -> None:
+        from botocore.exceptions import ClientError
+
+        s3_client = MagicMock()
+        s3_client_factory.return_value = s3_client
+        s3_client.head_object.side_effect = ClientError(
+            {"Error": {"Code": "AccessDenied", "Message": "Access Denied"}},
+            "HeadObject",
+        )
+
+        with self.assertRaises(ClientError):
+            sync_notify._tarball_exists("kanbus-sync-test", "acct", "proj", "abc123")
 
 
 class SyncIotPublishTests(unittest.TestCase):

@@ -25,8 +25,11 @@ def _tarball_exists(bucket_name: str, account: str, project: str, sha: str) -> b
     tarball_key = tarball_object_key(account, project, sha)
     try:
         _s3_client().head_object(Bucket=bucket_name, Key=tarball_key)
-    except ClientError:
-        return False
+    except ClientError as error:
+        error_code = error.response.get("Error", {}).get("Code", "")
+        if error_code in ("404", "NotFound", "NoSuchKey"):
+            return False
+        raise
     return True
 
 

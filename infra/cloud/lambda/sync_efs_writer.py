@@ -73,6 +73,16 @@ def write_completion_marker(
     _s3_client().put_object(Bucket=bucket_name, Key=object_key, Body=body)
 
 
+def _resolved_member_path(tenant_root: Path, member_name: str) -> Path:
+    member_path = (tenant_root / member_name).resolve()
+    tenant_root_resolved = tenant_root.resolve()
+    if member_path == tenant_root_resolved:
+        return member_path
+    if tenant_root_resolved not in member_path.parents:
+        raise ValueError(f"unsafe tar member path: {member_name}")
+    return member_path
+
+
 def extract_tarball_to_tenant_root(tarball_path: Path, tenant_root: Path) -> None:
     """
     Extract a repo tarball into the tenant root on EFS.
@@ -81,10 +91,24 @@ def extract_tarball_to_tenant_root(tarball_path: Path, tenant_root: Path) -> Non
     :type tarball_path: Path
     :param tenant_root: Tenant directory on the EFS mount.
     :type tenant_root: Path
+    :raises ValueError: When a tarball member would escape ``tenant_root``.
     """
     tenant_root.mkdir(parents=True, exist_ok=True)
     with tarfile.open(tarball_path, "r:gz") as archive:
-        archive.extractall(path=tenant_root)
+        for member in archive.getmembers():
+            _resolved_member_path(tenant_root, member.name)
+        for member in archive.getmembers():
+            destination_path = _resolved_member_path(tenant_root, member.name)
+            if member.isdir():
+                destination_path.mkdir(parents=True, exist_ok=True)
+                continue
+            if member.issym() or member.islnk():
+                raise ValueError(f"unsupported tar member type: {member.name}")
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+            extracted = archive.extractfile(member)
+            if extracted is None:
+                raise ValueError(f"unable to extract tar member: {member.name}")
+            destination_path.write_bytes(extracted.read())
 
 
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
