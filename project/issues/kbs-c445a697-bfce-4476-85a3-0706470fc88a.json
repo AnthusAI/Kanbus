@@ -17,10 +17,17 @@
       "text": "Planning: Composer 2.5. Wiki --json/--limit leftover of fbaf62. Worktree /tmp/kanbus-c445a6-wiki-json from origin/develop, branch cursor/wiki-json-c445a6-4a21. Plan only this turn.",
       "created_at": "2026-09-02T19:30:10.088205Z",
       "comment_type": "default"
+    },
+    {
+      "id": "08e93073-608e-4a26-be45-f03170c57402",
+      "author": "home",
+      "text": "Plan correction: --json on list, search, and render. --limit only on list and search (not on render — do not add a flag that only errors). Do not edit CONTRIBUTING_AGENT.md this cycle (17b4a4 owns it). Document flags in WIKI_GUIDE.md. Worktree not created yet.",
+      "created_at": "2026-09-02T19:33:29.198800Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-08-29T00:19:48.746149925Z",
-  "updated_at": "2026-09-02T19:30:10.088205Z",
+  "updated_at": "2026-09-02T19:33:29.198800Z",
   "closed_at": null,
   "custom": {}
 }
