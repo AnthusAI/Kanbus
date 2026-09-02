@@ -110,6 +110,9 @@ async fn main() {
             if scenario_has_wip || feature_has_wip {
                 return false;
             }
+            if scenario_has_slow && !include_console {
+                return false;
+            }
             let has_console = scenario_has_console || feature_has_console;
             if only_console {
                 if !has_console {

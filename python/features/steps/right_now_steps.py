@@ -285,19 +285,6 @@ def then_right_now_summary_result_unset(context: object) -> None:
     assert context.right_now_summary_result is None
 
 
-@given("mock AI is enabled")
-def given_mock_ai_enabled(context: object) -> None:
-    """Enable deterministic AI mock mode for right-now generation.
-
-    :param context: Behave context object.
-    :type context: object
-    """
-    context._ai_mock_env = os.environ.get("KANBUS_TEST_AI_MOCK")
-    context._litellm_called_env = os.environ.get("KANBUS_RIGHT_NOW_LITELLM_CALLED")
-    os.environ["KANBUS_TEST_AI_MOCK"] = "1"
-    os.environ.pop("KANBUS_RIGHT_NOW_LITELLM_CALLED", None)
-
-
 @given('the Kanbus configuration uses AI provider "{provider}" with model "{model}"')
 def given_kanbus_configuration_uses_ai_provider(
     context: object, provider: str, model: str
