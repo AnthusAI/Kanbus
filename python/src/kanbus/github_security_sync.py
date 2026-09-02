@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set
+from urllib.parse import urlparse
 
 import requests
 from requests.exceptions import RequestException
@@ -768,10 +769,13 @@ def _detect_repo_from_git(root: Path) -> Optional[str]:
 
 
 def _extract_repo_slug(remote: str) -> Optional[str]:
-    if remote.startswith("https://github.com/"):
-        return remote[len("https://github.com/") :].removesuffix(".git")
     if remote.startswith("git@github.com:"):
-        return remote[len("git@github.com:") :].removesuffix(".git")
+        return remote[len("git@github.com:") :].removesuffix(".git") or None
+    parsed = urlparse(remote)
+    hostname = (parsed.hostname or "").lower()
+    if hostname == "github.com":
+        slug = parsed.path.lstrip("/").removesuffix(".git")
+        return slug or None
     return None
 
 

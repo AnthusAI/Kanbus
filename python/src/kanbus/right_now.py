@@ -488,9 +488,8 @@ def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int]]:
     usage = response.usage
     prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
     completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
-    total_tokens = int(
-        getattr(usage, "total_tokens", prompt_tokens + completion_tokens)
-    )
+    reported_total = getattr(usage, "total_tokens", None)
+    total_tokens = int(reported_total or (prompt_tokens + completion_tokens))
     cost = float(
         getattr(response, "_hidden_params", {}).get("response_cost", 0.0) or 0.0
     )

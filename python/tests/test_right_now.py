@@ -268,3 +268,98 @@ def test_build_bounded_raw_child_summary_includes_title() -> None:
     rendered = build_bounded_raw_child_summary(issue)
     assert "Title: Bounded" in rendered
     assert "Description: Body" in rendered
+
+
+def test_resolve_child_summary_uses_full_summary_when_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "kanbus.right_now.get_child_full_summary", lambda _issue: "Full child summary"
+    )
+    issue = build_issue("kanbus-raw", title="Raw")
+    assert resolve_child_summary(issue) == "Full child summary"
+
+
+def test_build_right_now_prompt_includes_child_summaries() -> None:
+    parent = build_issue("kanbus-parent", title="Parent")
+    child = build_issue("kanbus-child")
+    child.right_now_summary = "Child is implementing the tree."
+    context = build_right_now_context(parent, [child])
+    prompt = _build_right_now_prompt(context, 80)
+    assert "Child summaries:" in prompt
+    assert "kanbus-child: Child is implementing the tree." in prompt
+
+
+def test_regenerate_skips_missing_issue_and_generation_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from kanbus.issue_lookup import IssueLookupError
+    from kanbus.right_now import regenerate_right_now_for_issue_and_ancestors
+
+    enabled = build_project_configuration()
+    monkeypatch.setattr("kanbus.right_now._load_configuration", lambda _root: enabled)
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing")),
+    )
+    regenerate_right_now_for_issue(tmp_path, "kanbus-missing")
+    regenerate_right_now_for_issue_and_ancestors(tmp_path, "kanbus-missing")
+
+    lookup = SimpleNamespace(
+        issue=build_issue("kanbus-offline"),
+        issue_path=tmp_path / "project" / "issues" / "kanbus-offline.json",
+        project_dir=tmp_path / "project",
+    )
+    monkeypatch.setattr("kanbus.right_now.load_issue_from_project", lambda *_a: lookup)
+    monkeypatch.setattr("kanbus.right_now.load_child_issues", lambda *_a: [])
+    monkeypatch.setattr(
+        "kanbus.right_now.generate_right_now_summary",
+        lambda *_a: (_ for _ in ()).throw(RightNowError("offline")),
+    )
+    regenerate_right_now_for_issue(tmp_path, "kanbus-offline")
+
+
+def test_completion_requires_litellm_and_handles_empty_and_usage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+    import types
+
+    from kanbus.right_now import _completion
+
+    monkeypatch.setitem(sys.modules, "litellm", None)
+    with pytest.raises(RightNowError, match="litellm is required"):
+        _completion("gpt-5.6-luna", "prompt")
+
+    class FakeMessage:
+        def __init__(self, content: str | None) -> None:
+            self.content = content
+
+    class FakeChoice:
+        def __init__(self, content: str | None) -> None:
+            self.message = FakeMessage(content)
+
+    class FakeUsage:
+        prompt_tokens = 3
+        completion_tokens = 4
+        total_tokens = None
+
+    class FakeResponse:
+        def __init__(self, content: str | None) -> None:
+            self.choices = [FakeChoice(content)]
+            self.usage = FakeUsage()
+            self._hidden_params = {"response_cost": 0.25}
+
+    fake_litellm = types.ModuleType("litellm")
+    fake_litellm.completion = lambda **_k: FakeResponse(None)
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+    with pytest.raises(RightNowError, match="empty content"):
+        _completion("gpt-5.6-luna", "prompt")
+
+    fake_litellm.completion = lambda **_k: FakeResponse("Agents keep shipping.")
+    text, usage = _completion("gpt-5.6-luna", "prompt")
+    assert text == "Agents keep shipping."
+    assert usage["prompt_tokens"] == 3
+    assert usage["completion_tokens"] == 4
+    assert usage["total_tokens"] == 7
+    assert usage["cost"] == 0.25
