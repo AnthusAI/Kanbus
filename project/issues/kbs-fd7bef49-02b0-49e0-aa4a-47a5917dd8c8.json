@@ -3,16 +3,24 @@
   "title": "Spec: agent metadata data model and validation",
   "description": "As a Kanbus maintainer, I want agent metadata validated at the data model boundary, so that invalid or dangerous payloads fail clearly before reaching git.\n\n## Gherkin\n\n```gherkin\nFeature: Agent metadata data model\n  As a Kanbus user\n  I want optional agent metadata validated on issues and comments\n  So that provenance is structured and safe to store in git\n\n  Scenario: Issue accepts valid agent metadata at create\n    Given a Kanbus project with default configuration\n    When I create issue \"kanbus-agent\" with agent platform \"cursor\" model \"composer-2.5\"\n    Then issue \"kanbus-agent\" should have agent platform \"cursor\" and model \"composer-2.5\"\n\n  Scenario: Comment accepts valid agent metadata\n    Given a Kanbus project with default configuration\n    And an issue \"kanbus-aaa\" exists\n    When I add comment \"Progress\" on \"kanbus-aaa\" with agent platform \"claude_code\" model \"claude-sonnet-4\"\n    Then the latest comment on \"kanbus-aaa\" should have agent platform \"claude_code\"\n\n  Scenario: Agent metadata omitted when not provided\n    Given a Kanbus project with default configuration\n    When I create issue \"kanbus-plain\" with title \"Plain task\" and type \"task\"\n    Then issue \"kanbus-plain\" should not have agent metadata\n\n  Scenario: Unknown platform string is rejected when invalid charset\n    Given a Kanbus project with default configuration\n    When I attempt to create issue with agent platform \"Cursor Pro!\" and model \"x\"\n    Then the operation should fail with \"invalid agent platform\"\n\n  Scenario: Secret-like settings keys are rejected\n    Given a Kanbus project with default configuration\n    When I attempt to add comment on \"kanbus-aaa\" with agent settings containing key \"openai_api_key\"\n    Then the operation should fail with \"agent settings must not contain secret-like keys\"\n\n  Scenario: Unknown settings keys are rejected\n    Given a Kanbus project with default configuration\n    When I attempt to create issue with agent settings containing key \"custom_prompt\"\n    Then the operation should fail with \"unknown agent settings key\"\n```\n\n## Implementation notes\n\n- Add `AgentMetadata` to `python/src/kanbus/models.py` and `rust/src/models.rs`\n- Add optional `agent: Option<AgentMetadata>` to `IssueData` and `IssueComment`\n- Shared resolver in `agent_metadata.py` / `agent_metadata.rs`\n- Issue `agent` writable only via create path; update path must not accept agent flags",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "27051b67-1516-44a4-b532-5714c0ee9b8f",
+      "author": "home",
+      "text": "Already on develop (aeab7644 and #177). CLI/models/events/Beads Gherkin live in features/agent/agent_metadata.feature. Closing as shipped; remaining epic work is console display and docs.",
+      "created_at": "2026-09-02T18:20:06.367313Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-29T13:41:07.528237Z",
-  "updated_at": "2026-08-29T13:41:07.528237Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T18:20:06.367313Z",
+  "closed_at": "2026-09-02T18:20:06.206651Z",
   "custom": {}
 }

@@ -3,16 +3,24 @@
   "title": "Extend event payloads with agent snapshots",
   "description": "Story: kbs-1d5214. event_history.py/rs issue_created and comment_added payloads.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "45a5cf9e-7422-47ad-8b40-e40cb242e9d4",
+      "author": "home",
+      "text": "Already on develop (aeab7644 and #177). CLI/models/events/Beads Gherkin live in features/agent/agent_metadata.feature. Closing as shipped; remaining epic work is console display and docs.",
+      "created_at": "2026-09-02T18:20:06.861611Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-29T13:41:36.237784Z",
-  "updated_at": "2026-08-29T13:41:36.237784Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T18:20:06.861611Z",
+  "closed_at": "2026-09-02T18:20:06.815450Z",
   "custom": {}
 }
