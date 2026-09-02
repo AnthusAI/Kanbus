@@ -6,18 +6,17 @@ import pytest
 
 from kanbus import issue_close
 
-from test_helpers import build_issue
+from test_helpers import build_update_result
 
 
 def test_close_issue_delegates_to_update_with_closed_status(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     captured: dict[str, object] = {}
-    expected = build_issue("kanbus-1", status="closed")
 
     def fake_update_issue(**kwargs):
         captured.update(kwargs)
-        return expected
+        return build_update_result("kanbus-1", status="closed")
 
     monkeypatch.setattr(issue_close, "update_issue", fake_update_issue)
 

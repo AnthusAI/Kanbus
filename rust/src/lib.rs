@@ -33,6 +33,7 @@ pub mod ids;
 pub mod index;
 pub mod issue_close;
 pub mod issue_comment;
+pub mod issue_commit;
 pub mod issue_creation;
 pub mod issue_delete;
 pub mod issue_display;

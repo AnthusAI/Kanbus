@@ -43,6 +43,7 @@ use crate::hooks::{
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
 use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
+use crate::issue_commit::commit_project_issues;
 use crate::issue_creation::{create_issue, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
 use crate::issue_display::format_issue_for_display;
@@ -67,6 +68,8 @@ use crate::snyk_sync::pull_from_snyk;
 use crate::summarize::get_comment_display_text;
 use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::users::get_current_user;
+const DEP_USAGE: &str = "usage: kanbus dep <identifier> blocked-by|relates-to <target>\n       kanbus dep <identifier> remove blocked-by|relates-to <target>\n       kanbus dep tree <identifier> [--depth N] [--format FORMAT]";
+
 use crate::wiki::{
     check_wiki_page_links, format_wiki_link_problem, init_wiki, lint_wiki, list_wiki_pages,
     render_wiki_page, search_wiki_pages, show_wiki_page, WikiRenderRequest,
@@ -275,6 +278,8 @@ enum Commands {
         /// Issue identifier.
         identifier: String,
     },
+    /// Commit project/issues changes to git.
+    Commit,
     /// Delete an issue.
     Delete {
         /// Issue identifier.
@@ -323,6 +328,7 @@ enum Commands {
     ///   kbs list --type task --status in_progress
     ///   kbs list --parent <id>                      children of an issue
     ///   kbs list --limit 10                         cap output to 10 issues
+    ///   kbs list --all                              show all issues
     ///   kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
     List {
         /// Status filter.
@@ -356,8 +362,11 @@ enum Commands {
         #[arg(long = "local-only")]
         local_only: bool,
         /// Maximum issues to display (0 for no limit).
-        #[arg(long, default_value_t = 0)]
-        limit: usize,
+        #[arg(long)]
+        limit: Option<usize>,
+        /// Show all issues (same as --limit 0).
+        #[arg(long)]
+        all: bool,
         /// Plain, non-colorized output for machine parsing.
         #[arg(long)]
         porcelain: bool,
@@ -386,10 +395,16 @@ enum Commands {
     /// Report project statistics.
     Stats,
     /// Manage issue dependencies.
-    #[command(name = "dep", trailing_var_arg = true, allow_hyphen_values = true)]
+    #[command(
+        name = "dep",
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        about = "Manage issue dependencies",
+        long_about = "Manage issue dependencies\n\nExamples:\n  kanbus dep kanbus-child blocked-by kanbus-parent\n  kanbus dep kanbus-left relates-to kanbus-right\n  kanbus dep kanbus-left remove blocked-by kanbus-right\n  kanbus dep tree kanbus-child"
+    )]
     Dep {
-        /// Raw arguments: <id> <type> <target> | <id> remove <type> <target> | tree <id> [--depth N] [--format FORMAT]
-        #[arg(num_args = 1..)]
+        /// Raw arguments: <id> blocked-by|relates-to <target> | <id> remove <type> <target> | tree <id> [--depth N] [--format FORMAT]
+        #[arg(num_args = 0..)]
         args: Vec<String>,
     },
     /// List issues that are ready (not blocked).
@@ -1064,6 +1079,11 @@ where
         stdout
             .write_all(output.stdout.as_bytes())
             .map_err(|error| KanbusError::Io(error.to_string()))?;
+        if !output.stdout.ends_with('\n') {
+            stdout
+                .write_all(b"\n")
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
+        }
         stdout.flush().ok();
     }
     if !output.stderr.is_empty() {
@@ -1804,7 +1824,7 @@ fn execute_command(
                 )?;
                 after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, &identifier).ok();
             } else {
-                let updated_issue = update_issue(
+                let update_result = update_issue(
                     root,
                     &identifier,
                     title_value,
@@ -1820,7 +1840,41 @@ fn execute_command(
                     parent.as_deref(),
                     None,
                 )?;
-                after_issue_for_hooks = Some(updated_issue);
+                after_issue_for_hooks = Some(update_result.issue.clone());
+                let formatted_identifier = format_issue_key(&identifier, false);
+                if let Some(ref qr) = update_quality_result {
+                    emit_signals(qr, "description", Some(&identifier), None, true);
+                }
+                let issues_for_policy = after_issue_for_hooks
+                    .as_ref()
+                    .map(|issue| vec![issue.clone()])
+                    .unwrap_or_default();
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueUpdate,
+                    serde_json::json!({
+                        "identifier": identifier,
+                        "status": status,
+                        "priority": priority,
+                        "assignee": assignee_value,
+                        "add_labels": add_labels,
+                        "remove_labels": remove_labels,
+                        "set_labels": set_labels,
+                        "parent": parent,
+                        "claim": claim,
+                        "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                        "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &issues_for_policy,
+                    hook_options,
+                )?;
+                let message = if update_result.changed {
+                    format!("Updated {}", formatted_identifier)
+                } else {
+                    format!("No changes for {}", formatted_identifier)
+                };
+                return Ok(Some(message));
             }
             let formatted_identifier = format_issue_key(&identifier, false);
             if let Some(ref qr) = update_quality_result {
@@ -1879,7 +1933,7 @@ fn execute_command(
                 &[],
                 hook_options,
             )?;
-            let moved_issue = update_issue(
+            let update_result = update_issue(
                 root,
                 &identifier,
                 None,
@@ -1895,6 +1949,7 @@ fn execute_command(
                 None,
                 Some(&issue_type),
             )?;
+            let moved_issue = update_result.issue;
             run_lifecycle_hooks_for_context(
                 root,
                 HookPhase::After,
@@ -1959,7 +2014,7 @@ fn execute_command(
                 let mut seen = HashSet::new();
 
                 for identifier in &ids {
-                    let updated_issue = update_issue(
+                    let update_result = update_issue(
                         root,
                         identifier,
                         None,
@@ -1975,8 +2030,9 @@ fn execute_command(
                         None,
                         None,
                     )?;
-                    if seen.insert(updated_issue.identifier.clone()) {
-                        selected.push(updated_issue);
+                    if update_result.changed && seen.insert(update_result.issue.identifier.clone())
+                    {
+                        selected.push(update_result.issue);
                     }
                 }
 
@@ -1995,10 +2051,10 @@ fn execute_command(
                         false,
                     )?;
                     for issue in filtered {
-                        if !seen.insert(issue.identifier.clone()) {
+                        if seen.contains(&issue.identifier) {
                             continue;
                         }
-                        let updated_issue = update_issue(
+                        let update_result = update_issue(
                             root,
                             &issue.identifier,
                             None,
@@ -2014,7 +2070,10 @@ fn execute_command(
                             None,
                             None,
                         )?;
-                        selected.push(updated_issue);
+                        if update_result.changed {
+                            seen.insert(update_result.issue.identifier.clone());
+                            selected.push(update_result.issue);
+                        }
                     }
                 }
 
@@ -2091,6 +2150,14 @@ fn execute_command(
                 hook_options,
             )?;
             Ok(Some(format!("Closed {}", formatted_identifier)))
+        }
+        Commands::Commit => {
+            let result = commit_project_issues(root)?;
+            if result.committed {
+                Ok(Some("Committed project/issues".to_string()))
+            } else {
+                Ok(Some("Nothing to commit".to_string()))
+            }
         }
         Commands::Delete {
             identifier,
@@ -2510,9 +2577,16 @@ fn execute_command(
             no_local,
             local_only,
             limit,
+            all,
             porcelain,
             full_ids,
         } => {
+            if all && limit.is_some() {
+                return Err(KanbusError::IssueOperation(
+                    "cannot combine --all with --limit".to_string(),
+                ));
+            }
+            let effective_limit = if all { 0 } else { limit.unwrap_or(0) };
             run_lifecycle_hooks_for_context(
                 root,
                 HookPhase::Before,
@@ -2528,7 +2602,7 @@ fn execute_command(
                     "projects": project.clone(),
                     "no_local": no_local,
                     "local_only": local_only,
-                    "limit": limit,
+                    "limit": effective_limit,
                     "porcelain": porcelain,
                 }),
                 &[],
@@ -2577,8 +2651,8 @@ fn execute_command(
                     local_only,
                 )?
             };
-            if limit > 0 {
-                issues.truncate(limit);
+            if effective_limit > 0 {
+                issues.truncate(effective_limit);
             }
             let configuration = if beads_mode {
                 None
@@ -2656,9 +2730,7 @@ fn execute_command(
         }
         Commands::Dep { args } => {
             if args.is_empty() {
-                return Err(KanbusError::IssueOperation(
-                    "usage: kanbus dep <identifier> <type> <target>".to_string(),
-                ));
+                return Err(KanbusError::IssueOperation(DEP_USAGE.to_string()));
             }
 
             // Tree handling: kanbus dep tree <id> [--depth N] [--format FORMAT]
@@ -2699,9 +2771,7 @@ fn execute_command(
             }
 
             if args.len() < 2 {
-                return Err(KanbusError::IssueOperation(
-                    "usage: kanbus dep <identifier> <type> <target>".to_string(),
-                ));
+                return Err(KanbusError::IssueOperation(DEP_USAGE.to_string()));
             }
 
             let identifier = &args[0];
@@ -4027,7 +4097,8 @@ mod tests {
             project: Vec::new(),
             no_local: false,
             local_only: false,
-            limit: 0,
+            limit: None,
+            all: false,
             porcelain: false,
             full_ids: false,
         }));

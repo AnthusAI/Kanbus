@@ -33,6 +33,6 @@ def close_issue(root: Path, identifier: str) -> IssueData:
             assignee=None,
             claim=False,
             validate=True,
-        )
+        ).issue
     except IssueUpdateError as error:
         raise IssueCloseError(str(error)) from error
