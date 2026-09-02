@@ -1,0 +1,31 @@
+{
+  "id": "kbs-8de39f09-9709-48f6-a7ed-ca5e5af94fce",
+  "title": "CLI board screenshot",
+  "description": "Humans and agents can list Kanbus issues, but there is no CLI way to capture or share what the board UI looks like. Add kbs console screenshot to write a PNG of the live console board (headless browser against the existing console, not a second renderer). Authoritative behavior spec: features/specs/console/console_screenshot.feature",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "rap@endymion.com",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c623a5ac-68f5-4f41-ace4-42d0b656e4bc",
+      "author": "ryan",
+      "text": "## Landing screenshot on develop/main for PyPI\n\nMerging existing `kbs console screenshot` (PR #171) into Kanbus and releasing. Not duplicating the feature.\n\n- Rebase/merge `origin/develop` into `cursor/cli-board-screenshot-5624`\n- Fix CI (python, rust, python-console-parity)\n- Squash-merge #171 to develop with `feat(console): add kbs console screenshot command`\n- Follow current ship path: feat PRs go to **main** so semantic-release can bump and publish to PyPI",
+      "created_at": "2026-08-29T19:30:55.898904Z"
+    },
+    {
+      "id": "f9ca281b-e41f-4109-927b-80d17fc89680",
+      "author": "home",
+      "text": "Released kbs console screenshot on main via PR #178; kanbus-py-0.24.0 tagged and publishing.",
+      "created_at": "2026-08-31T20:05:23.699836Z"
+    }
+  ],
+  "created_at": "2026-08-28T16:52:39.826062Z",
+  "updated_at": "2026-08-31T20:05:23.715453Z",
+  "closed_at": "2026-08-31T20:05:23.715453Z",
+  "custom": {}
+}

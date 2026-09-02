@@ -59,29 +59,50 @@ fn allocate_port() -> u16 {
         .port()
 }
 
-fn wait_for_server(port: u16) -> Option<u16> {
+fn wait_for_server(port: u16) -> bool {
     thread::spawn(move || {
         let client = Client::builder()
             .timeout(Duration::from_millis(500))
             .build()
             .expect("build http client");
-        let mut candidates = vec![port];
-        candidates.extend((1..=16).map(|delta| port.saturating_add(delta)));
+        let url = format!("http://127.0.0.1:{port}/api/config");
         for _ in 0..100 {
-            for candidate in &candidates {
-                let url = format!("http://127.0.0.1:{}/api/config", candidate);
-                if let Ok(resp) = client.get(&url).send() {
-                    if resp.status().is_success() {
-                        return Some(*candidate);
-                    }
+            if let Ok(resp) = client.get(&url).send() {
+                if resp.status().is_success() {
+                    return true;
                 }
             }
             thread::sleep(Duration::from_millis(100));
         }
-        None
+        false
     })
     .join()
-    .unwrap_or(None)
+    .unwrap_or(false)
+}
+
+fn request_console_shutdown(port: u16) {
+    let _ = thread::spawn(move || {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .expect("build http client");
+        let _ = client
+            .post(format!("http://127.0.0.1:{port}/api/shutdown"))
+            .send();
+    })
+    .join();
+}
+
+/// Stop any kbsc process started for the current scenario.
+pub fn stop_console_server(world: &mut KanbusWorld) {
+    if let Some(port) = world.console_port {
+        request_console_shutdown(port);
+    }
+    if let Some(mut child) = world.console_server_child.take() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    world.console_port = None;
 }
 
 fn kbsc_binary_path() -> PathBuf {
@@ -176,40 +197,33 @@ fn given_console_server_not_running(_world: &mut KanbusWorld) {
 
 #[given("the console server is running")]
 fn given_console_server_is_running(world: &mut KanbusWorld) {
-    if world.console_port.is_some() {
-        // Already started.
+    if world.console_server_child.is_some() {
         return;
     }
+    stop_console_server(world);
     let port = allocate_port();
-    world.console_port = Some(port);
     write_console_port_to_config(world, port);
-    let _child = start_kbsc(world, port);
-    // Note: child is intentionally leaked; the process will be cleaned up when
-    // the test process exits.  A full lifecycle would store the Child handle in
-    // KanbusWorld, but KanbusWorld currently has no field for it.
-    let ready_port = wait_for_server(port).expect("console server did not become ready");
-    world.console_port = Some(ready_port);
+    let child = start_kbsc(world, port);
+    assert!(
+        wait_for_server(port),
+        "console server did not become ready on port {port}"
+    );
+    world.console_port = Some(port);
+    world.console_server_child = Some(child);
 }
 
 #[when("the console server is restarted")]
 fn when_console_server_is_restarted(world: &mut KanbusWorld) {
     let port = world.console_port.expect("console port not set");
-    // Stop any running server via the shutdown endpoint (best-effort).
-    let _ = thread::spawn(move || {
-        let client = Client::builder()
-            .timeout(Duration::from_secs(2))
-            .build()
-            .expect("build http client");
-        let _ = client
-            .post(format!("http://127.0.0.1:{port}/api/shutdown"))
-            .send();
-    })
-    .join();
+    stop_console_server(world);
     thread::sleep(Duration::from_millis(500));
-    let _child = start_kbsc(world, port);
-    let ready_port =
-        wait_for_server(port).expect("console server did not become ready after restart");
-    world.console_port = Some(ready_port);
+    let child = start_kbsc(world, port);
+    assert!(
+        wait_for_server(port),
+        "console server did not become ready after restart on port {port}"
+    );
+    world.console_port = Some(port);
+    world.console_server_child = Some(child);
 }
 
 // ---------------------------------------------------------------------------

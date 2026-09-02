@@ -21,6 +21,7 @@ use crate::beads_write::{
 };
 use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_token};
 use crate::config_loader::load_project_configuration;
+use crate::console_screenshot::capture_console_screenshot;
 use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::content_validation::validate_code_blocks;
@@ -883,6 +884,27 @@ enum ConsoleCommands {
     Get {
         /// State field to query: focus, view, or search.
         field: String,
+    },
+    /// Capture a PNG screenshot of the console board.
+    Screenshot {
+        /// Output file path (default: kanbus-board.png in the current directory).
+        #[arg(long, short = 'o', value_name = "PATH")]
+        output: Option<String>,
+        /// Appearance mode for the board (light or dark; default light for reproducible captures).
+        #[arg(long, value_name = "MODE", default_value = "light")]
+        mode: String,
+        /// Board type filter: initiatives, epics, issues, or all (console ?type=all).
+        #[arg(long, value_name = "VIEW")]
+        view: Option<String>,
+        /// Expand every collapsed status column before capture.
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        expand_all: bool,
+        /// Expand a status column before capture (repeatable).
+        #[arg(long = "expand", value_name = "COLUMN")]
+        expand_columns: Vec<String>,
+        /// Collapse a status column before capture (repeatable).
+        #[arg(long = "collapse", value_name = "COLUMN")]
+        collapse_columns: Vec<String>,
     },
 }
 
@@ -3513,6 +3535,25 @@ fn execute_command(
                     }
                     Err(_) => Ok(Some("Console server is not running.".to_string())),
                 }
+            }
+            ConsoleCommands::Screenshot {
+                output,
+                mode,
+                view,
+                expand_all,
+                expand_columns,
+                collapse_columns,
+            } => {
+                let path = capture_console_screenshot(
+                    root,
+                    output,
+                    Some(mode),
+                    view,
+                    expand_all,
+                    expand_columns,
+                    collapse_columns,
+                )?;
+                Ok(Some(path.to_string_lossy().to_string()))
             }
         },
         Commands::DaemonStatus => {

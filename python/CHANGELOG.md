@@ -2,6 +2,54 @@
 
 <!-- version list -->
 
+## v0.24.1 (2026-08-31)
+
+### Bug Fixes
+
+- **ci**: Include screenshot testdata in crate and align beads-interop toolchain
+  ([`2a12b14`](https://github.com/AnthusAI/Kanbus/commit/2a12b14e3125262803a77d7479856b6a6fd3c3c4))
+
+
+## v0.24.0 (2026-08-31)
+
+### Bug Fixes
+
+- **ci**: Black-format screenshot step definitions
+  ([`d81b1a4`](https://github.com/AnthusAI/Kanbus/commit/d81b1a40e4efae15d4692910b2943b8c28282898))
+
+- **ci**: Exercise screenshot paths during llvm-cov helper run
+  ([`42237f4`](https://github.com/AnthusAI/Kanbus/commit/42237f40242e52db2f6b61a3e0bef5fe98615025))
+
+- **ci**: Restore embedded-assets coverage without running live screenshot
+  ([`f139566`](https://github.com/AnthusAI/Kanbus/commit/f13956623d269bb5d2c82cce7bb006c72c4076bb))
+
+- **ci**: Run cucumber CLI inline under coverage instrumentation
+  ([`28ca660`](https://github.com/AnthusAI/Kanbus/commit/28ca660401e926f8b70b3cf3f594d6ba3850feea))
+
+- **ci**: Run screenshot coverage helper as a standalone test
+  ([`ad0dc3c`](https://github.com/AnthusAI/Kanbus/commit/ad0dc3c551716c58501ccfabb33f3fc0eed251ac))
+
+- **ci**: Rustfmt node-missing screenshot step
+  ([`37c765b`](https://github.com/AnthusAI/Kanbus/commit/37c765bac0ddf345ded27d5ecf26c7628c9c3796))
+
+- **ci**: Rustfmt screenshot step definitions
+  ([`9e1e57e`](https://github.com/AnthusAI/Kanbus/commit/9e1e57ee8ab750c6b5b8fb7c116d9f2d67b153b1))
+
+- **ci**: Rustfmt screenshot steps and stabilize default-port scenario
+  ([`da24669`](https://github.com/AnthusAI/Kanbus/commit/da24669d8c9ce36adb226a5774ccccfb2b7c84ce))
+
+- **ci**: Share llvm-cov helper paths for screenshot release ratchet
+  ([`4451e67`](https://github.com/AnthusAI/Kanbus/commit/4451e677380331a85b95c002b2dd92d764251f3f))
+
+- **ci**: Stop leaked kbsc processes between screenshot scenarios
+  ([`f8753d7`](https://github.com/AnthusAI/Kanbus/commit/f8753d7e3fa107283a6c81e4c4670d921aef035a))
+
+### Features
+
+- **console**: Add kbs console screenshot command
+  ([`62d1d2f`](https://github.com/AnthusAI/Kanbus/commit/62d1d2f81d87e46998d1d892d4dc55028006cce4))
+
+
 ## v0.23.1 (2026-08-30)
 
 ### Bug Fixes
