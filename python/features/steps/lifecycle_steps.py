@@ -23,15 +23,16 @@ def step_lifecycle_impl_1(context):
 
 @given("mock AI is enabled")
 def step_lifecycle_impl_2(context):
-    context.env_to_restore = (
-        context.env_to_restore if hasattr(context, "env_to_restore") else {}
-    )
-    context.env_to_restore["KANBUS_TEST_AI_MOCK"] = os.environ.get(
-        "KANBUS_TEST_AI_MOCK"
-    )
-    context.env_to_restore["KANBUS_RIGHT_NOW_LITELLM_CALLED"] = os.environ.get(
-        "KANBUS_RIGHT_NOW_LITELLM_CALLED"
-    )
+    tracked = context.__dict__.get("_tracked_env_vars")
+    if tracked is None:
+        tracked = set()
+        context._tracked_env_vars = tracked
+    if not hasattr(context, "_unset_env_vars"):
+        context._unset_env_vars = []
+    for name in ("KANBUS_TEST_AI_MOCK", "KANBUS_RIGHT_NOW_LITELLM_CALLED"):
+        if name not in tracked:
+            context._unset_env_vars.append((name, os.environ.get(name)))
+            tracked.add(name)
     os.environ["KANBUS_TEST_AI_MOCK"] = "1"
     os.environ.pop("KANBUS_RIGHT_NOW_LITELLM_CALLED", None)
 

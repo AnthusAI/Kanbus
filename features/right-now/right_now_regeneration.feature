@@ -6,6 +6,7 @@ Feature: Right now summary regeneration on mutation
   Background:
     Given a Kanbus project with default configuration
     And mock AI is enabled
+    And right now litellm call tracking is reset
     And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
 
   Scenario: Creating an issue generates a right now summary
