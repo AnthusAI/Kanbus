@@ -9,6 +9,7 @@ from behave import given, use_step_matcher, when, then
 
 from kanbus.models import IssueComment
 
+from features.steps.output_steps import _strip_ansi
 from features.steps.shared import (
     build_issue,
     load_project_directory,
@@ -512,18 +513,13 @@ def then_project_issues_agents_matches_baseline(context: object) -> None:
 def _load_stdout_json(context: object) -> dict[str, object]:
     import json
 
-    stdout = context.result.stdout.strip()
+    stdout = _strip_ansi(context.result.stdout).strip()
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError as error:
         raise AssertionError(f"stdout is not valid JSON: {stdout!r}") from error
     assert isinstance(payload, dict), f"expected JSON object, got {type(payload)!r}"
     return payload
-
-
-@then("stdout should be valid JSON")
-def then_stdout_is_valid_json(context: object) -> None:
-    _load_stdout_json(context)
 
 
 @then('JSON field "{field}" should equal "{expected}"')

@@ -1,9 +1,11 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
 
 use chrono::{TimeZone, Utc};
 use cucumber::{gherkin::Step, given, then, when};
+use regex::Regex;
 use serde_yaml::{Mapping, Value};
 use tempfile::TempDir;
 
@@ -673,16 +675,17 @@ fn then_project_agents_contains(world: &mut KanbusWorld, text: String) {
     );
 }
 
-fn load_stdout_json(world: &KanbusWorld) -> serde_json::Map<String, serde_json::Value> {
-    let stdout = world.stdout.as_ref().expect("stdout").trim();
-    let payload: serde_json::Value =
-        serde_json::from_str(stdout).expect("stdout is not valid JSON");
-    payload.as_object().cloned().expect("expected JSON object")
+fn strip_ansi(text: &str) -> String {
+    static ANSI_RE: OnceLock<Regex> = OnceLock::new();
+    let regex = ANSI_RE.get_or_init(|| Regex::new("\x1b\\[[0-9;]*m").expect("regex"));
+    regex.replace_all(text, "").to_string()
 }
 
-#[then("stdout should be valid JSON")]
-fn then_stdout_is_valid_json(world: &mut KanbusWorld) {
-    let _payload = load_stdout_json(world);
+fn load_stdout_json(world: &KanbusWorld) -> serde_json::Map<String, serde_json::Value> {
+    let stdout = strip_ansi(world.stdout.as_ref().expect("stdout"));
+    let payload: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("stdout is not valid JSON");
+    payload.as_object().cloned().expect("expected JSON object")
 }
 
 #[then(expr = "JSON field {string} should equal {string}")]
