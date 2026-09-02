@@ -1,0 +1,33 @@
+{
+  "id": "kbs-1cfe800c-e040-4307-a35f-0c6ce79571e1",
+  "title": "Hosted anthus/kanbus board is unproven after S3-bridge cutover",
+  "description": "## Why this exists\nkbs-3b5cc3 removed the NAT Gateway and replaced TenantSyncWorker with GitSync + EFS Writer + SyncNotify. That slice is merged on develop (PR #201) and a disposable tenant (`preaccept/accept-135301`) synced successfully.\n\nThat is not the hosted product.\n\n## Gap\n- S3 bucket `kanbus-sync-dev-335163751677` has only `preaccept/`. There is no `anthus/kanbus` tarball.\n- GitHub repo AnthusAI/Kanbus has no webhook to `KanbusCloudFoundation` (`/internal/webhooks/github`). Live pushes do not refresh the hosted board.\n- Launch checklist items for live webhook -> EFS -> IoT -> UI are still open.\n\n## DoD\n1. Signed webhook for account `anthus` project `kanbus` using a real `origin/develop` SHA produces: GitSync success, S3 `{account}/{project}/{sha}.tar.gz`, EFS Writer extract to `/mnt/data/anthus/kanbus/repo`, `.synced.json`, SyncNotify IoT publish. DLQ not growing from this run.\n2. Authenticated GET `/{anthus}/{kanbus}/api/issues` returns the Kanbus board (not empty/error).\n3. Browser login to `https://l90n23uqnl.execute-api.us-east-1.amazonaws.com/dev/anthus/kanbus/` shows issues.\n4. Record whether GitHub webhook registration is still missing; do not pretend Amplify/Snyk hooks are Kanbus sync.\n\n## Out of scope\nMerge to main. New NAT. Fargate/CodeBuild.\n\n## Staging\nStack KanbusCloudFoundation, account 335163751677, AWS_PROFILE=default. No cdk deploy --all.",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "05db5a90-7c5b-404c-89e9-ffc200697444",
+      "author": "home",
+      "text": "Starting live acceptance on the real tenant: webhook anthus/kanbus through the S3 bridge, then Cognito login to /dev/anthus/kanbus/. Synthetic preaccept sync from kbs-3b5cc3 is not this DoD.",
+      "created_at": "2026-09-02T18:16:44.069001Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "89f20867-1bf6-4b50-bdcf-3e483248afe8",
+      "author": "home",
+      "text": "Parked: hosted anthus/kanbus live accept still needs GitHub webhook registration and operator Cognito login. Synthetic preaccept sync is not this DoD. Reopen when an operator is on the console.",
+      "created_at": "2026-09-02T18:20:06.982785Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-02T18:16:28.760176Z",
+  "updated_at": "2026-09-02T18:20:06.982785Z",
+  "closed_at": null,
+  "custom": {}
+}

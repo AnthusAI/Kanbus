@@ -14,14 +14,20 @@
     {
       "id": "59b30cf7-a42e-4ec4-8d9e-4a7ce4814618",
       "author": "ubuntu",
-      "text": "## Implementation order\n\n1. **kbs-fd7bef** (spec) then **kbs-991064** + **kbs-086571** \u2014 models, validation, issue create\n2. **kbs-371786** (spec) then **kbs-dbf8b6** + **kbs-6b4ff6** + **kbs-694bc0** \u2014 comment path, CLI display, Gherkin\n3. **kbs-1d5214** (spec) then **kbs-c10bf1** + **kbs-2ab1f8** \u2014 events and Beads guard\n4. **kbs-dd1f4a** (spec) then **kbs-6d42b9** + **kbs-6435f0** \u2014 console UI (can parallelize with CLI after models land)\n5. **kbs-17b4a4** \u2014 documentation last\n\n## Adversarial review resolutions\n\n- Top-level `agent` field (not custom, not comment.data)\n- Platform as validated string (canonical list documented, not closed enum in storage)\n- Settings allowlist only (temperature, thinking_level, max_output_tokens)\n- Issue agent immutable after create; no agent on update\n- Beads mode rejects agent flags (no silent loss)\n- Event payloads must snapshot agent for audit trail\n\n## Open product question (deferred)\n\nComment-only v1 would halve surface area if filing provenance is low priority. Current plan ships both create-only issue agent and per-comment agent.",
+      "text": "## Implementation order\n\n1. **kbs-fd7bef** (spec) then **kbs-991064** + **kbs-086571** — models, validation, issue create\n2. **kbs-371786** (spec) then **kbs-dbf8b6** + **kbs-6b4ff6** + **kbs-694bc0** — comment path, CLI display, Gherkin\n3. **kbs-1d5214** (spec) then **kbs-c10bf1** + **kbs-2ab1f8** — events and Beads guard\n4. **kbs-dd1f4a** (spec) then **kbs-6d42b9** + **kbs-6435f0** — console UI (can parallelize with CLI after models land)\n5. **kbs-17b4a4** — documentation last\n\n## Adversarial review resolutions\n\n- Top-level `agent` field (not custom, not comment.data)\n- Platform as validated string (canonical list documented, not closed enum in storage)\n- Settings allowlist only (temperature, thinking_level, max_output_tokens)\n- Issue agent immutable after create; no agent on update\n- Beads mode rejects agent flags (no silent loss)\n- Event payloads must snapshot agent for audit trail\n\n## Open product question (deferred)\n\nComment-only v1 would halve surface area if filing provenance is low priority. Current plan ships both create-only issue agent and per-comment agent.",
       "created_at": "2026-08-29T13:41:41.066049Z",
-      "comment_type": "default",
-      "data": {}
+      "comment_type": "default"
+    },
+    {
+      "id": "957607d9-811d-49f6-ab89-7234c7e52626",
+      "author": "home",
+      "text": "Board catch-up: CLI/model/events/Beads children closed — already on develop. Next is dd1f4a console display (6d42b9, 6435f0). Docs 17b4a4 last.",
+      "created_at": "2026-09-02T18:20:07.059490Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-08-29T13:40:55.039972Z",
-  "updated_at": "2026-08-29T13:50:24.758249Z",
+  "updated_at": "2026-09-02T18:20:07.059490Z",
   "closed_at": null,
   "custom": {}
 }

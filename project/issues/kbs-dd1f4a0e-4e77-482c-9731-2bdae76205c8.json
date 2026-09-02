@@ -3,16 +3,24 @@
   "title": "Spec: Console agent metadata display",
   "description": "As a Kanbus user in the web console, I want to see agent platform, model, and settings on issues and comments when metadata exists, so that I can trace automated changes without cluttering human-authored work.\n\n## Gherkin\n\nProposed `features/console/agent_metadata.feature` (@console tag).\n\n```gherkin\n@console\nFeature: Console agent metadata display\n  As a Kanbus user\n  I want agent metadata visible in the issue detail panel\n  So that I can see which AI agent produced an issue or comment\n\n  Scenario: Issue detail shows agent metadata when present\n    Given the console is open\n    And the console has a task \"Add structured logging\" with agent platform \"cursor\" model \"composer-2.5\"\n    When I open the task \"Add structured logging\"\n    Then the issue agent metadata should include platform \"cursor\"\n    And the issue agent metadata should include model \"composer-2.5\"\n\n  Scenario: Issue detail hides agent metadata when absent\n    Given the console has a task \"Add structured logging\" without agent metadata\n    When I open the task \"Add structured logging\"\n    Then the issue agent metadata should not be visible\n\n  Scenario: Comment shows agent metadata when present\n    Given the console has a comment from \"agent\" on task \"Add structured logging\" with agent platform \"cursor\" model \"composer-2.5\"\n    When I open the task \"Add structured logging\"\n    Then the comment agent metadata should include platform \"cursor\"\n\n  Scenario: Comment hides agent metadata when absent\n    Given the console has a comment from \"Sam\" on task \"Add structured logging\"\n    When I open the task \"Add structured logging\"\n    Then the comment agent metadata should not be visible\n```\n\n## UI notes\n\n- New `AgentMetadataBlock` in `packages/ui/src/kanban/` with `variant: issue | comment`\n- Render below timestamp/assignee row on issue; inline on each comment before markdown body\n- Use semantic `<section aria-label=\"Agent metadata\">` with `<dl>` structure\n- `data-testid`: `issue-agent-metadata`, `issue-agent-platform`, `comment-agent-metadata`, etc.\n- No placeholder when absent",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "c866043e-8bbe-46fa-84cf-2d81bb3f4fb1",
+      "author": "home",
+      "text": "Planning: Composer 2.5. Console AgentMetadataBlock + @console Gherkin. Worktree /tmp/kanbus-dd1f4a-console-agent on cursor/console-agent-dd1f4a-4a21 from origin/develop. Plan only this turn. Types already exist in apps/console/src/types/issues.ts; no AgentMetadataBlock yet. PR to develop only.",
+      "created_at": "2026-09-02T18:20:07.044165Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-29T13:41:08.901358Z",
-  "updated_at": "2026-08-29T13:41:08.901358Z",
+  "updated_at": "2026-09-02T18:20:07.044165Z",
   "closed_at": null,
   "custom": {}
 }
