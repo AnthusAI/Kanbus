@@ -162,6 +162,18 @@ type_colors:
 
 beads_compatibility: false
 
+# AI provider for summarization (full summaries and right-now summaries).
+# Right-now summaries use GPT 5.6 Luna, pinned via right_now.model.
+ai:
+  provider: litellm
+  model: gpt-5.6-luna
+
+# Right-now summary configuration. model is pinned to GPT 5.6 Luna so the
+# frequent right-now tier stays on Luna even if ai.model changes for full
+# summaries. Other fields use defaults (enabled, collapsed tree, 120 chars).
+right_now:
+  model: gpt-5.6-luna
+
 # Snyk vulnerability synchronization (optional). Secrets go in .env, not here.
 # snyk:
 #   org_id: <uuid from app.snyk.io/org/<slug>/manage/settings>
