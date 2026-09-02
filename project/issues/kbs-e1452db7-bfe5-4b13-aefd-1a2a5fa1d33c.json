@@ -19,10 +19,19 @@
       "comment_type": "default",
       "data": {},
       "agent": null
+    },
+    {
+      "id": "0754ffd9-1352-41d8-981f-f20c9c7e1de3",
+      "author": "home",
+      "text": "Plan approved. Implementer authorized in /tmp/kanbus-e1452d-now-tab on cursor/e1452d-now-tab. Acceptance running in parallel.",
+      "created_at": "2026-09-02T21:09:03.848191Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
     }
   ],
   "created_at": "2026-09-02T20:59:53.742902Z",
-  "updated_at": "2026-09-02T21:05:45.448402Z",
+  "updated_at": "2026-09-02T21:09:03.848296Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
