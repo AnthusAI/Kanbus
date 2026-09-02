@@ -31,10 +31,17 @@
       "text": "PR https://github.com/AnthusAI/Kanbus/pull/203 — Gherkin + Playwright/Python/Rust steps. Waiting on CI and acceptance. Component unchanged.",
       "created_at": "2026-09-02T18:44:41.021810Z",
       "comment_type": "default"
+    },
+    {
+      "id": "589dcf88-6fa0-483a-a646-394755906659",
+      "author": "home",
+      "text": "CI REJECT on #203. Acceptance Playwright of the four new scenarios is green; full console-ui failed because leftover comments on the shared fixture task broke comment_timestamps. rustfmt also failed. Sending back to the implementer.",
+      "created_at": "2026-09-02T18:53:32.728008Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-08-29T13:41:08.901358Z",
-  "updated_at": "2026-09-02T18:44:41.021810Z",
+  "updated_at": "2026-09-02T18:53:32.728008Z",
   "closed_at": null,
   "custom": {}
 }
