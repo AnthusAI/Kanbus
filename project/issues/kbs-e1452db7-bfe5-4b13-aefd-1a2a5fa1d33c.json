@@ -1,0 +1,31 @@
+{
+  "id": "kbs-e1452db7-bfe5-4b13-aefd-1a2a5fa1d33c",
+  "title": "Now tab is first and defaults to tree",
+  "description": "The console panel selector still labels the right-now view Current Status and places it last. It should say Now and sit leftmost: Now, Board, Wiki, Metrics.\n\nThe Now panel also opens on the flat recency feed. Tree view is the default, matching kbs now. The Tree checkbox remains so a user can switch to the flat feed.\n\n## Gherkin\n\n```gherkin\nFeature: Console now panel\n  Scenario: Now is the first panel mode\n    Given the console is open\n    Then the panel mode selector labels should be \"Now, Board, Wiki, Metrics\"\n    When I switch to the \"Now\" view\n    Then the current status view should be active\n    And the board view should be inactive\n\n  Scenario: Now panel defaults to tree view\n    Given the console is open\n    And no issues exist in the console\n    And a status hierarchy root \"Initiative Alpha\" of type \"initiative\" updated at \"2026-01-01T10:00:00.000Z\"\n    When I switch to the \"Now\" view\n    Then the status tree view should be enabled\n    And the status tree should list issues in order \"Initiative Alpha\"\n```",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1eaf0027-7d7b-4502-bc77-964b285c7fdb",
+      "author": "home",
+      "text": "Starting: Gherkin is on the card. Dispatching Composer 2.5 to plan in an isolated worktree (/tmp/kanbus-e1452d-now-tab from origin/develop). Primary clone returned to develop; existing uncommitted WIP is stashed as e1452d-wip-from-primary-clone for reference only.",
+      "created_at": "2026-09-02T21:05:45.448308Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
+    }
+  ],
+  "created_at": "2026-09-02T20:59:53.742902Z",
+  "updated_at": "2026-09-02T21:05:45.448402Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": null
+}
