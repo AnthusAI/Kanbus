@@ -199,7 +199,3 @@ jira:
     Task: task
     Workstream: epic
     Sub-task: sub-task
-
-ai:
-  provider: litellm
-  model: gpt-5.6-luna

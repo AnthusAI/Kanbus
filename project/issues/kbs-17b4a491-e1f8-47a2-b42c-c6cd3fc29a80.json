@@ -3,7 +3,7 @@
   "title": "Document agent metadata for agents and CLI reference",
   "description": "Update CONTRIBUTING_AGENT.md, docs/CLI_REFERENCE.md: env vars, flags, canonical platforms, settings allowlist, no secrets policy, Beads limitation.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -24,10 +24,24 @@
       "text": "Plan accepted. Docs match code: recommended settings keys plus secret rejection, not a closed allowlist. Worktree /tmp/kanbus-17b4a4-agent-docs not created yet — create it, then implement.",
       "created_at": "2026-09-02T19:32:13.355090Z",
       "comment_type": "default"
+    },
+    {
+      "id": "37911297-9581-42b0-8d60-9c175815a859",
+      "author": "home",
+      "text": "PR #204 against develop. Docs-only agent metadata. Awaiting CI and acceptance.",
+      "created_at": "2026-09-02T19:34:44.546067Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "62d7842d-445d-4548-87af-d11c35706621",
+      "author": "home",
+      "text": "Squash-merged #204 to develop. Docs match shipped CLI.",
+      "created_at": "2026-09-02T19:56:31.004809Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-08-29T13:41:20.337751Z",
-  "updated_at": "2026-09-02T19:32:13.355090Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T19:56:31.020559Z",
+  "closed_at": "2026-09-02T19:56:31.020559Z",
   "custom": {}
 }

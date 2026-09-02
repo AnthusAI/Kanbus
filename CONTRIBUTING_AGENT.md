@@ -83,6 +83,90 @@ python -m kanbus.cli <command> [args...]
 
 NOTE: The kbs command is strongly preferred. Only use Python fallback if kbs is unavailable.
 
+## Agent provenance metadata
+
+When you create issues or post comments as an AI agent, Kanbus can optionally record which platform, model, and runtime settings produced the change. This goes beyond `author: agent` or `KANBUS_USER=agent` and helps distinguish Cursor from Codex, Claude Code, or Antigravity in multi-agent workflows.
+
+Agent metadata is optional. When absent, Kanbus omits the `agent` field entirely (not `null`) and does not show an Agent row in CLI output.
+
+### Environment variables
+
+Set defaults once per session; CLI flags override environment values. Empty or whitespace-only environment values are treated as absent.
+
+| Variable | Purpose |
+| --- | --- |
+| `KANBUS_AGENT_PLATFORM` | Default agent platform |
+| `KANBUS_AGENT_MODEL` | Default model identifier |
+| `KANBUS_AGENT_SETTINGS` | Default settings as a JSON object string |
+| `KANBUS_AGENT_NAME` | Optional session or bot name for display |
+
+Platform and model must both be present or both absent. Partial metadata fails with `agent metadata requires both platform and model`.
+
+### CLI flags
+
+These flags are available on `create` and `comment` only:
+
+- `--agent-platform <id>`
+- `--agent-model <id>`
+- `--agent-settings <json>` — JSON object string (for example `'{"thinking_level":"high"}'`)
+- `--agent-name <name>` — Optional session or bot display name
+
+`kanbus update` does not accept agent flags. Issue `agent` metadata is set at create only and cannot be changed afterward. Use `comment` with `--agent-*` for per-action provenance on comments.
+
+### Canonical platforms
+
+Prefer these platform identifiers:
+
+- `claude_code`
+- `codex`
+- `antigravity`
+- `cursor`
+
+Kanbus accepts any lowercase string matching `^[a-z0-9_-]{1,64}$`. The canonical list is for consistency and autocomplete; storage is not a closed enum.
+
+### Settings
+
+`--agent-settings` and `KANBUS_AGENT_SETTINGS` accept a JSON object. Recommended keys:
+
+- `temperature` — model temperature (for example `0.7`)
+- `thinking_level` — reasoning depth (for example `off`, `low`, `medium`, `high`)
+- `max_output_tokens` — positive integer output limit
+
+Other non-secret keys are accepted (for example `speed`, `reasoning_effort`). Kanbus does not enforce a closed allowlist of settings keys.
+
+**No secrets:** Never store API keys, tokens, passwords, or credentials in agent metadata. Keys whose names match `api_key`, `token`, `secret`, `password`, or `credential` (case-insensitive) are rejected with `agent settings must not contain secret-like keys`. Keep credentials in your agent host environment instead.
+
+The serialized `agent` block is limited to 2 KB.
+
+### Beads compatibility
+
+In Beads compatibility mode (`--beads` or `beads_compatibility: true` in `.kanbus.yml`), agent flags and environment defaults that would produce metadata are rejected:
+
+```
+agent metadata requires native Kanbus issue storage
+```
+
+Use native Kanbus issue storage when you need agent provenance.
+
+### Example workflow
+
+```bash
+export KANBUS_AGENT_PLATFORM=cursor
+export KANBUS_AGENT_MODEL=composer-2.5
+
+kbs create "Implement feature X" --type task --parent <epic-id>
+kbs comment <id> "Progress: schema drafted"
+```
+
+Override defaults for a single comment:
+
+```bash
+kbs comment <id> "Deep review done" \
+  --agent-platform codex \
+  --agent-model gpt-5 \
+  --agent-settings '{"thinking_level":"high"}'
+```
+
 ## The Order of Being
 
 All work is structured.
@@ -284,6 +368,8 @@ kanbus update <id> --status in_progress --assignee "you@example.com"
 kanbus update <id> --status blocked
 
 kanbus comment <id> "Progress note"
+
+kbs create "Agent task" --type task --agent-platform cursor --agent-model composer-2.5
 
 kanbus list --status open
 

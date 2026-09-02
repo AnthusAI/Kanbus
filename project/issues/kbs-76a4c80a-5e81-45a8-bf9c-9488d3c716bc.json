@@ -15,16 +15,20 @@
       "id": "63f5879f-b2f0-45ba-99b2-0bf1c3edc9ab",
       "author": "ubuntu",
       "text": "All tracked right-now epics on this initiative are closed, including spec parity and the coverage ratchet (kbs-49e1ac). CLI `kanbus now` / `kanbus now --tree` produce glanceable one-sentence summaries for this board. Closing the initiative.",
-      "created_at": "2026-09-02T17:38:53.796103Z"
+      "created_at": "2026-09-02T17:38:53.796103Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
     }
   ],
   "created_at": "2026-09-02T13:03:25.798957Z",
   "updated_at": "2026-09-02T17:39:02.088284Z",
   "closed_at": "2026-09-02T17:39:02.065543Z",
-  "right_now_summary": "Right-now summaries, tree views, sync, and coverage are complete, and the initiative is wrapping up.",
-  "right_now_updated_at": "2026-09-02T17:47:17.311034Z",
+  "right_now_summary": "Right-now summaries work across the board, with tests passing and the initiative wrapping up.",
+  "right_now_updated_at": "2026-09-02T20:09:24.835186Z",
   "custom": {
     "source": "shared",
     "project_label": "kbs"
-  }
+  },
+  "agent": null
 }
