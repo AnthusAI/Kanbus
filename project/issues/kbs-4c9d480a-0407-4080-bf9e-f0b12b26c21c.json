@@ -1,0 +1,23 @@
+{
+  "id": "kbs-4c9d480a-0407-4080-bf9e-f0b12b26c21c",
+  "title": "Overlay snapshot stays in sync after right-now regen",
+  "description": "As a Kanbus user I want kbs now to show generated right-now summaries even when an overlay snapshot is newer than the canonical issue file.\n\nRelated bug: kbs-ec5db2.\n\nFeature: Right now summary regeneration on mutation\n\n  Scenario: Regenerating a right now summary updates a newer overlay snapshot\n    Given a Kanbus project with default configuration\n    And mock AI is enabled\n    And an issue exists\n    And a newer overlay snapshot for that issue has no right now summary\n    When I update the issue\n    Then listing that issue should show the mock right now summary",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-76a4c80a-5e81-45a8-bf9c-9488d3c716bc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-02T16:27:42.099067Z",
+  "updated_at": "2026-09-02T16:27:42.122364Z",
+  "closed_at": null,
+  "right_now_summary": "Regenerated right-now summaries now appear in newer overlay snapshots after an issue update.",
+  "right_now_updated_at": "2026-09-02T16:27:46.485931Z",
+  "custom": {
+    "source": "shared",
+    "project_label": "kbs"
+  }
+}

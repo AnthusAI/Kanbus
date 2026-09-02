@@ -55,6 +55,31 @@ Feature: Issue display
     Then the command should succeed
     And stdout should contain "Labels: auth, urgent"
 
+  Scenario: Show issue includes right-now summary
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-rnshow" exists with title "Show summary issue"
+    And issue "kanbus-rnshow" has right now summary "Shipping the display line."
+    When I run "kanbus show kanbus-rnshow"
+    Then the command should succeed
+    And stdout should contain "Right now:"
+    And stdout should contain "Shipping the display line."
+
+  Scenario: Show issue placeholder when right-now summary is absent
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-rnempty" exists with title "Empty summary issue"
+    When I run "kanbus show kanbus-rnempty"
+    Then the command should succeed
+    And stdout should contain "Right now:"
+    And stdout should contain "(no right-now summary)"
+
+  Scenario: Show issue JSON includes right-now summary
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-rnjson" exists with title "JSON summary issue"
+    And issue "kanbus-rnjson" has right now summary "JSON display summary."
+    When I run "kanbus show kanbus-rnjson --json"
+    Then the command should succeed
+    And stdout should contain "\"right_now_summary\": \"JSON display summary.\""
+
   Scenario: Format issue display includes labels
     Given a Kanbus project with default configuration
     And an issue "kanbus-labels" exists

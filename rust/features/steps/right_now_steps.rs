@@ -551,3 +551,38 @@ fn then_created_issue_has_mock_right_now_summary(world: &mut KanbusWorld) {
         .expect("last issue id not set");
     then_issue_has_mock_right_now_summary(world, identifier);
 }
+
+#[given(expr = "a newer overlay snapshot for {string} has no right now summary")]
+fn given_newer_overlay_without_summary(world: &mut KanbusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let mut issue = read_issue_file(&project_dir, &identifier);
+    issue.right_now_summary = None;
+    issue.right_now_updated_at = None;
+    kanbus::overlay::write_overlay_issue(&project_dir, &issue, "2099-01-01T00:00:00.000Z", None)
+        .expect("write overlay");
+}
+
+#[then(expr = "listing issue {string} should show the mock right now summary")]
+fn then_listing_shows_mock_right_now_summary(world: &mut KanbusWorld, identifier: String) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let issues = kanbus::issue_listing::list_issues(
+        root,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        &[],
+        true,
+        false,
+    )
+    .expect("list issues");
+    let issue = issues
+        .iter()
+        .find(|issue| issue.identifier == identifier)
+        .expect("issue not listed");
+    let expected = mock_right_now_summary_text(&identifier);
+    assert_eq!(issue.right_now_summary.as_deref(), Some(expected.as_str()));
+}

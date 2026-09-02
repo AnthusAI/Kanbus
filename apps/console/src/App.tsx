@@ -2216,6 +2216,7 @@ export default function App() {
                 >
                   <CurrentStatusPanel
                     issues={issues}
+                    defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
                     onSelectIssue={handleSelectIssue}
                     selectedIssueId={selectedTask?.id ?? null}
                   />

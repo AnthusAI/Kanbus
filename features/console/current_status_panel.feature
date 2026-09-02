@@ -62,3 +62,88 @@ Feature: Console current status panel
     And I switch to the "Current Status" view
     When the console receives an issue update for "Live task" with right-now summary "After update"
     Then the status feed row for "Live task" should show right-now summary "After update"
+
+  Scenario: Tree toggle shows hierarchical status feed
+    Given the console is open
+    And no issues exist in the console
+    And the console right now configuration has default_tree_expanded true
+    And a status hierarchy root "Initiative Alpha" of type "initiative" updated at "2026-01-01T10:00:00.000Z"
+    And a status hierarchy child "Epic Beta" of type "epic" under "Initiative Alpha" updated at "2026-01-02T10:00:00.000Z"
+    And a status hierarchy child "Task Gamma" of type "task" under "Epic Beta" updated at "2026-01-03T10:00:00.000Z"
+    And I switch to the "Current Status" view
+    When I enable the status tree view
+    Then the status tree should list issues in order "Initiative Alpha, Epic Beta, Task Gamma"
+
+  Scenario: Tree nodes are collapsible
+    Given the console is open
+    And no issues exist in the console
+    And the console right now configuration has default_tree_expanded true
+    And a status hierarchy root "Initiative Alpha" of type "initiative" updated at "2026-01-01T10:00:00.000Z"
+    And a status hierarchy child "Epic Beta" of type "epic" under "Initiative Alpha" updated at "2026-01-02T10:00:00.000Z"
+    And a status hierarchy child "Task Gamma" of type "task" under "Epic Beta" updated at "2026-01-03T10:00:00.000Z"
+    And I switch to the "Current Status" view
+    When I enable the status tree view
+    And I collapse the status tree node for "Initiative Alpha"
+    Then the status tree should list issues in order "Initiative Alpha"
+    When I expand the status tree node for "Initiative Alpha"
+    Then the status tree should list issues in order "Initiative Alpha, Epic Beta, Task Gamma"
+
+  Scenario: Tree node default expand reflects configuration
+    Given the console is open
+    And no issues exist in the console
+    And the console right now configuration has default_tree_expanded true
+    And a status hierarchy root "Initiative Alpha" of type "initiative" updated at "2026-01-01T10:00:00.000Z"
+    And a status hierarchy child "Epic Beta" of type "epic" under "Initiative Alpha" updated at "2026-01-02T10:00:00.000Z"
+    And I switch to the "Current Status" view
+    When I enable the status tree view
+    Then the status tree node for "Initiative Alpha" should be expanded
+
+  Scenario: Tree node default collapse reflects configuration
+    Given the console is open
+    And no issues exist in the console
+    And the console right now configuration has default_tree_expanded false
+    And a status hierarchy root "Initiative Alpha" of type "initiative" updated at "2026-01-01T10:00:00.000Z"
+    And a status hierarchy child "Epic Beta" of type "epic" under "Initiative Alpha" updated at "2026-01-02T10:00:00.000Z"
+    And I switch to the "Current Status" view
+    When I enable the status tree view
+    Then the status tree node for "Initiative Alpha" should be collapsed
+
+  Scenario: Tree siblings are ordered by updated_at descending
+    Given the console is open
+    And no issues exist in the console
+    And the console right now configuration has default_tree_expanded true
+    And a status hierarchy root "Initiative Alpha" of type "initiative" updated at "2026-01-01T10:00:00.000Z"
+    And a status hierarchy child "Epic Beta" of type "epic" under "Initiative Alpha" updated at "2026-01-02T10:00:00.000Z"
+    And a status hierarchy child "Task Older" of type "task" under "Epic Beta" updated at "2026-01-02T10:00:00.000Z"
+    And a status hierarchy child "Task Newer" of type "task" under "Epic Beta" updated at "2026-01-04T10:00:00.000Z"
+    And I switch to the "Current Status" view
+    When I enable the status tree view
+    Then the status tree should list issues in order "Initiative Alpha, Epic Beta, Task Newer, Task Older"
+
+  Scenario: Tree node shows issue title and right-now summary
+    Given the console is open
+    And no issues exist in the console
+    And a status hierarchy root "Task Gamma" of type "task" updated at "2026-01-01T10:00:00.000Z"
+    And the status issue "Task Gamma" has right-now summary "Working on gamma"
+    And I switch to the "Current Status" view
+    When I enable the status tree view
+    Then the status tree row for "Task Gamma" should show title "Task Gamma"
+    And the status tree row for "Task Gamma" should show right-now summary "Working on gamma"
+
+  Scenario: Missing right-now summary shows placeholder in tree
+    Given the console is open
+    And no issues exist in the console
+    And a status hierarchy root "Task Delta" of type "task" updated at "2026-01-01T10:00:00.000Z"
+    And I switch to the "Current Status" view
+    When I enable the status tree view
+    Then the status tree row for "Task Delta" should show right-now summary "(no right-now summary)"
+
+  Scenario: Disabling tree toggle returns to flat feed
+    Given the console is open
+    And no issues exist in the console
+    And a status issue "Older task" updated at "2026-01-01T10:00:00.000Z"
+    And a status issue "Newer task" updated at "2026-01-02T10:00:00.000Z"
+    And I switch to the "Current Status" view
+    When I enable the status tree view
+    And I disable the status tree view
+    Then the status feed should list issues in order "Newer task, Older task"

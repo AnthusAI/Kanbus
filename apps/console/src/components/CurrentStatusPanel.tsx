@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import { StatusTree } from "@kanbus/ui";
 import type { Issue } from "../types/issues";
 
 const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
@@ -7,6 +8,7 @@ const DEFAULT_STATUS_FEED_LIMIT = 30;
 interface CurrentStatusPanelProps {
   issues: Issue[];
   limit?: number;
+  defaultTreeExpanded?: boolean;
   onSelectIssue?: (issue: Issue) => void;
   selectedIssueId?: string | null;
 }
@@ -62,9 +64,11 @@ function resolveRightNowSummary(issue: Issue): string {
 export function CurrentStatusPanel({
   issues,
   limit = DEFAULT_STATUS_FEED_LIMIT,
+  defaultTreeExpanded = false,
   onSelectIssue,
   selectedIssueId = null,
 }: CurrentStatusPanelProps) {
+  const [treeViewEnabled, setTreeViewEnabled] = useState(false);
   const feedIssues = useMemo(() => {
     const sorted = [...issues].sort(compareRecentlyUpdated);
     if (limit <= 0) {
@@ -75,50 +79,79 @@ export function CurrentStatusPanel({
 
   return (
     <div className="status-panel" data-testid="current-status-panel">
-      <div className="status-feed" data-testid="status-feed">
-        {feedIssues.length === 0 ? (
-          <div className="status-feed-empty" data-testid="status-feed-empty">
-            No issues to show
-          </div>
-        ) : (
-          feedIssues.map((issue) => {
-            const isSelected = selectedIssueId === issue.id;
-            const summaryText = resolveRightNowSummary(issue);
-            return (
-              <button
-                key={issue.id}
-                type="button"
-                className={`status-feed-row${isSelected ? " status-feed-row-selected" : ""}`}
-                data-testid="status-feed-row"
-                data-issue-title={issue.title}
-                data-issue-id={issue.id}
-                onClick={() => onSelectIssue?.(issue)}
-              >
-                <div className="status-feed-header">
-                  <span className="status-feed-timestamp" data-testid="status-feed-timestamp">
-                    {formatUpdatedAt(issue.updated_at)}
-                  </span>
-                  <span className="status-feed-id" data-testid="status-feed-id">
-                    {issue.id}
-                  </span>
-                  <span
-                    className="status-feed-title"
-                    data-testid="status-feed-title"
-                  >
-                    {issue.title}
-                  </span>
-                </div>
-                <div
-                  className="status-feed-summary"
-                  data-testid="status-feed-summary"
-                >
-                  {summaryText}
-                </div>
-              </button>
-            );
-          })
-        )}
+      <div className="status-panel-toolbar">
+        <label className="status-tree-view-toggle">
+          <input
+            type="checkbox"
+            data-testid="status-tree-toggle"
+            checked={treeViewEnabled}
+            onChange={(event) => setTreeViewEnabled(event.target.checked)}
+          />
+          <span>Tree</span>
+        </label>
       </div>
+      {treeViewEnabled ? (
+        <StatusTree
+          issues={issues}
+          defaultExpanded={defaultTreeExpanded}
+          onSelectIssue={
+            onSelectIssue
+              ? (treeIssue) => {
+                  const issue = issues.find((candidate) => candidate.id === treeIssue.id);
+                  if (issue) {
+                    onSelectIssue(issue);
+                  }
+                }
+              : undefined
+          }
+          selectedIssueId={selectedIssueId}
+        />
+      ) : (
+        <div className="status-feed" data-testid="status-feed">
+          {feedIssues.length === 0 ? (
+            <div className="status-feed-empty" data-testid="status-feed-empty">
+              No issues to show
+            </div>
+          ) : (
+            feedIssues.map((issue) => {
+              const isSelected = selectedIssueId === issue.id;
+              const summaryText = resolveRightNowSummary(issue);
+              return (
+                <button
+                  key={issue.id}
+                  type="button"
+                  className={`status-feed-row${isSelected ? " status-feed-row-selected" : ""}`}
+                  data-testid="status-feed-row"
+                  data-issue-title={issue.title}
+                  data-issue-id={issue.id}
+                  onClick={() => onSelectIssue?.(issue)}
+                >
+                  <div className="status-feed-header">
+                    <span className="status-feed-timestamp" data-testid="status-feed-timestamp">
+                      {formatUpdatedAt(issue.updated_at)}
+                    </span>
+                    <span className="status-feed-id" data-testid="status-feed-id">
+                      {issue.id}
+                    </span>
+                    <span
+                      className="status-feed-title"
+                      data-testid="status-feed-title"
+                    >
+                      {issue.title}
+                    </span>
+                  </div>
+                  <div
+                    className="status-feed-summary"
+                    data-testid="status-feed-summary"
+                  >
+                    {summaryText}
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }

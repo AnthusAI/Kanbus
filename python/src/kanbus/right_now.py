@@ -11,10 +11,11 @@ from pathlib import Path
 from typing import List, Optional
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
-from kanbus.issue_files import write_issue_to_file
+from kanbus.issue_files import read_issue_from_file, write_issue_to_file
 from kanbus.issue_listing import list_issues
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueComment, IssueData, ProjectConfiguration
+from kanbus.overlay import load_overlay_issue, overlay_issue_path, write_overlay_issue
 from kanbus.project import get_configuration_path
 
 RIGHT_NOW_SUMMARY_OPERATION = "right_now_summary"
@@ -280,29 +281,45 @@ def generate_right_now_summary(
 
 
 def persist_right_now_summary(
+    project_dir: Path,
     issue_path: Path,
-    issue: IssueData,
+    issue_identifier: str,
     summary: str,
     updated_at: datetime,
 ) -> None:
     """Persist only right-now summary fields without re-entering the write gate.
 
-    :param issue_path: Path to the issue JSON file.
+    Writes the two right-now fields onto every live store for the issue:
+    the canonical IssueData file when ``issue_path`` is that file, and the
+    overlay snapshot when one exists.
+
+    :param project_dir: Shared project directory.
+    :type project_dir: Path
+    :param issue_path: Path used by issue lookup (canonical or overlay).
     :type issue_path: Path
-    :param issue: Issue data to update.
-    :type issue: IssueData
+    :param issue_identifier: Issue identifier whose stores are updated.
+    :type issue_identifier: str
     :param summary: Generated right-now summary text.
     :type summary: str
     :param updated_at: Timestamp for right_now_updated_at.
     :type updated_at: datetime
     """
-    updated_issue = issue.model_copy(
-        update={
-            "right_now_summary": summary,
-            "right_now_updated_at": updated_at,
-        }
-    )
-    write_issue_to_file(updated_issue, issue_path)
+    fields = {
+        "right_now_summary": summary,
+        "right_now_updated_at": updated_at,
+    }
+    overlay_path = overlay_issue_path(project_dir, issue_identifier)
+    if issue_path.resolve() != overlay_path.resolve() and issue_path.exists():
+        stored_issue = read_issue_from_file(issue_path)
+        write_issue_to_file(stored_issue.model_copy(update=fields), issue_path)
+    overlay_record = load_overlay_issue(project_dir, issue_identifier)
+    if overlay_record is not None:
+        write_overlay_issue(
+            project_dir,
+            overlay_record.issue.model_copy(update=fields),
+            overlay_record.overlay_ts,
+            overlay_record.overlay_event_id,
+        )
 
 
 def regenerate_right_now_for_issue(root: Path, issue_identifier: str) -> None:
@@ -333,7 +350,13 @@ def regenerate_right_now_for_issue(root: Path, issue_identifier: str) -> None:
     except RightNowError:
         return
     current_time = datetime.now(timezone.utc)
-    persist_right_now_summary(lookup.issue_path, issue, summary, current_time)
+    persist_right_now_summary(
+        lookup.project_dir,
+        lookup.issue_path,
+        issue.identifier,
+        summary,
+        current_time,
+    )
 
 
 def regenerate_right_now_for_issue_and_ancestors(
