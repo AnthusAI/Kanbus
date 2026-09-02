@@ -565,7 +565,9 @@ class KanbusCloudFoundationStack(Stack):
         internal = api.root.add_resource("internal")
         webhooks = internal.add_resource("webhooks")
         github = webhooks.add_resource("github")
-        github.add_method(
+        webhook_account = github.add_resource("{account}")
+        webhook_project = webhook_account.add_resource("{project}")
+        webhook_project.add_method(
             "POST",
             apigw.LambdaIntegration(webhook_handler, proxy=True),
             authorization_type=apigw.AuthorizationType.NONE,

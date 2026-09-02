@@ -77,9 +77,8 @@ There is no separate tenant registry yet. A tenant project exists when `<account
 For Git-backed cloud projects:
 
 1. Browser/API calls use tenant route `/{account}/{project}`.
-2. Webhook ingress receives tenant headers:
-   - `X-Kanbus-Account`
-   - `X-Kanbus-Project`
+2. Webhook ingress receives tenant coordinates from the URL path:
+   - `POST /internal/webhooks/github/{account}/{project}`
 3. Git sync Lambda clones/syncs repo to S3 tarball:
    - `{account}/{project}/{sha}.tar.gz`
 4. EFS writer Lambda extracts tarball to EFS:
@@ -106,9 +105,8 @@ There is no tenant registry table in v1. A tenant project is created by syncing 
 into the tenant path on EFS and then serving it from the tenant route.
 
 1. Pick tenant coordinates: `<account>` and `<project>`.
-2. Ensure webhook delivery includes:
-   - `X-Kanbus-Account: <account>`
-   - `X-Kanbus-Project: <project>`
+2. Register a GitHub repository webhook with payload URL:
+   - `{ApiBaseUrl}internal/webhooks/github/<account>/<project>`
 3. Trigger a sync (GitHub push webhook or manual sync path) so git sync and EFS writer materialize:
    - `/mnt/data/<account>/<project>/repo`
 4. Open the tenant URL:

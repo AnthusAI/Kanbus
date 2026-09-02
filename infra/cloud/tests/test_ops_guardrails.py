@@ -58,6 +58,42 @@ class OpsGuardrailsTemplateTests(unittest.TestCase):
             },
         )
 
+    def test_github_webhook_route_is_path_scoped(self) -> None:
+        template = self._template()
+        rendered = template.to_json()
+        resources = rendered["Resources"]
+        path_parts = [
+            resource["Properties"].get("PathPart", "")
+            for resource in resources.values()
+            if resource["Type"] == "AWS::ApiGateway::Resource"
+        ]
+        self.assertIn("{account}", path_parts)
+        self.assertIn("{project}", path_parts)
+
+        resource_ids_by_path_part = {
+            resource["Properties"].get("PathPart", ""): logical_id
+            for logical_id, resource in resources.items()
+            if resource["Type"] == "AWS::ApiGateway::Resource"
+        }
+        github_resource_id = resource_ids_by_path_part["github"]
+        project_resource_id = resource_ids_by_path_part["{project}"]
+        github_post_methods = [
+            resource
+            for resource in resources.values()
+            if resource["Type"] == "AWS::ApiGateway::Method"
+            and resource["Properties"].get("HttpMethod") == "POST"
+            and resource["Properties"]["ResourceId"]["Ref"] == github_resource_id
+        ]
+        project_post_methods = [
+            resource
+            for resource in resources.values()
+            if resource["Type"] == "AWS::ApiGateway::Method"
+            and resource["Properties"].get("HttpMethod") == "POST"
+            and resource["Properties"]["ResourceId"]["Ref"] == project_resource_id
+        ]
+        self.assertEqual(len(github_post_methods), 0)
+        self.assertEqual(len(project_post_methods), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
