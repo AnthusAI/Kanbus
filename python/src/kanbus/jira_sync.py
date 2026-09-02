@@ -123,6 +123,11 @@ def pull_from_jira(
         print(f'{action}  {jira_key:<12}  {short_key:<14}  "{kanbus_issue.title}"')
 
         if not dry_run:
+            """
+            TODO(Epic 4): Route Jira sync issue writes through persist_issue_mutation.
+            Bulk pull/update paths emit no per-issue events today; routing requires
+            defining sync-specific mutation kinds without breaking jira_pull specs.
+            """
             write_issue_to_file(kanbus_issue, issue_path)
 
         if action == "updated":

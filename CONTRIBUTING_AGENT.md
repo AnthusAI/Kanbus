@@ -43,19 +43,20 @@ Direct file system access is strictly forbidden:
 
 Kanbus writes board state to `project/issues/*.json` and event logs to `project/events/*.json`, but it does **not** auto-commit these files to git. The board drifts if they are left uncommitted — collaborators pulling `develop` do not see the current board state.
 
-To keep the board current, periodically commit the Kanbus-written state files to `develop`:
+To keep the board current, commit Kanbus-written issue files to `develop`:
 
 ```bash
-git add project/issues project/events .gitignore
-git commit -m "chore(kanbus): commit board state (issues) to develop"
+kbs commit
 git push origin develop
 ```
 
+`kbs commit` stages and commits `project/issues/` only. It is idempotent when there is nothing to commit. It does not push.
+
 Notes:
-- `project/issues/` (board state) and `project/events/` (event log) are the two things Kanbus writes. Commit both so the board state AND audit trail are current on `develop`.
-- `project/events/` are LLM usage transcripts (~1KB each). Committing them shares the full agent audit trail with collaborators but adds transcripts to the repo. If you prefer to keep event logs local, gitignore `project/events/` and commit only `project/issues/` — but then the audit trail is local-only. (This is a project decision; either is acceptable.)
+- `project/issues/` is the board state Kanbus writes. Use `kbs commit` after you update or close cards so collaborators see current board state on `develop`.
+- `project/events/` holds event logs (LLM usage transcripts). `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
 - Do this proactively as you close/update cards, not as a separate chore — the board should stay current as you work.
-- Never manually edit the JSON content of `project/issues/` or `project/events/` files (the rule above). `git add` + `git commit` persists Kanbus-written state without editing it.
+- Never manually edit the JSON content of `project/issues/` or `project/events/` files (the rule above). `kbs commit` persists Kanbus-written issue state without editing it.
 
 ## Running Kanbus (Do This Exactly)
 

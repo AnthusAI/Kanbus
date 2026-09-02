@@ -6,11 +6,11 @@ use uuid::Uuid;
 
 use crate::error::KanbusError;
 use crate::event_history::{
-    comment_payload, comment_updated_payload, events_dir_for_issue_path, now_timestamp,
-    write_events_batch, EventRecord, EventType,
+    comment_payload, comment_updated_payload, now_timestamp, EventRecord, EventType,
 };
 use crate::issue_files::write_issue_to_file;
 use crate::issue_lookup::load_issue_from_project;
+use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
 use crate::models::{IssueComment, IssueData};
 use crate::users::get_current_user;
 
@@ -98,6 +98,46 @@ fn find_comment_by_prefix(issue: &IssueData, prefix: &str) -> Result<usize, Kanb
     }
 }
 
+fn persist_comment_mutation(
+    root: &Path,
+    lookup: &crate::issue_lookup::IssueLookupResult,
+    updated_issue: IssueData,
+    before_issue: IssueData,
+    event_type: EventType,
+    payload: serde_json::Value,
+) -> Result<IssueData, KanbusError> {
+    let actor_id = get_current_user();
+    let event = EventRecord::new(
+        updated_issue.identifier.clone(),
+        event_type,
+        actor_id.clone(),
+        payload,
+        now_timestamp(),
+    );
+    let event_id = event.event_id.clone();
+    let result = persist_issue_mutation(&PersistIssueMutationRequest {
+        project_dir: lookup.project_dir.clone(),
+        issue_path: lookup.issue_path.clone(),
+        issue: updated_issue,
+        actor_id,
+        events: vec![event],
+        root: root.to_path_buf(),
+        before_issue: Some(before_issue),
+        relocate_to: None,
+        regenerate_right_now: true,
+    })?;
+    if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
+        crate::gossip::publish_issue_mutation(
+            root,
+            &lookup.project_dir,
+            &result.issue,
+            Some(event_id),
+            "issue.mutated",
+        );
+    }
+    Ok(result.issue)
+}
+
 /// Add a comment to an issue.
 ///
 /// # Arguments
@@ -131,46 +171,22 @@ pub fn add_comment(
     comments.push(comment.clone());
     let updated = IssueData {
         comments,
-        updated_at: timestamp,
         ..base_issue
     };
-    write_issue_to_file(&updated, &lookup.issue_path)?;
-
     let comment_id = comment
         .id
         .clone()
         .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
-    let occurred_at = now_timestamp();
-    let actor_id = get_current_user();
-    let event = EventRecord::new(
-        updated.identifier.clone(),
+    let persisted = persist_comment_mutation(
+        root,
+        &lookup,
+        updated,
+        lookup.issue.clone(),
         EventType::CommentAdded,
-        actor_id,
         comment_payload(&comment_id, &comment.author, comment.agent.as_ref()),
-        occurred_at,
-    );
-    let event_id = event.event_id.clone();
-    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            write_issue_to_file(&lookup.issue, &lookup.issue_path)?;
-            return Err(error);
-        }
-    }
-
-    if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
-        crate::gossip::publish_issue_mutation(
-            root,
-            &lookup.project_dir,
-            &updated,
-            Some(event_id),
-            "issue.mutated",
-        );
-    }
-
+    )?;
     Ok(IssueCommentResult {
-        issue: updated,
+        issue: persisted,
         comment,
     })
 }
@@ -193,57 +209,28 @@ pub fn update_comment(
     text: &str,
 ) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
-    let (mut issue, changed) = ensure_comment_ids(&lookup.issue);
+    let (mut issue, _) = ensure_comment_ids(&lookup.issue);
     let index = find_comment_by_prefix(&issue, comment_id_prefix)?;
     let existing_comment = issue
         .comments
         .get(index)
         .cloned()
         .ok_or_else(|| KanbusError::IssueOperation("comment not found".to_string()))?;
-    let timestamp = Utc::now();
     if let Some(comment) = issue.comments.get_mut(index) {
         comment.text = Some(text.to_string());
     }
-    issue.updated_at = timestamp;
-    write_issue_to_file(&issue, &lookup.issue_path)?;
-    if changed {
-        // already written updated issue with ids
-    }
-
     let comment_id = existing_comment
         .id
         .clone()
         .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
-    let occurred_at = now_timestamp();
-    let actor_id = get_current_user();
-    let event = EventRecord::new(
-        issue.identifier.clone(),
+    persist_comment_mutation(
+        root,
+        &lookup,
+        issue,
+        lookup.issue.clone(),
         EventType::CommentUpdated,
-        actor_id,
         comment_updated_payload(&comment_id, &existing_comment.author),
-        occurred_at,
-    );
-    let event_id = event.event_id.clone();
-    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            write_issue_to_file(&lookup.issue, &lookup.issue_path)?;
-            return Err(error);
-        }
-    }
-
-    if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
-        crate::gossip::publish_issue_mutation(
-            root,
-            &lookup.project_dir,
-            &issue,
-            Some(event_id),
-            "issue.mutated",
-        );
-    }
-
-    Ok(issue)
+    )
 }
 
 /// Delete an existing comment by id prefix.
@@ -253,44 +240,19 @@ pub fn delete_comment(
     comment_id_prefix: &str,
 ) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
-    let (mut issue, _changed) = ensure_comment_ids(&lookup.issue);
+    let (mut issue, _) = ensure_comment_ids(&lookup.issue);
     let index = find_comment_by_prefix(&issue, comment_id_prefix)?;
     let removed = issue.comments.remove(index);
-    issue.updated_at = Utc::now();
-    write_issue_to_file(&issue, &lookup.issue_path)?;
-
     let comment_id = removed
         .id
         .clone()
         .ok_or_else(|| KanbusError::IssueOperation("comment id is required".to_string()))?;
-    let occurred_at = now_timestamp();
-    let actor_id = get_current_user();
-    let event = EventRecord::new(
-        issue.identifier.clone(),
+    persist_comment_mutation(
+        root,
+        &lookup,
+        issue,
+        lookup.issue.clone(),
         EventType::CommentDeleted,
-        actor_id,
         comment_payload(&comment_id, &removed.author, removed.agent.as_ref()),
-        occurred_at,
-    );
-    let event_id = event.event_id.clone();
-    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            write_issue_to_file(&lookup.issue, &lookup.issue_path)?;
-            return Err(error);
-        }
-    }
-
-    if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
-        crate::gossip::publish_issue_mutation(
-            root,
-            &lookup.project_dir,
-            &issue,
-            Some(event_id),
-            "issue.mutated",
-        );
-    }
-
-    Ok(issue)
+    )
 }

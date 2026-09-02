@@ -14,7 +14,7 @@ from kanbus.issue_lookup import IssueLookupError
 from kanbus.issue_update import IssueUpdateError
 from kanbus.queries import QueryError
 
-from test_helpers import build_issue, build_project_configuration
+from test_helpers import build_issue, build_update_result, build_project_configuration
 
 
 def _run(args: list[str]) -> object:
@@ -44,7 +44,7 @@ def test_bulk_update_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     def _update_issue(**kwargs):
         identifier = kwargs["identifier"]
         update_calls.append((identifier, kwargs["validate"]))
-        return build_issue(identifier)
+        return build_update_result(identifier)
 
     monkeypatch.setattr(cli, "update_issue", _update_issue)
     monkeypatch.setattr(
@@ -101,7 +101,7 @@ def test_bulk_update_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
         call_order["count"] += 1
         if call_order["count"] == 2:
             raise IssueUpdateError("second update fail")
-        return build_issue(kwargs["identifier"])
+        return build_update_result(kwargs["identifier"])
 
     monkeypatch.setattr(cli, "update_issue", _update_issue_second_fails)
     monkeypatch.setattr(cli, "list_issues", lambda *_a, **_k: [build_issue("kanbus-2")])
@@ -163,7 +163,7 @@ def test_delete_paths_regular_mode(
     )
     deleted: list[str] = []
     monkeypatch.setattr(
-        cli, "delete_issue", lambda _root, issue_id: deleted.append(issue_id)
+        cli, "delete_issue", lambda _root, issue_id, **_k: deleted.append(issue_id)
     )
 
     result_recursive = _run(["delete", "kanbus-1", "--recursive"])
@@ -376,3 +376,66 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         "kanbus-2:True:False:None",
         "kanbus-3:True:False:None",
     ]
+
+
+def test_list_all_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(),
+    )
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
+
+    result_reject = _run(["list", "--all", "--limit", "2"])
+    assert result_reject.exit_code != 0
+    assert "cannot combine --all with --limit" in result_reject.output
+
+    issues = [build_issue("kanbus-1"), build_issue("kanbus-2")]
+    monkeypatch.setattr(cli, "list_issues", lambda *_a, **_k: issues)
+    monkeypatch.setattr(cli, "compute_widths", lambda *_a, **_k: {"id": 8})
+    monkeypatch.setattr(
+        cli,
+        "format_issue_line",
+        lambda issue, porcelain, widths, project_context, configuration: issue.identifier,
+    )
+    result_all = _run(["list", "--all"])
+    assert result_all.exit_code == 0
+    assert "kanbus-1" in result_all.output
+    assert "kanbus-2" in result_all.output
+
+
+def test_commit_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from kanbus.issue_commit import IssueCommitError, IssueCommitResult
+
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+
+    monkeypatch.setattr(
+        cli,
+        "commit_project_issues",
+        lambda _root: IssueCommitResult(committed=True),
+    )
+    result_committed = _run(["commit"])
+    assert result_committed.exit_code == 0
+    assert "Committed project/issues" in result_committed.output
+
+    monkeypatch.setattr(
+        cli,
+        "commit_project_issues",
+        lambda _root: IssueCommitResult(committed=False),
+    )
+    result_clean = _run(["commit"])
+    assert result_clean.exit_code == 0
+    assert "Nothing to commit" in result_clean.output
+
+    monkeypatch.setattr(
+        cli,
+        "commit_project_issues",
+        lambda _root: (_ for _ in ()).throw(IssueCommitError("commit failed")),
+    )
+    result_error = _run(["commit"])
+    assert result_error.exit_code != 0
+    assert "commit failed" in result_error.output

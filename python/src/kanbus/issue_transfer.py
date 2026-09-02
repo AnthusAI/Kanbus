@@ -4,22 +4,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from kanbus.event_history import (
+    create_event,
+    now_timestamp,
+    transfer_payload,
+)
+from kanbus.gossip import publish_issue_deleted, publish_issue_mutation
 from kanbus.issue_files import read_issue_from_file
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
 from kanbus.models import IssueData
 from kanbus.project import (
     ensure_project_local_directory,
     find_project_local_directory,
 )
-from kanbus.event_history import (
-    create_event,
-    events_dir_for_local,
-    events_dir_for_project,
-    now_timestamp,
-    transfer_payload,
-    write_events_batch,
-)
-from kanbus.gossip import publish_issue_deleted, publish_issue_mutation
 from kanbus.users import get_current_user
 
 
@@ -57,30 +55,37 @@ def promote_issue(root: Path, identifier: str) -> IssueData:
         raise IssueTransferError("already exists")
 
     issue = read_issue_from_file(local_issue_path)
-    local_issue_path.replace(target_path)
-    occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
         issue_id=issue.identifier,
         event_type="issue_promoted",
         actor_id=actor_id,
         payload=transfer_payload("local", "shared"),
-        occurred_at=occurred_at,
+        occurred_at=now_timestamp(),
     )
     try:
-        events_dir = events_dir_for_project(project_dir)
-        write_events_batch(events_dir, [event])
+        result = persist_issue_mutation(
+            PersistIssueMutationRequest(
+                project_dir=project_dir,
+                issue_path=local_issue_path,
+                issue=issue,
+                actor_id=actor_id,
+                events=[event],
+                before_issue=issue,
+                relocate_to=target_path,
+                root=root,
+            )
+        )
     except Exception as error:  # noqa: BLE001
-        target_path.replace(local_issue_path)
         raise IssueTransferError(str(error)) from error
     publish_issue_mutation(
         root,
         project_dir,
-        issue,
+        result.issue,
         event.event_id,
         "issue.mutated",
     )
-    return issue
+    return result.issue
 
 
 def localize_issue(root: Path, identifier: str) -> IssueData:
@@ -110,21 +115,28 @@ def localize_issue(root: Path, identifier: str) -> IssueData:
         raise IssueTransferError("already exists")
 
     issue = read_issue_from_file(shared_issue_path)
-    shared_issue_path.replace(target_path)
-    occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
         issue_id=issue.identifier,
         event_type="issue_localized",
         actor_id=actor_id,
         payload=transfer_payload("shared", "local"),
-        occurred_at=occurred_at,
+        occurred_at=now_timestamp(),
     )
     try:
-        events_dir = events_dir_for_local(project_dir)
-        write_events_batch(events_dir, [event])
+        result = persist_issue_mutation(
+            PersistIssueMutationRequest(
+                project_dir=project_dir,
+                issue_path=shared_issue_path,
+                issue=issue,
+                actor_id=actor_id,
+                events=[event],
+                before_issue=issue,
+                relocate_to=target_path,
+                root=root,
+            )
+        )
     except Exception as error:  # noqa: BLE001
-        target_path.replace(shared_issue_path)
         raise IssueTransferError(str(error)) from error
     publish_issue_deleted(
         root,
@@ -132,4 +144,4 @@ def localize_issue(root: Path, identifier: str) -> IssueData:
         issue.identifier,
         event.event_id,
     )
-    return issue
+    return result.issue

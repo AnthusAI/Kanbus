@@ -122,5 +122,11 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     },
     "beads_compatibility": False,
     "wiki_directory": None,
+    "right_now": {
+        "enabled": True,
+        "default_tree_expanded": False,
+        "max_length": 120,
+        "model": None,
+    },
     "github_security": None,
 }

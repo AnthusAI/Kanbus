@@ -6,18 +6,26 @@ use std::path::Path;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::event_history::{
-    build_update_events, events_dir_for_issue_path, now_timestamp, write_events_batch,
-};
+use crate::event_history::{build_update_events, now_timestamp};
 use crate::file_io::get_configuration_path;
 use crate::issue_creation::resolve_issue_identifier;
-use crate::issue_files::{read_issue_from_file, write_issue_to_file};
+use crate::issue_files::read_issue_from_file;
 use crate::issue_lookup::load_issue_from_project;
+use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
 use crate::models::IssueData;
 use crate::users::get_current_user;
 use crate::workflows::{
     apply_transition_side_effects, validate_status_transition, validate_status_value,
 };
+
+/// Result of an issue update operation.
+#[derive(Debug, Clone)]
+pub struct IssueUpdateResult {
+    /// Updated issue data.
+    pub issue: IssueData,
+    /// Whether disk state changed.
+    pub changed: bool,
+}
 
 /// Update an issue and persist it to disk.
 ///
@@ -48,7 +56,19 @@ pub fn update_issue(
     set_labels: Option<&str>,
     parent: Option<&str>,
     issue_type: Option<&str>,
-) -> Result<IssueData, KanbusError> {
+) -> Result<IssueUpdateResult, KanbusError> {
+    let fields_requested = title.is_some()
+        || description.is_some()
+        || status.is_some()
+        || claim
+        || assignee.is_some()
+        || priority.is_some()
+        || !add_labels.is_empty()
+        || !remove_labels.is_empty()
+        || set_labels.is_some()
+        || parent.is_some()
+        || issue_type.is_some();
+
     let lookup = load_issue_from_project(root, identifier)?;
     let before_issue = lookup.issue.clone();
     let config_path = get_configuration_path(lookup.project_dir.as_path())?;
@@ -219,6 +239,12 @@ pub fn update_issue(
         && updated_labels.is_none()
         && updated_parent.is_none()
     {
+        if fields_requested {
+            return Ok(IssueUpdateResult {
+                issue: before_issue,
+                changed: false,
+            });
+        }
         return Err(KanbusError::IssueOperation(
             "no updates requested".to_string(),
         ));
@@ -260,7 +286,6 @@ pub fn update_issue(
     if let Some(new_parent) = updated_parent {
         updated_issue.parent = Some(new_parent);
     }
-    updated_issue.updated_at = current_time;
 
     let policies_dir = lookup.project_dir.join("policies");
     if policies_dir.is_dir() {
@@ -283,22 +308,24 @@ pub fn update_issue(
         }
     }
 
-    write_issue_to_file(&updated_issue, &lookup.issue_path)?;
-
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let events = build_update_events(&before_issue, &updated_issue, &actor_id, &occurred_at);
-    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
-    match write_events_batch(&events_dir, &events) {
-        Ok(_paths) => {}
-        Err(error) => {
-            write_issue_to_file(&before_issue, &lookup.issue_path)?;
-            return Err(error);
-        }
-    }
+    let result = persist_issue_mutation(&PersistIssueMutationRequest {
+        project_dir: lookup.project_dir.clone(),
+        issue_path: lookup.issue_path.clone(),
+        issue: updated_issue.clone(),
+        actor_id,
+        events,
+        root: root.to_path_buf(),
+        before_issue: Some(before_issue),
+        relocate_to: None,
+        regenerate_right_now: true,
+    })?;
+    let updated_issue = result.issue;
 
     if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
-        let event_id = events.first().map(|event| event.event_id.clone());
+        let event_id = result.events.first().map(|event| event.event_id.clone());
         crate::gossip::publish_issue_mutation(
             root,
             &lookup.project_dir,
@@ -308,7 +335,10 @@ pub fn update_issue(
         );
     }
 
-    Ok(updated_issue)
+    Ok(IssueUpdateResult {
+        issue: updated_issue,
+        changed: true,
+    })
 }
 
 fn find_duplicate_title(
@@ -367,6 +397,8 @@ mod tests {
             updated_at: timestamp,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: std::collections::BTreeMap::new(),
         }
     }

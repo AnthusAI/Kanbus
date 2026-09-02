@@ -129,6 +129,23 @@ Feature: Query and list operations
     And stdout should list issue "limitb"
     And stdout should list issue "limitc"
 
+  Scenario: List --all shows all issues
+    Given a Kanbus project with default configuration
+    And issues "kanbus-limit-a" and "kanbus-limit-b" exist
+    And an issue "kanbus-limit-c" exists
+    When I run "kanbus list --all"
+    Then stdout should list issue "limita"
+    And stdout should list issue "limitb"
+    And stdout should list issue "limitc"
+
+  Scenario: List rejects combining --all with --limit
+    Given a Kanbus project with default configuration
+    And issues "kanbus-limit-a" and "kanbus-limit-b" exist
+    And an issue "kanbus-limit-c" exists
+    When I run "kanbus list --all --limit 2"
+    Then the command should fail with exit code 1
+    And stderr should contain "cannot combine --all with --limit"
+
   Scenario: List fails without a project
     Given an empty git repository
     When I run "kanbus list"

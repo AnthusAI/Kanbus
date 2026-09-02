@@ -1,0 +1,33 @@
+{
+  "id": "kbs-29927b9f-6ec8-485c-b45d-0039a55d41e0",
+  "title": "Run spec parity, cucumber/behave, and coverage ratchet",
+  "description": "Execute tools/check_spec_parity.py, behave, cargo cucumber, format gates, and coverage ratchet for the right-now work.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-49e1ac84-963c-4800-9172-54e04c646083",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "eeadb456-24e3-4527-b480-7ca6884a899c",
+      "author": "ubuntu",
+      "text": "Retargeted pytest patches onto persist_issue_mutation. Create rollback now unlinks when before_issue is absent. Regeneration wraps ProjectMarkerError so mutations still succeed without a project marker. Full pytest is green; next is behave, cargo cucumber, and the coverage ratchet.",
+      "created_at": "2026-09-02T17:10:49.745650Z"
+    },
+    {
+      "id": "21546aa8-fa40-47a1-a98a-efd30a2fc14b",
+      "author": "ubuntu",
+      "text": "Quality gates for Epic 10:\n\n- check_spec_parity.py: passing (shared right-now steps present in both runtimes)\n- behave (not @wip and not @console-server): 848 passed, 15 skipped\n- cargo test --test cucumber: 784 passed, 4 skipped\n- black/ruff on right-now sources: clean\n- cargo fmt --check: clean\n- coverage ratchet: python 99.60, rust 86.45, gap 13.15 (baseline updated)\n- changed-files coverage gate vs origin/dev: passing\n\n`kanbus now` against this board prints reverse-chronological right-now summaries and `--tree` rolls the initiative up through this task.",
+      "created_at": "2026-09-02T17:37:52.971001Z"
+    }
+  ],
+  "created_at": "2026-09-02T16:39:55.252409Z",
+  "updated_at": "2026-09-02T17:38:12.205552Z",
+  "closed_at": "2026-09-02T17:38:12.182751Z",
+  "right_now_summary": "All quality gates pass, including parity, tests, formatting, and coverage.",
+  "right_now_updated_at": "2026-09-02T17:38:18.150106Z",
+  "custom": {}
+}

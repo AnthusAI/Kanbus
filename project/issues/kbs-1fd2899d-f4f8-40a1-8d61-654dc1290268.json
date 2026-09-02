@@ -1,0 +1,30 @@
+{
+  "id": "kbs-1fd2899d-f4f8-40a1-8d61-654dc1290268",
+  "title": "Tree toggle, collapse, and default expand in Current Status",
+  "description": "As a Kanbus user I want a collapsible hierarchy in Current Status so I can scan roll-up summaries without leaving the feed.\n\nFeature: Console current status panel\n\n  Scenario: Tree toggle shows hierarchical status feed\n    Given the console is open\n    And no issues exist in the console\n    And the console right now configuration has default_tree_expanded true\n    When I enable the status tree view\n    Then the status tree should list issues in parent-then-child order\n\n  Scenario: Tree nodes are collapsible\n    When I collapse a parent node\n    Then descendants are hidden\n    When I expand that node\n    Then descendants are visible again",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-9957f09f-4186-4ca7-ab69-41e94b582715",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e3ff7685-a272-4cf1-ab70-c0013424778b",
+      "author": "ubuntu",
+      "text": "Tree toggle, collapse, default expand, sibling order, and placeholder specs pass in both runtimes.",
+      "created_at": "2026-09-02T16:37:25.164157Z"
+    }
+  ],
+  "created_at": "2026-09-02T16:26:27.809816Z",
+  "updated_at": "2026-09-02T16:37:36.520645Z",
+  "closed_at": "2026-09-02T16:37:36.498102Z",
+  "right_now_summary": "Tree view behavior, including collapse and default expansion, passes in both runtimes.",
+  "right_now_updated_at": "2026-09-02T16:37:41.461957Z",
+  "custom": {
+    "source": "shared",
+    "project_label": "kbs"
+  }
+}

@@ -2,9 +2,25 @@
 
 from __future__ import annotations
 
-from behave import then
+from behave import given, then
 
 from features.steps.shared import load_project_directory, read_issue_file
+
+
+@given('issue "kanbus-aaa" updated_at is captured')
+def given_issue_updated_at_captured(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, "kanbus-aaa")
+    context.captured_updated_at = issue.updated_at
+
+
+@then('issue "kanbus-aaa" should have unchanged updated_at')
+def then_issue_has_unchanged_updated_at(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, "kanbus-aaa")
+    captured = getattr(context, "captured_updated_at", None)
+    assert captured is not None
+    assert issue.updated_at == captured
 
 
 @then('issue "kanbus-aaa" should have title "New Title"')

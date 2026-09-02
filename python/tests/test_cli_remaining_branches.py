@@ -16,7 +16,7 @@ from kanbus.issue_comment import IssueCommentError
 from kanbus.issue_lookup import IssueLookupError
 from kanbus.migration import MigrationError
 
-from test_helpers import build_issue, build_project_configuration
+from test_helpers import build_issue, build_update_result, build_project_configuration
 
 
 def _run(args: list[str]) -> object:
@@ -161,7 +161,9 @@ def test_show_update_and_comment_remaining_paths(
         "load_issue_from_project",
         lambda *_a, **_k: (_ for _ in ()).throw(IssueLookupError("missing before")),
     )
-    monkeypatch.setattr(cli, "update_issue", lambda **_k: build_issue("kanbus-1"))
+    monkeypatch.setattr(
+        cli, "update_issue", lambda **_k: build_update_result("kanbus-1")
+    )
     emitted: list[str] = []
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: emitted.append("emit"))
     monkeypatch.setattr(
@@ -302,7 +304,9 @@ def test_create_update_move_delete_list_and_dep_remaining_paths(
         "load_project_configuration",
         lambda _p: (_ for _ in ()).throw(ConfigurationError("cfg fail")),
     )
-    monkeypatch.setattr(cli, "update_issue", lambda **_k: issue)
+    monkeypatch.setattr(
+        cli, "update_issue", lambda **_k: build_update_result("kanbus-1")
+    )
     result_move_regular = _run(["move", "kanbus-1", "task"])
     assert result_move_regular.exit_code == 0
 

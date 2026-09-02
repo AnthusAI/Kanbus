@@ -9,6 +9,12 @@ use std::collections::HashSet;
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
 #[derive(Debug, Clone)]
+pub struct ConsoleAgentMetadata {
+    pub platform: String,
+    pub model: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct ConsoleIssue {
     pub identifier: Option<String>,
     pub title: String,
@@ -23,6 +29,8 @@ pub struct ConsoleIssue {
     pub priority: i32,
     pub project_label: String,
     pub location: String,
+    pub agent: Option<ConsoleAgentMetadata>,
+    pub right_now_summary: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -30,6 +38,7 @@ pub struct ConsoleIssue {
 pub struct ConsoleComment {
     pub author: String,
     pub created_at: String,
+    pub agent: Option<ConsoleAgentMetadata>,
 }
 
 #[derive(Debug, Clone)]
@@ -73,6 +82,9 @@ pub struct ConsoleState {
     pub local_filter_visible: bool,
     pub selected_project_filter: Option<String>,
     pub selected_local_filter: Option<String>,
+    pub status_tree_mode: bool,
+    pub status_tree_expanded_overrides: std::collections::HashMap<String, bool>,
+    pub default_tree_expanded: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -155,6 +167,8 @@ fn when_add_task_issue(world: &mut KanbusWorld, title: String) {
         priority: 2,
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
+        agent: None,
+        right_now_summary: None,
     });
 }
 
@@ -183,6 +197,7 @@ fn given_console_comment(
             issue.comments.push(ConsoleComment {
                 author,
                 created_at: timestamp,
+                agent: None,
             });
             return;
         }
@@ -291,6 +306,8 @@ fn given_console_open_with_virtual_projects(world: &mut KanbusWorld) {
         priority: 2,
         project_label: "alpha".to_string(),
         location: "shared".to_string(),
+        agent: None,
+        right_now_summary: None,
     });
 }
 
@@ -331,6 +348,8 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            agent: None,
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -346,6 +365,8 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             priority: 2,
             project_label: "alpha".to_string(),
             location: "shared".to_string(),
+            agent: None,
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -361,6 +382,8 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             priority: 2,
             project_label: "beta".to_string(),
             location: "shared".to_string(),
+            agent: None,
+            right_now_summary: None,
         },
     ];
 }
@@ -382,6 +405,8 @@ fn given_local_issues_current_project(world: &mut KanbusWorld) {
         priority: 2,
         project_label: "kbs".to_string(),
         location: "local".to_string(),
+        agent: None,
+        right_now_summary: None,
     });
     state.local_filter_visible = true;
 }
@@ -403,6 +428,8 @@ fn given_local_issues_virtual_project(world: &mut KanbusWorld, label: String) {
         priority: 2,
         project_label: label,
         location: "local".to_string(),
+        agent: None,
+        right_now_summary: None,
     });
     state.local_filter_visible = true;
 }
@@ -634,6 +661,141 @@ fn then_issue_metadata_assignee(world: &mut KanbusWorld, assignee: String) {
     assert_eq!(issue.assignee.as_deref(), Some(assignee.as_str()));
 }
 
+#[given(expr = "the console has a task {string} with agent platform {string} model {string}")]
+fn given_console_task_with_agent_metadata(
+    world: &mut KanbusWorld,
+    title: String,
+    platform: String,
+    model: String,
+) {
+    let state = require_console_state(world);
+    for issue in &mut state.issues {
+        if issue.title == title {
+            issue.agent = Some(ConsoleAgentMetadata { platform, model });
+            return;
+        }
+    }
+    panic!("task not found: {title}");
+}
+
+#[given(expr = "the console has a task {string} without agent metadata")]
+fn given_console_task_without_agent_metadata(world: &mut KanbusWorld, title: String) {
+    let state = require_console_state(world);
+    for issue in &mut state.issues {
+        if issue.title == title {
+            issue.agent = None;
+            return;
+        }
+    }
+    panic!("task not found: {title}");
+}
+
+#[given(
+    expr = "the console has a comment from {string} on task {string} with agent platform {string} model {string}"
+)]
+fn given_console_comment_with_agent_metadata(
+    world: &mut KanbusWorld,
+    author: String,
+    title: String,
+    platform: String,
+    model: String,
+) {
+    let state = require_console_state(world);
+    for issue in &mut state.issues {
+        if issue.title == title {
+            issue.comments.push(ConsoleComment {
+                author,
+                created_at: "2026-02-11T04:00:00.000Z".to_string(),
+                agent: Some(ConsoleAgentMetadata { platform, model }),
+            });
+            return;
+        }
+    }
+    panic!("task not found: {title}");
+}
+
+#[given(expr = "the console has a comment from {string} on task {string}")]
+fn given_console_comment_without_agent_metadata(
+    world: &mut KanbusWorld,
+    author: String,
+    title: String,
+) {
+    let state = require_console_state(world);
+    for issue in &mut state.issues {
+        if issue.title == title {
+            issue.comments.push(ConsoleComment {
+                author,
+                created_at: "2026-02-11T04:00:00.000Z".to_string(),
+                agent: None,
+            });
+            return;
+        }
+    }
+    panic!("task not found: {title}");
+}
+
+#[then(expr = "the issue agent metadata should include platform {string}")]
+fn then_issue_agent_metadata_platform(world: &mut KanbusWorld, platform: String) {
+    let issue = get_selected_issue(world);
+    let agent = issue.agent.as_ref().expect("agent metadata missing");
+    assert_eq!(agent.platform, platform);
+}
+
+#[then(expr = "the issue agent metadata should include model {string}")]
+fn then_issue_agent_metadata_model(world: &mut KanbusWorld, model: String) {
+    let issue = get_selected_issue(world);
+    let agent = issue.agent.as_ref().expect("agent metadata missing");
+    assert_eq!(agent.model, model);
+}
+
+#[then("the issue agent metadata should not be visible")]
+fn then_issue_agent_metadata_not_visible(world: &mut KanbusWorld) {
+    let issue = get_selected_issue(world);
+    assert!(issue.agent.is_none(), "expected no agent metadata");
+}
+
+#[then(expr = "the comment agent metadata should include platform {string}")]
+fn then_comment_agent_metadata_platform(world: &mut KanbusWorld, platform: String) {
+    let issue = get_selected_issue(world);
+    let comment = issue.comments.last().expect("no comments found");
+    let agent = comment
+        .agent
+        .as_ref()
+        .expect("comment agent metadata missing");
+    assert_eq!(agent.platform, platform);
+}
+
+#[then("the comment agent metadata should not be visible")]
+fn then_comment_agent_metadata_not_visible(world: &mut KanbusWorld) {
+    let issue = get_selected_issue(world);
+    let comment = issue.comments.last().expect("no comments found");
+    assert!(
+        comment.agent.is_none(),
+        "expected no comment agent metadata"
+    );
+}
+
+#[given(expr = "the console issue {string} has right-now summary {string}")]
+fn given_console_issue_right_now_summary(world: &mut KanbusWorld, title: String, summary: String) {
+    let state = require_console_state(world);
+    let issue = state
+        .issues
+        .iter_mut()
+        .find(|issue| issue.title == title)
+        .expect("issue not found");
+    issue.right_now_summary = Some(summary);
+}
+
+#[then(expr = "the issue detail should show right-now summary {string}")]
+fn then_issue_detail_right_now_summary(world: &mut KanbusWorld, expected: String) {
+    let issue = get_selected_issue(world);
+    let actual = match issue.right_now_summary.as_deref() {
+        None | Some("") => "(no right-now summary)",
+        Some(summary) => summary,
+    };
+    assert_eq!(actual, expected);
+}
+
 #[when(expr = "I open the console route {string}")]
 fn when_open_console_route(world: &mut KanbusWorld, route: String) {
     let state = require_console_state(world);
@@ -723,6 +885,11 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
             let first = wiki.page_order[0].clone();
             select_wiki_page(wiki, &first);
         }
+        return;
+    }
+    if normalized == "current status" {
+        state.panel_mode = "now".to_string();
+        world.console_local_storage.panel_mode = Some("now".to_string());
         return;
     }
     state.panel_mode = "board".to_string();
@@ -821,6 +988,8 @@ fn given_metrics_issue(
         priority: 2,
         project_label: project,
         location: source,
+        agent: None,
+        right_now_summary: None,
     });
 }
 
@@ -926,6 +1095,8 @@ fn given_console_has_only_these_issues(world: &mut KanbusWorld, step: &Step) {
                 priority,
                 project_label: "kbs".to_string(),
                 location: "shared".to_string(),
+                agent: None,
+                right_now_summary: None,
             }
         })
         .collect();
@@ -1073,6 +1244,9 @@ fn open_console(world: &KanbusWorld) -> ConsoleState {
         local_filter_visible: false,
         selected_project_filter,
         selected_local_filter,
+        status_tree_mode: false,
+        status_tree_expanded_overrides: std::collections::HashMap::new(),
+        default_tree_expanded: false,
     }
 }
 
@@ -1314,6 +1488,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            agent: None,
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1329,6 +1505,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            agent: None,
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1344,6 +1522,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            agent: None,
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1359,6 +1539,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            agent: None,
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1374,6 +1556,8 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            agent: None,
+            right_now_summary: None,
         },
     ]
 }

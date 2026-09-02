@@ -6,10 +6,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from dataclasses import dataclass
+
 from pydantic import ValidationError
 
 from kanbus.config_loader import load_project_configuration
-from kanbus.issue_files import read_issue_from_file, write_issue_to_file
+from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
+from kanbus.issue_files import read_issue_from_file
 from kanbus.issue_lookup import (
     IssueLookupError,
     load_issue_from_project,
@@ -26,9 +29,7 @@ from kanbus.workflows import (
 )
 from kanbus.event_history import (
     build_update_events,
-    events_dir_for_issue_path,
     now_timestamp,
-    write_events_batch,
 )
 from kanbus.users import get_current_user
 from kanbus.gossip import publish_issue_mutation
@@ -36,6 +37,14 @@ from kanbus.gossip import publish_issue_mutation
 
 class IssueUpdateError(RuntimeError):
     """Raised when issue updates fail."""
+
+
+@dataclass(frozen=True)
+class IssueUpdateResult:
+    """Result of an issue update operation."""
+
+    issue: IssueData
+    changed: bool
 
 
 def update_issue(
@@ -53,7 +62,7 @@ def update_issue(
     set_labels: Optional[list[str]] = None,
     parent: Optional[str] = None,
     issue_type: Optional[str] = None,
-) -> IssueData:
+) -> IssueUpdateResult:
     """Update an issue and persist it to disk.
 
     :param root: Repository root path.
@@ -80,10 +89,24 @@ def update_issue(
     :type set_labels: Optional[list[str]]
     :param parent: Updated parent identifier.
     :type parent: Optional[str]
-    :return: Updated issue data.
-    :rtype: IssueData
+    :return: Updated issue data and whether disk state changed.
+    :rtype: IssueUpdateResult
     :raises IssueUpdateError: If the update fails.
     """
+    fields_requested = (
+        title is not None
+        or description is not None
+        or status is not None
+        or claim
+        or assignee is not None
+        or priority is not None
+        or add_labels is not None
+        or remove_labels is not None
+        or set_labels is not None
+        or parent is not None
+        or issue_type is not None
+    )
+
     try:
         lookup = load_issue_from_project(root, identifier)
     except IssueLookupError as error:
@@ -140,14 +163,17 @@ def update_issue(
     # Handle label operations
     labels = None
     if set_labels is not None:
-        labels = set_labels
+        if sorted(set_labels) != sorted(updated_issue.labels):
+            labels = set_labels
     elif add_labels is not None or remove_labels is not None:
         current_labels = set(updated_issue.labels)
         if add_labels:
             current_labels.update(add_labels)
         if remove_labels:
             current_labels.difference_update(remove_labels)
-        labels = list(current_labels)
+        candidate_labels = sorted(current_labels)
+        if candidate_labels != sorted(updated_issue.labels):
+            labels = candidate_labels
 
     updated_parent: Optional[str] = None
     if parent is not None:
@@ -216,6 +242,8 @@ def update_issue(
         and labels is None
         and updated_parent is None
     ):
+        if fields_requested:
+            return IssueUpdateResult(issue=before_issue, changed=False)
         raise IssueUpdateError("no updates requested")
 
     if resolved_status is not None:
@@ -241,7 +269,7 @@ def update_issue(
         )
         updated_issue = updated_issue.model_copy(update={"status": resolved_status})
 
-    update_fields = {"updated_at": current_time}
+    update_fields = {}
     if title is not None:
         update_fields["title"] = title
     if description is not None:
@@ -295,16 +323,24 @@ def update_issue(
             except PolicyViolationError as error:
                 raise IssueUpdateError(str(error)) from error
 
-    write_issue_to_file(updated_issue, lookup.issue_path)
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     events = build_update_events(before_issue, updated_issue, actor_id, occurred_at)
-    events_dir = events_dir_for_issue_path(lookup.project_dir, lookup.issue_path)
     try:
-        write_events_batch(events_dir, events)
+        result = persist_issue_mutation(
+            PersistIssueMutationRequest(
+                project_dir=lookup.project_dir,
+                issue_path=lookup.issue_path,
+                issue=updated_issue,
+                actor_id=actor_id,
+                events=events,
+                before_issue=before_issue,
+                root=root,
+            )
+        )
     except Exception as error:  # noqa: BLE001
-        write_issue_to_file(before_issue, lookup.issue_path)
         raise IssueUpdateError(str(error)) from error
+    updated_issue = result.issue
     if lookup.issue_path.parent == lookup.project_dir / "issues":
         event_id = events[0].event_id if events else None
         publish_issue_mutation(
@@ -314,7 +350,7 @@ def update_issue(
             event_id,
             "issue.mutated",
         )
-    return updated_issue
+    return IssueUpdateResult(issue=updated_issue, changed=True)
 
 
 def _find_duplicate_title(

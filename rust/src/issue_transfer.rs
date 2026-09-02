@@ -1,16 +1,13 @@
 //! Local and shared issue transfer helpers.
 
-use std::fs;
 use std::path::Path;
 
 use crate::error::KanbusError;
-use crate::event_history::{
-    events_dir_for_local, events_dir_for_project, now_timestamp, transfer_payload,
-    write_events_batch, EventRecord, EventType,
-};
+use crate::event_history::{now_timestamp, transfer_payload, EventRecord, EventType};
 use crate::file_io::{ensure_project_local_directory, find_project_local_directory};
 use crate::issue_files::read_issue_from_file;
 use crate::issue_lookup::load_issue_from_project;
+use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
 use crate::models::IssueData;
 use crate::users::get_current_user;
 
@@ -44,36 +41,34 @@ pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusE
     }
 
     let issue = read_issue_from_file(&local_issue_path)?;
-    fs::rename(&local_issue_path, &target_path)
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
-
-    let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
         issue.identifier.clone(),
         EventType::IssuePromoted,
-        actor_id,
+        actor_id.clone(),
         transfer_payload("local", "shared"),
-        occurred_at,
+        now_timestamp(),
     );
     let event_id = event.event_id.clone();
-    let events_dir = events_dir_for_project(&project_dir);
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            fs::rename(&target_path, &local_issue_path)
-                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
-            return Err(error);
-        }
-    }
+    let result = persist_issue_mutation(&PersistIssueMutationRequest {
+        project_dir: project_dir.clone(),
+        issue_path: local_issue_path,
+        issue: issue.clone(),
+        actor_id,
+        events: vec![event],
+        root: root.to_path_buf(),
+        before_issue: Some(issue),
+        relocate_to: Some(target_path),
+        regenerate_right_now: true,
+    })?;
     crate::gossip::publish_issue_mutation(
         root,
         &project_dir,
-        &issue,
+        &result.issue,
         Some(event_id),
         "issue.mutated",
     );
-    Ok(issue)
+    Ok(result.issue)
 }
 
 /// Move a shared issue into the project-local directory.
@@ -103,37 +98,28 @@ pub fn localize_issue(root: &Path, identifier: &str) -> Result<IssueData, Kanbus
     }
 
     let issue = read_issue_from_file(&shared_issue_path)?;
-    fs::rename(&shared_issue_path, &target_path)
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
-
-    let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
         issue.identifier.clone(),
         EventType::IssueLocalized,
-        actor_id,
+        actor_id.clone(),
         transfer_payload("shared", "local"),
-        occurred_at,
+        now_timestamp(),
     );
     let event_id = event.event_id.clone();
-    let events_dir = match events_dir_for_local(&project_dir) {
-        Ok(path) => path,
-        Err(error) => {
-            fs::rename(&target_path, &shared_issue_path)
-                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
-            return Err(error);
-        }
-    };
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            fs::rename(&target_path, &shared_issue_path)
-                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
-            return Err(error);
-        }
-    }
+    let result = persist_issue_mutation(&PersistIssueMutationRequest {
+        project_dir: project_dir.clone(),
+        issue_path: shared_issue_path,
+        issue: issue.clone(),
+        actor_id,
+        events: vec![event],
+        root: root.to_path_buf(),
+        before_issue: Some(issue.clone()),
+        relocate_to: Some(target_path),
+        regenerate_right_now: true,
+    })?;
     crate::gossip::publish_issue_deleted(root, &project_dir, &issue.identifier, Some(event_id));
-    Ok(issue)
+    Ok(result.issue)
 }
 
 #[cfg(test)]
@@ -141,6 +127,7 @@ mod tests {
     use super::*;
     use chrono::Utc;
     use std::collections::BTreeMap;
+    use std::fs;
 
     fn write_project_config(root: &Path) {
         fs::write(
@@ -169,6 +156,8 @@ mod tests {
             updated_at: Utc::now(),
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         }
     }

@@ -43,6 +43,7 @@ from kanbus.ids import format_issue_key
 from kanbus.issue_line import compute_widths, format_issue_line
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.issue_update import IssueUpdateError, update_issue
+from kanbus.issue_commit import IssueCommitError, commit_project_issues
 from kanbus.issue_transfer import IssueTransferError, localize_issue, promote_issue
 from kanbus.issue_listing import IssueListingError, list_issues
 from kanbus.queries import QueryError
@@ -118,6 +119,16 @@ from kanbus.hooks import (
     run_lifecycle_hooks,
     serialize_issue,
     validate_hooks,
+)
+from kanbus.right_now import (
+    RightNowError,
+    build_leaf_right_now_context,
+    generate_right_now_summary,
+)
+from kanbus.right_now_command import (
+    RightNowCommandError,
+    RightNowCommandOptions,
+    run_right_now_command,
 )
 
 
@@ -201,6 +212,13 @@ def _resolve_beads_root(cwd: Path) -> Path:
             break
         current = parent
     return cwd
+
+
+DEP_USAGE = (
+    "usage: kanbus dep <identifier> blocked-by|relates-to <target>\n"
+    "       kanbus dep <identifier> remove blocked-by|relates-to <target>\n"
+    "       kanbus dep tree <identifier> [--depth N] [--format FORMAT]"
+)
 
 
 @click.group()
@@ -959,7 +977,7 @@ def update(
         beads_mode=False,
     )
     try:
-        updated_issue = update_issue(
+        update_result = update_issue(
             root=root,
             identifier=identifier,
             title=title.strip() if title else None,
@@ -977,8 +995,12 @@ def update(
     except IssueUpdateError as error:
         raise click.ClickException(str(error)) from error
 
+    updated_issue = update_result.issue
     formatted_identifier = format_issue_key(identifier, project_context=False)
-    click.echo(f"Updated {formatted_identifier}")
+    if update_result.changed:
+        click.echo(f"Updated {formatted_identifier}")
+    else:
+        click.echo(f"No changes for {formatted_identifier}")
     if update_quality_result:
         emit_signals(
             update_quality_result, "description", issue_id=identifier, is_update=True
@@ -1058,7 +1080,7 @@ def bulk_update(
 
     for identifier in ids:
         try:
-            issue = update_issue(
+            update_result = update_issue(
                 root=root,
                 identifier=identifier,
                 title=None,
@@ -1075,7 +1097,8 @@ def bulk_update(
             )
         except IssueUpdateError as error:
             raise click.ClickException(str(error)) from error
-        if issue.identifier not in seen:
+        issue = update_result.issue
+        if update_result.changed and issue.identifier not in seen:
             seen.add(issue.identifier)
             updated.append(issue)
 
@@ -1092,7 +1115,7 @@ def bulk_update(
             if issue.identifier in seen:
                 continue
             try:
-                updated_issue = update_issue(
+                update_result = update_issue(
                     root=root,
                     identifier=issue.identifier,
                     title=None,
@@ -1109,8 +1132,10 @@ def bulk_update(
                 )
             except IssueUpdateError as error:
                 raise click.ClickException(str(error)) from error
-            seen.add(updated_issue.identifier)
-            updated.append(updated_issue)
+            updated_issue = update_result.issue
+            if update_result.changed:
+                seen.add(updated_issue.identifier)
+                updated.append(updated_issue)
 
     click.echo(f"Updated {len(updated)} issue(s)")
     _run_lifecycle_hooks_for_context(
@@ -1187,6 +1212,25 @@ def close(context: click.Context, identifier: str) -> None:
     )
 
 
+@cli.command("commit")
+def commit() -> None:
+    """Commit project/issues changes to git.
+
+    \b
+    Examples:
+      kbs commit
+    """
+    root = Path.cwd()
+    try:
+        result = commit_project_issues(root)
+    except IssueCommitError as error:
+        raise click.ClickException(str(error)) from error
+    if result.committed:
+        click.echo("Committed project/issues")
+    else:
+        click.echo("Nothing to commit")
+
+
 @cli.command("move")
 @click.argument("identifier")
 @click.argument("issue_type")
@@ -1228,7 +1272,7 @@ def move(
         beads_mode=False,
     )
     try:
-        updated_issue = update_issue(
+        update_result = update_issue(
             root=root,
             identifier=identifier,
             title=None,
@@ -1247,6 +1291,7 @@ def move(
     except IssueUpdateError as error:
         raise click.ClickException(str(error)) from error
 
+    updated_issue = update_result.issue
     formatted_identifier = format_issue_key(identifier, project_context=False)
     click.echo(f"Moved {formatted_identifier} to type {updated_issue.issue_type}")
     _run_lifecycle_hooks_for_context(
@@ -1399,6 +1444,7 @@ def delete(
             descendants = []
 
     to_delete = descendants + [identifier]
+    retain_audit_event = not recursive
     _run_lifecycle_hooks_for_context(
         context,
         phase=HookPhase.BEFORE,
@@ -1414,7 +1460,7 @@ def delete(
     )
     for issue_id in to_delete:
         try:
-            delete_issue(root, issue_id)
+            delete_issue(root, issue_id, retain_audit_event=retain_audit_event)
         except IssueDeleteError as error:
             raise click.ClickException(str(error)) from error
         formatted_identifier = format_issue_key(issue_id, project_context=False)
@@ -1691,6 +1737,13 @@ def comment(
     help="Maximum issues to display (0 for no limit).",
 )
 @click.option(
+    "--all",
+    "list_all",
+    is_flag=True,
+    default=False,
+    help="Show all issues (same as --limit 0).",
+)
+@click.option(
     "--porcelain",
     is_flag=True,
     default=False,
@@ -1717,6 +1770,7 @@ def list_command(
     no_local: bool,
     local_only: bool,
     limit: int,
+    list_all: bool,
     porcelain: bool,
     full_ids: bool,
 ) -> None:
@@ -1729,8 +1783,17 @@ def list_command(
       kbs list --status open
       kbs list --type task --status in_progress
       kbs list --parent <id>
+      kbs list --all
       kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
     """
+    if (
+        list_all
+        and context.get_parameter_source("limit")
+        == click.core.ParameterSource.COMMANDLINE
+    ):
+        raise click.ClickException("cannot combine --all with --limit")
+    if list_all:
+        limit = 0
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     if beads_mode:
@@ -2637,7 +2700,7 @@ def stats() -> None:
     "dep",
     context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
 )
-@click.argument("args", nargs=-1, required=True)
+@click.argument("args", nargs=-1, required=False)
 @click.pass_context
 def dep(context: click.Context, args: tuple[str, ...]) -> None:
     """Manage issue dependencies.
@@ -2647,7 +2710,7 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
            kanbus dep tree <identifier> [--depth N] [--format FORMAT]
     """
     if len(args) < 1:
-        raise click.ClickException("usage: kanbus dep <identifier> <type> <target>")
+        raise click.ClickException(DEP_USAGE)
 
     # Check if this is a tree command - handle it separately since it needs options
     if args[0] == "tree":
@@ -2689,7 +2752,7 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
         return
 
     if len(args) < 2:
-        raise click.ClickException("usage: kanbus dep <identifier> <type> <target>")
+        raise click.ClickException(DEP_USAGE)
 
     identifier = args[0]
 
@@ -2844,6 +2907,61 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
         root=root,
         beads_mode=beads_mode,
     )
+
+
+@cli.command("now")
+@click.argument("issue_ids", nargs=-1)
+@click.option("--limit", default=None, type=int)
+@click.option("--all", "show_all", is_flag=True, default=False)
+@click.option("--list", "as_list", is_flag=True, default=False)
+@click.option("--no-recursive", is_flag=True, default=False)
+@click.option("--expanded", is_flag=True, default=False)
+@click.option("--collapsed", is_flag=True, default=False)
+@click.option("--raw", is_flag=True, default=False)
+@click.option("--json", "as_json", is_flag=True, default=False)
+def right_now_command(
+    issue_ids: tuple[str, ...],
+    limit: int | None,
+    show_all: bool,
+    as_list: bool,
+    no_recursive: bool,
+    expanded: bool,
+    collapsed: bool,
+    raw: bool,
+    as_json: bool,
+) -> None:
+    """List recently-updated issues with right-now summaries.
+
+    \b
+
+    Examples:
+      kbs now                          tree of recently-updated issues (cap 30)
+      kbs now --list                   reverse-chronological list
+      kbs now --all                    every issue as a tree
+      kbs now --limit 10               10 most recently updated
+      kbs now kbs-abc                  issue and descendants as a tree
+      kbs now kbs-abc --no-recursive   that issue only
+      kbs now kbs-abc --list           descendants as a flat list
+      kbs now --json                   machine-readable JSON for agents
+      kbs now --raw                    titles only, no summaries
+    """
+    root = Path.cwd()
+    options = RightNowCommandOptions(
+        limit=limit,
+        tree=not as_list,
+        expanded=expanded,
+        collapsed=collapsed,
+        raw=raw,
+        as_json=as_json,
+        show_all=show_all,
+        recursive=not no_recursive,
+        issue_ids=issue_ids,
+    )
+    try:
+        output = run_right_now_command(root, options)
+    except (IssueListingError, RightNowCommandError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output, nl=not output.endswith("\n"))
 
 
 @cli.command("doctor")
@@ -3384,6 +3502,24 @@ def stories_alias(context: click.Context) -> None:
 def bugs_alias(context: click.Context) -> None:
     """Alias for: kbs list --type bug"""
     context.invoke(list_command, issue_type="bug")
+
+
+@cli.command("now-generate-internal", hidden=True)
+@click.argument("issue_id")
+def right_now_generate_internal(issue_id: str) -> None:
+    """Generate a right-now summary for internal runtime delegation."""
+    root = Path.cwd()
+    try:
+        lookup = load_issue_from_project(root, issue_id)
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+    issue = lookup.issue
+    context = build_leaf_right_now_context(issue)
+    try:
+        summary = generate_right_now_summary(root, issue, context)
+    except RightNowError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(summary)
 
 
 @cli.command("summarize")
