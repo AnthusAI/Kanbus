@@ -1,0 +1,63 @@
+{
+  "id": "tskl-eu9",
+  "title": "kbs show/update/close fail with 'project not initialized' in initialized Plexus workspace",
+  "description": "## Summary\nIn /Users/ryan.porter/Projects/Plexus, read/write issue commands fail with 'project not initialized' while other commands (list/comment) work.\n\n## Reproduction\n1. cd /Users/ryan.porter/Projects/Plexus\n2. Run: kbs show plx-e41226\n3. Run: kbs update plx-e41226 --status in_progress\n4. Run: kbs close plx-2b0535\n\n## Actual\nEach command exits code 1 with: project not initialized\n\n## Expected\nSince kbs list/comment work in the same repo, show/update/close should resolve the same project context and execute.\n\n## Notes\n- Reproduced on 2026-03-05 around 11:30 ET.\n- kbs comment works in Plexus at same time.\n- In /Users/ryan.porter/Projects/Kanbus, kbs create/list work normally.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "unknown",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "eea9c589-1a70-5967-8340-3253a6a58d8d",
+      "author": "unknown",
+      "text": "Acknowledged. I hit DeviceInUseError when launching kanbus_clock debug because another process was holding the Pixoo lock. I’ll pause until the device is free, then rerun kanbus_clock with --debug and validate descriptions. Let me know when the device is free so I can proceed.",
+      "created_at": "2026-03-05T17:01:45.314463Z"
+    },
+    {
+      "id": "72e76adf-5caf-5345-a21b-4fd9dad4d8ce",
+      "author": "unknown",
+      "text": "Killed my stale kanbus_clock process (PIDs 50563/50564) that was holding the Pixoo lock. Device should now be free to run the debug clock.",
+      "created_at": "2026-03-05T17:38:27.326455Z"
+    },
+    {
+      "id": "27e8f774-9bb4-5525-b265-78dff7510680",
+      "author": "unknown",
+      "text": "Retested on 2026-03-05 11:45 ET. Still reproducible in /Users/ryan.porter/Projects/Plexus:\n- kbs show plx-e41226 -> project not initialized\n- kbs update plx-e41226 --status in_progress -> project not initialized\n- kbs close plx-2b0535 -> project not initialized\nAlso tested explicit scoping:\n- kbs show plx-e41226 --project-root /Users/ryan.porter/Projects/Plexus -> project not initialized\nContext: kbs list and kbs comment still work in the same workspace.",
+      "created_at": "2026-03-05T18:11:04.454731Z"
+    },
+    {
+      "id": "db34d6fd-6259-586e-b7b6-4bf99803c383",
+      "author": "unknown",
+      "text": "Retest 2026-03-05 14:25 ET: still failing in Plexus.\n- kbs show plx-e41226 -> project not initialized\n- kbs update plx-e41226 --status in_progress -> project not initialized\n- kbs close plx-e41226 -> project not initialized\n- kbs show plx-e41226 --project-root /Users/ryan.porter/Projects/Plexus -> project not initialized\nDaemon status reports ok, but issue persists.",
+      "created_at": "2026-03-05T19:29:47.628193Z"
+    },
+    {
+      "id": "a76216c1-250b-5013-a49e-60713ae0fc97",
+      "author": "unknown",
+      "text": "Update 2026-03-05 14:26 ET: Still reproducible from /Users/ryan.porter/Projects/Plexus. Failed commands: kbs show plx-e41226; kbs update plx-e41226 --status in_progress; kbs close plx-e41226; kbs show plx-e41226 --project-root /Users/ryan.porter/Projects/Plexus. All return: project not initialized. Impact: cannot transition/close issues from Plexus repo, only kbs comment/list work. Workaround in use: track lifecycle via kbs comment in Plexus and perform status transitions from /Users/ryan.porter/Projects/Kanbus until root cause is fixed.",
+      "created_at": "2026-03-05T19:30:54.798619Z"
+    },
+    {
+      "id": "a9ee7687-3a59-57c8-a414-9a552d3e1458",
+      "author": "ryan.porter",
+      "text": "Fix implemented in rust/src/file_io.rs: get_configuration_path now searches upward for .kanbus.yml from nested paths. Verified from /Users/ryan.porter/Projects/Plexus after reinstalling kbs: show works (EXIT 0), update no longer returns project-not-initialized (returns no updates requested), and close on missing id returns not found instead of project-not-initialized.",
+      "created_at": "2026-03-05T19:41:45.594666Z"
+    },
+    {
+      "id": "e419cf14-0cc9-5d9d-9851-7e0956f63518",
+      "author": "unknown",
+      "text": "Verification 2026-03-05 14:26 ET: issue appears resolved in /Users/ryan.porter/Projects/Plexus. Commands now execute without 'project not initialized': kbs show plx-e41226 (success), kbs update plx-e41226 --status in_progress (success). kbs close on an already-closed issue returns 'no updates requested' (expected).",
+      "created_at": "2026-03-05T19:47:48.533162Z"
+    }
+  ],
+  "created_at": "2026-03-05T17:00:26.832550Z",
+  "updated_at": "2026-03-05T19:47:54.129516Z",
+  "closed_at": null,
+  "custom": {
+    "beads_owner": "unknown"
+  }
+}
