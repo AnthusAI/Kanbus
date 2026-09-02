@@ -2,6 +2,7 @@ import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMe
 import {
   BarChart3,
   CheckCheck,
+  Clock,
   FileText,
   Filter,
   LayoutGrid,
@@ -17,6 +18,7 @@ import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
 import { MetricsPanel } from "./components/MetricsPanel";
+import { CurrentStatusPanel } from "./components/CurrentStatusPanel";
 import { WikiPanel } from "./components/WikiPanel";
 import {
   fetchAuthBootstrap,
@@ -36,7 +38,7 @@ import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
 
 type ViewMode = "initiatives" | "epics" | "issues";
-type PanelMode = "board" | "metrics" | "wiki";
+type PanelMode = "board" | "metrics" | "wiki" | "now";
 type NavAction = "push" | "pop" | "none";
 type RouteContext = {
   account: string | null;
@@ -117,7 +119,12 @@ function loadStoredPanelMode(): PanelMode {
     return "board";
   }
   const stored = window.localStorage.getItem(PANEL_MODE_STORAGE_KEY);
-  if (stored === "metrics" || stored === "board" || stored === "wiki") {
+  if (
+    stored === "metrics"
+    || stored === "board"
+    || stored === "wiki"
+    || stored === "now"
+  ) {
     return stored as PanelMode;
   }
   return "board";
@@ -1608,7 +1615,8 @@ export default function App() {
     return [
       buildOption("board", "Board", LayoutGrid),
       buildOption("wiki", "Wiki", FileText),
-      buildOption("metrics", "Metrics", BarChart3)
+      buildOption("metrics", "Metrics", BarChart3),
+      buildOption("now", "Current Status", Clock)
     ];
   }, [panelMode]);
 
@@ -1827,10 +1835,13 @@ export default function App() {
 
   const viewTrackTransform = useMemo(() => {
     if (panelMode === "wiki") {
-      return "translateX(-33.3333%)";
+      return "translateX(-25%)";
     }
     if (panelMode === "metrics") {
-      return "translateX(-66.6667%)";
+      return "translateX(-50%)";
+    }
+    if (panelMode === "now") {
+      return "translateX(-75%)";
     }
     return "translateX(0)";
   }, [panelMode]);
@@ -2191,6 +2202,23 @@ export default function App() {
                       projectLabels={projectLabels}
                     />
                   ) : null}
+                </div>
+              </div>
+              <div
+                className={`view-panel ${
+                  panelMode === "now" ? "view-panel-active" : "view-panel-inactive"
+                }`}
+                data-testid="current-status-view"
+                aria-hidden={panelMode !== "now"}
+              >
+                <div
+                  className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
+                >
+                  <CurrentStatusPanel
+                    issues={issues}
+                    onSelectIssue={handleSelectIssue}
+                    selectedIssueId={selectedTask?.id ?? null}
+                  />
                 </div>
               </div>
             </div>

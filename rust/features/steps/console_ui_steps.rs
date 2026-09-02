@@ -23,6 +23,7 @@ pub struct ConsoleIssue {
     pub priority: i32,
     pub project_label: String,
     pub location: String,
+    pub right_now_summary: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -155,6 +156,7 @@ fn when_add_task_issue(world: &mut KanbusWorld, title: String) {
         priority: 2,
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
+        right_now_summary: None,
     });
 }
 
@@ -291,6 +293,7 @@ fn given_console_open_with_virtual_projects(world: &mut KanbusWorld) {
         priority: 2,
         project_label: "alpha".to_string(),
         location: "shared".to_string(),
+        right_now_summary: None,
     });
 }
 
@@ -331,6 +334,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -346,6 +350,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             priority: 2,
             project_label: "alpha".to_string(),
             location: "shared".to_string(),
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -361,6 +366,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             priority: 2,
             project_label: "beta".to_string(),
             location: "shared".to_string(),
+            right_now_summary: None,
         },
     ];
 }
@@ -382,6 +388,7 @@ fn given_local_issues_current_project(world: &mut KanbusWorld) {
         priority: 2,
         project_label: "kbs".to_string(),
         location: "local".to_string(),
+        right_now_summary: None,
     });
     state.local_filter_visible = true;
 }
@@ -403,6 +410,7 @@ fn given_local_issues_virtual_project(world: &mut KanbusWorld, label: String) {
         priority: 2,
         project_label: label,
         location: "local".to_string(),
+        right_now_summary: None,
     });
     state.local_filter_visible = true;
 }
@@ -821,6 +829,7 @@ fn given_metrics_issue(
         priority: 2,
         project_label: project,
         location: source,
+        right_now_summary: None,
     });
 }
 
@@ -926,6 +935,7 @@ fn given_console_has_only_these_issues(world: &mut KanbusWorld, step: &Step) {
                 priority,
                 project_label: "kbs".to_string(),
                 location: "shared".to_string(),
+                right_now_summary: None,
             }
         })
         .collect();
@@ -1314,6 +1324,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1329,6 +1340,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1344,6 +1356,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1359,6 +1372,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            right_now_summary: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1374,6 +1388,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            right_now_summary: None,
         },
     ]
 }
