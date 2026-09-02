@@ -1686,9 +1686,9 @@ def comment(
 @click.option(
     "--limit",
     type=int,
-    default=50,
+    default=0,
     show_default=True,
-    help="Maximum issues to display (0 for no limit). Matches Beads default.",
+    help="Maximum issues to display (0 for no limit).",
 )
 @click.option(
     "--porcelain",

@@ -39,6 +39,24 @@ Direct file system access is strictly forbidden:
 - Do not inspect the file system structure for issues or events
 - All work on issues and events must pass through the kbs command
 
+## Committing project state to git
+
+Kanbus writes board state to `project/issues/*.json` and event logs to `project/events/*.json`, but it does **not** auto-commit these files to git. The board drifts if they are left uncommitted — collaborators pulling `develop` do not see the current board state.
+
+To keep the board current, periodically commit the Kanbus-written state files to `develop`:
+
+```bash
+git add project/issues project/events .gitignore
+git commit -m "chore(kanbus): commit board state (issues) to develop"
+git push origin develop
+```
+
+Notes:
+- `project/issues/` (board state) and `project/events/` (event log) are the two things Kanbus writes. Commit both so the board state AND audit trail are current on `develop`.
+- `project/events/` are LLM usage transcripts (~1KB each). Committing them shares the full agent audit trail with collaborators but adds transcripts to the repo. If you prefer to keep event logs local, gitignore `project/events/` and commit only `project/issues/` — but then the audit trail is local-only. (This is a project decision; either is acceptable.)
+- Do this proactively as you close/update cards, not as a separate chore — the board should stay current as you work.
+- Never manually edit the JSON content of `project/issues/` or `project/events/` files (the rule above). `git add` + `git commit` persists Kanbus-written state without editing it.
+
 ## Running Kanbus (Do This Exactly)
 
 CRITICAL: Always run Kanbus from the repository root so it can find `.kanbus.yml`.

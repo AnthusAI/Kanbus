@@ -245,6 +245,34 @@ def test_delete_paths_beads_mode(
     assert "beads fail" in result_fail.output
 
 
+def test_list_default_returns_all_issues(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
+    issues = [build_issue(f"kanbus-{index}") for index in range(51)]
+    monkeypatch.setattr(cli, "list_issues", lambda *_a, **_k: issues)
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(),
+    )
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        cli,
+        "format_issue_line",
+        lambda issue, porcelain, widths, project_context, configuration: issue.identifier,
+    )
+    monkeypatch.setattr(cli, "compute_widths", lambda *_a, **_k: {"id": 8})
+
+    result = _run(["list"])
+    assert result.exit_code == 0
+    for issue in issues:
+        assert issue.identifier in result.output
+
+
 def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
