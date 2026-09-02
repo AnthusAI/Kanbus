@@ -1245,13 +1245,28 @@ fn detect_repo_from_git(root: &Path) -> Option<String> {
 }
 
 fn extract_repo_slug(remote: &str) -> Option<String> {
-    if let Some(rest) = remote.strip_prefix("https://github.com/") {
-        return Some(rest.trim_end_matches(".git").to_string());
-    }
     if let Some(rest) = remote.strip_prefix("git@github.com:") {
-        return Some(rest.trim_end_matches(".git").to_string());
+        let slug = rest.trim_end_matches(".git");
+        return if slug.is_empty() {
+            None
+        } else {
+            Some(slug.to_string())
+        };
     }
-    None
+    let without_scheme = remote
+        .strip_prefix("https://")
+        .or_else(|| remote.strip_prefix("http://"))?;
+    let host_and_path = without_scheme
+        .rsplit_once('@')
+        .map(|(_, rest)| rest)
+        .unwrap_or(without_scheme);
+    let path = host_and_path.strip_prefix("github.com/")?;
+    let slug = path.trim_end_matches(".git");
+    if slug.is_empty() {
+        None
+    } else {
+        Some(slug.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -1882,6 +1897,20 @@ mod tests {
             .expect("add origin");
         let slug = detect_repo_from_git(temp.path());
         assert_eq!(slug, Some("example/acme".to_string()));
+    }
+
+    #[test]
+    fn extract_repo_slug_parses_token_https_remote() {
+        assert_eq!(
+            extract_repo_slug("https://x-access-token:secret@github.com/example/acme.git")
+                .as_deref(),
+            Some("example/acme")
+        );
+        assert_eq!(extract_repo_slug("git@github.com:"), None);
+        assert_eq!(
+            extract_repo_slug("https://github.com/example/acme.git").as_deref(),
+            Some("example/acme")
+        );
     }
     #[test]
     fn resolve_beads_initiative_finds_existing_with_label() -> Result<(), KanbusError> {

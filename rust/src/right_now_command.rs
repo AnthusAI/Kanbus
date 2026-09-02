@@ -305,3 +305,90 @@ fn serialize_tree_json_node(node: &RightNowTreeNode, raw: bool) -> RightNowTreeJ
             .collect(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::IssueData;
+    use chrono::{TimeZone, Utc};
+    use std::collections::BTreeMap;
+
+    fn make_issue(id: &str, title: &str) -> IssueData {
+        IssueData {
+            identifier: id.to_string(),
+            title: title.to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn default_options_use_limit_thirty_and_flat_text() {
+        let options = RightNowCommandOptions::default();
+        assert_eq!(options.limit, DEFAULT_RIGHT_NOW_LIMIT);
+        assert!(!options.tree);
+        assert!(!options.expanded);
+        assert!(!options.collapsed);
+        assert!(!options.raw);
+        assert!(!options.as_json);
+    }
+
+    #[test]
+    fn resolve_tree_expanded_prefers_flags_then_configuration() {
+        let expanded = RightNowCommandOptions {
+            expanded: true,
+            ..RightNowCommandOptions::default()
+        };
+        assert!(resolve_tree_expanded(&expanded, None));
+        let collapsed = RightNowCommandOptions {
+            collapsed: true,
+            ..RightNowCommandOptions::default()
+        };
+        assert!(!resolve_tree_expanded(&collapsed, None));
+        assert!(!resolve_tree_expanded(
+            &RightNowCommandOptions::default(),
+            None
+        ));
+    }
+
+    #[test]
+    fn format_updated_at_uses_millis_and_zulu() {
+        let stamp = Utc.with_ymd_and_hms(2026, 9, 2, 12, 0, 0).unwrap();
+        assert_eq!(format_updated_at(stamp), "2026-09-02T12:00:00.000Z");
+    }
+
+    #[test]
+    fn render_flat_issue_includes_placeholder_and_raw_omits_summary() {
+        let issue = make_issue("kanbus-flat", "Flat title");
+        let mut lines = Vec::new();
+        render_flat_issue(&issue, false, &mut lines);
+        assert_eq!(lines.len(), 2);
+        assert!(lines[1].contains(RIGHT_NOW_PLACEHOLDER));
+        lines.clear();
+        render_flat_issue(&issue, true, &mut lines);
+        assert_eq!(lines.len(), 1);
+    }
+
+    #[test]
+    fn serialize_flat_json_entry_omits_summary_when_raw() {
+        let issue = make_issue("kanbus-json", "JSON title");
+        let raw = serialize_flat_json_entry(&issue, true);
+        assert!(raw.right_now_summary.is_none());
+        let with_summary = serialize_flat_json_entry(&issue, false);
+        assert_eq!(with_summary.right_now_summary, Some(None));
+    }
+}

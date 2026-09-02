@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set
+from urllib.parse import urlparse
 
 import requests
 from requests.exceptions import RequestException
@@ -631,15 +632,24 @@ def _detect_repo_from_git(root: Path) -> Optional[str]:
             timeout=5,
         )
         url = result.stdout.strip()
-        if url.startswith("https://github.com/"):
-            return url[len("https://github.com/") :].removesuffix(".git")
-        if url.startswith("git@github.com:"):
-            return url[len("git@github.com:") :].removesuffix(".git")
+        return _github_repo_slug(url)
     except Exception as exc:
         # Best-effort detection; if git is unavailable or misconfigured, just return None.
         logging.getLogger(__name__).debug(
             "Failed to detect GitHub repo from git remote for %s: %s", root, exc
         )
+    return None
+
+
+def _github_repo_slug(remote: str) -> Optional[str]:
+    """Return owner/repo from a GitHub SSH or HTTPS remote URL."""
+    if remote.startswith("git@github.com:"):
+        return remote[len("git@github.com:") :].removesuffix(".git") or None
+    parsed = urlparse(remote)
+    hostname = (parsed.hostname or "").lower()
+    if hostname == "github.com":
+        slug = parsed.path.lstrip("/").removesuffix(".git")
+        return slug or None
     return None
 
 

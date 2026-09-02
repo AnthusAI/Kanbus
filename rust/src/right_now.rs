@@ -697,4 +697,83 @@ mod tests {
         );
         assert_eq!(overlay.overlay_ts, "2099-01-01T00:00:00.000Z");
     }
+
+    #[test]
+    fn persist_right_now_summary_updates_overlay_when_canonical_path_is_overlay() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let project_dir = temp.path().join("project");
+        fs::create_dir_all(project_dir.join("issues")).expect("mkdir");
+        let issue = make_issue("kanbus-rn-overlay", "Overlay only");
+        write_overlay_issue(&project_dir, &issue, "2099-01-01T00:00:00.000Z", None)
+            .expect("write overlay");
+        let overlay_path = overlay_issue_path(&project_dir, "kanbus-rn-overlay");
+        persist_right_now_summary(
+            &project_dir,
+            &overlay_path,
+            "kanbus-rn-overlay",
+            "Overlay work continues.",
+            Utc::now(),
+        )
+        .expect("persist");
+        let overlay = load_overlay_issue(&project_dir, "kanbus-rn-overlay")
+            .expect("load overlay")
+            .expect("overlay present");
+        assert_eq!(
+            overlay.issue.right_now_summary.as_deref(),
+            Some("Overlay work continues.")
+        );
+    }
+
+    #[test]
+    fn resolve_child_summary_uses_raw_when_right_now_and_full_are_absent() {
+        let issue = make_issue("kanbus-raw", "Raw child");
+        let rendered = resolve_child_summary(&issue);
+        assert!(rendered.contains("Title: Raw child"));
+    }
+
+    #[test]
+    fn truncate_to_max_length_without_spaces_cuts_at_limit() {
+        assert_eq!(truncate_to_max_length("abcdefghij", 4), "abcd");
+        assert_eq!(truncate_to_max_length("abc", 10), "abc");
+    }
+
+    #[test]
+    fn regenerate_right_now_for_issue_returns_when_configuration_is_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        regenerate_right_now_for_issue(temp.path(), "kanbus-missing");
+        regenerate_right_now_for_issue_and_ancestors(temp.path(), "kanbus-missing");
+    }
+
+    #[test]
+    fn regenerate_right_now_for_issue_skips_when_disabled() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.right_now.enabled = false;
+        let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
+        fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
+        regenerate_right_now_for_issue(temp.path(), "kanbus-disabled");
+    }
+
+    #[test]
+    fn regenerate_right_now_for_issue_skips_missing_issue() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let configuration = crate::config::default_project_configuration();
+        let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
+        fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
+        fs::create_dir_all(temp.path().join("project/issues")).expect("mkdir");
+        regenerate_right_now_for_issue(temp.path(), "kanbus-absent");
+    }
+
+    #[test]
+    fn read_right_now_llm_usage_entries_returns_empty_when_log_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let entries = read_right_now_llm_usage_entries(temp.path()).expect("read");
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn summary_contains_status_keyword_detects_bare_tokens() {
+        assert!(summary_contains_status_keyword("Work is blocked on review"));
+        assert!(!summary_contains_status_keyword("Agents keep shipping"));
+    }
 }

@@ -709,14 +709,32 @@ fn detect_repo_from_git(root: &Path) -> Option<String> {
         .output()
         .ok()?;
     let url = String::from_utf8(output.stdout).ok()?;
-    let url = url.trim();
-    // Handle https://github.com/Org/Repo.git and git@github.com:Org/Repo.git
-    let slug = url
-        .strip_prefix("https://github.com/")
-        .or_else(|| url.strip_prefix("git@github.com:"))?
-        .trim_end_matches(".git")
-        .to_string();
-    Some(slug)
+    github_repo_slug(url.trim())
+}
+
+fn github_repo_slug(remote: &str) -> Option<String> {
+    if let Some(rest) = remote.strip_prefix("git@github.com:") {
+        let slug = rest.trim_end_matches(".git");
+        return if slug.is_empty() {
+            None
+        } else {
+            Some(slug.to_string())
+        };
+    }
+    let without_scheme = remote
+        .strip_prefix("https://")
+        .or_else(|| remote.strip_prefix("http://"))?;
+    let host_and_path = without_scheme
+        .rsplit_once('@')
+        .map(|(_, rest)| rest)
+        .unwrap_or(without_scheme);
+    let path = host_and_path.strip_prefix("github.com/")?;
+    let slug = path.trim_end_matches(".git");
+    if slug.is_empty() {
+        None
+    } else {
+        Some(slug.to_string())
+    }
 }
 
 /// Fetch all projects for the org, returning a map of project_id → target_file.
@@ -1539,6 +1557,28 @@ mod tests {
             build_snippet(temp_dir.path(), "src/app.py", Some(3), Some(3)).expect("snippet");
         assert!(snippet.contains("Snippet (src/app.py:1-5)"));
         assert!(snippet.contains("   3 | line3"));
+    }
+
+    #[test]
+    fn github_repo_slug_parses_ssh_https_and_token_urls() {
+        assert_eq!(
+            github_repo_slug("git@github.com:AnthusAI/Kanbus.git").as_deref(),
+            Some("AnthusAI/Kanbus")
+        );
+        assert_eq!(
+            github_repo_slug("https://github.com/AnthusAI/Kanbus.git").as_deref(),
+            Some("AnthusAI/Kanbus")
+        );
+        assert_eq!(
+            github_repo_slug("https://x-access-token:secret@github.com/AnthusAI/Kanbus.git")
+                .as_deref(),
+            Some("AnthusAI/Kanbus")
+        );
+        assert_eq!(github_repo_slug("git@github.com:"), None);
+        assert_eq!(
+            github_repo_slug("ssh://gitlab.example.com/team/repo.git"),
+            None
+        );
     }
 
     #[test]

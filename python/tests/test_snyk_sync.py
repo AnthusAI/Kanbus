@@ -29,6 +29,25 @@ def test_severity_to_priority_mapping() -> None:
     assert snyk_sync._severity_to_priority("low") == 3
 
 
+def test_github_repo_slug_parses_ssh_https_and_token_urls() -> None:
+    assert (
+        snyk_sync._github_repo_slug("git@github.com:AnthusAI/Kanbus.git")
+        == "AnthusAI/Kanbus"
+    )
+    assert (
+        snyk_sync._github_repo_slug("https://github.com/AnthusAI/Kanbus.git")
+        == "AnthusAI/Kanbus"
+    )
+    assert (
+        snyk_sync._github_repo_slug(
+            "https://x-access-token:secret@github.com/AnthusAI/Kanbus.git"
+        )
+        == "AnthusAI/Kanbus"
+    )
+    assert snyk_sync._github_repo_slug("git@github.com:") is None
+    assert snyk_sync._github_repo_slug("ssh://gitlab.com/foo/bar.git") is None
+
+
 def test_vuln_title_for_dependency_and_code() -> None:
     dependency_issue = {
         "attributes": {
