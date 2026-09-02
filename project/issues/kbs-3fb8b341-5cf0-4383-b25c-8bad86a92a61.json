@@ -1,0 +1,21 @@
+{
+  "id": "kbs-3fb8b341-5cf0-4383-b25c-8bad86a92a61",
+  "title": "Develop merge CI fails on duplicate Gherkin steps and pytest write path",
+  "description": "As a Kanbus maintainer, I want CI green on develop after the right-now merge, so semantic-release can cut a version from main.\n\n## Symptom\n\nCI on `74c28509` failed python, rust, and python-console-parity:\nhttps://github.com/AnthusAI/Kanbus/actions/runs/33674596293\n\n## Causes\n\n- `@given(\"mock AI is enabled\")` is defined in both lifecycle and right-now steps (Python and Rust).\n- `@given('the Kanbus configuration uses AI provider ...')` is defined in both compaction and right-now steps.\n- `test_update_issue_matching_values_succeed_without_write` patches `write_issue_to_file`, which issue_update no longer exposes.\n- Rust cucumber does not skip feature-level `@slow` or `@cloud`, so embedded-assets and GitHub webhook specs fail in the default rust job.\n- `.kanbus.yml` has a duplicate `ai:` block from the merge.\n\n## Definition of Done\n\n- One definition of each shared Gherkin step; lifecycle/compaction keep the canonical copy; mock AI also clears `KANBUS_RIGHT_NOW_LITELLM_CALLED`.\n- Matching-values update test asserts persist was not called.\n- Default rust cucumber skips `@slow` (feature and scenario) and `@cloud`.\n- Duplicate `ai:` key removed from `.kanbus.yml`.\n- pytest, behave (CI tags), and targeted rust cucumber pass.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-76a4c80a-5e81-45a8-bf9c-9488d3c716bc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-02T20:00:14.453459Z",
+  "updated_at": "2026-09-02T20:00:29.143127Z",
+  "closed_at": null,
+  "right_now_summary": "CI failures stem from duplicate Gherkin steps, an outdated pytest patch, Rust tag handling, and duplicate configuration.",
+  "right_now_updated_at": "2026-09-02T20:00:32.802400Z",
+  "custom": {},
+  "agent": null
+}
