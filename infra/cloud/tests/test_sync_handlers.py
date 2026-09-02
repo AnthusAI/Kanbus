@@ -32,15 +32,22 @@ class WebhookHandlerTests(unittest.TestCase):
     def setUp(self) -> None:
         webhook_handler._SECRET_CACHE = None
 
-    def _signed_event(self, secret: str, payload: dict) -> dict:
+    def _signed_event(
+        self,
+        secret: str,
+        payload: dict,
+        *,
+        account: str = "acct",
+        project: str = "proj",
+    ) -> dict:
         body = json.dumps(payload)
         digest = hmac.new(secret.encode("utf-8"), body.encode("utf-8"), hashlib.sha256).hexdigest()
         return {
+            "path": f"/internal/webhooks/github/{account}/{project}",
+            "pathParameters": {"account": account, "project": project},
             "headers": {
                 "X-Hub-Signature-256": f"sha256={digest}",
                 "X-GitHub-Event": "push",
-                "X-Kanbus-Account": "acct",
-                "X-Kanbus-Project": "proj",
                 "X-GitHub-Delivery": "delivery-1",
             },
             "body": body,
@@ -66,7 +73,25 @@ class WebhookHandlerTests(unittest.TestCase):
         sqs_client.send_message.assert_called_once()
 
     @patch.object(webhook_handler, "_load_webhook_secret")
-    def test_rejects_invalid_tenant_headers(self, load_secret: MagicMock) -> None:
+    def test_rejects_invalid_tenant_path(self, load_secret: MagicMock) -> None:
+        load_secret.return_value = "secret"
+        os.environ["SYNC_QUEUE_URL"] = "https://example.queue/url"
+        event = self._signed_event(
+            "secret",
+            {
+                "ref": "refs/heads/dev",
+                "after": "abc123",
+                "repository": {"clone_url": "https://github.com/org/repo.git"},
+            },
+            project="bad@proj",
+        )
+
+        response = webhook_handler.handler(event, None)
+        self.assertEqual(response["statusCode"], 400)
+        self.assertIn("invalid tenant", response["body"])
+
+    @patch.object(webhook_handler, "_load_webhook_secret")
+    def test_rejects_missing_path_parameters(self, load_secret: MagicMock) -> None:
         load_secret.return_value = "secret"
         os.environ["SYNC_QUEUE_URL"] = "https://example.queue/url"
         event = self._signed_event(
@@ -77,11 +102,11 @@ class WebhookHandlerTests(unittest.TestCase):
                 "repository": {"clone_url": "https://github.com/org/repo.git"},
             },
         )
-        event["headers"]["X-Kanbus-Project"] = "bad/project"
+        event.pop("pathParameters")
 
         response = webhook_handler.handler(event, None)
         self.assertEqual(response["statusCode"], 400)
-        self.assertIn("invalid tenant", response["body"])
+        self.assertIn("missing", response["body"])
 
 
 class GitSyncHandlerTests(unittest.TestCase):

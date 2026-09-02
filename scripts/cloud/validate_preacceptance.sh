@@ -283,11 +283,9 @@ print(hmac.new(secret, payload, hashlib.sha256).hexdigest())
 PY
 )"
 status="$(curl -sS -D "$RESP_DIR/gate5-webhook.headers" -o "$RESP_DIR/gate5-webhook.json" -w '%{http_code}' \
-  -X POST "${API_BASE%/}/internal/webhooks/github" \
+  -X POST "${API_BASE%/}/internal/webhooks/github/$DISPOSABLE_ACCOUNT/$DISPOSABLE_PROJECT" \
   -H "X-GitHub-Event: push" \
   -H "X-Hub-Signature-256: sha256=$SIG_HEX" \
-  -H "X-Kanbus-Account: $DISPOSABLE_ACCOUNT" \
-  -H "X-Kanbus-Project: $DISPOSABLE_PROJECT" \
   -H "Content-Type: application/json" \
   --data-binary "@$PAYLOAD_FILE")"
 [[ "$status" == "202" ]] || fail_gate "$GATE" "webhook status=$status"
@@ -366,11 +364,9 @@ print(hmac.new(secret, payload, hashlib.sha256).hexdigest())
 PY
 )"
 status="$(curl -sS -D "$RESP_DIR/gate6-webhook.headers" -o "$RESP_DIR/gate6-webhook.json" -w '%{http_code}' \
-  -X POST "${API_BASE%/}/internal/webhooks/github" \
+  -X POST "${API_BASE%/}/internal/webhooks/github/$DEFAULT_ACCOUNT/$DEFAULT_PROJECT" \
   -H "X-GitHub-Event: push" \
   -H "X-Hub-Signature-256: sha256=$SIG_HEX" \
-  -H "X-Kanbus-Account: $DEFAULT_ACCOUNT" \
-  -H "X-Kanbus-Project: $DEFAULT_PROJECT" \
   -H "Content-Type: application/json" \
   --data-binary "@$PAYLOAD_FILE")"
 [[ "$status" == "202" ]] || fail_gate "$GATE" "failed to enqueue browser probe webhook (status=$status)"
