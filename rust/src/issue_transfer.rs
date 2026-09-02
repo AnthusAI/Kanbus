@@ -56,8 +56,10 @@ pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusE
         issue: issue.clone(),
         actor_id,
         events: vec![event],
+        root: root.to_path_buf(),
         before_issue: Some(issue),
         relocate_to: Some(target_path),
+        regenerate_right_now: true,
     })?;
     crate::gossip::publish_issue_mutation(
         root,
@@ -111,8 +113,10 @@ pub fn localize_issue(root: &Path, identifier: &str) -> Result<IssueData, Kanbus
         issue: issue.clone(),
         actor_id,
         events: vec![event],
+        root: root.to_path_buf(),
         before_issue: Some(issue.clone()),
         relocate_to: Some(target_path),
+        regenerate_right_now: true,
     })?;
     crate::gossip::publish_issue_deleted(root, &project_dir, &issue.identifier, Some(event_id));
     Ok(result.issue)

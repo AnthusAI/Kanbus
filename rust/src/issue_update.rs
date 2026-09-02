@@ -290,8 +290,10 @@ pub fn update_issue(
         issue: updated_issue.clone(),
         actor_id,
         events,
+        root: root.to_path_buf(),
         before_issue: Some(before_issue),
         relocate_to: None,
+        regenerate_right_now: true,
     })?;
     let updated_issue = result.issue;
 

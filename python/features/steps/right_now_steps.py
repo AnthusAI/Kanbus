@@ -22,6 +22,7 @@ from kanbus.right_now import (
     generate_right_now_summary,
     get_right_now_summary,
     load_child_issues,
+    mock_right_now_summary_text,
     summary_contains_status_keyword,
 )
 
@@ -751,3 +752,86 @@ def then_right_now_context_missing_child_summary(
     child_summaries = right_now_context.child_summaries or []
     identifiers = [child_summary.identifier for child_summary in child_summaries]
     assert identifier not in identifiers
+
+
+@given("right now summary generation is disabled")
+def given_right_now_summary_generation_disabled(context: object) -> None:
+    """Disable right-now summary generation in project configuration.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    payload.setdefault("right_now", {})
+    payload["right_now"]["enabled"] = False
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+@given('issue "{identifier}" right now state is recorded')
+def given_issue_right_now_state_recorded(context: object, identifier: str) -> None:
+    """Record the current right-now updated timestamp for refresh assertions.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    recorded = getattr(context, "recorded_right_now_updated_at", {})
+    recorded[identifier] = issue.right_now_updated_at
+    context.recorded_right_now_updated_at = recorded
+
+
+@then('issue "{identifier}" should have a mock right now summary')
+def then_issue_has_mock_right_now_summary(context: object, identifier: str) -> None:
+    """Verify an issue has the deterministic mock right-now summary.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    expected = mock_right_now_summary_text(identifier)
+    assert issue.right_now_summary == expected
+
+
+@then('issue "{identifier}" right now summary should be refreshed')
+def then_issue_right_now_summary_refreshed(context: object, identifier: str) -> None:
+    """Verify an issue right-now summary timestamp advanced after a mutation.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    recorded = getattr(context, "recorded_right_now_updated_at", {})
+    previous = recorded.get(identifier)
+    assert issue.right_now_updated_at is not None
+    if previous is not None:
+        if previous.tzinfo is None:
+            previous = previous.replace(tzinfo=timezone.utc)
+        actual = issue.right_now_updated_at
+        if actual.tzinfo is None:
+            actual = actual.replace(tzinfo=timezone.utc)
+        assert actual > previous
+
+
+@then("the created issue should have a mock right now summary")
+def then_created_issue_has_mock_right_now_summary(context: object) -> None:
+    """Verify the last created issue has the deterministic mock summary.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    identifier = getattr(context, "last_issue_id", None)
+    assert identifier is not None, "last issue id not set"
+    then_issue_has_mock_right_now_summary(context, identifier)

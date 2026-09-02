@@ -10,7 +10,6 @@ use kanbus::cli::run_from_args_with_output;
 use kanbus::config::{default_project_configuration, write_default_configuration};
 use kanbus::config_loader::load_project_configuration;
 use kanbus::file_io::get_configuration_path;
-use kanbus::workflows::validate_status_transition;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
@@ -93,30 +92,7 @@ fn given_project_with_default_workflows(world: &mut KanbusWorld) {
 
 #[when(expr = "I update issue \"{word}\" to status \"{word}\"")]
 fn when_update_issue_status(world: &mut KanbusWorld, id: String, status: String) {
-    let root = world
-        .working_directory
-        .as_ref()
-        .expect("working directory not set");
-    let config_path = get_configuration_path(root).expect("config path");
-    let configuration = load_project_configuration(&config_path).expect("load config");
-
-    let issues_dir = root.join("project").join("issues");
-    let issue_path = issues_dir.join(format!("{}.json", id));
-    let contents = fs::read_to_string(&issue_path).expect("read issue");
-    let mut issue: kanbus::models::IssueData = serde_json::from_str(&contents).expect("parse");
-
-    let result =
-        validate_status_transition(&configuration, &issue.issue_type, &issue.status, &status);
-    if let Err(error) = result {
-        world.exit_code = Some(1);
-        world.stderr = Some(error.to_string());
-    } else {
-        issue.status = status;
-        let updated = serde_json::to_string_pretty(&issue).expect("serialize");
-        fs::write(issue_path, updated).expect("write issue");
-        world.exit_code = Some(0);
-        world.stderr = Some(String::new());
-    }
+    run_cli(world, &format!("kanbus update {id} --status {status}"));
 }
 
 #[given("a Kanbus repository with a .kanbus.yml file containing the default configuration")]

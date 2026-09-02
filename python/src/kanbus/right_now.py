@@ -11,7 +11,9 @@ from pathlib import Path
 from typing import List, Optional
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.issue_files import write_issue_to_file
 from kanbus.issue_listing import list_issues
+from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueComment, IssueData, ProjectConfiguration
 from kanbus.project import get_configuration_path
 
@@ -275,6 +277,100 @@ def generate_right_now_summary(
         mock=False,
     )
     return _truncate_to_max_length(completion_text.strip(), max_length)
+
+
+def persist_right_now_summary(
+    issue_path: Path,
+    issue: IssueData,
+    summary: str,
+    updated_at: datetime,
+) -> None:
+    """Persist only right-now summary fields without re-entering the write gate.
+
+    :param issue_path: Path to the issue JSON file.
+    :type issue_path: Path
+    :param issue: Issue data to update.
+    :type issue: IssueData
+    :param summary: Generated right-now summary text.
+    :type summary: str
+    :param updated_at: Timestamp for right_now_updated_at.
+    :type updated_at: datetime
+    """
+    updated_issue = issue.model_copy(
+        update={
+            "right_now_summary": summary,
+            "right_now_updated_at": updated_at,
+        }
+    )
+    write_issue_to_file(updated_issue, issue_path)
+
+
+def regenerate_right_now_for_issue(root: Path, issue_identifier: str) -> None:
+    """Regenerate and persist the right-now summary for one issue.
+
+    When generation is disabled or fails, the existing summary is left unchanged.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue_identifier: Issue identifier to regenerate.
+    :type issue_identifier: str
+    """
+    try:
+        configuration = _load_configuration(root)
+    except RightNowError:
+        return
+    if not configuration.right_now.enabled:
+        return
+    try:
+        lookup = load_issue_from_project(root, issue_identifier)
+    except IssueLookupError:
+        return
+    issue = lookup.issue
+    children = load_child_issues(root, issue_identifier)
+    context = build_right_now_context(issue, children)
+    try:
+        summary = generate_right_now_summary(root, issue, context)
+    except RightNowError:
+        return
+    current_time = datetime.now(timezone.utc)
+    persist_right_now_summary(lookup.issue_path, issue, summary, current_time)
+
+
+def regenerate_right_now_for_issue_and_ancestors(
+    root: Path,
+    issue_identifier: str,
+) -> None:
+    """Regenerate right-now summaries for an issue and each ancestor.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue_identifier: Starting issue identifier.
+    :type issue_identifier: str
+    """
+    current_identifier: Optional[str] = issue_identifier
+    while current_identifier is not None:
+        regenerate_right_now_for_issue(root, current_identifier)
+        try:
+            lookup = load_issue_from_project(root, current_identifier)
+        except IssueLookupError:
+            return
+        current_identifier = lookup.issue.parent
+
+
+def regenerate_right_now_ancestors(
+    root: Path,
+    parent_identifier: Optional[str],
+) -> None:
+    """Regenerate right-now summaries for ancestors after a child deletion.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param parent_identifier: Parent issue identifier, if any.
+    :type parent_identifier: Optional[str]
+    """
+    if parent_identifier is None:
+        return
+    regenerate_right_now_for_issue_and_ancestors(root, parent_identifier)
 
 
 def summary_contains_status_keyword(summary: str) -> bool:

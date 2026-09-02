@@ -18,6 +18,10 @@ from kanbus.event_history import (
 )
 from kanbus.issue_files import write_issue_to_file
 from kanbus.models import IssueData
+from kanbus.right_now import (
+    regenerate_right_now_ancestors,
+    regenerate_right_now_for_issue_and_ancestors,
+)
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,10 @@ class PersistIssueMutationRequest:
     :type before_issue: Optional[IssueData]
     :param relocate_to: Optional destination path when the issue file should move.
     :type relocate_to: Optional[Path]
+    :param root: Repository root path for right-now regeneration.
+    :type root: Path
+    :param regenerate_right_now: Whether to regenerate right-now summaries after persist.
+    :type regenerate_right_now: bool
     """
 
     project_dir: Path
@@ -45,8 +53,10 @@ class PersistIssueMutationRequest:
     issue: IssueData
     actor_id: str
     events: List[EventRecord]
+    root: Path
     before_issue: Optional[IssueData] = None
     relocate_to: Optional[Path] = None
+    regenerate_right_now: bool = True
 
 
 @dataclass(frozen=True)
@@ -103,19 +113,28 @@ def persist_issue_mutation(
             final_issue_path.replace(request.issue_path)
         write_issue_to_file(rollback_issue, request.issue_path)
         raise RuntimeError(str(error)) from error
+    if request.regenerate_right_now:
+        regenerate_right_now_for_issue_and_ancestors(
+            request.root,
+            persisted_issue.identifier,
+        )
     return PersistIssueMutationResult(issue=persisted_issue, events=request.events)
 
 
 def persist_issue_deletion(
+    root: Path,
     project_dir: Path,
     issue_path: Path,
     issue: IssueData,
     actor_id: str,
     *,
     retain_audit_event: bool = True,
+    regenerate_right_now: bool = True,
 ) -> PersistIssueDeletionResult:
     """Delete an issue and optionally retain an issue_deleted audit event.
 
+    :param root: Repository root path for right-now regeneration.
+    :type root: Path
     :param project_dir: Shared project directory.
     :type project_dir: Path
     :param issue_path: Path to the issue JSON file.
@@ -126,10 +145,13 @@ def persist_issue_deletion(
     :type actor_id: str
     :param retain_audit_event: Whether to keep a final issue_deleted event.
     :type retain_audit_event: bool
+    :param regenerate_right_now: Whether to regenerate ancestor right-now summaries.
+    :type regenerate_right_now: bool
     :return: Deletion result including the audit event when retained.
     :rtype: PersistIssueDeletionResult
     :raises RuntimeError: If event cleanup or audit write fails after rollback.
     """
+    parent_identifier = issue.parent
     occurred_at = now_timestamp()
     deletion_event = create_event(
         issue_id=issue.identifier,
@@ -147,6 +169,8 @@ def persist_issue_deletion(
     except Exception as error:  # noqa: BLE001
         write_issue_to_file(issue, issue_path)
         raise RuntimeError(str(error)) from error
+    if regenerate_right_now:
+        regenerate_right_now_ancestors(root, parent_identifier)
     return PersistIssueDeletionResult(
         event=deletion_event if retain_audit_event else None
     )
