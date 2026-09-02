@@ -10,11 +10,22 @@
   "parent": "kbs-76a4c80a-5e81-45a8-bf9c-9488d3c716bc",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "53af8524-46e6-4f25-958b-73d6664bb491",
+      "author": "home",
+      "text": "Planning: Composer 2.5. Last open child of closed right-now initiative. Worktree /tmp/kanbus-56f23f-console-ci from origin/develop, branch cursor/ci-console-ui-56f23f-4a21. Plan only this turn. Confirm whether console-ui/clippy/assets still fail on current develop before adding scope.",
+      "created_at": "2026-09-02T20:25:06.598229Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
+    }
+  ],
   "created_at": "2026-09-02T17:46:55.262345Z",
-  "updated_at": "2026-09-02T17:47:09.158225Z",
+  "updated_at": "2026-09-02T20:25:06.598299Z",
   "closed_at": null,
   "right_now_summary": "The team is adding Playwright coverage and fixing asset packaging, formatting, and Clippy checks.",
   "right_now_updated_at": "2026-09-02T17:47:14.343330Z",
-  "custom": {}
+  "custom": {},
+  "agent": null
 }
