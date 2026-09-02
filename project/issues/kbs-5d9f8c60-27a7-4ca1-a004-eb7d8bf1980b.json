@@ -1,0 +1,27 @@
+{
+  "id": "kbs-5d9f8c60-27a7-4ca1-a004-eb7d8bf1980b",
+  "title": "Python daemon error specs fail when KANBUS_NO_DAEMON is set globally",
+  "description": "As a Kanbus maintainer, I want daemon error-handling behave scenarios to keep working, so that Python CI stays green.\n\nSetting `os.environ[KANBUS_NO_DAEMON]=1` in `before_scenario` makes in-process `request_status` / `request_shutdown` / `request_index_list` raise `daemon disabled` instead of `daemon error`.\n\n## Definition of Done\n\n- `features/index/daemon_error_handling.feature` scenarios for status, stop, and list error responses pass.\n- CLI scenarios still receive `KANBUS_NO_DAEMON=1` via `environment_overrides`.\n- Right-now regeneration still skips listing failures instead of crashing.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-76a4c80a-5e81-45a8-bf9c-9488d3c716bc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ba6edd89-8e68-491a-b232-cc5f6a3694da",
+      "author": "ubuntu",
+      "text": "Fixed. before_scenario no longer writes KANBUS_NO_DAEMON into os.environ. CLI still uses environment_overrides. The status/stop/list error steps enable the daemon for the in-process request so they raise daemon error, matching the Rust steps.",
+      "created_at": "2026-09-02T18:40:05.980716Z"
+    }
+  ],
+  "created_at": "2026-09-02T18:38:12.949512Z",
+  "updated_at": "2026-09-02T18:40:15.831481Z",
+  "closed_at": "2026-09-02T18:40:15.808393Z",
+  "right_now_summary": "Daemon error scenarios now pass while CLI overrides and right-now regeneration behavior remain intact.",
+  "right_now_updated_at": "2026-09-02T18:40:19.986790Z",
+  "custom": {}
+}
