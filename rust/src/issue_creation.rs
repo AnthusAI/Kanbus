@@ -174,8 +174,10 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         issue: issue.clone(),
         actor_id: get_current_user(),
         events: vec![event.clone()],
+        root: request.root.clone(),
         before_issue: None,
         relocate_to: None,
+        regenerate_right_now: true,
     })?;
     let event_id = event.event_id.clone();
 

@@ -13,6 +13,9 @@ use crate::event_history::{
 };
 use crate::issue_files::write_issue_to_file;
 use crate::models::IssueData;
+use crate::right_now::{
+    regenerate_right_now_ancestors, regenerate_right_now_for_issue_and_ancestors,
+};
 
 /// Request to persist an issue mutation through the write gate.
 #[derive(Debug, Clone)]
@@ -22,8 +25,10 @@ pub struct PersistIssueMutationRequest {
     pub issue: IssueData,
     pub actor_id: String,
     pub events: Vec<EventRecord>,
+    pub root: PathBuf,
     pub before_issue: Option<IssueData>,
     pub relocate_to: Option<PathBuf>,
+    pub regenerate_right_now: bool,
 }
 
 /// Result of persisting an issue mutation.
@@ -66,10 +71,18 @@ pub fn persist_issue_mutation(
     }
     let events_dir = events_dir_for_issue_path(&request.project_dir, &final_issue_path)?;
     match write_events_batch(&events_dir, &request.events) {
-        Ok(_paths) => Ok(PersistIssueMutationResult {
-            issue: persisted_issue,
-            events: request.events.clone(),
-        }),
+        Ok(_paths) => {
+            if request.regenerate_right_now {
+                regenerate_right_now_for_issue_and_ancestors(
+                    &request.root,
+                    &persisted_issue.identifier,
+                );
+            }
+            Ok(PersistIssueMutationResult {
+                issue: persisted_issue,
+                events: request.events.clone(),
+            })
+        }
         Err(error) => {
             if let Some(_relocate_to) = &request.relocate_to {
                 if final_issue_path.exists() {
@@ -94,12 +107,15 @@ pub fn persist_issue_mutation(
 /// # Errors
 /// Returns `KanbusError` if deletion or event cleanup fails.
 pub fn persist_issue_deletion(
+    root: &Path,
     project_dir: &Path,
     issue_path: &Path,
     issue: &IssueData,
     actor_id: &str,
     retain_audit_event: bool,
+    regenerate_right_now: bool,
 ) -> Result<PersistIssueDeletionResult, KanbusError> {
+    let parent_identifier = issue.parent.clone();
     let occurred_at = now_timestamp();
     let deletion_event = EventRecord::new(
         issue.identifier.clone(),
@@ -118,15 +134,23 @@ pub fn persist_issue_deletion(
     }
     if retain_audit_event {
         match write_events_batch(&events_dir, std::slice::from_ref(&deletion_event)) {
-            Ok(_paths) => Ok(PersistIssueDeletionResult {
-                event: Some(deletion_event),
-            }),
+            Ok(_paths) => {
+                if regenerate_right_now {
+                    regenerate_right_now_ancestors(root, parent_identifier.as_deref());
+                }
+                Ok(PersistIssueDeletionResult {
+                    event: Some(deletion_event),
+                })
+            }
             Err(error) => {
                 write_issue_to_file(issue, issue_path)?;
                 Err(error)
             }
         }
     } else {
+        if regenerate_right_now {
+            regenerate_right_now_ancestors(root, parent_identifier.as_deref());
+        }
         Ok(PersistIssueDeletionResult { event: None })
     }
 }

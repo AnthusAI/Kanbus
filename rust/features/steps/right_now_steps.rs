@@ -10,8 +10,9 @@ use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
 use kanbus::right_now::{
     build_leaf_right_now_context, build_right_now_context, generate_right_now_summary,
-    get_right_now_summary, load_child_issues, project_events_directory,
-    read_right_now_llm_usage_entries, summary_contains_status_keyword, RightNowContext,
+    get_right_now_summary, load_child_issues, mock_right_now_summary_text,
+    project_events_directory, read_right_now_llm_usage_entries, summary_contains_status_keyword,
+    RightNowContext,
 };
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -482,4 +483,71 @@ fn then_right_now_context_missing_child_summary(world: &mut KanbusWorld, identif
         .map(|child_summary| child_summary.identifier.as_str())
         .collect();
     assert!(!identifiers.contains(&identifier.as_str()));
+}
+
+#[given("right now summary generation is disabled")]
+fn given_right_now_summary_generation_disabled(world: &mut KanbusWorld) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let config_path = root.join(".kanbus.yml");
+    let contents = fs::read_to_string(&config_path).expect("read config");
+    let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
+    let mut right_now_block = mapping
+        .get(&Value::String("right_now".to_string()))
+        .and_then(Value::as_mapping)
+        .cloned()
+        .unwrap_or_else(|| {
+            let defaults = default_project_configuration();
+            serde_yaml::to_value(defaults.right_now)
+                .expect("serialize defaults")
+                .as_mapping()
+                .cloned()
+                .expect("right_now mapping")
+        });
+    right_now_block.insert(Value::String("enabled".to_string()), Value::Bool(false));
+    mapping.insert(
+        Value::String("right_now".to_string()),
+        Value::Mapping(right_now_block),
+    );
+    let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
+    fs::write(config_path, yaml).expect("write config");
+}
+
+#[given(expr = "issue {string} right now state is recorded")]
+fn given_issue_right_now_state_recorded(world: &mut KanbusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue = read_issue_file(&project_dir, &identifier);
+    world
+        .recorded_right_now_updated_at
+        .insert(identifier, issue.right_now_updated_at);
+}
+
+#[then(expr = "issue {string} should have a mock right now summary")]
+fn then_issue_has_mock_right_now_summary(world: &mut KanbusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue = read_issue_file(&project_dir, &identifier);
+    let expected = mock_right_now_summary_text(&identifier);
+    assert_eq!(issue.right_now_summary.as_deref(), Some(expected.as_str()));
+}
+
+#[then(expr = "issue {string} right now summary should be refreshed")]
+fn then_issue_right_now_summary_refreshed(world: &mut KanbusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue = read_issue_file(&project_dir, &identifier);
+    let previous = world.recorded_right_now_updated_at.get(&identifier);
+    assert!(issue.right_now_updated_at.is_some());
+    if let Some(previous) = previous {
+        if let Some(previous) = previous {
+            let actual = issue.right_now_updated_at.expect("updated at");
+            assert!(actual > *previous);
+        }
+    }
+}
+
+#[then("the created issue should have a mock right now summary")]
+fn then_created_issue_has_mock_right_now_summary(world: &mut KanbusWorld) {
+    let identifier = world
+        .last_kanbus_issue_id
+        .clone()
+        .expect("last issue id not set");
+    then_issue_has_mock_right_now_summary(world, identifier);
 }

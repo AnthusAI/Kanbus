@@ -88,11 +88,13 @@ pub fn delete_issue(
     let issue_id = lookup.issue.identifier.clone();
     let actor_id = get_current_user();
     let result = persist_issue_deletion(
+        root,
         &lookup.project_dir,
         &lookup.issue_path,
         &lookup.issue,
         &actor_id,
         retain_audit_event,
+        true,
     )?;
     if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
         let event_id = result.event.as_ref().map(|event| event.event_id.clone());

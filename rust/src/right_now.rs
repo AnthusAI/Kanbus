@@ -11,6 +11,8 @@ use serde_json::{json, Value};
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
+use crate::issue_files::write_issue_to_file;
+use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueComment, IssueData, ProjectConfiguration};
 
 const RIGHT_NOW_SUMMARY_OPERATION: &str = "right_now_summary";
@@ -300,6 +302,91 @@ pub fn generate_right_now_summary(
 
     let summary = delegate_right_now_summary_to_python(root, &issue.identifier)?;
     Ok(truncate_to_max_length(&summary, max_length))
+}
+
+/// Persist only right-now summary fields without re-entering the write gate.
+///
+/// # Arguments
+///
+/// * `issue_path` - Path to the issue JSON file.
+/// * `issue` - Issue data to update.
+/// * `summary` - Generated right-now summary text.
+/// * `updated_at` - Timestamp for `right_now_updated_at`.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when the issue file cannot be written.
+pub fn persist_right_now_summary(
+    issue_path: &Path,
+    issue: &IssueData,
+    summary: &str,
+    updated_at: chrono::DateTime<Utc>,
+) -> Result<(), KanbusError> {
+    let mut updated_issue = issue.clone();
+    updated_issue.right_now_summary = Some(summary.to_string());
+    updated_issue.right_now_updated_at = Some(updated_at);
+    write_issue_to_file(&updated_issue, issue_path)
+}
+
+/// Regenerate and persist the right-now summary for one issue.
+///
+/// When generation is disabled or fails, the existing summary is left unchanged.
+///
+/// # Arguments
+///
+/// * `root` - Repository root path.
+/// * `issue_identifier` - Issue identifier to regenerate.
+pub fn regenerate_right_now_for_issue(root: &Path, issue_identifier: &str) {
+    let configuration = match load_configuration(root) {
+        Ok(configuration) => configuration,
+        Err(_) => return,
+    };
+    if !configuration.right_now.enabled {
+        return;
+    }
+    let lookup = match load_issue_from_project(root, issue_identifier) {
+        Ok(lookup) => lookup,
+        Err(_) => return,
+    };
+    let children = match load_child_issues(root, issue_identifier) {
+        Ok(children) => children,
+        Err(_) => return,
+    };
+    let context = build_right_now_context(&lookup.issue, &children);
+    let summary = match generate_right_now_summary(root, &lookup.issue, &context) {
+        Ok(summary) => summary,
+        Err(_) => return,
+    };
+    let current_time = Utc::now();
+    let _ = persist_right_now_summary(&lookup.issue_path, &lookup.issue, &summary, current_time);
+}
+
+/// Regenerate right-now summaries for an issue and each ancestor.
+///
+/// # Arguments
+///
+/// * `root` - Repository root path.
+/// * `issue_identifier` - Starting issue identifier.
+pub fn regenerate_right_now_for_issue_and_ancestors(root: &Path, issue_identifier: &str) {
+    let mut current_identifier = Some(issue_identifier.to_string());
+    while let Some(identifier) = current_identifier {
+        regenerate_right_now_for_issue(root, &identifier);
+        current_identifier = load_issue_from_project(root, &identifier)
+            .ok()
+            .and_then(|lookup| lookup.issue.parent.clone());
+    }
+}
+
+/// Regenerate right-now summaries for ancestors after a child deletion.
+///
+/// # Arguments
+///
+/// * `root` - Repository root path.
+/// * `parent_identifier` - Parent issue identifier, if any.
+pub fn regenerate_right_now_ancestors(root: &Path, parent_identifier: Option<&str>) {
+    if let Some(parent_identifier) = parent_identifier {
+        regenerate_right_now_for_issue_and_ancestors(root, parent_identifier);
+    }
 }
 
 /// Return whether a summary contains a bare status keyword.

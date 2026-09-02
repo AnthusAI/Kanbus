@@ -306,6 +306,7 @@ def update_issue(
                 actor_id=actor_id,
                 events=events,
                 before_issue=before_issue,
+                root=root,
             )
         )
     except Exception as error:  # noqa: BLE001

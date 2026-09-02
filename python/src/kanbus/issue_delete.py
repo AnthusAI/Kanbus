@@ -76,6 +76,7 @@ def delete_issue(
     actor_id = get_current_user()
     try:
         result = persist_issue_deletion(
+            root,
             lookup.project_dir,
             lookup.issue_path,
             lookup.issue,

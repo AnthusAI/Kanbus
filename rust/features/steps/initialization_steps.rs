@@ -129,6 +129,7 @@ pub struct KanbusWorld {
     pub generated_right_now_summary: Option<String>,
     pub right_now_generation_error: Option<String>,
     pub right_now_context: Option<RightNowContext>,
+    pub recorded_right_now_updated_at: BTreeMap<String, Option<chrono::DateTime<chrono::Utc>>>,
     pub ai_mock_env: Option<Option<String>>,
     pub litellm_called_env: Option<Option<String>>,
     pub uds_temp_dir: Option<TempDir>,

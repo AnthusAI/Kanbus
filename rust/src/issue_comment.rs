@@ -118,8 +118,10 @@ fn persist_comment_mutation(
         issue: updated_issue,
         actor_id,
         events: vec![event],
+        root: root.to_path_buf(),
         before_issue: Some(before_issue),
         relocate_to: None,
+        regenerate_right_now: true,
     })?;
     if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
         crate::gossip::publish_issue_mutation(

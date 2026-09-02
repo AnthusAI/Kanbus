@@ -109,6 +109,7 @@ def _persist_comment_mutation(
                 actor_id=actor_id,
                 events=[event],
                 before_issue=before_issue,
+                root=root,
             )
         )
     except Exception as error:  # noqa: BLE001
