@@ -73,10 +73,17 @@
       "text": "CI coverage-ratchet failed on PR #200 after python/rust went green. Sent back; do not lower baselines; do not merge.",
       "created_at": "2026-09-02T17:10:35.408608Z",
       "comment_type": "default"
+    },
+    {
+      "id": "f72d698c-3199-474d-b742-89ee6f227c3d",
+      "author": "home",
+      "text": "Coverage ratchet tests pushed on PR #200 (b0271e23). Python was 98.51 vs 98.57; pytest added for list --all, no-op update, kbs commit. Waiting on CI including coverage-ratchet. Do not merge yet.",
+      "created_at": "2026-09-02T17:25:56.521709Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:59:16.552808Z",
-  "updated_at": "2026-09-02T17:10:35.408608Z",
+  "updated_at": "2026-09-02T17:25:56.521709Z",
   "closed_at": null,
   "custom": {
     "project_label": "kbs",
