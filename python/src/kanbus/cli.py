@@ -77,12 +77,17 @@ from kanbus.dependency_tree import (
 from kanbus.wiki import (
     WikiError,
     WikiRenderRequest,
+    apply_wiki_page_limit,
     check_wiki_page_links,
     format_wiki_link_problem,
+    format_wiki_list_json,
+    format_wiki_render_json,
+    format_wiki_search_json,
     init_wiki,
     lint_wiki,
     list_wiki_pages,
     render_wiki_page,
+    resolve_wiki_page_path,
     search_wiki_pages,
     show_wiki_page,
 )
@@ -1982,11 +1987,14 @@ def wiki() -> None:
 
 @wiki.command("render")
 @click.argument("page")
-def render_wiki(page: str) -> None:
+@click.option("--json", "as_json", is_flag=True)
+def render_wiki(page: str, as_json: bool) -> None:
     """Render a wiki page.
 
     :param page: Wiki page path.
     :type page: str
+    :param as_json: Emit JSON output when set.
+    :type as_json: bool
     """
     root = Path.cwd()
     request = WikiRenderRequest(root=root, page_path=Path(page))
@@ -2000,6 +2008,13 @@ def render_wiki(page: str) -> None:
         click.echo(format_wiki_link_problem(problem, warning=True), err=True)
     for warning in reference_warnings:
         click.echo(warning, err=True)
+    if as_json:
+        try:
+            resolved_page = resolve_wiki_page_path(root, page)
+        except WikiError as error:
+            raise click.ClickException(str(error)) from error
+        click.echo(format_wiki_render_json(resolved_page.as_posix(), output))
+        return
     click.echo(output)
 
 
@@ -2020,30 +2035,64 @@ def show_wiki(page: str) -> None:
 
 
 @wiki.command("list")
-def wiki_list() -> None:
-    """List wiki pages."""
+@click.option("--json", "as_json", is_flag=True)
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Maximum pages to display (0 for no limit).",
+)
+def wiki_list(as_json: bool, limit: int) -> None:
+    """List wiki pages.
+
+    :param as_json: Emit JSON output when set.
+    :type as_json: bool
+    :param limit: Maximum pages to display (0 for no limit).
+    :type limit: int
+    """
     root = Path.cwd()
     try:
         pages = list_wiki_pages(root)
     except WikiError as error:
         raise click.ClickException(str(error)) from error
+    pages = apply_wiki_page_limit(pages, limit)
+    if as_json:
+        click.echo(format_wiki_list_json(pages))
+        return
     for path in pages:
         click.echo(path)
 
 
 @wiki.command("search")
 @click.argument("query")
-def wiki_search(query: str) -> None:
+@click.option("--json", "as_json", is_flag=True)
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Maximum pages to display (0 for no limit).",
+)
+def wiki_search(query: str, as_json: bool, limit: int) -> None:
     """Search wiki pages by path, title, and body.
 
     :param query: Case-insensitive search string.
     :type query: str
+    :param as_json: Emit JSON output when set.
+    :type as_json: bool
+    :param limit: Maximum pages to display (0 for no limit).
+    :type limit: int
     """
     root = Path.cwd()
     try:
         pages = search_wiki_pages(root, query)
     except WikiError as error:
         raise click.ClickException(str(error)) from error
+    pages = apply_wiki_page_limit(pages, limit)
+    if as_json:
+        click.echo(format_wiki_search_json(query, pages))
+        return
     if not pages:
         click.echo("0 results")
         return
