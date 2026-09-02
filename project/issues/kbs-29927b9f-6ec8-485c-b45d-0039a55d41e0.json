@@ -1,0 +1,20 @@
+{
+  "id": "kbs-29927b9f-6ec8-485c-b45d-0039a55d41e0",
+  "title": "Run spec parity, cucumber/behave, and coverage ratchet",
+  "description": "Execute tools/check_spec_parity.py, behave, cargo cucumber, format gates, and coverage ratchet for the right-now work.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-49e1ac84-963c-4800-9172-54e04c646083",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-02T16:39:55.252409Z",
+  "updated_at": "2026-09-02T16:40:25.155530Z",
+  "closed_at": null,
+  "right_now_summary": "The team is running spec parity, Cucumber tests, format checks, and coverage checks.",
+  "right_now_updated_at": "2026-09-02T16:40:29.443044Z",
+  "custom": {}
+}

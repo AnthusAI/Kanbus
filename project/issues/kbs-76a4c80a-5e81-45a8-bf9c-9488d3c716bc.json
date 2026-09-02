@@ -14,8 +14,8 @@
   "created_at": "2026-09-02T13:03:25.798957Z",
   "updated_at": "2026-09-02T13:03:25.798957Z",
   "closed_at": null,
-  "right_now_summary": "The team is wiring right-now summaries into views and the status tree while fixing overlay sync and parity.",
-  "right_now_updated_at": "2026-09-02T16:28:32.999462Z",
+  "right_now_summary": "The team is running tests while finishing summaries, issue displays, tree navigation, and file synchronization.",
+  "right_now_updated_at": "2026-09-02T16:40:33.815792Z",
   "custom": {
     "source": "shared",
     "project_label": "kbs"
