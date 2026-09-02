@@ -1,0 +1,29 @@
+{
+  "id": "kbs-704cce0e-edae-4249-af76-97a6db4bc930",
+  "title": "Dogfood test: kanbus workflow",
+  "description": "",
+  "type": "story",
+  "status": "closed",
+  "priority": 4,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "8be52ab8-a31a-4a26-977a-83a48866f84d",
+      "author": "home",
+      "text": "Dogfood: testing the kanbus workflow. This issue exercises create/comment/close/list.",
+      "created_at": "2026-09-02T13:02:13.938967Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
+    }
+  ],
+  "created_at": "2026-09-02T13:02:07.556667Z",
+  "updated_at": "2026-09-02T13:02:14.298312Z",
+  "closed_at": "2026-09-02T13:02:14.298312Z",
+  "custom": {},
+  "agent": null
+}
