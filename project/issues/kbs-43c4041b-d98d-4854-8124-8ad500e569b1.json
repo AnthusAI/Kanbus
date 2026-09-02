@@ -3,7 +3,7 @@
   "title": "Idempotent no-op issue updates",
   "description": "As a CLI user, I want updating an issue to a field value it already has to succeed without writing, so that scripts and agents can be idempotent.\n\nFeature: Idempotent issue update\n  Scenario: Updating an issue to its current status succeeds without writing\n    Given a Kanbus project with default configuration\n    And an issue \"kanbus-aaa\" exists with status \"closed\"\n    When I run \"kanbus update kanbus-aaa --status closed\"\n    Then the command should succeed\n    And issue \"kanbus-aaa\" should have status \"closed\"\n\n  Scenario: Update with no flags still fails\n    Given a Kanbus project with default configuration\n    And an issue \"kanbus-aaa\" exists\n    When I run \"kanbus update kanbus-aaa\"\n    Then the command should fail with exit code 1\n    And stderr should contain \"no updates requested\"",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "grok-manager",
   "creator": null,
@@ -24,10 +24,17 @@
       "text": "Implemented in PR 200: matching --status/--title returns No changes for {id} without writing. Bare update still errors.",
       "created_at": "2026-09-02T16:40:21.854361Z",
       "comment_type": "default"
+    },
+    {
+      "id": "d137d5f5-cdfd-4a3a-8174-a2f2926f087d",
+      "author": "home",
+      "text": "Shipped in https://github.com/AnthusAI/Kanbus/pull/200 (9d76766) on develop. Idempotent no-op updates print No changes and exit 0.",
+      "created_at": "2026-09-02T17:47:32.033643Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:59:32.911018Z",
-  "updated_at": "2026-09-02T16:40:21.854361Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T17:47:32.033643Z",
+  "closed_at": "2026-09-02T17:47:31.915982Z",
   "custom": {}
 }

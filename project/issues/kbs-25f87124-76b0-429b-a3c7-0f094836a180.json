@@ -3,7 +3,7 @@
   "title": "list --all shorthand for --limit 0",
   "description": "As a CLI user, I want kanbus list --all as a shorthand for --limit 0, so that showing every issue is obvious.\n\nPython and Rust must both accept --all. Combining --all with --limit must fail (one way, no dual path).\n\nFeature: List all issues flag\n  Scenario: List --all shows every issue\n    Given a Kanbus project with default configuration\n    And issues \"kanbus-limit-a\" and \"kanbus-limit-b\" exist\n    And an issue \"kanbus-limit-c\" exists\n    When I run \"kanbus list --all\"\n    Then stdout should list issue \"limita\"\n    And stdout should list issue \"limitb\"\n    And stdout should list issue \"limitc\"\n\n  Scenario: List rejects combining --all with --limit\n    Given a Kanbus project with default configuration\n    When I run \"kanbus list --all --limit 2\"\n    Then the command should fail with exit code 1\n    And stderr should contain \"cannot combine --all with --limit\"",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "grok-manager",
   "creator": null,
@@ -17,10 +17,17 @@
       "text": "Implemented in PR 200: list --all; combining with --limit fails.",
       "created_at": "2026-09-02T16:40:21.901883Z",
       "comment_type": "default"
+    },
+    {
+      "id": "3e7c36ef-4d47-4b57-a9ed-4e9149dadaf3",
+      "author": "home",
+      "text": "Shipped in https://github.com/AnthusAI/Kanbus/pull/200: list --all is --limit 0; rejected with --limit.",
+      "created_at": "2026-09-02T17:47:32.158288Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:59:33.199624Z",
-  "updated_at": "2026-09-02T16:40:21.901883Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T17:47:32.158288Z",
+  "closed_at": "2026-09-02T17:47:32.110771Z",
   "custom": {}
 }

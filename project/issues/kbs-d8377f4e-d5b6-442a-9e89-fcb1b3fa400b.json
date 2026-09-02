@@ -3,7 +3,7 @@
   "title": "Discoverable dep help and usage errors",
   "description": "As a CLI user, I want kanbus dep --help and usage errors to show the real argument shapes with examples, so that I do not guess the syntax.\n\nActual syntax today: kanbus dep <id> blocked-by|relates-to <target> | kanbus dep <id> remove <type> <target> | kanbus dep tree <id>.\nCLI_REFERENCE.md currently documents a nonexistent `kanbus dep add` — correct it.\n\nFeature: Dependency CLI help\n  Scenario: dep help shows examples\n    Given a Kanbus project with default configuration\n    When I run \"kanbus dep --help\"\n    Then the command should succeed\n    And stdout should contain \"blocked-by\"\n    And stdout should contain \"relates-to\"\n    And stdout should contain \"remove\"\n    And stdout should contain \"tree\"\n\n  Scenario: dep with too few arguments shows usage examples\n    Given a Kanbus project with default configuration\n    When I run \"kanbus dep\"\n    Then the command should fail\n    And stderr should contain \"blocked-by\"",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "grok-manager",
   "creator": null,
@@ -17,10 +17,17 @@
       "text": "Implemented in PR 200: dep --help and zero-arg dep print real examples. CLI_REFERENCE no longer documents dep add.",
       "created_at": "2026-09-02T16:40:21.886566Z",
       "comment_type": "default"
+    },
+    {
+      "id": "ef552045-2ae9-4462-ac48-f7b3b86a90ae",
+      "author": "home",
+      "text": "Shipped in https://github.com/AnthusAI/Kanbus/pull/200: dep help is discoverable; usage errors name the command.",
+      "created_at": "2026-09-02T17:47:32.220786Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:59:33.130420Z",
-  "updated_at": "2026-09-02T16:40:21.886566Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T17:47:32.220786Z",
+  "closed_at": "2026-09-02T17:47:32.172372Z",
   "custom": {}
 }
