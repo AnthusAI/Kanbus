@@ -19,7 +19,7 @@ class OpsGuardrailsTemplateTests(unittest.TestCase):
 
     def test_alarm_set_covers_sync_lambda_and_api_paths(self) -> None:
         template = self._template()
-        template.resource_count_is("AWS::CloudWatch::Alarm", 8)
+        template.resource_count_is("AWS::CloudWatch::Alarm", 9)
         rendered = template.to_json()
         alarm_names = [
             res["Properties"].get("AlarmName", "")
@@ -31,7 +31,9 @@ class OpsGuardrailsTemplateTests(unittest.TestCase):
         self.assertIn("kanbus-sync-queue-age-test", serialized_names)
         self.assertIn("kanbus-console-lambda-errors-test", serialized_names)
         self.assertIn("kanbus-webhook-lambda-errors-test", serialized_names)
-        self.assertIn("kanbus-sync-worker-errors-test", serialized_names)
+        self.assertIn("kanbus-git-sync-errors-test", serialized_names)
+        self.assertIn("kanbus-efs-writer-errors-test", serialized_names)
+        self.assertNotIn("kanbus-sync-worker-errors-test", serialized_names)
         self.assertIn("kanbus-token-admin-errors-test", serialized_names)
         self.assertIn("kanbus-mqtt-authorizer-errors-test", serialized_names)
         self.assertIn("kanbus-console-api-4xx-test", serialized_names)
