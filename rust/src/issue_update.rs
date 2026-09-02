@@ -19,6 +19,15 @@ use crate::workflows::{
     apply_transition_side_effects, validate_status_transition, validate_status_value,
 };
 
+/// Result of an issue update operation.
+#[derive(Debug, Clone)]
+pub struct IssueUpdateResult {
+    /// Updated issue data.
+    pub issue: IssueData,
+    /// Whether disk state changed.
+    pub changed: bool,
+}
+
 /// Update an issue and persist it to disk.
 ///
 /// # Arguments
@@ -48,7 +57,19 @@ pub fn update_issue(
     set_labels: Option<&str>,
     parent: Option<&str>,
     issue_type: Option<&str>,
-) -> Result<IssueData, KanbusError> {
+) -> Result<IssueUpdateResult, KanbusError> {
+    let fields_requested = title.is_some()
+        || description.is_some()
+        || status.is_some()
+        || claim
+        || assignee.is_some()
+        || priority.is_some()
+        || !add_labels.is_empty()
+        || !remove_labels.is_empty()
+        || set_labels.is_some()
+        || parent.is_some()
+        || issue_type.is_some();
+
     let lookup = load_issue_from_project(root, identifier)?;
     let before_issue = lookup.issue.clone();
     let config_path = get_configuration_path(lookup.project_dir.as_path())?;
@@ -219,6 +240,12 @@ pub fn update_issue(
         && updated_labels.is_none()
         && updated_parent.is_none()
     {
+        if fields_requested {
+            return Ok(IssueUpdateResult {
+                issue: before_issue,
+                changed: false,
+            });
+        }
         return Err(KanbusError::IssueOperation(
             "no updates requested".to_string(),
         ));
@@ -308,7 +335,10 @@ pub fn update_issue(
         );
     }
 
-    Ok(updated_issue)
+    Ok(IssueUpdateResult {
+        issue: updated_issue,
+        changed: true,
+    })
 }
 
 fn find_duplicate_title(

@@ -113,6 +113,7 @@ Filters:
 - `--parent <id>` Filter by parent issue
 - `--sort <field>` Sort by field (prefix `-` for descending)
 - `--limit <n>` Limit number of results (default: 0, no limit)
+- `--all` Show all issues (same as `--limit 0`; cannot combine with `--limit`)
 - `--full-ids` Show full issue keys even in single-project context
 
 Example:
@@ -120,6 +121,15 @@ Example:
 ```bash
 kanbus list --status open --sort priority --limit 10
 kanbus list --parent kanbus-a1b2c3
+kanbus list --all
+```
+
+### `kanbus commit`
+
+Commit `project/issues/` changes to git.
+
+```bash
+kanbus commit
 ```
 
 ## Realtime Gossip + Overlay
@@ -191,29 +201,16 @@ kanbus search <text>
 
 ## Dependencies
 
-### `kanbus dep add`
+### `kanbus dep`
 
-Add a dependency.
-
-```bash
-kanbus dep add <id> --blocked-by <target-id>
-kanbus dep add <id> --relates-to <target-id>
-```
-
-### `kanbus dep remove`
-
-Remove a dependency.
+Manage issue dependencies.
 
 ```bash
-kanbus dep remove <id> <target-id>
-```
-
-### `kanbus dep tree`
-
-Display the dependency tree for an issue.
-
-```bash
-kanbus dep tree <id>
+kanbus dep <id> blocked-by <target-id>
+kanbus dep <id> relates-to <target-id>
+kanbus dep <id> remove blocked-by <target-id>
+kanbus dep <id> remove relates-to <target-id>
+kanbus dep tree <id> [--depth N] [--format FORMAT]
 ```
 
 ## Comments

@@ -74,6 +74,25 @@ Feature: Issue dependencies
     When I run "kanbus ready"
     Then stdout should contain the external project path for "kanbus-external"
 
+  Scenario: Dep help shows usage examples
+    Given a Kanbus project with default configuration
+    When I run "kanbus dep --help"
+    Then the command should succeed
+    And stdout should contain "blocked-by"
+    And stdout should contain "relates-to"
+    And stdout should contain "remove"
+    And stdout should contain "tree"
+    And stdout should not contain "dep add"
+
+  Scenario: Dep with no arguments shows usage examples
+    Given a Kanbus project with default configuration
+    When I run "kanbus dep"
+    Then the command should fail with exit code 1
+    And stderr should contain "blocked-by"
+    And stderr should contain "relates-to"
+    And stderr should contain "remove"
+    And stderr should contain "tree"
+
   Scenario: Dependency add requires a target
     Given a Kanbus project with default configuration
     And issues "kanbus-child" and "kanbus-parent" exist
