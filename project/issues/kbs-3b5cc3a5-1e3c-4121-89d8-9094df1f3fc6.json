@@ -1,0 +1,18 @@
+{
+  "id": "kbs-3b5cc3a5-1e3c-4121-89d8-9094df1f3fc6",
+  "title": "KanbusCloudFoundation NAT Gateway idle cost is too high",
+  "description": "## Problem\n\nThe shipped Kanbus cloud foundation (`KanbusCloudFoundation` in `infra/cloud`) keeps a NAT Gateway running 24/7. That idle floor dominates Kanbus AWS spend even when the console is barely used.\n\n## Why it costs so much\n\n`cloud_stack.py` creates a VPC with `nat_gateways=1` and places the console Lambda and EFS in `PRIVATE_WITH_EGRESS` subnets. Private-subnet Lambdas need NAT (or VPC endpoints) to reach AWS APIs and the internet. A NAT Gateway bills hourly plus data processing whether or not anyone is using Kanbus.\n\nIn account `335163751677` (`us-east-1`), August 2026 Cost Explorer unblended cost for NAT `nat-06056a113e469e372` was about **$33.48**. The gateway has been up since 2026-03-07. That is one of the largest lines on a ~$193 August bill. Public IPv4 on the NAT adds more.\n\nThis is an architecture tax, not usage. Traffic-related Lambda and API Gateway charges are small next to the always-on NAT.\n\n## Suggested direction (not this ticket)\n\nChatticus already avoided this pattern. Its Computers VPC uses `natGateways: 0` and public subnets only. Fargate `desiredCount` defaults to 0. There is no load balancer. August Chatticus Fargate was about $0.06.\n\nTreat the Chatticus cloud design as the alternative to study: scale-to-zero idle floor, no NAT, no ALB hourly charge. Re-architecting Kanbus cloud, or implementing that alternative, is out of scope for filing this bug.\n\n## Expected later outcome\n\nKanbus cloud should not pay a ~$30+/month NAT idle floor when the product is idle. A later issue or epic can choose how (Chatticus-style public subnets, VPC endpoints, or tearing the foundation down until it is needed).",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-02T14:30:02.949582Z",
+  "updated_at": "2026-09-02T14:30:02.949582Z",
+  "closed_at": null,
+  "custom": {}
+}
