@@ -430,7 +430,8 @@ fn markdown_code_excluded_ranges(content: &str) -> Vec<(usize, usize)> {
             }
             continue;
         }
-        if content_bytes[index..].starts_with(b"``") && !content_bytes[index..].starts_with(b"```") {
+        if content_bytes[index..].starts_with(b"``") && !content_bytes[index..].starts_with(b"```")
+        {
             let range_start = index;
             index += 2;
             while index < content_bytes.len() {
