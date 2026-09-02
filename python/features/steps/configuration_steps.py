@@ -938,6 +938,30 @@ def then_hierarchy_matches(context: object, expected: str) -> None:
     ), f"Expected hierarchy {parts}, got {configuration.hierarchy}"
 
 
+@given('the Kanbus configuration uses AI provider "{provider}" with model "{model}"')
+def given_kanbus_configuration_uses_ai_provider(
+    context: object, provider: str, model: str
+) -> None:
+    """Configure AI provider settings in .kanbus.yml.
+
+    :param context: Behave context object.
+    :type context: object
+    :param provider: AI provider identifier.
+    :type provider: str
+    :param model: Model identifier.
+    :type model: str
+    """
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
+    if config_path.exists():
+        loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            payload.update(loaded)
+    payload["ai"] = {"provider": provider, "model": model}
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
 @then('the AI provider should be "{expected}"')
 def then_ai_provider_matches(context: object, expected: str) -> None:
     """Verify AI provider matches expected value."""
