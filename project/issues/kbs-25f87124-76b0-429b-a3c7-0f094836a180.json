@@ -10,9 +10,17 @@
   "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "55b80864-ed9b-4a2d-816e-854ea9a9abe5",
+      "author": "home",
+      "text": "Implemented in PR 200: list --all; combining with --limit fails.",
+      "created_at": "2026-09-02T16:40:21.901883Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-02T14:59:33.199624Z",
-  "updated_at": "2026-09-02T14:59:44.141871Z",
+  "updated_at": "2026-09-02T16:40:21.901883Z",
   "closed_at": null,
   "custom": {}
 }

@@ -10,9 +10,17 @@
   "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "6e47c280-a32a-478e-8ffc-5c040516ac40",
+      "author": "home",
+      "text": "Implemented kbs commit (not sync) in PR 200. CONTRIBUTING_AGENT.md now points agents at kbs commit. No push.",
+      "created_at": "2026-09-02T16:40:21.869065Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-02T14:59:32.983181Z",
-  "updated_at": "2026-09-02T14:59:43.973060Z",
+  "updated_at": "2026-09-02T16:40:21.869065Z",
   "closed_at": null,
   "custom": {}
 }
