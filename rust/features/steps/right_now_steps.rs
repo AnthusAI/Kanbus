@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use cucumber::{given, then, when};
 use serde_yaml::{Mapping, Value};
 
@@ -9,8 +9,9 @@ use kanbus::config::default_project_configuration;
 use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
 use kanbus::right_now::{
-    build_leaf_right_now_context, generate_right_now_summary, get_right_now_summary,
-    project_events_directory, read_right_now_llm_usage_entries, summary_contains_status_keyword,
+    build_leaf_right_now_context, build_right_now_context, generate_right_now_summary,
+    get_right_now_summary, load_child_issues, project_events_directory,
+    read_right_now_llm_usage_entries, summary_contains_status_keyword, RightNowContext,
 };
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -300,4 +301,185 @@ fn then_right_now_summary_generation_fails(world: &mut KanbusWorld, message: Str
         world.right_now_generation_error.as_deref(),
         Some(message.as_str())
     );
+}
+
+fn write_issue_with_parent_and_title(
+    project_dir: &PathBuf,
+    identifier: String,
+    issue_type: String,
+    status: String,
+    parent: String,
+    title: String,
+) {
+    let timestamp = Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap();
+    let issue = IssueData {
+        identifier,
+        title,
+        description: String::new(),
+        issue_type,
+        status,
+        priority: 2,
+        assignee: None,
+        creator: None,
+        parent: Some(parent),
+        labels: Vec::new(),
+        dependencies: Vec::new(),
+        comments: Vec::new(),
+        created_at: timestamp,
+        updated_at: timestamp,
+        closed_at: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
+        custom: std::collections::BTreeMap::new(),
+    };
+    write_issue_file(project_dir, &issue);
+}
+
+#[given(expr = "issue {string} description is {string}")]
+fn given_existing_issue_description(
+    world: &mut KanbusWorld,
+    identifier: String,
+    description: String,
+) {
+    let project_dir = load_project_dir(world);
+    let mut issue = read_issue_file(&project_dir, &identifier);
+    issue.description = description;
+    write_issue_file(&project_dir, &issue);
+}
+
+#[given(
+    expr = "an issue {string} of type {string} with status {string} and parent {string} and title {string}"
+)]
+fn given_issue_with_parent_and_title(
+    world: &mut KanbusWorld,
+    identifier: String,
+    issue_type: String,
+    status: String,
+    parent: String,
+    title: String,
+) {
+    let project_dir = load_project_dir(world);
+    write_issue_with_parent_and_title(&project_dir, identifier, issue_type, status, parent, title);
+}
+
+#[given(expr = "issue {string} has description with {int} characters")]
+fn given_issue_has_description_with_character_count(
+    world: &mut KanbusWorld,
+    identifier: String,
+    character_count: usize,
+) {
+    let project_dir = load_project_dir(world);
+    let mut issue = read_issue_file(&project_dir, &identifier);
+    issue.description = "x".repeat(character_count);
+    write_issue_file(&project_dir, &issue);
+}
+
+#[when(expr = "I build the right now context for issue {string}")]
+fn when_build_right_now_context(world: &mut KanbusWorld, identifier: String) {
+    if std::env::var("KANBUS_NO_DAEMON").is_err() {
+        std::env::set_var("KANBUS_NO_DAEMON", "1");
+    }
+    let root = world.working_directory.as_ref().expect("cwd");
+    let project_dir = load_project_dir(world);
+    let issue = read_issue_file(&project_dir, &identifier);
+    let children = load_child_issues(root, &identifier).expect("load children");
+    world.right_now_context = Some(build_right_now_context(&issue, &children));
+}
+
+fn require_right_now_context(world: &KanbusWorld) -> &RightNowContext {
+    world
+        .right_now_context
+        .as_ref()
+        .expect("right now context was not built")
+}
+
+fn child_summary_text(world: &KanbusWorld, identifier: &str) -> String {
+    let right_now_context = require_right_now_context(world);
+    let child_summaries = right_now_context
+        .child_summaries
+        .as_ref()
+        .expect("child summaries missing");
+    child_summaries
+        .iter()
+        .find(|child_summary| child_summary.identifier == identifier)
+        .map(|child_summary| child_summary.summary.clone())
+        .unwrap_or_else(|| panic!("no child summary found for {identifier}"))
+}
+
+#[then(expr = "the right now context title should be {string}")]
+fn then_right_now_context_title(world: &mut KanbusWorld, expected: String) {
+    let right_now_context = require_right_now_context(world);
+    assert_eq!(right_now_context.title, expected);
+}
+
+#[then(expr = "the right now context description should be {string}")]
+fn then_right_now_context_description(world: &mut KanbusWorld, expected: String) {
+    let right_now_context = require_right_now_context(world);
+    assert_eq!(right_now_context.description, expected);
+}
+
+#[then(expr = "the right now context recent activity should contain {string}")]
+fn then_right_now_context_recent_activity_contains(world: &mut KanbusWorld, expected: String) {
+    let right_now_context = require_right_now_context(world);
+    assert!(right_now_context.recent_activity.contains(&expected));
+}
+
+#[then("the right now context should have no child summaries")]
+fn then_right_now_context_has_no_child_summaries(world: &mut KanbusWorld) {
+    let right_now_context = require_right_now_context(world);
+    assert!(right_now_context.child_summaries.is_none());
+}
+
+#[then(expr = "the right now context should have {int} child summaries")]
+fn then_right_now_context_child_summaries_count(world: &mut KanbusWorld, child_count: usize) {
+    let right_now_context = require_right_now_context(world);
+    let child_summaries = right_now_context
+        .child_summaries
+        .as_ref()
+        .expect("child summaries missing");
+    assert_eq!(child_summaries.len(), child_count);
+}
+
+#[then(expr = "the right now context should have {int} child summary")]
+fn then_right_now_context_child_summary_count(world: &mut KanbusWorld, child_count: usize) {
+    let right_now_context = require_right_now_context(world);
+    let child_summaries = right_now_context
+        .child_summaries
+        .as_ref()
+        .expect("child summaries missing");
+    assert_eq!(child_summaries.len(), child_count);
+}
+
+#[then(expr = "the child summary for {string} should be {string}")]
+fn then_child_summary_equals(world: &mut KanbusWorld, identifier: String, expected: String) {
+    assert_eq!(child_summary_text(world, &identifier), expected);
+}
+
+#[then(expr = "the child summary for {string} should contain {string}")]
+fn then_child_summary_contains(world: &mut KanbusWorld, identifier: String, expected: String) {
+    assert!(child_summary_text(world, &identifier).contains(&expected));
+}
+
+#[then(expr = "the child summary for {string} length should be at most {int}")]
+fn then_child_summary_length_at_most(
+    world: &mut KanbusWorld,
+    identifier: String,
+    max_length: usize,
+) {
+    let summary = child_summary_text(world, &identifier);
+    assert!(summary.len() <= max_length);
+}
+
+#[then(expr = "the right now context should not have child summary for {string}")]
+fn then_right_now_context_missing_child_summary(world: &mut KanbusWorld, identifier: String) {
+    let right_now_context = require_right_now_context(world);
+    let child_summaries = right_now_context
+        .child_summaries
+        .as_ref()
+        .expect("child summaries missing");
+    let identifiers: Vec<&str> = child_summaries
+        .iter()
+        .map(|child_summary| child_summary.identifier.as_str())
+        .collect();
+    assert!(!identifiers.contains(&identifier.as_str()));
 }

@@ -14,6 +14,7 @@ use crate::step_definitions::console_ui_steps::{
 use kanbus::daemon_client;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
+use kanbus::right_now::RightNowContext;
 use serde_json::Value;
 
 use crate::step_definitions::virtual_project_steps::VirtualProjectState;
@@ -127,6 +128,7 @@ pub struct KanbusWorld {
     pub right_now_summary_result: Option<Option<String>>,
     pub generated_right_now_summary: Option<String>,
     pub right_now_generation_error: Option<String>,
+    pub right_now_context: Option<RightNowContext>,
     pub ai_mock_env: Option<Option<String>>,
     pub litellm_called_env: Option<Option<String>>,
     pub uds_temp_dir: Option<TempDir>,

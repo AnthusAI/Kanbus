@@ -18,8 +18,10 @@ from kanbus.right_now import (
     RIGHT_NOW_SUMMARY_OPERATION,
     RightNowError,
     build_leaf_right_now_context,
+    build_right_now_context,
     generate_right_now_summary,
     get_right_now_summary,
+    load_child_issues,
     summary_contains_status_keyword,
 )
 
@@ -482,3 +484,270 @@ def then_right_now_summary_generation_fails(context: object, message: str) -> No
     :type message: str
     """
     assert context.right_now_generation_error == message
+
+
+@given('issue "{identifier}" description is "{description}"')
+def given_existing_issue_description(
+    context: object, identifier: str, description: str
+) -> None:
+    """Update description on an existing issue without resetting other fields.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param description: Description text.
+    :type description: str
+    """
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    issue = issue.model_copy(update={"description": description})
+    write_issue_file(project_dir, issue)
+
+
+@given(
+    'an issue "{identifier}" of type "{issue_type}" with status "{status}" and parent "{parent}" and title "{title}"'
+)
+def given_issue_with_parent_and_title(
+    context: object,
+    identifier: str,
+    issue_type: str,
+    status: str,
+    parent: str,
+    title: str,
+) -> None:
+    """Create an issue with parent and title in one write.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param issue_type: Issue type.
+    :type issue_type: str
+    :param status: Issue status.
+    :type status: str
+    :param parent: Parent issue identifier.
+    :type parent: str
+    :param title: Issue title.
+    :type title: str
+    """
+    from features.steps.workflow_steps import _write_issue_with_overrides
+
+    _write_issue_with_overrides(
+        context,
+        identifier,
+        issue_type,
+        status,
+        title=title,
+        parent=parent,
+    )
+
+
+@given('issue "{identifier}" has description with {character_count:d} characters')
+def given_issue_has_description_with_character_count(
+    context: object, identifier: str, character_count: int
+) -> None:
+    """Set a long description on an issue for bounding tests.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param character_count: Description length in characters.
+    :type character_count: int
+    """
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    issue = issue.model_copy(update={"description": "x" * character_count})
+    write_issue_file(project_dir, issue)
+
+
+@when('I build the right now context for issue "{identifier}"')
+def when_build_right_now_context(context: object, identifier: str) -> None:
+    """Build right-now context for an issue using loaded children.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    root = Path(context.working_directory)
+    overrides = getattr(context, "environment_overrides", None) or {}
+    previous_daemon = os.environ.get("KANBUS_NO_DAEMON")
+    if "KANBUS_NO_DAEMON" in overrides:
+        os.environ["KANBUS_NO_DAEMON"] = overrides["KANBUS_NO_DAEMON"]
+    else:
+        os.environ["KANBUS_NO_DAEMON"] = "1"
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    try:
+        children = load_child_issues(root, identifier)
+        context.right_now_context = build_right_now_context(issue, children)
+    finally:
+        if previous_daemon is None:
+            os.environ.pop("KANBUS_NO_DAEMON", None)
+        else:
+            os.environ["KANBUS_NO_DAEMON"] = previous_daemon
+
+
+def _require_right_now_context(context: object):
+    right_now_context = getattr(context, "right_now_context", None)
+    assert right_now_context is not None, "right now context was not built"
+    return right_now_context
+
+
+def _child_summary_text(context: object, identifier: str) -> str:
+    right_now_context = _require_right_now_context(context)
+    child_summaries = right_now_context.child_summaries or []
+    for child_summary in child_summaries:
+        if child_summary.identifier == identifier:
+            return child_summary.summary
+    raise AssertionError(f"no child summary found for {identifier}")
+
+
+@then('the right now context title should be "{expected}"')
+def then_right_now_context_title(context: object, expected: str) -> None:
+    """Verify right-now context title.
+
+    :param context: Behave context object.
+    :type context: object
+    :param expected: Expected title.
+    :type expected: str
+    """
+    right_now_context = _require_right_now_context(context)
+    assert right_now_context.title == expected
+
+
+@then('the right now context description should be "{expected}"')
+def then_right_now_context_description(context: object, expected: str) -> None:
+    """Verify right-now context description.
+
+    :param context: Behave context object.
+    :type context: object
+    :param expected: Expected description.
+    :type expected: str
+    """
+    right_now_context = _require_right_now_context(context)
+    assert right_now_context.description == expected
+
+
+@then('the right now context recent activity should contain "{expected}"')
+def then_right_now_context_recent_activity_contains(
+    context: object, expected: str
+) -> None:
+    """Verify right-now context recent activity contains text.
+
+    :param context: Behave context object.
+    :type context: object
+    :param expected: Expected substring.
+    :type expected: str
+    """
+    right_now_context = _require_right_now_context(context)
+    assert expected in right_now_context.recent_activity
+
+
+@then("the right now context should have no child summaries")
+def then_right_now_context_has_no_child_summaries(context: object) -> None:
+    """Verify right-now context has no child summaries.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    right_now_context = _require_right_now_context(context)
+    assert right_now_context.child_summaries is None
+
+
+@then("the right now context should have {child_count:d} child summaries")
+def then_right_now_context_child_summaries_count(
+    context: object, child_count: int
+) -> None:
+    """Verify right-now context child summary count (plural).
+
+    :param context: Behave context object.
+    :type context: object
+    :param child_count: Expected child summary count.
+    :type child_count: int
+    """
+    right_now_context = _require_right_now_context(context)
+    child_summaries = right_now_context.child_summaries or []
+    assert len(child_summaries) == child_count
+
+
+@then("the right now context should have {child_count:d} child summary")
+def then_right_now_context_child_summary_count(
+    context: object, child_count: int
+) -> None:
+    """Verify right-now context child summary count (singular).
+
+    :param context: Behave context object.
+    :type context: object
+    :param child_count: Expected child summary count.
+    :type child_count: int
+    """
+    right_now_context = _require_right_now_context(context)
+    child_summaries = right_now_context.child_summaries or []
+    assert len(child_summaries) == child_count
+
+
+@then('the child summary for "{identifier}" should be "{expected}"')
+def then_child_summary_equals(context: object, identifier: str, expected: str) -> None:
+    """Verify a child summary matches expected text.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Child issue identifier.
+    :type identifier: str
+    :param expected: Expected summary text.
+    :type expected: str
+    """
+    assert _child_summary_text(context, identifier) == expected
+
+
+@then('the child summary for "{identifier}" should contain "{expected}"')
+def then_child_summary_contains(
+    context: object, identifier: str, expected: str
+) -> None:
+    """Verify a child summary contains expected text.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Child issue identifier.
+    :type identifier: str
+    :param expected: Expected substring.
+    :type expected: str
+    """
+    assert expected in _child_summary_text(context, identifier)
+
+
+@then('the child summary for "{identifier}" length should be at most {max_length:d}')
+def then_child_summary_length_at_most(
+    context: object, identifier: str, max_length: int
+) -> None:
+    """Verify a child summary respects the character budget.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Child issue identifier.
+    :type identifier: str
+    :param max_length: Maximum allowed length.
+    :type max_length: int
+    """
+    summary = _child_summary_text(context, identifier)
+    assert len(summary) <= max_length
+
+
+@then('the right now context should not have child summary for "{identifier}"')
+def then_right_now_context_missing_child_summary(
+    context: object, identifier: str
+) -> None:
+    """Verify a child identifier is absent from parent context.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Child issue identifier.
+    :type identifier: str
+    """
+    right_now_context = _require_right_now_context(context)
+    child_summaries = right_now_context.child_summaries or []
+    identifiers = [child_summary.identifier for child_summary in child_summaries]
+    assert identifier not in identifiers
