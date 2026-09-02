@@ -21,14 +21,14 @@ Feature: Console agent metadata display
 
   Scenario: Comment shows agent metadata when present
     Given the console is open
-    And the console has a comment from "agent" on task "Add structured logging" with agent platform "cursor" model "composer-2.5"
+    And the console has a comment from "agent" on task "Fix crash on startup" with agent platform "cursor" model "composer-2.5"
     When I switch to the "Tasks" tab
-    And I open the task "Add structured logging"
+    And I open the task "Fix crash on startup"
     Then the comment agent metadata should include platform "cursor"
 
   Scenario: Comment hides agent metadata when absent
     Given the console is open
-    And the console has a comment from "Sam" on task "Add structured logging"
+    And the console has a comment from "Sam" on task "Fix crash on startup"
     When I switch to the "Tasks" tab
-    And I open the task "Add structured logging"
+    And I open the task "Fix crash on startup"
     Then the comment agent metadata should not be visible

@@ -650,9 +650,7 @@ fn then_issue_metadata_assignee(world: &mut KanbusWorld, assignee: String) {
     assert_eq!(issue.assignee.as_deref(), Some(assignee.as_str()));
 }
 
-#[given(
-    expr = "the console has a task {string} with agent platform {string} model {string}"
-)]
+#[given(expr = "the console has a task {string} with agent platform {string} model {string}")]
 fn given_console_task_with_agent_metadata(
     world: &mut KanbusWorld,
     title: String,
@@ -749,7 +747,10 @@ fn then_issue_agent_metadata_not_visible(world: &mut KanbusWorld) {
 fn then_comment_agent_metadata_platform(world: &mut KanbusWorld, platform: String) {
     let issue = get_selected_issue(world);
     let comment = issue.comments.last().expect("no comments found");
-    let agent = comment.agent.as_ref().expect("comment agent metadata missing");
+    let agent = comment
+        .agent
+        .as_ref()
+        .expect("comment agent metadata missing");
     assert_eq!(agent.platform, platform);
 }
 
