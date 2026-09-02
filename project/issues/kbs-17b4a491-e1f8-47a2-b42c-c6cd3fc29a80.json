@@ -3,16 +3,31 @@
   "title": "Document agent metadata for agents and CLI reference",
   "description": "Update CONTRIBUTING_AGENT.md, docs/CLI_REFERENCE.md: env vars, flags, canonical platforms, settings allowlist, no secrets policy, Beads limitation.",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "1b015054-87ac-46ed-a914-05cdc3426a6b",
+      "author": "home",
+      "text": "Planning: Composer 2.5. Docs last for 5dd18e. Worktree /tmp/kanbus-17b4a4-agent-docs from origin/develop, branch cursor/agent-docs-17b4a4-4a21. Plan only this turn.",
+      "created_at": "2026-09-02T19:30:10.026771Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "4d74bfb3-1d5e-4a2a-abba-16a91148e352",
+      "author": "home",
+      "text": "Plan accepted. Docs match code: recommended settings keys plus secret rejection, not a closed allowlist. Worktree /tmp/kanbus-17b4a4-agent-docs not created yet — create it, then implement.",
+      "created_at": "2026-09-02T19:32:13.355090Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-29T13:41:20.337751Z",
-  "updated_at": "2026-08-29T13:41:20.337751Z",
+  "updated_at": "2026-09-02T19:32:13.355090Z",
   "closed_at": null,
   "custom": {}
 }
