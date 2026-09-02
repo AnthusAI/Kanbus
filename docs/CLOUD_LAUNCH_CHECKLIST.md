@@ -27,7 +27,7 @@ This checklist tracks launch readiness for the cloud console runtime epic
 - [x] Webhook handler validates signature + tenant headers (unit tests).
 - [x] Queue + DLQ + worker wiring present (template + tests).
 - [ ] Live GitHub push produces queue message and worker execution.
-- [ ] Live worker sync updates tenant EFS repo and publishes IoT event.
+- [ ] Live Fargate sync task updates tenant EFS repo and publishes IoT event.
 - [ ] DLQ redrive runbook step validated.
 
 4. Realtime console behavior

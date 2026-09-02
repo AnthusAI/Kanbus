@@ -30,9 +30,9 @@ Capture outputs:
 
 ## Smoke Checks
 
-1. API auth + route check:
+1. API auth bootstrap:
 ```bash
-curl -i "${API_BASE_URL}${STAGE_PATH}/health"
+curl -s "${API_BASE_URL}${STAGE_PATH}/api/auth/bootstrap" | jq .
 ```
 
 2. Realtime bootstrap contract:
@@ -40,7 +40,12 @@ curl -i "${API_BASE_URL}${STAGE_PATH}/health"
 curl -s "${API_BASE_URL}${STAGE_PATH}/{account}/{project}/api/realtime/bootstrap" | jq .
 ```
 
-3. Queue wiring:
+3. ConsoleLambda CloudWatch logs (isolated subnet staging check):
+```bash
+AWS_PROFILE=anthus aws logs tail "/aws/lambda/<console-lambda-name>" --since 15m
+```
+
+4. Queue wiring:
 ```bash
 AWS_PROFILE=anthus aws sqs get-queue-attributes --queue-url "$SYNC_QUEUE_URL" --attribute-names ApproximateNumberOfMessages ApproximateAgeOfOldestMessage
 AWS_PROFILE=anthus aws sqs get-queue-attributes --queue-url "$SYNC_DLQ_URL" --attribute-names ApproximateNumberOfMessages
@@ -71,7 +76,7 @@ WAF or by rotating `GithubWebhookSecretArn`.
 - `kanbus-sync-queue-age-<env>`: sync queue backlog age high.
 - `kanbus-console-lambda-errors-<env>`: API Lambda errors > 0.
 - `kanbus-webhook-lambda-errors-<env>`: webhook ingress errors > 0.
-- `kanbus-sync-worker-errors-<env>`: sync worker errors > 0.
+- `kanbus-sync-dispatcher-errors-<env>`: sync dispatcher errors > 0.
 - `kanbus-console-api-4xx-<env>`: elevated client/auth failures and other 4xx responses.
 
 ## Incident Triage

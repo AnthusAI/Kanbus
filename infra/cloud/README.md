@@ -2,9 +2,9 @@
 
 This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 
-- VPC with application subnets
+- VPC with isolated private subnets (no NAT) and public subnets for sync tasks
 - EFS for tenant data (`/mnt/data/{account}/{project}`)
-- Rust Lambda container runtime (`console_lambda`)
+- Rust Lambda container runtime (`console_lambda`) in isolated subnets
 - Regional REST API Gateway proxying to Lambda
 - Cognito User Pool + Identity Pool foundation
 - Cognito Hosted UI PKCE bootstrap outputs for browser login UX
@@ -13,7 +13,7 @@ This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 - DynamoDB-backed MQTT API token registry
 - IoT Core custom authorizer for CLI MQTT API-token auth
 - GitHub webhook ingress Lambda (`/internal/webhooks/github`) + SQS + DLQ
-- Tenant sync worker Lambda (EFS-backed) with IoT publish scaffolding
+- Tenant sync dispatcher Lambda + on-demand Fargate tasks (EFS-backed) with IoT publish
 - Token admin Lambda API (`/api/tokens`) for create/list/revoke
 - AWS IoT Data endpoint discovery output
 
@@ -73,6 +73,9 @@ AWS_PROFILE=anthus npx cdk synth \
 - `SyncQueueUrl`
 - `SyncQueueArn`
 - `SyncDlqArn`
+- `TenantSyncClusterName`
+- `TenantSyncTaskDefinitionArn`
+- `TenantSyncTaskLogGroupName`
 
 ## Tenant isolation note
 
@@ -110,7 +113,7 @@ tuple `<account>/<project>` is used and synced.
 
 - Tenant route/API usage is `/{account}/{project}/...`.
 - Webhook ingress carries tenant headers (`X-Kanbus-Account`, `X-Kanbus-Project`).
-- Sync worker clones/syncs the webhook repo URL into:
+- Sync dispatcher launches on-demand Fargate tasks that clone/sync the webhook repo URL into:
   - `/mnt/data/{account}/{project}/repo`
 
 This means cloud project existence is currently operationally defined by EFS presence and sync history.
@@ -144,7 +147,7 @@ The script enforces gates in order:
 3. Unauthenticated API/auth contracts.
 4. Authenticated tenant isolation + SSE endpoint.
 5. Token admin + authorizer + CLI parity.
-6. Webhook -> SQS -> worker -> IoT event.
+6. Webhook -> SQS -> Fargate sync task -> IoT event.
 7. Browser realtime hard gate (MQTT primary, no SSE-only pass).
 
 ## Cross-Mac realtime operator flow

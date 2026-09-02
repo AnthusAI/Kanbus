@@ -4,6 +4,7 @@ import fcntl
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -50,29 +51,45 @@ def _publish_sync_event(account: str, project: str, sha: str, ref: str | None) -
     iot_data.publish(topic=topic, qos=0, payload=json.dumps(payload).encode("utf-8"))
 
 
-def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+def process_job(body: dict[str, Any]) -> None:
     mount = Path(os.environ.get("KANBUS_TENANT_MOUNT", "/mnt/data"))
+    tenant = body["tenant"]
+    account = tenant["account"]
+    project = tenant["project"]
+    repo_url = body["repo_url"]
+    sha = body["after_sha"]
+    ref = body.get("ref")
 
+    if not repo_url or not sha:
+        raise ValueError("repo_url and after_sha are required")
+
+    tenant_root = mount / account / project
+    tenant_root.mkdir(parents=True, exist_ok=True)
+    lock_path = tenant_root / ".kanbus-sync.lock"
+
+    with lock_path.open("w") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        repo_root = _repo_root(mount, account, project)
+        _sync_repo(repo_root, repo_url, sha)
+        _publish_sync_event(account, project, sha, ref)
+
+
+def handler(event: dict[str, Any], _context: Any) -> dict[str, str]:
     for record in event.get("Records", []):
-        body = json.loads(record["body"])
-        tenant = body["tenant"]
-        account = tenant["account"]
-        project = tenant["project"]
-        repo_url = body["repo_url"]
-        sha = body["after_sha"]
-        ref = body.get("ref")
-
-        if not repo_url or not sha:
-            raise ValueError("repo_url and after_sha are required")
-
-        tenant_root = mount / account / project
-        tenant_root.mkdir(parents=True, exist_ok=True)
-        lock_path = tenant_root / ".kanbus-sync.lock"
-
-        with lock_path.open("w") as lock_file:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-            repo_root = _repo_root(mount, account, project)
-            _sync_repo(repo_root, repo_url, sha)
-            _publish_sync_event(account, project, sha, ref)
+        process_job(json.loads(record["body"]))
 
     return {"status": "ok"}
+
+
+def main() -> None:
+    job_json = os.environ.get("SYNC_JOB_JSON", "")
+    if not job_json:
+        raise ValueError("SYNC_JOB_JSON is required")
+    process_job(json.loads(job_json))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        sys.exit(1)

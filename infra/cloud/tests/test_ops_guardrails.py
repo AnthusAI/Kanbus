@@ -31,7 +31,7 @@ class OpsGuardrailsTemplateTests(unittest.TestCase):
         self.assertIn("kanbus-sync-queue-age-test", serialized_names)
         self.assertIn("kanbus-console-lambda-errors-test", serialized_names)
         self.assertIn("kanbus-webhook-lambda-errors-test", serialized_names)
-        self.assertIn("kanbus-sync-worker-errors-test", serialized_names)
+        self.assertIn("kanbus-sync-dispatcher-errors-test", serialized_names)
         self.assertIn("kanbus-token-admin-errors-test", serialized_names)
         self.assertIn("kanbus-mqtt-authorizer-errors-test", serialized_names)
         self.assertIn("kanbus-console-api-4xx-test", serialized_names)
