@@ -24,10 +24,17 @@
       "text": "Plan accepted. Component already on develop. Implement Gherkin + Playwright/Python/Rust steps only in /tmp/kanbus-dd1f4a-console-agent. One PR to develop.",
       "created_at": "2026-09-02T18:24:21.609579Z",
       "comment_type": "default"
+    },
+    {
+      "id": "e149c2b7-5397-4d18-a499-55173969f2c4",
+      "author": "home",
+      "text": "PR https://github.com/AnthusAI/Kanbus/pull/203 — Gherkin + Playwright/Python/Rust steps. Waiting on CI and acceptance. Component unchanged.",
+      "created_at": "2026-09-02T18:44:41.021810Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-08-29T13:41:08.901358Z",
-  "updated_at": "2026-09-02T18:24:21.609579Z",
+  "updated_at": "2026-09-02T18:44:41.021810Z",
   "closed_at": null,
   "custom": {}
 }
