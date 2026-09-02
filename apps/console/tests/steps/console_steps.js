@@ -664,6 +664,7 @@ When("a new task issue named {string} is added", async function (title) {
   };
   const filePath = path.join(projectRoot, "issues", `${issueId}.json`);
   await writeFile(filePath, JSON.stringify(issue, null, 2));
+  await waitForIssueUpdate(issueId, (entry) => entry.title === title);
 });
 
 Given(
@@ -916,4 +917,127 @@ Then("the issue metadata should include assignee {string}", async function (assi
   await expect(this.page.locator('[data-testid="issue-assignee"]')).toHaveText(
     assignee
   );
+});
+
+Given(
+  "the console has a task {string} with agent platform {string} model {string}",
+  async function (title, platform, model) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    issue.agent = { platform, model };
+    await writeIssue(issue);
+    await waitForIssueUpdate(
+      issue.id,
+      (entry) =>
+        entry.agent?.platform === platform && entry.agent?.model === model
+    );
+  }
+);
+
+Given(
+  "the console has a task {string} without agent metadata",
+  async function (title) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    delete issue.agent;
+    await writeIssue(issue);
+    await waitForIssueUpdate(issue.id, (entry) => !entry.agent);
+  }
+);
+
+Given(
+  "the console has a comment from {string} on task {string} with agent platform {string} model {string}",
+  async function (author, title, platform, model) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    const comments = Array.isArray(issue.comments) ? issue.comments : [];
+    comments.push({
+      author,
+      text: "Test comment",
+      created_at: "2026-02-11T04:00:00.000Z",
+      agent: { platform, model }
+    });
+    issue.comments = comments;
+    await writeIssue(issue);
+    await waitForIssueUpdate(
+      issue.id,
+      (entry) =>
+        Array.isArray(entry.comments)
+        && entry.comments.some(
+          (comment) =>
+            comment.author === author
+            && comment.agent?.platform === platform
+            && comment.agent?.model === model
+        )
+    );
+  }
+);
+
+Given(
+  "the console has a comment from {string} on task {string}",
+  async function (author, title) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    const comments = Array.isArray(issue.comments) ? issue.comments : [];
+    comments.push({
+      author,
+      text: "Test comment",
+      created_at: "2026-02-11T04:00:00.000Z"
+    });
+    issue.comments = comments;
+    await writeIssue(issue);
+    await waitForIssueUpdate(
+      issue.id,
+      (entry) =>
+        Array.isArray(entry.comments)
+        && entry.comments.some((comment) => comment.author === author)
+    );
+  }
+);
+
+Then(
+  "the issue agent metadata should include platform {string}",
+  async function (platform) {
+    await expect(this.page.getByTestId("issue-agent-platform")).toHaveText(platform);
+  }
+);
+
+Then(
+  "the issue agent metadata should include model {string}",
+  async function (model) {
+    await expect(this.page.getByTestId("issue-agent-model")).toHaveText(model);
+  }
+);
+
+Then("the issue agent metadata should not be visible", async function () {
+  await expect(this.page.getByTestId("issue-agent-metadata")).toHaveCount(0);
+});
+
+Then(
+  "the comment agent metadata should include platform {string}",
+  async function (platform) {
+    const metadata = this.page
+      .locator(".detail-comment")
+      .last()
+      .getByTestId("comment-agent-metadata");
+    await expect(metadata).toContainText(platform);
+  }
+);
+
+Then("the comment agent metadata should not be visible", async function () {
+  await expect(
+    this.page.locator(".detail-comment").last().getByTestId("comment-agent-metadata")
+  ).toHaveCount(0);
 });

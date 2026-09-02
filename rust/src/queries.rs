@@ -41,6 +41,20 @@ pub fn filter_issues(
         .collect()
 }
 
+/// Sort issues by updated_at descending with identifier ascending tie-break.
+///
+/// # Arguments
+/// * `issues` - Issues to sort.
+pub fn sort_issues_by_recently_updated(mut issues: Vec<IssueData>) -> Vec<IssueData> {
+    issues.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.identifier.cmp(&right.identifier))
+    });
+    issues
+}
+
 /// Sort issues by a supported key.
 ///
 /// # Arguments
@@ -127,6 +141,8 @@ mod tests {
             updated_at: timestamp,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         }
     }

@@ -174,6 +174,8 @@ fn given_issue_exists_with_title(world: &mut KanbusWorld, identifier: String, ti
         updated_at: timestamp,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     };
     write_issue_file(&project_dir, &issue);

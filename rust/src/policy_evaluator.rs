@@ -528,6 +528,8 @@ mod tests {
             updated_at: now,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
         let mut workflows = BTreeMap::new();
@@ -576,6 +578,7 @@ mod tests {
             overlay: Default::default(),
             hooks: Default::default(),
             github_security: None,
+            right_now: Default::default(),
         };
         PolicyContext {
             current_issue: None,

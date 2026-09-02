@@ -3,16 +3,24 @@
   "title": "Spec: Event payloads and Beads mode guard",
   "description": "As a Kanbus user reviewing event history, I want agent metadata captured in event payloads, and I want Beads mode to fail clearly rather than silently drop provenance.\n\n## Gherkin\n\n```gherkin\nFeature: Agent metadata events and Beads guard\n  As a Kanbus user\n  I want agent provenance in the audit trail\n  So that timeline views reflect AI attribution\n\n  Scenario: Issue created event includes agent when present\n    Given a Kanbus project with default configuration\n    When I create issue \"kanbus-ev\" with agent platform \"cursor\" model \"composer-2.5\"\n    Then the latest event for \"kanbus-ev\" should include agent platform \"cursor\"\n\n  Scenario: Comment added event includes agent when present\n    Given an issue \"kanbus-aaa\" exists\n    When I add comment \"Note\" on \"kanbus-aaa\" with agent platform \"codex\" model \"gpt-5\"\n    Then the latest comment_added event for \"kanbus-aaa\" should include agent platform \"codex\"\n\n  Scenario: Beads mode rejects agent flags on create\n    Given a Kanbus project in beads compatibility mode\n    When I run \"kanbus create \\\"Task\\\" --type task --agent-platform cursor --agent-model x\"\n    Then stderr should contain \"agent metadata requires native Kanbus issue storage\"\n\n  Scenario: Beads mode rejects agent flags on comment\n    Given a Kanbus project in beads compatibility mode\n    And an issue \"kanbus-aaa\" exists\n    When I run \"kanbus comment kanbus-aaa \\\"Note\\\" --agent-platform cursor\"\n    Then stderr should contain \"agent metadata requires native Kanbus issue storage\"\n```\n\n## Implementation notes\n\n- Extend `issue_created_payload` and `comment_payload` in Python and Rust event_history modules\n- Do not emit `field_updated` for issue agent (immutable after create)\n- Beads guard at CLI entry before beads_write paths",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "9783e4d0-155e-463a-be60-3b16cca09f19",
+      "author": "home",
+      "text": "Already on develop (aeab7644 and #177). CLI/models/events/Beads Gherkin live in features/agent/agent_metadata.feature. Closing as shipped; remaining epic work is console display and docs.",
+      "created_at": "2026-09-02T18:20:06.799444Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-29T13:41:09.592071Z",
-  "updated_at": "2026-08-29T13:41:09.592071Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T18:20:06.799444Z",
+  "closed_at": "2026-09-02T18:20:06.752116Z",
   "custom": {}
 }

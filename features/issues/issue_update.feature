@@ -71,6 +71,26 @@ Feature: Issue update
     Then the command should fail with exit code 1
     And stderr should contain "no updates requested"
 
+  Scenario: Update with matching status succeeds without writing
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists with status "open"
+    And issue "kanbus-aaa" updated_at is captured
+    When I run "kanbus update kanbus-aaa --status open"
+    Then the command should succeed
+    And stdout should contain "No changes for kanbus-aaa"
+    And issue "kanbus-aaa" should have status "open"
+    And issue "kanbus-aaa" should have unchanged updated_at
+
+  Scenario: Update with matching title succeeds without writing
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists with title "Old Title"
+    And issue "kanbus-aaa" updated_at is captured
+    When I run "kanbus update kanbus-aaa --title \"Old Title\""
+    Then the command should succeed
+    And stdout should contain "No changes for kanbus-aaa"
+    And issue "kanbus-aaa" should have title "Old Title"
+    And issue "kanbus-aaa" should have unchanged updated_at
+
   Scenario: Update fails when title already exists
     Given a Kanbus project with default configuration
     And an issue "kanbus-aaa" exists with title "Old Title"

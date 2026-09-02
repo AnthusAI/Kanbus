@@ -10,6 +10,14 @@ Feature: Issue dependencies
     Then the command should succeed
     And issue "kanbus-child" should depend on "kanbus-parent" with type "blocked-by"
 
+  Scenario: Adding a dependency advances updated_at
+    Given a Kanbus project with default configuration
+    And issues "kanbus-parent" and "kanbus-child" exist
+    And issue "kanbus-child" has updated_at "2020-01-01T00:00:00Z"
+    When I run "kanbus dep kanbus-child blocked-by kanbus-parent"
+    Then the command should succeed
+    And issue "kanbus-child" updated_at should be after "2020-01-01T00:00:00Z"
+
   Scenario: Add a relates-to dependency
     Given a Kanbus project with default configuration
     And issues "kanbus-left" and "kanbus-right" exist
@@ -24,6 +32,15 @@ Feature: Issue dependencies
     When I run "kanbus dep kanbus-left remove blocked-by kanbus-right"
     Then the command should succeed
     And issue "kanbus-left" should not depend on "kanbus-right" with type "blocked-by"
+
+  Scenario: Removing a dependency advances updated_at
+    Given a Kanbus project with default configuration
+    And issues "kanbus-left" and "kanbus-right" exist
+    And issue "kanbus-left" depends on "kanbus-right" with type "blocked-by"
+    And issue "kanbus-left" has updated_at "2020-01-01T00:00:00Z"
+    When I run "kanbus dep kanbus-left remove blocked-by kanbus-right"
+    Then the command should succeed
+    And issue "kanbus-left" updated_at should be after "2020-01-01T00:00:00Z"
 
   Scenario: Remove a relates-to dependency
     Given a Kanbus project with default configuration
@@ -73,6 +90,25 @@ Feature: Issue dependencies
     Given a repository with a .kanbus.yml file referencing another project
     When I run "kanbus ready"
     Then stdout should contain the external project path for "kanbus-external"
+
+  Scenario: Dep help shows usage examples
+    Given a Kanbus project with default configuration
+    When I run "kanbus dep --help"
+    Then the command should succeed
+    And stdout should contain "blocked-by"
+    And stdout should contain "relates-to"
+    And stdout should contain "remove"
+    And stdout should contain "tree"
+    And stdout should not contain "dep add"
+
+  Scenario: Dep with no arguments shows usage examples
+    Given a Kanbus project with default configuration
+    When I run "kanbus dep"
+    Then the command should fail with exit code 1
+    And stderr should contain "blocked-by"
+    And stderr should contain "relates-to"
+    And stderr should contain "remove"
+    And stderr should contain "tree"
 
   Scenario: Dependency add requires a target
     Given a Kanbus project with default configuration

@@ -80,6 +80,8 @@ fn write_issue_with_overrides(
         updated_at: timestamp,
         closed_at,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
     write_issue_file(project_dir, &issue);
@@ -269,6 +271,8 @@ fn given_issue_exists(world: &mut KanbusWorld, identifier: String) {
         updated_at: timestamp,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
     write_issue_file(&project_dir, &issue);
@@ -300,6 +304,8 @@ fn given_issue_exists_with_status(world: &mut KanbusWorld, identifier: String, s
         updated_at: timestamp,
         closed_at,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
     write_issue_file(&project_dir, &issue);
@@ -343,6 +349,8 @@ fn given_typed_issue_exists(world: &mut KanbusWorld, issue_type: String, identif
         updated_at: timestamp,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
     write_issue_file(&project_dir, &issue);
@@ -528,6 +536,7 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         hooks: HooksConfiguration::default(),
         wiki_directory: None,
         ai: None,
+        right_now: kanbus::models::RightNowConfiguration::default(),
     };
     match get_workflow_for_issue_type(&configuration, &issue_type) {
         Ok(_) => world.workflow_error = None,

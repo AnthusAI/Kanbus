@@ -19,6 +19,12 @@ use crate::issue_files::{
 use crate::migration::load_beads_issues;
 use crate::models::{GithubSecurityConfiguration, IssueData};
 
+/*
+TODO(Epic 4): Route GitHub security sync issue writes through persist_issue_mutation.
+Sync creates and updates many issues in one pull without per-issue events;
+routing requires sync-specific mutation handling without breaking sync specs.
+*/
+
 fn github_api_base() -> String {
     std::env::var("KANBUS_GITHUB_API_BASE").unwrap_or_else(|_| "https://api.github.com".to_string())
 }
@@ -402,6 +408,8 @@ fn resolve_dependabot_epic(
         updated_at: now,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     };
 
@@ -454,6 +462,8 @@ fn resolve_security_initiative(
         updated_at: now,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: BTreeMap::new(),
     };
 
@@ -620,6 +630,8 @@ fn resolve_manifest_task(
         updated_at: now,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom,
     };
 
@@ -744,6 +756,8 @@ fn map_dependabot_to_kanbus(alert: &Value, repo: &str, task_id: &str) -> IssueDa
         updated_at: now,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom,
     }
 }
@@ -1243,13 +1257,28 @@ fn detect_repo_from_git(root: &Path) -> Option<String> {
 }
 
 fn extract_repo_slug(remote: &str) -> Option<String> {
-    if let Some(rest) = remote.strip_prefix("https://github.com/") {
-        return Some(rest.trim_end_matches(".git").to_string());
-    }
     if let Some(rest) = remote.strip_prefix("git@github.com:") {
-        return Some(rest.trim_end_matches(".git").to_string());
+        let slug = rest.trim_end_matches(".git");
+        return if slug.is_empty() {
+            None
+        } else {
+            Some(slug.to_string())
+        };
     }
-    None
+    let without_scheme = remote
+        .strip_prefix("https://")
+        .or_else(|| remote.strip_prefix("http://"))?;
+    let host_and_path = without_scheme
+        .rsplit_once('@')
+        .map(|(_, rest)| rest)
+        .unwrap_or(without_scheme);
+    let path = host_and_path.strip_prefix("github.com/")?;
+    let slug = path.trim_end_matches(".git");
+    if slug.is_empty() {
+        None
+    } else {
+        Some(slug.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -1401,6 +1430,8 @@ mod tests {
             updated_at: now,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::from([
                 (
                     "github_provider".to_string(),
@@ -1481,6 +1512,8 @@ mod tests {
             updated_at: now,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::from([(
                 "github_provider".to_string(),
                 Value::String("dependabot".to_string()),
@@ -1548,6 +1581,8 @@ mod tests {
                 updated_at: now,
                 closed_at: None,
                 agent: None,
+                right_now_summary: None,
+                right_now_updated_at: None,
                 custom: BTreeMap::new(),
             },
             IssueData {
@@ -1567,6 +1602,8 @@ mod tests {
                 updated_at: now,
                 closed_at: None,
                 agent: None,
+                right_now_summary: None,
+                right_now_updated_at: None,
                 custom: BTreeMap::new(),
             },
         ];
@@ -1638,6 +1675,8 @@ mod tests {
             updated_at: now,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
         let mut newer = older.clone();
@@ -1697,6 +1736,8 @@ mod tests {
             updated_at: now,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
         let mut wrong_parent = matching.clone();
@@ -1771,6 +1812,8 @@ mod tests {
             updated_at: now,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         }];
 
@@ -1805,6 +1848,8 @@ mod tests {
             updated_at: now,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
         let epic = IssueData {
@@ -1824,6 +1869,8 @@ mod tests {
             updated_at: now,
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         };
         write_issue_to_file(
@@ -1873,6 +1920,20 @@ mod tests {
         let slug = detect_repo_from_git(temp.path());
         assert_eq!(slug, Some("example/acme".to_string()));
     }
+
+    #[test]
+    fn extract_repo_slug_parses_token_https_remote() {
+        assert_eq!(
+            extract_repo_slug("https://x-access-token:secret@github.com/example/acme.git")
+                .as_deref(),
+            Some("example/acme")
+        );
+        assert_eq!(extract_repo_slug("git@github.com:"), None);
+        assert_eq!(
+            extract_repo_slug("https://github.com/example/acme.git").as_deref(),
+            Some("example/acme")
+        );
+    }
     #[test]
     fn resolve_beads_initiative_finds_existing_with_label() -> Result<(), KanbusError> {
         let temp = TempDir::new().expect("tempdir");
@@ -1894,6 +1955,8 @@ mod tests {
             dependencies: vec![],
             comments: vec![],
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: Default::default(),
         }];
         let result = resolve_beads_initiative(temp.path(), &issues, false)?;
@@ -1922,6 +1985,8 @@ mod tests {
             dependencies: vec![],
             comments: vec![],
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: Default::default(),
         }];
         let result = resolve_beads_epic(temp.path(), &issues, None, "kanbus-1", false)?;
@@ -1950,6 +2015,8 @@ mod tests {
             dependencies: vec![],
             comments: vec![],
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: Default::default(),
         }];
         let result = resolve_beads_initiative(temp.path(), &issues, false)?;
@@ -1978,6 +2045,8 @@ mod tests {
             dependencies: vec![],
             comments: vec![],
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: Default::default(),
         }];
         let result = resolve_beads_epic(temp.path(), &issues, None, "kanbus-3", false)?;
@@ -2005,6 +2074,8 @@ mod tests {
             dependencies: vec![],
             comments: vec![],
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: Default::default(),
         }];
 
@@ -2043,6 +2114,8 @@ mod tests {
             dependencies: vec![],
             comments: vec![],
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: Default::default(),
         }];
 

@@ -17,6 +17,12 @@ use crate::issue_files::{
 };
 use crate::models::{IssueComment, IssueData, JiraConfiguration};
 
+/*
+TODO(Epic 4): Route Jira sync issue writes through persist_issue_mutation.
+Bulk pull/update paths emit no per-issue events today; routing requires
+sync-specific mutation kinds without breaking jira_pull specs.
+*/
+
 /// Result of a Jira pull operation.
 #[derive(Debug)]
 pub struct JiraPullResult {
@@ -300,6 +306,8 @@ fn map_jira_to_kanbus(
         created_at,
         updated_at,
         closed_at,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom,
         agent: None,
     })

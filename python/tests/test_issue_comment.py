@@ -9,7 +9,7 @@ import pytest
 from kanbus import issue_comment
 from kanbus.models import IssueComment
 
-from test_helpers import build_issue
+from test_helpers import build_issue, stub_persist_issue_mutation
 
 
 def _c(text: str, cid: str | None = None, author: str = "dev") -> IssueComment:
@@ -73,9 +73,8 @@ def test_add_comment_success_and_failures(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
     ids = iter(["existing-id", "new-id"])
     monkeypatch.setattr(issue_comment, "_generate_comment_id", lambda: next(ids))
-    writes: list[object] = []
     monkeypatch.setattr(
-        issue_comment, "write_issue_to_file", lambda *_a: writes.append("w")
+        issue_comment, "persist_issue_mutation", stub_persist_issue_mutation()
     )
     monkeypatch.setattr(
         issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
@@ -87,10 +86,6 @@ def test_add_comment_success_and_failures(monkeypatch: pytest.MonkeyPatch) -> No
         "create_event",
         lambda **_kwargs: SimpleNamespace(event_id="evt-1"),
     )
-    monkeypatch.setattr(
-        issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events")
-    )
-    monkeypatch.setattr(issue_comment, "write_events_batch", lambda *_a: None)
     published: list[str] = []
     monkeypatch.setattr(
         issue_comment, "publish_issue_mutation", lambda *_a: published.append("pub")
@@ -113,15 +108,16 @@ def test_add_comment_success_and_failures(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(issue_comment, "_generate_comment_id", lambda: "id-x")
     monkeypatch.setattr(
         issue_comment,
-        "write_events_batch",
+        "persist_issue_mutation",
         lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
     )
     with pytest.raises(issue_comment.IssueCommentError, match="event fail"):
         issue_comment.add_comment(root, "kanbus-1", "dev", "new")
-    assert len(writes) >= 2
 
     monkeypatch.setattr(issue_comment, "_generate_comment_id", lambda: None)
-    monkeypatch.setattr(issue_comment, "write_events_batch", lambda *_a: None)
+    monkeypatch.setattr(
+        issue_comment, "persist_issue_mutation", stub_persist_issue_mutation()
+    )
     with pytest.raises(issue_comment.IssueCommentError, match="comment id is required"):
         issue_comment.add_comment(root, "kanbus-1", "dev", "new")
 
@@ -163,7 +159,9 @@ def test_update_comment_success_and_paths(monkeypatch: pytest.MonkeyPatch) -> No
     )
 
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
-    monkeypatch.setattr(issue_comment, "write_issue_to_file", lambda *_a: None)
+    monkeypatch.setattr(
+        issue_comment, "persist_issue_mutation", stub_persist_issue_mutation()
+    )
     monkeypatch.setattr(
         issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
     )
@@ -176,10 +174,6 @@ def test_update_comment_success_and_paths(monkeypatch: pytest.MonkeyPatch) -> No
         "create_event",
         lambda **_kwargs: SimpleNamespace(event_id="evt-2"),
     )
-    monkeypatch.setattr(
-        issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events")
-    )
-    monkeypatch.setattr(issue_comment, "write_events_batch", lambda *_a: None)
     monkeypatch.setattr(issue_comment, "publish_issue_mutation", lambda *_a: None)
 
     updated = issue_comment.update_comment(root, "kanbus-1", "abc", "new text")
@@ -217,9 +211,10 @@ def test_update_delete_comment_event_failure_rolls_back(
     )
 
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
-    writes: list[str] = []
     monkeypatch.setattr(
-        issue_comment, "write_issue_to_file", lambda *_a: writes.append("w")
+        issue_comment,
+        "persist_issue_mutation",
+        lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
     )
     monkeypatch.setattr(
         issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
@@ -235,14 +230,6 @@ def test_update_delete_comment_event_failure_rolls_back(
         lambda **_kwargs: SimpleNamespace(event_id="evt-3"),
     )
     monkeypatch.setattr(
-        issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events")
-    )
-    monkeypatch.setattr(
-        issue_comment,
-        "write_events_batch",
-        lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
-    )
-    monkeypatch.setattr(
         issue_comment,
         "publish_issue_mutation",
         lambda *_a: (_ for _ in ()).throw(RuntimeError("should not publish")),
@@ -252,7 +239,6 @@ def test_update_delete_comment_event_failure_rolls_back(
         issue_comment.update_comment(root, "kanbus-1", "abc", "new")
     with pytest.raises(issue_comment.IssueCommentError, match="event fail"):
         issue_comment.delete_comment(root, "kanbus-1", "abc")
-    assert len(writes) >= 4
 
 
 def test_delete_comment_success_lookup_error_and_missing_id(
@@ -268,7 +254,9 @@ def test_delete_comment_success_lookup_error_and_missing_id(
     )
 
     monkeypatch.setattr(issue_comment, "load_issue_from_project", lambda *_a: lookup)
-    monkeypatch.setattr(issue_comment, "write_issue_to_file", lambda *_a: None)
+    monkeypatch.setattr(
+        issue_comment, "persist_issue_mutation", stub_persist_issue_mutation()
+    )
     monkeypatch.setattr(
         issue_comment, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
     )
@@ -279,10 +267,6 @@ def test_delete_comment_success_lookup_error_and_missing_id(
         "create_event",
         lambda **_kwargs: SimpleNamespace(event_id="evt-4"),
     )
-    monkeypatch.setattr(
-        issue_comment, "events_dir_for_issue_path", lambda *_a: Path("/events")
-    )
-    monkeypatch.setattr(issue_comment, "write_events_batch", lambda *_a: None)
     published: list[str] = []
     monkeypatch.setattr(
         issue_comment, "publish_issue_mutation", lambda *_a: published.append("pub")

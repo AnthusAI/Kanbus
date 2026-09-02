@@ -128,8 +128,8 @@ jobs:
       - name: Verify console assets bundled for crate
         run: |
           test -f rust/embedded_assets/console/index.html
-          (cd rust && cargo package --locked --list) | grep -Eq '^embedded_assets/console/index.html$'
-          (cd rust && cargo package --locked --list) | grep -Eq '^testdata/mock_board_screenshot.png$'
+          (cd rust && cargo package --locked --allow-dirty --list) | grep -Eq '^embedded_assets/console/index.html$'
+          (cd rust && cargo package --locked --allow-dirty --list) | grep -Eq '^testdata/mock_board_screenshot.png$'
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7

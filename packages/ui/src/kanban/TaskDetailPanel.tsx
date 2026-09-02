@@ -40,6 +40,7 @@ export type TaskDetailIssue = {
   created_at?: string;
   updated_at?: string;
   closed_at?: string;
+  right_now_summary?: string | null;
   custom?: Record<string, unknown>;
   agent?: {
     platform: string;
@@ -916,6 +917,15 @@ skinparam SequenceDividerFontColor white`
               >
                 {taskToRender.title}
               </h2>
+              <p
+                className="text-sm text-muted rounded px-2 py-1 -mx-2 -my-1"
+                data-testid="issue-right-now-summary"
+              >
+                {taskToRender.right_now_summary != null &&
+                taskToRender.right_now_summary.trim().length > 0
+                  ? taskToRender.right_now_summary
+                  : "(no right-now summary)"}
+              </p>
               {descriptionHtml ? (
                 <div
                   ref={descriptionFlashRef}

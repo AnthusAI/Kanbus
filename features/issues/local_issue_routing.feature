@@ -15,6 +15,13 @@ Feature: Local issue routing
     And issue "kanbus-local01" should exist in the shared issues directory
     And issue "kanbus-local01" should not exist in the local issues directory
 
+  Scenario: Promote advances updated_at
+    Given a Kanbus project with default configuration
+    And a local issue "kanbus-local01" exists with updated_at "2020-01-01T00:00:00Z"
+    When I run "kanbus promote kanbus-local01"
+    Then the command should succeed
+    And issue "kanbus-local01" updated_at should be after "2020-01-01T00:00:00Z"
+
   Scenario: Localize a shared issue
     Given a Kanbus project with default configuration
     And an issue "kanbus-shared01" exists
@@ -23,6 +30,13 @@ Feature: Local issue routing
     And issue "kanbus-shared01" should exist in the local issues directory
     And issue "kanbus-shared01" should not exist in the shared issues directory
     And .gitignore should include "project-local/"
+
+  Scenario: Localize advances updated_at
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-shared01" exists with updated_at "2020-01-01T00:00:00Z"
+    When I run "kanbus localize kanbus-shared01"
+    Then the command should succeed
+    And issue "kanbus-shared01" updated_at should be after "2020-01-01T00:00:00Z"
 
   Scenario: Promote fails when issue is not found
     Given a Kanbus project with default configuration

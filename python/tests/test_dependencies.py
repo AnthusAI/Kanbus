@@ -8,7 +8,7 @@ import pytest
 from kanbus import dependencies
 from kanbus.models import DependencyLink
 
-from test_helpers import build_issue
+from test_helpers import build_issue, stub_persist_issue_mutation
 
 
 def test_dependency_type_and_lookup_helpers() -> None:
@@ -85,9 +85,11 @@ def test_add_dependency_happy_path_and_duplicate(
 
     monkeypatch.setattr(dependencies, "load_issue_from_project", lambda _r, _id: lookup)
     monkeypatch.setattr(dependencies, "_ensure_no_cycle", lambda *_a: None)
-    writes: list[object] = []
+    persist_calls: list[object] = []
     monkeypatch.setattr(
-        dependencies, "write_issue_to_file", lambda issue, _path: writes.append(issue)
+        dependencies,
+        "persist_issue_mutation",
+        stub_persist_issue_mutation(persist_calls),
     )
     monkeypatch.setattr(dependencies, "now_timestamp", lambda: source.updated_at)
     monkeypatch.setattr(dependencies, "get_current_user", lambda: "dev")
@@ -99,10 +101,6 @@ def test_add_dependency_happy_path_and_duplicate(
     monkeypatch.setattr(
         dependencies, "dependency_payload", lambda _t, _id: {"ok": True}
     )
-    monkeypatch.setattr(
-        dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events")
-    )
-    monkeypatch.setattr(dependencies, "write_events_batch", lambda *_a: None)
     published: list[str] = []
     monkeypatch.setattr(
         dependencies,
@@ -114,7 +112,7 @@ def test_add_dependency_happy_path_and_duplicate(
         Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by"
     )
     assert any(dep.target == "kanbus-2" for dep in updated.dependencies)
-    assert len(writes) == 1
+    assert len(persist_calls) == 1
     assert published == ["published"]
 
     lookup.issue = updated
@@ -143,9 +141,10 @@ def test_add_dependency_wraps_lookup_and_event_errors(
     )
     monkeypatch.setattr(dependencies, "load_issue_from_project", lambda *_a: lookup)
     monkeypatch.setattr(dependencies, "_ensure_no_cycle", lambda *_a: None)
-    writes: list[str] = []
     monkeypatch.setattr(
-        dependencies, "write_issue_to_file", lambda *_a: writes.append("w")
+        dependencies,
+        "persist_issue_mutation",
+        lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
     )
     monkeypatch.setattr(dependencies, "now_timestamp", lambda: source.updated_at)
     monkeypatch.setattr(dependencies, "get_current_user", lambda: "dev")
@@ -157,18 +156,9 @@ def test_add_dependency_wraps_lookup_and_event_errors(
     monkeypatch.setattr(
         dependencies, "dependency_payload", lambda _t, _id: {"ok": True}
     )
-    monkeypatch.setattr(
-        dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events")
-    )
-    monkeypatch.setattr(
-        dependencies,
-        "write_events_batch",
-        lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
-    )
 
     with pytest.raises(dependencies.DependencyError, match="event fail"):
         dependencies.add_dependency(Path("/repo"), "kanbus-1", "kanbus-2", "relates-to")
-    assert len(writes) == 2
 
 
 def test_remove_dependency_paths(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -183,7 +173,9 @@ def test_remove_dependency_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     monkeypatch.setattr(dependencies, "load_issue_from_project", lambda *_a: lookup)
-    monkeypatch.setattr(dependencies, "write_issue_to_file", lambda *_a: None)
+    monkeypatch.setattr(
+        dependencies, "persist_issue_mutation", stub_persist_issue_mutation()
+    )
     monkeypatch.setattr(dependencies, "now_timestamp", lambda: issue.updated_at)
     monkeypatch.setattr(dependencies, "get_current_user", lambda: "dev")
     monkeypatch.setattr(
@@ -194,10 +186,6 @@ def test_remove_dependency_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         dependencies, "dependency_payload", lambda _t, _id: {"ok": True}
     )
-    monkeypatch.setattr(
-        dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events")
-    )
-    monkeypatch.setattr(dependencies, "write_events_batch", lambda *_a: None)
     calls: list[str] = []
     monkeypatch.setattr(
         dependencies,
@@ -231,9 +219,10 @@ def test_remove_dependency_rolls_back_on_event_failure(
     )
 
     monkeypatch.setattr(dependencies, "load_issue_from_project", lambda *_a: lookup)
-    writes: list[str] = []
     monkeypatch.setattr(
-        dependencies, "write_issue_to_file", lambda *_a: writes.append("w")
+        dependencies,
+        "persist_issue_mutation",
+        lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
     )
     monkeypatch.setattr(dependencies, "now_timestamp", lambda: issue.updated_at)
     monkeypatch.setattr(dependencies, "get_current_user", lambda: "dev")
@@ -245,20 +234,11 @@ def test_remove_dependency_rolls_back_on_event_failure(
     monkeypatch.setattr(
         dependencies, "dependency_payload", lambda _t, _id: {"ok": True}
     )
-    monkeypatch.setattr(
-        dependencies, "events_dir_for_issue_path", lambda *_a: Path("/events")
-    )
-    monkeypatch.setattr(
-        dependencies,
-        "write_events_batch",
-        lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
-    )
 
     with pytest.raises(dependencies.DependencyError, match="event fail"):
         dependencies.remove_dependency(
             Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by"
         )
-    assert len(writes) == 2
 
 
 def test_list_ready_issues_modes_and_errors(monkeypatch: pytest.MonkeyPatch) -> None:

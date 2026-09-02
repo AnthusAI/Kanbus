@@ -19,7 +19,8 @@ use crate::hierarchy::validate_parent_child_relationship;
 use crate::issue_files::write_issue_to_file;
 use crate::models::{
     CategoryDefinition, DependencyLink, HooksConfiguration, IssueComment, IssueData, OverlayConfig,
-    PriorityDefinition, ProjectConfiguration, RealtimeConfig, StatusDefinition,
+    PriorityDefinition, ProjectConfiguration, RealtimeConfig, RightNowConfiguration,
+    StatusDefinition,
 };
 use crate::workflows::get_workflow_for_issue_type;
 
@@ -516,6 +517,8 @@ fn convert_record(
         created_at,
         updated_at,
         closed_at,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom,
         agent: None,
     })
@@ -905,6 +908,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         hooks: HooksConfiguration::default(),
         wiki_directory: None,
         ai: None,
+        right_now: RightNowConfiguration::default(),
         github_security: None,
     }
 }

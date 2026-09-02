@@ -3,16 +3,24 @@
   "title": "Add Gherkin specs and step definitions for agent metadata",
   "description": "Stories: kbs-fd7bef, kbs-371786. features/agent/*.feature; extend issue_show and comments. Python + Rust steps; parity check.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "69530734-1cab-4e29-8be1-4b9942c1f83d",
+      "author": "home",
+      "text": "Already on develop (aeab7644 and #177). CLI/models/events/Beads Gherkin live in features/agent/agent_metadata.feature. Closing as shipped; remaining epic work is console display and docs.",
+      "created_at": "2026-09-02T18:20:06.737498Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-08-29T13:41:34.209168Z",
-  "updated_at": "2026-08-29T13:41:34.209168Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T18:20:06.737498Z",
+  "closed_at": "2026-09-02T18:20:06.688558Z",
   "custom": {}
 }

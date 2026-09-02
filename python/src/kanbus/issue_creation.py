@@ -15,17 +15,14 @@ from kanbus.ids import IssueIdentifierRequest, generate_issue_identifier
 from kanbus.issue_files import (
     list_issue_identifiers,
     read_issue_from_file,
-    write_issue_to_file,
 )
 from kanbus.issue_lookup import IssueLookupError, resolve_issue_identifier
+from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
 from kanbus.models import AgentMetadata, IssueData, ProjectConfiguration
 from kanbus.event_history import (
     create_event,
-    events_dir_for_local,
-    events_dir_for_project,
     issue_created_payload,
     now_timestamp,
-    write_events_batch,
 )
 from kanbus.project import (
     ProjectMarkerError,
@@ -221,8 +218,6 @@ def create_issue(
                 raise IssueCreationError(str(error)) from error
 
     issue_path = issues_dir / f"{identifier}.json"
-    write_issue_to_file(issue, issue_path)
-
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
@@ -233,14 +228,17 @@ def create_issue(
         occurred_at=occurred_at,
     )
     try:
-        events_dir = (
-            events_dir_for_local(project_dir)
-            if local
-            else events_dir_for_project(project_dir)
+        persist_issue_mutation(
+            PersistIssueMutationRequest(
+                project_dir=project_dir,
+                issue_path=issue_path,
+                issue=issue,
+                actor_id=actor_id,
+                events=[event],
+                root=root,
+            )
         )
-        write_events_batch(events_dir, [event])
     except Exception as error:  # noqa: BLE001
-        issue_path.unlink(missing_ok=True)
         raise IssueCreationError(str(error)) from error
     if not local:
         publish_issue_mutation(

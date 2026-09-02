@@ -1,0 +1,30 @@
+{
+  "id": "kbs-61a60cde-3604-4670-9860-0a8ddd98d491",
+  "title": "kbs show and detail panel display the right-now line",
+  "description": "As a Kanbus user I want the right-now summary on kbs show and the issue detail panel so I do not have to open the feed to see current status.\n\nFeature: Issue display\n\n  Scenario: Show issue includes right-now summary\n    When I run kanbus show\n    Then stdout contains Right now: and the summary or (no right-now summary)",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-84533073-59bc-4fba-b710-75492dc7a12f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1b2fee51-92d6-4fab-a34b-d95a7fed459e",
+      "author": "ubuntu",
+      "text": "kbs show and detail panel display the right-now summary.",
+      "created_at": "2026-09-02T16:38:24.636920Z"
+    }
+  ],
+  "created_at": "2026-09-02T16:26:51.392554Z",
+  "updated_at": "2026-09-02T16:38:35.528133Z",
+  "closed_at": "2026-09-02T16:38:35.504685Z",
+  "right_now_summary": "The right-now summary now appears in `kbs show` and the issue detail panel.",
+  "right_now_updated_at": "2026-09-02T16:38:39.704956Z",
+  "custom": {
+    "source": "shared",
+    "project_label": "kbs"
+  }
+}

@@ -148,6 +148,15 @@ pub fn format_issue_for_display(
     let parent = issue.parent.clone().unwrap_or_else(|| "-".to_string());
 
     let formatted_identifier = format_issue_key(&issue.identifier, project_context);
+    let (right_now_text, right_now_missing) = match issue
+        .right_now_summary
+        .as_deref()
+        .map(str::trim)
+        .filter(|summary| !summary.is_empty())
+    {
+        Some(summary) => (summary.to_string(), false),
+        None => ("(no right-now summary)".to_string(), true),
+    };
 
     let rows = vec![
         ("ID:", formatted_identifier, None, false),
@@ -173,6 +182,7 @@ pub fn format_issue_for_display(
         ("Assignee:", assignee, None, issue.assignee.is_none()),
         ("Parent:", parent, None, issue.parent.is_none()),
         ("Labels:", labels, None, issue.labels.is_empty()),
+        ("Right now:", right_now_text, None, right_now_missing),
     ];
 
     let mut lines = Vec::new();

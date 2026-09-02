@@ -575,6 +575,8 @@ beads_compatibility: false
                 updated_at: Utc::now(),
                 closed_at: None,
                 agent: None,
+                right_now_summary: None,
+                right_now_updated_at: None,
                 custom: BTreeMap::new(),
             };
             write_issue_to_file(&issue, &issues_dir.join(format!("{issue_id}.json")))

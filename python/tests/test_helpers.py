@@ -1,8 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Callable, List, Optional
 
+from kanbus.issue_mutation import (
+    PersistIssueMutationRequest,
+    PersistIssueMutationResult,
+)
 from kanbus.models import IssueData, ProjectConfiguration
+
+if TYPE_CHECKING:
+    from kanbus.issue_update import IssueUpdateResult
 
 
 def build_issue(
@@ -36,6 +44,20 @@ def build_issue(
             "closed_at": None,
             "custom": custom or {},
         }
+    )
+
+
+def build_update_result(
+    identifier: str,
+    *,
+    changed: bool = True,
+    **issue_kwargs: object,
+) -> IssueUpdateResult:
+    from kanbus.issue_update import IssueUpdateResult
+
+    return IssueUpdateResult(
+        issue=build_issue(identifier, **issue_kwargs),
+        changed=changed,
     )
 
 
@@ -74,3 +96,24 @@ def build_project_configuration(
             "type_colors": {},
         }
     )
+
+
+def stub_persist_issue_mutation(
+    calls: Optional[List[PersistIssueMutationRequest]] = None,
+) -> Callable[[PersistIssueMutationRequest], PersistIssueMutationResult]:
+    """Return a persist_issue_mutation stand-in that records requests.
+
+    :param calls: Optional list that receives each persist request.
+    :type calls: Optional[List[PersistIssueMutationRequest]]
+    :return: Stand-in persist function.
+    :rtype: Callable[[PersistIssueMutationRequest], PersistIssueMutationResult]
+    """
+
+    def persist(
+        request: PersistIssueMutationRequest,
+    ) -> PersistIssueMutationResult:
+        if calls is not None:
+            calls.append(request)
+        return PersistIssueMutationResult(issue=request.issue, events=request.events)
+
+    return persist

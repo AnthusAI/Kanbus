@@ -1,14 +1,14 @@
 //! Issue deletion workflow.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::path::Path;
 
 use crate::error::KanbusError;
-use crate::event_history::{delete_events_for_issues, events_dir_for_issue_path};
 use crate::file_io::find_project_local_directory;
-use crate::issue_files::write_issue_to_file;
 use crate::issue_listing::load_issues_from_directory;
 use crate::issue_lookup::load_issue_from_project;
+use crate::issue_mutation::persist_issue_deletion;
+use crate::users::get_current_user;
 
 /// Return descendant issue identifiers in leaf-first order (children before parents).
 ///
@@ -70,29 +70,35 @@ pub fn get_descendant_identifiers(
     Ok(descendants.into_iter().map(|(id, _)| id).collect())
 }
 
-/// Delete an issue file and all its event history from disk.
+/// Delete an issue file and its event history from disk.
 ///
 /// # Arguments
 /// * `root` - Repository root path.
 /// * `identifier` - Issue identifier.
+/// * `retain_audit_event` - Whether to keep a final issue_deleted event.
 ///
 /// # Errors
 /// Returns `KanbusError` if deletion fails.
-pub fn delete_issue(root: &Path, identifier: &str) -> Result<(), KanbusError> {
+pub fn delete_issue(
+    root: &Path,
+    identifier: &str,
+    retain_audit_event: bool,
+) -> Result<(), KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let issue_id = lookup.issue.identifier.clone();
-    let events_dir = events_dir_for_issue_path(&lookup.project_dir, &lookup.issue_path)?;
-
-    std::fs::remove_file(&lookup.issue_path).map_err(|error| KanbusError::Io(error.to_string()))?;
-
-    let mut ids = HashSet::new();
-    ids.insert(issue_id.clone());
-    if let Err(error) = delete_events_for_issues(&events_dir, &ids) {
-        let _ = write_issue_to_file(&lookup.issue, &lookup.issue_path);
-        return Err(error);
-    }
+    let actor_id = get_current_user();
+    let result = persist_issue_deletion(
+        root,
+        &lookup.project_dir,
+        &lookup.issue_path,
+        &lookup.issue,
+        &actor_id,
+        retain_audit_event,
+        true,
+    )?;
     if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
-        crate::gossip::publish_issue_deleted(root, &lookup.project_dir, &issue_id, None);
+        let event_id = result.event.as_ref().map(|event| event.event_id.clone());
+        crate::gossip::publish_issue_deleted(root, &lookup.project_dir, &issue_id, event_id);
     }
     Ok(())
 }
@@ -131,6 +137,8 @@ mod tests {
             updated_at: Utc::now(),
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: BTreeMap::new(),
         }
     }
@@ -206,7 +214,7 @@ mod tests {
         write_event(&delete_me, "kanbus-1");
         write_event(&keep_me, "kanbus-2");
 
-        delete_issue(temp.path(), "kanbus-1").expect("delete shared issue");
+        delete_issue(temp.path(), "kanbus-1", false).expect("delete shared issue");
         assert!(!issue_path.exists());
         assert!(!delete_me.exists());
         assert!(keep_me.exists());
@@ -225,7 +233,7 @@ mod tests {
         write_event(&delete_me, "kanbus-local");
         write_event(&keep_me, "kanbus-other");
 
-        delete_issue(temp.path(), "kanbus-local").expect("delete local issue");
+        delete_issue(temp.path(), "kanbus-local", false).expect("delete local issue");
         assert!(!issue_path.exists());
         assert!(!delete_me.exists());
         assert!(keep_me.exists());

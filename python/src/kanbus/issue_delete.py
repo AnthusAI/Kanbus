@@ -5,15 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List
 
-from kanbus.issue_files import write_issue_to_file
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
-from kanbus.event_history import (
-    delete_events_for_issues,
-    events_dir_for_issue_path,
-)
 from kanbus.issue_listing import load_issues_from_directory
+from kanbus.issue_mutation import persist_issue_deletion
 from kanbus.project import find_project_local_directory
 from kanbus.gossip import publish_issue_deleted
+from kanbus.users import get_current_user
 
 
 class IssueDeleteError(RuntimeError):
@@ -57,13 +54,17 @@ def get_descendant_identifiers(project_dir: Path, identifier: str) -> List[str]:
     return sorted(descendants, key=lambda x: -depth[x])
 
 
-def delete_issue(root: Path, identifier: str) -> None:
-    """Delete an issue file and all its event history from disk.
+def delete_issue(
+    root: Path, identifier: str, *, retain_audit_event: bool = True
+) -> None:
+    """Delete an issue file and its event history from disk.
 
     :param root: Repository root path.
     :type root: Path
     :param identifier: Issue identifier.
     :type identifier: str
+    :param retain_audit_event: Whether to keep a final issue_deleted event.
+    :type retain_audit_event: bool
     :raises IssueDeleteError: If deletion fails.
     """
     try:
@@ -72,12 +73,18 @@ def delete_issue(root: Path, identifier: str) -> None:
         raise IssueDeleteError(str(error)) from error
 
     issue_id = lookup.issue.identifier
-    events_dir = events_dir_for_issue_path(lookup.project_dir, lookup.issue_path)
-    lookup.issue_path.unlink()
+    actor_id = get_current_user()
     try:
-        delete_events_for_issues(events_dir, {issue_id})
+        result = persist_issue_deletion(
+            root,
+            lookup.project_dir,
+            lookup.issue_path,
+            lookup.issue,
+            actor_id,
+            retain_audit_event=retain_audit_event,
+        )
     except Exception as error:  # noqa: BLE001
-        write_issue_to_file(lookup.issue, lookup.issue_path)
         raise IssueDeleteError(str(error)) from error
     if lookup.issue_path.parent == lookup.project_dir / "issues":
-        publish_issue_deleted(root, lookup.project_dir, issue_id, None)
+        event_id = result.event.event_id if result.event is not None else None
+        publish_issue_deleted(root, lookup.project_dir, issue_id, event_id)

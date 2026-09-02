@@ -15,7 +15,7 @@ from kanbus.issue_transfer import IssueTransferError
 from kanbus.issue_update import IssueUpdateError
 from kanbus.migration import MigrationError
 
-from test_helpers import build_issue, build_project_configuration
+from test_helpers import build_issue, build_update_result, build_project_configuration
 
 
 def _run(args: list[str]) -> object:
@@ -200,9 +200,20 @@ def test_update_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr(
         cli, "load_issue_from_project", lambda _r, _i: SimpleNamespace(issue=issue)
     )
-    monkeypatch.setattr(cli, "update_issue", lambda **_k: issue)
+    monkeypatch.setattr(
+        cli, "update_issue", lambda **_k: build_update_result("kanbus-1")
+    )
     result_regular_ok = _run(["update", "kanbus-1", "--claim", "--no-validate"])
     assert result_regular_ok.exit_code == 0
+
+    monkeypatch.setattr(
+        cli,
+        "update_issue",
+        lambda **_k: build_update_result("kanbus-1", changed=False),
+    )
+    result_no_op = _run(["update", "kanbus-1", "--status", "open", "--no-validate"])
+    assert result_no_op.exit_code == 0
+    assert "No changes for kanbus-1" in result_no_op.output
 
     monkeypatch.setattr(
         cli,
@@ -266,7 +277,9 @@ def test_close_move_promote_localize_comment_paths(
     monkeypatch.setattr(
         cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
     )
-    monkeypatch.setattr(cli, "update_issue", lambda **_k: issue)
+    monkeypatch.setattr(
+        cli, "update_issue", lambda **_k: build_update_result("kanbus-1")
+    )
     result_move = _run(["move", "kanbus-1", "bug"])
     assert result_move.exit_code == 0
 

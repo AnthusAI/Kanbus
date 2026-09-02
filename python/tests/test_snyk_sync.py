@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import os
 import subprocess
 from types import SimpleNamespace
+
+import pytest
 
 from kanbus import snyk_sync
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
@@ -11,11 +14,38 @@ from kanbus.models import SnykConfiguration
 from test_helpers import build_issue
 
 
+def _isolate_git_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GIT_DIR", raising=False)
+    monkeypatch.delenv("GIT_WORK_TREE", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+
 def test_severity_to_priority_mapping() -> None:
     assert snyk_sync._severity_to_priority("critical") == 0
     assert snyk_sync._severity_to_priority("high") == 1
     assert snyk_sync._severity_to_priority("medium") == 2
     assert snyk_sync._severity_to_priority("low") == 3
+
+
+def test_github_repo_slug_parses_ssh_https_and_token_urls() -> None:
+    assert (
+        snyk_sync._github_repo_slug("git@github.com:AnthusAI/Kanbus.git")
+        == "AnthusAI/Kanbus"
+    )
+    assert (
+        snyk_sync._github_repo_slug("https://github.com/AnthusAI/Kanbus.git")
+        == "AnthusAI/Kanbus"
+    )
+    assert (
+        snyk_sync._github_repo_slug(
+            "https://x-access-token:secret@github.com/AnthusAI/Kanbus.git"
+        )
+        == "AnthusAI/Kanbus"
+    )
+    assert snyk_sync._github_repo_slug("git@github.com:") is None
+    assert snyk_sync._github_repo_slug("ssh://gitlab.com/foo/bar.git") is None
 
 
 def test_vuln_title_for_dependency_and_code() -> None:
@@ -196,7 +226,10 @@ def test_extract_classes_handles_string_and_object_shapes() -> None:
     ]
 
 
-def test_detect_repo_from_git_normalizes_github_remote(tmp_path: Path) -> None:
+def test_detect_repo_from_git_normalizes_github_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate_git_config(monkeypatch)
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(
         ["git", "remote", "add", "origin", "git@github.com:AnthusAI/Kanbus.git"],
@@ -208,8 +241,9 @@ def test_detect_repo_from_git_normalizes_github_remote(tmp_path: Path) -> None:
 
 
 def test_detect_repo_from_git_returns_none_for_non_github_remote(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _isolate_git_config(monkeypatch)
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(
         ["git", "remote", "add", "origin", "ssh://gitlab.example.com/team/repo.git"],
@@ -975,6 +1009,7 @@ def test_resolve_file_task_creates_new_task_and_dry_run_skip_write(
 
 
 def test_detect_repo_from_git_https_and_exception(tmp_path: Path, monkeypatch) -> None:
+    _isolate_git_config(monkeypatch)
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(
         ["git", "remote", "add", "origin", "https://github.com/AnthusAI/Kanbus.git"],

@@ -827,6 +827,8 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
             updated_at: chrono::Utc::now(),
             closed_at: None,
             agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
             custom: std::collections::BTreeMap::new(),
         };
         let mut dummy_list = vec![dummy_issue];

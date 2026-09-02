@@ -196,6 +196,8 @@ fn given_issue_with_comment_missing_id(world: &mut KanbusWorld, identifier: Stri
         updated_at: timestamp,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
     save_issue(&project_dir, &issue);
@@ -235,6 +237,8 @@ fn given_issue_with_comment_id_and_text(
         updated_at: timestamp,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
     save_issue(&project_dir, &issue);
@@ -285,6 +289,8 @@ fn given_issue_with_two_comment_ids(
         updated_at: timestamp,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
     };
     save_issue(&project_dir, &issue);

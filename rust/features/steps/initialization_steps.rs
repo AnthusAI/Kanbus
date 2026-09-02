@@ -11,9 +11,11 @@ use tempfile::TempDir;
 use crate::step_definitions::console_ui_steps::{
     ConsoleLocalStorage, ConsoleState, WikiWorkspaceState,
 };
+use chrono::{DateTime, Utc};
 use kanbus::daemon_client;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
+use kanbus::right_now::RightNowContext;
 use serde_json::Value;
 
 use crate::step_definitions::virtual_project_steps::VirtualProjectState;
@@ -110,6 +112,7 @@ pub struct KanbusWorld {
     pub kanbusr_version: Option<String>,
     pub kanbusr_has_all: Option<bool>,
     pub sample_issue: Option<kanbus::models::IssueData>,
+    pub captured_updated_at: Option<DateTime<Utc>>,
     pub dependency_error: Option<String>,
     pub original_invalid_status_env: Option<Option<String>>,
     pub original_screenshot_mock_env: Option<Option<String>>,
@@ -127,6 +130,14 @@ pub struct KanbusWorld {
     pub overlay_temp_dir: Option<TempDir>,
     pub overlay_resolved: Option<kanbus::models::IssueData>,
     pub overlay_snapshot_id: Option<String>,
+    pub reloaded_issue: Option<kanbus::models::IssueData>,
+    pub right_now_summary_result: Option<Option<String>>,
+    pub generated_right_now_summary: Option<String>,
+    pub right_now_generation_error: Option<String>,
+    pub right_now_context: Option<RightNowContext>,
+    pub recorded_right_now_updated_at: BTreeMap<String, Option<chrono::DateTime<chrono::Utc>>>,
+    pub ai_mock_env: Option<Option<String>>,
+    pub litellm_called_env: Option<Option<String>>,
     pub uds_temp_dir: Option<TempDir>,
     pub uds_socket_path: Option<PathBuf>,
     pub uds_subscriber: Option<std::os::unix::net::UnixStream>,

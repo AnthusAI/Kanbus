@@ -10,7 +10,11 @@ from kanbus.hierarchy import InvalidHierarchyError
 from kanbus.issue_lookup import IssueLookupError
 from kanbus.workflows import InvalidTransitionError
 
-from test_helpers import build_issue, build_project_configuration
+from test_helpers import (
+    build_issue,
+    build_project_configuration,
+    stub_persist_issue_mutation,
+)
 
 
 def _setup(monkeypatch: pytest.MonkeyPatch, root: Path, issue=None, issue_path=None):
@@ -31,7 +35,9 @@ def _setup(monkeypatch: pytest.MonkeyPatch, root: Path, issue=None, issue_path=N
         issue_update, "get_configuration_path", lambda _r: root / ".kanbus.yml"
     )
     monkeypatch.setattr(issue_update, "load_project_configuration", lambda _p: cfg)
-    monkeypatch.setattr(issue_update, "write_issue_to_file", lambda *_a: None)
+    monkeypatch.setattr(
+        issue_update, "persist_issue_mutation", stub_persist_issue_mutation()
+    )
     monkeypatch.setattr(
         issue_update, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
     )
@@ -41,10 +47,6 @@ def _setup(monkeypatch: pytest.MonkeyPatch, root: Path, issue=None, issue_path=N
         "build_update_events",
         lambda *_a: [SimpleNamespace(event_id="evt-1")],
     )
-    monkeypatch.setattr(
-        issue_update, "events_dir_for_issue_path", lambda *_a: Path("/events")
-    )
-    monkeypatch.setattr(issue_update, "write_events_batch", lambda *_a: None)
     monkeypatch.setattr(issue_update, "publish_issue_mutation", lambda *_a: None)
     monkeypatch.setattr(issue_update, "validate_status_value", lambda *_a: None)
     monkeypatch.setattr(issue_update, "validate_status_transition", lambda *_a: None)
@@ -75,8 +77,24 @@ def test_update_issue_no_updates_requested(
     _setup(monkeypatch, tmp_path)
     with pytest.raises(issue_update.IssueUpdateError, match="no updates requested"):
         issue_update.update_issue(
-            tmp_path, "kanbus-1", "Old", "", "open", None, False, validate=False
+            tmp_path, "kanbus-1", None, None, None, None, False, validate=False
         )
+
+
+def test_update_issue_matching_values_succeed_without_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lookup, _cfg, _issues_dir = _setup(monkeypatch, tmp_path)
+    writes: list[str] = []
+    monkeypatch.setattr(
+        issue_update, "write_issue_to_file", lambda *_a: writes.append("w")
+    )
+    result = issue_update.update_issue(
+        tmp_path, "kanbus-1", "Old", "", "open", None, False, validate=False
+    )
+    assert not result.changed
+    assert result.issue.identifier == lookup.issue.identifier
+    assert writes == []
 
 
 def test_update_issue_title_duplicate_and_normalization(
@@ -176,9 +194,11 @@ def test_update_issue_happy_path_with_labels_and_claim(
         "kanbus-1", title="Old", status="open", issue_type="task", labels=["a", "b"]
     )
     _, _, _ = _setup(monkeypatch, tmp_path, issue=issue)
-    writes: list[object] = []
+    persist_calls: list[object] = []
     monkeypatch.setattr(
-        issue_update, "write_issue_to_file", lambda *_a: writes.append("w")
+        issue_update,
+        "persist_issue_mutation",
+        stub_persist_issue_mutation(persist_calls),
     )
 
     updated = issue_update.update_issue(
@@ -194,14 +214,14 @@ def test_update_issue_happy_path_with_labels_and_claim(
         remove_labels=["a"],
         parent=None,
         issue_type="story",
-    )
+    ).issue
 
     assert updated.title == "New"
     assert updated.assignee == "me"
     assert updated.status == "in_progress"
     assert set(updated.labels) == {"b", "c"}
     assert updated.issue_type == "story"
-    assert len(writes) >= 1
+    assert len(persist_calls) >= 1
 
 
 def test_update_issue_normalization_and_parent_update_fields(
@@ -214,7 +234,6 @@ def test_update_issue_normalization_and_parent_update_fields(
     monkeypatch.setattr(
         issue_update, "resolve_issue_identifier", lambda *_a: "kanbus-parent"
     )
-    monkeypatch.setattr(issue_update, "write_issue_to_file", lambda *_a: None)
 
     updated = issue_update.update_issue(
         tmp_path,
@@ -229,7 +248,7 @@ def test_update_issue_normalization_and_parent_update_fields(
         set_labels=["x"],  # set_labels branch
         parent="kanbus-parent",  # updated_parent branch
         issue_type="  ",  # resolved_type empty -> None
-    )
+    ).issue
     assert updated.title == "New"
     assert updated.description == "trimmed"
     assert updated.parent == "kanbus-parent"
@@ -247,7 +266,6 @@ def test_update_issue_parent_type_validation_paths(
         parent="kanbus-parent",
     )
     lookup, _cfg, issues_dir = _setup(monkeypatch, tmp_path, issue=issue)
-    monkeypatch.setattr(issue_update, "write_issue_to_file", lambda *_a: None)
     parent_path = issues_dir / "kanbus-parent.json"
     parent_path.write_text("{}", encoding="utf-8")
     child_ok = issues_dir / "child-ok.json"
@@ -288,7 +306,6 @@ def test_update_issue_same_type_becomes_none(
 ) -> None:
     issue = build_issue("kanbus-1", title="Old", status="open", issue_type="task")
     _setup(monkeypatch, tmp_path, issue=issue)
-    monkeypatch.setattr(issue_update, "write_issue_to_file", lambda *_a: None)
     updated = issue_update.update_issue(
         tmp_path,
         "kanbus-1",
@@ -298,7 +315,7 @@ def test_update_issue_same_type_becomes_none(
         assignee=None,
         claim=False,
         issue_type="task",  # line 106 path
-    )
+    ).issue
     assert updated.issue_type == "task"
     assert updated.title == "New"
 
@@ -318,7 +335,6 @@ def test_update_issue_child_non_match_continue_path(
     monkeypatch.setattr(
         issue_update, "validate_parent_child_relationship", lambda *_a: None
     )
-    monkeypatch.setattr(issue_update, "write_issue_to_file", lambda *_a: None)
 
     updated = issue_update.update_issue(
         tmp_path,
@@ -329,7 +345,7 @@ def test_update_issue_child_non_match_continue_path(
         assignee=None,
         claim=False,
         issue_type="story",
-    )
+    ).issue
     assert updated.issue_type == "story"
 
 
@@ -337,18 +353,13 @@ def test_update_issue_event_write_failure_rolls_back(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _setup(monkeypatch, tmp_path)
-    writes: list[str] = []
-    monkeypatch.setattr(
-        issue_update, "write_issue_to_file", lambda *_a: writes.append("w")
-    )
     monkeypatch.setattr(
         issue_update,
-        "write_events_batch",
+        "persist_issue_mutation",
         lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
     )
     with pytest.raises(issue_update.IssueUpdateError, match="event fail"):
         issue_update.update_issue(tmp_path, "kanbus-1", "New", None, None, None, False)
-    assert len(writes) >= 2
 
 
 def test_update_issue_policy_violation(

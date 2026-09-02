@@ -1,0 +1,89 @@
+{
+  "id": "kbs-3b5cc3a5-1e3c-4121-89d8-9094df1f3fc6",
+  "title": "KanbusCloudFoundation NAT Gateway idle cost is too high",
+  "description": "## Implementation Plan: S3 Bridge Sync (No NAT)\n\n### Decision locked\nTwo-Lambda + S3 bridge. No Fargate, no ECS, no CodeBuild, no ALB, no NAT Gateway, no NAT instance, no VPC interface endpoints. ConsoleLambda stays on EFS unchanged. Git sync keeps working.\n\n### Why\nEFS forces compute into a VPC. VPC compute without NAT cannot reach GitHub (Lambda and CodeBuild ENIs get no public IP). The S3 bridge splits the job so no single compute needs both internet and EFS. S3 gateway endpoint is free (no hourly, no per-GB).\n\n### Architecture\n\n1. **Git Sync Lambda (non-VPC, new)** — consumes existing SyncQueue. Does git clone --no-checkout / git fetch / git reset --hard to /tmp, tars the repo, uploads tarball to S3. No VPC, no EFS, free internet.\n2. **S3 bucket (new)** — stores tenant repo tarballs keyed {account}/{project}/{sha}.tar.gz. Lifecycle: expire after 7 days. SSE-S3.\n3. **S3 gateway endpoint (free)** — vpc.add_gateway_endpoint so VPC-isolated Lambdas can read S3 without NAT.\n4. **EFS Writer Lambda (VPC, isolated, EFS, new)** — triggered by S3 object-created. Downloads tarball from S3 via gateway endpoint, extracts to EFS at /mnt/data/{account}/{project}/repo, publishes IoT cloud_sync_completed. VPC-isolated, no internet, no NAT.\n5. **ConsoleLambda (VPC, isolated, EFS, existing)** — unchanged. Reads EFS as today.\n6. **Delete** TenantSyncWorker Lambda + sync_worker.Dockerfile in the same changeset.\n7. **Leave alone:** webhook, token admin, MQTT authorizer (already not in VPC).\n\n### VPC\nnat_gateways=0. Public subnets (unused by compute) + PRIVATE_ISOLATED subnets (ConsoleLambda + EFS Writer Lambda + EFS). No PRIVATE_WITH_EGRESS.\n\n### Files\n- infra/cloud/kanbus_cloud/cloud_stack.py — VPC/subnet/SG rework; ConsoleLambda to isolated; remove TenantSyncWorker; add S3 bucket + lifecycle; add S3 gateway endpoint; add Git Sync Lambda (non-VPC) + EFS Writer Lambda (VPC isolated EFS); wire SQS to Git Sync Lambda; wire S3 event to EFS Writer Lambda; update alarms/outputs.\n- infra/cloud/lambda/sync_git_lib.py (new) — shared git + tarball helpers, no boto3, importable by tests.\n- infra/cloud/lambda/sync_git.py (new) — Git Sync Lambda handler, non-VPC, SQS to S3.\n- infra/cloud/lambda/sync_git.Dockerfile (new) — git binary for Git Sync Lambda.\n- infra/cloud/lambda/sync_efs_writer.py (new) — EFS Writer Lambda handler, VPC isolated, S3 to EFS, IoT publish.\n- infra/cloud/lambda/sync_worker.py (delete)\n- infra/cloud/lambda/sync_worker.Dockerfile (delete)\n- infra/cloud/tests/test_no_nat_idle_cost.py (new) — zero NatGateway, zero ALB, zero ECS, TenantSyncWorker removed, Git Sync not in VPC, EFS Writer in VPC isolated with EFS, S3 gateway endpoint present, S3 bucket with lifecycle, SQS triggers Git Sync, S3 triggers EFS Writer.\n- infra/cloud/tests/test_ops_guardrails.py (modify) — alarm updates.\n- infra/cloud/tests/test_sync_handlers.py (modify) — tests for both new Lambdas.\n- infra/cloud/README.md, docs/CLOUD_OPS_RUNBOOK.md, docs/CLOUD_CONSOLE_RUNTIME.md, docs/CLOUD_LAUNCH_CHECKLIST.md, scripts/cloud/validate_preacceptance.sh (modify) — sync path wording, no Fargate/CodeBuild mentions.\n\n### Cutover\nSingle atomic CDK deploy. Delete TenantSyncWorker + add two new Lambdas + S3 bucket + gateway endpoint in one changeset. One SQS consumer (Git Sync Lambda). One S3 trigger (EFS Writer Lambda). No dual actors.\n\n### Tests\n- test_zero_nat_gateways\n- test_zero_alb_nlb\n- test_zero_ecs_resources\n- test_tenant_sync_worker_removed\n- test_git_sync_lambda_not_in_vpc\n- test_efs_writer_lambda_in_vpc_isolated_with_efs\n- test_s3_gateway_endpoint_present\n- test_sync_bucket_lifecycle_seven_day_expiration\n- test_sqs_triggers_git_sync_lambda_only\n- test_s3_object_created_triggers_efs_writer_lambda\n- test_efs_security_group_restricts_nfs_to_console_and_writer\n\n### Staging smoke\nDeploy KanbusCloudFoundation (AWS_PROFILE=anthus, account 335163751677). No --all, no main. Verify: no NAT on VPC, /api/auth/bootstrap 200, ConsoleLambda logs appear, webhook to SQS to Git Sync to S3 to EFS Writer to EFS to IoT cloud_sync_completed. DLQ empty.\n\n### Out of scope\nFargate, ECS, CodeBuild, ALB/NLB, NAT Gateway, NAT instance, VPC interface endpoints, changes to console_lambda.rs, merge to main, cdk deploy --all.\n\n### Worktree\n/tmp/kanbus-kbs-3b5cc3-s3-bridge on branch fix/kbs-3b5cc3-s3-bridge from origin/develop. PR to develop only.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tskl-eo2.5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "74efc896-09ff-4422-b151-05f04575c535",
+      "author": "home",
+      "text": "Keep hosted board as existing ConsoleLambda. Do not invent Fargate/ECS console compute. NAT comes off by isolating ConsoleLambda on EFS with no egress; TenantSyncWorker becomes public-IP Fargate RunTask (scale to zero, no ALB). Worker worktree will be /tmp/kanbus-kbs-3b5cc3-no-nat on branch fix/kbs-3b5cc3-nat-idle.",
+      "created_at": "2026-09-02T16:01:06.115879Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "2d4f8a11-ac69-4553-9fc6-17b29268a062",
+      "author": "home",
+      "text": "Decision locked: CodeBuild for git sync (on-demand, EFS mount, public subnet, pay per minute, scale to zero) triggered by EventBridge Pipes (SQS to CodeBuild). No Fargate, no NAT, no ALB. ConsoleLambda stays on isolated subnets + EFS. Old PR #199 (Fargate/broken-no-NAT) is obsolete; new branch fix/kbs-3b5cc3-codebuild-sync.",
+      "created_at": "2026-09-02T16:44:05.399143Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "5d7a0700-36c4-4c83-a8f7-6d6e5234a7f7",
+      "author": "home",
+      "text": "Decision locked: two-Lambda + S3 bridge. Non-VPC Git Sync Lambda does git and writes tarball to S3 (free internet, no NAT). VPC-isolated EFS Writer Lambda copies S3 to EFS via free S3 gateway endpoint. ConsoleLambda stays on EFS unchanged. No Fargate, no ECS, no ALB, no NAT. CodeBuild rejected (AWS docs confirm CodeBuild+EFS needs private subnets + NAT). New branch fix/kbs-3b5cc3-s3-bridge.",
+      "created_at": "2026-09-02T16:47:46.792387Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "49fd3905-1235-42fd-8b6a-c61eb420cf66",
+      "author": "home",
+      "text": "Review hold: EFS Writer is VPC-isolated with no NAT and no interface endpoints, but it publishes to IoT data plane over HTTPS. That call cannot succeed without NAT or an IoT VPC endpoint. Completion must hop through a free path (S3/DynamoDB gateway) to a non-VPC notifier. Do not add interface endpoints. Do not merge until this is fixed. Worktree stays /tmp/kanbus-kbs-3b5cc3-s3-bridge.",
+      "created_at": "2026-09-02T17:40:24.393630Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "9a7d849e-4e0a-47e2-86ed-9544fa164b9e",
+      "author": "home",
+      "text": "Plan accepted: S3 completion marker (.synced.json) from isolated EFS Writer, non-VPC Sync Notify Lambda publishes IoT. No NAT, no interface endpoints. Implementing in /tmp/kanbus-kbs-3b5cc3-s3-bridge.",
+      "created_at": "2026-09-02T17:43:12.421122Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "3030fda5-95e6-4150-9385-7b6ace4c86c1",
+      "author": "home",
+      "text": "PR #201 now includes the S3 .synced.json marker and non-VPC SyncNotifyLambda. Staging is still on the first deploy (GitSync + EfsWriter only, no SyncNotify). Sending the implementer to harden extract/notify error handling and redeploy. Not merging until live IoT completion works.",
+      "created_at": "2026-09-02T17:46:32.066892Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "fd1f8bc2-10c3-4390-b5b9-7c6b02ab67c0",
+      "author": "home",
+      "text": "PR https://github.com/AnthusAI/Kanbus/pull/201 is up. Review: notify hop looks correct (writer has no IoT; S3 marker; non-VPC notify). Holding merge for CI. Staging deploy stays operator-gated.",
+      "created_at": "2026-09-02T17:47:32.298433Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "956262d2-0c91-4c75-a6e7-35da7d5d5faf",
+      "author": "home",
+      "text": "Acceptance APPROVE (34 tests). Holding merge of https://github.com/AnthusAI/Kanbus/pull/201 for GitHub CI. Staging KanbusCloudFoundation deploy remains operator-gated.",
+      "created_at": "2026-09-02T17:49:13.814365Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "c819defe-57ff-4a1f-b877-fb2680f350f5",
+      "author": "home",
+      "text": "Merged https://github.com/AnthusAI/Kanbus/pull/201 (9b657f8) to develop. NAT-free S3-bridge sync + notify hop. Staging KanbusCloudFoundation deploy remains operator-gated (AWS_PROFILE=anthus). Tear down /tmp/kanbus-kbs-3b5cc3-s3-bridge.",
+      "created_at": "2026-09-02T17:50:04.144452Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "7e9dc138-deb4-41f3-aa7a-103bf345ccac",
+      "author": "home",
+      "text": "Staging acceptance APPROVE (2026-09-02): NAT deleted, three-lambda S3 bridge live (GitSync non-VPC, EfsWriter VPC+EFS no IoT, SyncNotify non-VPC publishes IoT). Bootstrap 200. Full sync exercised preaccept/accept-135301 sha 218bfbe8: tarball 44.9MB, .synced.json written, SyncNotify completed, DLQ empty. PR #201 ready for manager merge to develop.",
+      "created_at": "2026-09-02T17:54:40.049492Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-02T14:30:02.949582Z",
+  "updated_at": "2026-09-02T17:54:40.049492Z",
+  "closed_at": "2026-09-02T17:50:04.033621Z",
+  "custom": {}
+}

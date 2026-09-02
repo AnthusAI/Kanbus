@@ -192,6 +192,14 @@ def format_issue_for_display(
 
     formatted_identifier = format_issue_key(issue.identifier, project_context)
 
+    right_now_summary = issue.right_now_summary
+    if right_now_summary is None or right_now_summary.strip() == "":
+        right_now_text = "(no right-now summary)"
+        right_now_missing = True
+    else:
+        right_now_text = right_now_summary
+        right_now_missing = False
+
     rows = [
         ("ID:", formatted_identifier, None, False),
         ("Title:", issue.title, None, False),
@@ -201,6 +209,7 @@ def format_issue_for_display(
         ("Assignee:", issue.assignee or "-", None, issue.assignee is None),
         ("Parent:", issue.parent or "-", None, issue.parent is None),
         ("Labels:", labels_text, None, not bool(issue.labels)),
+        ("Right now:", right_now_text, None, right_now_missing),
     ]
 
     lines = []
