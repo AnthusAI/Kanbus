@@ -2060,9 +2060,10 @@ fn execute_command(
                 hook_options,
             )?;
             descendants.push(identifier.clone());
+            let retain_audit_event = !recursive;
             let mut deleted_lines = Vec::new();
             for issue_id in &descendants {
-                delete_issue(root, issue_id)?;
+                delete_issue(root, issue_id, retain_audit_event)?;
                 let formatted_identifier = format_issue_key(issue_id, false);
                 deleted_lines.push(format!("Deleted {}", formatted_identifier));
             }

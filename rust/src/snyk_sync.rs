@@ -23,6 +23,12 @@ use crate::issue_files::{
 };
 use crate::models::{IssueData, SnykConfiguration};
 
+/*
+TODO(Epic 4): Route Snyk sync issue writes through persist_issue_mutation.
+Sync creates and updates many issues in one pull without per-issue events;
+routing requires sync-specific mutation handling without breaking sync specs.
+*/
+
 fn snyk_api_base() -> String {
     std::env::var("KANBUS_SNYK_API_BASE").unwrap_or_else(|_| "https://api.snyk.io".to_string())
 }

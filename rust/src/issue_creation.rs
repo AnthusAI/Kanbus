@@ -5,15 +5,11 @@ use std::path::{Path, PathBuf};
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::event_history::{
-    events_dir_for_local, events_dir_for_project, issue_created_payload, now_timestamp,
-    write_events_batch, EventRecord, EventType,
-};
+use crate::event_history::{issue_created_payload, now_timestamp, EventRecord, EventType};
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::ids::{generate_issue_identifier, issue_identifier_matches, IssueIdentifierRequest};
-use crate::issue_files::{
-    issue_path_for_identifier, list_issue_identifiers, read_issue_from_file, write_issue_to_file,
-};
+use crate::issue_files::{issue_path_for_identifier, list_issue_identifiers, read_issue_from_file};
+use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::users::get_current_user;
 use crate::workflows::validate_status_value;
@@ -163,8 +159,6 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
     }
 
     let issue_path = issue_path_for_identifier(&issues_dir, &issue.identifier);
-    write_issue_to_file(&issue, &issue_path)?;
-
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let event = EventRecord::new(
@@ -174,27 +168,16 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         issue_created_payload(&issue),
         occurred_at,
     );
+    persist_issue_mutation(&PersistIssueMutationRequest {
+        project_dir: project_dir.clone(),
+        issue_path,
+        issue: issue.clone(),
+        actor_id: get_current_user(),
+        events: vec![event.clone()],
+        before_issue: None,
+        relocate_to: None,
+    })?;
     let event_id = event.event_id.clone();
-    let events_dir = if request.local {
-        match events_dir_for_local(&project_dir) {
-            Ok(path) => path,
-            Err(error) => {
-                std::fs::remove_file(&issue_path)
-                    .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
-                return Err(error);
-            }
-        }
-    } else {
-        events_dir_for_project(&project_dir)
-    };
-    match write_events_batch(&events_dir, &[event]) {
-        Ok(_paths) => {}
-        Err(error) => {
-            std::fs::remove_file(&issue_path)
-                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
-            return Err(error);
-        }
-    }
 
     if !request.local {
         crate::gossip::publish_issue_mutation(

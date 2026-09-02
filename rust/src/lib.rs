@@ -38,6 +38,7 @@ pub mod issue_files;
 pub mod issue_line;
 pub mod issue_listing;
 pub mod issue_lookup;
+pub mod issue_mutation;
 pub mod issue_transfer;
 pub mod issue_update;
 pub mod jira_sync;

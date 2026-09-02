@@ -19,6 +19,12 @@ use crate::issue_files::{
 use crate::migration::load_beads_issues;
 use crate::models::{GithubSecurityConfiguration, IssueData};
 
+/*
+TODO(Epic 4): Route GitHub security sync issue writes through persist_issue_mutation.
+Sync creates and updates many issues in one pull without per-issue events;
+routing requires sync-specific mutation handling without breaking sync specs.
+*/
+
 fn github_api_base() -> String {
     std::env::var("KANBUS_GITHUB_API_BASE").unwrap_or_else(|_| "https://api.github.com".to_string())
 }

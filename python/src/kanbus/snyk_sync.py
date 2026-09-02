@@ -32,6 +32,12 @@ from kanbus.issue_files import (
 )
 from kanbus.models import IssueData, SnykConfiguration
 
+"""
+TODO(Epic 4): Route Snyk sync issue writes through persist_issue_mutation.
+Sync creates and updates many issues in one pull without per-issue events;
+routing requires sync-specific mutation handling without breaking sync specs.
+"""
+
 SNYK_API_BASE = os.environ.get("KANBUS_SNYK_API_BASE", "https://api.snyk.io")
 SNYK_API_VERSION = "2025-11-05"
 SNYK_INITIATIVE_TITLE = "Snyk Vulnerability Remediation"

@@ -6,15 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from kanbus.issue_files import read_issue_from_file, write_issue_to_file
+from kanbus.issue_files import read_issue_from_file
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
 from kanbus.models import DependencyLink, IssueData
 from kanbus.event_history import (
     create_event,
     dependency_payload,
-    events_dir_for_issue_path,
     now_timestamp,
-    write_events_batch,
 )
 from kanbus.project import (
     ProjectMarkerError,
@@ -80,24 +79,28 @@ def add_dependency(
             ]
         }
     )
-    write_issue_to_file(updated_issue, source_lookup.issue_path)
-    occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
         issue_id=updated_issue.identifier,
         event_type="dependency_added",
         actor_id=actor_id,
         payload=dependency_payload(dependency_type, target_id),
-        occurred_at=occurred_at,
-    )
-    events_dir = events_dir_for_issue_path(
-        source_lookup.project_dir, source_lookup.issue_path
+        occurred_at=now_timestamp(),
     )
     try:
-        write_events_batch(events_dir, [event])
+        result = persist_issue_mutation(
+            PersistIssueMutationRequest(
+                project_dir=source_lookup.project_dir,
+                issue_path=source_lookup.issue_path,
+                issue=updated_issue,
+                actor_id=actor_id,
+                events=[event],
+                before_issue=source_lookup.issue,
+            )
+        )
     except Exception as error:  # noqa: BLE001
-        write_issue_to_file(source_lookup.issue, source_lookup.issue_path)
         raise DependencyError(str(error)) from error
+    updated_issue = result.issue
     if source_lookup.issue_path.parent == source_lookup.project_dir / "issues":
         publish_issue_mutation(
             root,
@@ -144,24 +147,28 @@ def remove_dependency(
         )
     ]
     updated_issue = source_lookup.issue.model_copy(update={"dependencies": filtered})
-    write_issue_to_file(updated_issue, source_lookup.issue_path)
-    occurred_at = now_timestamp()
     actor_id = get_current_user()
     event = create_event(
         issue_id=updated_issue.identifier,
         event_type="dependency_removed",
         actor_id=actor_id,
         payload=dependency_payload(dependency_type, target_id),
-        occurred_at=occurred_at,
-    )
-    events_dir = events_dir_for_issue_path(
-        source_lookup.project_dir, source_lookup.issue_path
+        occurred_at=now_timestamp(),
     )
     try:
-        write_events_batch(events_dir, [event])
+        result = persist_issue_mutation(
+            PersistIssueMutationRequest(
+                project_dir=source_lookup.project_dir,
+                issue_path=source_lookup.issue_path,
+                issue=updated_issue,
+                actor_id=actor_id,
+                events=[event],
+                before_issue=source_lookup.issue,
+            )
+        )
     except Exception as error:  # noqa: BLE001
-        write_issue_to_file(source_lookup.issue, source_lookup.issue_path)
         raise DependencyError(str(error)) from error
+    updated_issue = result.issue
     if source_lookup.issue_path.parent == source_lookup.project_dir / "issues":
         publish_issue_mutation(
             root,

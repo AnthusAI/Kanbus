@@ -9,7 +9,8 @@ from typing import Optional
 from pydantic import ValidationError
 
 from kanbus.config_loader import load_project_configuration
-from kanbus.issue_files import read_issue_from_file, write_issue_to_file
+from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
+from kanbus.issue_files import read_issue_from_file
 from kanbus.issue_lookup import (
     IssueLookupError,
     load_issue_from_project,
@@ -26,9 +27,7 @@ from kanbus.workflows import (
 )
 from kanbus.event_history import (
     build_update_events,
-    events_dir_for_issue_path,
     now_timestamp,
-    write_events_batch,
 )
 from kanbus.users import get_current_user
 from kanbus.gossip import publish_issue_mutation
@@ -241,7 +240,7 @@ def update_issue(
         )
         updated_issue = updated_issue.model_copy(update={"status": resolved_status})
 
-    update_fields = {"updated_at": current_time}
+    update_fields = {}
     if title is not None:
         update_fields["title"] = title
     if description is not None:
@@ -295,16 +294,23 @@ def update_issue(
             except PolicyViolationError as error:
                 raise IssueUpdateError(str(error)) from error
 
-    write_issue_to_file(updated_issue, lookup.issue_path)
     occurred_at = now_timestamp()
     actor_id = get_current_user()
     events = build_update_events(before_issue, updated_issue, actor_id, occurred_at)
-    events_dir = events_dir_for_issue_path(lookup.project_dir, lookup.issue_path)
     try:
-        write_events_batch(events_dir, events)
+        result = persist_issue_mutation(
+            PersistIssueMutationRequest(
+                project_dir=lookup.project_dir,
+                issue_path=lookup.issue_path,
+                issue=updated_issue,
+                actor_id=actor_id,
+                events=events,
+                before_issue=before_issue,
+            )
+        )
     except Exception as error:  # noqa: BLE001
-        write_issue_to_file(before_issue, lookup.issue_path)
         raise IssueUpdateError(str(error)) from error
+    updated_issue = result.issue
     if lookup.issue_path.parent == lookup.project_dir / "issues":
         event_id = events[0].event_id if events else None
         publish_issue_mutation(

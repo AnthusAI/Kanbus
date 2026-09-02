@@ -119,7 +119,7 @@ Feature: Event history
     And I capture the issue identifier
     Then the event log for the last issue has at least one event
     When I delete the last issue with --yes
-    Then the event log for the last issue should be empty
+    Then the event log for the last issue should include event type "issue_deleted"
 
   Scenario: Recursive delete prunes events for target and descendants
     Given a Kanbus project with default configuration
