@@ -179,35 +179,6 @@ fn then_right_now_summary_result_unset(world: &mut KanbusWorld) {
     assert!(result.is_none());
 }
 
-#[given("mock AI is enabled")]
-fn given_mock_ai_enabled(world: &mut KanbusWorld) {
-    world.ai_mock_env = Some(std::env::var("KANBUS_TEST_AI_MOCK").ok());
-    world.litellm_called_env = Some(std::env::var("KANBUS_RIGHT_NOW_LITELLM_CALLED").ok());
-    std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
-    std::env::remove_var("KANBUS_RIGHT_NOW_LITELLM_CALLED");
-}
-
-#[given(expr = "the Kanbus configuration uses AI provider {string} with model {string}")]
-fn given_kanbus_configuration_uses_ai_provider(
-    world: &mut KanbusWorld,
-    provider: String,
-    model: String,
-) {
-    let root = world.working_directory.as_ref().expect("cwd");
-    let config_path = root.join(".kanbus.yml");
-    let contents = fs::read_to_string(&config_path).expect("read config");
-    let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
-    let mut ai_block = Mapping::new();
-    ai_block.insert(
-        Value::String("provider".to_string()),
-        Value::String(provider),
-    );
-    ai_block.insert(Value::String("model".to_string()), Value::String(model));
-    mapping.insert(Value::String("ai".to_string()), Value::Mapping(ai_block));
-    let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
-    fs::write(config_path, yaml).expect("write config");
-}
-
 #[given("the Kanbus project has no AI configuration")]
 fn given_kanbus_project_has_no_ai_configuration(world: &mut KanbusWorld) {
     let root = world.working_directory.as_ref().expect("cwd");
