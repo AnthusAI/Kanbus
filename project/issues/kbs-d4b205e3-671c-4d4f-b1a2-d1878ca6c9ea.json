@@ -31,10 +31,17 @@
       "text": "Plan accepted. Finish in /private/tmp/kanbus-rough-edges. Commit the existing WIP first (do not stash). Rebase onto origin/develop. Fix the Rust bulk-update seen-insert bug. Revert package-lock.json. kbs-3f9f33 is operational follow-up, not this PR. PR to develop only.",
       "created_at": "2026-09-02T16:10:32.927039Z",
       "comment_type": "default"
+    },
+    {
+      "id": "047f1030-9e87-4cd5-b99a-1ea90bafee44",
+      "author": "home",
+      "text": "Acceptance APPROVE. Drop dogfood kbs-commit board commits from the PR; finish remaining docs; newline parity on Rust messages; open PR to develop.",
+      "created_at": "2026-09-02T16:23:07.673639Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:59:16.552808Z",
-  "updated_at": "2026-09-02T16:10:32.927039Z",
+  "updated_at": "2026-09-02T16:23:07.673639Z",
   "closed_at": null,
   "custom": {
     "project_label": "kbs",
