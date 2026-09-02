@@ -16,7 +16,7 @@ from kanbus.issue_listing import list_issues
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueComment, IssueData, ProjectConfiguration
 from kanbus.overlay import load_overlay_issue, overlay_issue_path, write_overlay_issue
-from kanbus.project import get_configuration_path
+from kanbus.project import ProjectMarkerError, get_configuration_path
 
 RIGHT_NOW_SUMMARY_OPERATION = "right_now_summary"
 LLM_USAGE_LOG = "llm_usage.jsonl"
@@ -415,7 +415,7 @@ def summary_contains_status_keyword(summary: str) -> bool:
 def _load_configuration(root: Path) -> ProjectConfiguration:
     try:
         return load_project_configuration(get_configuration_path(root))
-    except ConfigurationError as error:
+    except (ConfigurationError, ProjectMarkerError) as error:
         raise RightNowError(str(error)) from error
 
 

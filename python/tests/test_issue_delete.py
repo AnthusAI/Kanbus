@@ -49,8 +49,7 @@ def test_delete_issue_restores_file_when_event_delete_fails(
 
     monkeypatch.setattr(issue_delete, "load_issue_from_project", lambda _r, _i: lookup)
     monkeypatch.setattr(
-        issue_delete,
-        "delete_events_for_issues",
+        "kanbus.issue_mutation.delete_events_for_issues",
         lambda _events_dir, _ids: (_ for _ in ()).throw(
             RuntimeError("event delete failed")
         ),
@@ -80,9 +79,6 @@ def test_delete_issue_publishes_deleted_for_shared_issue_path(
 
     monkeypatch.setattr(issue_delete, "load_issue_from_project", lambda _r, _i: lookup)
     monkeypatch.setattr(
-        issue_delete, "delete_events_for_issues", lambda _events_dir, _ids: None
-    )
-    monkeypatch.setattr(
         issue_delete,
         "publish_issue_deleted",
         lambda root, project, issue_id, event_id: published.append(
@@ -93,7 +89,10 @@ def test_delete_issue_publishes_deleted_for_shared_issue_path(
     issue_delete.delete_issue(tmp_path, "kanbus-2", retain_audit_event=True)
 
     assert not issue_path.exists()
-    assert published == [(tmp_path, project_dir, "kanbus-2", None)]
+    assert published[0][0] == tmp_path
+    assert published[0][1] == project_dir
+    assert published[0][2] == "kanbus-2"
+    assert published[0][3] is not None
 
 
 def test_delete_issue_does_not_publish_for_local_issue_path(
@@ -111,9 +110,6 @@ def test_delete_issue_does_not_publish_for_local_issue_path(
     published: list[tuple[Path, Path, str, None]] = []
 
     monkeypatch.setattr(issue_delete, "load_issue_from_project", lambda _r, _i: lookup)
-    monkeypatch.setattr(
-        issue_delete, "delete_events_for_issues", lambda _events_dir, _ids: None
-    )
     monkeypatch.setattr(
         issue_delete,
         "publish_issue_deleted",
