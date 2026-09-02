@@ -1,0 +1,18 @@
+{
+  "id": "kbs-d8377f4e-d5b6-442a-9e89-fcb1b3fa400b",
+  "title": "Discoverable dep help and usage errors",
+  "description": "As a CLI user, I want kanbus dep --help and usage errors to show the real argument shapes with examples, so that I do not guess the syntax.\n\nActual syntax today: kanbus dep <id> blocked-by|relates-to <target> | kanbus dep <id> remove <type> <target> | kanbus dep tree <id>.\nCLI_REFERENCE.md currently documents a nonexistent `kanbus dep add` — correct it.\n\nFeature: Dependency CLI help\n  Scenario: dep help shows examples\n    Given a Kanbus project with default configuration\n    When I run \"kanbus dep --help\"\n    Then the command should succeed\n    And stdout should contain \"blocked-by\"\n    And stdout should contain \"relates-to\"\n    And stdout should contain \"remove\"\n    And stdout should contain \"tree\"\n\n  Scenario: dep with too few arguments shows usage examples\n    Given a Kanbus project with default configuration\n    When I run \"kanbus dep\"\n    Then the command should fail\n    And stderr should contain \"blocked-by\"",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "grok-manager",
+  "creator": null,
+  "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-02T14:59:33.130420Z",
+  "updated_at": "2026-09-02T14:59:44.086407Z",
+  "closed_at": null,
+  "custom": {}
+}

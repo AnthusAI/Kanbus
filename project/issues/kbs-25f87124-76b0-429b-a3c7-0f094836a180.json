@@ -1,0 +1,18 @@
+{
+  "id": "kbs-25f87124-76b0-429b-a3c7-0f094836a180",
+  "title": "list --all shorthand for --limit 0",
+  "description": "As a CLI user, I want kanbus list --all as a shorthand for --limit 0, so that showing every issue is obvious.\n\nPython and Rust must both accept --all. Combining --all with --limit must fail (one way, no dual path).\n\nFeature: List all issues flag\n  Scenario: List --all shows every issue\n    Given a Kanbus project with default configuration\n    And issues \"kanbus-limit-a\" and \"kanbus-limit-b\" exist\n    And an issue \"kanbus-limit-c\" exists\n    When I run \"kanbus list --all\"\n    Then stdout should list issue \"limita\"\n    And stdout should list issue \"limitb\"\n    And stdout should list issue \"limitc\"\n\n  Scenario: List rejects combining --all with --limit\n    Given a Kanbus project with default configuration\n    When I run \"kanbus list --all --limit 2\"\n    Then the command should fail with exit code 1\n    And stderr should contain \"cannot combine --all with --limit\"",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "grok-manager",
+  "creator": null,
+  "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-02T14:59:33.199624Z",
+  "updated_at": "2026-09-02T14:59:44.141871Z",
+  "closed_at": null,
+  "custom": {}
+}
