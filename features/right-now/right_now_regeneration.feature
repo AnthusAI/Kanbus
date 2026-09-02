@@ -97,4 +97,6 @@ Feature: Right now summary regeneration on mutation
     And a newer overlay snapshot for "kanbus-overlay-rn" has no right now summary
     When I update issue "kanbus-overlay-rn" to status "in_progress"
     Then the command should succeed
-    And listing issue "kanbus-overlay-rn" should show the mock right now summary
+    When I run "kanbus now"
+    Then the command should succeed
+    And stdout should contain "Mock right-now summary for kanbus-overlay-rn."
