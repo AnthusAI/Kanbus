@@ -38,10 +38,31 @@
       "text": "Review hold: EFS Writer is VPC-isolated with no NAT and no interface endpoints, but it publishes to IoT data plane over HTTPS. That call cannot succeed without NAT or an IoT VPC endpoint. Completion must hop through a free path (S3/DynamoDB gateway) to a non-VPC notifier. Do not add interface endpoints. Do not merge until this is fixed. Worktree stays /tmp/kanbus-kbs-3b5cc3-s3-bridge.",
       "created_at": "2026-09-02T17:40:24.393630Z",
       "comment_type": "default"
+    },
+    {
+      "id": "9a7d849e-4e0a-47e2-86ed-9544fa164b9e",
+      "author": "home",
+      "text": "Plan accepted: S3 completion marker (.synced.json) from isolated EFS Writer, non-VPC Sync Notify Lambda publishes IoT. No NAT, no interface endpoints. Implementing in /tmp/kanbus-kbs-3b5cc3-s3-bridge.",
+      "created_at": "2026-09-02T17:43:12.421122Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "3030fda5-95e6-4150-9385-7b6ace4c86c1",
+      "author": "home",
+      "text": "PR #201 now includes the S3 .synced.json marker and non-VPC SyncNotifyLambda. Staging is still on the first deploy (GitSync + EfsWriter only, no SyncNotify). Sending the implementer to harden extract/notify error handling and redeploy. Not merging until live IoT completion works.",
+      "created_at": "2026-09-02T17:46:32.066892Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "fd1f8bc2-10c3-4390-b5b9-7c6b02ab67c0",
+      "author": "home",
+      "text": "PR https://github.com/AnthusAI/Kanbus/pull/201 is up. Review: notify hop looks correct (writer has no IoT; S3 marker; non-VPC notify). Holding merge for CI. Staging deploy stays operator-gated.",
+      "created_at": "2026-09-02T17:47:32.298433Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:30:02.949582Z",
-  "updated_at": "2026-09-02T17:40:24.393630Z",
+  "updated_at": "2026-09-02T17:47:32.298433Z",
   "closed_at": null,
   "custom": {}
 }

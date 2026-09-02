@@ -3,7 +3,7 @@
   "title": "Fix CLI dogfood rough edges",
   "description": "## Intent\n\nAs a Kanbus CLI user (and as an agent dogfooding Kanbus), I want no-op updates, board-state commits, list --all, and discoverable dep help so that routine board operations succeed without extra git ceremony or confusing errors.\n\n## In scope\n\n1. Idempotent `kbs update` / `kanbus update` when requested fields already match (especially `--status` already at the target).\n2. A `kbs commit` command that git-commits `project/issues` (not `kbs sync`; sync is Jira/Snyk/GitHub).\n3. Remove stale issue files that `kbs show` reports as not found.\n4. Discoverable `kbs dep --help` and usage errors with real examples; correct CLI_REFERENCE.md (it currently documents the nonexistent `kanbus dep add`).\n5. `kbs list --all` as shorthand for `--limit 0`, Python and Rust parity.\n\n## Out of scope\n\n- Jira/Snyk/GitHub sync behavior\n- Auto-push (commit only; agents still push)\n- Changing `project/events/` gitignore\n- Merging to main\n\n## Definition of Done\n\n- Gherkin scenarios exist for each behavior change and pass in Python (behave/pytest) and Rust (cargo test)\n- Python and Rust produce identical observable CLI behavior\n- PR opened against develop",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -80,11 +80,18 @@
       "text": "Coverage ratchet tests pushed on PR #200 (b0271e23). Python was 98.51 vs 98.57; pytest added for list --all, no-op update, kbs commit. Waiting on CI including coverage-ratchet. Do not merge yet.",
       "created_at": "2026-09-02T17:25:56.521709Z",
       "comment_type": "default"
+    },
+    {
+      "id": "3edb6323-1de5-4152-9ed2-346389efd3d1",
+      "author": "home",
+      "text": "All shipped children closed via https://github.com/AnthusAI/Kanbus/pull/200 squash-merged to develop. Tear down /tmp/kanbus-rough-edges.",
+      "created_at": "2026-09-02T17:47:32.283785Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:59:16.552808Z",
-  "updated_at": "2026-09-02T17:25:56.521709Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T17:47:32.283785Z",
+  "closed_at": "2026-09-02T17:47:32.235458Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
