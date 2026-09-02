@@ -17,6 +17,11 @@ _LAMBDA_DIR = Path(__file__).resolve().parents[3] / "infra" / "cloud" / "lambda"
 if str(_LAMBDA_DIR) not in sys.path:
     sys.path.insert(0, str(_LAMBDA_DIR))
 
+if "boto3" not in sys.modules:
+    boto3_stub = MagicMock()
+    boto3_stub.client = MagicMock(return_value=MagicMock())
+    sys.modules["boto3"] = boto3_stub
+
 import webhook_handler  # type: ignore  # noqa: E402
 
 
