@@ -827,6 +827,7 @@ def when_contact_empty_daemon(context: object) -> None:
 def when_daemon_status_error(context: object) -> None:
     import kanbus.daemon_client as daemon_client
 
+    _set_daemon_env(context, "0")
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
     def fake_request(
@@ -852,6 +853,7 @@ def when_daemon_status_error(context: object) -> None:
 def when_daemon_stop_error(context: object) -> None:
     import kanbus.daemon_client as daemon_client
 
+    _set_daemon_env(context, "0")
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
     def fake_request(
@@ -877,6 +879,7 @@ def when_daemon_stop_error(context: object) -> None:
 def when_daemon_list_error(context: object) -> None:
     import kanbus.daemon_client as daemon_client
 
+    _set_daemon_env(context, "0")
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
     def fake_request(
