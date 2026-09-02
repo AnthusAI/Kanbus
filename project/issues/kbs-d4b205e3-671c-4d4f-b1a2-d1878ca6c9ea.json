@@ -24,10 +24,17 @@
       "text": "Composer 2.5 reviewing existing worktree /private/tmp/kanbus-rough-edges (branch cursor/kanbus-rough-edges-4a21). Uncommitted slice covers idempotent update, kbs commit, list --all, dep help. Plan-then-finish; PR to develop only.",
       "created_at": "2026-09-02T16:04:42.316104Z",
       "comment_type": "default"
+    },
+    {
+      "id": "c16c3d5e-1529-4584-8ee1-795a505f4f26",
+      "author": "home",
+      "text": "Plan accepted. Finish in /private/tmp/kanbus-rough-edges. Commit the existing WIP first (do not stash). Rebase onto origin/develop. Fix the Rust bulk-update seen-insert bug. Revert package-lock.json. kbs-3f9f33 is operational follow-up, not this PR. PR to develop only.",
+      "created_at": "2026-09-02T16:10:32.927039Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:59:16.552808Z",
-  "updated_at": "2026-09-02T16:04:42.316104Z",
+  "updated_at": "2026-09-02T16:10:32.927039Z",
   "closed_at": null,
   "custom": {
     "project_label": "kbs",
