@@ -209,6 +209,15 @@ def test_update_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr(
         cli,
         "update_issue",
+        lambda **_k: build_update_result("kanbus-1", changed=False),
+    )
+    result_no_op = _run(["update", "kanbus-1", "--status", "open", "--no-validate"])
+    assert result_no_op.exit_code == 0
+    assert "No changes for kanbus-1" in result_no_op.output
+
+    monkeypatch.setattr(
+        cli,
+        "update_issue",
         lambda **_k: (_ for _ in ()).throw(IssueUpdateError("update fail")),
     )
     result_regular_fail = _run(["update", "kanbus-1", "--no-validate"])

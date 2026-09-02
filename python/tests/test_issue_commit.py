@@ -5,6 +5,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from kanbus.issue_commit import commit_project_issues
 
 
@@ -87,3 +89,95 @@ def test_commit_project_issues_leaves_events_uncommitted(
         if path
     )
     assert (root / "project" / "events" / "event-1.json").is_file()
+
+
+def test_commit_project_issues_raises_when_project_directory_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path
+    subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
+    (root / ".kanbus.yml").write_text("project_key: kanbus\n", encoding="utf-8")
+
+    from kanbus.issue_commit import IssueCommitError, commit_project_issues
+    from kanbus.project import ProjectMarkerError
+
+    monkeypatch.setattr(
+        "kanbus.issue_commit.load_project_directory",
+        lambda _root: (_ for _ in ()).throw(ProjectMarkerError("project missing")),
+    )
+
+    with pytest.raises(IssueCommitError, match="project missing"):
+        commit_project_issues(root)
+
+
+def test_commit_project_issues_raises_when_issues_directory_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path
+    subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
+    project_dir = root / "project"
+    project_dir.mkdir()
+    (root / ".kanbus.yml").write_text("project_key: kanbus\n", encoding="utf-8")
+
+    from kanbus.issue_commit import IssueCommitError, commit_project_issues
+
+    with pytest.raises(IssueCommitError, match="project not initialized"):
+        commit_project_issues(root)
+
+
+def test_commit_project_issues_raises_when_git_add_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _init_repo_with_project(tmp_path)
+    (root / "project" / "issues" / "kanbus-test.json").write_text(
+        '{"identifier":"kanbus-test","title":"Test"}',
+        encoding="utf-8",
+    )
+
+    from kanbus.issue_commit import IssueCommitError, commit_project_issues
+
+    original_run = subprocess.run
+
+    def _fail_git_add(args, **kwargs):
+        if len(args) >= 2 and args[1] == "add":
+            return subprocess.CompletedProcess(
+                args=args,
+                returncode=1,
+                stdout="",
+                stderr="git add failed",
+            )
+        return original_run(args, **kwargs)
+
+    monkeypatch.setattr("kanbus.issue_commit.subprocess.run", _fail_git_add)
+
+    with pytest.raises(IssueCommitError, match="git add failed"):
+        commit_project_issues(root)
+
+
+def test_commit_project_issues_raises_when_git_commit_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _init_repo_with_project(tmp_path)
+    (root / "project" / "issues" / "kanbus-test.json").write_text(
+        '{"identifier":"kanbus-test","title":"Test"}',
+        encoding="utf-8",
+    )
+
+    from kanbus.issue_commit import IssueCommitError, commit_project_issues
+
+    original_run = subprocess.run
+
+    def _git_run(args, **kwargs):
+        if "commit" in args:
+            return subprocess.CompletedProcess(
+                args=args,
+                returncode=1,
+                stdout="",
+                stderr="git commit failed",
+            )
+        return original_run(args, **kwargs)
+
+    monkeypatch.setattr("kanbus.issue_commit.subprocess.run", _git_run)
+
+    with pytest.raises(IssueCommitError, match="git commit failed"):
+        commit_project_issues(root)
