@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
@@ -363,6 +363,89 @@ def regenerate_right_now_for_issue(root: Path, issue_identifier: str) -> None:
         )
     except OSError:
         return
+
+
+def right_now_summary_is_missing_or_stale(issue: IssueData) -> bool:
+    """Return whether an issue needs a just-in-time right-now summary.
+
+    :param issue: Issue to inspect.
+    :type issue: IssueData
+    :return: True when the summary is absent or older than the issue.
+    :rtype: bool
+    """
+    summary = issue.right_now_summary
+    if summary is None or not summary.strip():
+        return True
+    if issue.right_now_updated_at is None:
+        return False
+    return issue.updated_at > issue.right_now_updated_at
+
+
+def ensure_right_now_subtree(
+    root: Path,
+    issue_identifier: str,
+    memo: Optional[Dict[str, bool]] = None,
+) -> bool:
+    """Backfill right-now summaries for an issue after its descendants.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue_identifier: Issue identifier to ensure.
+    :type issue_identifier: str
+    :param memo: Per-walk cache of whether a subtree generated a summary.
+    :type memo: Optional[Dict[str, bool]]
+    :return: True when this subtree generated or refreshed a summary.
+    :rtype: bool
+    """
+    if memo is None:
+        memo = {}
+    if issue_identifier in memo:
+        return memo[issue_identifier]
+    try:
+        children = load_child_issues(root, issue_identifier)
+    except IssueListingError:
+        memo[issue_identifier] = False
+        return False
+    descendant_generated = False
+    for child in children:
+        if ensure_right_now_subtree(root, child.identifier, memo):
+            descendant_generated = True
+    try:
+        lookup = load_issue_from_project(root, issue_identifier)
+    except IssueLookupError:
+        memo[issue_identifier] = False
+        return False
+    should_generate = descendant_generated or right_now_summary_is_missing_or_stale(
+        lookup.issue
+    )
+    generated = False
+    if should_generate:
+        previous_summary = lookup.issue.right_now_summary
+        previous_updated = lookup.issue.right_now_updated_at
+        regenerate_right_now_for_issue(root, issue_identifier)
+        try:
+            after = load_issue_from_project(root, issue_identifier).issue
+            generated = (
+                after.right_now_summary != previous_summary
+                or after.right_now_updated_at != previous_updated
+            )
+        except IssueLookupError:
+            generated = False
+    memo[issue_identifier] = generated or descendant_generated
+    return memo[issue_identifier]
+
+
+def ensure_right_now_summaries(root: Path, issue_identifiers: List[str]) -> None:
+    """Backfill right-now summaries for issues and their descendants.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue_identifiers: Issue identifiers in the current Now view.
+    :type issue_identifiers: List[str]
+    """
+    memo: Dict[str, bool] = {}
+    for identifier in issue_identifiers:
+        ensure_right_now_subtree(root, identifier, memo)
 
 
 def regenerate_right_now_for_issue_and_ancestors(

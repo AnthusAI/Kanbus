@@ -196,6 +196,7 @@ async fn main() {
         .route("/assets/*path", get(get_public_asset))
         .route("/api/config", get(get_config_root))
         .route("/api/issues", get(get_issues_root))
+        .route("/api/now", get(get_now_root))
         .route("/api/issues/:id", get(get_issue_root))
         .route("/api/issues/:id/events", get(get_issue_events_root))
         .route("/api/events", get(get_events_root))
@@ -230,6 +231,7 @@ async fn main() {
         .route("/favicon.ico", get(get_favicon))
         .route("/:account/:project/api/config", get(get_config))
         .route("/:account/:project/api/issues", get(get_issues))
+        .route("/:account/:project/api/now", get(get_now))
         .route("/:account/:project/api/issues/:id", get(get_issue))
         .route(
             "/:account/:project/api/issues/:id/events",
@@ -508,6 +510,40 @@ async fn get_issues_root(State(state): State<AppState>) -> Response {
     };
     match store.build_snapshot() {
         Ok(snapshot) => Json(snapshot.issues).into_response(),
+        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn get_now(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    now_snapshot_response(store).await
+}
+
+async fn get_now_root(State(state): State<AppState>) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    now_snapshot_response(store).await
+}
+
+async fn now_snapshot_response(store: FileStore) -> Response {
+    let result = tokio::task::spawn_blocking(move || {
+        store.ensure_right_now_summaries()?;
+        store.build_snapshot()
+    })
+    .await;
+    match result {
+        Ok(Ok(snapshot)) => Json(snapshot.issues).into_response(),
+        Ok(Err(error)) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
         Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

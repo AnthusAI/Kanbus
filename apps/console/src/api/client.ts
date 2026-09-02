@@ -243,6 +243,14 @@ export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
   };
 }
 
+export async function fetchNowIssues(apiBase: string): Promise<Issue[]> {
+  const response = await fetchWithAuth(`${apiBase}/now`);
+  if (!response.ok) {
+    throw new Error(`now request failed: ${response.status}`);
+  }
+  return (await response.json()) as Issue[];
+}
+
 export function subscribeToSnapshots(
   apiBase: string,
   onSnapshot: (snapshot: IssuesSnapshot) => void,

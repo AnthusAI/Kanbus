@@ -14,7 +14,7 @@ from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.queries import sort_issues_by_recently_updated
-from kanbus.right_now import get_right_now_summary
+from kanbus.right_now import ensure_right_now_summaries, get_right_now_summary
 
 RIGHT_NOW_PLACEHOLDER = "(no right-now summary)"
 DEFAULT_RIGHT_NOW_LIMIT = 30
@@ -88,6 +88,18 @@ def run_right_now_command(
     effective_limit = _effective_right_now_limit(options)
     if effective_limit > 0:
         sorted_issues = sorted_issues[:effective_limit]
+    if not options.raw:
+        ensure_right_now_summaries(
+            root,
+            [issue.identifier for issue in sorted_issues],
+        )
+        reloaded: List[IssueData] = []
+        for issue in sorted_issues:
+            try:
+                reloaded.append(load_issue_from_project(root, issue.identifier).issue)
+            except IssueLookupError:
+                reloaded.append(issue)
+        sorted_issues = reloaded
     configuration = _load_configuration(root)
     tree_expanded = _resolve_tree_expanded(options, configuration)
     if options.as_json:
