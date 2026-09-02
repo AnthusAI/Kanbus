@@ -3,7 +3,7 @@
   "title": "GitHub pushes cannot refresh the hosted board",
   "description": "## Problem\nThe hosted board at `/dev/anthus/kanbus/` works after a **manually signed** POST to `/internal/webhooks/github` with `X-Kanbus-Account` and `X-Kanbus-Project`.\n\nGitHub cannot send those headers. `AnthusAI/Kanbus` also has no webhook to KanbusCloudFoundation (only Amplify and Snyk). Live `develop` pushes do not refresh EFS.\n\n## Why registering the current URL is not enough\n`webhook_handler.py` returns 400 without `X-Kanbus-Account` / `X-Kanbus-Project`. A GitHub repository webhook only sends `X-Hub-Signature-256`, `X-GitHub-Event`, and `X-GitHub-Delivery`.\n\n## Locked direction (unless planner finds a better one-way)\n1. Accept tenant from the path, e.g. `POST /internal/webhooks/github/{account}/{project}`, same HMAC secret. Keep one way; do not also require headers.\n2. Gherkin first; Python and Rust parity if any CLI/docs mention the contract.\n3. Register a GitHub `push` webhook on AnthusAI/Kanbus to that URL with the Secrets Manager HMAC secret.\n4. Prove with a real GitHub delivery (or GitHub red\u00e9livery of a push) that `anthus/kanbus` syncs without custom headers.\n\n## DoD\n- GitHub can POST without `X-Kanbus-*` headers and still enqueue the right tenant.\n- Hook exists on AnthusAI/Kanbus pointing at KanbusCloudFoundation ingress.\n- A real push (or GitHub red\u00e9livery of a push) creates S3 `anthus/kanbus/{sha}.tar.gz` and `.synced.json`.\n- No NAT, no interface endpoints, no Fargate.\n\n## Out of scope\nWiki 404 on the hosted console. Merge to main.\n\n## Worktree\nPlanner names a unique worktree and branch from origin/develop. PR to develop only.",
   "type": "bug",
-  "status": "blocked",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -46,11 +46,20 @@
       "comment_type": "default",
       "data": {},
       "agent": null
+    },
+    {
+      "id": "fcb49d1a-9017-4734-aea2-449f2fc679e1",
+      "author": "home",
+      "text": "Live proof: GitHub hook already posts to /internal/webhooks/github/anthus/kanbus and returns 202. Develop pushes wrote S3 anthus/kanbus/{sha}.tar.gz plus .synced.json (e.g. 554f2352, c8075fa6, 903b9cb7). Closing.",
+      "created_at": "2026-09-02T20:34:26.037620Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
     }
   ],
   "created_at": "2026-09-02T18:35:10.358594Z",
-  "updated_at": "2026-09-02T20:25:07.622952Z",
-  "closed_at": null,
+  "updated_at": "2026-09-02T20:34:26.819380Z",
+  "closed_at": "2026-09-02T20:34:26.761100Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {},
