@@ -3,19 +3,26 @@
   "title": "Implement StatusTree and wire CurrentStatusPanel",
   "description": "packages/ui StatusTree plus CurrentStatusPanel tree toggle. Python and Rust console steps must stay in parity.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": "kbs-9957f09f-4186-4ca7-ab69-41e94b582715",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "5c4ba496-6a7a-451a-9e81-ede12f96dba0",
+      "author": "ubuntu",
+      "text": "StatusTree component wired into CurrentStatusPanel; Python and Rust tree steps in parity.",
+      "created_at": "2026-09-02T16:37:01.961976Z"
+    }
+  ],
   "created_at": "2026-09-02T16:26:39.712656Z",
-  "updated_at": "2026-09-02T16:27:51.407806Z",
-  "closed_at": null,
-  "right_now_summary": "Implementing StatusTree and the CurrentStatusPanel toggle while keeping Python and Rust steps aligned.",
-  "right_now_updated_at": "2026-09-02T16:27:55.980922Z",
+  "updated_at": "2026-09-02T16:37:12.758412Z",
+  "closed_at": "2026-09-02T16:37:12.735278Z",
+  "right_now_summary": "StatusTree is wired into CurrentStatusPanel, with Python and Rust console steps kept in sync.",
+  "right_now_updated_at": "2026-09-02T16:37:18.319624Z",
   "custom": {
     "source": "shared",
     "project_label": "kbs"
