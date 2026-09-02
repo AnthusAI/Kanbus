@@ -405,7 +405,7 @@ fn markdown_code_excluded_ranges(content: &str) -> Vec<(usize, usize)> {
     let mut index = 0;
     let content_bytes = content.as_bytes();
     while index < content_bytes.len() {
-        if content[index..].starts_with("```") {
+        if content_bytes[index..].starts_with(b"```") {
             let range_start = index;
             index += 3;
             while index < content_bytes.len() && content_bytes[index] != b'\n' {
@@ -415,7 +415,7 @@ fn markdown_code_excluded_ranges(content: &str) -> Vec<(usize, usize)> {
                 index += 1;
             }
             while index < content_bytes.len() {
-                if content[index..].starts_with("```") {
+                if content_bytes[index..].starts_with(b"```") {
                     index += 3;
                     if index < content_bytes.len() && content_bytes[index] == b'\n' {
                         index += 1;
@@ -430,11 +430,11 @@ fn markdown_code_excluded_ranges(content: &str) -> Vec<(usize, usize)> {
             }
             continue;
         }
-        if content[index..].starts_with("``") && !content[index..].starts_with("```") {
+        if content_bytes[index..].starts_with(b"``") && !content_bytes[index..].starts_with(b"```") {
             let range_start = index;
             index += 2;
             while index < content_bytes.len() {
-                if content[index..].starts_with("``") {
+                if content_bytes[index..].starts_with(b"``") {
                     index += 2;
                     excluded_ranges.push((range_start, index));
                     break;
@@ -1187,4 +1187,37 @@ pub fn list_wiki_pages(root: &Path) -> Result<Vec<String>, KanbusError> {
         .map(|page| format!("{}/{}", prefix, page))
         .collect();
     Ok(pages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression: `markdown_code_excluded_ranges` must not panic on multi-byte
+    /// UTF-8 characters (e.g. em-dash `—`, U+2014) when iterating byte-by-byte.
+    /// Before the fix, `content[index..]` (a `&str` slice) panicked because
+    /// `index` landed inside a 3-byte em-dash. The fix uses `content_bytes[index..]`
+    /// (a `&[u8]` slice) which never panics on byte boundaries.
+    #[test]
+    fn code_excluded_ranges_handles_multibyte_utf8() {
+        // Content with an em-dash before a code fence — this is the panic case.
+        let content = "# Title — Heading\n\n```\ncode\n```\n";
+        let ranges = markdown_code_excluded_ranges(content);
+        assert!(!ranges.is_empty(), "should detect the code fence");
+        assert_eq!(ranges[0].0, content.find("```").unwrap());
+    }
+
+    #[test]
+    fn code_excluded_ranges_no_code_blocks() {
+        let content = "# Title — no code here\n\nJust text — with em-dashes.\n";
+        let ranges = markdown_code_excluded_ranges(content);
+        assert!(ranges.is_empty(), "no code fences should yield no ranges");
+    }
+
+    #[test]
+    fn code_excluded_ranges_multiple_em_dashes_before_fence() {
+        let content = "A — B — C\n```\nx\n```\nD — E\n```\ny\n```\n";
+        let ranges = markdown_code_excluded_ranges(content);
+        assert_eq!(ranges.len(), 3, "should detect all code fence ranges");
+    }
 }
