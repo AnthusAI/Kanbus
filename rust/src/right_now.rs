@@ -90,6 +90,147 @@ pub fn mock_right_now_summary_text(identifier: &str) -> String {
     format!("Mock right-now summary for {identifier}.")
 }
 
+/// Return a child's compaction full summary when present.
+///
+/// On this branch no compaction/full-summary tier exists, so a child
+/// full summary is never available and this always returns `None`. When a
+/// full-summary tier lands, this helper is updated there (alongside the
+/// `IssueComment` comment_type field) rather than speculatively here.
+///
+/// # Arguments
+///
+/// * `issue` - Child issue to inspect.
+///
+/// # Returns
+///
+/// Full summary text, or `None` when no compaction artifact exists.
+pub fn get_child_full_summary(_issue: &IssueData) -> Option<String> {
+    None
+}
+
+/// Render a bounded raw child summary from title, description, and activity.
+///
+/// # Arguments
+///
+/// * `issue` - Child issue to render.
+///
+/// # Returns
+///
+/// Bounded raw child summary text.
+pub fn build_bounded_raw_child_summary(issue: &IssueData) -> String {
+    let recent_comments = select_recent_non_summary_comments(&issue.comments);
+    let activity_lines: Vec<String> = recent_comments
+        .iter()
+        .map(|comment| format!("{}: {}", comment.author, comment.text))
+        .collect();
+    let recent_activity = bound_activity_text(&activity_lines.join("\n"));
+    let raw_text = format!(
+        "Title: {}\nDescription: {}\nRecent activity:\n{}",
+        issue.title, issue.description, recent_activity
+    );
+    bound_activity_text(&raw_text)
+}
+
+/// Resolve the summary text used when rolling a child into parent context.
+///
+/// # Arguments
+///
+/// * `issue` - Child issue to resolve.
+///
+/// # Returns
+///
+/// Child summary text from right-now cache, full summary, or raw issue.
+pub fn resolve_child_summary(issue: &IssueData) -> String {
+    if let Some(summary) = issue.right_now_summary.as_ref() {
+        return summary.clone();
+    }
+    if let Some(full_summary) = get_child_full_summary(issue) {
+        return full_summary;
+    }
+    build_bounded_raw_child_summary(issue)
+}
+
+/// Assemble parent-issue context from own fields and child summaries.
+///
+/// # Arguments
+///
+/// * `issue` - Parent issue to build context for.
+/// * `children` - Direct child issues.
+///
+/// # Returns
+///
+/// Structured right-now context with child summaries.
+pub fn build_parent_right_now_context(
+    issue: &IssueData,
+    children: &[IssueData],
+) -> RightNowContext {
+    let leaf_context = build_leaf_right_now_context(issue);
+    let child_summaries = children
+        .iter()
+        .map(|child| RightNowChildSummary {
+            identifier: child.identifier.clone(),
+            summary: resolve_child_summary(child),
+        })
+        .collect();
+    RightNowContext {
+        title: leaf_context.title,
+        description: leaf_context.description,
+        recent_activity: leaf_context.recent_activity,
+        child_summaries: Some(child_summaries),
+    }
+}
+
+/// Assemble right-now context for a leaf or parent issue.
+///
+/// # Arguments
+///
+/// * `issue` - Issue to build context for.
+/// * `children` - Direct child issues, or an empty slice for leaf issues.
+///
+/// # Returns
+///
+/// Structured right-now context.
+pub fn build_right_now_context(issue: &IssueData, children: &[IssueData]) -> RightNowContext {
+    if children.is_empty() {
+        build_leaf_right_now_context(issue)
+    } else {
+        build_parent_right_now_context(issue, children)
+    }
+}
+
+/// Load direct child issues for a parent issue identifier.
+///
+/// # Arguments
+///
+/// * `root` - Repository root path.
+/// * `issue_identifier` - Parent issue identifier.
+///
+/// # Returns
+///
+/// Child issues whose parent matches the identifier.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when issue listing fails.
+pub fn load_child_issues(
+    root: &Path,
+    issue_identifier: &str,
+) -> Result<Vec<IssueData>, KanbusError> {
+    crate::issue_listing::list_issues(
+        root,
+        None,
+        None,
+        None,
+        None,
+        Some(issue_identifier),
+        None,
+        None,
+        &[],
+        true,
+        false,
+    )
+}
+
 /// Assemble leaf-issue context from title, description, and recent comments.
 ///
 /// # Arguments

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.issue_listing import list_issues
 from kanbus.models import IssueComment, IssueData, ProjectConfiguration
 from kanbus.project import get_configuration_path
 
@@ -86,6 +87,120 @@ def mock_right_now_summary_text(identifier: str) -> str:
     :rtype: str
     """
     return f"Mock right-now summary for {identifier}."
+
+
+def get_child_full_summary(issue: IssueData) -> Optional[str]:
+    """Return a child's compaction full summary when present.
+
+    On this branch no compaction/full-summary tier exists, so a child
+    full summary is never available and this always returns None. When a
+    full-summary tier lands, this helper is updated there (alongside the
+    IssueComment comment_type field) rather than speculatively here.
+
+    :param issue: Child issue to inspect.
+    :type issue: IssueData
+    :return: Full summary text, or None when no compaction artifact exists.
+    :rtype: Optional[str]
+    """
+    return None
+
+
+def build_bounded_raw_child_summary(issue: IssueData) -> str:
+    """Render a bounded raw child summary from title, description, and activity.
+
+    :param issue: Child issue to render.
+    :type issue: IssueData
+    :return: Bounded raw child summary text.
+    :rtype: str
+    """
+    recent_comments = _select_recent_non_summary_comments(issue.comments)
+    activity_lines = [
+        f"{comment.author}: {comment.text}" for comment in recent_comments
+    ]
+    recent_activity = _bound_activity_text("\n".join(activity_lines))
+    raw_text = (
+        f"Title: {issue.title}\n"
+        f"Description: {issue.description}\n"
+        f"Recent activity:\n{recent_activity}"
+    )
+    return _bound_activity_text(raw_text)
+
+
+def resolve_child_summary(issue: IssueData) -> str:
+    """Resolve the summary text used when rolling a child into parent context.
+
+    :param issue: Child issue to resolve.
+    :type issue: IssueData
+    :return: Child summary text from right-now cache, full summary, or raw issue.
+    :rtype: str
+    """
+    if issue.right_now_summary:
+        return issue.right_now_summary
+    full_summary = get_child_full_summary(issue)
+    if full_summary:
+        return full_summary
+    return build_bounded_raw_child_summary(issue)
+
+
+def build_parent_right_now_context(
+    issue: IssueData,
+    children: List[IssueData],
+) -> RightNowContext:
+    """Assemble parent-issue context from own fields and child summaries.
+
+    :param issue: Parent issue to build context for.
+    :type issue: IssueData
+    :param children: Direct child issues.
+    :type children: List[IssueData]
+    :return: Structured right-now context with child summaries.
+    :rtype: RightNowContext
+    """
+    leaf_context = build_leaf_right_now_context(issue)
+    child_summaries = [
+        RightNowChildSummary(
+            identifier=child.identifier,
+            summary=resolve_child_summary(child),
+        )
+        for child in children
+    ]
+    return RightNowContext(
+        title=leaf_context.title,
+        description=leaf_context.description,
+        recent_activity=leaf_context.recent_activity,
+        child_summaries=child_summaries,
+    )
+
+
+def build_right_now_context(
+    issue: IssueData,
+    children: List[IssueData],
+) -> RightNowContext:
+    """Assemble right-now context for a leaf or parent issue.
+
+    :param issue: Issue to build context for.
+    :type issue: IssueData
+    :param children: Direct child issues, or an empty list for leaf issues.
+    :type children: List[IssueData]
+    :return: Structured right-now context.
+    :rtype: RightNowContext
+    """
+    if not children:
+        return build_leaf_right_now_context(issue)
+    return build_parent_right_now_context(issue, children)
+
+
+def load_child_issues(root: Path, issue_identifier: str) -> List[IssueData]:
+    """Load direct child issues for a parent issue identifier.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue_identifier: Parent issue identifier.
+    :type issue_identifier: str
+    :return: Child issues whose parent matches the identifier.
+    :rtype: List[IssueData]
+    :raises IssueListingError: When issue listing fails.
+    """
+    return list_issues(root, parent=issue_identifier)
 
 
 def build_leaf_right_now_context(issue: IssueData) -> RightNowContext:
