@@ -1,0 +1,36 @@
+{
+  "id": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
+  "title": "Fix CLI dogfood rough edges",
+  "description": "## Intent\n\nAs a Kanbus CLI user (and as an agent dogfooding Kanbus), I want no-op updates, board-state commits, list --all, and discoverable dep help so that routine board operations succeed without extra git ceremony or confusing errors.\n\n## In scope\n\n1. Idempotent `kbs update` / `kanbus update` when requested fields already match (especially `--status` already at the target).\n2. A `kbs commit` command that git-commits `project/issues` (not `kbs sync`; sync is Jira/Snyk/GitHub).\n3. Remove stale issue files that `kbs show` reports as not found.\n4. Discoverable `kbs dep --help` and usage errors with real examples; correct CLI_REFERENCE.md (it currently documents the nonexistent `kanbus dep add`).\n5. `kbs list --all` as shorthand for `--limit 0`, Python and Rust parity.\n\n## Out of scope\n\n- Jira/Snyk/GitHub sync behavior\n- Auto-push (commit only; agents still push)\n- Changing `project/events/` gitignore\n- Merging to main\n\n## Definition of Done\n\n- Gherkin scenarios exist for each behavior change and pass in Python (behave/pytest) and Rust (cargo test)\n- Python and Rust produce identical observable CLI behavior\n- PR opened against develop",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "197628de-05ae-456e-8908-6ed1f445ed14",
+      "author": "home",
+      "text": "Composer 2.5 will plan then implement in worktree /tmp/kanbus-rough-edges on branch cursor/kanbus-rough-edges-4a21 from origin/develop.",
+      "created_at": "2026-09-02T14:59:33.571950Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "399acdee-9da9-461c-b7f6-1fa760ca8a09",
+      "author": "home",
+      "text": "Composer 2.5 reviewing existing worktree /private/tmp/kanbus-rough-edges (branch cursor/kanbus-rough-edges-4a21). Uncommitted slice covers idempotent update, kbs commit, list --all, dep help. Plan-then-finish; PR to develop only.",
+      "created_at": "2026-09-02T16:04:42.316104Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-02T14:59:16.552808Z",
+  "updated_at": "2026-09-02T16:04:42.316104Z",
+  "closed_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
