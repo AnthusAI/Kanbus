@@ -118,7 +118,7 @@ def build_bounded_raw_child_summary(issue: IssueData) -> str:
     """
     recent_comments = _select_recent_non_summary_comments(issue.comments)
     activity_lines = [
-        f"{comment.author}: {comment.text}" for comment in recent_comments
+        f"{comment.author}: {comment.text or ''}" for comment in recent_comments
     ]
     recent_activity = _bound_activity_text("\n".join(activity_lines))
     raw_text = (
@@ -216,7 +216,7 @@ def build_leaf_right_now_context(issue: IssueData) -> RightNowContext:
     """
     recent_comments = _select_recent_non_summary_comments(issue.comments)
     activity_lines = [
-        f"{comment.author}: {comment.text}" for comment in recent_comments
+        f"{comment.author}: {comment.text or ''}" for comment in recent_comments
     ]
     recent_activity = _bound_activity_text("\n".join(activity_lines))
     return RightNowContext(
@@ -444,7 +444,7 @@ def _select_recent_non_summary_comments(
     filtered = [
         comment
         for comment in comments
-        if not comment.text.strip().lower().startswith("summary:")
+        if not (comment.text or "").strip().lower().startswith("summary:")
     ]
     return filtered[-MAX_RECENT_COMMENTS:]
 

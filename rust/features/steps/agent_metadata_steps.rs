@@ -32,6 +32,8 @@ fn build_issue(identifier: &str, title: &str, issue_type: &str, status: &str) ->
         updated_at: timestamp,
         closed_at: None,
         agent: None,
+        right_now_summary: None,
+        right_now_updated_at: None,
         custom: Default::default(),
     }
 }

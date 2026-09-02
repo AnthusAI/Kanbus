@@ -1158,7 +1158,6 @@ mod tests {
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
     use std::sync::{mpsc, Mutex};
-    use std::io::{Read, Write};
     use tempfile::TempDir;
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
@@ -1200,7 +1199,6 @@ mod tests {
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
         std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
     }
-
 
     #[test]
     fn test_gossip_server_and_broadcast() {
@@ -1246,7 +1244,6 @@ mod tests {
 
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-
 
     #[test]
     fn publish_uds_if_available_returns_false_without_socket() {

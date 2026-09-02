@@ -217,6 +217,7 @@ fn given_status_issue(world: &mut KanbusWorld, title: String, timestamp: String)
         priority: 2,
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
+        agent: None,
         right_now_summary: None,
     });
 }
@@ -244,6 +245,7 @@ fn given_status_hierarchy_root(
         priority: 2,
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
+        agent: None,
         right_now_summary: None,
     });
 }
@@ -274,6 +276,7 @@ fn given_status_hierarchy_child(
         priority: 2,
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
+        agent: None,
         right_now_summary: None,
     });
 }
@@ -314,6 +317,7 @@ fn given_thirty_five_status_issues(world: &mut KanbusWorld) {
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
+            agent: None,
             right_now_summary: None,
         });
     }

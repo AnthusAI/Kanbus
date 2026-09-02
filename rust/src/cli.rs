@@ -4269,7 +4269,7 @@ mod additional_cli_tests {
 
     #[test]
     fn test_merge_issue_views_full_coverage() {
-        let mut beads = IssueData {
+        let beads = IssueData {
             identifier: "test-1".to_string(),
             title: "beads title".to_string(),
             description: "".to_string(),
